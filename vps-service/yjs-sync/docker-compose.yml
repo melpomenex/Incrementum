@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   yjs-sync:
     image: node:20-alpine
@@ -10,7 +8,7 @@ services:
           npm init -y >/dev/null 2>&1;
         fi;
         npm install --no-save y-websocket@^1.5.4 >/dev/null 2>&1;
-        YPERSISTENCE=/data PORT=1234 node node_modules/y-websocket/bin/server.js
+        YPERSISTENCE=/data PORT=1234 HOST=0.0.0.0 node node_modules/y-websocket/bin/server.js
       "
     environment:
       - YPERSISTENCE=/data
@@ -18,7 +16,34 @@ services:
     volumes:
       - yjs_data:/data
       - yjs_app:/app
+    networks:
+      - internal
     restart: unless-stopped
+
+  transcript-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.transcript
+    container_name: transcript-service
+    restart: unless-stopped
+    ports:
+      - "8766:8766"  # Expose to all interfaces (protected by Tailscale firewall)
+    environment:
+      - TRANSCRIPT_API_KEY=${TRANSCRIPT_API_KEY:-change-me-in-production}
+      - PROXY_HOST=${PROXY_HOST:-us.decodo.com}
+      - PROXY_PORT=${PROXY_PORT:-10001}
+      - PROXY_USER=${PROXY_USER:-sps486nntn}
+      - PROXY_PASS=${PROXY_PASS:-Yi7uqUnrbIK6au=7o0}
+    volumes:
+      - transcript_cache:/app/transcript_cache
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8766/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
 
   caddy:
     image: caddy:2-alpine
@@ -36,6 +61,9 @@ services:
       - caddy_config:/config
     depends_on:
       - yjs-sync
+      - transcript-service
+    networks:
+      - internal
     restart: unless-stopped
 
 volumes:
@@ -43,3 +71,8 @@ volumes:
   yjs_app:
   caddy_data:
   caddy_config:
+  transcript_cache:
+
+networks:
+  internal:
+    driver: bridge
