@@ -66,18 +66,6 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install create-dmg
 
-      - name: Install sqlite3 (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          $env:VCPKG_ROOT = "C:\\vcpkg"
-          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
-          C:\\vcpkg\\vcpkg.exe install sqlite3:x64-windows
-          "VCPKG_ROOT=$env:VCPKG_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "LIBSQLITE3_SYS_USE_VCPKG=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "LIB=$env:VCPKG_ROOT\\installed\\x64-windows\\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "INCLUDE=$env:VCPKG_ROOT\\installed\\x64-windows\\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Build Tauri application (Unix)
         if: runner.os != 'Windows'
         uses: tauri-apps/tauri-action@v0
