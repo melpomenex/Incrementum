@@ -686,7 +686,20 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration::new(
         "024_add_fulltext_search",
         r#"
+        -- Drop any existing triggers first (in case this migration is being re-run)
+        DROP TRIGGER IF EXISTS document_search_insert;
+        DROP TRIGGER IF EXISTS document_search_update;
+        DROP TRIGGER IF EXISTS document_search_delete;
+        DROP TRIGGER IF EXISTS extract_search_insert;
+        DROP TRIGGER IF EXISTS extract_search_update;
+        DROP TRIGGER IF EXISTS extract_search_delete;
+
+        -- Drop existing FTS5 tables if they exist (for clean re-creation)
+        DROP TABLE IF EXISTS document_search;
+        DROP TABLE IF EXISTS extract_search;
+
         -- Create FTS5 virtual table for document search
+        -- Note: This may fail if FTS5 is not available, so we use a try-catch approach
         CREATE VIRTUAL TABLE IF NOT EXISTS document_search USING fts5(
             document_id UNINDEXED,
             title,
@@ -694,6 +707,10 @@ pub const MIGRATIONS: &[Migration] = &[
             content_type,
             tokenize = 'porter unicode61'
         );
+
+        -- Backfill existing documents
+        INSERT INTO document_search(document_id, title, content, content_type)
+        SELECT id, title, COALESCE(content, ''), file_type FROM documents;
 
         -- Create triggers to keep search index in sync
         CREATE TRIGGER IF NOT EXISTS document_search_insert AFTER INSERT ON documents BEGIN
@@ -720,6 +737,10 @@ pub const MIGRATIONS: &[Migration] = &[
             content,
             tokenize = 'porter unicode61'
         );
+
+        -- Backfill existing extracts
+        INSERT INTO extract_search(extract_id, document_id, content)
+        SELECT id, document_id, content FROM extracts;
 
         CREATE TRIGGER IF NOT EXISTS extract_search_insert AFTER INSERT ON extracts BEGIN
             INSERT INTO extract_search(extract_id, document_id, content)
@@ -932,6 +953,81 @@ pub const MIGRATIONS: &[Migration] = &[
         "029_add_extract_selection_context",
         r#"
         ALTER TABLE extracts ADD COLUMN selection_context TEXT;
+        "#,
+    ),
+
+    // Migration 030: Fix FTS5 search tables and triggers
+    Migration::new(
+        "030_fix_fts5_triggers",
+        r#"
+        -- Drop any orphaned triggers that might reference missing tables
+        DROP TRIGGER IF EXISTS document_search_insert;
+        DROP TRIGGER IF EXISTS document_search_update;
+        DROP TRIGGER IF EXISTS document_search_delete;
+        DROP TRIGGER IF EXISTS extract_search_insert;
+        DROP TRIGGER IF EXISTS extract_search_update;
+        DROP TRIGGER IF EXISTS extract_search_delete;
+
+        -- Recreate FTS5 tables if they don't exist or are broken
+        -- First, drop them to ensure clean state
+        DROP TABLE IF EXISTS document_search;
+        DROP TABLE IF EXISTS extract_search;
+
+        -- Create FTS5 virtual table for document search
+        CREATE VIRTUAL TABLE IF NOT EXISTS document_search USING fts5(
+            document_id UNINDEXED,
+            title,
+            content,
+            content_type,
+            tokenize = 'porter unicode61'
+        );
+
+        -- Backfill existing documents
+        INSERT OR IGNORE INTO document_search(document_id, title, content, content_type)
+        SELECT id, title, COALESCE(content, ''), file_type FROM documents;
+
+        -- Create triggers to keep search index in sync
+        CREATE TRIGGER IF NOT EXISTS document_search_insert AFTER INSERT ON documents BEGIN
+            INSERT INTO document_search(document_id, title, content, content_type)
+            VALUES (NEW.id, NEW.title, COALESCE(NEW.content, ''), NEW.file_type);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS document_search_update AFTER UPDATE OF title, content, file_type ON documents BEGIN
+            UPDATE document_search SET
+                title = NEW.title,
+                content = COALESCE(NEW.content, ''),
+                content_type = NEW.file_type
+            WHERE document_id = NEW.id;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS document_search_delete AFTER DELETE ON documents BEGIN
+            DELETE FROM document_search WHERE document_id = OLD.id;
+        END;
+
+        -- Index extracts for search as well
+        CREATE VIRTUAL TABLE IF NOT EXISTS extract_search USING fts5(
+            extract_id UNINDEXED,
+            document_id UNINDEXED,
+            content,
+            tokenize = 'porter unicode61'
+        );
+
+        -- Backfill existing extracts
+        INSERT OR IGNORE INTO extract_search(extract_id, document_id, content)
+        SELECT id, document_id, content FROM extracts;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_insert AFTER INSERT ON extracts BEGIN
+            INSERT INTO extract_search(extract_id, document_id, content)
+            VALUES (NEW.id, NEW.document_id, NEW.content);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_update AFTER UPDATE OF content ON extracts BEGIN
+            UPDATE extract_search SET content = NEW.content WHERE extract_id = NEW.id;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_delete AFTER DELETE ON extracts BEGIN
+            DELETE FROM extract_search WHERE extract_id = OLD.id;
+        END;
         "#,
     ),
 ];
