@@ -139,14 +139,14 @@ async fn get_queue_items_from_repo(
     // Include both new extracts (never reviewed) and due extracts (scheduled for review)
     let due_extracts = repo.get_due_extracts(&now).await?;
     let new_extracts = repo.get_new_extracts().await?;
-    
+
     // Combine into a single list, marking new ones
     for extract in due_extracts.into_iter().chain(new_extracts.into_iter()) {
         // Get parent document title
         let document_title = repo.get_document(&extract.document_id).await?
             .map(|d| d.title)
             .unwrap_or_else(|| "Unknown Document".to_string());
-        
+
         // New extracts (review_count == 0) get highest priority (9.0)
         // Previously reviewed extracts get medium-high priority (7.0)
         let priority = if extract.review_count == 0 {
@@ -154,14 +154,14 @@ async fn get_queue_items_from_repo(
         } else {
             7.0 // Reviewed extracts returning for another pass
         };
-        
+
         // Extract content preview (first 100 chars)
         let _content_preview = if extract.content.len() > 100 {
             format!("{}...", &extract.content[..100])
         } else {
             extract.content.clone()
         };
-        
+
         queue_items.push(QueueItem {
             id: extract.id.clone(),
             document_id: extract.document_id.clone(),
@@ -180,6 +180,61 @@ async fn get_queue_items_from_repo(
             tags: extract.tags.clone(),
             category: extract.category.clone(),
             progress: 0, // Extracts don't track progress
+            source: None,
+            position: None,
+        });
+    }
+
+    // Get video extracts for spaced repetition review
+    // Include both new video extracts (never reviewed) and due extracts (scheduled for review)
+    let due_video_extracts = repo.get_due_video_extracts(&now).await?;
+    let all_video_extracts = repo.get_all_video_extracts().await.unwrap_or_default();
+    let new_video_extracts: Vec<_> = all_video_extracts.into_iter()
+        .filter(|e| e.review_count == 0 && e.next_review_date.is_none())
+        .collect();
+
+    // Combine due and new video extracts
+    for extract in due_video_extracts.into_iter().chain(new_video_extracts.into_iter()) {
+        // Get parent document title
+        let document_title = repo.get_document(&extract.document_id).await?
+            .map(|d| d.title)
+            .unwrap_or_else(|| "Unknown Video".to_string());
+
+        // New video extracts (review_count == 0) get high priority (8.5)
+        // Previously reviewed video extracts get medium-high priority (6.5)
+        // Video extracts are slightly lower priority than text extracts since they take longer to review
+        let priority = if extract.review_count == 0 {
+            8.5 // New video extracts are urgent
+        } else {
+            6.5 // Reviewed video extracts returning for another pass
+        };
+
+        // Calculate estimated time based on extract duration
+        let duration_minutes = ((extract.end_time - extract.start_time) / 60.0).ceil() as i32;
+        let estimated_time = duration_minutes.max(1).min(10); // Cap at 10 minutes
+
+        // Get transcript preview for the question field
+        let transcript_preview = extract.transcript_text.as_ref()
+            .map(|t| if t.len() > 100 { format!("{}...", &t[..100]) } else { t.clone() });
+
+        queue_items.push(QueueItem {
+            id: extract.id.clone(),
+            document_id: extract.document_id.clone(),
+            document_title: format!("{} - {}", document_title, extract.title),
+            extract_id: None,
+            learning_item_id: None,
+            question: Some(format!("Watch segment: {}", format_time_range(extract.start_time, extract.end_time))),
+            answer: transcript_preview,
+            cloze_text: None,
+            item_type: "video-extract".to_string(),
+            priority_rating: None,
+            priority_slider: None,
+            priority,
+            due_date: extract.next_review_date.map(|d| d.to_rfc3339()),
+            estimated_time,
+            tags: extract.tags.clone(),
+            category: None,
+            progress: 0,
             source: None,
             position: None,
         });
@@ -504,6 +559,25 @@ pub async fn get_queue_with_playlist_intersperse(
     if result.len() < queue.len() {
         result.extend(queue[result.len() - playlist_idx..].iter().cloned());
     }
-    
+
     Ok(result)
+}
+
+/// Format time range as MM:SS-MM:SS or HH:MM:SS-HH:MM:SS
+fn format_time_range(start: f64, end: f64) -> String {
+    format!("{}-{}", format_seconds(start), format_seconds(end))
+}
+
+/// Format seconds as MM:SS or HH:MM:SS
+fn format_seconds(seconds: f64) -> String {
+    let total_seconds = seconds as i64;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let secs = total_seconds % 60;
+
+    if hours > 0 {
+        format!("{}:{:02}:{:02}", hours, minutes, secs)
+    } else {
+        format!("{}:{:02}", minutes, secs)
+    }
 }
