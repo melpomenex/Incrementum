@@ -75,6 +75,8 @@ jobs:
           "VCPKG_ROOT=$env:VCPKG_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "VCPKG_DEFAULT_TRIPLET=$env:VCPKG_DEFAULT_TRIPLET" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "LIBSQLITE3_SYS_USE_VCPKG=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LIB=$env:VCPKG_ROOT\\installed\\x64-windows\\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "INCLUDE=$env:VCPKG_ROOT\\installed\\x64-windows\\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0
@@ -208,9 +210,9 @@ jobs:
           mkdir -p arch-pkg/incrementum-${PKG_VERSION}-${PKG_RELEASE}/pkg
 
           # Create PKGBUILD
-          cat > arch-pkg/PKGBUILD << 'EOF'
+          cat > arch-pkg/PKGBUILD << EOF
           pkgname=incrementum
-          pkgver=$(grep '^version' src-tauri/Cargo.toml | head -1 | awk -F'"' '{print $2}')
+          pkgver=${PKG_VERSION}
           pkgrel=1
           pkgdesc="Incrementum - Spaced repetition and incremental reading for effective learning"
           arch=('x86_64')
