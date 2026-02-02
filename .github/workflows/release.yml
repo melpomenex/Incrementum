@@ -78,7 +78,8 @@ jobs:
           "LIB=$env:VCPKG_ROOT\\installed\\x64-windows\\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "INCLUDE=$env:VCPKG_ROOT\\installed\\x64-windows\\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build Tauri application
+      - name: Build Tauri application (Unix)
+        if: runner.os != 'Windows'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,18 +90,23 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      - name: Build Tauri application (Windows)
+        if: runner.os == 'Windows'
+        run: npm run tauri build
+
       - name: Find Windows installer
         if: runner.os == 'Windows'
         id: find_windows_installer
         shell: bash
         run: |
+          echo "=== Debug: Listing bundle directory recursively ==="
+          ls -R src-tauri/target/release/bundle || echo "Bundle dir missing"
+          
           # Find the setup.exe file
-          INSTALLER_PATH=$(find src-tauri/target/release/bundle/nsis -name "*setup.exe" -type f | head -n 1)
+          INSTALLER_PATH=$(find src-tauri/target/release/bundle/nsis -name "*.exe" -type f | head -n 1)
           
           if [ -z "$INSTALLER_PATH" ]; then
-            echo "No Windows installer found in src-tauri/target/release/bundle/nsis"
-            # Try to list directory to debug
-            ls -R src-tauri/target/release/bundle || echo "Bundle dir not found"
+            echo "::error::No .exe found in src-tauri/target/release/bundle/nsis"
             exit 1
           fi
           
