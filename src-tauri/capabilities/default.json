@@ -4,7 +4,10 @@
   "description": "Capability for the main window",
   "remote": {
     "urls": [
-      "http://localhost:9527/*"
+      "http://localhost:9527/*",
+      "http://127.0.0.1:9527/*",
+      "http://localhost:15173/*",
+      "http://127.0.0.1:15173/*"
     ]
   },
   "windows": [
