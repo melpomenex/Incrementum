@@ -8,7 +8,7 @@
  * - Uses cards optimized for touch
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
   Play,
@@ -22,11 +22,16 @@ import {
   MoreVertical,
   X,
   SlidersHorizontal,
+  Archive,
+  Calendar,
+  Undo,
 } from "lucide-react";
 import { useQueueStore, type QueueFilterMode } from "../../stores/queueStore";
 import type { QueueItem } from "../../types/queue";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
+import { SwipeableItem, SwipeActions } from "./SwipeableItem";
+import { bulkSuspendItems, bulkUnsuspendItems, postponeItem } from "../../api/queue";
 
 interface MobileQueueViewProps {
   onStartReview?: (itemId?: string) => void;
@@ -64,6 +69,15 @@ export function MobileQueueView({
   const [activeTab, setActiveTab] = useState<"reading" | "review">("reading");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("today");
   const toast = useToast();
+
+  // Undo toast state
+  const [undoState, setUndoState] = useState<{
+    visible: boolean;
+    action: "suspend" | "postpone";
+    itemId: string;
+    itemTitle: string;
+    progress: number;
+  } | null>(null);
 
   // Load initial data
   useEffect(() => {
@@ -143,11 +157,105 @@ export function MobileQueueView({
     const due = new Date(item.dueDate);
     const now = new Date();
     const daysDiff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysDiff <= 0) return { label: "Due", color: "bg-red-500" };
     if (daysDiff <= 3) return { label: `${daysDiff}d`, color: "bg-orange-500" };
     return { label: `${daysDiff}d`, color: "bg-blue-500" };
   };
+
+  // Swipe handlers
+  const handleSuspend = useCallback(async (item: QueueItem) => {
+    try {
+      await bulkSuspendItems([item.id]);
+      toast.success("Item suspended", "Removed from queue");
+      loadQueue(); // Refresh the queue
+
+      // Show undo toast
+      setUndoState({
+        visible: true,
+        action: "suspend",
+        itemId: item.id,
+        itemTitle: item.documentTitle,
+        progress: 100,
+      });
+
+      // Start progress animation
+      const startTime = Date.now();
+      const duration = 3000; // 3 seconds
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+
+        setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
+
+        if (elapsed < duration && undoState?.visible) {
+          requestAnimationFrame(animate);
+        } else if (undoState?.visible) {
+          setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+        }
+      };
+
+      requestAnimationFrame(animate);
+    } catch (error) {
+      toast.error("Failed to suspend", error instanceof Error ? error.message : "Unknown error");
+    }
+  }, [loadQueue, toast, undoState?.visible]);
+
+  const handlePostpone = useCallback(async (item: QueueItem) => {
+    try {
+      await postponeItem(item.id, 1); // Postpone by 1 day
+      toast.success("Item postponed", "Rescheduled for tomorrow");
+      loadQueue(); // Refresh the queue
+
+      // Show undo toast (for postpone, we'd need to store the original due date to undo)
+      setUndoState({
+        visible: true,
+        action: "postpone",
+        itemId: item.id,
+        itemTitle: item.documentTitle,
+        progress: 100,
+      });
+
+      // Start progress animation
+      const startTime = Date.now();
+      const duration = 3000;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+
+        setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
+
+        if (elapsed < duration && undoState?.visible) {
+          requestAnimationFrame(animate);
+        } else if (undoState?.visible) {
+          setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+        }
+      };
+
+      requestAnimationFrame(animate);
+    } catch (error) {
+      toast.error("Failed to postpone", error instanceof Error ? error.message : "Unknown error");
+    }
+  }, [loadQueue, toast, undoState?.visible]);
+
+  const handleUndo = useCallback(async () => {
+    if (!undoState) return;
+
+    try {
+      if (undoState.action === "suspend") {
+        await bulkUnsuspendItems([undoState.itemId]);
+        toast.success("Item restored", "Back in queue");
+      }
+      // Postpone undo would require storing the original due date
+      loadQueue();
+    } catch (error) {
+      toast.error("Failed to undo", error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setUndoState(null);
+    }
+  }, [undoState, loadQueue, toast]);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -327,62 +435,80 @@ export function MobileQueueView({
             {filteredItems.map((item) => {
               const dueBadge = getDueBadge(item);
               return (
-                <button
+                <SwipeableItem
                   key={item.id}
-                  onClick={() =>
-                    activeTab === "reading"
-                      ? onOpenDocument?.(item)
-                      : onStartReview?.(item.learningItemId ?? item.id)
-                  }
-                  className="w-full px-4 py-4 flex items-start gap-3 active:bg-muted/50 transition-colors text-left"
+                  leftAction={{
+                    icon: <Calendar className="w-5 h-5" />,
+                    label: "Postpone",
+                    color: "#6366f1",
+                    bgColor: "rgba(99, 102, 241, 0.15)",
+                  }}
+                  rightAction={{
+                    icon: <Archive className="w-5 h-5" />,
+                    label: "Suspend",
+                    color: "#6366f1",
+                    bgColor: "rgba(99, 102, 241, 0.15)",
+                  }}
+                  onSwipeLeft={() => handlePostpone(item)}
+                  onSwipeRight={() => handleSuspend(item)}
+                  className="border-b border-border last:border-b-0"
                 >
-                  {/* Icon/Status */}
-                  <div className="flex-shrink-0 mt-0.5">
-                    {activeTab === "reading" ? (
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center",
-                        dueBadge ? "bg-red-500/10" : "bg-muted"
-                      )}>
-                        <BookOpen className={cn(
-                          "w-5 h-5",
-                          dueBadge ? "text-red-500" : "text-muted-foreground"
-                        )} />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-purple-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
-                      {item.documentTitle}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {dueBadge && (
-                        <span className={cn(
-                          "px-1.5 py-0.5 rounded text-white font-medium",
-                          dueBadge.color
+                  <button
+                    onClick={() =>
+                      activeTab === "reading"
+                        ? onOpenDocument?.(item)
+                        : onStartReview?.(item.learningItemId ?? item.id)
+                    }
+                    className="w-full px-4 py-4 flex items-start gap-3 active:bg-muted/50 transition-colors text-left"
+                  >
+                    {/* Icon/Status */}
+                    <div className="flex-shrink-0 mt-0.5">
+                      {activeTab === "reading" ? (
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center",
+                          dueBadge ? "bg-red-500/10" : "bg-muted"
                         )}>
-                          {dueBadge.label}
-                        </span>
-                      )}
-                      {item.category && (
-                        <span className="bg-muted px-1.5 py-0.5 rounded">
-                          {item.category}
-                        </span>
-                      )}
-                      {item.documentFileType && (
-                        <span className="uppercase">{item.documentFileType}</span>
+                          <BookOpen className={cn(
+                            "w-5 h-5",
+                            dueBadge ? "text-red-500" : "text-muted-foreground"
+                          )} />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <Brain className="w-5 h-5 text-purple-500" />
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* Chevron */}
-                  <ChevronDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
-                </button>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+                        {item.documentTitle}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {dueBadge && (
+                          <span className={cn(
+                            "px-1.5 py-0.5 rounded text-white font-medium",
+                            dueBadge.color
+                          )}>
+                            {dueBadge.label}
+                          </span>
+                        )}
+                        {item.category && (
+                          <span className="bg-muted px-1.5 py-0.5 rounded">
+                            {item.category}
+                          </span>
+                        )}
+                        {item.documentFileType && (
+                          <span className="uppercase">{item.documentFileType}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chevron */}
+                    <ChevronDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
+                  </button>
+                </SwipeableItem>
               );
             })}
           </div>
@@ -393,6 +519,44 @@ export function MobileQueueView({
       <div className="px-4 py-2 border-t border-border bg-card/30 text-center text-xs text-muted-foreground">
         {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} ready
       </div>
+
+      {/* Undo Toast */}
+      {undoState && undoState.visible && (
+        <div
+          className={cn(
+            "undo-toast",
+            undoState.visible && "visible"
+          )}
+        >
+          <div
+            className={cn(
+              "undo-toast-icon",
+              undoState.action === "suspend" ? "mark-read" : "favorite"
+            )}
+          >
+            {undoState.action === "suspend" ? (
+              <Archive className="w-full h-full" />
+            ) : (
+              <Calendar className="w-full h-full" />
+            )}
+          </div>
+          <div className="undo-toast-message">
+            <span>{undoState.itemTitle}</span>
+            <span className="text-xs text-muted-foreground">
+              {undoState.action === "suspend" ? " suspended" : " postponed"}
+            </span>
+          </div>
+          <button onClick={handleUndo} className="undo-toast-action">
+            Undo
+          </button>
+          <div className="undo-toast-progress">
+            <div
+              className="undo-toast-progress-bar"
+              style={{ width: `${undoState.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
