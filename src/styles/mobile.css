@@ -1178,3 +1178,247 @@
     display: none;
   }
 }
+
+/* ==========================================================================
+   Swipeable Item Styles
+   ========================================================================== */
+
+.swipeable-item {
+  position: relative;
+  overflow: visible;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.swipeable-item > div:first-child {
+  /* Action background layer */
+  pointer-events: none;
+}
+
+.swipeable-item > div:last-child {
+  /* Content layer - transitions for smooth swipe */
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Swipe action completion animation */
+@keyframes swipeComplete {
+  0% {
+    transform: translateX(var(--swipe-offset, 0));
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(var(--swipe-direction, 1) * -100%));
+    opacity: 0;
+  }
+}
+
+.swipeable-item.swipe-complete {
+  animation: swipeComplete 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* Swipe snap-back animation */
+@keyframes swipeSnapBack {
+  0% {
+    transform: translateX(var(--swipe-offset, 0));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.swipeable-item.swipe-snap-back {
+  animation: swipeSnapBack 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Swipe action indicator line pulse */
+@keyframes swipePulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.swipeable-item .swipe-indicator-line {
+  animation: swipePulse 1.5s ease-in-out infinite;
+}
+
+/* Undo Toast Styles */
+.undo-toast {
+  position: fixed;
+  bottom: calc(64px + env(safe-area-inset-bottom, 16px) + 16px);
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: calc(100% - 32px);
+}
+
+.undo-toast.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.undo-toast.hiding {
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+}
+
+.undo-toast-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.undo-toast-icon.mark-read {
+  color: #22c55e;
+}
+
+.undo-toast-icon.favorite {
+  color: #eab308;
+}
+
+.undo-toast-message {
+  flex: 1;
+  font-size: 14px;
+  color: #e4e4e7;
+  min-width: 0;
+}
+
+.undo-toast-message span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.undo-toast-action {
+  background: #6366f1;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.undo-toast-action:hover {
+  background: #4f46e5;
+}
+
+.undo-toast-action:active {
+  transform: scale(0.98);
+}
+
+/* Undo toast progress bar */
+.undo-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+
+.undo-toast-progress-bar {
+  height: 100%;
+  background: #6366f1;
+  transition: width 0.1s linear;
+}
+
+/* ==========================================================================
+   Swipe Gesture States for Accessibility
+   ========================================================================== */
+
+/* Focus visible for keyboard navigation */
+.swipeable-item:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .swipeable-item > div:last-child {
+    transition: transform 100ms ease-out;
+  }
+
+  .undo-toast {
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  }
+
+  @keyframes swipeComplete {
+    to {
+      transform: translateX(calc(var(--swipe-direction, 1) * -100%));
+      opacity: 0;
+    }
+  }
+
+  @keyframes swipeSnapBack {
+    to {
+      transform: translateX(0);
+    }
+  }
+}
+
+/* ==========================================================================
+   Mobile-Specific Swipe Enhancements
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Larger touch targets for swipe actions */
+  .swipeable-item {
+    min-height: 44px;
+  }
+
+  /* Increase swipe threshold on mobile for fewer accidental triggers */
+  .undo-toast {
+    bottom: calc(64px + env(safe-area-inset-bottom, 16px) + 20px);
+    padding: 14px 18px;
+    border-radius: 16px;
+  }
+
+  .undo-toast-action {
+    padding: 10px 18px;
+    font-size: 15px;
+  }
+}
+
+/* ==========================================================================
+   Landscape Orientation Adjustments
+   ========================================================================== */
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .undo-toast {
+    bottom: calc(48px + env(safe-area-inset-bottom, 8px) + 12px);
+    padding: 10px 14px;
+  }
+
+  .undo-toast-action {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
