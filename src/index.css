@@ -88,6 +88,19 @@
   button:disabled {
     cursor: not-allowed;
   }
+
+  .tauri-drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .tauri-no-drag,
+  .tauri-drag-region button,
+  .tauri-drag-region a,
+  .tauri-drag-region input,
+  .tauri-drag-region select,
+  .tauri-drag-region textarea {
+    -webkit-app-region: no-drag;
+  }
 }
 
 @layer utilities {
