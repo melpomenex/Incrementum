@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- PWA swipe gestures for mobile items
+  - Horizontal swipe actions with visual feedback and undo toasts
+  - RSS Scroll Mode: swipe right to mark as read (green), swipe left to favorite (yellow)
+  - Mobile Queue: swipe right to suspend, swipe left to postpone by 1 day
+  - Vertical swipe navigation (TikTok-style) for browsing between items
+  - Progressive background fill animation based on swipe distance
+  - Snap-back animation for cancelled swipes
+  - Haptic feedback support on compatible devices
+  - 3-second undo toast with progress bar for all swipe actions
+  - Velocity threshold (0.3 px/ms) to prevent accidental swipes
+  - Touch target sizes meet WCAG 2.1 AAA standards (44px minimum)
+  - Content scroll priority - gestures only trigger when content boundaries are reached
+  - Reduced motion support for accessibility
+- New reusable swipe gesture hook (`useSwipeGestures.ts`)
+  - Touch event handlers with configurable threshold and velocity
+  - Support for horizontal and vertical swipe detection
+  - Snap-back animation using cubic-bezier easing
+- New SwipeableItem component for mobile touch interactions
+  - Configurable left/right actions with custom icons, colors, and labels
+  - Predefined action templates (markRead, favorite, archive, delete)
 - YouTube playlist support (models, API commands, and UI components)
 - YouTube cookies option for accessing restricted transcripts
 - Reading progress indicator to Documents Inspector
