@@ -5,8 +5,21 @@
 # Disable DMA-BUF renderer to fix EGL display issues
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 
+# Disable compositing mode to prevent video freezing
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+# Disable hardware acceleration to prevent YouTube crashes
+export WEBKIT_DISABLE_HARDWARE_ACCELERATION=1
+
 # Disable sandbox if needed for compatibility
 export WEBKIT_FORCE_SANDBOX=0
+
+# Use software rendering for media playback
+export GST_PLUGIN_SYSTEM_PATH_1_0=""
+export GST_PLUGIN_SCANNER_1_0=""
+
+# Force use of PulseAudio for audio output
+export AUDIOSINK=pulsesink
 
 # Get the directory where this script is located
 APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
