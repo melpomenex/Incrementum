@@ -235,6 +235,7 @@ function TabPaneView({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
     
     if (!draggedTabId) return;
 
@@ -293,6 +294,12 @@ function TabPaneView({
       setDropIndicator(null);
       setIsDraggingOver(false);
     }
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -366,6 +373,7 @@ function TabPaneView({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onDragEnter={handleDragEnter}
     >
       {/* Tab Bar */}
       <div className="flex-shrink-0">

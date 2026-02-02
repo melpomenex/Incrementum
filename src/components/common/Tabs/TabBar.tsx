@@ -102,6 +102,11 @@ export function TabBar({
     
     e.dataTransfer.setDragImage(ghost, rect.width / 2, 20);
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-incrementum-tab", JSON.stringify({
+      tabId,
+      sourcePaneId: paneId,
+      sourceIndex: index,
+    }));
     e.dataTransfer.setData("text/plain", JSON.stringify({ 
       tabId, 
       sourcePaneId: paneId,
