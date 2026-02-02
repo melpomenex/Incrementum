@@ -176,6 +176,29 @@ sudo apt install libwebkit2gtk-4.1-dev \
 xcode-select --install
 ```
 
+#### macOS Security: Opening Self-Signed Applications
+
+When you first run Incrementum on macOS, you may encounter a security warning since the application is self-signed. This is normal for unsigned apps. Here's how to proceed:
+
+**Method 1: Open via Finder (Recommended)**
+
+1. In Finder, locate the `Incrementum.app`
+2. Right-click (or Control-click) the app → Open
+3. A security warning dialog will appear
+4. Click "Open" again to confirm
+
+The right-click → Open path adds a security exception for that application.
+
+**Method 2: Allow via System Settings**
+
+1. Try to open the app normally (double-click). It will fail with a security warning
+2. Open System Settings → Privacy & Security
+3. Scroll down to the security section
+4. Look for a message saying "Incrementum was blocked from use because it is not from an identified developer"
+5. Click "Open Anyway" and confirm with "Open" in the dialog
+
+After following either method, macOS will remember your choice, and you can open the app normally in the future.
+
 #### Windows
 
 No additional dependencies required.
