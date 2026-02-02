@@ -1,0 +1,43 @@
+FROM python:3.12-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add local bin to PATH for yt-dlp installed via pip
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Install yt-dlp (always use latest for nsig fixes)
+RUN pip3 install --no-cache-dir --user 'yt-dlp>=2025.1.26'
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir \
+    flask==3.0.0 \
+    flask-cors==4.0.0 \
+    requests==2.31.0
+
+WORKDIR /app
+
+# Copy service file
+COPY service.py .
+
+# Create cache directory
+RUN mkdir -p /app/transcript_cache
+
+# Environment variables (can be overridden)
+ENV TRANSCRIPT_API_KEY=change-me-in-production
+ENV PROXY_HOST=REDACTED_PROXY
+ENV PROXY_PORT=10001
+ENV PROXY_USER=REDACTED_USER
+ENV PROXY_PASS=REDACTED_PASS
+
+# Expose port
+EXPOSE 8766
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8766/health || exit 1
+
+# Run the service
+CMD ["python3", "service.py"]
