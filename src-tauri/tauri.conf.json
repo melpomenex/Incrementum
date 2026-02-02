@@ -63,7 +63,8 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.13",
-      "entitlements": null
+      "entitlements": null,
+      "signingIdentity": null
     }
   },
   "plugins": {}
