@@ -210,8 +210,8 @@ export async function importFromArxiv(input: string): Promise<Omit<Document, 'id
  * Extract Arxiv ID from various input formats
  */
 function extractArxivId(input: string): string | null {
-  // Remove whitespace
-  const cleaned = input.trim();
+  // Remove whitespace and strip version suffix if present (e.g., v1, v2)
+  const cleaned = input.trim().replace(/v\d+$/, '');
 
   // Direct ID format: 2301.07041 or cs.AI/1234567
   const directIdMatch = cleaned.match(/^(\d{4}\.\d+|[a-z-]+\/\d+)$/);
@@ -220,9 +220,11 @@ function extractArxivId(input: string): string | null {
   }
 
   // URL format: https://arxiv.org/abs/2301.07041 or https://arxiv.org/pdf/2301.07041.pdf
-  const urlMatch = cleaned.match(/arxiv\.org\/(abs|pdf)\/(\d{4}\.\d+|[a-z-]+\/\d+)/);
+  // Also handles version suffix in URLs like 2301.07041v1
+  const urlMatch = cleaned.match(/arxiv\.org\/(abs|pdf)\/(\d{4}\.\d+(?:v\d+)?|[a-z-]+\/\d+(?:v\d+)?)/);
   if (urlMatch) {
-    return urlMatch[2];
+    // Strip version suffix from extracted ID
+    return urlMatch[2].replace(/v\d+$/, '');
   }
 
   return null;
@@ -384,7 +386,7 @@ export function validateArxivInput(input: string): { valid: boolean; error?: str
   if (!arxivId) {
     return {
       valid: false,
-      error: 'Invalid Arxiv ID or URL. Expected format: 2301.07041 or https://arxiv.org/abs/2301.07041',
+      error: 'Invalid Arxiv ID or URL. Expected format: 2301.07041, 2301.07041v1, or https://arxiv.org/abs/2301.07041',
     };
   }
 

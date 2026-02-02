@@ -111,8 +111,9 @@ function parseArxivResponse(xmlText: string): ArxivPaper[] {
   const papers: ArxivPaper[] = [];
 
   entries.forEach((entry) => {
-    const id = entry
-      .querySelector("id")?.textContent?.split("/").pop() || "";
+    // Extract ID from the arxiv URL, stripping version suffix (e.g., 2301.07041v1 -> 2301.07041)
+    const idUrl = entry.querySelector("id")?.textContent || "";
+    const id = idUrl.replace(/v\d+$/, "").split("/").pop() || "";
     const title = entry.querySelector("title")?.textContent?.trim() || "";
     const summary = entry.querySelector("summary")?.textContent?.trim() || "";
     const published = entry.querySelector("published")?.textContent || "";
@@ -228,12 +229,13 @@ export function formatArxivDate(dateString: string): string {
 
 /**
  * Extract paper ID from ArXiv URL
+ * Handles version suffixes (e.g., 2301.07041v1 -> 2301.07041)
  */
 export function extractArxivId(url: string): string | null {
   const patterns = [
-    /arxiv\.org\/abs\/(\d+\.\d+)/,
-    /arxiv\.org\/pdf\/(\d+\.\d+)/,
-    /arxiv\.org\/format\/(\d+\.\d+)/,
+    /arxiv\.org\/abs\/(\d+\.\d+)v?\d*/,
+    /arxiv\.org\/pdf\/(\d+\.\d+)v?\d*/,
+    /arxiv\.org\/format\/(\d+\.\d+)v?\d*/,
   ];
 
   for (const pattern of patterns) {
@@ -246,9 +248,12 @@ export function extractArxivId(url: string): string | null {
 
 /**
  * Get ArXiv PDF download URL
+ * Strips version suffix if present (e.g., 2301.07041v1 -> 2301.07041)
  */
 export function getArxivPdfUrl(paperId: string): string {
-  return `https://arxiv.org/pdf/${paperId}.pdf`;
+  // Strip version suffix if present
+  const baseId = paperId.replace(/v\d+$/, '');
+  return `https://arxiv.org/pdf/${baseId}.pdf`;
 }
 
 /**
