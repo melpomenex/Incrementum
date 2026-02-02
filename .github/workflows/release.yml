@@ -62,6 +62,10 @@ jobs:
             const version = context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
+      - name: Install create-dmg (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
       - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0
         env:
@@ -85,8 +89,8 @@ jobs:
       - name: List bundle directory (debug)
         run: |
           echo "=== Bundle directory contents ==="
-          find src-tauri/target -name "bundle" -type d 2>/dev/null | head -5
-          find src-tauri/target -path "*/bundle/*" -type f 2>/dev/null | head -20
+          find src-tauri/target -name "bundle" -type d 2>/dev/null | head -5 || true
+          find src-tauri/target -path "*/bundle/*" -type f 2>/dev/null | head -20 || true
           echo "=== Release directory ==="
           ls -la src-tauri/target/release/bundle/ 2>/dev/null || echo "No bundle dir"
         shell: bash
@@ -138,7 +142,7 @@ jobs:
       - name: Build Tauri AppImage (without custom-protocol)
         run: |
           cd src-tauri
-          cargo tauri build --bundles appimage --no-default-features
+          npm run tauri -- build --bundles appimage --no-default-features
         env:
           TAURI_BUNDLE_APPIMAGE: "true"
 
@@ -225,7 +229,9 @@ jobs:
 
           # Build the package
           cd arch-pkg
-          makepkg -s --noconfirm
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- makepkg --noconfirm
 
       - name: Upload Pacman to release
         uses: softprops/action-gh-release@v2
