@@ -65,9 +65,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Force bundled SQLite - prevents looking for system sqlite3.lib
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
           SQLITE3_STATIC: "1"
           VCPKGRS_DYNAMIC: "0"
+          # Disable sqlx compile-time checking to avoid needing sqlite during macro compilation
+          SQLX_OFFLINE: "true"
 
       - name: Build Tauri application (non-Windows)
         if: runner.os != 'Windows'
@@ -84,6 +87,7 @@ jobs:
           ls -la src-tauri/target/release/ 2>/dev/null || echo "No release dir"
           ls -la src-tauri/target/release/bundle/ 2>/dev/null || echo "No bundle dir"
         shell: bash
+
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

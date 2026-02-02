@@ -82,8 +82,8 @@ const queryClient = new QueryClient({
 });
 
 // Error boundary for catching React errors
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
-  constructor(props: {children: React.ReactNode}) {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -166,7 +166,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             </Routes>
           </Suspense>
           <DevPerformanceMonitor />
-          <Analytics />
+          {/* Only load Vercel Analytics in web/PWA mode, not in Tauri desktop */}
+          {!isTauri() && <Analytics />}
         </HashRouter>
       </ThemeProvider>
     </QueryClientProvider>
