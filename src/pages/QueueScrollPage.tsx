@@ -17,7 +17,14 @@ import { ExtractScrollItem } from "../components/review/ExtractScrollItem";
 import { ClozeCreatorPopup } from "../components/extracts/ClozeCreatorPopup";
 import { QACreatorPopup } from "../components/extracts/QACreatorPopup";
 import { submitReview } from "../api/review";
-import { getUnreadItemsAuto, getSubscribedFeedsAuto, type FeedItem as RSSFeedItem, type Feed as RSSFeed, markItemReadAuto } from "../api/rss";
+import {
+  getUnreadItemsAuto,
+  getSubscribedFeedsAuto,
+  type FeedItem as RSSFeedItem,
+  type Feed as RSSFeed,
+  markItemReadAuto,
+  toggleItemFavoriteAuto,
+} from "../api/rss";
 import { cn } from "../utils";
 import type { QueueItem } from "../types";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../components/common/ItemDetailsPopover";
@@ -1200,6 +1207,134 @@ export function QueueScrollPage() {
       }, 500);
     }
   };
+
+  const handleRssToggleFavorite = useCallback(async (feedId: string, itemId: string) => {
+    try {
+      await toggleItemFavoriteAuto(feedId, itemId);
+    } catch (error) {
+      console.warn("Failed to toggle RSS favorite:", error);
+    }
+    setScrollItems((prev) =>
+      prev.map((item) =>
+        item.type === "rss" && item.rssFeed?.id === feedId && item.rssItem?.id === itemId
+          ? { ...item, rssItem: { ...item.rssItem!, favorite: !item.rssItem?.favorite } }
+          : item
+      )
+    );
+  }, []);
+
+  // Touch gesture handlers for swipe actions and vertical navigation (matches RSS scroll mode gestures)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      currentX = touchStartX;
+      currentY = touchStartY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndX = currentX;
+      const touchEndY = currentY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const deltaTime = Date.now() - touchStartTime;
+
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
+
+      // Minimum thresholds for swipe gestures
+      const minSwipeDistance = 50;
+      const minVelocity = 0.3;
+
+      const target = e.target as HTMLElement;
+      if (target.closest(".assistant-panel")) return;
+
+      // Check if current item is an EPUB or PDF document
+      let isScrollableDocument = false;
+      let isYouTubeItem = false;
+      if (currentItem?.type === "document" && currentItem.documentId) {
+        const doc = documents.find(d => d.id === currentItem.documentId);
+        if (doc) {
+          const fileType = doc.fileType || doc.filePath?.split('.').pop()?.toLowerCase();
+          isScrollableDocument = fileType === "epub" || fileType === "pdf";
+          isYouTubeItem = fileType === "youtube"
+            || !!doc.filePath?.includes("youtube.com")
+            || !!doc.filePath?.includes("youtu.be");
+        }
+      }
+
+      // Check if this is a horizontal or vertical gesture
+      if (absDeltaX > absDeltaY) {
+        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
+          if (currentItem?.type === "rss" && currentItem.rssFeed && currentItem.rssItem) {
+            // Swipe right = mark as read, Swipe left = favorite
+            if (deltaX > 0) {
+              void handleRating(1);
+            } else if (deltaX < 0) {
+              void handleRssToggleFavorite(currentItem.rssFeed.id, currentItem.rssItem.id);
+            }
+          }
+        }
+      } else {
+        // Vertical gesture - check for navigation
+        if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
+          if (isScrollableDocument) {
+            return;
+          }
+
+          const transcriptScrollElement = target.closest('[data-transcript-scroll="true"]') as HTMLElement | null;
+          const scrollableElement = transcriptScrollElement
+            || target.closest('[class*="overflow"]') as HTMLElement
+            || target.closest('.prose') as HTMLElement
+            || document.documentElement;
+
+          if (scrollableElement) {
+            const canScrollDown = scrollableElement.scrollTop < (scrollableElement.scrollHeight - scrollableElement.clientHeight - 10);
+            const canScrollUp = scrollableElement.scrollTop > 10;
+
+            if (!(isYouTubeItem && !transcriptScrollElement)) {
+              if (deltaY < 0 && canScrollDown) return;
+              if (deltaY > 0 && canScrollUp) return;
+            }
+          }
+
+          if (deltaY < 0) {
+            goToNext();
+          } else if (deltaY > 0) {
+            goToPrevious();
+          }
+        }
+      }
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [currentItem, documents, goToNext, goToPrevious, handleRating, handleRssToggleFavorite]);
 
   const handleCreateRssExtract = useCallback(async () => {
     if (!renderedItem || renderedItem.type !== "rss" || !renderedItem.rssItem) return;
