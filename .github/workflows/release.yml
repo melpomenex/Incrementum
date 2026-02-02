@@ -89,11 +89,29 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      - name: Find Windows installer
+        if: runner.os == 'Windows'
+        id: find_windows_installer
+        shell: bash
+        run: |
+          # Find the setup.exe file
+          INSTALLER_PATH=$(find src-tauri/target/release/bundle/nsis -name "*setup.exe" -type f | head -n 1)
+          
+          if [ -z "$INSTALLER_PATH" ]; then
+            echo "No Windows installer found in src-tauri/target/release/bundle/nsis"
+            # Try to list directory to debug
+            ls -R src-tauri/target/release/bundle || echo "Bundle dir not found"
+            exit 1
+          fi
+          
+          echo "Found installer at: $INSTALLER_PATH"
+          echo "INSTALLER_PATH=$INSTALLER_PATH" >> $GITHUB_ENV
+
       - name: Upload Windows installer (.exe)
         if: runner.os == 'Windows'
         uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/release/bundle/nsis/*setup.exe
+          files: ${{ env.INSTALLER_PATH }}
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}

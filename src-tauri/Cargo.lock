@@ -3647,7 +3647,7 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "0.1.0"
+version = "1.0.5"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -3664,6 +3664,7 @@ dependencies = [
  "hostname",
  "image 0.24.9",
  "lazy_static",
+ "libsqlite3-sys",
  "lopdf",
  "md5",
  "once_cell",
