@@ -378,6 +378,7 @@ function TabPaneView({
           onTabMove={(fromIndex, toIndex) => onMoveTab(fromIndex, toIndex, pane.id)}
           onDragStart={(tabId) => onDragStart(tabId, pane.id)}
           onDragEnd={onDragEnd}
+          onSplitPane={onSplitPane}
         />
       </div>
 
