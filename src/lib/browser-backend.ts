@@ -2268,6 +2268,36 @@ const commandHandlers: Record<string, CommandHandler> = {
                 };
         }
     },
+
+    // Sync commands - browser uses Yjs WebSocket sync instead of cloud sync
+    // These are stub handlers to prevent errors when the settings UI polls for status
+    get_sync_log: async () => {
+        // Return empty log for browser mode (sync is handled via Yjs)
+        return [];
+    },
+
+    sync_now: async (args) => {
+        // In browser mode, sync is handled via Yjs WebSocket provider
+        // This is a stub to prevent errors
+        console.warn('[Browser] sync_now called - browser uses Yjs WebSocket sync, not cloud sync');
+        return {
+            status: 'Synced',
+            uploaded: 0,
+            downloaded: 0,
+            conflicts: 0,
+        };
+    },
+
+    get_sync_status: async () => {
+        // In browser mode, check if Yjs sync is connected
+        // For now, return Idle status
+        return 'Idle';
+    },
+
+    resolve_sync_conflict: async () => {
+        // Yjs handles conflicts automatically
+        return;
+    },
 };
 
 /**
