@@ -73,6 +73,15 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      - name: Upload Windows installer (.exe)
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/nsis/*setup.exe
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+
       - name: List bundle directory (debug)
         run: |
           echo "=== Bundle directory contents ==="
