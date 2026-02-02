@@ -24,6 +24,7 @@ mod backup;
 mod scheduler;
 mod demo;
 mod browser_sync_server;
+mod transcription;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
@@ -82,6 +83,7 @@ pub fn run() {
     const LOCALHOST_PORT: u16 = 9527;
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -123,6 +125,9 @@ pub fn run() {
 
                 app.manage(state);
                 app.manage(AIState::default());
+                app.manage(transcription::TranscriptionState {
+                    job_queue: transcription::job_queue::JobQueue::new(app.handle().clone(), repo.clone()),
+                });
 
                 // Check and import demo content on first run (before repo is moved)
                 let _ = demo::check_and_import_demo_content(&repo).await;
@@ -270,6 +275,24 @@ pub fn run() {
             youtube::get_youtube_playlist_info,
             youtube::extract_youtube_video_id,
             youtube::import_youtube_video,
+            youtube::get_youtube_chapters,
+            // Video commands
+            commands::import_video_file,
+            commands::get_video_storage_path,
+            commands::add_video_bookmark,
+            commands::get_video_bookmarks,
+            commands::delete_video_bookmark,
+            commands::set_video_chapters,
+            commands::get_video_chapters,
+            commands::set_video_transcript,
+            commands::get_video_transcript,
+            // Video extract commands
+            commands::create_video_extract,
+            commands::get_video_extracts,
+            commands::get_video_extract,
+            commands::update_video_extract,
+            commands::delete_video_extract,
+            commands::rate_video_extract,
             // YouTube playlist auto-import commands
             commands::subscribe_to_playlist,
             commands::get_playlist_subscriptions,
@@ -413,6 +436,12 @@ pub fn run() {
             screenshot::capture_app_window,
             #[cfg(feature = "screenshot")]
             screenshot::get_screen_info,
+            // Transcription commands
+            transcription::get_transcription_profiles,
+            transcription::download_transcription_model,
+            transcription::delete_transcription_model,
+            transcription::start_transcription,
+            transcription::get_transcript,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

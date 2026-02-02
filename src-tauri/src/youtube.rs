@@ -965,3 +965,126 @@ pub async fn import_youtube_video(
 
     Ok(created)
 }
+
+/// YouTube chapter data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YouTubeChapter {
+    pub title: String,
+    pub start_time: f64,
+    pub end_time: f64,
+}
+
+/// Parse chapters from yt-dlp JSON output
+pub fn parse_chapters_from_json(json: &serde_json::Value) -> Vec<YouTubeChapter> {
+    let mut chapters = Vec::new();
+
+    // Try to get chapters from the 'chapters' field
+    if let Some(chapters_array) = json["chapters"].as_array() {
+        for (i, chapter) in chapters_array.iter().enumerate() {
+            if let (Some(title), Some(start)) = (
+                chapter["title"].as_str(),
+                chapter["start_time"].as_f64()
+            ) {
+                let end_time = chapter["end_time"].as_f64();
+                // If end_time is not provided, estimate from duration or next chapter
+                let end = end_time.unwrap_or_else(|| {
+                    // Try to get duration from video info
+                    json["duration"]
+                        .as_u64()
+                        .map(|d| d as f64)
+                        .unwrap_or(0.0)
+                });
+
+                chapters.push(YouTubeChapter {
+                    title: title.to_string(),
+                    start_time: start,
+                    end_time: end,
+                });
+            }
+        }
+    }
+
+    chapters
+}
+
+/// Extract chapters from a YouTube video URL
+pub fn extract_chapters(url: &str) -> Result<Vec<YouTubeChapter>, String> {
+    let output = Command::new("yt-dlp")
+        .args([
+            "--dump-json",
+            "--no-playlist",
+            url,
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
+
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("yt-dlp failed: {}", error));
+    }
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    Ok(parse_chapters_from_json(&json))
+}
+
+/// Tauri command: Get chapters from YouTube video URL
+#[tauri::command]
+pub async fn get_youtube_chapters(
+    url: String,
+    document_id: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<Vec<crate::commands::video::VideoChapter>, String> {
+    use tokio::task::spawn_blocking;
+
+    // Extract chapters from YouTube (blocking call)
+    let youtube_chapters = spawn_blocking(move || {
+        extract_chapters(&url)
+    })
+    .await
+    .map_err(|e| format!("Failed to join task: {}", e))??;
+
+    if youtube_chapters.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Convert to VideoChapter format and save to database
+    let mut video_chapters = Vec::new();
+    for (i, chapter) in youtube_chapters.iter().enumerate() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let end_time = if i + 1 < youtube_chapters.len() {
+            youtube_chapters[i + 1].start_time
+        } else {
+            // Last chapter - use its end_time or video duration
+            chapter.end_time
+        };
+
+        video_chapters.push(crate::commands::video::VideoChapter {
+            id: id.clone(),
+            document_id: document_id.clone().unwrap_or_default(),
+            title: chapter.title.clone(),
+            start_time: chapter.start_time,
+            end_time,
+            order: i as i32,
+        });
+    }
+
+    // Save to database if document_id is provided
+    if let Some(doc_id) = document_id {
+        // Check if chapters already exist for this document
+        let existing = repo.get_video_chapters(&doc_id).await.ok();
+        if let Some(chapters) = existing {
+            if !chapters.is_empty() {
+                // Chapters already exist, return those
+                return Ok(chapters);
+            }
+        }
+
+        // Save chapters to database
+        repo.set_video_chapters(&doc_id, &video_chapters).await
+            .map_err(|e| format!("Failed to save chapters: {}", e))?;
+    }
+
+    Ok(video_chapters)
+}
