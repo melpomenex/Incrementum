@@ -15,9 +15,7 @@ Vagrantfile
 
 # Ignore directories
 Incrementum-CPP
-vps-service/*
-!vps-service/yjs-sync/
-!vps-service/yjs-sync/**
+vps-service/
 transcript-tester
 
 # Editor directories and files
@@ -41,13 +39,3 @@ rustc-ice-*.txt
 
 # Vagrant
 .vagrant
-
-# Transcript worker files (sensitive/deployment)
-vps-service/yjs-sync/.env
-vps-service/yjs-sync/Dockerfile.transcript
-vps-service/yjs-sync/HOME_WORKER_README.md
-vps-service/yjs-sync/deploy-docker.sh
-vps-service/yjs-sync/home-worker-setup.sh
-vps-service/yjs-sync/home-worker.py
-vps-service/yjs-sync/install-mac-worker-service.sh
-vps-service/yjs-sync/service.py
