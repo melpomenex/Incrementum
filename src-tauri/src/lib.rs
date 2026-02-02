@@ -65,11 +65,18 @@ pub fn run() {
         }
     }
 
-    // Fix WebKitGTK video freezing on Linux
+    // Fix WebKitGTK video freezing and crashes on Linux
     #[cfg(target_os = "linux")]
     {
+        // Disable compositing mode to prevent video freezing
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        // Disable DMA-BUF renderer to prevent crashes
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // Disable sandbox completely (required for YouTube iframe playback on newer WebKitGTK)
+        // Note: This is the new env var that WebKitGTK 2.44+ expects
+        std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
+        // Disable hardware acceleration in WebKit
+        std::env::set_var("WEBKIT_DISABLE_HARDWARE_ACCELERATION", "1");
     }
 
     const LOCALHOST_PORT: u16 = 9527;
