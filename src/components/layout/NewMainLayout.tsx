@@ -120,7 +120,10 @@ function TopHeaderBar({
   };
 
   return (
-    <header className="h-12 bg-card border-b border-border flex items-center justify-between px-3 flex-shrink-0">
+    <header
+      className="h-12 bg-card border-b border-border flex items-center justify-between px-3 flex-shrink-0 tauri-drag-region"
+      data-tauri-drag-region
+    >
       {/* Left side - navigation icons */}
       <div className="flex items-center gap-1">
         <button 
