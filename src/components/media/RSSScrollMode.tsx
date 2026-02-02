@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   Sparkles,
   Lightbulb,
+  Undo,
 } from "lucide-react";
 import {
   Feed,
@@ -191,6 +192,16 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
+
+  // Swipe gesture and undo toast state
+  const [undoState, setUndoState] = useState<{
+    visible: boolean;
+    action: "read" | "favorite";
+    feedId: string;
+    itemId: string;
+    wasFavorite: boolean;
+    progress: number;
+  } | null>(null);
 
   // Load feeds and prepare scroll items
   useEffect(() => {
@@ -377,6 +388,110 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
   }, [goToNext, goToPrevious]);
 
+  // Touch gesture handlers for swipe actions and vertical navigation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      currentX = touchStartX;
+      currentY = touchStartY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndX = currentX;
+      const touchEndY = currentY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const deltaTime = Date.now() - touchStartTime;
+
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
+
+      // Minimum thresholds for swipe gestures
+      const minSwipeDistance = 50;
+      const minVelocity = 0.3;
+
+      // Check if this is a horizontal or vertical gesture
+      if (absDeltaX > absDeltaY) {
+        // Horizontal gesture - check for swipe actions
+        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
+          const currentItem = scrollItems[currentIndex];
+          if (currentItem) {
+            // Check content scroll position first
+            const scrollableContent = container.querySelector('.rss-article-content') as HTMLElement;
+            if (scrollableContent) {
+              const canScrollLeft = scrollableContent.scrollLeft > 0;
+              const canScrollRight = scrollableContent.scrollLeft < (scrollableContent.scrollWidth - scrollableContent.clientWidth - 10);
+
+              // If content can scroll horizontally, let it scroll
+              if ((deltaX > 0 && canScrollLeft) || (deltaX < 0 && canScrollRight)) {
+                return;
+              }
+            }
+
+            // Swipe right = mark as read
+            if (deltaX > 0) {
+              handleSwipeMarkRead(currentItem.feed.id, currentItem.item.id);
+            }
+            // Swipe left = favorite
+            else if (deltaX < 0) {
+              handleSwipeFavorite(currentItem.feed.id, currentItem.item.id);
+            }
+          }
+        }
+      } else {
+        // Vertical gesture - check for navigation
+        if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
+          // Check content scroll position first
+          const scrollableContent = container.querySelector('.rss-article-content') as HTMLElement;
+          if (scrollableContent) {
+            const canScrollDown = scrollableContent.scrollTop < (scrollableContent.scrollHeight - scrollableContent.clientHeight - 10);
+            const canScrollUp = scrollableContent.scrollTop > 10;
+
+            // If content can still scroll, let it scroll
+            if (deltaY > 0 && canScrollDown) return;
+            if (deltaY < 0 && canScrollUp) return;
+          }
+
+          // Swipe up = next item, Swipe down = previous item
+          if (deltaY < 0) {
+            goToNext();
+          } else if (deltaY > 0) {
+            goToPrevious();
+          }
+        }
+      }
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [scrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -491,6 +606,159 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const itemKey = `${feedId}-${itemId}`;
     setReadItems((prev) => new Set(prev).add(itemKey));
   }, [scrollItems, currentIndex, renderedIndex]);
+
+  // Swipe gesture handlers with undo toast
+  const handleSwipeMarkRead = useCallback(async (feedId: string, itemId: string) => {
+    const item = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
+    if (!item) return;
+
+    const wasFavorite = item.item.favorite;
+
+    // Store original state for undo
+    const undoData = {
+      action: "read" as const,
+      feedId,
+      itemId,
+      wasFavorite,
+    };
+
+    // Mark as read (but don't remove favorites from scroll list)
+    try {
+      await markItemReadAuto(feedId, itemId, true);
+    } catch (error) {
+      console.warn("Failed to mark as read:", error);
+    }
+
+    // Update local state
+    setScrollItems((prev) =>
+      prev.map((si) =>
+        si.feed.id === feedId && si.item.id === itemId
+          ? { ...si, item: { ...si.item, read: true } }
+          : si
+      )
+    );
+
+    const itemKey = `${feedId}-${itemId}`;
+    setReadItems((prev) => new Set(prev).add(itemKey));
+
+    // Show undo toast
+    setUndoState({
+      visible: true,
+      ...undoData,
+      progress: 100,
+    });
+
+    // Start progress animation
+    const startTime = Date.now();
+    const duration = 3000;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+
+      setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
+
+      if (elapsed < duration && undoState?.visible) {
+        requestAnimationFrame(animate);
+      } else {
+        setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [scrollItems, undoState?.visible]);
+
+  const handleSwipeFavorite = useCallback(async (feedId: string, itemId: string) => {
+    const item = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
+    if (!item) return;
+
+    const wasFavorite = item.item.favorite;
+
+    // Toggle favorite
+    try {
+      await toggleItemFavoriteAuto(feedId, itemId);
+    } catch (error) {
+      console.warn("Failed to toggle favorite:", error);
+    }
+
+    // Update local state
+    setScrollItems((prev) =>
+      prev.map((si) =>
+        si.feed.id === feedId && si.item.id === itemId
+          ? { ...si, item: { ...si.item, favorite: !si.item.favorite } }
+          : si
+      )
+    );
+
+    // Show undo toast
+    setUndoState({
+      visible: true,
+      action: "favorite",
+      feedId,
+      itemId,
+      wasFavorite,
+      progress: 100,
+    });
+
+    // Start progress animation
+    const startTime = Date.now();
+    const duration = 3000;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+
+      setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
+
+      if (elapsed < duration && undoState?.visible) {
+        requestAnimationFrame(animate);
+      } else {
+        setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [scrollItems, undoState?.visible]);
+
+  const handleUndo = useCallback(async () => {
+    if (!undoState) return;
+
+    try {
+      if (undoState.action === "read") {
+        // Undo mark as read - mark as unread
+        await markItemReadAuto(undoState.feedId, undoState.itemId, false);
+        setScrollItems((prev) =>
+          prev.map((si) =>
+            si.feed.id === undoState.feedId && si.item.id === undoState.itemId
+              ? { ...si, item: { ...si.item, read: false } }
+              : si
+          )
+        );
+        setReadItems((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(`${undoState.feedId}-${undoState.itemId}`);
+          return newSet;
+        });
+        toast.success("Undo", "Marked as unread");
+      } else if (undoState.action === "favorite") {
+        // Undo favorite toggle - toggle back
+        await toggleItemFavoriteAuto(undoState.feedId, undoState.itemId);
+        setScrollItems((prev) =>
+          prev.map((si) =>
+            si.feed.id === undoState.feedId && si.item.id === undoState.itemId
+              ? { ...si, item: { ...si.item, favorite: undoState.wasFavorite } }
+              : si
+          )
+        );
+        toast.success("Undo", "Favorite status restored");
+      }
+    } catch (error) {
+      console.error("Failed to undo:", error);
+      toast.error("Failed to undo", error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setUndoState(null);
+    }
+  }, [undoState, toast]);
 
   // Handle text selection
   const updateSelection = useCallback(() => {
@@ -1217,6 +1485,42 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           }}
           onCreate={handleExtractCreated}
         />
+      )}
+
+      {/* Undo Toast */}
+      {undoState && undoState.visible && (
+        <div
+          className={cn(
+            "undo-toast",
+            undoState.visible && "visible"
+          )}
+        >
+          <div
+            className={cn(
+              "undo-toast-icon",
+              undoState.action === "read" ? "mark-read" : "favorite"
+            )}
+          >
+            {undoState.action === "read" ? (
+              <CheckCircle2 className="w-full h-full" />
+            ) : (
+              <Star className="w-full h-full" />
+            )}
+          </div>
+          <div className="undo-toast-message">
+            <span>{undoState.action === "read" ? "Marked as read" : undoState.wasFavorite ? "Unfavorited" : "Favorited"}</span>
+          </div>
+          <button onClick={handleUndo} className="undo-toast-action">
+            <Undo className="w-4 h-4 mr-1" />
+            Undo
+          </button>
+          <div className="undo-toast-progress">
+            <div
+              className="undo-toast-progress-bar"
+              style={{ width: `${undoState.progress}%` }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
