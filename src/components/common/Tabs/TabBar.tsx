@@ -11,6 +11,7 @@ interface TabBarProps {
   onTabMove?: (fromIndex: number, toIndex: number) => void;
   onDragStart?: (tabId: string) => void;
   onDragEnd?: () => void;
+  onSplitPane?: (paneId: string, tabId: string, direction: "horizontal" | "vertical", side: "before" | "after") => void;
 }
 
 export function TabBar({
@@ -22,6 +23,7 @@ export function TabBar({
   onTabMove,
   onDragStart,
   onDragEnd,
+  onSplitPane,
 }: TabBarProps) {
   const [contextMenu, setContextMenu] = useState<{
     tabId: string;
@@ -207,6 +209,13 @@ export function TabBar({
                 onDragEnd={handleDragEnd}
                 onContextMenu={(e) => handleContextMenu(e, tab.id)}
                 onClick={() => onTabClick(tab.id)}
+                onDoubleClick={(e) => {
+                  if (!paneId || !onSplitPane) return;
+                  if (!e.ctrlKey || e.button !== 0) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSplitPane(paneId, tab.id, "horizontal", "after");
+                }}
                 onAuxClick={(e) => {
                   if (e.button === 1 && tab.closable) {
                     e.preventDefault();
