@@ -3,7 +3,7 @@
 
 use tauri::State;
 use crate::database::Repository;
-use crate::models::{Document, DocumentMetadata, FileType};
+use crate::models::{Document, DocumentMetadata, FileType, VideoExtract, MemoryState, ReviewRating};
 
 /// Video bookmark data structure
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -230,4 +230,182 @@ fn format_time(seconds: f64) -> String {
     let mins = (seconds / 60.0).floor() as i32;
     let secs = (seconds % 60.0).floor() as i32;
     format!("{}:{:02}", mins, secs)
+}
+
+// ============================================================================
+// Video Extract commands
+// ============================================================================
+
+/// Create a video extract
+#[tauri::command]
+pub async fn create_video_extract(
+    document_id: String,
+    start_time: f64,
+    end_time: f64,
+    title: String,
+    transcript_text: Option<String>,
+    notes: Option<String>,
+    tags: Option<Vec<String>>,
+    add_to_queue: Option<bool>,
+    repo: State<'_, Repository>,
+) -> Result<VideoExtract, String> {
+    // Validate timestamps
+    if start_time < 0.0 {
+        return Err("Start time cannot be negative".to_string());
+    }
+    if end_time <= start_time {
+        return Err("End time must be greater than start time".to_string());
+    }
+
+    let duration = end_time - start_time;
+    if duration > 600.0 {
+        return Err("Extract duration cannot exceed 10 minutes (600 seconds)".to_string());
+    }
+
+    let mut extract = VideoExtract::new(document_id, start_time, end_time, title);
+    extract.transcript_text = transcript_text;
+    extract.notes = notes;
+    extract.tags = tags.unwrap_or_default();
+
+    // Schedule for review if requested
+    if add_to_queue.unwrap_or(false) {
+        let tomorrow = chrono::Utc::now() + chrono::Duration::days(1);
+        extract.next_review_date = Some(tomorrow);
+    }
+
+    repo.create_video_extract(&extract)
+        .await
+        .map_err(|e| format!("Failed to create video extract: {}", e))?;
+
+    Ok(extract)
+}
+
+/// Get all video extracts for a document
+#[tauri::command]
+pub async fn get_video_extracts(
+    document_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Vec<VideoExtract>, String> {
+    repo.get_video_extracts_by_document(&document_id)
+        .await
+        .map_err(|e| format!("Failed to get video extracts: {}", e))
+}
+
+/// Get a single video extract by ID
+#[tauri::command]
+pub async fn get_video_extract(
+    extract_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Option<VideoExtract>, String> {
+    repo.get_video_extract(&extract_id)
+        .await
+        .map_err(|e| format!("Failed to get video extract: {}", e))
+}
+
+/// Update a video extract
+#[tauri::command]
+pub async fn update_video_extract(
+    extract_id: String,
+    title: Option<String>,
+    notes: Option<String>,
+    tags: Option<Vec<String>>,
+    repo: State<'_, Repository>,
+) -> Result<VideoExtract, String> {
+    let mut extract = repo.get_video_extract(&extract_id)
+        .await
+        .map_err(|e| format!("Failed to get video extract: {}", e))?
+        .ok_or_else(|| "Video extract not found".to_string())?;
+
+    // Apply updates
+    if let Some(new_title) = title {
+        extract.title = new_title;
+    }
+    if let Some(new_notes) = notes {
+        extract.notes = Some(new_notes);
+    }
+    if let Some(new_tags) = tags {
+        extract.tags = new_tags;
+    }
+    extract.date_modified = chrono::Utc::now();
+
+    repo.update_video_extract(&extract)
+        .await
+        .map_err(|e| format!("Failed to update video extract: {}", e))
+}
+
+/// Delete a video extract
+#[tauri::command]
+pub async fn delete_video_extract(
+    extract_id: String,
+    repo: State<'_, Repository>,
+) -> Result<(), String> {
+    repo.delete_video_extract(&extract_id)
+        .await
+        .map_err(|e| format!("Failed to delete video extract: {}", e))
+}
+
+/// Rate a video extract (update FSRS scheduling)
+#[tauri::command]
+pub async fn rate_video_extract(
+    extract_id: String,
+    rating: i32,
+    repo: State<'_, Repository>,
+) -> Result<String, String> {
+    use crate::algorithms::DocumentScheduler;
+
+    // Validate rating
+    if rating < 1 || rating > 4 {
+        return Err("Rating must be between 1 (Again) and 4 (Easy)".to_string());
+    }
+
+    let mut extract = repo.get_video_extract(&extract_id)
+        .await
+        .map_err(|e| format!("Failed to get video extract: {}", e))?
+        .ok_or_else(|| "Video extract not found".to_string())?;
+
+    let scheduler = DocumentScheduler::default_params();
+    let now = chrono::Utc::now();
+
+    // Calculate elapsed days since last review
+    let elapsed_days = extract.last_review_date
+        .map(|lr| (now - lr).num_seconds() as f64 / 86400.0)
+        .unwrap_or_else(|| {
+            (now - extract.date_created).num_seconds() as f64 / 86400.0
+        })
+        .max(0.0);
+
+    let review_rating = ReviewRating::from(rating);
+
+    // Get current stability and difficulty from memory state
+    let current_stability = extract.memory_state.as_ref().map(|ms| ms.stability);
+    let current_difficulty = extract.memory_state.as_ref().map(|ms| ms.difficulty);
+
+    // Schedule the extract using FSRS
+    let result = scheduler.schedule_document(
+        review_rating,
+        current_stability,
+        current_difficulty,
+        elapsed_days
+    );
+    let result = result.map_err(|e| format!("Failed to schedule: {}", e))?;
+
+    // Update the extract with new scheduling data
+    let new_review_count = extract.review_count + 1;
+    let new_reps = extract.reps + 1;
+
+    repo.update_video_extract_scheduling(
+        &extract.id,
+        Some(result.next_review),
+        Some(crate::models::MemoryState {
+            stability: result.stability,
+            difficulty: result.difficulty,
+        }),
+        Some(new_review_count),
+        Some(new_reps),
+        Some(now),
+    )
+    .await
+    .map_err(|e| format!("Failed to update scheduling: {}", e))?;
+
+    Ok(format!("Next review: {}", result.next_review.format("%Y-%m-%d %H:%M")))
 }

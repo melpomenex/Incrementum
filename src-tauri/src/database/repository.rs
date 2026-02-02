@@ -3,8 +3,9 @@
 use sqlx::{Pool, Sqlite, Row};
 use chrono::Utc;
 use crate::error::Result;
-use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState};
+use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract};
 
+#[derive(Clone)]
 pub struct Repository {
     pool: Pool<Sqlite>,
 }
@@ -2275,6 +2276,326 @@ impl Repository {
         .bind(&now)
         .execute(&self.pool)
         .await?;
+
+        Ok(())
+    }
+
+    // ============================================================================
+    // Video Extract operations
+    // ============================================================================
+
+    /// Create a video extract
+    pub async fn create_video_extract(&self, extract: &crate::models::VideoExtract) -> Result<crate::models::VideoExtract> {
+        let tags_json = serde_json::to_string(&extract.tags)?;
+        let memory_state_json = extract.memory_state.as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO video_extracts (
+                id, document_id, start_time, end_time, title,
+                transcript_text, notes, tags, thumbnail_url,
+                memory_state, next_review_date, last_review_date,
+                review_count, reps, date_created, date_modified
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+            "#,
+        )
+        .bind(&extract.id)
+        .bind(&extract.document_id)
+        .bind(extract.start_time)
+        .bind(extract.end_time)
+        .bind(&extract.title)
+        .bind(&extract.transcript_text)
+        .bind(&extract.notes)
+        .bind(&tags_json)
+        .bind(&extract.thumbnail_url)
+        .bind(&memory_state_json)
+        .bind(extract.next_review_date)
+        .bind(extract.last_review_date)
+        .bind(extract.review_count)
+        .bind(extract.reps)
+        .bind(extract.date_created)
+        .bind(extract.date_modified)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(extract.clone())
+    }
+
+    /// Get a video extract by ID
+    pub async fn get_video_extract(&self, id: &str) -> Result<Option<crate::models::VideoExtract>> {
+        let row = sqlx::query("SELECT * FROM video_extracts WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row {
+            Some(row) => {
+                let tags_json: String = row.try_get("tags")?;
+                let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+                let memory_state_json: Option<String> = row.try_get("memory_state").ok();
+                let memory_state = memory_state_json
+                    .and_then(|json| serde_json::from_str(&json).ok());
+
+                Ok(Some(crate::models::VideoExtract {
+                    id: row.try_get("id")?,
+                    document_id: row.try_get("document_id")?,
+                    start_time: row.try_get("start_time")?,
+                    end_time: row.try_get("end_time")?,
+                    title: row.try_get("title")?,
+                    transcript_text: row.try_get("transcript_text").ok(),
+                    notes: row.try_get("notes").ok(),
+                    tags,
+                    thumbnail_url: row.try_get("thumbnail_url").ok(),
+                    memory_state,
+                    next_review_date: row.try_get("next_review_date").ok(),
+                    last_review_date: row.try_get("last_review_date").ok(),
+                    review_count: row.try_get("review_count").unwrap_or(0),
+                    reps: row.try_get("reps").unwrap_or(0),
+                    date_created: row.try_get("date_created")?,
+                    date_modified: row.try_get("date_modified")?,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Get all video extracts for a document
+    pub async fn get_video_extracts_by_document(&self, document_id: &str) -> Result<Vec<crate::models::VideoExtract>> {
+        let rows = sqlx::query("SELECT * FROM video_extracts WHERE document_id = ? ORDER BY start_time")
+            .bind(document_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut extracts = Vec::new();
+        for row in rows {
+            let tags_json: String = row.try_get("tags")?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            let memory_state_json: Option<String> = row.try_get("memory_state").ok();
+            let memory_state = memory_state_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            extracts.push(crate::models::VideoExtract {
+                id: row.try_get("id")?,
+                document_id: row.try_get("document_id")?,
+                start_time: row.try_get("start_time")?,
+                end_time: row.try_get("end_time")?,
+                title: row.try_get("title")?,
+                transcript_text: row.try_get("transcript_text").ok(),
+                notes: row.try_get("notes").ok(),
+                tags,
+                thumbnail_url: row.try_get("thumbnail_url").ok(),
+                memory_state,
+                next_review_date: row.try_get("next_review_date").ok(),
+                last_review_date: row.try_get("last_review_date").ok(),
+                review_count: row.try_get("review_count").unwrap_or(0),
+                reps: row.try_get("reps").unwrap_or(0),
+                date_created: row.try_get("date_created")?,
+                date_modified: row.try_get("date_modified")?,
+            });
+        }
+
+        Ok(extracts)
+    }
+
+    /// Get due video extracts (for review queue)
+    pub async fn get_due_video_extracts(&self, before: &chrono::DateTime<chrono::Utc>) -> Result<Vec<crate::models::VideoExtract>> {
+        let rows = sqlx::query("SELECT * FROM video_extracts WHERE next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date")
+            .bind(before)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut extracts = Vec::new();
+        for row in rows {
+            let tags_json: String = row.try_get("tags")?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            let memory_state_json: Option<String> = row.try_get("memory_state").ok();
+            let memory_state = memory_state_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            extracts.push(crate::models::VideoExtract {
+                id: row.try_get("id")?,
+                document_id: row.try_get("document_id")?,
+                start_time: row.try_get("start_time")?,
+                end_time: row.try_get("end_time")?,
+                title: row.try_get("title")?,
+                transcript_text: row.try_get("transcript_text").ok(),
+                notes: row.try_get("notes").ok(),
+                tags,
+                thumbnail_url: row.try_get("thumbnail_url").ok(),
+                memory_state,
+                next_review_date: row.try_get("next_review_date").ok(),
+                last_review_date: row.try_get("last_review_date").ok(),
+                review_count: row.try_get("review_count").unwrap_or(0),
+                reps: row.try_get("reps").unwrap_or(0),
+                date_created: row.try_get("date_created")?,
+                date_modified: row.try_get("date_modified")?,
+            });
+        }
+
+        Ok(extracts)
+    }
+
+    /// Get all video extracts
+    pub async fn get_all_video_extracts(&self) -> Result<Vec<crate::models::VideoExtract>> {
+        let rows = sqlx::query("SELECT * FROM video_extracts ORDER BY date_created DESC")
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut extracts = Vec::new();
+        for row in rows {
+            let tags_json: String = row.try_get("tags")?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            let memory_state_json: Option<String> = row.try_get("memory_state").ok();
+            let memory_state = memory_state_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            extracts.push(crate::models::VideoExtract {
+                id: row.try_get("id")?,
+                document_id: row.try_get("document_id")?,
+                start_time: row.try_get("start_time")?,
+                end_time: row.try_get("end_time")?,
+                title: row.try_get("title")?,
+                transcript_text: row.try_get("transcript_text").ok(),
+                notes: row.try_get("notes").ok(),
+                tags,
+                thumbnail_url: row.try_get("thumbnail_url").ok(),
+                memory_state,
+                next_review_date: row.try_get("next_review_date").ok(),
+                last_review_date: row.try_get("last_review_date").ok(),
+                review_count: row.try_get("review_count").unwrap_or(0),
+                reps: row.try_get("reps").unwrap_or(0),
+                date_created: row.try_get("date_created")?,
+                date_modified: row.try_get("date_modified")?,
+            });
+        }
+
+        Ok(extracts)
+    }
+
+    /// Update a video extract
+    pub async fn update_video_extract(&self, extract: &crate::models::VideoExtract) -> Result<crate::models::VideoExtract> {
+        let tags_json = serde_json::to_string(&extract.tags)?;
+        let memory_state_json = extract.memory_state.as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+
+        sqlx::query(
+            r#"
+            UPDATE video_extracts SET
+                title = ?1,
+                transcript_text = ?2,
+                notes = ?3,
+                tags = ?4,
+                thumbnail_url = ?5,
+                memory_state = ?6,
+                next_review_date = ?7,
+                last_review_date = ?8,
+                review_count = ?9,
+                reps = ?10,
+                date_modified = ?11
+            WHERE id = ?12
+            "#,
+        )
+        .bind(&extract.title)
+        .bind(&extract.transcript_text)
+        .bind(&extract.notes)
+        .bind(&tags_json)
+        .bind(&extract.thumbnail_url)
+        .bind(&memory_state_json)
+        .bind(extract.next_review_date)
+        .bind(extract.last_review_date)
+        .bind(extract.review_count)
+        .bind(extract.reps)
+        .bind(extract.date_modified)
+        .bind(&extract.id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(extract.clone())
+    }
+
+    /// Update video extract scheduling (FSRS)
+    pub async fn update_video_extract_scheduling(
+        &self,
+        id: &str,
+        next_review_date: Option<chrono::DateTime<Utc>>,
+        memory_state: Option<crate::models::MemoryState>,
+        review_count: Option<i32>,
+        reps: Option<i32>,
+        last_review_date: Option<chrono::DateTime<Utc>>,
+    ) -> Result<()> {
+        let memory_state_json = memory_state
+            .map(|value| serde_json::to_string(&value))
+            .transpose()?;
+        let now = Utc::now();
+
+        sqlx::query(
+            r#"
+            UPDATE video_extracts SET
+                next_review_date = ?1,
+                memory_state = ?2,
+                review_count = ?3,
+                reps = ?4,
+                last_review_date = ?5,
+                date_modified = ?6
+            WHERE id = ?7
+            "#,
+        )
+        .bind(next_review_date)
+        .bind(&memory_state_json)
+        .bind(review_count)
+        .bind(reps)
+        .bind(last_review_date)
+        .bind(now)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Delete a video extract
+    pub async fn delete_video_extract(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM video_extracts WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Populate transcript text for a video extract from transcript segments
+    pub async fn populate_video_extract_transcript(
+        &self,
+        extract: &mut crate::models::VideoExtract,
+    ) -> Result<()> {
+        if extract.transcript_text.is_some() {
+            return Ok(());
+        }
+
+        // Get transcript segments for the document
+        if let Some((_, segments_json)) = self.get_video_transcript(&extract.document_id).await? {
+            let segments: Vec<crate::youtube::TranscriptSegment> = serde_json::from_str(&segments_json)
+                .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to parse transcript segments: {}", e)))?;
+
+            // Filter segments within the extract's time range and concatenate
+            let transcript_text: String = segments
+                .iter()
+                .filter(|seg| seg.start >= extract.start_time && (seg.start + seg.duration) <= extract.end_time)
+                .map(|seg| seg.text.trim())
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            if !transcript_text.is_empty() {
+                extract.transcript_text = Some(transcript_text);
+            }
+        }
 
         Ok(())
     }
