@@ -19,6 +19,7 @@ import {
   getSyncLog,
   getSyncConfig,
   saveSyncConfig,
+  enableSync,
   disableSync,
   isSyncEnabled,
   formatSyncStatus,

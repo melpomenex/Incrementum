@@ -15,5 +15,5 @@
 
 {$TRANSCRIPT_HOSTNAME} {
   encode zstd gzip
-  reverse_proxy 127.0.0.1:8766
+  reverse_proxy transcript-service:8766
 }
