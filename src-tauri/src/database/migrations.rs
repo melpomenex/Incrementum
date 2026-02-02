@@ -1030,6 +1030,39 @@ pub const MIGRATIONS: &[Migration] = &[
         END;
         "#,
     ),
+
+    // Migration 031: Add video_extracts table for timestamp-linked video segments
+    Migration::new(
+        "031_add_video_extracts",
+        r#"
+        -- Video extracts table for timestamp-linked video segments with FSRS scheduling
+        CREATE TABLE IF NOT EXISTS video_extracts (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            start_time REAL NOT NULL,
+            end_time REAL NOT NULL,
+            title TEXT NOT NULL,
+            transcript_text TEXT,
+            notes TEXT,
+            tags TEXT NOT NULL DEFAULT '[]',
+            thumbnail_url TEXT,
+            -- FSRS memory state (stability and difficulty)
+            memory_state TEXT,
+            -- Scheduling fields for FSRS
+            next_review_date TEXT,
+            last_review_date TEXT,
+            review_count INTEGER NOT NULL DEFAULT 0,
+            reps INTEGER NOT NULL DEFAULT 0,
+            -- Metadata
+            date_created TEXT NOT NULL,
+            date_modified TEXT NOT NULL,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_video_extracts_document ON video_extracts(document_id);
+        CREATE INDEX IF NOT EXISTS idx_video_extracts_next_review ON video_extracts(next_review_date);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

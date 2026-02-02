@@ -1,11 +1,12 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.14",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:pwa": "vite --mode pwa",
+    "prebuild": "node scripts/download-sidecars.js",
     "build": "vite build",
     "build:pwa": "vite build --mode pwa",
     "build:check": "tsc && vite build",

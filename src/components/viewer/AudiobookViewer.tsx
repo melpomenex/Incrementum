@@ -19,7 +19,6 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  Speed,
   Bookmark,
   BookmarkPlus,
   List,
@@ -35,6 +34,8 @@ import {
   Headphones,
   Maximize2,
   Minimize2,
+  Loader2,
+  Mic,
 } from "lucide-react";
 import { cn } from "../../utils";
 import { Document } from "../../types/document";
@@ -47,6 +48,8 @@ import {
 } from "../../api/audiobooks";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
+import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
+import { startTranscription } from "../../api/transcription";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -75,7 +78,8 @@ interface MultiPartInfo {
 export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const { success: showSuccess, info: showInfo } = useToast();
+  const { success: showSuccess, info: showInfo, error: showError } = useToast();
+  const { profiles, fetchProfiles, currentStatus, activeJob, activeSegments, loadTranscript } = useTranscriptionStore();
   
   // Core playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -187,7 +191,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         if (segment && segment.id !== activeSegmentId) {
           setActiveSegmentId(segment.id);
           // Scroll segment into view
-          const element = document.getElementById(`segment-${segment.id}`);
+          const element = window.document.getElementById(`segment-${segment.id}`);
           if (element && showTranscript) {
             element.scrollIntoView({ behavior: "smooth", block: "center" });
           }
@@ -379,6 +383,40 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     return chapters[0];
   };
   
+  const handleTranscribe = async () => {
+    if (!document.filePath) {
+      showError("Transcription Error", "No file path available for this document");
+      return;
+    }
+
+    if (profiles.length === 0) {
+      await fetchProfiles();
+    }
+
+    // Default to the first profile (usually distil-small.en)
+    const profile = profiles.find(p => p.id === "distil-small.en") || profiles[0];
+    if (!profile) {
+      showError("Transcription Error", "No transcription models found. Please check settings.");
+      return;
+    }
+
+    try {
+      const currentChapter = getCurrentChapter();
+      await startTranscription(
+        document.id,
+        currentChapter?.id?.toString() || "default",
+        document.filePath,
+        profile.id,
+        "en" // TODO: Detect language or use setting
+      );
+      showSuccess("Transcription Started", "Transcribing in background...");
+    } catch (err) {
+      showError("Transcription Failed", String(err));
+    }
+  };
+
+  const isCurrentTranscribing = activeJob?.bookId === document.id;
+
   // Text selection for extracts
   const handleTextSelection = () => {
     const selection = window.getSelection();
@@ -849,7 +887,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
               className="flex-1 overflow-y-auto p-4"
               onMouseUp={handleTextSelection}
             >
-              {transcript ? (
+              {(transcript || activeSegments.length > 0) ? (
                 <>
                   {/* Extract button for selected text */}
                   {selectedText && (
@@ -868,44 +906,63 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                   
                   {/* Transcript segments */}
                   <div className="space-y-2">
-                    {transcript.segments.map((segment) => (
-                      <div
-                        key={segment.id}
-                        id={`segment-${segment.id}`}
-                        className={cn(
-                          "p-3 rounded-lg cursor-pointer transition-colors",
-                          activeSegmentId === segment.id
-                            ? "bg-primary/10 border-l-4 border-primary"
-                            : "hover:bg-muted/50 border-l-4 border-transparent"
-                        )}
-                        onClick={() => seek(segment.startTime)}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDuration(segment.startTime)}
-                          </span>
-                          {segment.speaker && (
-                            <span className="text-xs text-primary">{segment.speaker}</span>
+                    {(transcript?.segments || activeSegments).map((segment, idx) => {
+                      const id = (segment as any).id || `seg-${idx}`;
+                      const startTime = (segment as any).startTime ?? (segment as any).start_ms / 1000;
+                      
+                      return (
+                        <div
+                          key={id}
+                          id={`segment-${id}`}
+                          className={cn(
+                            "p-3 rounded-lg cursor-pointer transition-colors",
+                            activeSegmentId === id
+                              ? "bg-primary/10 border-l-4 border-primary"
+                              : "hover:bg-muted/50 border-l-4 border-transparent"
                           )}
+                          onClick={() => seek(startTime)}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-muted-foreground">
+                              {formatDuration(startTime)}
+                            </span>
+                            {(segment as any).speaker && (
+                              <span className="text-xs text-primary">{(segment as any).speaker}</span>
+                            )}
+                          </div>
+                          <p className="text-sm leading-relaxed">{segment.text}</p>
                         </div>
-                        <p className="text-sm leading-relaxed">{segment.text}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
-              ) : document.content ? (
-                // Plain text content (no timestamped transcript)
-                <div 
-                  className="prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: document.content }}
-                />
               ) : (
                 <div className="text-center text-muted-foreground py-8">
                   <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No transcript available</p>
-                  <p className="text-sm mt-1">
-                    Import a transcript from the document menu
-                  </p>
+                  <p className="font-medium">No transcript available</p>
+                  
+                  <div className="mt-6 space-y-4">
+                    <button
+                      onClick={handleTranscribe}
+                      disabled={isCurrentTranscribing || currentStatus === 'processing'}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
+                    >
+                      {isCurrentTranscribing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Transcribing...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-5 h-5" />
+                          Start Local Transcription
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs">
+                      Uses <strong>Whisper</strong> for high-accuracy offline transcription.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -945,7 +1002,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
           setSelectedText("");
         }}
         documentId={document.id}
-        initialText={selectedText}
+        selectedText={selectedText}
         pageNumber={Math.floor(currentTime)} // Use time as "page" for audio
       />
     </div>

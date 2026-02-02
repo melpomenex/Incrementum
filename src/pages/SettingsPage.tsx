@@ -339,18 +339,7 @@ function AboutSettings() {
 }
 
 function AudioTranscriptionTab() {
-  const { settings, updateSettings } = useSettingsStore();
-
-  const handleUpdateSettings = (updates: Partial<typeof settings.audioTranscription>) => {
-    updateSettings({ audioTranscription: { ...settings.audioTranscription, ...updates } });
-  };
-
-  return (
-    <AudioTranscriptionSettings
-      settings={settings.audioTranscription}
-      onUpdateSettings={handleUpdateSettings}
-    />
-  );
+  return <AudioTranscriptionSettings />;
 }
 
 function SmartQueuesTab() {

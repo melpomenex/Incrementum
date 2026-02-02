@@ -5,8 +5,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use crate::database::Repository;
 use crate::commands::review::apply_fsrs_review;
-use crate::models::{Document, Extract, LearningItem, FileType, ItemType};
-use chrono::Utc;
+use crate::models::{Document, Extract, LearningItem, FileType, ItemType, VideoExtract};
+use crate::youtube::TranscriptSegment;
+use chrono::{Utc, Duration};
+use std::collections::HashSet;
 
 pub struct MCPToolRegistry {
     tools: HashMap<String, ToolDefinition>,
@@ -272,6 +274,50 @@ impl MCPToolRegistry {
                 "required": ["count"]
             }),
         });
+
+        // Video Extract Tools
+        self.register_tool(ToolDefinition {
+            name: "extract_video_snippet".to_string(),
+            description: "Extract a snippet from a video by searching its transcript. Creates a VideoExtract that can be added to the review queue for spaced repetition.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "document_id": {"type": "string", "description": "Video document ID (required if url not provided)"},
+                    "url": {"type": "string", "description": "YouTube or video URL (optional, used if document_id not provided)"},
+                    "description": {"type": "string", "description": "Description of the content to find (e.g., 'discussion of recursion')"},
+                    "start_time": {"type": "number", "description": "Start time in seconds (optional, used instead of transcript search)"},
+                    "end_time": {"type": "number", "description": "End time in seconds (optional, used instead of transcript search)"},
+                    "title": {"type": "string", "description": "Title for the extract (optional, auto-generated if not provided)"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags for categorization"},
+                    "add_to_queue": {"type": "boolean", "description": "Whether to add to review queue (default: true)"}
+                },
+                "required": []
+            }),
+        });
+
+        self.register_tool(ToolDefinition {
+            name: "get_video_extracts".to_string(),
+            description: "Get all video extracts for a document".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "document_id": {"type": "string", "description": "Video document ID"}
+                },
+                "required": ["document_id"]
+            }),
+        });
+
+        self.register_tool(ToolDefinition {
+            name: "get_video_transcript".to_string(),
+            description: "Get the transcript for a video document".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "document_id": {"type": "string"}
+                },
+                "required": ["document_id"]
+            }),
+        });
     }
 
     pub fn register_tool(&mut self, tool: ToolDefinition) {
@@ -309,6 +355,9 @@ impl MCPToolRegistry {
             "add_pdf_selection" => self.execute_add_pdf_selection(arguments).await,
             "batch_create_cards" => self.execute_batch_create_cards(arguments).await,
             "get_queue_documents" => self.execute_get_queue_documents(arguments).await,
+            "extract_video_snippet" => self.execute_extract_video_snippet(arguments).await,
+            "get_video_extracts" => self.execute_get_video_extracts(arguments).await,
+            "get_video_transcript" => self.execute_get_video_transcript(arguments).await,
             _ => Err(format!("Tool '{}' not implemented", name)),
         }
     }
@@ -1166,5 +1215,348 @@ impl MCPToolRegistry {
                 is_error: Some(true),
             }),
         }
+    }
+
+    // ============================================================================
+    // Video Extract Tools
+    // ============================================================================
+
+    async fn execute_extract_video_snippet(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
+        // Get parameters
+        let document_id = args["document_id"].as_str();
+        let url = args["url"].as_str();
+        let description = args["description"].as_str();
+        let start_time = args["start_time"].as_f64();
+        let end_time = args["end_time"].as_f64();
+        let title = args["title"].as_str();
+        let tags = args["tags"].as_array();
+        let add_to_queue = args["add_to_queue"].as_bool().unwrap_or(true);
+
+        // Find the video document
+        let doc = if let Some(doc_id) = document_id {
+            self.repository.get_document(doc_id).await
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Document with ID '{}' not found", doc_id))?
+        } else if let Some(video_url) = url {
+            // Try to find by URL in documents
+            let docs = self.repository.list_documents().await
+                .map_err(|e| e.to_string())?;
+            docs.into_iter()
+                .find(|d| d.file_path.contains(video_url) || d.file_path.contains(&video_url.replace("https://", "").replace("http://", "")))
+                .ok_or_else(|| format!("No document found for URL '{}'", video_url))?
+        } else {
+            return Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": "Either document_id or url must be provided"
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            });
+        };
+
+        // Verify it's a video
+        if !matches!(doc.file_type, FileType::Video) {
+            return Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": format!("Document is not a video (file type: {:?})", doc.file_type)
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            });
+        }
+
+        // Get the transcript segments from the video_transcript table
+        let segments: Vec<TranscriptSegment> = match self.repository.get_video_transcript(&doc.id).await {
+            Ok(Some((_transcript, segments_json))) => {
+                serde_json::from_str(&segments_json).unwrap_or_default()
+            }
+            _ => Vec::new(),
+        };
+
+        if segments.is_empty() {
+            return Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": "No transcript available for this video. Please import the transcript first."
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            });
+        }
+
+        // Find matching segment(s) based on parameters
+        let (found_start, found_end, found_text) = if let (Some(start), Some(end)) = (start_time, end_time) {
+            // Direct time range provided
+            let text: String = segments.iter()
+                .filter(|s| s.start >= start && (s.start + s.duration) <= end)
+                .map(|s| s.text.clone())
+                .collect::<Vec<_>>()
+                .join(" ");
+            (start, end, text)
+        } else if let Some(desc) = description {
+            // Search for the description in the transcript
+            let desc_lower = desc.to_lowercase();
+            let mut best_match: Option<(usize, f64, f64, String)> = None;
+            let mut best_score = 0;
+
+            // Simple substring search with some context
+            for (i, segment) in segments.iter().enumerate() {
+                let text_lower = segment.text.to_lowercase();
+                if text_lower.contains(&desc_lower) {
+                    // Found a match, get some context (up to 30 seconds before and after)
+                    let context_start = segment.start.max(0.0);
+                    let context_end = (segment.start + segment.duration + 30.0).min(
+                        segments.last().map(|s| s.start + s.duration).unwrap_or(3600.0)
+                    );
+
+                    // Collect text in range
+                    let text: String = segments.iter()
+                        .filter(|s| s.start >= context_start && (s.start + s.duration) <= context_end)
+                        .map(|s| s.text.clone())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+
+                    // Score based on exact match
+                    let score = if text_lower == desc_lower { 100 } else { 50 };
+
+                    if score > best_score {
+                        best_score = score;
+                        best_match = Some((i, context_start, context_end, text));
+                    }
+                }
+            }
+
+            match best_match {
+                Some((_, start, end, text)) => (start, end, text),
+                None => {
+                    return Ok(ToolCallResult {
+                        content: vec![ToolContent {
+                            r#type: "text".to_string(),
+                            text: json!({
+                                "success": false,
+                                "error": format!("No transcript segment found matching description: '{}'", desc),
+                                "hint": "Try a different description or provide start_time and end_time directly"
+                            }).to_string(),
+                        }],
+                        is_error: Some(true),
+                    });
+                }
+            }
+        } else {
+            // No search criteria provided, get first 2 minutes
+            let end = segments.iter()
+                .find(|s| s.start + s.duration >= 120.0)
+                .map(|s| s.start + s.duration)
+                .unwrap_or_else(|| segments.last().map(|s| s.start + s.duration).unwrap_or(120.0));
+
+            let text: String = segments.iter()
+                .filter(|s| s.start >= 0.0 && (s.start + s.duration) <= end)
+                .map(|s| s.text.clone())
+                .collect::<Vec<_>>()
+                .join(" ");
+            (0.0, end, text)
+        };
+
+        // Generate title if not provided
+        let extract_title = if let Some(t) = title {
+            t.to_string()
+        } else {
+            if let Some(desc) = description {
+                // Generate from description (capitalize first letter)
+                let mut chars = desc.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                }
+            } else {
+                format!("Segment at {}", format_seconds(found_start))
+            }
+        };
+
+        // Create the video extract
+        let mut extract = VideoExtract::new(
+            doc.id.clone(),
+            found_start,
+            found_end,
+            extract_title,
+        );
+        extract.transcript_text = Some(found_text);
+        if let Some(tags_arr) = tags {
+            extract.tags = tags_arr.iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect();
+        }
+
+        // Add to queue if requested
+        if add_to_queue {
+            let tomorrow = Utc::now() + Duration::days(1);
+            extract.next_review_date = Some(tomorrow);
+        }
+
+        match self.repository.create_video_extract(&extract).await {
+            Ok(created) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": true,
+                        "id": created.id,
+                        "title": created.title,
+                        "start_time": created.start_time,
+                        "end_time": created.end_time,
+                        "duration": created.duration(),
+                        "time_range": created.format_time_range(),
+                        "document_id": created.document_id,
+                        "document_title": doc.title,
+                        "transcript_preview": created.transcript_preview(),
+                        "add_to_queue": add_to_queue,
+                        "next_review_date": created.next_review_date,
+                        "message": "Video extract created successfully"
+                    }).to_string(),
+                }],
+                is_error: Some(false),
+            }),
+            Err(e) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": e.to_string()
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            }),
+        }
+    }
+
+    async fn execute_get_video_extracts(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
+        let document_id = args["document_id"].as_str().ok_or("document_id is required")?;
+
+        match self.repository.get_video_extracts_by_document(document_id).await {
+            Ok(extracts) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "count": extracts.len(),
+                        "extracts": extracts.iter().map(|e| json!({
+                            "id": e.id,
+                            "title": e.title,
+                            "start_time": e.start_time,
+                            "end_time": e.end_time,
+                            "duration": e.duration(),
+                            "time_range": e.format_time_range(),
+                            "transcript_preview": e.transcript_preview(),
+                            "tags": e.tags,
+                            "next_review_date": e.next_review_date,
+                            "review_count": e.review_count
+                        })).collect::<Vec<_>>()
+                    }).to_string(),
+                }],
+                is_error: Some(false),
+            }),
+            Err(e) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": e.to_string()
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            }),
+        }
+    }
+
+    async fn execute_get_video_transcript(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
+        let document_id = args["document_id"].as_str().ok_or("document_id is required")?;
+
+        // First verify document exists
+        let _doc = match self.repository.get_document(document_id).await {
+            Ok(Some(d)) => d,
+            Ok(None) => {
+                return Ok(ToolCallResult {
+                    content: vec![ToolContent {
+                        r#type: "text".to_string(),
+                        text: json!({
+                            "success": false,
+                            "error": "Document not found"
+                        }).to_string(),
+                    }],
+                    is_error: Some(true),
+                });
+            }
+            Err(e) => {
+                return Ok(ToolCallResult {
+                    content: vec![ToolContent {
+                        r#type: "text".to_string(),
+                        text: json!({
+                            "success": false,
+                            "error": e.to_string()
+                        }).to_string(),
+                    }],
+                    is_error: Some(true),
+                });
+            }
+        };
+
+        match self.repository.get_video_transcript(document_id).await {
+            Ok(Some((transcript, segments_json))) => {
+                let segments: Vec<serde_json::Value> = serde_json::from_str(&segments_json)
+                    .unwrap_or_default();
+
+                Ok(ToolCallResult {
+                    content: vec![ToolContent {
+                        r#type: "text".to_string(),
+                        text: json!({
+                            "success": true,
+                            "document_id": document_id,
+                            "transcript": transcript,
+                            "segments_count": segments.len(),
+                            "segments": segments
+                        }).to_string(),
+                    }],
+                    is_error: Some(false),
+                })
+            }
+            Ok(None) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": "No transcript found for this video"
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            }),
+            Err(e) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": e.to_string()
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            }),
+        }
+    }
+}
+
+/// Format seconds as MM:SS or HH:MM:SS
+fn format_seconds(seconds: f64) -> String {
+    let total_seconds = seconds as i64;
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let secs = total_seconds % 60;
+
+    if hours > 0 {
+        format!("{}:{:02}:{:02}", hours, minutes, secs)
+    } else {
+        format!("{}:{:02}", minutes, secs)
     }
 }
