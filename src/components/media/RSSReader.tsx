@@ -13,11 +13,10 @@ import {
   Folder,
   Import,
   Download,
-  Maximize2,
-  Minimize2,
   Newspaper,
   X,
   Scroll,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Feed,
@@ -47,6 +46,7 @@ import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizati
 import { NewsletterDirectory } from "../newsletter/NewsletterDirectory";
 import { RSSScrollMode } from "./RSSScrollMode";
 import { isTauri } from "../../lib/tauri";
+import { getDeviceInfo } from "../../lib/pwa";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
 
@@ -71,8 +71,11 @@ export function RSSReader() {
   const [preferences, setPreferences] = useState<RssUserPreference | null>(null);
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
   const [lastAutoRefresh, setLastAutoRefresh] = useState<Date | null>(null);
-  const [isMobileFullScreen, setIsMobileFullScreen] = useState(false);
   const [scrollMode, setScrollMode] = useState(false);
+  const [mobileView, setMobileView] = useState<"feeds" | "items" | "reader">("items");
+
+  const deviceInfo = getDeviceInfo();
+  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
 
   // Reference to the auto-refresh interval
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -141,6 +144,17 @@ export function RSSReader() {
     setSelectedItem(items[0].item);
     setSelectedItemFeed(items[0].feed);
   }, [items, selectedItem]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!selectedFeed) {
+      setMobileView("feeds");
+      return;
+    }
+    if (!selectedItem) {
+      setMobileView("items");
+    }
+  }, [isMobile, selectedFeed, selectedItem]);
 
   const loadFeeds = async () => {
     const feeds = await getSubscribedFeedsAuto();
@@ -275,6 +289,9 @@ export function RSSReader() {
     await loadFeeds();
     setSelectedItem(item);
     setSelectedItemFeed(feed);
+    if (isMobile) {
+      setMobileView("reader");
+    }
   };
 
   const handleToggleFavorite = async (feed: Feed, item: FeedItem) => {
@@ -430,12 +447,77 @@ export function RSSReader() {
     );
   }
 
+  const showSidebar = !isMobile || mobileView === "feeds";
+  const showItemsList = !isMobile || mobileView === "items";
+  const showReader = !isMobile || mobileView === "reader";
+
   return (
     <>
     <div className="h-full w-full bg-background">
+      {isMobile && (
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/70">
+          <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Rss className="w-4 h-4 text-orange-500" />
+              RSS Reader
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowAddDialog(true)}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
+                title="Add feed"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setScrollMode(true)}
+                className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-lg mobile-density-tap"
+                title="Enter scroll mode"
+              >
+                <Scroll className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="px-4 pb-3">
+            <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-muted/60">
+              <button
+                onClick={() => setMobileView("feeds")}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  mobileView === "feeds"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Feeds
+              </button>
+              <button
+                onClick={() => setMobileView("items")}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  mobileView === "items"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Articles
+              </button>
+              <button
+                onClick={() => selectedItem && setMobileView("reader")}
+                disabled={!selectedItem}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  mobileView === "reader"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                } ${!selectedItem ? "opacity-50" : ""}`}
+              >
+                Reader
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden rounded-xl border border-border/70 bg-card/60 shadow-[0_0_0_1px_rgba(15,23,42,0.04)]">
         {/* Sidebar */}
-        <div className={`w-full lg:w-72 border-b lg:border-b-0 lg:border-r border-border/70 bg-card/60 flex-col min-h-0 ${isMobileFullScreen ? "hidden lg:flex" : "flex"}`}>
+        <div className={`w-full lg:w-72 border-b lg:border-b-0 lg:border-r border-border/70 bg-card/60 flex-col min-h-0 ${showSidebar ? "flex" : "hidden"}`}>
           {/* Header */}
           <div className="px-4 pt-4 pb-3 border-b border-border/70 bg-gradient-to-b from-muted/30 via-muted/10 to-transparent">
             <div className="flex items-center justify-between mb-3">
@@ -553,6 +635,9 @@ export function RSSReader() {
                         onClick={() => {
                           setSelectedFeed(feed);
                           handleViewModeChange("all");
+                          if (isMobile) {
+                            setMobileView("items");
+                          }
                         }}
                         className={`w-full px-4 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${selectedFeed?.id === feed.id ? "bg-muted/50" : ""
                           }`}
@@ -589,12 +674,15 @@ export function RSSReader() {
                 {groupedFeeds.ungrouped.length > 0 && (
                   <div className="border-b border-border/70">
                     {groupedFeeds.ungrouped.map((feed) => (
-                      <button
-                        key={feed.id}
-                        onClick={() => {
-                          setSelectedFeed(feed);
-                          handleViewModeChange("all");
-                        }}
+                    <button
+                      key={feed.id}
+                      onClick={() => {
+                        setSelectedFeed(feed);
+                        handleViewModeChange("all");
+                        if (isMobile) {
+                          setMobileView("items");
+                        }
+                      }}
                         className={`w-full px-3 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${selectedFeed?.id === feed.id ? "bg-muted/50" : ""
                           }`}
                       >
@@ -634,7 +722,7 @@ export function RSSReader() {
         {/* Main content */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
           {/* Items list */}
-          <div className={`w-full lg:w-[420px] border-b lg:border-b-0 lg:border-r border-border/70 flex-col min-h-0 ${isMobileFullScreen ? "hidden lg:flex" : "flex"}`}>
+          <div className={`w-full lg:w-[420px] border-b lg:border-b-0 lg:border-r border-border/70 flex-col min-h-0 ${showItemsList ? "flex" : "hidden"}`}>
             <div className="px-5 pt-4 pb-3 border-b border-border/70 bg-gradient-to-b from-muted/20 via-muted/10 to-transparent">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -723,7 +811,7 @@ export function RSSReader() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -758,28 +846,28 @@ export function RSSReader() {
           </div>
 
           {/* Article preview */}
-          <div className="flex-1 flex flex-col min-h-0 bg-card/40">
+          <div className={`flex-1 flex flex-col min-h-0 bg-card/40 ${showReader ? "flex" : "hidden"}`}>
             {selectedItem ? (
               <>
                 <div className="px-6 py-4 border-b border-border/70 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground uppercase tracking-[0.18em]">
-                      {selectedItemFeed?.title ?? "Article"}
-                    </p>
-                    <h2 className="text-lg font-semibold text-foreground truncate">{selectedItem.title}</h2>
+                  <div className="min-w-0 flex items-center gap-3">
+                    {isMobile && (
+                      <button
+                        onClick={() => setMobileView("items")}
+                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
+                        title="Back to articles"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground uppercase tracking-[0.18em]">
+                        {selectedItemFeed?.title ?? "Article"}
+                      </p>
+                      <h2 className="text-lg font-semibold text-foreground truncate">{selectedItem.title}</h2>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsMobileFullScreen(!isMobileFullScreen)}
-                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg lg:hidden"
-                      title={isMobileFullScreen ? "Show lists" : "Expand article"}
-                    >
-                      {isMobileFullScreen ? (
-                        <Minimize2 className="w-4 h-4" />
-                      ) : (
-                        <Maximize2 className="w-4 h-4" />
-                      )}
-                    </button>
                     {selectedItemFeed && (
                       <button
                         onClick={() => handleToggleFavorite(selectedItemFeed, selectedItem)}

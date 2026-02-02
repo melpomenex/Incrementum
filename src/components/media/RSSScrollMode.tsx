@@ -388,110 +388,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
   }, [goToNext, goToPrevious]);
 
-  // Touch gesture handlers for swipe actions and vertical navigation
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchStartTime = 0;
-    let currentX = 0;
-    let currentY = 0;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      currentX = touchStartX;
-      currentY = touchStartY;
-      touchStartTime = Date.now();
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      currentX = e.touches[0].clientX;
-      currentY = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      const touchEndX = currentX;
-      const touchEndY = currentY;
-      const deltaX = touchEndX - touchStartX;
-      const deltaY = touchEndY - touchStartY;
-      const deltaTime = Date.now() - touchStartTime;
-
-      const absDeltaX = Math.abs(deltaX);
-      const absDeltaY = Math.abs(deltaY);
-      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
-
-      // Minimum thresholds for swipe gestures
-      const minSwipeDistance = 50;
-      const minVelocity = 0.3;
-
-      // Check if this is a horizontal or vertical gesture
-      if (absDeltaX > absDeltaY) {
-        // Horizontal gesture - check for swipe actions
-        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
-          const currentItem = scrollItems[currentIndex];
-          if (currentItem) {
-            // Check content scroll position first
-            const scrollableContent = container.querySelector('.rss-article-content') as HTMLElement;
-            if (scrollableContent) {
-              const canScrollLeft = scrollableContent.scrollLeft > 0;
-              const canScrollRight = scrollableContent.scrollLeft < (scrollableContent.scrollWidth - scrollableContent.clientWidth - 10);
-
-              // If content can scroll horizontally, let it scroll
-              if ((deltaX > 0 && canScrollLeft) || (deltaX < 0 && canScrollRight)) {
-                return;
-              }
-            }
-
-            // Swipe right = mark as read
-            if (deltaX > 0) {
-              handleSwipeMarkRead(currentItem.feed.id, currentItem.item.id);
-            }
-            // Swipe left = favorite
-            else if (deltaX < 0) {
-              handleSwipeFavorite(currentItem.feed.id, currentItem.item.id);
-            }
-          }
-        }
-      } else {
-        // Vertical gesture - check for navigation
-        if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
-          // Check content scroll position first
-          const scrollableContent = container.querySelector('.rss-article-content') as HTMLElement;
-          if (scrollableContent) {
-            const canScrollDown = scrollableContent.scrollTop < (scrollableContent.scrollHeight - scrollableContent.clientHeight - 10);
-            const canScrollUp = scrollableContent.scrollTop > 10;
-
-            // If content can still scroll, let it scroll
-            if (deltaY > 0 && canScrollDown) return;
-            if (deltaY < 0 && canScrollUp) return;
-          }
-
-          // Swipe up = next item, Swipe down = previous item
-          if (deltaY < 0) {
-            goToNext();
-          } else if (deltaY > 0) {
-            goToPrevious();
-          }
-        }
-      }
-    };
-
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchmove", handleTouchMove, { passive: true });
-    container.addEventListener("touchend", handleTouchEnd);
-    container.addEventListener("touchcancel", handleTouchEnd);
-
-    return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
-      container.removeEventListener("touchcancel", handleTouchEnd);
-    };
-  }, [scrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite]);
-
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -719,6 +615,110 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
     requestAnimationFrame(animate);
   }, [scrollItems, undoState?.visible]);
+
+  // Touch gesture handlers for swipe actions and vertical navigation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      currentX = touchStartX;
+      currentY = touchStartY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndX = currentX;
+      const touchEndY = currentY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const deltaTime = Date.now() - touchStartTime;
+
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
+
+      // Minimum thresholds for swipe gestures
+      const minSwipeDistance = 50;
+      const minVelocity = 0.3;
+
+      // Check if this is a horizontal or vertical gesture
+      if (absDeltaX > absDeltaY) {
+        // Horizontal gesture - check for swipe actions
+        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
+          const currentItem = scrollItems[currentIndex];
+          if (currentItem) {
+            // Check content scroll position first
+            const scrollableContent = container.querySelector(".rss-article-content") as HTMLElement;
+            if (scrollableContent) {
+              const canScrollLeft = scrollableContent.scrollLeft > 0;
+              const canScrollRight = scrollableContent.scrollLeft < (scrollableContent.scrollWidth - scrollableContent.clientWidth - 10);
+
+              // If content can scroll horizontally, let it scroll
+              if ((deltaX > 0 && canScrollLeft) || (deltaX < 0 && canScrollRight)) {
+                return;
+              }
+            }
+
+            // Swipe right = mark as read
+            if (deltaX > 0) {
+              handleSwipeMarkRead(currentItem.feed.id, currentItem.item.id);
+            }
+            // Swipe left = favorite
+            else if (deltaX < 0) {
+              handleSwipeFavorite(currentItem.feed.id, currentItem.item.id);
+            }
+          }
+        }
+      } else {
+        // Vertical gesture - check for navigation
+        if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
+          // Check content scroll position first
+          const scrollableContent = container.querySelector(".rss-article-content") as HTMLElement;
+          if (scrollableContent) {
+            const canScrollDown = scrollableContent.scrollTop < (scrollableContent.scrollHeight - scrollableContent.clientHeight - 10);
+            const canScrollUp = scrollableContent.scrollTop > 10;
+
+            // If content can still scroll, let it scroll
+            if (deltaY > 0 && canScrollDown) return;
+            if (deltaY < 0 && canScrollUp) return;
+          }
+
+          // Swipe up = next item, Swipe down = previous item
+          if (deltaY < 0) {
+            goToNext();
+          } else if (deltaY > 0) {
+            goToPrevious();
+          }
+        }
+      }
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [scrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite]);
 
   const handleUndo = useCallback(async () => {
     if (!undoState) return;
