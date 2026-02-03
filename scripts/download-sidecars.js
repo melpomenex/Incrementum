@@ -56,6 +56,22 @@ async function downloadFile(url, dest) {
   });
 }
 
+function ensureWhisperSource() {
+  if (fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
+    return;
+  }
+
+  try {
+    execSync('git submodule update --init --recursive whisper.cpp');
+  } catch (e) {
+    // ignore and fallback to clone
+  }
+
+  if (!fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
+    execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
+  }
+}
+
 async function main() {
   const targetTriple = getTargetTriple();
   console.log(`Downloading sidecars for target: ${targetTriple}`);
@@ -110,9 +126,7 @@ async function main() {
     console.log('Building Whisper (Linux)...');
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
-        if (!fs.existsSync('whisper.cpp')) {
-          execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
-        }
+        ensureWhisperSource();
         
         // Check for CUDA
         let cudaFlag = '';
@@ -142,9 +156,7 @@ async function main() {
     // Mac Whisper (Build from source using CMake)
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
-        if (!fs.existsSync('whisper.cpp')) {
-          execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
-        }
+        ensureWhisperSource();
         
         // Check for CUDA
         let cudaFlag = '';
@@ -183,9 +195,7 @@ async function main() {
     // Windows Whisper (build from source via CMake)
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
       console.log('Building Whisper.cpp from source...');
-      if (!fs.existsSync('whisper.cpp')) {
-        execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
-      }
+      ensureWhisperSource();
 
       execSync('cd whisper.cpp && cmake -B build');
       execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
