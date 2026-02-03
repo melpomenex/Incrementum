@@ -22,6 +22,7 @@ import type { OCRConfig } from "../ocrCommands";
 const mockInvoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mockInvoke,
+  convertFileSrc: vi.fn((path: string) => path),
 }));
 
 describe("OCR Commands Integration Tests", () => {
