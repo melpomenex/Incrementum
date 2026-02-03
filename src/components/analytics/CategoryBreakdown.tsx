@@ -6,7 +6,9 @@ interface CategoryBreakdownProps {
 }
 
 export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
-  if (categories.length === 0) {
+  const safeCategories = Array.isArray(categories) ? categories : [];
+
+  if (safeCategories.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -16,7 +18,7 @@ export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
     );
   }
 
-  const maxCardCount = Math.max(...categories.map((c) => c.card_count), 1);
+  const maxCardCount = Math.max(...safeCategories.map((c) => c.card_count), 1);
 
   return (
     <div className="space-y-4">
@@ -27,12 +29,12 @@ export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <FolderOpen className="w-4 h-4" />
-          {categories.length} categor{categories.length !== 1 ? "ies" : "y"}
+          {safeCategories.length} categor{safeCategories.length !== 1 ? "ies" : "y"}
         </div>
       </div>
 
       <div className="space-y-3">
-        {categories.map((category) => {
+        {safeCategories.map((category) => {
           const percentage = (category.card_count / maxCardCount) * 100;
 
           return (

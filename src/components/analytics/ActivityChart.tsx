@@ -6,7 +6,9 @@ interface ActivityChartProps {
 }
 
 export function ActivityChart({ data }: ActivityChartProps) {
-  if (data.length === 0) {
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -16,10 +18,10 @@ export function ActivityChart({ data }: ActivityChartProps) {
   }
 
   // Find max value for scaling
-  const maxReviews = Math.max(...data.map((d) => d.reviews_count), 1);
+  const maxReviews = Math.max(...safeData.map((d) => d.reviews_count), 1);
 
   // Get last 14 days for display
-  const displayData = data.slice(-14);
+  const displayData = safeData.slice(-14);
 
   const getDayOfWeek = (dateStr: string) => {
     const date = new Date(dateStr);
