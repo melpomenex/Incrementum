@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTabsStore, createTabPane } from "../../stores";
+import { useTabsStore, createTabPane, normalizePane } from "../../stores";
 import { useDocumentStore } from "../../stores";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
@@ -13,7 +13,8 @@ import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 
 export function MainLayout() {
   const tabs = useTabsStore((state) => state.tabs);
-  const rootPane = useTabsStore((state) => state.rootPane);
+  const rawRootPane = useTabsStore((state) => state.rootPane);
+  const rootPane = normalizePane(rawRootPane);
   const addTab = useTabsStore((state) => state.addTab);
   const loadTabs = useTabsStore((state) => state.loadTabs);
   const setActiveTab = useTabsStore((state) => state.setActiveTab);
