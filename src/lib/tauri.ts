@@ -11,6 +11,7 @@ import { browserInvoke } from './browser-backend.js';
 let tauriInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
 let tauriDialogOpen: ((options: unknown) => Promise<string | string[] | null>) | null = null;
 let tauriEventListen: (<T>(event: string, handler: (event: T) => void) => Promise<() => void>) | null = null;
+let tauriConvertFileSrc: ((path: string, protocol?: string) => string) | null = null;
 
 /**
  * Check if running in Tauri environment
@@ -43,6 +44,7 @@ async function loadTauriAPI(): Promise<void> {
   try {
     const coreModule = await import("@tauri-apps/api/core");
     tauriInvoke = coreModule.invoke;
+    tauriConvertFileSrc = coreModule.convertFileSrc;
   } catch (error) {
     console.error("Failed to load Tauri API:", error);
     throw new Error("Tauri API not available");
@@ -103,6 +105,20 @@ export async function invokeCommand<T>(command: string, args?: Record<string, un
     // Browser/PWA environment - use IndexedDB backend
     return browserInvoke<T>(command, args);
   }
+}
+
+/**
+ * Convert a local file path to a Tauri-safe URL.
+ */
+export async function convertFileSrc(path: string, protocol?: string): Promise<string> {
+  if (!isTauri()) {
+    throw new Error("convertFileSrc is only available in the Tauri desktop app");
+  }
+  await loadTauriAPI();
+  if (!tauriConvertFileSrc) {
+    throw new Error("Failed to load Tauri convertFileSrc API");
+  }
+  return tauriConvertFileSrc(path, protocol);
 }
 
 /**

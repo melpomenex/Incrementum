@@ -19,6 +19,7 @@ export default defineConfig(async ({ mode }) => {
       process.env.TAURI_ENV
   );
   const isPWA = mode === "pwa" || (!isTauriBuild && isProd);
+  const disableOptimizeDeps = false;
 
   const plugins = [
     react({ fastRefresh: !isTauriBuild }),
@@ -129,8 +130,8 @@ export default defineConfig(async ({ mode }) => {
       chunkSizeWarningLimit: 1000,
     },
     optimizeDeps: {
-      // Force re-optimization in Tauri dev to avoid stale pre-bundles.
-      force: isTauriBuild,
+      // Avoid forcing re-optimization to prevent esbuild deadlock in Tauri dev.
+      force: false,
       // Include jszip and handle its CommonJS format
       include: ["jszip", "react", "react-dom"],
       esbuildOptions: {

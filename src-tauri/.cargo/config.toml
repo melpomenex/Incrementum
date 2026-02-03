@@ -1,3 +1,6 @@
-[env]
-RUST_MIN_STACK = "67108864"
-LIBSQLITE3_SYS_USE_PKG_CONFIG = "1"
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[build]
+jobs = 1
+rustc = "/home/ubuntu/.rustup/toolchains/1.90.0-x86_64-unknown-linux-gnu/bin/rustc"

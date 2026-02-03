@@ -9,6 +9,7 @@ import {
   LLMProviderType,
   AIConfig,
 } from "../../api/ai";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 const DEFAULT_CONFIG: AIConfig = {
   default_provider: LLMProviderType.OpenAI,
@@ -41,6 +42,10 @@ export function AISettings() {
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openrouterKey, setOpenrouterKey] = useState("");
 
+  // Context window tokens (for document content)
+  const { settings, updateSettingsCategory } = useSettingsStore();
+  const [contextWindowTokens, setContextWindowTokens] = useState(settings.ai.maxTokens);
+
   useEffect(() => {
     async function loadConfig() {
       try {
@@ -52,6 +57,8 @@ export function AISettings() {
           setAnthropicKey(loaded.api_keys.anthropic || "");
           setOpenrouterKey(loaded.api_keys.openrouter || "");
         }
+        // Load context window tokens from settings store
+        setContextWindowTokens(settings.ai.maxTokens);
       } catch (error) {
         console.error("Failed to load AI config:", error);
       } finally {
@@ -88,6 +95,9 @@ export function AISettings() {
 
       await setAIConfig(updatedConfig);
       setConfigState(updatedConfig);
+
+      // Save context window tokens to settings store
+      updateSettingsCategory("ai", { maxTokens: contextWindowTokens });
     } catch (error) {
       console.error("Failed to save AI config:", error);
       alert("Failed to save configuration");
@@ -337,7 +347,7 @@ export function AISettings() {
           {/* Max Tokens */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Max Tokens
+              Max Tokens (Response)
             </label>
             <input
               type="number"
@@ -353,6 +363,28 @@ export function AISettings() {
               }
               className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Maximum tokens for AI responses
+            </p>
+          </div>
+
+          {/* Context Window Tokens */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Context Window (Document Content)
+            </label>
+            <input
+              type="number"
+              min="1000"
+              max="32000"
+              step="500"
+              value={contextWindowTokens}
+              onChange={(e) => setContextWindowTokens(parseInt(e.target.value) || 4000)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              How much document content to send to the AI (tokens)
+            </p>
           </div>
         </div>
       </div>

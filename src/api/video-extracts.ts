@@ -356,6 +356,27 @@ export async function setVideoTranscript(
   }
 }
 
+/**
+ * Generate transcript for a local video using Whisper (Tauri only)
+ */
+export async function generateVideoTranscript(
+  documentId: string,
+  filePath: string,
+  modelId: string,
+  language: string
+): Promise<VideoTranscript> {
+  if (!isTauri()) {
+    throw new Error("Video transcription requires the desktop app");
+  }
+
+  return await invokeCommand<VideoTranscript>("generate_video_transcript", {
+    documentId,
+    filePath,
+    modelId,
+    language,
+  });
+}
+
 // ============================================================================
 // YouTube Chapters (Tauri only - requires yt-dlp)
 // ============================================================================

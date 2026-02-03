@@ -323,28 +323,40 @@ export async function generateTranscript(
     throw new Error("Transcript generation requires the desktop app");
   }
   
-  const { invokeCommand } = await import("../lib/tauri");
+  const { invokeCommand, listen } = await import("../lib/tauri");
   
-  // Use Tauri backend with Whisper
-  const result = await invokeCommand<{
-    segments: TranscriptSegment[];
-    language?: string;
-  }>("generate_audiobook_transcript", { 
-    filePath,
-    // Model options
-    model: "base",
-    language: "auto",
-  });
-  
-  const fullText = result.segments.map(s => s.text).join(" ");
-  
-  return {
-    segments: result.segments,
-    fullText,
-    language: result.language,
-    source: "generated",
-    lastUpdated: new Date().toISOString(),
-  };
+  // Listen for progress events
+  let unlisten: (() => void) | undefined;
+  if (onProgress) {
+    unlisten = await listen<{ progress: number }>("transcription://progress", (event) => {
+      onProgress(event.payload.progress);
+    });
+  }
+
+  try {
+    // Use Tauri backend with Whisper
+    const result = await invokeCommand<{
+      segments: TranscriptSegment[];
+      language?: string;
+    }>("generate_audiobook_transcript", { 
+      filePath,
+      // Model options
+      model: "distil-small.en",
+      language: "auto",
+    });
+    
+    const fullText = result.segments.map(s => s.text).join(" ");
+    
+    return {
+      segments: result.segments,
+      fullText,
+      language: result.language,
+      source: "generated",
+      lastUpdated: new Date().toISOString(),
+    };
+  } finally {
+    if (unlisten) unlisten();
+  }
 }
 
 // Import transcript from file

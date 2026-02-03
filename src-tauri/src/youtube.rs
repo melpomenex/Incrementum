@@ -963,6 +963,9 @@ pub async fn import_youtube_video(
     let created = repo.create_document(&doc).await
         .map_err(|e| format!("Failed to save document to database: {}", e))?;
 
+    // Auto-fetch and save chapters from YouTube (non-blocking, fail gracefully)
+    let _ = get_youtube_chapters(url, Some(created.id.clone()), repo.clone()).await;
+
     Ok(created)
 }
 
@@ -978,21 +981,29 @@ pub struct YouTubeChapter {
 pub fn parse_chapters_from_json(json: &serde_json::Value) -> Vec<YouTubeChapter> {
     let mut chapters = Vec::new();
 
+    let duration = json["duration"]
+        .as_f64()
+        .or_else(|| json["duration"].as_u64().map(|d| d as f64));
+
     // Try to get chapters from the 'chapters' field
     if let Some(chapters_array) = json["chapters"].as_array() {
         for (i, chapter) in chapters_array.iter().enumerate() {
-            if let (Some(title), Some(start)) = (
-                chapter["title"].as_str(),
-                chapter["start_time"].as_f64()
-            ) {
-                let end_time = chapter["end_time"].as_f64();
+            let title = chapter["title"]
+                .as_str()
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty());
+            let start = chapter["start_time"]
+                .as_f64()
+                .or_else(|| chapter["start_time"].as_u64().map(|value| value as f64));
+
+            if let (Some(title), Some(start)) = (title, start) {
+                let end_time = chapter["end_time"]
+                    .as_f64()
+                    .or_else(|| chapter["end_time"].as_u64().map(|value| value as f64));
                 // If end_time is not provided, estimate from duration or next chapter
                 let end = end_time.unwrap_or_else(|| {
                     // Try to get duration from video info
-                    json["duration"]
-                        .as_u64()
-                        .map(|d| d as f64)
-                        .unwrap_or(0.0)
+                    duration.unwrap_or(0.0)
                 });
 
                 chapters.push(YouTubeChapter {
@@ -1003,6 +1014,83 @@ pub fn parse_chapters_from_json(json: &serde_json::Value) -> Vec<YouTubeChapter>
             }
         }
     }
+
+    if chapters.is_empty() {
+        if let Some(description) = json["description"].as_str() {
+            chapters = parse_chapters_from_description(description, duration);
+        }
+    }
+
+    chapters
+}
+
+fn parse_timestamp_to_seconds(timestamp: &str) -> Option<f64> {
+    let parts: Vec<&str> = timestamp.split(':').collect();
+    if parts.len() < 2 || parts.len() > 3 {
+        return None;
+    }
+
+    let mut values = Vec::with_capacity(parts.len());
+    for part in parts {
+        let value = part.trim().parse::<u64>().ok()?;
+        values.push(value);
+    }
+
+    let seconds = *values.last()?;
+    if seconds >= 60 {
+        return None;
+    }
+
+    let (hours, minutes) = if values.len() == 3 {
+        if values[1] >= 60 {
+            return None;
+        }
+        (values[0], values[1])
+    } else {
+        (0, values[0])
+    };
+
+    Some((hours * 3600 + minutes * 60 + seconds) as f64)
+}
+
+fn parse_chapters_from_description(description: &str, duration: Option<f64>) -> Vec<YouTubeChapter> {
+    let re = match regex::Regex::new(
+        r"(?m)^\s*(?:[-*]\s*)?(?P<ts>\d{1,2}:\d{2}(?::\d{2})?)\s*(?:-|\||:)?\s*(?P<title>.+?)\s*$"
+    ) {
+        Ok(value) => value,
+        Err(_) => return vec![],
+    };
+
+    let mut chapters = Vec::new();
+    for caps in re.captures_iter(description) {
+        let timestamp = match caps.name("ts") {
+            Some(value) => value.as_str(),
+            None => continue,
+        };
+        let title = caps
+            .name("title")
+            .map(|value| value.as_str().trim())
+            .filter(|value| !value.is_empty())
+            .unwrap_or("Chapter");
+
+        let start_time = match parse_timestamp_to_seconds(timestamp) {
+            Some(value) => value,
+            None => continue,
+        };
+
+        chapters.push(YouTubeChapter {
+            title: title.to_string(),
+            start_time,
+            end_time: duration.unwrap_or(0.0),
+        });
+    }
+
+    if chapters.is_empty() {
+        return chapters;
+    }
+
+    chapters.sort_by(|a, b| a.start_time.partial_cmp(&b.start_time).unwrap_or(std::cmp::Ordering::Equal));
+    chapters.dedup_by(|a, b| a.start_time == b.start_time);
 
     chapters
 }
