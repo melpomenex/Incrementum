@@ -26,7 +26,13 @@ export function getQueueSession(): QueueSession {
   try {
     const data = sessionStorage.getItem(SESSION_KEY);
     if (data) {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data) as Partial<QueueSession> | null;
+      const items = Array.isArray(parsed?.items) ? parsed?.items : [];
+      const startedAt = typeof parsed?.startedAt === "string" ? parsed.startedAt : new Date().toISOString();
+      if (!Array.isArray(parsed?.items)) {
+        console.warn("[queue-session] Normalized invalid session items", parsed);
+      }
+      return { items, startedAt };
     }
   } catch {
     // Ignore parse errors
