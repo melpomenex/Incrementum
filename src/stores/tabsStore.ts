@@ -49,6 +49,39 @@ export interface SplitPane {
 
 export type Pane = TabPane | SplitPane;
 
+export function normalizePane(pane: Pane | null | undefined): Pane {
+  if (!pane || typeof pane !== "object") {
+    return createTabPane();
+  }
+
+  if (pane.type === "tabs") {
+    const tabIds = Array.isArray(pane.tabIds) ? pane.tabIds : [];
+    const activeTabId =
+      pane.activeTabId && tabIds.includes(pane.activeTabId) ? pane.activeTabId : tabIds[0] ?? null;
+    const changed = tabIds !== pane.tabIds || activeTabId !== pane.activeTabId;
+    return changed ? { ...pane, tabIds, activeTabId } : pane;
+  }
+
+  const children = Array.isArray(pane.children) ? pane.children : [];
+  const normalizedChildren = children.map(normalizePane);
+  let sizes = Array.isArray(pane.sizes) ? pane.sizes : [];
+  const sizesValid =
+    sizes.length === normalizedChildren.length &&
+    sizes.every((size) => typeof size === "number" && Number.isFinite(size));
+  if (!sizesValid) {
+    const count = normalizedChildren.length || 1;
+    const equal = 100 / count;
+    sizes = Array.from({ length: count }, () => equal);
+  }
+
+  const changed =
+    pane.children !== normalizedChildren ||
+    pane.sizes !== sizes ||
+    normalizedChildren.some((child, index) => child !== children[index]);
+
+  return changed ? { ...pane, children: normalizedChildren, sizes } : pane;
+}
+
 // Helper to create a new tab pane
 export function createTabPane(tabIds: string[] = [], activeTabId: string | null = null): TabPane {
   return {

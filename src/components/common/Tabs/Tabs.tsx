@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useTabsStore, SplitDirection } from "../../../stores";
+import { useTabsStore, SplitDirection, normalizePane } from "../../../stores";
 import { SplitPaneContainer } from "./SplitPaneContainer";
 
 /**
@@ -8,7 +8,8 @@ import { SplitPaneContainer } from "./SplitPaneContainer";
  */
 export function Tabs() {
   const tabs = useTabsStore((state) => state.tabs);
-  const rootPane = useTabsStore((state) => state.rootPane);
+  const rawRootPane = useTabsStore((state) => state.rootPane);
+  const rootPane = normalizePane(rawRootPane);
   const setActiveTab = useTabsStore((state) => state.setActiveTab);
   const closeTab = useTabsStore((state) => state.closeTab);
   const moveTab = useTabsStore((state) => state.moveTab);
@@ -70,10 +71,13 @@ export function Tabs() {
         // For now, cycle through first pane's tabs
         const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
         if (firstPane && firstPane.type === "tabs") {
-          const currentIndex = firstPane.tabIds.findIndex((id) => id === firstPane.activeTabId);
-          const nextIndex = (currentIndex + 1) % firstPane.tabIds.length;
-          if (firstPane.tabIds[nextIndex]) {
-            setActiveTab(firstPane.id, firstPane.tabIds[nextIndex]);
+          const safePane = normalizePane(firstPane);
+          if (safePane.type === "tabs" && safePane.tabIds.length > 0) {
+            const currentIndex = safePane.tabIds.findIndex((id) => id === safePane.activeTabId);
+            const nextIndex = (currentIndex + 1) % safePane.tabIds.length;
+            if (safePane.tabIds[nextIndex]) {
+              setActiveTab(safePane.id, safePane.tabIds[nextIndex]);
+            }
           }
         }
       }
@@ -84,10 +88,13 @@ export function Tabs() {
         const paneIds = useTabsStore.getState().getTabPaneIds();
         const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
         if (firstPane && firstPane.type === "tabs") {
-          const currentIndex = firstPane.tabIds.findIndex((id) => id === firstPane.activeTabId);
-          const prevIndex = currentIndex <= 0 ? firstPane.tabIds.length - 1 : currentIndex - 1;
-          if (firstPane.tabIds[prevIndex]) {
-            setActiveTab(firstPane.id, firstPane.tabIds[prevIndex]);
+          const safePane = normalizePane(firstPane);
+          if (safePane.type === "tabs" && safePane.tabIds.length > 0) {
+            const currentIndex = safePane.tabIds.findIndex((id) => id === safePane.activeTabId);
+            const prevIndex = currentIndex <= 0 ? safePane.tabIds.length - 1 : currentIndex - 1;
+            if (safePane.tabIds[prevIndex]) {
+              setActiveTab(safePane.id, safePane.tabIds[prevIndex]);
+            }
           }
         }
       }
