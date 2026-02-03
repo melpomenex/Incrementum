@@ -203,7 +203,7 @@ jobs:
   release-arch:
     runs-on: ubuntu-latest
     container:
-      image: archlinux:latest
+      image: archlinux:base-devel
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
