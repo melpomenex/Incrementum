@@ -7,6 +7,23 @@ if (typeof window !== 'undefined') {
       root.innerHTML = '<div style="padding:20px;background:#000;color:#fff;font-family:monospace;"><h2>Startup Error</h2><pre style="white-space:pre-wrap;">' + e.message + '\n' + (e.error?.stack || '') + '</pre></div>';
     }
   });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const message = reason?.message || String(reason);
+    if (message.includes("TextDecoder") && message.includes("encoded data was not valid")) {
+      event.preventDefault();
+      console.error('[Yjs] Decode failure detected. Clearing persistence and reloading.', reason);
+      const resetKey = "incrementum_yjs_reset_at";
+      if (!sessionStorage.getItem(resetKey)) {
+        sessionStorage.setItem(resetKey, new Date().toISOString());
+        import("./lib/yjsSync")
+          .then(({ getYjsSync }) => getYjsSync().persistence.clearData())
+          .catch((error) => console.error('[Yjs] Failed to clear persistence:', error))
+          .finally(() => window.location.reload());
+      }
+    }
+  });
 }
 
 import React, { Suspense, useEffect } from "react";
