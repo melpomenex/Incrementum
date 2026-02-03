@@ -29,6 +29,7 @@ pub mod collections;
 pub mod collection_archive;
 pub mod video;
 pub mod youtube_playlist;
+pub mod audiobook;
 
 // Re-export error types for use in commands
 pub use crate::error::Result;
@@ -58,6 +59,7 @@ pub use collections::*;
 pub use collection_archive::*;
 pub use video::*;
 pub use youtube_playlist::*;
+pub use audiobook::*;
 
 // Cloud commands
 pub use cloud::oauth::*;

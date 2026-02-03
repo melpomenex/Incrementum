@@ -22,6 +22,7 @@ import {
   X,
   ChevronRight,
   ArrowLeft,
+  Mic,
 } from "lucide-react";
 import { KeyboardShortcutSettings } from "./KeyboardShortcutsSettings";
 import { AISettings as AIProviderSettings } from "./AIProviderSettings";
@@ -34,6 +35,7 @@ import { ThemePicker } from "./ThemePicker";
 import { IntegrationSettings } from "./IntegrationSettings";
 import { HandbookSettings } from "./HandbookSettings";
 import { NotificationSettings } from "./NotificationSettings";
+import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 
@@ -47,6 +49,7 @@ export enum SettingsTab {
   Documents = "documents",
   Shortcuts = "shortcuts",
   AI = "ai",
+  AudioTranscription = "audio-transcription",
   Sync = "sync",
   Integrations = "integrations",
   CloudStorage = "cloud-storage",
@@ -109,6 +112,13 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
     icon: Brain,
     keywords: ["openai", "anthropic", "ollama", "llm", "model", "token", "api key", "assistant", "flashcard generation"],
     description: "AI provider settings and API keys"
+  },
+  { 
+    id: SettingsTab.AudioTranscription, 
+    label: "Audio Transcription", 
+    icon: Mic,
+    keywords: ["audio", "transcription", "whisper", "speech", "speech to text", "model", "download", "offline"],
+    description: "Download Whisper models for local transcription"
   },
   { 
     id: SettingsTab.Sync, 
@@ -425,6 +435,7 @@ export function SettingsPage() {
           {activeTab === SettingsTab.Documents && <DocumentsSettings />}
           {activeTab === SettingsTab.Shortcuts && <ShortcutSettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.AI && <AISettings onChange={() => setHasChanges(true)} />}
+          {activeTab === SettingsTab.AudioTranscription && <AudioTranscriptionSettings />}
           {activeTab === SettingsTab.Sync && <SyncSettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.Integrations && <IntegrationSettings />}
           {activeTab === SettingsTab.CloudStorage && <CloudStorageSettings onChange={() => setHasChanges(true)} />}

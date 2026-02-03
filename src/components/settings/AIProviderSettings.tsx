@@ -3,12 +3,14 @@
  * LLM Provider configuration and MCP Servers configuration
  */
 
-import { SettingsSection } from "./SettingsPage";
+import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { LLMProviderSettings } from "./LLMProviderSettings";
 import { MCPServersSettings } from "./MCPServersSettings";
 import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { useMCPServersStore } from "../../stores/mcpServersStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { invokeCommand as invoke } from "../../lib/tauri";
+import { useState, useEffect } from "react";
 
 /**
  * AI Provider Settings
@@ -23,6 +25,21 @@ export function AISettings({ onChange }: { onChange: () => void }) {
   const addMCPServer = useMCPServersStore((state) => state.addServer);
   const removeMCPServer = useMCPServersStore((state) => state.removeServer);
   const updateMCPServer = useMCPServersStore((state) => state.updateServer);
+
+  // Context window tokens setting
+  const { settings, updateSettings } = useSettingsStore();
+  const [contextWindowTokens, setContextWindowTokens] = useState(settings.ai.maxTokens);
+
+  // Load context window tokens on mount
+  useEffect(() => {
+    setContextWindowTokens(settings.ai.maxTokens);
+  }, [settings.ai.maxTokens]);
+
+  const handleSaveContextWindow = (value: number) => {
+    setContextWindowTokens(value);
+    updateSettings({ ai: { ...settings.ai, maxTokens: value } });
+    onChange();
+  };
 
   const handleTestConnection = async (config: { id: string; provider: string; apiKey: string; baseUrl?: string; model: string }) => {
     try {
@@ -83,6 +100,27 @@ export function AISettings({ onChange }: { onChange: () => void }) {
         onRemoveProvider={handleRemoveProvider}
         onTestConnection={handleTestConnection}
       />
+
+      {/* AI Model Settings */}
+      <SettingsSection
+        title="Model Settings"
+        description="Configure AI model behavior and context limits"
+      >
+        <SettingsRow
+          label="Context Window (Document Content)"
+          description="How much document content to send to the AI when generating flashcards or answering questions (in tokens)"
+        >
+          <input
+            type="number"
+            min="1000"
+            max="32000"
+            step="500"
+            value={contextWindowTokens}
+            onChange={(e) => handleSaveContextWindow(parseInt(e.target.value) || 4000)}
+            className="w-24 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
+        </SettingsRow>
+      </SettingsSection>
 
       {/* MCP Servers Configuration */}
       <MCPServersSettings

@@ -12,6 +12,7 @@ import { isTauri } from "../lib/tauri";
 interface TranscriptionState {
   profiles: ModelProfile[];
   downloadProgress: Record<string, number>;
+  transcriptionProgress: number;
   activeSegments: TranscriptSegment[];
   currentStatus: 'idle' | 'processing' | 'downloading';
   activeJob: { bookId: string, chapterId: string } | null;
@@ -21,11 +22,13 @@ interface TranscriptionState {
   addSegment: (segment: TranscriptSegment) => void;
   setStatus: (status: 'idle' | 'processing' | 'downloading') => void;
   setDownloadProgress: (id: string, progress: number) => void;
+  setTranscriptionProgress: (progress: number) => void;
 }
 
 export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
   profiles: [],
   downloadProgress: {},
+  transcriptionProgress: 0,
   activeSegments: [],
   currentStatus: 'idle',
   activeJob: null,
@@ -57,10 +60,17 @@ export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
       downloadProgress: { ...state.downloadProgress, [id]: progress }
     }));
   },
+
+  setTranscriptionProgress: (progress) => set({ transcriptionProgress: progress }),
 }));
 
 // Setup event listeners (Tauri only - transcription backend events)
 if (isTauri()) {
+  listen("transcription://progress", (event: any) => {
+    const { progress } = event.payload;
+    useTranscriptionStore.getState().setTranscriptionProgress(progress);
+  });
+
   listen("transcription://download-progress", (event: any) => {
     const { id, progress } = event.payload;
     useTranscriptionStore.getState().setDownloadProgress(id, progress);

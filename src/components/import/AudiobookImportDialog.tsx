@@ -61,6 +61,7 @@ import {
   detectMultiPartAudiobook,
   MultiPartAudiobook,
 } from "../../api/audiobooks";
+import { downloadTranscriptionModel, getTranscriptionProfiles } from "../../api/transcription";
 import { openFilePicker, openFolderPicker } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
 import type { Document } from "../../types/document";
@@ -112,6 +113,7 @@ export function AudiobookImportDialog({
   // Common state
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
+  const [transcriptProgress, setTranscriptProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Partial<AudiobookMetadata>[]>([]);
@@ -442,14 +444,61 @@ export function AudiobookImportDialog({
     }
     
     setIsGeneratingTranscript(true);
+    setTranscriptProgress(0);
     try {
       const result = await generateTranscript(filePath, (progress) => {
-        // Could show progress here
+        setTranscriptProgress(progress);
       });
       setTranscript(result);
       showSuccess("Transcript generated", "Your audiobook is now ready for incremental reading");
     } catch (err) {
-      showError("Generation failed", err instanceof Error ? err.message : "Unknown error");
+      const message = err instanceof Error ? err.message : String(err);
+      const match = message.match(/Model '([^']+)' is not installed/i);
+
+      if (match) {
+        const missingModelId = match[1];
+        showError(
+          "Model not installed",
+          `The "${missingModelId}" model is required for transcription.`,
+          {
+            action: {
+              label: "Download model",
+              onClick: async () => {
+                try {
+                  setIsGeneratingTranscript(true);
+                  const profiles = await getTranscriptionProfiles();
+                  const target = profiles.find((p) => p.id === missingModelId) || profiles[0];
+                  if (!target) {
+                    showError("Download failed", "No transcription models are available.");
+                    return;
+                  }
+                  showInfo(
+                    "Downloading model",
+                    `${target.name} (${Math.round(target.size_bytes / 1024 / 1024)} MB)`
+                  );
+                  await downloadTranscriptionModel(target.id);
+                  showSuccess("Model downloaded", "Retrying transcription...");
+                  const result = await generateTranscript(filePath);
+                  setTranscript(result);
+                  showSuccess(
+                    "Transcript generated",
+                    "Your audiobook is now ready for incremental reading"
+                  );
+                } catch (downloadErr) {
+                  showError(
+                    "Download failed",
+                    downloadErr instanceof Error ? downloadErr.message : "Unknown error"
+                  );
+                } finally {
+                  setIsGeneratingTranscript(false);
+                }
+              },
+            },
+          }
+        );
+      } else {
+        showError("Generation failed", message || "Unknown error");
+      }
     } finally {
       setIsGeneratingTranscript(false);
     }
@@ -1258,7 +1307,18 @@ export function AudiobookImportDialog({
                         </span>
                       )}
                       {isGeneratingTranscript && (
-                        <Loader2 className="mt-3 h-5 w-5 animate-spin text-primary" />
+                        <div className="mt-3 w-full px-2">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                             <span>Transcribing...</span>
+                             <span>{transcriptProgress}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div 
+                               className="h-full bg-primary transition-all duration-300"
+                               style={{ width: `${transcriptProgress}%` }}
+                            />
+                          </div>
+                        </div>
                       )}
                     </button>
                     

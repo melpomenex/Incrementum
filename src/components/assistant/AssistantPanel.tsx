@@ -264,13 +264,23 @@ export function AssistantPanel({
 **Available Tools:**
 ${toolsList || "No tools available."}
 
-**Tool Calls:**
-To save items, I will include a tool call block like:
-\`\`\`tool_calls
-{"tool_calls":[{"name":"create_cloze_card","arguments":{"text":"...","document_id":"..."}}]}
-\`\`\`
+**What I can do:**
+- Answer questions about your documents (content is automatically provided)
+- Create flashcards from the current document
+- Create extracts from important passages
+- Summarize and explain concepts
 
-I also have context of what you're currently viewing, so feel free to ask questions about your documents!`,
+**Example prompts:**
+- "Create 5 flashcards from this paper" - I'll extract key concepts and make Q&A or cloze cards
+- "Summarize the main points" - I'll summarize the document content
+- "What is the author's argument?" - I'll analyze the provided content
+- "Save this quote as an extract" - I'll create an extract
+
+**Tool Calls:**
+When you ask me to create flashcards or extracts, I'll use tool calls like:
+\`\`\`tool_calls
+{"tool_calls":[{"name":"create_qa_card","arguments":{"question":"...","answer":"..."}}]}
+\`\`\``,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, helpMessage]);
@@ -564,12 +574,47 @@ I also have context of what you're currently viewing, so feel free to ask questi
       return "Answer normally. Tool calls are unavailable.";
     }
     const toolNames = tools.map((tool) => tool.name).join(", ");
-    return `You can call tools when the user asks to create, save, update, or delete data.
-Use this exact format for tool calls:
+
+    // Build detailed tool descriptions
+    const toolDescriptions = tools.map((tool) => {
+      return `- **${tool.name}**: ${tool.description}`;
+    }).join("\n");
+
+    return `You are a helpful assistant with access to document content. You can answer questions about the content AND create learning items from it.
+
+**Document Content**: You will receive the document's content along with user questions. Use this content to:
+- Answer questions about the material
+- Extract key insights for flashcards
+- Create extracts from important passages
+- Generate summaries
+
+**Available Tools**: ${toolNames}
+
+${toolDescriptions}
+
+**When to use tools**:
+- Create flashcards when asked (e.g., "create flashcards", "make cards", "generate qa cards", "create cloze cards")
+- Create extracts when asked to save quotes or passages
+- Create documents when asked to save new content
+
+**Tool call format** (exact JSON required):
 \`\`\`tool_calls
-{"tool_calls":[{"name":"tool_name","arguments":{}}]}
+{"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}}]}
 \`\`\`
-Available tools: ${toolNames}`;
+
+**For flashcard creation**:
+- Extract key concepts, facts, and insights from the provided document content
+- Create meaningful Q&A cards that test understanding
+- Create cloze deletion cards for key terms and definitions
+- The document_id will be automatically added to your tool calls
+
+**Example for "Create 5 flashcards"**:
+\`\`\`tool_calls
+{"tool_calls":[
+  {"name":"create_qa_card","arguments":{"question":"What is X?","answer":"Y is..."}},
+  {"name":"create_cloze_card","arguments":{"text":"The {{key term}} is important for..."}}
+]}
+\`\`\``;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

@@ -50,6 +50,8 @@ import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { startTranscription } from "../../api/transcription";
+import { isTauri } from "../../lib/tauri";
+import { readDocumentFile } from "../../api/documents";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -79,7 +81,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
-  const { profiles, fetchProfiles, currentStatus, activeJob, activeSegments, loadTranscript } = useTranscriptionStore();
+  const { profiles, fetchProfiles, currentStatus, activeJob, activeSegments, loadTranscript, transcriptionProgress } = useTranscriptionStore();
   
   // Core playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -111,6 +113,8 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sleepTimer, setSleepTimer] = useState<SleepTimer | null>(null);
+  const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
+  const [hasTriedFallback, setHasTriedFallback] = useState(false);
   
   // Debug fileContent
   useEffect(() => {
@@ -258,9 +262,73 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
           console.error('[AudiobookViewer] Play error:', err);
         });
       }
-      setIsPlaying(!isPlaying);
     } else {
       console.warn('[AudiobookViewer] No audio ref');
+    }
+  };
+
+  const getAudioMimeType = (path?: string) => {
+    const ext = path?.split(".").pop()?.toLowerCase();
+    switch (ext) {
+      case "wav":
+        return "audio/wav";
+      case "m4a":
+      case "m4b":
+        return "audio/mp4";
+      case "aac":
+        return "audio/aac";
+      case "ogg":
+        return "audio/ogg";
+      case "flac":
+        return "audio/flac";
+      case "opus":
+        return "audio/opus";
+      case "mp3":
+      default:
+        return "audio/mpeg";
+    }
+  };
+
+  const handleAudioError = async () => {
+    const error = audioRef.current?.error;
+    const src = audioRef.current?.currentSrc || audioRef.current?.src;
+    console.error("[AudiobookViewer] Audio error:", { code: error?.code, message: error?.message, src });
+
+    if (hasTriedFallback) {
+      showError(
+        "Playback failed",
+        "The audio format may not be supported by your system codecs."
+      );
+      return;
+    }
+
+    if (!isTauri() || !document.filePath) {
+      showError("Playback failed", "Unable to load audio file.");
+      return;
+    }
+
+    // Fallback: read file into memory and create a blob URL (slower, but avoids file-scope issues).
+    try {
+      setHasTriedFallback(true);
+      showInfo("Loading audio", "Direct playback failed. Falling back to buffered mode (may be slow).");
+      const base64Data = await readDocumentFile(document.filePath);
+      if (!base64Data) {
+        throw new Error("Empty file data");
+      }
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const mimeType = getAudioMimeType(document.filePath);
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+      setFallbackSrc(blobUrl);
+      showSuccess("Audio loaded", "Retry play.");
+    } catch (err) {
+      showError(
+        "Playback failed",
+        err instanceof Error ? err.message : "Unable to load audio file"
+      );
     }
   };
   
@@ -436,6 +504,24 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const currentChapterIndex = currentChapter 
     ? chapters.findIndex(c => c.id === currentChapter.id)
     : -1;
+
+  useEffect(() => {
+    if (!showTranscript) return;
+    if (transcript?.segments?.length) return;
+    if (activeSegments.length > 0) return;
+
+    const chapterId = currentChapter?.id?.toString() || "default";
+    loadTranscript(document.id, chapterId).catch((err) => {
+      console.warn("[AudiobookViewer] Failed to load transcript:", err);
+    });
+  }, [
+    showTranscript,
+    transcript?.segments?.length,
+    activeSegments.length,
+    loadTranscript,
+    document.id,
+    currentChapter?.id,
+  ]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -511,12 +597,13 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       {/* Audio element - use fileContent (blob URL) when available, otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
+        src={fallbackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onError={handleAudioError}
       />
       
       {/* Main content area */}
@@ -945,18 +1032,35 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     <button
                       onClick={handleTranscribe}
                       disabled={isCurrentTranscribing || currentStatus === 'processing'}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
+                      className="w-full flex flex-col items-center justify-center gap-1 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
                     >
-                      {isCurrentTranscribing ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Transcribing...
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-5 h-5" />
-                          Start Local Transcription
-                        </>
+                      <div className="flex items-center gap-2">
+                        {isCurrentTranscribing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Transcribing...
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="w-5 h-5" />
+                            Start Local Transcription
+                          </>
+                        )}
+                      </div>
+                      
+                      {isCurrentTranscribing && (
+                        <div className="w-full mt-2 px-1">
+                          <div className="flex justify-between text-[10px] mb-1 opacity-90">
+                            <span>Overall Progress</span>
+                            <span>{transcriptionProgress}%</span>
+                          </div>
+                          <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-white transition-all duration-300"
+                              style={{ width: `${transcriptionProgress}%` }}
+                            />
+                          </div>
+                        </div>
                       )}
                     </button>
                     <p className="text-xs">

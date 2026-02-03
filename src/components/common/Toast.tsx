@@ -3,7 +3,7 @@
  * Enhanced with stack limit, progress bar, and better animations
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { create } from "zustand";
 import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
@@ -234,13 +234,11 @@ export function Toast() {
 export function useToast() {
   const { addToast, removeToast } = useToastStore();
 
-  type PromiseFn = <T>(
+  const promiseFn = useCallback(<T,>(
     promise: Promise<T>,
     success: string,
     error?: string
-  ) => Promise<T>;
-
-  const promiseFn: PromiseFn = (promise, success, error) => {
+  ): Promise<T> => {
     return promise
       .then((result) => {
         addToast({ type: ToastType.Success, title: success });
@@ -254,24 +252,32 @@ export function useToast() {
         });
         throw err;
       });
-  };
+  }, [addToast]);
 
-  return {
-    success: (title: string, message?: string, options?: Partial<Toast>) => {
-      return addToast({ type: ToastType.Success, title, message, ...options });
-    },
-    error: (title: string, message?: string, options?: Partial<Toast>) => {
-      return addToast({ type: ToastType.Error, title, message, ...options });
-    },
-    warning: (title: string, message?: string, options?: Partial<Toast>) => {
-      return addToast({ type: ToastType.Warning, title, message, ...options });
-    },
-    info: (title: string, message?: string, options?: Partial<Toast>) => {
-      return addToast({ type: ToastType.Info, title, message, ...options });
-    },
+  const success = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+    return addToast({ type: ToastType.Success, title, message, ...options });
+  }, [addToast]);
+
+  const error = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+    return addToast({ type: ToastType.Error, title, message, ...options });
+  }, [addToast]);
+
+  const warning = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+    return addToast({ type: ToastType.Warning, title, message, ...options });
+  }, [addToast]);
+
+  const info = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+    return addToast({ type: ToastType.Info, title, message, ...options });
+  }, [addToast]);
+
+  return useMemo(() => ({
+    success,
+    error,
+    warning,
+    info,
     promise: promiseFn,
     dismiss: removeToast,
-  };
+  }), [success, error, warning, info, promiseFn, removeToast]);
 }
 
 /**
