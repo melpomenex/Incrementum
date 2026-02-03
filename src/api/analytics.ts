@@ -52,12 +52,20 @@ export async function getMemoryStats(): Promise<MemoryStats> {
  * Get activity data for the last N days
  */
 export async function getActivityData(days: number = 30): Promise<ActivityDay[]> {
-  return await invokeCommand<ActivityDay[]>("get_activity_data", { days });
+  const result = await invokeCommand<ActivityDay[] | null>("get_activity_data", { days });
+  if (!Array.isArray(result)) {
+    console.warn("[analytics] get_activity_data returned non-array result", result);
+  }
+  return Array.isArray(result) ? result : [];
 }
 
 /**
  * Get category statistics
  */
 export async function getCategoryStats(): Promise<CategoryStats[]> {
-  return await invokeCommand<CategoryStats[]>("get_category_stats");
+  const result = await invokeCommand<CategoryStats[] | null>("get_category_stats");
+  if (!Array.isArray(result)) {
+    console.warn("[analytics] get_category_stats returned non-array result", result);
+  }
+  return Array.isArray(result) ? result : [];
 }
