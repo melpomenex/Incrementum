@@ -206,9 +206,12 @@ No additional dependencies required.
 ### Build from Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/melpomenex/incrementum-tauri.git
+# Clone the repository (includes whisper.cpp submodule)
+git clone --recurse-submodules https://github.com/melpomenex/incrementum-tauri.git
 cd incrementum-tauri
+
+# If you already cloned without submodules
+git submodule update --init --recursive
 
 # Install dependencies
 npm install

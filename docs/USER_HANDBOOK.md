@@ -934,6 +934,18 @@ Most newsletter platforms publish RSS feeds:
 - Sync transcript with video
 - Create cards at timestamps
 
+**Video Features Panel:**
+- Open the **Panels** button in the video viewer
+- Tabs for Bookmarks, Chapters, Transcript
+- Bookmarks save timestamps for quick jumps
+- Chapters can be fetched from YouTube
+
+**Video Extracts:**
+1. Open **Panels** → **Video Extracts**
+2. Click **New**
+3. Set start/end and optional transcript text
+4. Save to create a reusable clip
+
 **SponsorBlock Integration:**
 - Auto-skip sponsored segments
 - Category filtering
@@ -943,6 +955,32 @@ Most newsletter platforms publish RSS feeds:
 - Resume from last position
 - Mark watched sections
 - Watch history
+
+### Local Video Transcription (Desktop App)
+
+Generate transcripts for local video files in the Tauri desktop app.
+
+1. Open a local video
+2. Open **Panels** → **Transcript**
+3. Choose a model and language
+4. Click **Generate Transcript**
+
+Notes:
+- Transcription runs locally on your machine
+- Requires a local file path (not available for web-only videos)
+
+### Audiobook Transcription (Desktop App)
+
+Create transcripts for audiobooks to enable text selection and sync.
+
+1. Import an audiobook
+2. Open the audiobook viewer
+3. Click **Start Local Transcription**
+4. Monitor progress and open the transcript panel
+
+Notes:
+- Transcription runs locally on your machine
+- Models are managed in **Settings → Audio Transcription**
 
 ### OCR (Optical Character Recognition)
 
