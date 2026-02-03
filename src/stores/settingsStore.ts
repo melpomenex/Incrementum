@@ -453,6 +453,67 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "incrementum-settings",
       version: 1,
+      onRehydrateStorage: () => (state, error) => {
+        if (error || !state) return;
+        const persisted = state.settings || defaultSettings;
+        const merged: Settings = {
+          ...defaultSettings,
+          ...persisted,
+          general: { ...defaultSettings.general, ...persisted.general },
+          appearance: { ...defaultSettings.appearance, ...persisted.appearance },
+          interface: { ...defaultSettings.interface, ...persisted.interface },
+          learning: {
+            ...defaultSettings.learning,
+            ...persisted.learning,
+            fsrsParams: {
+              ...defaultSettings.learning.fsrsParams,
+              ...persisted.learning?.fsrsParams,
+            },
+          },
+          documents: {
+            ...defaultSettings.documents,
+            ...persisted.documents,
+            pdfSettings: {
+              ...defaultSettings.documents.pdfSettings,
+              ...persisted.documents?.pdfSettings,
+            },
+            epubSettings: {
+              ...defaultSettings.documents.epubSettings,
+              ...persisted.documents?.epubSettings,
+            },
+            segmentation: {
+              ...defaultSettings.documents.segmentation,
+              ...persisted.documents?.segmentation,
+            },
+            ocr: {
+              ...defaultSettings.documents.ocr,
+              ...persisted.documents?.ocr,
+            },
+          },
+          ai: { ...defaultSettings.ai, ...persisted.ai },
+          sync: { ...defaultSettings.sync, ...persisted.sync },
+          importExport: { ...defaultSettings.importExport, ...persisted.importExport },
+          notifications: { ...defaultSettings.notifications, ...persisted.notifications },
+          privacy: { ...defaultSettings.privacy, ...persisted.privacy },
+          audioTranscription: { ...defaultSettings.audioTranscription, ...persisted.audioTranscription },
+          smartQueue: { ...defaultSettings.smartQueue, ...persisted.smartQueue },
+          scrollQueue: { ...defaultSettings.scrollQueue, ...persisted.scrollQueue },
+          rssQueue: { ...defaultSettings.rssQueue, ...persisted.rssQueue },
+          youtube: { ...defaultSettings.youtube, ...persisted.youtube },
+        };
+
+        if (!Array.isArray(merged.learning.lapseSteps)) {
+          merged.learning.lapseSteps = defaultSettings.learning.lapseSteps;
+        }
+        if (!Array.isArray(merged.rssQueue.includedFeedIds)) {
+          merged.rssQueue.includedFeedIds = [];
+        }
+        if (!Array.isArray(merged.rssQueue.excludedFeedIds)) {
+          merged.rssQueue.excludedFeedIds = [];
+        }
+
+        state.settings = merged;
+      },
     }
   )
 );
