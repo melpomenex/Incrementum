@@ -4,15 +4,21 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Play, Clock, ExternalLink, Share2, Youtube, AlertTriangle, SkipForward, Loader2, GripVertical } from "lucide-react";
+import { Play, Clock, ExternalLink, Share2, Youtube, AlertTriangle, SkipForward, Loader2, GripVertical, Layers, Scissors, X } from "lucide-react";
 import { useToast } from "../common/Toast";
 import { useDocumentStore } from "../../stores";
+import { VideoFeatures } from '../video/VideoFeatures';
+import {
+  CreateVideoExtractDialog,
+  VideoExtractsList,
+} from '../video/VideoExtracts';
 import { TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import { getYouTubeWatchURL, formatDuration } from "../../api/youtube";
 import { fetchYouTubeTranscript } from "../../utils/youtubeTranscriptBrowser";
 import { getDocumentAuto, updateDocument, updateDocumentProgressAuto } from "../../api/documents";
 import { generateYouTubeShareUrl, copyShareLink, parseStateFromUrl } from "../../lib/shareLink";
+import { cn } from "../../utils";
 import { saveDocumentPosition, timePosition } from "../../api/position";
 import { isTauri } from "../../lib/tauri";
 import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
@@ -85,6 +91,20 @@ export function YouTubeViewer({
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSkippedSegmentIdRef = useRef<string | null>(null);
 
+  // Video features panel state
+  const [showVideoFeatures, setShowVideoFeatures] = useState(false);
+  const [videoFeaturesWidth, setVideoFeaturesWidth] = useState(() => {
+    const saved = localStorage.getItem('video-features-panel-width');
+    return saved ? parseInt(saved, 10) : 384; // Default matches w-96
+  });
+  const [isResizingVideoFeatures, setIsResizingVideoFeatures] = useState(false);
+  const videoFeaturesResizeStartXRef = useRef(0);
+  const videoFeaturesResizeStartWidthRef = useRef(0);
+  const [showCreateExtract, setShowCreateExtract] = useState(false);
+  const [extractStartTime, setExtractStartTime] = useState(0);
+  const [activeExtractStartTime, setActiveExtractStartTime] = useState<number | null>(null);
+  const [activeExtractEndTime, setActiveExtractEndTime] = useState<number | null>(null);
+
   // Update refs when values change
   useEffect(() => {
     documentIdRef.current = documentId;
@@ -109,6 +129,11 @@ export function YouTubeViewer({
     localStorage.setItem('transcript-panel-width', String(transcriptWidth));
   }, [transcriptWidth]);
 
+  // Persist video features width to localStorage
+  useEffect(() => {
+    localStorage.setItem('video-features-panel-width', String(videoFeaturesWidth));
+  }, [videoFeaturesWidth]);
+
   // Handle resize start
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -122,6 +147,18 @@ export function YouTubeViewer({
     document.body.style.cursor = 'ew-resize';
     document.body.style.userSelect = 'none';
   }, [transcriptWidth]);
+
+  const handleVideoFeaturesResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsResizingVideoFeatures(true);
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    videoFeaturesResizeStartXRef.current = clientX;
+    videoFeaturesResizeStartWidthRef.current = videoFeaturesWidth;
+
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  }, [videoFeaturesWidth]);
 
   // Handle resize move
   useEffect(() => {
@@ -153,6 +190,34 @@ export function YouTubeViewer({
     };
   }, [isResizing]);
 
+  useEffect(() => {
+    if (!isResizingVideoFeatures) return;
+
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const delta = videoFeaturesResizeStartXRef.current - clientX; // Dragging left increases width
+      const newWidth = Math.max(300, Math.min(900, videoFeaturesResizeStartWidthRef.current + delta));
+      setVideoFeaturesWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingVideoFeatures(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove);
+    window.addEventListener('touchend', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isResizingVideoFeatures]);
   // Load SponsorBlock segments
   useEffect(() => {
     if (!videoId) return;
@@ -335,22 +400,48 @@ export function YouTubeViewer({
             }
           }
         }
+
+        if (
+          activeExtractStartTime !== null
+          && activeExtractEndTime !== null
+          && activeExtractEndTime > activeExtractStartTime
+          && time >= activeExtractEndTime
+        ) {
+          playerRef.current.seekTo(activeExtractStartTime, true);
+          playerRef.current.playVideo?.();
+        }
       } catch (e) {
         // Ignore errors from player (e.g. if it's not ready)
       }
     }, 500);
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, segments, saveCurrentPosition, onTimeUpdate, toast]);
+  }, [
+    isPlaying,
+    segments,
+    saveCurrentPosition,
+    onTimeUpdate,
+    toast,
+    activeExtractStartTime,
+    activeExtractEndTime,
+  ]);
 
   // Seek to time - opens video at specific timestamp
-  const handleSeek = useCallback((time: number) => {
+  const handleSeek = useCallback((time: number, endTime?: number) => {
     setCurrentTime(time);
     setStartTime(time);
     saveCurrentPosition(time);
+    if (typeof endTime === "number" && endTime > time) {
+      setActiveExtractStartTime(time);
+      setActiveExtractEndTime(endTime);
+    } else {
+      setActiveExtractStartTime(null);
+      setActiveExtractEndTime(null);
+    }
 
     if (showInlinePlayer && playerRef.current) {
       playerRef.current.seekTo(time, true);
+      playerRef.current.playVideo?.();
     } else {
       setShowInlinePlayer(true);
     }
@@ -404,6 +495,17 @@ export function YouTubeViewer({
       playerRef.current.playVideo?.();
     }
   }, []);
+
+  // Video features handlers
+  const handleOpenCreateExtract = useCallback(() => {
+    setExtractStartTime(currentTime);
+    setShowCreateExtract(true);
+  }, [currentTime]);
+
+  const handleExtractCreated = useCallback(() => {
+    setShowCreateExtract(false);
+    toast.success('Video extract created successfully');
+  }, [toast]);
 
   // YouTube Player Event Handlers
   const onPlayerReady = (event: any) => {
@@ -640,6 +742,21 @@ export function YouTubeViewer({
               </div>
 
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                {/* Video Features panel button */}
+                {documentId && (
+                  <button
+                    onClick={() => setShowVideoFeatures(!showVideoFeatures)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
+                      showVideoFeatures ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
+                    )}
+                    title="Video Features (Bookmarks, Chapters, Extracts)"
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span className="font-medium">Panels</span>
+                  </button>
+                )}
+
                 {/* Layout toggle - only show when transcript is visible */}
                 {showTranscript && (
                   <button
@@ -707,6 +824,81 @@ export function YouTubeViewer({
           )}
         </div>
       </div>
+
+      {/* Video Features Slide-over Panel */}
+      {showVideoFeatures && documentId && (
+        <div
+          className="absolute top-0 right-0 h-full bg-card border-l border-border shadow-xl z-50 flex flex-col"
+          style={{ width: videoFeaturesWidth }}
+        >
+          {/* Resize handle */}
+          <div
+            className={`absolute left-0 top-0 h-full w-1 ${isResizingVideoFeatures ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
+            onMouseDown={handleVideoFeaturesResizeStart}
+            onTouchStart={handleVideoFeaturesResizeStart}
+            title="Drag to resize"
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
+              <GripVertical className="w-3 h-3 text-muted-foreground" />
+            </div>
+          </div>
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">Video Features</h3>
+            <button
+              onClick={() => setShowVideoFeatures(false)}
+              className="p-1 hover:bg-muted rounded transition-colors"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Video Features Component (Bookmarks, Chapters, Transcript) */}
+            <div className="p-4 border-b border-border">
+              <VideoFeatures
+                documentId={documentId}
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={handleSeek}
+              />
+            </div>
+
+            {/* Video Extracts Section */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Scissors className="w-4 h-4" />
+                  Video Extracts
+                </h4>
+                <button
+                  onClick={handleOpenCreateExtract}
+                  className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-md hover:opacity-90 transition-opacity flex items-center gap-1"
+                >
+                  <Scissors className="w-3 h-3" />
+                  New
+                </button>
+              </div>
+              <VideoExtractsList
+                documentId={documentId}
+                onPlayExtract={(extract) => handleSeek(extract.start_time, extract.end_time)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Video Extract Dialog */}
+      <CreateVideoExtractDialog
+        documentId={documentId || ''}
+        documentTitle={displayTitle}
+        isOpen={showCreateExtract}
+        initialStartTime={extractStartTime}
+        initialEndTime={extractStartTime > 0 ? extractStartTime + 60 : undefined}
+        onClose={() => setShowCreateExtract(false)}
+        onCreate={handleExtractCreated}
+      />
     </div>
   );
 }

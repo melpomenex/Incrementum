@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
-import { isTauri, isPWA } from "../../lib/tauri";
+import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { PDFViewer } from "./PDFViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
@@ -664,23 +664,36 @@ export function DocumentViewer({
       try {
         console.log(`[DocumentViewer] Loading ${inferredType} file:`, doc.filePath);
         setMediaError(null);
-        const base64Data = await documentsApi.readDocumentFile(doc.filePath);
-        console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
-        if (!base64Data || base64Data.length === 0) {
-          throw new Error(`File not found or empty. The file may need to be re-imported.`);
+        const filePath = doc.filePath;
+        const canUseFileSrc =
+          isTauri() &&
+          filePath &&
+          !filePath.startsWith("browser-file://") &&
+          !filePath.startsWith("browser-fetched://");
+
+        if (canUseFileSrc) {
+          const fileUrl = await convertFileSrc(filePath);
+          mediaSrcRef.current = fileUrl;
+          setMediaSrc(fileUrl);
+        } else {
+          const base64Data = await documentsApi.readDocumentFile(filePath);
+          console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
+          if (!base64Data || base64Data.length === 0) {
+            throw new Error(`File not found or empty. The file may need to be re-imported.`);
+          }
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const mimeType = inferredType === "audio"
+            ? getAudioMimeType(filePath)
+            : getVideoMimeType(filePath);
+          console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
+          const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+          mediaSrcRef.current = blobUrl;
+          setMediaSrc(blobUrl);
         }
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const mimeType = inferredType === "audio"
-          ? getAudioMimeType(doc.filePath)
-          : getVideoMimeType(doc.filePath);
-        console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
-        const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-        mediaSrcRef.current = blobUrl;
-        setMediaSrc(blobUrl);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);

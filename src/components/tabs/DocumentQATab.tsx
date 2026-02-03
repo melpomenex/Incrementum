@@ -442,22 +442,55 @@ export function DocumentQATab() {
       const mcpTools = (await getIncrementumMCPTools()) || [];
       const systemPrompt: LLMMessage = {
         role: "system",
-        content: `You are a helpful assistant that answers questions about documents.
+        content: `You are a helpful assistant for incremental reading and spaced repetition.
 
 ${mentionedDocumentIds.length > 0
-  ? `IMPORTANT: The user has provided document content below. Answer their question directly using ONLY the provided document content. Do NOT use tools to fetch the document - the content is already provided in the user's message.${chapterRef ? `\n\nThe user is asking about Chapter ${chapterRef.number}. Focus your answer on that specific chapter.` : ''}`
+  ? `**DOCUMENT CONTENT PROVIDED**: The user has provided full document content below. Use this content to:
+- Answer questions about the material
+- Extract key concepts for flashcards
+- Create extracts from important passages
+- Summarize and explain topics
+
+${chapterRef ? `**CHAPTER CONTEXT**: The user is asking about Chapter ${chapterRef.number}. Focus your answer and flashcard creation on that specific chapter.\n\n` : ''}`
   : `The user is asking a general question. Answer based on your knowledge.`}
 
-ONLY use tools when the user explicitly asks you to CREATE or SAVE something:
-- "Create flashcards" or "make cards" → use create_qa_card or create_cloze_card
-- "Create an extract" or "save this" → use create_extract
-- "Save this note" → use create_extract
+**CRITICAL: TOOL USAGE**
+When the user asks to CREATE or SAVE learning items, you MUST output tool calls in the exact format below. DO NOT just display flashcards as text - use tool calls to actually save them to the database.
 
-For regular questions like "summarize", "explain", "what is", etc. - just answer directly from the provided content. Do NOT use tools for questions.
+**When to use tools**:
+- "Create flashcards", "make cards", "generate cards", "add to database" → MUST use create_qa_card or create_cloze_card tools
+- "Create an extract", "save this quote", "save this passage" → MUST use create_extract tool
+- "Save this note" → MUST use create_extract tool
 
-${mcpTools.length > 0 ? `Available tools (only use when asked to create/save): ${mcpTools.map((t) => t.name).join(", ")}
+**For regular questions** like "summarize", "explain", "what is" - answer directly without tools.
 
-Tool call format (only if needed):
+**FLASHCARD CREATION - CRITICAL INSTRUCTIONS**:
+When asked to create flashcards:
+1. Extract key concepts FROM THE PROVIDED DOCUMENT CONTENT
+2. Create meaningful Q&A cards and cloze deletion cards
+3. **IMPORTANT**: You MUST output the tool_calls code block to actually save the cards
+4. Do NOT just display "Flashcard 1", "Flashcard 2" as text
+5. The document_id will be automatically added
+
+**CORRECT FORMAT (you MUST use this)**:
+User: "Create 5 flashcards from this paper"
+You respond:
+\`\`\`tool_calls
+{"tool_calls":[
+  {"name":"create_qa_card","arguments":{"question":"What is the main contribution?","answer":"The paper introduces..."}},
+  {"name":"create_cloze_card","arguments":{"text":"BRACE conditions on the {{belief distribution}}"}},
+  {"name":"create_qa_card","arguments":{"question":"How does it learn?","answer":"End-to-end gradients..."}}
+]}
+\`\`\`
+
+**WRONG FORMAT (do NOT do this)**:
+Flashcard 1 - Q&A
+Q: ...
+A: ...
+
+${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join(", ")}
+
+**REQUIRED TOOL CALL FORMAT**:
 \`\`\`tool_calls
 {"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}}]}
 \`\`\`` : ''}`,
@@ -484,11 +517,21 @@ Tool call format (only if needed):
           : userQuestion,
       };
 
-      // Call LLM
+      // Build conversation history for LLM context
+      // Include recent messages (excluding system messages) for context
+      const conversationHistory: LLMMessage[] = messages
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .slice(-6) // Last 6 messages for context (3 turns)
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+      // Call LLM with conversation history
       const response = await chatWithContext(
         provider.provider,
         provider.model,
-        [systemPrompt, userPrompt],
+        [systemPrompt, ...conversationHistory, userPrompt],
         {
           type: mentionedDocumentIds.length > 0 ? "document" : "general",
           documentId: mentionedDocumentIds[0],

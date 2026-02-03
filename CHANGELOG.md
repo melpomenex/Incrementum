@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Local video transcription using Whisper
+  - Generate transcripts for local video files using Whisper models
+  - Selectable transcription models and languages
+  - Real-time progress updates via Tauri events
+  - Automatic transcript saving to database
+- YouTube chapter fetching
+  - Fetch chapters directly from YouTube videos
+  - Auto-fetch chapters on YouTube video import
+  - Parse chapters from video description (timestamp format)
+  - Improved chapter parsing with duration and end time handling
+- Video extracts feature for YouTube videos
+  - Create extracts from specific time ranges in YouTube videos
+  - Loop playback for extract regions
+  - Resizable video features panel in YouTube viewer
+  - Video extracts list with editing and deletion
+- Audiobook improvements
+  - Fallback audio loading for unsupported formats
+  - Auto-load transcript for current chapter
+  - Better error handling and user feedback
+  - New audiobook command module with metadata parsing
+- AI context window configuration
+  - Configurable max tokens setting for document content sent to AI
+  - Range: 1000-32000 tokens (default: 4000)
+- New audiobook commands (Tauri only)
+  - `parse_audiobook_metadata`: Extract metadata from audiobook files
+  - `scan_directory_for_audiobooks`: Scan directories for audiobook files
+  - `generate_audiobook_transcript`: Generate transcripts using Whisper
+- Video transcription commands (Tauri only)
+  - `generate_video_transcript`: Generate transcripts for local videos
+  - `get_youtube_chapters`: Fetch chapters from YouTube videos
+- Improved error messages and user feedback
+  - Better error handling in transcription engine
+  - Informative toasts for transcription status
+- Database migration for video transcript storage
+- Video features panel integration in LocalVideoPlayer
 - PWA swipe gestures for mobile items
   - Horizontal swipe actions with visual feedback and undo toasts
   - RSS Scroll Mode: swipe right to mark as read (green), swipe left to favorite (yellow)

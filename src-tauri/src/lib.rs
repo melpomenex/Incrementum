@@ -189,6 +189,7 @@ pub fn run() {
             commands::fetch_url_content,
             commands::convert_pdf_to_html,
             commands::convert_document_pdf_to_html,
+            commands::extract_document_text,
             // Extract commands
             commands::get_extracts,
             commands::get_extract,
@@ -286,6 +287,7 @@ pub fn run() {
             commands::get_video_chapters,
             commands::set_video_transcript,
             commands::get_video_transcript,
+            commands::generate_video_transcript,
             // Video extract commands
             commands::create_video_extract,
             commands::get_video_extracts,
@@ -293,6 +295,12 @@ pub fn run() {
             commands::update_video_extract,
             commands::delete_video_extract,
             commands::rate_video_extract,
+            // Audiobook commands
+            commands::parse_audiobook_metadata,
+            commands::scan_directory_for_audiobooks,
+            commands::parse_audiobook_chapters,
+            commands::extract_audio_sample,
+            commands::generate_audiobook_transcript,
             // YouTube playlist auto-import commands
             commands::subscribe_to_playlist,
             commands::get_playlist_subscriptions,

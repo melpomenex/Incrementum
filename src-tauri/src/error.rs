@@ -29,12 +29,22 @@ pub enum IncrementumError {
 
     #[error("Sync error: {0}")]
     SyncError(String),
+
+    #[error("Shell error: {0}")]
+    ShellError(String),
 }
 
 // Implement From<String> for IncrementumError
 impl From<String> for IncrementumError {
     fn from(s: String) -> Self {
         IncrementumError::Internal(s)
+    }
+}
+
+// Implement From<tauri_plugin_shell::Error> for IncrementumError
+impl From<tauri_plugin_shell::Error> for IncrementumError {
+    fn from(e: tauri_plugin_shell::Error) -> Self {
+        IncrementumError::ShellError(e.to_string())
     }
 }
 

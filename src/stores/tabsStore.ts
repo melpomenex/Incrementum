@@ -198,21 +198,29 @@ function removePaneFromTree(root: Pane, paneId: string): Pane | null {
   }
   
   if (root.type === "split") {
-    const newChildren = root.children
-      .map((child) => removePaneFromTree(child, paneId))
-      .filter(Boolean) as Pane[];
+    // We need to track both the new children and their ORIGINAL sizes to recalculate correctly
+    const keptChildrenWithSizes: { pane: Pane; size: number }[] = [];
     
-    if (newChildren.length === 0) {
+    for (let i = 0; i < root.children.length; i++) {
+      const child = root.children[i];
+      const newChild = removePaneFromTree(child, paneId);
+      if (newChild) {
+        keptChildrenWithSizes.push({ pane: newChild, size: root.sizes[i] });
+      }
+    }
+    
+    if (keptChildrenWithSizes.length === 0) {
       return null;
     }
-    if (newChildren.length === 1) {
+    if (keptChildrenWithSizes.length === 1) {
       // Collapse split with single child
-      return newChildren[0];
+      return keptChildrenWithSizes[0].pane;
     }
     
-    // Recalculate sizes
-    const totalSize = newChildren.reduce((sum, _, i) => sum + root.sizes[i], 0);
-    const newSizes = newChildren.map((_, i) => root.sizes[i] / totalSize * 100);
+    // Recalculate sizes based on the remaining children's original sizes
+    const totalSize = keptChildrenWithSizes.reduce((sum, item) => sum + item.size, 0);
+    const newSizes = keptChildrenWithSizes.map((item) => (item.size / totalSize) * 100);
+    const newChildren = keptChildrenWithSizes.map((item) => item.pane);
     
     return { ...root, children: newChildren, sizes: newSizes };
   }
