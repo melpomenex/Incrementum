@@ -245,7 +245,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
       filtered = filtered.filter(
         (item) =>
           item.documentTitle.toLowerCase().includes(query) ||
-          item.tags.some((tag) => tag.toLowerCase().includes(query))
+          (item.tags ?? []).some((tag) => tag.toLowerCase().includes(query))
       );
     }
 
@@ -258,7 +258,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
     if (filters.tags && filters.tags.length > 0) {
       filtered = filtered.filter((item) =>
-        item.tags.some((tag) => filters.tags?.includes(tag))
+        (item.tags ?? []).some((tag) => filters.tags?.includes(tag))
       );
     }
 

@@ -56,10 +56,13 @@ interface RustQueueItem {
 
 // Convert from Rust snake_case to TypeScript camelCase
 function convertQueueItem(item: RustQueueItem): QueueItem {
+  if (!Array.isArray(item.tags)) {
+    console.warn("[queue] Normalizing null tags for item", item.id);
+  }
   return {
     id: item.id,
     documentId: item.document_id,
-    documentTitle: item.document_title,
+    documentTitle: item.document_title ?? "",
     extractId: item.extract_id,
     learningItemId: item.learning_item_id,
     question: item.question,
@@ -71,7 +74,7 @@ function convertQueueItem(item: RustQueueItem): QueueItem {
     priority: item.priority,
     dueDate: item.due_date,
     estimatedTime: item.estimated_time,
-    tags: item.tags,
+    tags: Array.isArray(item.tags) ? item.tags : [],
     category: item.category,
     progress: item.progress,
     source: item.source,
@@ -83,7 +86,11 @@ function convertQueueItem(item: RustQueueItem): QueueItem {
  * Get all queue items
  */
 export async function getQueue(): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[]>("get_queue");
+  const items = await invokeCommand<RustQueueItem[] | null>("get_queue");
+  if (!Array.isArray(items)) {
+    console.warn("[queue] get_queue returned non-array result", items);
+    return [];
+  }
   return items.map(convertQueueItem);
 }
 
@@ -92,7 +99,11 @@ export async function getQueue(): Promise<QueueItem[]> {
  * This provides a "Due Today" view focused specifically on documents
  */
 export async function getDueDocumentsOnly(): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[]>("get_due_documents_only");
+  const items = await invokeCommand<RustQueueItem[] | null>("get_due_documents_only");
+  if (!Array.isArray(items)) {
+    console.warn("[queue] get_due_documents_only returned non-array result", items);
+    return [];
+  }
   return items.map(convertQueueItem);
 }
 
@@ -100,7 +111,11 @@ export async function getDueDocumentsOnly(): Promise<QueueItem[]> {
  * Get due queue items only (includes documents, extracts, and learning items)
  */
 export async function getDueQueueItems(randomness?: number): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[]>("get_due_queue_items", { randomness });
+  const items = await invokeCommand<RustQueueItem[] | null>("get_due_queue_items", { randomness });
+  if (!Array.isArray(items)) {
+    console.warn("[queue] get_due_queue_items returned non-array result", items);
+    return [];
+  }
   return items.map(convertQueueItem);
 }
 
@@ -116,7 +131,11 @@ export async function getNextQueueItem(randomness?: number): Promise<QueueItem |
  * Get multiple items from the queue
  */
 export async function getQueueItems(count?: number, randomness?: number): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[]>("get_queue_items", { count, randomness });
+  const items = await invokeCommand<RustQueueItem[] | null>("get_queue_items", { count, randomness });
+  if (!Array.isArray(items)) {
+    console.warn("[queue] get_queue_items returned non-array result", items);
+    return [];
+  }
   return items.map(convertQueueItem);
 }
 
@@ -167,6 +186,10 @@ export async function exportQueue(): Promise<QueueExportItem[]> {
  * Playlist videos are inserted at regular intervals based on subscription settings
  */
 export async function getQueueWithPlaylistIntersperse(randomness?: number): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[]>("get_queue_with_playlist_intersperse", { randomness });
+  const items = await invokeCommand<RustQueueItem[] | null>("get_queue_with_playlist_intersperse", { randomness });
+  if (!Array.isArray(items)) {
+    console.warn("[queue] get_queue_with_playlist_intersperse returned non-array result", items);
+    return [];
+  }
   return items.map(convertQueueItem);
 }
