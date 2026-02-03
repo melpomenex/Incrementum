@@ -111,7 +111,7 @@ async function main() {
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
         if (!fs.existsSync('whisper.cpp')) {
-          execSync('git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git');
+          execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
         }
         
         // Check for CUDA
@@ -143,7 +143,7 @@ async function main() {
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
         if (!fs.existsSync('whisper.cpp')) {
-          execSync('git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git');
+          execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
         }
         
         // Check for CUDA
@@ -180,16 +180,26 @@ async function main() {
     fs.copyFileSync(path.join(folder, 'bin', 'ffmpeg.exe'), path.join(BIN_DIR, ffmpegName));
     execSync(`rm -rf ffmpeg.zip ${folder}`);
 
-    // Windows Whisper
-    // We can try to download prebuilt libwhisper.dll / main.exe if available.
-    // ggerganov/whisper.cpp releases sometimes have windows zips.
-    // Let's check v1.5.4: `whisper-bin-x64.zip` exists!
-    const whisperUrl = 'https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.1/whisper-bin-x64.zip';
-    console.log('Downloading Whisper (Windows)...');
-    execSync(`curl -L ${whisperUrl} -o whisper.zip`);
-    execSync('7z x whisper.zip');
-    fs.copyFileSync('main.exe', path.join(BIN_DIR, whisperName));
-    execSync('rm -rf whisper.zip main.exe');
+    // Windows Whisper (build from source via CMake)
+    if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
+      console.log('Building Whisper.cpp from source...');
+      if (!fs.existsSync('whisper.cpp')) {
+        execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
+      }
+
+      execSync('cd whisper.cpp && cmake -B build');
+      execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
+
+      const candidates = [
+        'whisper.cpp/build/bin/Release/whisper-cli.exe',
+        'whisper.cpp/build/bin/whisper-cli.exe',
+      ];
+      const binaryPath = candidates.find((candidate) => fs.existsSync(candidate));
+      if (!binaryPath) {
+        throw new Error('Failed to locate whisper-cli.exe after build');
+      }
+      fs.copyFileSync(binaryPath, path.join(BIN_DIR, whisperName));
+    }
   }
 
   // Make executable
