@@ -14,8 +14,19 @@ import {
   FileText,
   Clock,
   Hash,
+  ExternalLink,
+  AlertCircle,
+  Sparkles,
+  Loader2,
+  Info,
 } from 'lucide-react';
 import { invokeCommand } from '../../lib/tauri';
+import { useDocumentStore } from '../../stores/documentStore';
+import { getDocument } from '../../api/documents';
+import { getVideoTranscript, generateVideoTranscript } from '../../api/video-extracts';
+import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
+import { useToast } from '../common/Toast';
+import { isTauri } from '../../lib/tauri';
 
 interface VideoBookmark {
   id: string;
@@ -59,6 +70,11 @@ export function VideoFeatures({
   const [bookmarks, setBookmarks] = useState<VideoBookmark[]>([]);
   const [chapters, setChapters] = useState<VideoChapter[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Get document from store
+  const documents = useDocumentStore((state) => state.documents);
+  const document = documents.find((d) => d.id === documentId);
 
   // Load data when tab changes
   useEffect(() => {
@@ -124,6 +140,50 @@ export function VideoFeatures({
     }
   };
 
+  // Fetch chapters from YouTube
+  const handleFetchYouTubeChapters = async () => {
+    if (!documentId) return;
+
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      // Get the document to retrieve its URL using the proper API
+      const doc = await getDocument(documentId);
+
+      if (!doc) {
+        setErrorMessage('Document not found');
+        return;
+      }
+
+      // Use filePath (correct property name) for YouTube videos
+      const videoUrl = doc.filePath;
+
+      if (!videoUrl || (!videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be'))) {
+        setErrorMessage('This is not a YouTube video. Chapters can only be fetched from YouTube videos.');
+        return;
+      }
+
+      // Fetch chapters from YouTube
+      const youtubeChapters = await invokeCommand<VideoChapter[]>('get_youtube_chapters', {
+        url: videoUrl,
+        documentId,
+      });
+
+      if (!youtubeChapters || youtubeChapters.length === 0) {
+        setErrorMessage('No chapters found for this video. Some videos may not have chapter information.');
+        return;
+      }
+
+      setChapters(youtubeChapters);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('Failed to fetch YouTube chapters:', errorMsg);
+      setErrorMessage(`Failed to fetch chapters: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Format time for display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -137,46 +197,46 @@ export function VideoFeatures({
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('bookmarks')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'bookmarks'
               ? 'border-primary text-primary'
               : 'border-transparent text-foreground hover:text-foreground-secondary'
           }`}
         >
           <BookmarkIcon className="w-4 h-4" />
-          Bookmarks
+          <span className="truncate">Bookmarks</span>
           {bookmarks.length > 0 && (
-            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
+            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full flex-shrink-0">
               {bookmarks.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('chapters')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'chapters'
               ? 'border-primary text-primary'
               : 'border-transparent text-foreground hover:text-foreground-secondary'
           }`}
         >
           <List className="w-4 h-4" />
-          Chapters
+          <span className="truncate">Chapters</span>
           {chapters.length > 0 && (
-            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
+            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full flex-shrink-0">
               {chapters.length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('transcript')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+          className={`flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
             activeTab === 'transcript'
               ? 'border-primary text-primary'
               : 'border-transparent text-foreground hover:text-foreground-secondary'
           }`}
         >
           <FileText className="w-4 h-4" />
-          Transcript
+          <span className="truncate">Transcript</span>
         </button>
       </div>
 
@@ -204,11 +264,18 @@ export function VideoFeatures({
                 currentTime={currentTime}
                 duration={duration}
                 onSeek={onSeek}
+                errorMessage={errorMessage}
               />
             )}
 
             {activeTab === 'transcript' && (
-              <TranscriptView documentId={documentId} currentTime={currentTime} onSeek={onSeek} />
+              <TranscriptView
+                documentId={documentId}
+                documentTitle={document?.title}
+                filePath={document?.filePath}
+                currentTime={currentTime}
+                onSeek={onSeek}
+              />
             )}
           </>
         )}
@@ -223,6 +290,16 @@ export function VideoFeatures({
           >
             <Plus className="w-4 h-4" />
             Add Bookmark at {formatTime(currentTime)}
+          </button>
+        )}
+        {activeTab === 'chapters' && (
+          <button
+            onClick={handleFetchYouTubeChapters}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <ExternalLink className="w-4 h-4" />
+            {loading ? 'Fetching...' : 'Fetch from YouTube'}
           </button>
         )}
       </div>
@@ -291,15 +368,27 @@ interface ChaptersViewProps {
   currentTime: number;
   duration: number;
   onSeek: (time: number) => void;
+  errorMessage?: string | null;
 }
 
-function ChaptersView({ chapters, currentTime, duration, onSeek }: ChaptersViewProps) {
+function ChaptersView({ chapters, currentTime, duration, onSeek, errorMessage }: ChaptersViewProps) {
+  if (errorMessage) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3 opacity-50" />
+        <p className="text-sm text-foreground-secondary">
+          {errorMessage}
+        </p>
+      </div>
+    );
+  }
+
   if (chapters.length === 0) {
     return (
       <div className="text-center py-8">
         <List className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
         <p className="text-sm text-foreground-secondary">
-          No chapters available. Chapters can be added manually or detected from video metadata.
+          No chapters available. Click "Fetch from YouTube" to load chapters from the video.
         </p>
       </div>
     );
@@ -359,25 +448,41 @@ function ChaptersView({ chapters, currentTime, duration, onSeek }: ChaptersViewP
 // Transcript View Component
 interface TranscriptViewProps {
   documentId: string;
+  documentTitle?: string;
+  filePath?: string;
   currentTime: number;
   onSeek: (time: number) => void;
 }
 
-function TranscriptView({ documentId, currentTime, onSeek }: TranscriptViewProps) {
+function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSeek }: TranscriptViewProps) {
   const [transcript, setTranscript] = useState<VideoTranscriptSegment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>("distil-small.en");
+  const [language, setLanguage] = useState<string>("en");
+  const toast = useToast();
+
+  const { profiles, fetchProfiles } = useTranscriptionStore();
 
   useEffect(() => {
     loadTranscript();
   }, [documentId]);
 
+  useEffect(() => {
+    fetchProfiles().catch(() => undefined);
+  }, [fetchProfiles]);
+
+  useEffect(() => {
+    if (profiles.length > 0 && !profiles.find(p => p.id === selectedModel)) {
+      setSelectedModel(profiles[0].id);
+    }
+  }, [profiles, selectedModel]);
+
   const loadTranscript = async () => {
     setLoading(true);
     try {
-      const result = await invokeCommand<{ document_id: string; transcript: string; segments: VideoTranscriptSegment[] } | null>(
-        'get_video_transcript',
-        { documentId }
-      );
+      const result = await getVideoTranscript(documentId);
       if (result) {
         setTranscript(result.segments);
       } else {
@@ -391,6 +496,37 @@ function TranscriptView({ documentId, currentTime, onSeek }: TranscriptViewProps
     }
   };
 
+  const handleGenerateTranscript = async () => {
+    if (!isTauri()) {
+      toast.error("Desktop app required", "Local video transcription only works in the Tauri app.");
+      return;
+    }
+
+    if (!filePath) {
+      toast.error("Missing file path", "This video does not have a local file path.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const result = await generateVideoTranscript(
+        documentId,
+        filePath,
+        selectedModel,
+        language
+      );
+      setTranscript(result.segments);
+      toast.success("Transcript ready", "Your video transcript has been generated.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate transcript";
+      setGenerationError(message);
+      toast.error("Transcription failed", message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -401,11 +537,102 @@ function TranscriptView({ documentId, currentTime, onSeek }: TranscriptViewProps
 
   if (transcript.length === 0) {
     return (
-      <div className="text-center py-8">
-        <Hash className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-        <p className="text-sm text-foreground-secondary">
-          No transcript available. Transcripts can be generated automatically or uploaded manually.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-border bg-gradient-to-br from-primary/10 via-background to-muted/40 p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">Generate a transcript</p>
+              <p className="text-xs text-muted-foreground">
+                Whisper runs locally on your machine. Keep watching while it works.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Model
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  {profiles.length === 0 && (
+                    <option value="distil-small.en">Distil Small (English)</option>
+                  )}
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Language
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="en">English</option>
+                  <option value="auto">Auto detect</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="it">Italian</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ko">Korean</option>
+                  <option value="zh">Chinese</option>
+                </select>
+              </label>
+            </div>
+
+            <button
+              onClick={handleGenerateTranscript}
+              disabled={isGenerating || !filePath}
+              className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Transcribing…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate Transcript
+                </>
+              )}
+            </button>
+
+            <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-4 w-4 text-primary" />
+              <div>
+                <p className="text-xs">
+                  Models are managed in <span className="font-medium text-foreground">Settings → Audio Transcription</span>.
+                  {documentTitle ? ` This transcript will be saved to “${documentTitle}”.` : " Transcript is saved to this video."}
+                </p>
+              </div>
+            </div>
+
+            {generationError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                {generationError}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-center py-4">
+          <Hash className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+          <p className="text-xs text-muted-foreground">
+            No transcript available yet.
+          </p>
+        </div>
       </div>
     );
   }

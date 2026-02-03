@@ -92,7 +92,7 @@ pub async fn import_document(
         Some("epub") => FileType::Epub,
         Some("md") | Some("markdown") => FileType::Markdown,
         Some("html") | Some("htm") => FileType::Html,
-        Some("mp3") | Some("wav") | Some("m4a") | Some("aac") | Some("ogg") | Some("flac") | Some("opus") => FileType::Audio,
+        Some("mp3") | Some("wav") | Some("m4a") | Some("aac") | Some("ogg") | Some("flac") | Some("opus") | Some("m4b") | Some("wma") => FileType::Audio,
         Some("mp4") | Some("webm") | Some("mov") | Some("avi") => FileType::Video,
         _ => FileType::Other,
     };
@@ -355,6 +355,76 @@ pub async fn update_document_progress(
         .update_document_progress(&id, current_page, current_scroll_percent, current_cfi, current_view_state)
         .await?;
     Ok(updated)
+}
+
+#[derive(serde::Serialize)]
+pub struct TextExtractionResult {
+    pub content: String,
+    pub extracted: bool,
+}
+
+/// Extract text content from a document (for documents without content)
+/// Returns the extracted text and whether it was newly extracted
+#[tauri::command]
+pub async fn extract_document_text(
+    id: String,
+    repo: State<'_, Repository>,
+) -> Result<TextExtractionResult> {
+    // Get the document
+    let mut doc = repo.get_document(&id).await?
+        .ok_or_else(|| crate::error::IncrementumError::NotFound(format!(
+            "Document not found: {}", id
+        )))?;
+
+    // Check if we already have content
+    if let Some(content) = &doc.content {
+        if !content.trim().is_empty() {
+            return Ok(TextExtractionResult {
+                content: content.clone(),
+                extracted: false,
+            });
+        }
+    }
+
+    // Extract content
+    let extracted = processor::extract_content(&doc.file_path, doc.file_type.clone()).await?;
+    
+    if extracted.text.trim().is_empty() {
+        return Ok(TextExtractionResult {
+            content: String::new(),
+            extracted: false,
+        });
+    }
+
+    // Update document with extracted content
+    let content_hash = Some(processor::generate_content_hash(&extracted.text));
+    let metadata = Some(DocumentMetadata {
+        author: extracted.author.clone().or(doc.metadata.as_ref().and_then(|m| m.author.clone())),
+        subject: None,
+        keywords: None,
+        created_at: None,
+        modified_at: None,
+        file_size: None,
+        language: extracted.metadata.get("language")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or(doc.metadata.as_ref().and_then(|m| m.language.clone())),
+        page_count: extracted.page_count.map(|p| p as i32).or(doc.metadata.as_ref().and_then(|m| m.page_count)),
+        word_count: None,
+    });
+
+    repo.update_document_content(
+        &doc.id,
+        &extracted.text,
+        content_hash.clone(),
+        extracted.page_count.map(|p| p as i32),
+        metadata.clone(),
+    ).await?;
+
+    Ok(TextExtractionResult {
+        content: extracted.text,
+        extracted: true,
+    })
 }
 
 #[tauri::command]

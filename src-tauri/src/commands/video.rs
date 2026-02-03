@@ -1,7 +1,10 @@
 //! Video import and features commands
 //! Handles importing local video files and video-specific features
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
+use std::sync::{Arc, Mutex};
+use crate::transcription::engine::TranscriptionEngine;
+use crate::transcription::model_manager::ModelManager;
 use crate::database::Repository;
 use crate::models::{Document, DocumentMetadata, FileType, VideoExtract, MemoryState, ReviewRating};
 
@@ -40,6 +43,14 @@ pub struct VideoTranscript {
     pub document_id: String,
     pub transcript: String,
     pub segments: Vec<VideoTranscriptSegment>,
+}
+
+/// Video transcription status event payload
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct VideoTranscriptionStatus {
+    pub document_id: String,
+    pub status: String,
+    pub error: Option<String>,
 }
 
 /// Import a local video file into the document system
@@ -223,6 +234,110 @@ pub async fn get_video_transcript(
         }
         None => Ok(None),
     }
+}
+
+/// Generate a transcript for a local video using Whisper (Tauri only)
+#[tauri::command]
+pub async fn generate_video_transcript(
+    document_id: String,
+    file_path: String,
+    model_id: String,
+    language: String,
+    repo: State<'_, Repository>,
+    app_handle: AppHandle,
+) -> Result<VideoTranscript, String> {
+    let emit_status = |status: &str, error: Option<String>| {
+        let _ = app_handle.emit("video-transcription://status-change", VideoTranscriptionStatus {
+            document_id: document_id.clone(),
+            status: status.to_string(),
+            error,
+        });
+    };
+
+    emit_status("processing", None);
+
+    let model_manager = ModelManager::new(&app_handle)
+        .map_err(|e| format!("Failed to initialize model manager: {}", e))?;
+
+    if !model_manager.is_model_installed(&model_id) {
+        let msg = format!("Model '{}' is not installed. Download it in Settings > Audio Transcription.", model_id);
+        emit_status("failed", Some(msg.clone()));
+        return Err(msg);
+    }
+
+    let input_path = std::path::Path::new(&file_path);
+    if !input_path.exists() {
+        let msg = format!("Video file not found at path: {}", file_path);
+        emit_status("failed", Some(msg.clone()));
+        return Err(msg);
+    }
+
+    let engine = TranscriptionEngine::new(app_handle.clone());
+    let mut wav_path: Option<std::path::PathBuf> = None;
+
+    let segments: Arc<Mutex<Vec<VideoTranscriptSegment>>> = Arc::new(Mutex::new(Vec::new()));
+    let segments_for_cb = segments.clone();
+    let app_for_cb = app_handle.clone();
+
+    let result = async {
+        let prepared = engine.prepare_audio(input_path).await
+            .map_err(|e| format!("Failed to prepare audio: {}", e))?;
+        wav_path = Some(prepared.clone());
+
+        let model_path = model_manager.get_model_path(&model_id);
+
+        engine.transcribe(&prepared, &model_path, &language, move |seg| {
+            let text = seg.text.trim().to_string();
+            if text.is_empty() {
+                return;
+            }
+
+            let segment = VideoTranscriptSegment {
+                time: seg.start_ms as f64 / 1000.0,
+                text,
+            };
+
+            if let Ok(mut guard) = segments_for_cb.lock() {
+                guard.push(segment.clone());
+            }
+
+            let _ = app_for_cb.emit("video-transcription://segment", segment);
+        }).await.map_err(|e| format!("Transcription failed: {}", e))?;
+
+        Ok::<(), String>(())
+    }.await;
+
+    if let Some(path) = wav_path {
+        let _ = std::fs::remove_file(path);
+    }
+
+    if let Err(err) = result {
+        emit_status("failed", Some(err.clone()));
+        return Err(err);
+    }
+
+    let segments_vec = {
+        let mut segments = segments.lock().unwrap_or_else(|e| e.into_inner());
+        segments.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        segments.iter().cloned().collect::<Vec<_>>()
+    };
+
+    let transcript = segments_vec.iter().map(|s| s.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ");
+
+    let segments_json = serde_json::to_string(&segments_vec)
+        .map_err(|e| format!("Failed to serialize segments: {}", e))?;
+
+    repo.set_video_transcript(&document_id, &transcript, &segments_json)
+        .await
+        .map_err(|e| format!("Failed to save transcript: {}", e))?;
+
+    emit_status("completed", None);
+
+    Ok(VideoTranscript {
+        document_id,
+        transcript,
+        segments: segments_vec,
+    })
 }
 
 /// Format time in seconds to MM:SS format

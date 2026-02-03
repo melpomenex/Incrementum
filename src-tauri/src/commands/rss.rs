@@ -493,8 +493,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to read response: {}", e)))?;
 
-    let xml_content = String::from_utf8(xml_bytes.to_vec())
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to parse XML: {}", e)))?;
+    let xml_content = String::from_utf8_lossy(&xml_bytes).to_string();
 
     let doc = Document::parse(&xml_content)
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to parse XML: {}", e)))?;

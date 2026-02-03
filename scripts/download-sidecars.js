@@ -1,7 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const BIN_DIR = path.join(__dirname, '../src-tauri/bin');
 
@@ -101,32 +106,28 @@ async function main() {
     fs.copyFileSync(path.join(folder, 'ffmpeg'), path.join(BIN_DIR, ffmpegName));
     execSync('rm -rf ffmpeg.tar.xz ' + folder);
 
-    // Linux Whisper (using 1.5.4 release as example)
-    console.log('Downloading Whisper (Linux)...');
-    // Whisper.cpp releases don't always have prebuilt linux binaries easily accessible as single files.
-    // They are usually in a zip "whisper-bin-x64".
-    // URL: https://github.com/ggerganov/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.tar.gz (example? No)
-    // Actually, checking their releases... they usually just have source.
-    // Wait, let's use a reliable mirror or assume we build it? No, CI should be fast.
-    
-    // Fallback: If we can't find a reliable prebuild for whisper.cpp linux, we might have to skip or build it.
-    // BUT the user asked to "set this up".
-    // 
-    // Let's use a "dummy" echo script for now if real download is too fragile, 
-    // BUT the user wants it to "work".
-    // 
-    // Okay, for Whisper.cpp, the best way on Linux CI is often to build it because it's fast (C++).
-    // `make main` -> `src-tauri/bin/whisper-...`
-    // 
-    // Let's try to clone and build whisper.cpp for Linux/Mac. Windows is harder.
-    
+    // Linux Whisper (building from source using CMake)
+    console.log('Building Whisper (Linux)...');
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
-        if (fs.existsSync('whisper.cpp')) execSync('rm -rf whisper.cpp');
-        execSync('git clone https://github.com/ggerganov/whisper.cpp.git');
-        execSync('cd whisper.cpp && make main');
-        fs.copyFileSync('whisper.cpp/main', path.join(BIN_DIR, whisperName));
-        execSync('rm -rf whisper.cpp');
+        if (!fs.existsSync('whisper.cpp')) {
+          execSync('git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git');
+        }
+        
+        // Check for CUDA
+        let cudaFlag = '';
+        try {
+            execSync('command -v nvcc');
+            console.log('NVIDIA GPU detected (nvcc found), enabling CUDA support...');
+            cudaFlag = '-DGGML_CUDA=1';
+        } catch (e) {
+            console.log('No NVIDIA GPU detected or nvcc not found, building for CPU...');
+        }
+        
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release ${cudaFlag}`);
+        execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
+        fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', path.join(BIN_DIR, whisperName));
+        // execSync('rm -rf whisper.cpp');
     }
 
   } else if (platform === 'darwin') {
@@ -138,14 +139,27 @@ async function main() {
     fs.unlinkSync('ffmpeg.zip');
     fs.unlinkSync('ffmpeg');
 
-    // Mac Whisper (Build from source is reliable on Mac too)
+    // Mac Whisper (Build from source using CMake)
     if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
         console.log('Building Whisper.cpp from source...');
-        if (fs.existsSync('whisper.cpp')) execSync('rm -rf whisper.cpp');
-        execSync('git clone https://github.com/ggerganov/whisper.cpp.git');
-        execSync('cd whisper.cpp && make main');
-        fs.copyFileSync('whisper.cpp/main', path.join(BIN_DIR, whisperName));
-        execSync('rm -rf whisper.cpp');
+        if (!fs.existsSync('whisper.cpp')) {
+          execSync('git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git');
+        }
+        
+        // Check for CUDA
+        let cudaFlag = '';
+        try {
+            execSync('command -v nvcc');
+            console.log('NVIDIA GPU detected (nvcc found), enabling CUDA support...');
+            cudaFlag = '-DGGML_CUDA=1';
+        } catch (e) {
+            console.log('No NVIDIA GPU detected or nvcc not found, building for CPU...');
+        }
+        
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release ${cudaFlag}`);
+        execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
+        fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', path.join(BIN_DIR, whisperName));
+        // execSync('rm -rf whisper.cpp');
     }
 
   } else if (platform === 'win32') {

@@ -15,11 +15,22 @@ import {
   Clock,
   SkipBack,
   SkipForward,
+  Menu,
+  X,
+  Scissors,
+  Layers,
+  GripVertical,
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { saveDocumentPosition, timePosition } from '../../api/position';
 import { getDocumentAuto, updateDocumentProgressAuto } from '../../api/documents';
 import { useToast } from '../common/Toast';
+import { VideoFeatures } from '../video/VideoFeatures';
+import {
+  CreateVideoExtractDialog,
+  VideoExtractsList,
+} from '../video/VideoExtracts';
+import type { VideoChapter } from '../../api/video-extracts';
 
 interface LocalVideoPlayerProps {
   src: string; // Local file URL or blob URL
@@ -57,6 +68,22 @@ export function LocalVideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
 
+  // Video features panel state
+  const [showVideoFeatures, setShowVideoFeatures] = useState(false);
+  const [videoFeaturesWidth, setVideoFeaturesWidth] = useState(() => {
+    if (typeof window === 'undefined') return 384;
+    const saved = localStorage.getItem('video-features-panel-width');
+    return saved ? parseInt(saved, 10) : 384;
+  });
+  const [isResizingVideoFeatures, setIsResizingVideoFeatures] = useState(false);
+  const videoFeaturesResizeStartXRef = useRef(0);
+  const videoFeaturesResizeStartWidthRef = useRef(0);
+  const [showCreateExtract, setShowCreateExtract] = useState(false);
+  const [extractStartTime, setExtractStartTime] = useState(0);
+  const [extractTranscript, setExtractTranscript] = useState('');
+  const [activeExtractStartTime, setActiveExtractStartTime] = useState<number | null>(null);
+  const [activeExtractEndTime, setActiveExtractEndTime] = useState<number | null>(null);
+
   // Position tracking
   const [positionLoaded, setPositionLoaded] = useState(false);
   const [startTime, setStartTime] = useState(0);
@@ -80,6 +107,53 @@ export function LocalVideoPlayer({
     const key = documentId ? `video-playback-rate-${documentId}` : 'video-playback-rate-default';
     localStorage.setItem(key, String(playbackRate));
   }, [playbackRate, documentId]);
+
+  // Persist video features panel width
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('video-features-panel-width', String(videoFeaturesWidth));
+  }, [videoFeaturesWidth]);
+
+  const handleVideoFeaturesResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsResizingVideoFeatures(true);
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    videoFeaturesResizeStartXRef.current = clientX;
+    videoFeaturesResizeStartWidthRef.current = videoFeaturesWidth;
+
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  }, [videoFeaturesWidth]);
+
+  useEffect(() => {
+    if (!isResizingVideoFeatures) return;
+
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const delta = videoFeaturesResizeStartXRef.current - clientX;
+      const newWidth = Math.max(300, Math.min(900, videoFeaturesResizeStartWidthRef.current + delta));
+      setVideoFeaturesWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingVideoFeatures(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove);
+    window.addEventListener('touchend', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isResizingVideoFeatures]);
 
   // Load saved position from document
   const loadSavedPosition = useCallback(async () => {
@@ -351,6 +425,61 @@ export function LocalVideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Video features handlers
+  const handleOpenCreateExtract = () => {
+    setExtractStartTime(currentTime);
+    setExtractTranscript(''); // Will be populated by a selection
+    setShowCreateExtract(true);
+  };
+
+  const handleSeek = (time: number, endTime?: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+    if (typeof endTime === 'number' && endTime > time) {
+      setActiveExtractStartTime(time);
+      setActiveExtractEndTime(endTime);
+    } else {
+      setActiveExtractStartTime(null);
+      setActiveExtractEndTime(null);
+    }
+  };
+
+  const handleTimeUpdate = useCallback(() => {
+    if (!videoRef.current) return;
+    const time = videoRef.current.currentTime;
+    setCurrentTime(time);
+
+    if (
+      activeExtractStartTime !== null
+      && activeExtractEndTime !== null
+      && activeExtractEndTime > activeExtractStartTime
+      && time >= activeExtractEndTime
+    ) {
+      videoRef.current.currentTime = activeExtractStartTime;
+      videoRef.current.play();
+    }
+  }, [activeExtractStartTime, activeExtractEndTime]);
+
+  const handleCreateExtract = () => {
+    setShowCreateExtract(false);
+    // The VideoExtractsList will refresh automatically
+    toast.success('Extract created successfully');
+  };
+
+  const handleExtractCreated = (extract: any) => {
+    setShowCreateExtract(false);
+    // Refresh the video features to show the new extract
+    // This will be handled by the VideoExtractsList component
+  };
+
+  // Get transcript text for the current time range (simplified version)
+  const getCurrentTimeTranscript = () => {
+    // In a real implementation, this would get the transcript segment
+    // for the current time range from the video transcript
+    return '';
+  };
+
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -454,11 +583,7 @@ export function LocalVideoPlayer({
           savePosition(videoRef.current.currentTime);
         }
       }}
-      onTimeUpdate={() => {
-        if (videoRef.current) {
-          setCurrentTime(videoRef.current.currentTime);
-        }
-      }}
+      onTimeUpdate={handleTimeUpdate}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
@@ -520,11 +645,7 @@ export function LocalVideoPlayer({
           savePosition(videoRef.current.currentTime);
         }
       }}
-      onTimeUpdate={() => {
-        if (videoRef.current) {
-          setCurrentTime(videoRef.current.currentTime);
-        }
-      }}
+      onTimeUpdate={handleTimeUpdate}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
@@ -644,13 +765,31 @@ export function LocalVideoPlayer({
           <div className={cn("text-sm truncate", mediaType === "audio" ? "text-foreground" : "text-white")}>
             {title || (mediaType === "audio" ? "Audio" : "Video")}
           </div>
-          <button
-            onClick={toggleFullscreen}
-            className="p-1 hover:bg-white/20 rounded transition-colors"
-            title="Fullscreen (F)"
-          >
-            <Maximize className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Video Features Menu Button */}
+            {documentId && (
+              <button
+                onClick={() => setShowVideoFeatures(!showVideoFeatures)}
+                className={cn(
+                  "p-1 hover:bg-white/20 rounded transition-colors flex items-center gap-1",
+                  showVideoFeatures && "bg-white/20"
+                )}
+                title="Video Features (Bookmarks, Chapters, Extracts, Transcript)"
+              >
+                <Layers className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
+                <span className={cn("text-xs font-medium", mediaType === "audio" ? "text-foreground" : "text-white")}>
+                  Panels
+                </span>
+              </button>
+            )}
+            <button
+              onClick={toggleFullscreen}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+              title="Fullscreen (F)"
+            >
+              <Maximize className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
+            </button>
+          </div>
         </div>
 
         {/* Center Controls */}
@@ -790,6 +929,82 @@ export function LocalVideoPlayer({
         <div>0-9: Jump to %</div>
         <div>&lt;/&gt;: Speed</div>
       </div>
+
+      {/* Video Features Slide-over Panel */}
+      {showVideoFeatures && documentId && (
+        <div
+          className="absolute top-0 right-0 h-full bg-card border-l border-border shadow-xl z-40 flex flex-col"
+          style={{ width: videoFeaturesWidth }}
+        >
+          {/* Resize handle */}
+          <div
+            className={`absolute left-0 top-0 h-full w-1 ${isResizingVideoFeatures ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
+            onMouseDown={handleVideoFeaturesResizeStart}
+            onTouchStart={handleVideoFeaturesResizeStart}
+            title="Drag to resize"
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
+              <GripVertical className="w-3 h-3 text-muted-foreground" />
+            </div>
+          </div>
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">Video Features</h3>
+            <button
+              onClick={() => setShowVideoFeatures(false)}
+              className="p-1 hover:bg-muted rounded transition-colors"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Video Features Component (Bookmarks, Chapters, Transcript) */}
+            <div className="p-4 border-b border-border">
+              <VideoFeatures
+                documentId={documentId}
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={handleSeek}
+              />
+            </div>
+
+            {/* Video Extracts Section */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Scissors className="w-4 h-4" />
+                  Video Extracts
+                </h4>
+                <button
+                  onClick={handleOpenCreateExtract}
+                  className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-md hover:opacity-90 transition-opacity flex items-center gap-1"
+                >
+                  <Scissors className="w-3 h-3" />
+                  New
+                </button>
+              </div>
+              <VideoExtractsList
+                documentId={documentId}
+                onPlayExtract={(extract) => handleSeek(extract.start_time, extract.end_time)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Video Extract Dialog */}
+      <CreateVideoExtractDialog
+        documentId={documentId || ''}
+        documentTitle={title || (mediaType === "audio" ? "Audio" : "Video")}
+        isOpen={showCreateExtract}
+        initialStartTime={extractStartTime}
+        initialEndTime={extractStartTime > 0 ? extractStartTime + 60 : undefined}
+        initialTranscriptText={extractTranscript}
+        onClose={() => setShowCreateExtract(false)}
+        onCreate={handleExtractCreated}
+      />
     </div>
   );
 }

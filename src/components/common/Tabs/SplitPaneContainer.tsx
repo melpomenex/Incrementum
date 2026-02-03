@@ -391,7 +391,7 @@ function TabPaneView({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 relative">
+      <div className={`flex-1 min-h-0 relative ${draggedTabId ? "pointer-events-none" : ""}`}>
         {activeTab ? (
           <TabContent tabs={paneTabs} activeTabId={pane.activeTabId} paneId={pane.id} />
         ) : (
