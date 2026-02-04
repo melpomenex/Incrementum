@@ -14,6 +14,7 @@ type VideoTranscriptionStatus = "queued" | "processing" | "completed" | "failed"
 interface VideoTranscriptionJob {
   documentId: string;
   filePath: string;
+  provider: 'local' | 'groq';
   modelId?: string;
   language: string;
 }
@@ -21,6 +22,7 @@ interface VideoTranscriptionJob {
 interface VideoTranscriptionRequest {
   documentId: string;
   filePath: string;
+  provider?: 'local' | 'groq';
   modelId?: string;
   language?: string;
 }
@@ -109,10 +111,12 @@ async function processWithGroq(job: VideoTranscriptionJob): Promise<void> {
     });
     
     // Convert to internal format and save
-    const segments = response.segments?.map((seg) => ({
-      time: seg.start,
-      text: seg.text,
-    })) || [];
+    const segments = (response.segments || [])
+      .map((seg) => ({
+        time: Number(seg.start),
+        text: seg.text ?? '',
+      }))
+      .filter((seg) => Number.isFinite(seg.time));
     
     await setVideoTranscript(job.documentId, response.text, segments);
     
@@ -159,8 +163,7 @@ async function processNext() {
   notify(job.documentId, "processing");
 
   try {
-    const provider = getProvider();
-    
+    const provider = job.provider;
     if (provider === 'groq') {
       await processWithGroq(job);
     } else {
@@ -193,7 +196,7 @@ function kickQueue() {
 }
 
 export async function enqueueVideoTranscription(request: VideoTranscriptionRequest) {
-  const provider = getProvider();
+  const provider = request.provider ?? getProvider();
   
   // For local transcription, Tauri is required
   if (provider === 'local' && !isTauri()) return;
@@ -222,6 +225,7 @@ export async function enqueueVideoTranscription(request: VideoTranscriptionReque
   queue.push({
     documentId: request.documentId,
     filePath: request.filePath,
+    provider,
     modelId: request.modelId,
     language: request.language || settings.language || 'en',
   });
