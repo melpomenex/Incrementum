@@ -38,6 +38,7 @@ import { NotificationSettings } from "./NotificationSettings";
 import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
+import { isTauri } from "../../lib/tauri";
 
 /**
  * Settings tab
@@ -516,6 +517,28 @@ export function SettingsRow({
  * General Settings Component
  */
 function GeneralSettings({ onChange }: { onChange: () => void }) {
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const isDesktop = isTauri();
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    let cancelled = false;
+
+    (async () => {
+      const { getVersion } = await import("@tauri-apps/api/app");
+      const version = await getVersion();
+      if (!cancelled) {
+        setAppVersion(version);
+      }
+    })().catch((error) => {
+      console.warn("Failed to load app version:", error);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDesktop]);
+
   return (
     <>
       <SettingsSection
@@ -572,6 +595,17 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
             <option value="300">5 minutes</option>
           </select>
         </SettingsRow>
+
+        {isDesktop && (
+          <SettingsRow
+            label="App Version"
+            description="Version of the desktop application"
+          >
+            <span className="text-sm text-muted-foreground">
+              {appVersion ?? "Loading..."}
+            </span>
+          </SettingsRow>
+        )}
       </SettingsSection>
 
       <SettingsSection
