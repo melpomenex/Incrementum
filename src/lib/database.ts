@@ -245,15 +245,22 @@ export async function createDocument(doc: Partial<Document>): Promise<Document> 
         date_last_reviewed: doc.date_last_reviewed,
         extract_count: doc.extract_count || 0,
         learning_item_count: doc.learning_item_count || 0,
-        priority_rating: doc.priority_rating || 3,
-        priority_slider: doc.priority_slider || 50,
-        priority_score: doc.priority_score || 50,
+        priority_rating: doc.priority_rating ?? 3,
+        priority_slider: doc.priority_slider ?? 50,
+        priority_score: doc.priority_score ?? 50,
         is_archived: doc.is_archived || false,
         is_favorite: doc.is_favorite || false,
         metadata: doc.metadata,
         cover_image_url: doc.cover_image_url,
         cover_image_source: doc.cover_image_source,
         sync_version: 0, // Will be set during sync
+        // FSRS scheduling fields
+        next_reading_date: doc.next_reading_date,
+        reading_count: doc.reading_count || 0,
+        stability: doc.stability || 0,
+        difficulty: doc.difficulty || 0,
+        reps: doc.reps || 0,
+        total_time_spent: doc.total_time_spent || 0,
     };
     return put(STORES.documents, document);
 }

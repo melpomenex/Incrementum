@@ -100,9 +100,116 @@ pub fn check_ytdlp_installed() -> Result<bool, String> {
     }
 }
 
+/// Get the path where yt-dlp should be installed
+fn get_ytdlp_install_path() -> Result<PathBuf, String> {
+    let app_dir = dirs::data_dir()
+        .ok_or("Could not find data directory")?
+        .join("incrementum")
+        .join("bin");
+    
+    std::fs::create_dir_all(&app_dir)
+        .map_err(|e| format!("Failed to create bin directory: {}", e))?;
+    
+    #[cfg(target_os = "windows")]
+    let binary_name = "yt-dlp.exe";
+    #[cfg(not(target_os = "windows"))]
+    let binary_name = "yt-dlp";
+    
+    Ok(app_dir.join(binary_name))
+}
+
+/// Check if yt-dlp is installed in the app directory
+pub fn check_ytdlp_in_app_dir() -> Result<bool, String> {
+    match get_ytdlp_install_path() {
+        Ok(path) => Ok(path.exists()),
+        Err(_) => Ok(false),
+    }
+}
+
+/// Get the path to yt-dlp binary (checks both system and app directory)
+pub fn get_ytdlp_binary_path() -> Result<PathBuf, String> {
+    // First check if it's in the app directory
+    if let Ok(path) = get_ytdlp_install_path() {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+    
+    // Otherwise, assume it's in PATH
+    Ok(PathBuf::from("yt-dlp"))
+}
+
+/// Create a Command for yt-dlp with the correct binary path
+fn ytdlp_command() -> Result<Command, String> {
+    let path = get_ytdlp_binary_path()?;
+    Ok(Command::new(path))
+}
+
+/// Auto-setup yt-dlp by downloading it
+pub async fn setup_ytdlp() -> Result<String, String> {
+    let install_path = get_ytdlp_install_path()?;
+    
+    // Determine download URL based on platform
+    #[cfg(target_os = "windows")]
+    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
+    #[cfg(target_os = "macos")]
+    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos";
+    #[cfg(target_os = "linux")]
+    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+    
+    // Download the binary
+    let response = reqwest::get(download_url)
+        .await
+        .map_err(|e| format!("Failed to download yt-dlp: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Download failed with status: {}", response.status()));
+    }
+    
+    let bytes = response.bytes()
+        .await
+        .map_err(|e| format!("Failed to read download data: {}", e))?;
+    
+    // Write the binary
+    std::fs::write(&install_path, bytes)
+        .map_err(|e| format!("Failed to write yt-dlp binary: {}", e))?;
+    
+    // Make it executable on Unix systems
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&install_path)
+            .map_err(|e| format!("Failed to get metadata: {}", e))?
+            .permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&install_path, perms)
+            .map_err(|e| format!("Failed to set permissions: {}", e))?;
+    }
+    
+    // Verify installation
+    let version = get_ytdlp_version_from_path(&install_path)?;
+    
+    Ok(version)
+}
+
+/// Get yt-dlp version from a specific path
+fn get_ytdlp_version_from_path(path: &PathBuf) -> Result<String, String> {
+    let output = Command::new(path)
+        .arg("--version")
+        .output()
+        .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
+
+    if !output.status.success() {
+        return Err("yt-dlp command failed".to_string());
+    }
+
+    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(version)
+}
+
 /// Get yt-dlp version
 pub fn get_ytdlp_version() -> Result<String, String> {
-    let output = Command::new("yt-dlp")
+    let output = ytdlp_command()?
         .arg("--version")
         .output()
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
@@ -117,7 +224,7 @@ pub fn get_ytdlp_version() -> Result<String, String> {
 
 /// Extract video info using yt-dlp
 pub fn extract_video_info(url: &str) -> Result<YouTubeVideoInfo, String> {
-    let output = Command::new("yt-dlp")
+    let output = ytdlp_command()?
         .args([
             "--dump-json",
             "--no-playlist",
@@ -190,7 +297,7 @@ fn parse_video_json(json: &serde_json::Value) -> YouTubeVideoInfo {
 
 /// Get available formats for a video
 pub fn get_video_formats(url: &str) -> Result<Vec<YouTubeFormat>, String> {
-    let output = Command::new("yt-dlp")
+    let output = ytdlp_command()?
         .args([
             "--dump-json",
             "--list-formats",
@@ -786,7 +893,24 @@ pub fn extract_video_id(url: &str) -> Option<String> {
 /// Tauri command: Check if yt-dlp is available
 #[tauri::command]
 pub async fn check_ytdlp() -> Result<bool, String> {
-    check_ytdlp_installed()
+    // Check both system PATH and app directory
+    if check_ytdlp_installed()? {
+        return Ok(true);
+    }
+    check_ytdlp_in_app_dir()
+}
+
+/// Tauri command: Setup yt-dlp automatically
+#[tauri::command]
+pub async fn setup_ytdlp_auto() -> Result<String, String> {
+    setup_ytdlp().await
+}
+
+/// Tauri command: Get yt-dlp path
+#[tauri::command]
+pub async fn get_ytdlp_path() -> Result<String, String> {
+    let path = get_ytdlp_binary_path()?;
+    Ok(path.to_string_lossy().to_string())
 }
 
 /// Tauri command: Get video info

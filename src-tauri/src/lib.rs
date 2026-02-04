@@ -267,6 +267,8 @@ pub fn run() {
             commands::get_category_stats,
             // YouTube commands
             youtube::check_ytdlp,
+            youtube::setup_ytdlp_auto,
+            youtube::get_ytdlp_path,
             youtube::get_youtube_video_info,
             youtube::get_youtube_formats,
             youtube::download_youtube_video,
