@@ -136,6 +136,8 @@ export interface QASettings {
 // Audio Transcription Settings
 export interface AudioTranscriptionSettings {
   autoTranscription: boolean;
+  autoTranscribeLocalVideos: boolean;
+  preferredModelId?: string;
   language: string;
   timestampGeneration: boolean;
   speakerDiarization: boolean;

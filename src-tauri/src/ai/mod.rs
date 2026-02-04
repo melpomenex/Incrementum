@@ -2,6 +2,7 @@
 //!
 //! This module provides AI/LLM integration for Incrementum, including:
 //! - Multiple LLM provider support (OpenAI, Anthropic, OpenRouter, Ollama)
+//! - Multiple embedding provider support (OpenAI, Cohere, OpenRouter, Ollama)
 //! - Flashcard generation
 //! - Q&A with document context
 //! - Content summarization
@@ -12,12 +13,22 @@ pub mod flashcard_generator;
 pub mod qa;
 pub mod summarizer;
 pub mod provider_wrapper;
+pub mod embeddings;
 
 // Re-exports - use the new enum-based provider
 pub use provider_wrapper::{
     AIProvider, AIConfig,
 };
 pub use providers::{LLMProviderType, Message, MessageRole};
+pub use embeddings::{
+    EmbeddingProviderType,
+    EmbeddingResponse,
+    EmbeddingModel,
+    OpenAIEmbeddingProvider,
+    CohereEmbeddingProvider,
+    OpenRouterEmbeddingProvider,
+    OllamaEmbeddingProvider,
+};
 
 // Note: FlashcardGenerator, QuestionAnswerer, and Summarizer still need to be updated
 // to use AIProvider instead of Box<dyn LLMProvider>

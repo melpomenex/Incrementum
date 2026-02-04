@@ -6,6 +6,8 @@
 import { useState, useCallback } from 'react';
 import { Film, Upload, X, Clock, FileVideo } from 'lucide-react';
 import { invokeCommand } from '../../lib/tauri';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { enqueueVideoTranscription } from '../../lib/videoTranscriptionQueue';
 import type { Document } from '../../types/document';
 
 interface VideoImportProps {
@@ -14,6 +16,7 @@ interface VideoImportProps {
 }
 
 export function VideoImport({ onImport, onCancel }: VideoImportProps) {
+  const { settings } = useSettingsStore();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -59,6 +62,15 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         title: title.trim(),
         content: Array.from(bytes),
       });
+
+      if (settings.audioTranscription.autoTranscribeLocalVideos && result.filePath) {
+        void enqueueVideoTranscription({
+          documentId: result.id,
+          filePath: result.filePath,
+          modelId: settings.audioTranscription.preferredModelId,
+          language: settings.audioTranscription.language || 'en',
+        });
+      }
 
       onImport?.(result);
     } catch (err) {

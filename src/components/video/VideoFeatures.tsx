@@ -23,8 +23,10 @@ import {
 import { invokeCommand } from '../../lib/tauri';
 import { useDocumentStore } from '../../stores/documentStore';
 import { getDocument } from '../../api/documents';
-import { getVideoTranscript, generateVideoTranscript } from '../../api/video-extracts';
+import { getVideoTranscript } from '../../api/video-extracts';
+import { enqueueVideoTranscription, getVideoTranscriptionStatus, subscribeVideoTranscriptionStatus } from '../../lib/videoTranscriptionQueue';
 import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useToast } from '../common/Toast';
 import { isTauri } from '../../lib/tauri';
 
@@ -459,27 +461,16 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>("distil-small.en");
-  const [language, setLanguage] = useState<string>("en");
+  const [autoStatus, setAutoStatus] = useState<ReturnType<typeof getVideoTranscriptionStatus>>(null);
+  const { settings, updateSettings } = useSettingsStore();
+  const audioSettings = settings.audioTranscription;
+  const [selectedModel, setSelectedModel] = useState<string>(audioSettings.preferredModelId || "distil-small.en");
+  const [language, setLanguage] = useState<string>(audioSettings.language || "en");
   const toast = useToast();
 
   const { profiles, fetchProfiles } = useTranscriptionStore();
 
-  useEffect(() => {
-    loadTranscript();
-  }, [documentId]);
-
-  useEffect(() => {
-    fetchProfiles().catch(() => undefined);
-  }, [fetchProfiles]);
-
-  useEffect(() => {
-    if (profiles.length > 0 && !profiles.find(p => p.id === selectedModel)) {
-      setSelectedModel(profiles[0].id);
-    }
-  }, [profiles, selectedModel]);
-
-  const loadTranscript = async () => {
+  const loadTranscript = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getVideoTranscript(documentId);
@@ -494,7 +485,49 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
     } finally {
       setLoading(false);
     }
-  };
+  }, [documentId]);
+
+  useEffect(() => {
+    loadTranscript();
+  }, [loadTranscript]);
+
+  useEffect(() => {
+    fetchProfiles().catch(() => undefined);
+  }, [fetchProfiles]);
+
+  useEffect(() => {
+    if (profiles.length === 0) return;
+    if (profiles.find((profile) => profile.id === selectedModel)) return;
+    const installed = profiles.find((profile) => profile.installed);
+    const fallback = installed?.id ?? profiles[0].id;
+    if (fallback && fallback !== selectedModel) {
+      setSelectedModel(fallback);
+      updateSettings({ audioTranscription: { ...audioSettings, preferredModelId: fallback } });
+    }
+  }, [profiles, selectedModel, updateSettings, audioSettings]);
+
+  useEffect(() => {
+    if (audioSettings.preferredModelId && audioSettings.preferredModelId !== selectedModel) {
+      setSelectedModel(audioSettings.preferredModelId);
+    }
+  }, [audioSettings.preferredModelId, selectedModel]);
+
+  useEffect(() => {
+    if (audioSettings.language && audioSettings.language !== language) {
+      setLanguage(audioSettings.language);
+    }
+  }, [audioSettings.language, language]);
+
+  useEffect(() => {
+    setAutoStatus(getVideoTranscriptionStatus(documentId));
+    const unsubscribe = subscribeVideoTranscriptionStatus(documentId, (status) => {
+      setAutoStatus(status);
+      if (status === "completed") {
+        loadTranscript();
+      }
+    });
+    return unsubscribe;
+  }, [documentId, loadTranscript]);
 
   const handleGenerateTranscript = async () => {
     if (!isTauri()) {
@@ -510,14 +543,13 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
     setIsGenerating(true);
     setGenerationError(null);
     try {
-      const result = await generateVideoTranscript(
+      await enqueueVideoTranscription({
         documentId,
         filePath,
-        selectedModel,
-        language
-      );
-      setTranscript(result.segments);
-      toast.success("Transcript ready", "Your video transcript has been generated.");
+        modelId: selectedModel,
+        language,
+      });
+      toast.success("Transcription queued", "Your video will be transcribed in the background.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate transcript";
       setGenerationError(message);
@@ -535,9 +567,34 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
     );
   }
 
+  const autoInProgress = autoStatus === "queued" || autoStatus === "processing";
+  const autoFailed = autoStatus === "failed";
+  const autoNeedsModel = autoStatus === "needs-model";
+
   if (transcript.length === 0) {
     return (
       <div className="space-y-4">
+        {autoInProgress && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-primary text-sm font-medium">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Transcribing in the background…
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This transcript will appear automatically when processing completes.
+            </p>
+          </div>
+        )}
+
+        {autoNeedsModel && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+            <p className="font-medium">Model required for auto-transcription</p>
+            <p className="mt-1 text-amber-800/90">
+              Download a model in Settings → Audio Transcription to enable background transcription.
+            </p>
+          </div>
+        )}
+
         <div className="rounded-xl border border-border bg-gradient-to-br from-primary/10 via-background to-muted/40 p-4">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
@@ -557,7 +614,11 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
                 Model
                 <select
                   value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSelectedModel(next);
+                    updateSettings({ audioTranscription: { ...audioSettings, preferredModelId: next } });
+                  }}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
                   {profiles.length === 0 && (
@@ -574,7 +635,11 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
                 Language
                 <select
                   value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setLanguage(next);
+                    updateSettings({ audioTranscription: { ...audioSettings, language: next } });
+                  }}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="en">English</option>
@@ -593,7 +658,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
 
             <button
               onClick={handleGenerateTranscript}
-              disabled={isGenerating || !filePath}
+              disabled={isGenerating || autoInProgress || !filePath}
               className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
             >
               {isGenerating ? (
@@ -622,6 +687,12 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
             {generationError && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                 {generationError}
+              </div>
+            )}
+
+            {autoFailed && !generationError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                Background transcription failed. You can try again manually.
               </div>
             )}
           </div>

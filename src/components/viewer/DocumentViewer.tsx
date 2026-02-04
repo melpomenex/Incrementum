@@ -23,10 +23,12 @@ import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
 import * as documentsApi from "../../api/documents";
-import { updateDocumentProgressAuto, convertDocumentPdfToHtml } from "../../api/documents";
+import { updateDocumentProgressAuto } from "../../api/documents";
 import { rateDocument } from "../../api/algorithm";
 import type { ReviewRating } from "../../api/review";
-import { autoExtractWithCache, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
+import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
+import { ocrPdfFile } from "../../api/ocrCommands";
+import { renderMarkdown } from "../../utils/markdown";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl, updateUrlHash } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import { getViewState, getViewStateKey, parseViewState, setViewState } from "../../lib/readerPosition";
@@ -46,6 +48,7 @@ function formatTime(seconds: number): string {
 }
 
 type ViewMode = "document" | "extracts" | "cards";
+type PdfViewMode = "pdf" | "ocr-html";
 
 type DocumentType = "pdf" | "epub" | "markdown" | "html" | "youtube" | "video" | "audio";
 
@@ -189,6 +192,14 @@ export function DocumentViewer({
   const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<{
+    pages: Array<{ pageNumber: number; text: string }>;
+    combinedText: string;
+    format: "text" | "markdown" | "html";
+    pageCount: number;
+  } | null>(null);
+  const [pdfViewMode, setPdfViewMode] = useState<PdfViewMode>("pdf");
+  const [isOcrConverting, setIsOcrConverting] = useState(false);
   const [restoreRequestId, setRestoreRequestId] = useState(0);
   const [restoreState, setRestoreState] = useState<ViewState | null>(null);
   // Start with auto-scroll suppressed until restoration completes (or we confirm there's no saved position)
@@ -403,7 +414,6 @@ export function DocumentViewer({
   const [selectedText, setSelectedText] = useState("");
   const [selectionContext, setSelectionContext] = useState<PdfSelectionContext | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
-  const [isConvertingToHtml, setIsConvertingToHtml] = useState(false);
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
@@ -665,35 +675,28 @@ export function DocumentViewer({
         console.log(`[DocumentViewer] Loading ${inferredType} file:`, doc.filePath);
         setMediaError(null);
         const filePath = doc.filePath;
-        const canUseFileSrc =
-          isTauri() &&
-          filePath &&
-          !filePath.startsWith("browser-file://") &&
-          !filePath.startsWith("browser-fetched://");
 
-        if (canUseFileSrc) {
-          const fileUrl = await convertFileSrc(filePath);
-          mediaSrcRef.current = fileUrl;
-          setMediaSrc(fileUrl);
-        } else {
-          const base64Data = await documentsApi.readDocumentFile(filePath);
-          console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
-          if (!base64Data || base64Data.length === 0) {
-            throw new Error(`File not found or empty. The file may need to be re-imported.`);
-          }
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const mimeType = inferredType === "audio"
-            ? getAudioMimeType(filePath)
-            : getVideoMimeType(filePath);
-          console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
-          const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-          mediaSrcRef.current = blobUrl;
-          setMediaSrc(blobUrl);
+        // Always use backend read for video/audio files
+        // convertFileSrc() has issues with many local file paths in Tauri v2
+        // Reading through backend and creating blob URL is more reliable
+        console.log(`[DocumentViewer] Using backend read for:`, filePath);
+        const base64Data = await documentsApi.readDocumentFile(filePath);
+        console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
+        if (!base64Data || base64Data.length === 0) {
+          throw new Error(`File not found or empty. The file may need to be re-imported.`);
         }
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const mimeType = inferredType === "audio"
+          ? getAudioMimeType(filePath)
+          : getVideoMimeType(filePath);
+        console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
+        const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+        mediaSrcRef.current = blobUrl;
+        setMediaSrc(blobUrl);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);
@@ -1330,6 +1333,12 @@ export function DocumentViewer({
     };
   }, []);
 
+  useEffect(() => {
+    if (!documentId) return;
+    setOcrResult(null);
+    setPdfViewMode("pdf");
+  }, [documentId]);
+
   // Handle text selection
   useEffect(() => {
     const handleSelection = () => {
@@ -1667,43 +1676,105 @@ export function DocumentViewer({
     }
   };
 
+  const splitTextIntoPages = (text: string, pageCount: number) => {
+    if (!text.trim()) {
+      return [{ pageNumber: 1, text: "" }];
+    }
+
+    if (pageCount <= 1) {
+      return [{ pageNumber: 1, text }];
+    }
+
+    const paragraphs = text
+      .split(/\n\s*\n/)
+      .map((para) => para.trim())
+      .filter(Boolean);
+
+    if (paragraphs.length === 0) {
+      return [{ pageNumber: 1, text }];
+    }
+
+    const paragraphsPerPage = Math.max(1, Math.ceil(paragraphs.length / pageCount));
+    const pages: Array<{ pageNumber: number; text: string }> = [];
+
+    for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
+      const pageNumber = pages.length + 1;
+      const chunk = paragraphs.slice(i, i + paragraphsPerPage).join("\n\n");
+      pages.push({ pageNumber, text: chunk });
+    }
+
+    return pages;
+  };
+
+  const renderOcrPages = () => {
+    if (!ocrResult) return null;
+
+    const showPageBreaks = settings.documents.pdfSettings.showOcrPageBreaks;
+    const format = ocrResult.format;
+
+    const pages = ocrResult.pages.length
+      ? ocrResult.pages
+      : format === "html"
+        ? [{ pageNumber: 1, text: ocrResult.combinedText }]
+        : splitTextIntoPages(ocrResult.combinedText, ocrResult.pageCount || 1);
+
+    return pages.map((page) => {
+      const html = format === "html" ? page.text : renderMarkdown(page.text);
+      return (
+        <section key={page.pageNumber} className="ocr-page mb-8">
+          {showPageBreaks && (
+            <div className="ocr-page-break text-xs uppercase tracking-widest text-muted-foreground border-b border-border pb-2 mb-4">
+              Page {page.pageNumber}
+            </div>
+          )}
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        </section>
+      );
+    });
+  };
+
   // Convert PDF to HTML for better text selection
   const handleConvertToHtml = async () => {
-    if (!currentDocument || docType !== 'pdf') return;
+    if (!currentDocument || docType !== 'pdf' || !currentDocument.filePath) return;
 
-    setIsConvertingToHtml(true);
+    setIsOcrConverting(true);
     try {
-      const result = await convertDocumentPdfToHtml(currentDocument.id, true);
+      await ensureOCRConfig(settings.documents.ocr);
+      await ensureGLMOllamaRuntime(settings.documents.ocr);
 
-      if (!result) {
-        throw new Error('Conversion returned no result. This feature may not be available in browser mode.');
+      const ocrResult = await ocrPdfFile({
+        pdf_path: currentDocument.filePath,
+        provider: settings.documents.ocr.provider,
+        language: settings.documents.ocr.language,
+      });
+
+      if (!ocrResult.success || !ocrResult.combined_text.trim()) {
+        throw new Error(ocrResult.error || "OCR returned no text");
       }
 
-      if (result.saved_path) {
-        toast.success(
-          "PDF converted to HTML",
-          `Saved to: ${result.saved_path}. The HTML file allows better text selection and extraction.`
-        );
-      } else if (result.html_content) {
-        // Open in new window/tab as fallback
-        const blob = new Blob([result.html_content], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        toast.success(
-          "PDF converted to HTML",
-          "Opened in a new tab. You can now select and copy text more easily."
-        );
-      } else {
-        throw new Error('Conversion returned no HTML content');
-      }
+      const format = (ocrResult.format || "markdown") as "text" | "markdown" | "html";
+      const pages = ocrResult.pages.map((page) => ({
+        pageNumber: page.page_number,
+        text: page.text,
+      }));
+
+      setOcrResult({
+        pages,
+        combinedText: ocrResult.combined_text,
+        format,
+        pageCount: ocrResult.page_count,
+      });
+      setPdfViewMode("ocr-html");
+
+      toast.success("OCR complete", "Rendered OCR output as HTML.");
     } catch (error) {
-      console.error("Failed to convert PDF to HTML:", error);
+      console.error("Failed to OCR PDF:", error);
       toast.error(
-        "Conversion failed",
-        error instanceof Error ? error.message : "Failed to convert PDF to HTML"
+        "OCR failed",
+        error instanceof Error ? error.message : "Failed to OCR the document"
       );
     } finally {
-      setIsConvertingToHtml(false);
+      setIsOcrConverting(false);
     }
   };
 
@@ -1829,21 +1900,51 @@ export function DocumentViewer({
           {docType === "pdf" && (
             <button
               onClick={handleConvertToHtml}
-              disabled={isConvertingToHtml}
+              disabled={isOcrConverting}
               className={cn(
                 "p-2 rounded-md transition-colors relative",
-                isConvertingToHtml
+                isOcrConverting
                   ? "bg-muted text-muted-foreground cursor-wait"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
-              title="Convert to HTML for better text selection"
+              title="OCR → HTML (uses selected OCR provider)"
             >
-              {isConvertingToHtml ? (
+              {isOcrConverting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <FileCode className="w-4 h-4" />
               )}
             </button>
+          )}
+
+          {/* PDF / OCR HTML Toggle */}
+          {docType === "pdf" && ocrResult && viewMode === "document" && (
+            <div className="flex items-center bg-muted rounded-md p-1">
+              <button
+                onClick={() => setPdfViewMode("pdf")}
+                className={cn(
+                  "px-2 py-1 text-xs rounded-md transition-colors",
+                  pdfViewMode === "pdf"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="View PDF"
+              >
+                PDF
+              </button>
+              <button
+                onClick={() => setPdfViewMode("ocr-html")}
+                className={cn(
+                  "px-2 py-1 text-xs rounded-md transition-colors",
+                  pdfViewMode === "ocr-html"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="View OCR HTML"
+              >
+                OCR HTML
+              </button>
+            </div>
           )}
 
           {/* View Mode Toggle */}
@@ -2037,6 +2138,14 @@ export function DocumentViewer({
             <LearningCardsList documentId={currentDocument.id} />
           </div>
         ) : docType === "pdf" && fileData ? (
+          pdfViewMode === "ocr-html" && ocrResult ? (
+            <div className="reading-surface min-h-[500px]">
+              <h1 className="reading-title">{currentDocument.title}</h1>
+              <div className="prose prose-sm max-w-none dark:prose-invert reading-prose">
+                {renderOcrPages()}
+              </div>
+            </div>
+          ) : (
           <PDFViewer
             documentId={currentDocument.id}
             fileData={fileData}
@@ -2055,6 +2164,7 @@ export function DocumentViewer({
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
           />
+          )
         ) : docType === "epub" && fileData ? (
           <EPUBViewer
             fileData={fileData}
