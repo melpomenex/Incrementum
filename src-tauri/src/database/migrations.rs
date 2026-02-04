@@ -98,8 +98,8 @@ pub const MIGRATIONS: &[Migration] = &[
             date_modified TEXT NOT NULL,
             tags TEXT NOT NULL DEFAULT '[]',
             category TEXT,
-            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-            FOREIGN KEY (category) REFERENCES categories(id)
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+            -- Note: category is free-form text, not a foreign key to categories table
         );
 
         CREATE INDEX IF NOT EXISTS idx_extracts_document_id ON extracts(document_id);
@@ -1093,6 +1093,76 @@ pub const MIGRATIONS: &[Migration] = &[
 
         CREATE INDEX IF NOT EXISTS idx_transcript_segments_time
         ON transcript_segments(transcript_id, start_ms);
+        "#,
+    ),
+
+    // Migration 028: Remove foreign key constraint on extracts.category
+    // The category field should be free-form text, not a reference to categories table
+    Migration::new(
+        "028_remove_extract_category_fk",
+        r#"
+        -- SQLite doesn't support dropping foreign keys directly, so we need to recreate the table
+        -- Step 1: Create new table without the foreign key constraint
+        CREATE TABLE IF NOT EXISTS extracts_new (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            page_title TEXT,
+            page_number INTEGER,
+            highlight_color TEXT,
+            notes TEXT,
+            progressive_disclosure_level INTEGER NOT NULL DEFAULT 0,
+            max_disclosure_level INTEGER NOT NULL DEFAULT 3,
+            date_created TEXT NOT NULL,
+            date_modified TEXT NOT NULL,
+            tags TEXT NOT NULL DEFAULT '[]',
+            category TEXT,
+            char_count INTEGER,
+            word_count INTEGER,
+            summary TEXT,
+            key_points TEXT,
+            memory_state_stability REAL,
+            memory_state_difficulty REAL,
+            next_review_date TEXT,
+            last_review_date TEXT,
+            review_count INTEGER NOT NULL DEFAULT 0,
+            reps INTEGER NOT NULL DEFAULT 0,
+            html_content TEXT,
+            source_url TEXT,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        );
+
+        -- Step 2: Copy data from old table
+        INSERT INTO extracts_new SELECT * FROM extracts;
+
+        -- Step 3: Drop old table
+        DROP TABLE extracts;
+
+        -- Step 4: Rename new table
+        ALTER TABLE extracts_new RENAME TO extracts;
+
+        -- Step 5: Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_extracts_document_id ON extracts(document_id);
+        CREATE INDEX IF NOT EXISTS idx_extracts_page_number ON extracts(page_number);
+        CREATE INDEX IF NOT EXISTS idx_extracts_next_review ON extracts(next_review_date);
+
+        -- Step 6: Recreate FTS5 triggers for extracts
+        DROP TRIGGER IF EXISTS extract_search_insert;
+        DROP TRIGGER IF EXISTS extract_search_update;
+        DROP TRIGGER IF EXISTS extract_search_delete;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_insert AFTER INSERT ON extracts BEGIN
+            INSERT INTO extract_search(extract_id, document_id, content)
+            VALUES (NEW.id, NEW.document_id, NEW.content);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_update AFTER UPDATE OF content ON extracts BEGIN
+            UPDATE extract_search SET content = NEW.content WHERE extract_id = NEW.id;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS extract_search_delete AFTER DELETE ON extracts BEGIN
+            DELETE FROM extract_search WHERE extract_id = OLD.id;
+        END;
         "#,
     ),
 ];
