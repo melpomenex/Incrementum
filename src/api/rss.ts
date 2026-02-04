@@ -929,6 +929,7 @@ async function getFeedsViaTauri(): Promise<Feed[]> {
   const feedsWithItems = await Promise.all(
     feeds.map(async (feed) => {
       const articles = await invokeCommand<TauriRssArticle[]>("get_rss_articles", {
+        feedId: feed.id,
         feed_id: feed.id,
         limit: 50,
       });
@@ -937,6 +938,76 @@ async function getFeedsViaTauri(): Promise<Feed[]> {
   );
 
   return feedsWithItems;
+}
+
+async function createOrUpdateFeedViaTauri(feed: Feed): Promise<{ feed: TauriRssFeed; created: boolean }> {
+  const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds");
+  const existing = existingFeeds.find((candidate) => candidate.url === feed.feedUrl);
+  const updateIntervalSeconds = Math.max(1, Math.round(feed.updateInterval * 60));
+
+  if (existing) {
+    const updatePayload: Record<string, unknown> = { id: existing.id };
+
+    if (feed.title) updatePayload.title = feed.title;
+    if (feed.description) updatePayload.description = feed.description;
+    if (feed.category) updatePayload.category = feed.category;
+    if (Number.isFinite(updateIntervalSeconds)) {
+      updatePayload.updateInterval = updateIntervalSeconds;
+      updatePayload.update_interval = updateIntervalSeconds;
+    }
+
+    await invokeCommand("update_rss_feed", updatePayload);
+    return { feed: existing, created: false };
+  }
+
+  const created = await invokeCommand<TauriRssFeed>("create_rss_feed", {
+    url: feed.feedUrl,
+    title: feed.title,
+    description: feed.description || null,
+    category: feed.category || null,
+    updateInterval: updateIntervalSeconds,
+    update_interval: updateIntervalSeconds,
+    autoQueue: false,
+    auto_queue: false,
+  });
+
+  return { feed: created, created: true };
+}
+
+async function createArticlesViaTauri(feedId: string, items: FeedItem[]): Promise<void> {
+  if (items.length === 0) return;
+
+  await Promise.all(
+    items.map((item) =>
+      invokeCommand("create_rss_article", {
+        feedId,
+        feed_id: feedId,
+        url: item.link,
+        title: item.title,
+        author: item.author || null,
+        publishedDate: item.pubDate || null,
+        published_date: item.pubDate || null,
+        content: item.content || null,
+        summary: item.description || null,
+        imageUrl: item.enclosure?.url || null,
+        image_url: item.enclosure?.url || null,
+      })
+    )
+  );
+}
+
+function getFeedItemKey(item: FeedItem): string {
+  return item.link || item.guid || item.id;
+}
+
+export async function syncFeedToTauri(feed: Feed, existingItems: FeedItem[] = []): Promise<void> {
+  const { feed: tauriFeed } = await createOrUpdateFeedViaTauri(feed);
+  const existingKeys = new Set(existingItems.map(getFeedItemKey));
+  const newItems = feed.items.filter((item) => !existingKeys.has(getFeedItemKey(item)));
+
+  if (newItems.length > 0) {
+    await createArticlesViaTauri(tauriFeed.id, newItems);
+  }
 }
 
 /**
@@ -1270,6 +1341,17 @@ export async function getUnreadItemsAuto(): Promise<Array<{ feed: Feed; item: Fe
  * Unified subscribeToFeed - works in both Tauri and Web mode
  */
 export async function subscribeToFeedAuto(feed: Feed): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { feed: createdFeed, created } = await createOrUpdateFeedViaTauri(feed);
+      if (created) {
+        await createArticlesViaTauri(createdFeed.id, feed.items);
+      }
+      return;
+    } catch (error) {
+      console.warn("[RSS] Tauri backend unavailable, storing feed locally.", error);
+    }
+  }
   if (shouldUseHttpBackend()) {
     try {
       await createFeedViaHttp(feed.feedUrl);
@@ -1302,7 +1384,7 @@ export async function unsubscribeFromFeedAuto(feedId: string): Promise<void> {
 export async function markItemReadAuto(feedId: string, itemId: string, read: boolean = true): Promise<void> {
   if (isTauri()) {
     // In Tauri mode, use the backend command to update SQLite
-    await invokeCommand("mark_rss_article_read", { id: itemId, is_read: read });
+    await invokeCommand("mark_rss_article_read", { id: itemId, isRead: read, is_read: read });
     return;
   }
   if (shouldUseHttpBackend()) {
