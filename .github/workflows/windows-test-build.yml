@@ -57,7 +57,7 @@ jobs:
       - name: Build Tauri application (Windows)
         uses: tauri-apps/tauri-action@v0
         with:
-          args: --bundles all
+          args: --bundles nsis,msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
@@ -68,9 +68,8 @@ jobs:
       - name: List bundle directory (debug)
         run: |
           echo "=== Bundle directory contents ==="
-          find src-tauri/target -name "bundle" -type d 2>/dev/null
-          echo "=== Windows artifacts ==="
-          Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -File | Select-Object -First 20 | ForEach-Object { $_.FullName }
+          Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -File | Select-Object -First 20
+        shell: powershell
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
