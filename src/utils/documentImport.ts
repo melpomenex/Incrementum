@@ -5,6 +5,165 @@
 
 import { Document } from '../types/document';
 import { fetchUrlContent, readDocumentFile } from '../api/documents';
+import { isTauri } from '../lib/tauri';
+
+/**
+ * CORS proxies for browser mode
+ */
+const CORS_PROXIES = [
+  null, // Try direct first
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest='
+];
+
+/**
+ * Fetch article content with CORS proxy fallback
+ */
+async function fetchArticleWithProxy(url: string): Promise<{
+  html: string;
+  title: string;
+  fetchMethod: 'direct' | 'proxy';
+}> {
+  let lastError: Error | null = null;
+
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const fetchUrl = proxy ? proxy + encodeURIComponent(url) : url;
+      console.log(`[importFromUrl] Trying fetch:`, proxy || 'direct');
+      
+      const response = await fetch(fetchUrl, {
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      
+      if (html.length < 100) {
+        throw new Error('Response too short, likely an error page');
+      }
+
+      // Parse to extract title
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const title = doc.querySelector('title')?.textContent?.trim() || 
+                    doc.querySelector('h1')?.textContent?.trim() || 
+                    new URL(url).hostname;
+
+      console.log(`[importFromUrl] Successfully fetched via ${proxy || 'direct'}`);
+      
+      return {
+        html,
+        title,
+        fetchMethod: proxy ? 'proxy' : 'direct',
+      };
+    } catch (err) {
+      console.log(`[importFromUrl] Fetch failed:`, proxy || 'direct', err);
+      lastError = err as Error;
+      continue;
+    }
+  }
+
+  throw new Error(`Failed to fetch URL after trying all methods. Last error: ${lastError?.message || 'Unknown error'}`);
+}
+
+/**
+ * Process HTML content for safe display
+ */
+function processHtmlContent(rawHtml: string, baseUrl: string, title: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawHtml, 'text/html');
+  
+  // Remove dangerous elements
+  const dangerousSelectors = [
+    'script',
+    'iframe',
+    'object',
+    'embed',
+    'form',
+    'input[type="password"]',
+  ];
+  
+  dangerousSelectors.forEach(selector => {
+    doc.querySelectorAll(selector).forEach(el => el.remove());
+  });
+
+  // Remove event handlers
+  doc.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  // Add base tag
+  let baseTag = doc.querySelector('base');
+  if (!baseTag) {
+    baseTag = doc.createElement('base');
+    baseTag.href = new URL(baseUrl).origin + '/';
+    doc.head.insertBefore(baseTag, doc.head.firstChild);
+  }
+
+  // Try to extract main content
+  const contentSelectors = [
+    'main',
+    'article',
+    '[role="main"]',
+    '.content',
+    '.main-content',
+    '#content',
+    '#main',
+    '.post-content',
+    '.entry-content',
+    '.article-content'
+  ];
+
+  let mainElement = null;
+  for (const selector of contentSelectors) {
+    mainElement = doc.querySelector(selector);
+    if (mainElement) break;
+  }
+
+  const contentHtml = mainElement ? mainElement.innerHTML : doc.body.innerHTML;
+
+  // Create clean document
+  const cleanDoc = document.implementation.createHTMLDocument(title);
+  cleanDoc.head.innerHTML = `
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="${new URL(baseUrl).origin}/">
+    <title>${title}</title>
+    <style>
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        line-height: 1.6; 
+        max-width: 800px; 
+        margin: 0 auto; 
+        padding: 20px; 
+        color: #333;
+      }
+      img { max-width: 100%; height: auto; }
+      pre { background: #f4f4f4; padding: 1em; overflow-x: auto; border-radius: 4px; }
+      code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
+      blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 1em; color: #666; }
+      h1, h2, h3, h4, h5, h6 { margin-top: 1.5em; margin-bottom: 0.5em; }
+      p { margin-bottom: 1em; }
+      a { color: #0066cc; }
+      /* Hide distracting elements */
+      nav, .nav, .navigation, .sidebar, .comments, #comments, .advertisement, .ads { display: none !important; }
+    </style>
+  `;
+
+  cleanDoc.body.innerHTML = contentHtml;
+
+  return cleanDoc.documentElement.outerHTML;
+}
 
 /**
  * Fetch content from a URL and create a document
@@ -13,130 +172,132 @@ export async function importFromUrl(url: string): Promise<Omit<Document, 'id'>> 
   try {
     // Validate URL
     const validUrl = new URL(url);
+    const hostname = validUrl.hostname;
 
-    // Fetch content through Tauri backend to avoid CORS
-    const fetched = await fetchUrlContent(validUrl.toString());
-
-    // Extract metadata from URL
-    const urlParts = validUrl.pathname.split('/');
-    const fileName = urlParts[urlParts.length - 1] || validUrl.hostname;
-    const title = fileName.replace(/\.(html?|md|txt)$/i, '') || `Web Content - ${validUrl.hostname}`;
-
-    // Determine file type from fetched content type
+    let title: string;
+    let content: string;
+    let filePath: string;
     let fileType: Document['fileType'] = 'html';
-    if (fetched.content_type.includes('pdf')) {
-      fileType = 'pdf';
-    } else if (fetched.content_type.includes('markdown') || fetched.content_type.includes('text/markdown')) {
-      fileType = 'markdown';
-    } else if (url.match(/\.(md|markdown)$/i)) {
-      fileType = 'markdown';
-    } else if (url.match(/\.(txt)$/i)) {
-      fileType = 'other';
-    }
+    let fetchMethod: 'direct' | 'proxy' = 'direct';
 
-    // For HTML files, we'll read the file and store the full HTML as content
-    // This allows the viewer to display the page with proper formatting
-    let content = `Imported from ${url}`;
-    if (fileType === 'html') {
-      try {
-        // Read the fetched HTML file
-        const { readDocumentFile } = await import('../api/documents');
-        const base64Content = await readDocumentFile(fetched.file_path);
+    // Check if this is a direct file link
+    const isDirectFile = /\.(pdf|epub|md|markdown|txt|html?)$/i.test(validUrl.pathname);
 
-        // Convert base64 to string
-        const htmlContent = atob(base64Content);
+    if (isDirectFile) {
+      // For direct files, use the backend fetch
+      const fetched = await fetchUrlContent(validUrl.toString());
+      filePath = fetched.file_path;
+      
+      // Determine file type
+      if (fetched.content_type.includes('pdf')) {
+        fileType = 'pdf';
+      } else if (fetched.content_type.includes('markdown') || fetched.content_type.includes('text/markdown')) {
+        fileType = 'markdown';
+      } else if (url.match(/\.(md|markdown)$/i)) {
+        fileType = 'markdown';
+      } else if (url.match(/\.(txt)$/i)) {
+        fileType = 'other';
+      }
 
-        // Parse HTML and clean it up like the browser extension does
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
+      // Extract title from filename
+      const urlParts = validUrl.pathname.split('/');
+      const fileName = urlParts[urlParts.length - 1] || hostname;
+      title = fileName.replace(/\.(html?|md|txt|pdf|epub)$/i, '') || `Web Content - ${hostname}`;
 
-        // Remove scripts, iframes, and other potentially harmful elements
-        doc.querySelectorAll('script, iframe, object, embed, form').forEach(el => el.remove());
-
-        // Add a base tag to preserve relative links and images
-        const baseTag = doc.querySelector('base');
-        if (!baseTag) {
-          const base = doc.createElement('base');
-          base.href = validUrl.origin + '/';
-          doc.head.insertBefore(base, doc.head.firstChild);
+      // For HTML files, process the content
+      if (fileType === 'html') {
+        try {
+          const base64Content = await readDocumentFile(fetched.file_path);
+          const htmlContent = atob(base64Content);
+          content = processHtmlContent(htmlContent, url, title);
+        } catch (error) {
+          console.warn('Failed to process HTML content:', error);
+          content = `<div style="font-family: sans-serif; padding: 20px;">
+            <h2>Imported from ${hostname}</h2>
+            <p>Content will be available once you open this document.</p>
+            <p><a href="${url}" target="_blank">View original page →</a></p>
+          </div>`;
         }
-
-        // Try to find and preserve the main content area (like browser extension does)
-        const contentSelectors = [
-          'main',
-          'article',
-          '[role="main"]',
-          '.content',
-          '.main-content',
-          '#content',
-          '#main',
-          '.post-content',
-          '.entry-content',
-          '.article-content'
-        ];
-
-        let mainElement = null;
-        for (const selector of contentSelectors) {
-          mainElement = doc.querySelector(selector);
-          if (mainElement) break;
-        }
-
-        // If we found a main content area, use it; otherwise use full body
-        const contentHtml = mainElement ? mainElement.outerHTML : doc.body.innerHTML;
-
-        // Create a clean HTML document with the content
-        const cleanDoc = document.implementation.createHTMLDocument(title || 'Imported Page');
-        cleanDoc.head.innerHTML = `
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <base href="${validUrl.origin}/">
-          <title>${title || validUrl.hostname}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-            img { max-width: 100%; height: auto; }
-            pre { background: #f4f4f4; padding: 1em; overflow-x: auto; }
-            code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
-            blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 1em; color: #666; }
-          </style>
-        `;
-
-        // Copy the content
-        cleanDoc.body.innerHTML = contentHtml;
-
-        // Serialize to HTML string
-        content = cleanDoc.documentElement.outerHTML;
-      } catch (error) {
-        console.warn('Failed to process HTML content during import:', error);
-        content = `<div style="font-family: sans-serif; padding: 20px;">
-          <h2>Imported from ${validUrl.hostname}</h2>
-          <p>Content will be available once you open this document.</p>
-          <p><a href="${url}" target="_blank">View original page →</a></p>
-        </div>`;
+      } else {
+        content = `Imported from ${url}`;
+      }
+    } else {
+      // For web pages, fetch via browser fetch with proxy fallback
+      const { html, title: fetchedTitle, fetchMethod: method } = await fetchArticleWithProxy(url);
+      fetchMethod = method;
+      title = fetchedTitle;
+      
+      // Process HTML content
+      content = processHtmlContent(html, url, title);
+      
+      // Store the HTML in a virtual file path for browser mode
+      // In Tauri mode, the backend would have stored it
+      if (isTauri()) {
+        const fetched = await fetchUrlContent(validUrl.toString());
+        filePath = fetched.file_path;
+      } else {
+        // Browser mode - use a virtual path
+        filePath = `browser-fetched://article-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
     }
 
-    // Create document object
+    // Extract additional metadata
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const text = doc.body?.textContent?.trim() || '';
+    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+
+    const author = 
+      doc.querySelector('meta[name="author"]')?.getAttribute('content') ||
+      doc.querySelector('meta[property="article:author"]')?.getAttribute('content') ||
+      undefined;
+
+    const description = 
+      doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+      doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+      undefined;
+
+    const image = 
+      doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+      doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content') ||
+      undefined;
+
+    // Create document object with FSRS-compatible fields
+    const now = new Date().toISOString();
     const newDoc: Omit<Document, 'id'> = {
-      title: title,
-      filePath: fetched.file_path,
+      title: title || `Web Content - ${hostname}`,
+      filePath: filePath,
       fileType: fileType,
       content: content,
-      contentHash: await generateHash(fetched.file_path),
+      contentHash: await generateHash(url + now),
       category: 'Web Import',
-      tags: ['web-import', new URL(url).hostname],
-      dateAdded: new Date().toISOString(),
-      dateModified: new Date().toISOString(),
+      tags: ['web-import', hostname.replace(/^www\./, '')],
+      dateAdded: now,
+      dateModified: now,
       extractCount: 0,
       learningItemCount: 0,
       priorityRating: 0,
-      prioritySlider: 0,
-      priorityScore: 5,
+      prioritySlider: 50, // Default to normal priority
+      priorityScore: 5,   // Default priority score
       isArchived: false,
       isFavorite: false,
+      // FSRS scheduling fields - new items start fresh
+      nextReadingDate: undefined, // Will be set when first reviewed
+      stability: 0,
+      difficulty: 0,
+      reps: 0,
+      totalTimeSpent: 0,
       metadata: {
         source: url,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt: now,
         language: 'en',
+        author,
+        subject: description,
+        siteName: hostname.replace(/^www\./, ''),
+        image,
+        fetchMethod,
+        wordCount,
+        readingTime: Math.ceil(wordCount / 250),
       },
     };
 

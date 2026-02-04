@@ -50,6 +50,19 @@ export interface DocumentMetadata {
   pageCount?: number;
   wordCount?: number;
   collectionId?: string;
+  // Web import metadata
+  source?: string;
+  fetchedAt?: string;
+  siteName?: string;
+  image?: string;
+  favicon?: string;
+  fetchMethod?: 'direct' | 'proxy';
+  readingTime?: number;
+  // ArXiv metadata
+  arxivId?: string;
+  arxivUrl?: string;
+  pdfUrl?: string;
+  originalFileName?: string;
 }
 
 export interface Extract {
