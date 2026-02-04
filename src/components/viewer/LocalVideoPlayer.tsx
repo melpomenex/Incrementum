@@ -10,12 +10,9 @@ import {
   Volume2,
   VolumeX,
   Maximize,
-  RotateCw,
-  Settings,
   Clock,
   SkipBack,
   SkipForward,
-  Menu,
   X,
   Scissors,
   Layers,
@@ -30,7 +27,16 @@ import {
   CreateVideoExtractDialog,
   VideoExtractsList,
 } from '../video/VideoExtracts';
-import type { VideoChapter } from '../../api/video-extracts';
+import { getVideoTranscript } from '../../api/video-extracts';
+import { TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
+import {
+  enqueueVideoTranscription,
+  getVideoTranscriptionStatus,
+  setVideoPlaybackActive,
+  subscribeVideoTranscriptionStatus,
+} from "../../lib/videoTranscriptionQueue";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { isTauri } from "../../lib/tauri";
 
 interface LocalVideoPlayerProps {
   src: string; // Local file URL or blob URL
@@ -52,6 +58,8 @@ export function LocalVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const { settings } = useSettingsStore();
+  const audioSettings = settings.audioTranscription;
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,6 +75,26 @@ export function LocalVideoPlayer({
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
+
+  // Transcript panel state
+  const [showTranscript, setShowTranscript] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('transcript-visibility');
+    return saved !== 'false';
+  });
+  const [transcriptLayout, setTranscriptLayout] = useState<'below' | 'side'>('below');
+  const [transcriptWidth, setTranscriptWidth] = useState(() => {
+    if (typeof window === 'undefined') return 400;
+    const saved = localStorage.getItem('transcript-panel-width');
+    return saved ? parseInt(saved, 10) : 400;
+  });
+  const [isResizingTranscript, setIsResizingTranscript] = useState(false);
+  const transcriptResizeStartXRef = useRef(0);
+  const transcriptResizeStartWidthRef = useRef(0);
+  const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
+  const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<ReturnType<typeof getVideoTranscriptionStatus>>(null);
 
   // Video features panel state
   const [showVideoFeatures, setShowVideoFeatures] = useState(false);
@@ -87,6 +115,7 @@ export function LocalVideoPlayer({
   // Position tracking
   const [positionLoaded, setPositionLoaded] = useState(false);
   const [startTime, setStartTime] = useState(0);
+  const [documentFilePath, setDocumentFilePath] = useState<string | null>(null);
   const startTimeRef = useRef(0);
   const lastSavedTimeRef = useRef(0);
   const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -107,6 +136,18 @@ export function LocalVideoPlayer({
     const key = documentId ? `video-playback-rate-${documentId}` : 'video-playback-rate-default';
     localStorage.setItem(key, String(playbackRate));
   }, [playbackRate, documentId]);
+
+  // Persist transcript visibility to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('transcript-visibility', String(showTranscript));
+  }, [showTranscript]);
+
+  // Persist transcript width to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('transcript-panel-width', String(transcriptWidth));
+  }, [transcriptWidth]);
 
   // Persist video features panel width
   useEffect(() => {
@@ -155,6 +196,47 @@ export function LocalVideoPlayer({
     };
   }, [isResizingVideoFeatures]);
 
+  const handleTranscriptResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsResizingTranscript(true);
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    transcriptResizeStartXRef.current = clientX;
+    transcriptResizeStartWidthRef.current = transcriptWidth;
+
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  }, [transcriptWidth]);
+
+  useEffect(() => {
+    if (!isResizingTranscript) return;
+
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const delta = transcriptResizeStartXRef.current - clientX;
+      const newWidth = Math.max(250, Math.min(800, transcriptResizeStartWidthRef.current + delta));
+      setTranscriptWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingTranscript(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove);
+    window.addEventListener('touchend', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [isResizingTranscript]);
+
   // Load saved position from document
   const loadSavedPosition = useCallback(async () => {
     if (!documentId) {
@@ -164,6 +246,7 @@ export function LocalVideoPlayer({
 
     try {
       const doc = await getDocumentAuto(documentId);
+      setDocumentFilePath(doc?.filePath ?? null);
       const savedTime = doc?.currentPage ?? doc?.current_page ?? 0;
       console.log("[LocalVideoPlayer] Loaded saved time:", {
         documentId,
@@ -188,6 +271,41 @@ export function LocalVideoPlayer({
       setPositionLoaded(true);
     }
   }, [documentId, mediaType, src]);
+
+  const mapTranscriptSegments = useCallback((segments: Array<{ time: number; text: string }>): TranscriptSegment[] => {
+    if (!segments || segments.length === 0) return [];
+    return segments.map((segment, index) => {
+      const next = segments[index + 1];
+      const fallbackEnd = segment.time + 2;
+      const end = next ? Math.max(segment.time + 0.5, next.time) : fallbackEnd;
+      return {
+        id: `seg-${index}`,
+        start: segment.time,
+        end,
+        text: segment.text,
+      };
+    });
+  }, []);
+
+  const loadTranscript = useCallback(async () => {
+    if (!documentId) return;
+    setIsLoadingTranscript(true);
+    setTranscriptError(null);
+    try {
+      const result = await getVideoTranscript(documentId);
+      if (result?.segments) {
+        setTranscriptSegments(mapTranscriptSegments(result.segments));
+      } else {
+        setTranscriptSegments([]);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load transcript";
+      setTranscriptError(message);
+      setTranscriptSegments([]);
+    } finally {
+      setIsLoadingTranscript(false);
+    }
+  }, [documentId, mapTranscriptSegments]);
 
   // Save current position
   const savePosition = useCallback(async (time: number) => {
@@ -224,6 +342,29 @@ export function LocalVideoPlayer({
   useEffect(() => {
     loadSavedPosition();
   }, [loadSavedPosition]);
+
+  useEffect(() => {
+    if (!documentId) return;
+    loadTranscript();
+  }, [documentId, loadTranscript]);
+
+  useEffect(() => {
+    if (!documentId) return;
+    setTranscriptionStatus(getVideoTranscriptionStatus(documentId));
+    const unsubscribe = subscribeVideoTranscriptionStatus(documentId, (status) => {
+      setTranscriptionStatus(status);
+      if (status === "completed") {
+        loadTranscript();
+      }
+    });
+    return unsubscribe;
+  }, [documentId, loadTranscript]);
+
+  useEffect(() => {
+    if (!documentId) return;
+    setVideoPlaybackActive(documentId, isPlaying);
+    return () => setVideoPlaybackActive(documentId, false);
+  }, [documentId, isPlaying]);
 
   // Set up auto-save interval (every 5 seconds while playing)
   useEffect(() => {
@@ -483,6 +624,38 @@ export function LocalVideoPlayer({
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const handleGenerateTranscript = async () => {
+    if (!documentId) return;
+    if (!isTauri()) {
+      toast.error("Desktop app required", "Local video transcription only works in the Tauri app.");
+      return;
+    }
+    if (!documentFilePath) {
+      toast.error("Missing file path", "This video does not have a local file path.");
+      return;
+    }
+    if (!audioSettings.preferredModelId) {
+      toast.error("Model required", "Select a Whisper model in Settings → Audio Transcription.");
+      return;
+    }
+
+    try {
+      await enqueueVideoTranscription({
+        documentId,
+        filePath: documentFilePath,
+        modelId: audioSettings.preferredModelId,
+        language: audioSettings.language || "en",
+      });
+      const message = isPlaying
+        ? "Transcription will start when playback is idle."
+        : "Your video will be transcribed in the background.";
+      toast.success("Transcription queued", message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start transcription";
+      toast.error("Transcription failed", message);
+    }
+  };
+
   const waveformBars = useMemo(() => {
     const seedSource = `${title || ''}|${src}`;
     let hash = 2166136261;
@@ -680,17 +853,29 @@ export function LocalVideoPlayer({
     />
   );
 
+  const autoInProgress = transcriptionStatus === "queued" || transcriptionStatus === "processing";
+  const autoFailed = transcriptionStatus === "failed";
+  const autoNeedsModel = transcriptionStatus === "needs-model";
+
   return (
     <div
-      ref={containerRef}
       className={cn(
-        "flex flex-col rounded-lg overflow-hidden relative",
-        mediaType === "audio" ? "bg-background" : "bg-black",
+        "relative flex h-full",
+        transcriptLayout === 'side' && showTranscript ? "flex-row" : "flex-col",
         className
       )}
     >
-      {/* Media Element */}
-      {mediaElement}
+      <div
+        ref={containerRef}
+        className={cn(
+          "relative flex flex-col rounded-lg overflow-hidden flex-shrink-0",
+          mediaType === "audio" ? "bg-background" : "bg-black",
+          transcriptLayout === 'side' && showTranscript ? "h-full" : "w-full"
+        )}
+        style={transcriptLayout === 'side' && showTranscript ? { flex: 1 } : undefined}
+      >
+        {/* Media Element */}
+        {mediaElement}
 
       {/* Error Display */}
       {playError && (
@@ -726,8 +911,8 @@ export function LocalVideoPlayer({
         </div>
       )}
 
-      {/* Scroll hint overlay - shows briefly when video loads */}
-      <ScrollHint isPlaying={isPlaying} />
+        {/* Scroll hint overlay - shows briefly when video loads */}
+        <ScrollHint isPlaying={isPlaying} />
 
       {mediaType === "audio" && (
         <div className="flex-1 w-full flex items-center justify-center px-10 py-12">
@@ -751,37 +936,22 @@ export function LocalVideoPlayer({
         </div>
       )}
 
-      {/* Controls Overlay */}
-      <div
-        className={cn(
-          "absolute inset-0 flex flex-col justify-between opacity-0 hover:opacity-100 transition-opacity px-4 pt-4 pb-6 z-20 pointer-events-none hover:pointer-events-auto",
-          mediaType === "audio"
-            ? "bg-gradient-to-b from-background/80 via-transparent to-background/80"
-            : "bg-gradient-to-b from-black/30 via-transparent to-black/50"
-        )}
-      >
+        {/* Controls Overlay */}
+        <div
+          className={cn(
+            "absolute inset-0 flex flex-col justify-between opacity-100 transition-opacity px-4 pt-4 pb-6 z-20 pointer-events-none",
+            mediaType === "audio"
+              ? "bg-gradient-to-b from-background/80 via-transparent to-background/80"
+              : "bg-gradient-to-b from-black/30 via-transparent to-black/50"
+          )}
+        >
+          <div className="pointer-events-auto flex h-full flex-col justify-between">
         {/* Top Controls */}
         <div className="flex items-center justify-between">
           <div className={cn("text-sm truncate", mediaType === "audio" ? "text-foreground" : "text-white")}>
             {title || (mediaType === "audio" ? "Audio" : "Video")}
           </div>
           <div className="flex items-center gap-1">
-            {/* Video Features Menu Button */}
-            {documentId && (
-              <button
-                onClick={() => setShowVideoFeatures(!showVideoFeatures)}
-                className={cn(
-                  "p-1 hover:bg-white/20 rounded transition-colors flex items-center gap-1",
-                  showVideoFeatures && "bg-white/20"
-                )}
-                title="Video Features (Bookmarks, Chapters, Extracts, Transcript)"
-              >
-                <Layers className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
-                <span className={cn("text-xs font-medium", mediaType === "audio" ? "text-foreground" : "text-white")}>
-                  Panels
-                </span>
-              </button>
-            )}
             <button
               onClick={toggleFullscreen}
               className="p-1 hover:bg-white/20 rounded transition-colors"
@@ -910,24 +1080,155 @@ export function LocalVideoPlayer({
             </div>
           </div>
         </div>
+          </div>
+        </div>
+
+        {/* Keyboard Shortcuts Hint */}
+        <div className={cn(
+          "absolute bottom-24 left-4 p-2 rounded text-xs opacity-0 hover:opacity-100 transition-opacity z-10 pointer-events-none",
+          mediaType === "audio" ? "bg-background/90 text-foreground border border-border" : "bg-black/70 text-white"
+        )}>
+          <div className="font-semibold mb-1">Shortcuts:</div>
+          <div>Space/K: Play/Pause</div>
+          <div>←/→: 5s</div>
+          <div>↑/↓: Volume</div>
+          <div>Scroll: Seek ±5s</div>
+          <div>Click: Play/Pause</div>
+          <div>Dbl Click: Fullscreen</div>
+          <div>M: Mute</div>
+          <div>F: Fullscreen</div>
+          <div>0-9: Jump to %</div>
+          <div>&lt;/&gt;: Speed</div>
+        </div>
       </div>
 
-      {/* Keyboard Shortcuts Hint */}
-      <div className={cn(
-        "absolute top-4 right-4 p-2 rounded text-xs opacity-0 hover:opacity-100 transition-opacity z-30",
-        mediaType === "audio" ? "bg-background/90 text-foreground border border-border" : "bg-black/70 text-white"
-      )}>
-        <div className="font-semibold mb-1">Shortcuts:</div>
-        <div>Space/K: Play/Pause</div>
-        <div>←/→: 5s</div>
-        <div>↑/↓: Volume</div>
-        <div>Scroll: Seek ±5s</div>
-        <div>Click: Play/Pause</div>
-        <div>Dbl Click: Fullscreen</div>
-        <div>M: Mute</div>
-        <div>F: Fullscreen</div>
-        <div>0-9: Jump to %</div>
-        <div>&lt;/&gt;: Speed</div>
+      {/* Resize handle - only in side mode with transcript visible */}
+      {transcriptLayout === 'side' && showTranscript && (
+        <div
+          className={`w-1 flex-shrink-0 relative z-10 ${isResizingTranscript ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
+          onMouseDown={handleTranscriptResizeStart}
+          onTouchStart={handleTranscriptResizeStart}
+          title="Drag to resize"
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
+            <GripVertical className="w-3 h-3 text-muted-foreground" />
+          </div>
+        </div>
+      )}
+
+      {/* Content area with transcript toggle */}
+      <div
+        className="flex flex-col overflow-hidden"
+        style={transcriptLayout === 'side' && showTranscript ? { width: transcriptWidth } : { flex: 1 }}
+      >
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-border flex-shrink-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-foreground line-clamp-2 mb-1">
+                  {title || (mediaType === "audio" ? "Audio" : "Video")}
+                </h2>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  {duration > 0 && <span>Duration: {formatTime(duration)}</span>}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                {documentId && (
+                  <button
+                    onClick={() => setShowVideoFeatures(!showVideoFeatures)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
+                      showVideoFeatures ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
+                    )}
+                    title="Video Features (Bookmarks, Chapters, Extracts)"
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span className="font-medium">Panels</span>
+                  </button>
+                )}
+
+                {showTranscript && (
+                  <button
+                    onClick={() => setTranscriptLayout(transcriptLayout === 'below' ? 'side' : 'below')}
+                    className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
+                    title={transcriptLayout === 'below' ? 'Switch to side-by-side view' : 'Switch to stacked view'}
+                  >
+                    <span className="text-xs">{transcriptLayout === 'below' ? '↔' : '↕'}</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowTranscript(!showTranscript)}
+                  className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
+                >
+                  <span className="font-medium">{showTranscript ? "Hide" : "Show"} Transcript</span>
+                  <span className="text-xs text-muted-foreground">
+                    {showTranscript ? "▼" : "▶"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {showTranscript && (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {isLoadingTranscript ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin h-6 w-6 border-2 border-muted-foreground border-t-transparent rounded-full" />
+                    <span className="text-sm">Loading transcript...</span>
+                  </div>
+                </div>
+              ) : transcriptError ? (
+                <div className="flex items-center justify-center h-full p-6">
+                  <div className="text-center max-w-md">
+                    <p className="text-sm font-medium text-foreground mb-2">Transcript Unavailable</p>
+                    <p className="text-xs text-muted-foreground">{transcriptError}</p>
+                  </div>
+                </div>
+              ) : transcriptSegments.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground p-6">
+                  <div className="text-center space-y-4 max-w-md">
+                    {autoInProgress && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
+                        Transcribing in the background…
+                      </div>
+                    )}
+                    {autoNeedsModel && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                        <p className="font-medium">Model required for transcription</p>
+                        <p className="mt-1 text-amber-800/90">
+                          Download a model in Settings → Audio Transcription to enable transcription.
+                        </p>
+                      </div>
+                    )}
+                    {autoFailed && (
+                      <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                        Background transcription failed. You can try again manually.
+                      </div>
+                    )}
+                    <p className="text-sm">No transcript available for this video.</p>
+                    <button
+                      onClick={handleGenerateTranscript}
+                      disabled={autoInProgress || !documentId}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+                    >
+                      Generate Transcript
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <TranscriptSync
+                  segments={transcriptSegments}
+                  currentTime={currentTime}
+                  onSeek={handleSeek}
+                  className="h-full"
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Video Features Slide-over Panel */}
@@ -994,7 +1295,6 @@ export function LocalVideoPlayer({
         </div>
       )}
 
-      {/* Create Video Extract Dialog */}
       <CreateVideoExtractDialog
         documentId={documentId || ''}
         documentTitle={title || (mediaType === "audio" ? "Audio" : "Video")}

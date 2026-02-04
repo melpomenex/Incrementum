@@ -22,6 +22,7 @@ pub mod cloud;
 pub mod scheduler;
 pub mod legacy_import;
 pub mod ocr;
+pub mod ocr_runtime;
 pub mod position;
 pub mod reading_goals;
 pub mod search;
@@ -30,6 +31,7 @@ pub mod collection_archive;
 pub mod video;
 pub mod youtube_playlist;
 pub mod audiobook;
+pub mod semantic_search;
 
 // Re-export error types for use in commands
 pub use crate::error::Result;
@@ -51,6 +53,7 @@ pub use segmentation::*;
 pub use notifications::*;
 pub use legacy_import::*;
 pub use ocr::*;
+pub use ocr_runtime::*;
 pub use extract_review::*;
 pub use position::*;
 pub use reading_goals::*;
@@ -60,6 +63,7 @@ pub use collection_archive::*;
 pub use video::*;
 pub use youtube_playlist::*;
 pub use audiobook::*;
+pub use semantic_search::*;
 
 // Cloud commands
 pub use cloud::oauth::*;

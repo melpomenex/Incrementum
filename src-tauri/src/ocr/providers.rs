@@ -1,17 +1,28 @@
 //! OCR provider implementations
 
 use crate::error::{IncrementumError, Result};
+use base64::Engine;
+use image::ImageFormat;
+use lopdf::Document;
 use serde::{Deserialize, Serialize};
 
 /// OCR provider type
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OCRProviderType {
+    #[serde(rename = "tesseract")]
     Tesseract,
+    #[serde(rename = "google")]
     GoogleDocumentAI,
+    #[serde(rename = "aws")]
     AWSTextract,
+    #[serde(rename = "azure")]
     AzureVision,
+    #[serde(rename = "marker")]
     Marker,
+    #[serde(rename = "nougat")]
     Nougat,
+    #[serde(rename = "glm")]
+    GLMOCR,
 }
 
 /// OCR result with text and metadata
@@ -635,6 +646,308 @@ impl OCRProvider for NougatProvider {
     }
 }
 
+/// GLM-OCR provider (vLLM OpenAI-compatible endpoint)
+pub struct GLMOCRProvider {
+    endpoint: String,
+    model: String,
+    api_key: Option<String>,
+    client: reqwest::Client,
+}
+
+impl GLMOCRProvider {
+    pub fn new(config: super::GLMOCRConfig) -> Self {
+        Self {
+            endpoint: config.endpoint,
+            model: config.model,
+            api_key: config.api_key,
+            client: reqwest::Client::new(),
+        }
+    }
+
+    fn build_chat_url(&self) -> String {
+        let trimmed = self.endpoint.trim_end_matches('/');
+        if trimmed.ends_with("/chat/completions") {
+            trimmed.to_string()
+        } else if trimmed.ends_with("/v1") {
+            format!("{}/chat/completions", trimmed)
+        } else {
+            format!("{}/v1/chat/completions", trimmed)
+        }
+    }
+
+    fn guess_mime(bytes: &[u8]) -> &'static str {
+        if let Ok(format) = image::guess_format(bytes) {
+            match format {
+                ImageFormat::Png => "image/png",
+                ImageFormat::Jpeg => "image/jpeg",
+                ImageFormat::Gif => "image/gif",
+                ImageFormat::Bmp => "image/bmp",
+                ImageFormat::Tiff => "image/tiff",
+                ImageFormat::WebP => "image/webp",
+                _ => "image/png",
+            }
+        } else {
+            "image/png"
+        }
+    }
+
+    fn extract_message_text(content: &ChatContent) -> String {
+        match content {
+            ChatContent::Text(text) => text.clone(),
+            ChatContent::Parts(parts) => parts
+                .iter()
+                .filter_map(|part| part.text.as_ref())
+                .cloned()
+                .collect::<Vec<String>>()
+                .join(""),
+        }
+    }
+
+    fn is_pdf(bytes: &[u8]) -> bool {
+        bytes.starts_with(b"%PDF-")
+    }
+
+    fn extract_pdf_page_images(bytes: &[u8]) -> Result<Vec<(Vec<u8>, String)>> {
+        let doc = Document::load_mem(bytes)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to load PDF: {}", e)))?;
+
+        let pages = doc.get_pages();
+        let mut images = Vec::new();
+
+        for (_, page_id) in pages.iter() {
+            let page_images = match doc.get_page_images(*page_id) {
+                Ok(images) => images,
+                Err(_) => continue,
+            };
+
+            let mut best_image: Option<(Vec<u8>, String, i64)> = None;
+            for image in page_images {
+                let filters = image.filters.clone().unwrap_or_default();
+                let mime = if filters.iter().any(|f| f.eq_ignore_ascii_case("DCTDecode")) {
+                    "image/jpeg"
+                } else if filters.iter().any(|f| f.eq_ignore_ascii_case("JPXDecode")) {
+                    "image/jp2"
+                } else {
+                    continue;
+                };
+
+                let area = image.width.saturating_mul(image.height);
+                if image.content.is_empty() {
+                    continue;
+                }
+
+                let should_replace = best_image
+                    .as_ref()
+                    .map(|(_, _, best_area)| area > *best_area)
+                    .unwrap_or(true);
+
+                if should_replace {
+                    best_image = Some((image.content.to_vec(), mime.to_string(), area));
+                }
+            }
+
+            if let Some((bytes, mime, _)) = best_image {
+                images.push((bytes, mime));
+            }
+        }
+
+        Ok(images)
+    }
+
+    async fn process_image_bytes_with_mime(&self, image_data: &[u8], mime: &str) -> Result<OCRResult> {
+        let start = std::time::Instant::now();
+        let encoded = base64::engine::general_purpose::STANDARD.encode(image_data);
+        let data_url = format!("data:{};base64,{}", mime, encoded);
+
+        let request_body = serde_json::json!({
+            "model": self.model.as_str(),
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an OCR engine. Return only the extracted content as Markdown."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        { "type": "text", "text": "Extract all text from this image. Preserve structure using Markdown where helpful." },
+                        { "type": "image_url", "image_url": { "url": data_url } }
+                    ]
+                }
+            ],
+            "temperature": 0,
+            "max_tokens": 4096
+        });
+
+        let url = self.build_chat_url();
+        let mut request = self.client.post(url).json(&request_body);
+        if let Some(api_key) = &self.api_key {
+            if !api_key.is_empty() {
+                request = request.bearer_auth(api_key);
+            }
+        }
+
+        let response = request.send().await.map_err(|e| {
+            IncrementumError::Internal(format!("Failed to call GLM-OCR endpoint: {}", e))
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(IncrementumError::Internal(format!(
+                "GLM-OCR request failed ({}): {}",
+                status, body
+            )));
+        }
+
+        let parsed: ChatCompletionResponse = response.json().await.map_err(|e| {
+            IncrementumError::Internal(format!("Failed to parse GLM-OCR response: {}", e))
+        })?;
+
+        let content = parsed.choices.get(0)
+            .ok_or_else(|| IncrementumError::Internal("GLM-OCR returned no choices".to_string()))?;
+
+        let text = Self::extract_message_text(&content.message.content);
+
+        if text.trim().is_empty() {
+            return Err(IncrementumError::Internal("GLM-OCR returned empty content".to_string()));
+        }
+
+        let processing_time_ms = start.elapsed().as_millis() as u64;
+        let line_count = text.lines().count();
+        let word_count = text.split_whitespace().count();
+
+        Ok(OCRResult {
+            text,
+            confidence: 85.0,
+            line_count,
+            word_count,
+            processing_time_ms,
+            provider: OCRProviderType::GLMOCR,
+            metadata: serde_json::json!({
+                "engine": "GLM-OCR",
+                "format": "markdown",
+                "model": self.model.clone()
+            }),
+        })
+    }
+}
+
+impl std::fmt::Debug for GLMOCRProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GLMOCRProvider")
+            .field("endpoint", &self.endpoint)
+            .field("model", &self.model)
+            .finish()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionResponse {
+    choices: Vec<ChatChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatChoice {
+    message: ChatMessage,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatMessage {
+    content: ChatContent,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ChatContent {
+    Text(String),
+    Parts(Vec<ChatContentPart>),
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatContentPart {
+    #[serde(rename = "type")]
+    part_type: String,
+    text: Option<String>,
+}
+
+#[async_trait::async_trait]
+impl OCRProvider for GLMOCRProvider {
+    fn provider_type(&self) -> OCRProviderType {
+        OCRProviderType::GLMOCR
+    }
+
+    async fn process_image(&self, image_path: &std::path::Path) -> Result<OCRResult> {
+        let image_data = tokio::fs::read(image_path)
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to read image: {}", e)))?;
+
+        if Self::is_pdf(&image_data) {
+            let page_images = Self::extract_pdf_page_images(&image_data)?;
+            if page_images.is_empty() {
+                return Err(IncrementumError::Internal(
+                    "GLM-OCR could not find images in this PDF. Try a different OCR provider.".to_string()
+                ));
+            }
+
+            let start = std::time::Instant::now();
+            let mut combined_text = String::new();
+            let mut confidence_sum = 0.0;
+            let mut page_count = 0;
+
+            for (index, (bytes, mime)) in page_images.iter().enumerate() {
+                let result = self.process_image_bytes_with_mime(bytes, mime).await?;
+                if index > 0 && !combined_text.is_empty() {
+                    combined_text.push_str("\n\n");
+                }
+                combined_text.push_str(&result.text);
+                confidence_sum += result.confidence;
+                page_count += 1;
+            }
+
+            let processing_time_ms = start.elapsed().as_millis() as u64;
+            let line_count = combined_text.lines().count();
+            let word_count = combined_text.split_whitespace().count();
+            let confidence = if page_count > 0 {
+                confidence_sum / page_count as f64
+            } else {
+                0.0
+            };
+
+            return Ok(OCRResult {
+                text: combined_text,
+                confidence,
+                line_count,
+                word_count,
+                processing_time_ms,
+                provider: OCRProviderType::GLMOCR,
+                metadata: serde_json::json!({
+                    "engine": "GLM-OCR",
+                    "format": "markdown",
+                    "model": self.model.clone(),
+                    "pages": page_count
+                }),
+            });
+        }
+
+        let mut result = self.process_image_bytes(&image_data).await?;
+        result.metadata["image_path"] = serde_json::json!(image_path.to_string_lossy());
+        Ok(result)
+    }
+
+    async fn process_image_bytes(&self, image_data: &[u8]) -> Result<OCRResult> {
+        let mime = Self::guess_mime(image_data);
+        self.process_image_bytes_with_mime(image_data, mime).await
+    }
+
+    fn is_available(&self) -> bool {
+        !self.endpoint.trim().is_empty() && !self.model.trim().is_empty()
+    }
+
+    fn provider_name(&self) -> &str {
+        "GLM-OCR"
+    }
+}
+
 /// Create OCR provider from type and config
 pub fn create_provider(
     provider_type: OCRProviderType,
@@ -664,6 +977,11 @@ pub fn create_provider(
         }
         OCRProviderType::Nougat => {
             Ok(Box::new(NougatProvider::new(config.nougat_path.clone())))
+        }
+        OCRProviderType::GLMOCR => {
+            let glm_config = config.glm_ocr.as_ref()
+                .ok_or_else(|| IncrementumError::Internal("GLM-OCR config not set".to_string()))?;
+            Ok(Box::new(GLMOCRProvider::new(glm_config.clone())))
         }
     }
 }

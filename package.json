@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,7 @@
     "build:check": "tsc && vite build",
     "preview": "vite preview",
     "preview:pwa": "vite preview --mode pwa",
-    "tauri": "tauri",
+    "tauri": "bash scripts/tauri-wrapper.sh",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:debug": "tauri build --debug",

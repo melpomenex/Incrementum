@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-02-04
+
 ### Added
 - Local video transcription using Whisper
   - Generate transcripts for local video files using Whisper models
   - Selectable transcription models and languages
   - Real-time progress updates via Tauri events
   - Automatic transcript saving to database
+- YouTube-style transcript toggle and layout controls for local videos
+- Preferred Whisper model selection for auto-transcribe and quick actions
+- Playback-aware background transcription queue to reduce stutter during video playback
 - YouTube chapter fetching
   - Fetch chapters directly from YouTube videos
   - Auto-fetch chapters on YouTube video import
@@ -38,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Video transcription commands (Tauri only)
   - `generate_video_transcript`: Generate transcripts for local videos
   - `get_youtube_chapters`: Fetch chapters from YouTube videos
+- GLM OCR provider with runtime setup and expanded OCR settings
+- Semantic transcript search support (embeddings + backend commands)
 - Improved error messages and user feedback
   - Better error handling in transcription engine
   - Informative toasts for transcription status
@@ -77,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Scroll mode split screen scaling
 - YouTube transcript handling and parsing
+- OCR HTML extraction for full PDFs
 - Mobile EPUB toolbar hiding - now allows scrolling when toolbars are hidden
 - PWA rating buttons position
 - Tab drop detection - prevents collapsing the last pane
@@ -130,5 +138,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/melpomenex/incrementum-tauri/releases/tag/v1.0.0

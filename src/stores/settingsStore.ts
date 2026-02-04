@@ -33,6 +33,7 @@ interface LearningSettings {
 interface PDFSettings {
   defaultZoom: number;
   twoPageSpread: boolean;
+  showOcrPageBreaks: boolean;
 }
 
 /**
@@ -58,9 +59,10 @@ interface SegmentationSettings {
  * OCR Settings
  */
 interface OCRSettings {
-  provider: "tesseract" | "google" | "aws" | "azure" | "marker" | "nougat";
+  provider: "tesseract" | "google" | "aws" | "azure" | "marker" | "nougat" | "glm";
   language: string;
   autoOCR: boolean;
+  tesseract_path?: string;
   googleProjectId?: string;
   googleLocation?: string;
   googleProcessorId?: string;
@@ -70,6 +72,13 @@ interface OCRSettings {
   awsSecretKey?: string;
   azureEndpoint?: string;
   azureApiKey?: string;
+  marker_path?: string;
+  nougat_path?: string;
+  glmEndpoint?: string;
+  glmModel?: string;
+  glmApiKey?: string;
+  glmBackend?: "ollama" | "vllm";
+  glmOllamaPath?: string;
   preferLocal: boolean;
   mathOcrEnabled: boolean;
   mathOcrCommand?: string;
@@ -187,6 +196,8 @@ interface PrivacySettings {
  */
 interface AudioTranscriptionSettings {
   autoTranscription: boolean;
+  autoTranscribeLocalVideos: boolean;
+  preferredModelId?: string;
   language: string;
   timestampGeneration: boolean;
   speakerDiarization: boolean;
@@ -304,6 +315,7 @@ export const defaultSettings: Settings = {
     pdfSettings: {
       defaultZoom: 1.0,
       twoPageSpread: false,
+      showOcrPageBreaks: false,
     },
     epubSettings: {
       fontSize: 16,
@@ -320,6 +332,7 @@ export const defaultSettings: Settings = {
       provider: "tesseract",
       language: "eng",
       autoOCR: false,
+      tesseract_path: undefined,
       googleProjectId: undefined,
       googleLocation: "us",
       googleProcessorId: undefined,
@@ -329,6 +342,13 @@ export const defaultSettings: Settings = {
       awsSecretKey: undefined,
       azureEndpoint: undefined,
       azureApiKey: undefined,
+      marker_path: undefined,
+      nougat_path: undefined,
+      glmEndpoint: "http://localhost:11434/v1",
+      glmModel: "",
+      glmApiKey: undefined,
+      glmBackend: "ollama",
+      glmOllamaPath: undefined,
       preferLocal: true,
       mathOcrEnabled: false,
       mathOcrCommand: "nougat",
@@ -375,6 +395,8 @@ export const defaultSettings: Settings = {
   },
   audioTranscription: {
     autoTranscription: false,
+    autoTranscribeLocalVideos: true,
+    preferredModelId: "distil-small.en",
     language: "en",
     timestampGeneration: true,
     speakerDiarization: false,
@@ -510,6 +532,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (!Array.isArray(merged.rssQueue.excludedFeedIds)) {
           merged.rssQueue.excludedFeedIds = [];
+        }
+        if (!merged.documents.ocr.language) {
+          merged.documents.ocr.language = defaultSettings.documents.ocr.language;
         }
 
         state.settings = merged;
