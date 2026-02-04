@@ -40,6 +40,7 @@ import { createDocument } from "../../api/documents";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
 import { useToast } from "../common/Toast";
 import { formatRelativeTime } from "../../utils/date";
+import { WEBVIEW_EXTRACT_BRIDGE_SCRIPT, SELECTION_STORAGE_KEY } from "../../lib/webview-extract-bridge";
 
 // Type definitions for lazy loading
 type WebviewType = import("@tauri-apps/api/webview").Webview;
@@ -480,17 +481,26 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     let selectedText = "";
     let htmlContent: string | undefined;
     
-    // For Tauri: use native webview API to get selection
+    // For Tauri: use the extract bridge to get selection
     if (isTauri() && webviewRef.current) {
       try {
-        // Execute JavaScript in the webview to get selection
-        const result = await webviewRef.current.evaluateJavaScript<string>(`
-          (function() {
-            const selection = window.getSelection()?.toString() || '';
-            return selection;
-          })()
-        `);
-        selectedText = result?.trim() || "";
+        // First, try to poll for selection data from the bridge
+        const bridgeData = await pollWebviewSelection();
+        if (bridgeData?.text) {
+          selectedText = bridgeData.text;
+          htmlContent = bridgeData.html;
+        }
+        
+        // Fallback: try direct selection access
+        if (!selectedText) {
+          const result = await webviewRef.current.evaluateJavaScript<string>(`
+            (function() {
+              const selection = window.getSelection()?.toString() || '';
+              return selection;
+            })()
+          `);
+          selectedText = result?.trim() || "";
+        }
       } catch (error) {
         console.log("Could not get selection from webview:", error);
       }
@@ -548,7 +558,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       pageTitle: pageTitle || new URL(currentUrl).hostname,
       timestamp: Date.now(),
     });
-  }, [currentUrl, pageTitle]);
+  }, [currentUrl, pageTitle, pollWebviewSelection]);
 
   // Save extract with proper document creation
   const handleSaveExtract = async (data: { content: string; htmlContent?: string; note: string; tags: string[] }) => {
@@ -674,6 +684,32 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     });
   }, []);
 
+  // Poll for selection data from webview (for Tauri webview bridge)
+  const pollWebviewSelection = useCallback(async () => {
+    if (!isTauri() || !webviewRef.current) return null;
+    
+    try {
+      // Try to get selection data from the webview's localStorage via evaluateJavaScript
+      const result = await webviewRef.current.evaluateJavaScript<string>(`
+        (function() {
+          const data = localStorage.getItem('${SELECTION_STORAGE_KEY}');
+          if (data) {
+            localStorage.removeItem('${SELECTION_STORAGE_KEY}');
+            return data;
+          }
+          return null;
+        })()
+      `);
+      
+      if (result) {
+        return JSON.parse(result);
+      }
+    } catch (error) {
+      console.log("Could not poll webview selection:", error);
+    }
+    return null;
+  }, []);
+
   // Initialize
   useEffect(() => {
     if (initialUrl) {
@@ -767,14 +803,45 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
         webviewRef.current = webview;
 
+        // Track last injected URL to avoid duplicate injections
+        let lastInjectedUrl = "";
+        
+        // Function to inject the extract bridge script
+        const injectBridgeScript = async () => {
+          try {
+            // Don't re-inject if already injected on this URL
+            if (lastInjectedUrl === currentUrl) return;
+            lastInjectedUrl = currentUrl;
+            
+            await webview.evaluateJavaScript(
+              "(function(){" + WEBVIEW_EXTRACT_BRIDGE_SCRIPT + "})();"
+            );
+            console.log("[WebBrowserTab] Extract bridge injected");
+          } catch (e) {
+            console.warn("[WebBrowserTab] Failed to inject extract bridge:", e);
+          }
+        };
+        
         webview.once("tauri://created", async () => {
           if (!isCancelled) {
             await updateWebviewBounds();
             setIsLoading(false);
             setTimeout(() => void updateWebviewBounds(), 200);
             setTimeout(() => void updateWebviewBounds(), 500);
+            
+            // Inject script after page loads
+            setTimeout(injectBridgeScript, 1500);
+            // Try again after a longer delay in case of slow loading
+            setTimeout(injectBridgeScript, 4000);
           }
         }).catch((e) => console.warn("Failed to attach created listener:", e));
+        
+        // Re-inject on navigation (when URL changes)
+        webview.on("tauri://url-changed", () => {
+          lastInjectedUrl = ""; // Reset so script will be injected on new page
+          setTimeout(injectBridgeScript, 1500);
+          setTimeout(injectBridgeScript, 4000);
+        }).catch((e) => console.warn("Failed to attach url-changed listener:", e));
 
         webview.once("tauri://error", (event: unknown) => {
           if (!isCancelled) {
@@ -818,6 +885,31 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     observer.observe(webviewContainerRef.current);
     return () => observer.disconnect();
   }, [updateWebviewBounds]);
+
+  // Poll for selection data from webview bridge
+  useEffect(() => {
+    if (!isTauri() || !webviewRef.current) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const data = await pollWebviewSelection();
+        if (data?.text && data.text.length >= 3) {
+          // Auto-open extract dialog when user clicks the extract button in webview
+          setExtractDialog({
+            content: data.text,
+            htmlContent: data.html,
+            url: data.url || currentUrl,
+            pageTitle: data.title || pageTitle || new URL(currentUrl).hostname,
+            timestamp: Date.now(),
+          });
+        }
+      } catch (error) {
+        // Silent fail - polling is best-effort
+      }
+    }, 500); // Poll every 500ms
+    
+    return () => clearInterval(pollInterval);
+  }, [isTauri, currentUrl, pageTitle, pollWebviewSelection]);
 
   // Cleanup on unmount
   useEffect(() => {

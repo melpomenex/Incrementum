@@ -287,6 +287,22 @@ export async function searchAudiobookCover(
   }
 }
 
+// Extract embedded cover art from audio file
+export async function extractAudioCoverArt(filePath: string): Promise<string | null> {
+  if (!isTauri()) {
+    return null;
+  }
+
+  try {
+    const { invokeCommand } = await import("../lib/tauri");
+    const result = await invokeCommand<string | null>("extract_audio_cover_art", { filePath });
+    return result;
+  } catch (error) {
+    console.error("Failed to extract audio cover art:", error);
+    return null;
+  }
+}
+
 // Search for audiobook metadata
 export async function searchAudiobookMetadata(
   title: string,

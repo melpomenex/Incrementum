@@ -50,6 +50,7 @@ import {
   AudiobookTranscript,
   parseAudiobookMetadata,
   searchAudiobookCover,
+  extractAudioCoverArt,
   searchAudiobookMetadata,
   generateTranscript,
   importTranscriptFromFile,
@@ -194,15 +195,17 @@ export function AudiobookImportDialog({
             duration: 0, // Will sum parts later
           });
           
-          // Search for cover
-          const [covers, metaResults] = await Promise.all([
+          // Extract embedded cover and search for online covers in parallel
+          const [embeddedCover, covers, metaResults] = await Promise.all([
+            extractAudioCoverArt(files[0]),
             searchAudiobookCover(detectedMultiPart.title, detectedMultiPart.author),
             searchAudiobookMetadata(detectedMultiPart.title, detectedMultiPart.author),
           ]);
-          
-          setCoverOptions(covers);
+
+          const allCovers = embeddedCover ? [embeddedCover, ...covers] : covers;
+          setCoverOptions(allCovers);
           setSearchResults(metaResults);
-          if (covers.length > 0) setSelectedCover(covers[0]);
+          if (allCovers.length > 0) setSelectedCover(allCovers[0]);
           if (metaResults.length > 0) {
             setMetadata(prev => ({ ...prev, ...metaResults[0] }));
           }
@@ -329,15 +332,18 @@ export function AudiobookImportDialog({
         // Parse metadata
         const parsed = await parseAudiobookMetadata(item.filePath);
         
-        // Search for covers and metadata
-        const [covers, metaResults] = await Promise.all([
+        // Extract embedded cover and search for online covers in parallel
+        const [embeddedCover, covers, metaResults] = await Promise.all([
+          extractAudioCoverArt(item.filePath),
           searchAudiobookCover(parsed.title, parsed.author),
           searchAudiobookMetadata(parsed.title, parsed.author),
         ]);
-        
+
+        const allCovers = embeddedCover ? [embeddedCover, ...covers] : covers;
+
         // Update item with metadata
         const bestMatch = metaResults[0] || {};
-        setBatchItems(prev => prev.map(b => 
+        setBatchItems(prev => prev.map(b =>
           b.id === item.id ? {
             ...b,
             status: "ready",
@@ -346,8 +352,8 @@ export function AudiobookImportDialog({
               ...bestMatch,
               duration: parsed.duration || bestMatch.duration || 0,
             },
-            coverOptions: covers,
-            selectedCover: covers[0] || "",
+            coverOptions: allCovers,
+            selectedCover: allCovers[0] || "",
             transcript: null,
           } : b
         ));
@@ -383,16 +389,18 @@ export function AudiobookImportDialog({
       setMetadata(parsed);
       setChapters(parsed.chapters || []);
       
-      // Search for covers and metadata
-      const [covers, metaResults] = await Promise.all([
+      // Extract embedded cover and search for online covers in parallel
+      const [embeddedCover, covers, metaResults] = await Promise.all([
+        extractAudioCoverArt(path),
         searchAudiobookCover(parsed.title, parsed.author),
         searchAudiobookMetadata(parsed.title, parsed.author),
       ]);
-      
-      setCoverOptions(covers);
+
+      const allCovers = embeddedCover ? [embeddedCover, ...covers] : covers;
+      setCoverOptions(allCovers);
       setSearchResults(metaResults);
-      if (covers.length > 0) {
-        setSelectedCover(covers[0]);
+      if (allCovers.length > 0) {
+        setSelectedCover(allCovers[0]);
       }
       
       // Update metadata with search results if available
