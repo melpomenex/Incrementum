@@ -41,7 +41,7 @@ const onboardingSteps: OnboardingStep[] = [
   {
     id: "providers",
     title: "Choose Your OCR Provider",
-    description: "Select from Tesseract (local), Google Document AI, AWS Textract, Azure, Marker (PDF to Markdown), or Nougat (scientific documents). Local providers respect your privacy, while cloud providers offer higher accuracy.",
+    description: "Select from Tesseract (local), GLM-OCR (local, GPU recommended), Google Document AI, AWS Textract, Azure, Marker (PDF to Markdown), or Nougat (scientific documents). Local providers respect your privacy, while cloud providers offer higher accuracy.",
     icon: ScanText,
   },
   {
@@ -145,6 +145,7 @@ export function OCROnboarding({ onComplete, onSkip }: OCROnboardingProps) {
             <div className="grid grid-cols-2 gap-3 mb-6">
               {[
                 { name: "Tesseract", type: "Local", desc: "General OCR" },
+                { name: "GLM-OCR", type: "Local", desc: "GPU recommended" },
                 { name: "Google", type: "Cloud", desc: "High accuracy" },
                 { name: "Marker", type: "Local", desc: "PDF → Markdown" },
                 { name: "Nougat", type: "Local", desc: "Math & science" },

@@ -6,6 +6,7 @@ use crate::error::{IncrementumError, Result};
 use crate::ocr::OCRConfig;
 use crate::ocr::providers::OCRProviderType;
 use crate::ocr::processor::OCRProcessor;
+use lopdf::Document;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -21,8 +22,8 @@ fn get_processor() -> &'static TokioMutex<Option<OCRProcessor>> {
 /// OCR request for image file
 #[derive(Debug, Deserialize)]
 pub struct OCRImageRequest {
-    /// Path to the image file
-    pub image_path: PathBuf,
+    /// Path(s) to the image file(s)
+    pub image_path: Vec<PathBuf>,
     /// Optional provider override
     pub provider: Option<String>,
     /// Optional language
@@ -55,9 +56,45 @@ pub struct OCRResponse {
     pub processing_time_ms: u64,
     /// Provider used
     pub provider: String,
+    /// Output format (text, markdown, html)
+    pub format: String,
     /// Success status
     pub success: bool,
     /// Error message if failed
+    pub error: Option<String>,
+}
+
+/// OCR request for PDF file
+#[derive(Debug, Deserialize)]
+pub struct OCRPdfRequest {
+    /// Path to the PDF file
+    pub pdf_path: PathBuf,
+    /// Optional provider override
+    pub provider: Option<String>,
+    /// Optional language
+    pub language: Option<String>,
+}
+
+/// OCR PDF page result
+#[derive(Debug, Serialize)]
+pub struct OCRPdfPage {
+    pub page_number: usize,
+    pub text: String,
+}
+
+/// OCR PDF response
+#[derive(Debug, Serialize)]
+pub struct OCRPdfResponse {
+    pub pages: Vec<OCRPdfPage>,
+    pub combined_text: String,
+    pub confidence: f64,
+    pub line_count: usize,
+    pub word_count: usize,
+    pub processing_time_ms: u64,
+    pub provider: String,
+    pub format: String,
+    pub page_count: usize,
+    pub success: bool,
     pub error: Option<String>,
 }
 
@@ -105,34 +142,76 @@ pub async fn ocr_image_file(request: OCRImageRequest) -> Result<OCRResponse> {
             .clone()
     };
 
-    let start = std::time::Instant::now();
+    let provider_type = resolve_provider_type(&request.provider, &processor)?;
+    let provider = crate::ocr::providers::create_provider(provider_type, processor.get_config())?;
+    let format = format_for_provider(provider_type);
 
-    let result = processor.process_image(&request.image_path).await;
-
-    let processing_time_ms = start.elapsed().as_millis() as u64;
-
-    match result {
-        Ok(ocr_result) => Ok(OCRResponse {
-            text: ocr_result.text,
-            confidence: ocr_result.confidence,
-            line_count: ocr_result.line_count,
-            word_count: ocr_result.word_count,
-            processing_time_ms,
-            provider: format!("{:?}", ocr_result.provider),
-            success: true,
-            error: None,
-        }),
-        Err(e) => Ok(OCRResponse {
+    if request.image_path.is_empty() {
+        return Ok(OCRResponse {
             text: String::new(),
             confidence: 0.0,
             line_count: 0,
             word_count: 0,
-            processing_time_ms,
+            processing_time_ms: 0,
             provider: "unknown".to_string(),
+            format: "text".to_string(),
             success: false,
-            error: Some(e.to_string()),
-        }),
+            error: Some("No image path provided".to_string()),
+        });
     }
+
+    let start = std::time::Instant::now();
+    let mut combined_text = String::new();
+    let mut total_confidence = 0.0;
+    let mut total_line_count = 0;
+    let mut total_word_count = 0;
+    let mut result_provider = provider_type;
+
+    for (index, image_path) in request.image_path.iter().enumerate() {
+        let ocr_result = provider.process_image(image_path).await;
+        match ocr_result {
+            Ok(ocr_result) => {
+                if index > 0 && !combined_text.is_empty() {
+                    combined_text.push_str("\n\n");
+                }
+                combined_text.push_str(&ocr_result.text);
+                total_confidence += ocr_result.confidence;
+                total_line_count += ocr_result.line_count;
+                total_word_count += ocr_result.word_count;
+                result_provider = ocr_result.provider;
+            }
+            Err(e) => {
+                let processing_time_ms = start.elapsed().as_millis() as u64;
+                return Ok(OCRResponse {
+                    text: String::new(),
+                    confidence: 0.0,
+                    line_count: 0,
+                    word_count: 0,
+                    processing_time_ms,
+                    provider: "unknown".to_string(),
+                    format: "text".to_string(),
+                    success: false,
+                    error: Some(e.to_string()),
+                });
+            }
+        }
+    }
+
+    let processing_time_ms = start.elapsed().as_millis() as u64;
+    let count = request.image_path.len() as f64;
+    let confidence = if count > 0.0 { total_confidence / count } else { 0.0 };
+
+    Ok(OCRResponse {
+        text: combined_text,
+        confidence,
+        line_count: total_line_count,
+        word_count: total_word_count,
+        processing_time_ms,
+        provider: format!("{:?}", result_provider),
+        format: format.to_string(),
+        success: true,
+        error: None,
+    })
 }
 
 /// Perform OCR on image bytes (base64 encoded)
@@ -151,9 +230,13 @@ pub async fn ocr_image_bytes(request: OCRBytesRequest) -> Result<OCRResponse> {
         request.image_data.as_bytes(),
     ).map_err(|e| IncrementumError::Internal(format!("Failed to decode base64: {}", e)))?;
 
+    let provider_type = resolve_provider_type(&request.provider, &processor)?;
+    let provider = crate::ocr::providers::create_provider(provider_type, processor.get_config())?;
+    let format = format_for_provider(provider_type);
+
     let start = std::time::Instant::now();
 
-    let result = processor.process_image_bytes(&image_data).await;
+    let result = provider.process_image_bytes(&image_data).await;
 
     let processing_time_ms = start.elapsed().as_millis() as u64;
 
@@ -165,6 +248,7 @@ pub async fn ocr_image_bytes(request: OCRBytesRequest) -> Result<OCRResponse> {
             word_count: ocr_result.word_count,
             processing_time_ms,
             provider: format!("{:?}", ocr_result.provider),
+            format: format.to_string(),
             success: true,
             error: None,
         }),
@@ -175,9 +259,240 @@ pub async fn ocr_image_bytes(request: OCRBytesRequest) -> Result<OCRResponse> {
             word_count: 0,
             processing_time_ms,
             provider: "unknown".to_string(),
+            format: "text".to_string(),
             success: false,
             error: Some(e.to_string()),
         }),
+    }
+}
+
+#[derive(Debug)]
+struct PdfPageImage {
+    page_number: usize,
+    bytes: Vec<u8>,
+    extension: String,
+}
+
+fn extract_pdf_page_images(doc: &Document) -> Result<Vec<PdfPageImage>> {
+    let mut results = Vec::new();
+
+    for (page_number, page_id) in doc.get_pages().iter() {
+        let page_images = match doc.get_page_images(*page_id) {
+            Ok(images) => images,
+            Err(_) => {
+                return Err(IncrementumError::Internal(format!(
+                    "No embedded page images found on page {}",
+                    page_number
+                )));
+            }
+        };
+
+        let mut best_image: Option<(Vec<u8>, String, i64)> = None;
+        for image in page_images {
+            let filters = image.filters.clone().unwrap_or_default();
+            let (extension, area) = if filters.iter().any(|f| f.eq_ignore_ascii_case("DCTDecode")) {
+                ("jpg".to_string(), image.width.saturating_mul(image.height))
+            } else if filters.iter().any(|f| f.eq_ignore_ascii_case("JPXDecode")) {
+                ("jp2".to_string(), image.width.saturating_mul(image.height))
+            } else {
+                continue;
+            };
+
+            if image.content.is_empty() {
+                continue;
+            }
+
+            let should_replace = best_image
+                .as_ref()
+                .map(|(_, _, best_area)| area > *best_area)
+                .unwrap_or(true);
+
+            if should_replace {
+                best_image = Some((image.content.to_vec(), extension, area));
+            }
+        }
+
+        let (bytes, extension, _) = best_image.ok_or_else(|| {
+            IncrementumError::Internal(format!(
+                "No embedded page images found on page {}",
+                page_number
+            ))
+        })?;
+
+        results.push(PdfPageImage {
+            page_number: *page_number as usize,
+            bytes,
+            extension,
+        });
+    }
+
+    Ok(results)
+}
+
+async fn write_temp_image(bytes: &[u8], extension: &str) -> Result<PathBuf> {
+    let temp_dir = std::env::temp_dir();
+    let file_name = format!("ocr_pdf_page_{}.{}", uuid::Uuid::new_v4(), extension);
+    let temp_file = temp_dir.join(file_name);
+
+    tokio::fs::write(&temp_file, bytes)
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to write temp file: {}", e)))?;
+
+    Ok(temp_file)
+}
+
+#[tauri::command]
+pub async fn ocr_pdf_file(request: OCRPdfRequest) -> Result<OCRPdfResponse> {
+    let processor = {
+        let guard = get_processor().lock().await;
+        guard.as_ref()
+            .ok_or_else(|| IncrementumError::Internal("OCR processor not initialized".to_string()))?
+            .clone()
+    };
+
+    let provider_type = resolve_provider_type(&request.provider, &processor)?;
+    let provider = crate::ocr::providers::create_provider(provider_type, processor.get_config())?;
+    let format = format_for_provider(provider_type);
+
+    if !request.pdf_path.exists() {
+        return Ok(OCRPdfResponse {
+            pages: Vec::new(),
+            combined_text: String::new(),
+            confidence: 0.0,
+            line_count: 0,
+            word_count: 0,
+            processing_time_ms: 0,
+            provider: "unknown".to_string(),
+            format: "text".to_string(),
+            page_count: 0,
+            success: false,
+            error: Some("PDF file not found".to_string()),
+        });
+    }
+
+    let start = std::time::Instant::now();
+    let pdf_bytes = tokio::fs::read(&request.pdf_path)
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to read PDF: {}", e)))?;
+
+    let doc = Document::load_mem(&pdf_bytes)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to load PDF: {}", e)))?;
+    let page_count = doc.get_pages().len();
+
+    let mut pages: Vec<OCRPdfPage> = Vec::new();
+    let mut combined_text = String::new();
+    let mut total_confidence = 0.0;
+    let mut total_line_count = 0;
+    let mut total_word_count = 0;
+
+    let use_direct_pdf = matches!(
+        provider_type,
+        OCRProviderType::Marker | OCRProviderType::Nougat | OCRProviderType::GLMOCR
+    );
+
+    if use_direct_pdf {
+        match provider.process_image(&request.pdf_path).await {
+            Ok(result) => {
+                combined_text = result.text;
+                total_confidence = result.confidence;
+                total_line_count = result.line_count;
+                total_word_count = result.word_count;
+            }
+            Err(e) => {
+                return Ok(OCRPdfResponse {
+                    pages: Vec::new(),
+                    combined_text: String::new(),
+                    confidence: 0.0,
+                    line_count: 0,
+                    word_count: 0,
+                    processing_time_ms: start.elapsed().as_millis() as u64,
+                    provider: "unknown".to_string(),
+                    format: "text".to_string(),
+                    page_count,
+                    success: false,
+                    error: Some(e.to_string()),
+                });
+            }
+        }
+    } else {
+        let page_images = extract_pdf_page_images(&doc)?;
+        if page_images.is_empty() {
+            return Ok(OCRPdfResponse {
+                pages: Vec::new(),
+                combined_text: String::new(),
+                confidence: 0.0,
+                line_count: 0,
+                word_count: 0,
+                processing_time_ms: start.elapsed().as_millis() as u64,
+                provider: "unknown".to_string(),
+                format: "text".to_string(),
+                page_count,
+                success: false,
+                error: Some("No embedded page images found in PDF".to_string()),
+            });
+        }
+
+        for (index, page) in page_images.iter().enumerate() {
+            let temp_file = write_temp_image(&page.bytes, &page.extension).await?;
+            let result = provider.process_image(&temp_file).await;
+            let _ = tokio::fs::remove_file(&temp_file).await;
+
+            match result {
+                Ok(ocr_result) => {
+                    if index > 0 && !combined_text.is_empty() {
+                        combined_text.push_str("\n\n");
+                    }
+                    combined_text.push_str(&ocr_result.text);
+                    total_confidence += ocr_result.confidence;
+                    total_line_count += ocr_result.line_count;
+                    total_word_count += ocr_result.word_count;
+                    pages.push(OCRPdfPage {
+                        page_number: page.page_number,
+                        text: ocr_result.text,
+                    });
+                }
+                Err(e) => {
+                    return Ok(OCRPdfResponse {
+                        pages: Vec::new(),
+                        combined_text: String::new(),
+                        confidence: 0.0,
+                        line_count: 0,
+                        word_count: 0,
+                        processing_time_ms: start.elapsed().as_millis() as u64,
+                        provider: "unknown".to_string(),
+                        format: "text".to_string(),
+                        page_count,
+                        success: false,
+                        error: Some(e.to_string()),
+                    });
+                }
+            }
+        }
+    }
+
+    let processing_time_ms = start.elapsed().as_millis() as u64;
+    let count = if pages.is_empty() { 1.0 } else { pages.len() as f64 };
+    let confidence = if count > 0.0 { total_confidence / count } else { 0.0 };
+
+    Ok(OCRPdfResponse {
+        pages,
+        combined_text,
+        confidence,
+        line_count: total_line_count,
+        word_count: total_word_count,
+        processing_time_ms,
+        provider: format!("{:?}", provider_type),
+        format: format.to_string(),
+        page_count,
+        success: true,
+        error: None,
+    })
+}
+
+fn format_for_provider(provider_type: OCRProviderType) -> &'static str {
+    match provider_type {
+        OCRProviderType::Marker | OCRProviderType::Nougat | OCRProviderType::GLMOCR => "markdown",
+        _ => "text",
     }
 }
 
@@ -309,15 +624,33 @@ pub async fn is_provider_available(provider: String) -> Result<bool> {
     let processor = guard.as_ref()
         .ok_or_else(|| IncrementumError::Internal("OCR processor not initialized".to_string()))?;
 
-    let provider_type = match provider.as_str() {
-        "tesseract" => OCRProviderType::Tesseract,
-        "google" => OCRProviderType::GoogleDocumentAI,
-        "aws" => OCRProviderType::AWSTextract,
-        "azure" => OCRProviderType::AzureVision,
-        _ => return Err(IncrementumError::Internal(format!("Unknown provider: {}", provider))),
-    };
+    let provider_type = parse_provider_type(&provider)?;
 
     Ok(processor.is_provider_available(provider_type))
+}
+
+fn resolve_provider_type(
+    provider: &Option<String>,
+    processor: &OCRProcessor,
+) -> Result<OCRProviderType> {
+    match provider {
+        Some(value) => parse_provider_type(value),
+        None => Ok(processor.get_default_provider()),
+    }
+}
+
+fn parse_provider_type(provider: &str) -> Result<OCRProviderType> {
+    let normalized = provider.to_lowercase();
+    match normalized.as_str() {
+        "tesseract" => Ok(OCRProviderType::Tesseract),
+        "google" => Ok(OCRProviderType::GoogleDocumentAI),
+        "aws" => Ok(OCRProviderType::AWSTextract),
+        "azure" => Ok(OCRProviderType::AzureVision),
+        "marker" => Ok(OCRProviderType::Marker),
+        "nougat" => Ok(OCRProviderType::Nougat),
+        "glm" => Ok(OCRProviderType::GLMOCR),
+        _ => Err(IncrementumError::Internal(format!("Unknown provider: {}", provider))),
+    }
 }
 
 /// Get current OCR configuration

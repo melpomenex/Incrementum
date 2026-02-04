@@ -129,6 +129,8 @@ export const defaultSettings: Settings = {
 
   audioTranscription: {
     autoTranscription: false,
+    autoTranscribeLocalVideos: true,
+    preferredModelId: "distil-small.en",
     language: 'en',
     timestampGeneration: true,
     speakerDiarization: false,

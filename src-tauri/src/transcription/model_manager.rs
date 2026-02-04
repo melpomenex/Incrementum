@@ -16,6 +16,7 @@ pub struct ModelProfile {
     pub url: String,
     pub sha256: String,
     pub size_bytes: u64,
+    pub installed: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -48,6 +49,7 @@ impl ModelManager {
                 url: "https://huggingface.co/distil-whisper/distil-small.en/resolve/main/ggml-distil-small.en.bin".to_string(),
                 sha256: "be63364f891ed12037701e85a6431940a025527339796e62c4cf2c68612ca493".to_string(), // placeholder
                 size_bytes: 188 * 1024 * 1024,
+                installed: false,
             },
             ModelProfile {
                 id: "base".to_string(),
@@ -56,6 +58,7 @@ impl ModelManager {
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin".to_string(),
                 sha256: "27856f41444bc99a9cf5823158c30932062638843c0802c610b420063c6139f3".to_string(), // placeholder
                 size_bytes: 147 * 1024 * 1024,
+                installed: false,
             },
             ModelProfile {
                 id: "small".to_string(),
@@ -64,6 +67,7 @@ impl ModelManager {
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string(),
                 sha256: "0c7e2b8655160ef5a40a2f447f5589a19d3f1d5308502c46f38e6a0d4239f604".to_string(), // placeholder
                 size_bytes: 488 * 1024 * 1024,
+                installed: false,
             },
         ];
 
@@ -71,7 +75,11 @@ impl ModelManager {
     }
 
     pub fn list_profiles(&self) -> Vec<ModelProfile> {
-        self.profiles.clone()
+        self.profiles.iter().map(|profile| {
+            let mut updated = profile.clone();
+            updated.installed = self.is_model_installed(&profile.id);
+            updated
+        }).collect()
     }
 
     pub fn get_model_path(&self, id: &str) -> PathBuf {
