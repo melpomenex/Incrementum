@@ -519,7 +519,13 @@ const commandHandlers: Record<string, CommandHandler> = {
                 }
 
                 if (storedFile && storedFile.blob) {
-                    arrayBuffer = await storedFile.blob.arrayBuffer();
+                    try {
+                        arrayBuffer = await storedFile.blob.arrayBuffer();
+                    } catch (blobError) {
+                        console.warn('[Browser] File blob is no longer readable, may have been cleared:', blobError);
+                        // Delete the corrupted file entry
+                        await db.deleteFile(storedFile.id);
+                    }
                 }
             }
 
@@ -688,8 +694,17 @@ const commandHandlers: Record<string, CommandHandler> = {
                         console.log('[Browser] Read file from IndexedDB, base64 length:', base64?.length);
                         resolve(base64);
                     };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(storedFile.blob);
+                    reader.onerror = async (error) => {
+                        console.warn('[Browser] Failed to read file blob, deleting corrupted entry:', error);
+                        // Delete the corrupted file entry
+                        await db.deleteFile(storedFile.id);
+                        reject(error);
+                    };
+                    try {
+                        reader.readAsDataURL(storedFile.blob);
+                    } catch (e) {
+                        reader.onerror(e);
+                    }
                 });
             }
         }
