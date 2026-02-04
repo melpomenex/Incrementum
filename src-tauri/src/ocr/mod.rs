@@ -5,9 +5,11 @@
 //! - Google Document AI (cloud)
 //! - AWS Textract (cloud)
 //! - Azure Computer Vision (cloud)
+//! - GLM-OCR (local via vLLM)
 
 pub mod providers;
 pub mod processor;
+pub mod runtime;
 
 pub use providers::OCRProviderType;
 
@@ -30,6 +32,8 @@ pub struct OCRConfig {
     pub marker_path: Option<String>,
     /// Nougat installation path (for math OCR)
     pub nougat_path: Option<String>,
+    /// GLM-OCR configuration (local via vLLM)
+    pub glm_ocr: Option<GLMOCRConfig>,
 }
 
 /// Google Document AI configuration
@@ -56,6 +60,14 @@ pub struct AzureVisionConfig {
     pub api_key: String,
 }
 
+/// GLM-OCR configuration (vLLM OpenAI-compatible endpoint)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GLMOCRConfig {
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: Option<String>,
+}
+
 impl Default for OCRConfig {
     fn default() -> Self {
         Self {
@@ -66,6 +78,7 @@ impl Default for OCRConfig {
             azure_vision: None,
             marker_path: None,
             nougat_path: None,
+            glm_ocr: None,
         }
     }
 }

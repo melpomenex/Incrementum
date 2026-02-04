@@ -8,6 +8,7 @@ export interface ModelProfile {
   url: string;
   sha256: string;
   size_bytes: number;
+  installed: boolean;
 }
 
 export interface TranscriptSegment {

@@ -3647,13 +3647,14 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "byteorder",
  "chrono",
  "dirs 5.0.1",
  "dotenvy",

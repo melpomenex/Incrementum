@@ -138,6 +138,8 @@ export const QASettingsSchema = z.object({
 // Audio Transcription Settings Schema
 export const AudioTranscriptionSettingsSchema = z.object({
   autoTranscription: z.boolean().default(false),
+  autoTranscribeLocalVideos: z.boolean().default(true),
+  preferredModelId: z.string().default('distil-small.en'),
   language: z.string().default('en'),
   timestampGeneration: z.boolean().default(true),
   speakerDiarization: z.boolean().default(false),

@@ -12,11 +12,11 @@ const host = rawHost === "localhost" ? "127.0.0.1" : rawHost;
 export default defineConfig(async ({ mode }) => {
   const isProd = mode === "production";
   const isTauriBuild = Boolean(
-    process.env.TAURI_DEV_HOST ||
+    process.env.INCREMENTUM_TAURI ||
+      process.env.TAURI_DEV_HOST ||
       process.env.TAURI_PLATFORM ||
       process.env.TAURI_ARCH ||
-      process.env.TAURI_FAMILY ||
-      process.env.TAURI_ENV
+      process.env.TAURI_FAMILY
   );
   const isPWA = mode === "pwa" || (!isTauriBuild && isProd);
   const disableOptimizeDeps = false;

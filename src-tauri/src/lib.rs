@@ -430,11 +430,18 @@ pub fn run() {
             commands::init_ocr,
             commands::ocr_image_file,
             commands::ocr_image_bytes,
+            commands::ocr_pdf_file,
             commands::extract_key_phrases,
             commands::get_available_ocr_providers,
             commands::is_provider_available,
             commands::get_ocr_config,
             commands::update_ocr_config,
+            commands::glm_runtime_status,
+            commands::glm_download_ollama_installer,
+            commands::glm_open_installer,
+            commands::glm_start_ollama_runtime,
+            commands::glm_stop_ollama_runtime,
+            commands::glm_pull_ollama_model,
             // Screenshot commands
             #[cfg(feature = "screenshot")]
             screenshot::capture_screenshot,
@@ -450,6 +457,15 @@ pub fn run() {
             transcription::delete_transcription_model,
             transcription::start_transcription,
             transcription::get_transcript,
+            // Semantic search commands
+            commands::generate_embedding,
+            commands::generate_embeddings_batch,
+            commands::index_transcript,
+            commands::semantic_search,
+            commands::get_embedding_models,
+            commands::clear_all_embeddings,
+            commands::get_embedding_stats,
+            commands::is_indexed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,7 +4,15 @@
  */
 
 import { invokeCommand as invoke } from "../lib/tauri";
-import { ocrImageFile, extractKeyPhrases } from "../api/ocrCommands";
+import {
+  ocrImageFile,
+  extractKeyPhrases,
+  getGLMRuntimeStatus,
+  startOllamaRuntime,
+  updateOCRConfig,
+  type OCRConfig,
+} from "../api/ocrCommands";
+import { isTauri } from "../lib/tauri";
 import { useSettingsStore } from "../stores/settingsStore";
 import { detectMathContent, extractMathFromText, extractMathWithNougat } from "./mathOcr";
 import {
@@ -32,6 +40,105 @@ export interface DocumentExtractResult {
   };
   summary?: string[];
   ocrUsed?: boolean;
+}
+
+let lastOcrConfigHash: string | null = null;
+
+const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434/v1";
+const DEFAULT_VLLM_ENDPOINT = "http://localhost:8080/v1";
+
+function resolveGlmEndpoint(settings: ReturnType<typeof useSettingsStore.getState>["settings"]["documents"]["ocr"]) {
+  const backend = settings.glmBackend || "ollama";
+  if (settings.glmEndpoint && settings.glmEndpoint.trim()) {
+    return settings.glmEndpoint;
+  }
+  return backend === "ollama" ? DEFAULT_OLLAMA_ENDPOINT : DEFAULT_VLLM_ENDPOINT;
+}
+
+function buildOCRConfigFromSettings(settings: ReturnType<typeof useSettingsStore.getState>["settings"]["documents"]["ocr"]): OCRConfig {
+  const googleConfigured =
+    !!settings.googleProjectId &&
+    !!settings.googleProcessorId &&
+    !!settings.googleCredentialsPath;
+
+  const awsConfigured = !!settings.awsRegion && !!settings.awsAccessKey && !!settings.awsSecretKey;
+  const azureConfigured = !!settings.azureEndpoint && !!settings.azureApiKey;
+  const glmEndpoint = resolveGlmEndpoint(settings);
+  const glmConfigured = !!glmEndpoint && !!settings.glmModel;
+
+  return {
+    default_provider: settings.provider,
+    tesseract_path: settings.tesseract_path,
+    google_document_ai: googleConfigured
+      ? {
+          project_id: settings.googleProjectId as string,
+          location: settings.googleLocation || "us",
+          processor_id: settings.googleProcessorId as string,
+          credentials_path: settings.googleCredentialsPath as string,
+        }
+      : undefined,
+    aws_textract: awsConfigured
+      ? {
+          region: settings.awsRegion as string,
+          access_key: settings.awsAccessKey as string,
+          secret_key: settings.awsSecretKey as string,
+        }
+      : undefined,
+    azure_vision: azureConfigured
+      ? {
+          endpoint: settings.azureEndpoint as string,
+          api_key: settings.azureApiKey as string,
+        }
+      : undefined,
+    marker_path: settings.marker_path,
+    nougat_path: settings.nougat_path,
+    glm_ocr: glmConfigured
+      ? {
+          endpoint: glmEndpoint,
+          model: settings.glmModel as string,
+          api_key: settings.glmApiKey || undefined,
+        }
+      : undefined,
+  };
+}
+
+export async function ensureGLMOllamaRuntime(
+  settings: ReturnType<typeof useSettingsStore.getState>["settings"]["documents"]["ocr"]
+) {
+  if (!isTauri()) return;
+  if (settings.provider !== "glm") return;
+  if ((settings.glmBackend || "ollama") !== "ollama") return;
+
+  const endpoint = resolveGlmEndpoint(settings);
+  const status = await getGLMRuntimeStatus({
+    backend: "ollama",
+    endpoint,
+    ollama_path: settings.glmOllamaPath,
+  });
+
+  if (!status.running) {
+    await startOllamaRuntime({
+      endpoint,
+      ollama_path: settings.glmOllamaPath,
+    });
+  }
+}
+
+export async function ensureOCRConfig(settings: ReturnType<typeof useSettingsStore.getState>["settings"]["documents"]["ocr"]) {
+  const config = buildOCRConfigFromSettings(settings);
+  if (settings.provider === "glm" && !config.glm_ocr) {
+    throw new Error("GLM-OCR is selected but no model is configured. Set a GLM model in Settings > Documents > OCR.");
+  }
+  const hash = JSON.stringify(config);
+  if (hash === lastOcrConfigHash) {
+    return;
+  }
+  try {
+    await updateOCRConfig(config);
+    lastOcrConfigHash = hash;
+  } catch (error) {
+    console.error("Failed to update OCR configuration:", error);
+  }
 }
 
 /**
@@ -75,6 +182,8 @@ export async function extractDocumentOnLoad(
 
   if (shouldOCR && (isPDF || isImage)) {
     try {
+      await ensureOCRConfig(ocr);
+      await ensureGLMOllamaRuntime(ocr);
       // Determine if we should use math OCR
       const useMathOCR = ocr.mathOcrEnabled;
 
@@ -195,6 +304,8 @@ export async function extractFromPDF(
     if (text && text.length > 100) {
       result.text = text;
     } else if (options.withOCR !== false && ocr.autoOCR) {
+      await ensureOCRConfig(ocr);
+      await ensureGLMOllamaRuntime(ocr);
       // Fall back to OCR if text extraction didn't work well
       const ocrResult = await ocrImageFile({
         image_path: [filePath],
@@ -271,6 +382,8 @@ export async function extractFromImage(
         result.ocrUsed = true;
         result.mathExpressions = [mathResult.latex];
       } catch {
+        await ensureOCRConfig(ocr);
+        await ensureGLMOllamaRuntime(ocr);
         // Fall back to regular OCR
         const ocrResult = await ocrImageFile({
           image_path: [filePath],
@@ -284,6 +397,8 @@ export async function extractFromImage(
         }
       }
     } else {
+      await ensureOCRConfig(ocr);
+      await ensureGLMOllamaRuntime(ocr);
       // Regular OCR
       const ocrResult = await ocrImageFile({
         image_path: [filePath],

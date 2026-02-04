@@ -14,6 +14,9 @@ export interface OCRConfig {
   google_document_ai?: GoogleDocumentAIConfig;
   aws_textract?: AWSTextractConfig;
   azure_vision?: AzureVisionConfig;
+  marker_path?: string;
+  nougat_path?: string;
+  glm_ocr?: GLMOCRConfig;
 }
 
 export interface GoogleDocumentAIConfig {
@@ -32,6 +35,21 @@ export interface AWSTextractConfig {
 export interface AzureVisionConfig {
   endpoint: string;
   api_key: string;
+}
+
+export interface GLMOCRConfig {
+  endpoint: string;
+  model: string;
+  api_key?: string;
+}
+
+export interface GLMRuntimeStatus {
+  backend: string;
+  installed: boolean;
+  running: boolean;
+  endpoint: string;
+  models_dir: string;
+  last_error?: string;
 }
 
 /**
@@ -62,6 +80,41 @@ export interface OCRResponse {
   word_count: number;
   processing_time_ms: number;
   provider: string;
+  format?: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * OCR PDF file request
+ */
+export interface OCRPdfRequest {
+  pdf_path: string;
+  provider?: string;
+  language?: string;
+}
+
+/**
+ * OCR PDF page
+ */
+export interface OCRPdfPage {
+  page_number: number;
+  text: string;
+}
+
+/**
+ * OCR PDF response
+ */
+export interface OCRPdfResponse {
+  pages: OCRPdfPage[];
+  combined_text: string;
+  confidence: number;
+  line_count: number;
+  word_count: number;
+  processing_time_ms: number;
+  provider: string;
+  format: string;
+  page_count: number;
   success: boolean;
   error?: string;
 }
@@ -111,6 +164,13 @@ export async function ocrImageBytes(request: OCRBytesRequest): Promise<OCRRespon
 }
 
 /**
+ * Perform OCR on a PDF file (multi-page)
+ */
+export async function ocrPdfFile(request: OCRPdfRequest): Promise<OCRPdfResponse> {
+  return invokeCommand("ocr_pdf_file", { request });
+}
+
+/**
  * Extract key phrases from text
  */
 export async function extractKeyPhrases(request: KeyPhraseRequest): Promise<KeyPhraseResponse> {
@@ -143,4 +203,56 @@ export async function getOCRConfig(): Promise<OCRConfig> {
  */
 export async function updateOCRConfig(config: OCRConfig): Promise<void> {
   return invokeCommand("update_ocr_config", { config });
+}
+
+/**
+ * Get GLM-OCR runtime status
+ */
+export async function getGLMRuntimeStatus(params: {
+  backend: string;
+  endpoint: string;
+  ollama_path?: string;
+}): Promise<GLMRuntimeStatus> {
+  return invokeCommand("glm_runtime_status", params);
+}
+
+/**
+ * Download Ollama installer (platform-specific)
+ */
+export async function downloadOllamaInstaller(): Promise<string> {
+  return invokeCommand("glm_download_ollama_installer");
+}
+
+/**
+ * Open installer in OS shell
+ */
+export async function openInstaller(path: string): Promise<void> {
+  return invokeCommand("glm_open_installer", { path });
+}
+
+/**
+ * Start Ollama runtime
+ */
+export async function startOllamaRuntime(params: {
+  endpoint: string;
+  ollama_path?: string;
+}): Promise<void> {
+  return invokeCommand("glm_start_ollama_runtime", params);
+}
+
+/**
+ * Stop Ollama runtime
+ */
+export async function stopOllamaRuntime(): Promise<void> {
+  return invokeCommand("glm_stop_ollama_runtime");
+}
+
+/**
+ * Pull Ollama model
+ */
+export async function pullOllamaModel(params: {
+  model: string;
+  ollama_path?: string;
+}): Promise<string> {
+  return invokeCommand("glm_pull_ollama_model", params);
 }
