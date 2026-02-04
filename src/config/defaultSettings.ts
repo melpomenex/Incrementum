@@ -128,6 +128,7 @@ export const defaultSettings: Settings = {
   },
 
   audioTranscription: {
+    provider: 'local',
     autoTranscription: false,
     autoTranscribeLocalVideos: true,
     preferredModelId: "distil-small.en",
@@ -136,6 +137,16 @@ export const defaultSettings: Settings = {
     speakerDiarization: false,
     confidenceScores: false,
     confidenceThreshold: 0.5,
+    groq: {
+      apiKey: '',
+      model: 'whisper-large-v3-turbo',
+      useFreeTier: true,
+      usage: {
+        lastResetDate: new Date().toISOString(),
+        audioSecondsProcessed: 0,
+        requestsMade: 0,
+      },
+    },
   },
 
   integrations: {

@@ -1,14 +1,20 @@
 import { getTranscriptionProfiles } from "../api/transcription";
-import { generateVideoTranscript, getVideoTranscript } from "../api/video-extracts";
+import { generateVideoTranscript, getVideoTranscript, setVideoTranscript } from "../api/video-extracts";
+import { 
+  transcribeWithGroq, 
+  convertGroqToInternalFormat,
+  isGroqConfigured,
+  GroqTranscriptionError,
+} from "../api/groqTranscription";
 import { useSettingsStore } from "../stores/settingsStore";
 import { isTauri } from "./tauri";
 
-type VideoTranscriptionStatus = "queued" | "processing" | "completed" | "failed" | "needs-model";
+type VideoTranscriptionStatus = "queued" | "processing" | "completed" | "failed" | "needs-model" | "needs-api-key" | "file-too-large";
 
 interface VideoTranscriptionJob {
   documentId: string;
   filePath: string;
-  modelId: string;
+  modelId?: string;
   language: string;
 }
 
@@ -16,7 +22,7 @@ interface VideoTranscriptionRequest {
   documentId: string;
   filePath: string;
   modelId?: string;
-  language: string;
+  language?: string;
 }
 
 type StatusListener = (status: VideoTranscriptionStatus) => void;
@@ -40,6 +46,10 @@ function schedule(fn: () => void) {
   } else {
     setTimeout(fn, 1000);
   }
+}
+
+function getProvider(): 'local' | 'groq' {
+  return useSettingsStore.getState().settings.audioTranscription.provider;
 }
 
 function getPreferredModelId(): string | null {
@@ -75,6 +85,63 @@ function shouldDelayForPlayback(): boolean {
   return activePlaybackDocuments.size > 0;
 }
 
+/**
+ * Process transcription using Groq API
+ * Supports automatic chunking for large files
+ */
+async function processWithGroq(job: VideoTranscriptionJob): Promise<void> {
+  // Check if API key is configured
+  if (!isGroqConfigured()) {
+    notify(job.documentId, "needs-api-key");
+    throw new Error("Groq API key not configured");
+  }
+  
+  const settings = useSettingsStore.getState().settings.audioTranscription;
+  const language = job.language !== 'auto' ? job.language : undefined;
+  
+  try {
+    const response = await transcribeWithGroq({
+      filePath: job.filePath,
+      language,
+      responseFormat: 'verbose_json',
+      timestampGranularities: ['segment'],
+      temperature: 0,
+    });
+    
+    // Convert to internal format and save
+    const segments = response.segments?.map((seg) => ({
+      time: seg.start,
+      text: seg.text,
+    })) || [];
+    
+    await setVideoTranscript(job.documentId, response.text, segments);
+    
+  } catch (error) {
+    if (error instanceof GroqTranscriptionError) {
+      if (error.code === 'FILE_TOO_LARGE' || error.code === 'CHUNKING_FAILED') {
+        notify(job.documentId, "file-too-large");
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Process transcription using local Whisper
+ */
+async function processWithLocalWhisper(job: VideoTranscriptionJob): Promise<void> {
+  const modelId = await resolveModelId(job.modelId);
+  if (!modelId) {
+    notify(job.documentId, "needs-model");
+    throw new Error("No transcription model available");
+  }
+  
+  const existing = await getVideoTranscript(job.documentId);
+  if (!existing || existing.segments.length === 0) {
+    await generateVideoTranscript(job.documentId, job.filePath, modelId, job.language);
+  }
+}
+
 async function processNext() {
   const job = queue.shift();
   if (!job) {
@@ -92,13 +159,22 @@ async function processNext() {
   notify(job.documentId, "processing");
 
   try {
-    const existing = await getVideoTranscript(job.documentId);
-    if (!existing || existing.segments.length === 0) {
-      await generateVideoTranscript(job.documentId, job.filePath, job.modelId, job.language);
+    const provider = getProvider();
+    
+    if (provider === 'groq') {
+      await processWithGroq(job);
+    } else {
+      await processWithLocalWhisper(job);
     }
+    
     notify(job.documentId, "completed");
-  } catch {
-    notify(job.documentId, "failed");
+  } catch (error) {
+    console.error("Transcription failed:", error);
+    // Only set to failed if not already set to a specific error state
+    const currentStatus = statusByDocument.get(job.documentId);
+    if (currentStatus === "processing") {
+      notify(job.documentId, "failed");
+    }
   } finally {
     isProcessing = false;
     if (queue.length > 0) {
@@ -117,18 +193,39 @@ function kickQueue() {
 }
 
 export async function enqueueVideoTranscription(request: VideoTranscriptionRequest) {
+  const provider = getProvider();
+  
+  // For local transcription, Tauri is required
+  if (provider === 'local' && !isTauri()) return;
+  
+  // For Groq with chunking, we need Tauri for ffmpeg
+  // In web/PWA mode without Tauri, direct file upload would be needed
+  // This is currently only supported in desktop mode
   if (!isTauri()) return;
-  const modelId = await resolveModelId(request.modelId);
-  if (!modelId) {
-    notify(request.documentId, "needs-model");
-    return;
+  
+  // Validate provider-specific requirements
+  if (provider === 'local') {
+    const modelId = await resolveModelId(request.modelId);
+    if (!modelId) {
+      notify(request.documentId, "needs-model");
+      return;
+    }
+  } else if (provider === 'groq') {
+    if (!isGroqConfigured()) {
+      notify(request.documentId, "needs-api-key");
+      return;
+    }
   }
+  
+  const settings = useSettingsStore.getState().settings.audioTranscription;
+  
   queue.push({
     documentId: request.documentId,
     filePath: request.filePath,
-    modelId,
-    language: request.language,
+    modelId: request.modelId,
+    language: request.language || settings.language || 'en',
   });
+  
   notify(request.documentId, "queued");
   kickQueue();
 }
@@ -164,4 +261,39 @@ export function subscribeVideoTranscriptionStatus(
       listenersByDocument.delete(documentId);
     }
   };
+}
+
+/**
+ * Retry a failed transcription job
+ */
+export async function retryVideoTranscription(documentId: string) {
+  const currentStatus = statusByDocument.get(documentId);
+  if (currentStatus === 'failed' || currentStatus === 'needs-api-key' || currentStatus === 'file-too-large') {
+    // Clear the status to allow retry
+    statusByDocument.delete(documentId);
+  }
+}
+
+/**
+ * Get the current transcription provider
+ */
+export function getTranscriptionProvider(): 'local' | 'groq' {
+  return getProvider();
+}
+
+/**
+ * Check if transcription is available (based on provider and configuration)
+ */
+export function isTranscriptionAvailable(): boolean {
+  const provider = getProvider();
+  
+  if (provider === 'local') {
+    return isTauri();
+  }
+  
+  if (provider === 'groq') {
+    return isTauri() && isGroqConfigured();
+  }
+  
+  return false;
 }

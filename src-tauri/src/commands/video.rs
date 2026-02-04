@@ -347,6 +347,173 @@ fn format_time(seconds: f64) -> String {
     format!("{}:{:02}", mins, secs)
 }
 
+/// Audio chunk info for Groq transcription
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct AudioChunk {
+    pub index: usize,
+    pub path: String,
+    pub start_time: f64,
+    pub end_time: f64,
+    pub duration: f64,
+}
+
+/// Split audio file into chunks for Groq transcription (max 25MB each)
+/// Uses ffmpeg to split by duration, targeting chunks around 20MB
+#[tauri::command]
+pub async fn split_audio_for_groq(
+    app_handle: AppHandle,
+    file_path: String,
+    max_chunk_duration_seconds: Option<f64>,
+) -> Result<Vec<AudioChunk>, String> {
+    let input_path = std::path::Path::new(&file_path);
+    if !input_path.exists() {
+        return Err(format!("File not found: {}", file_path));
+    }
+
+    // Get file info using ffmpeg
+    let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
+        .map_err(|e| format!("Failed to get ffmpeg sidecar: {}", e))?
+        .args([
+            "-i", &file_path,
+            "-f", "null",
+            "-"
+        ])
+        .spawn()
+        .map_err(|e| format!("Failed to spawn ffmpeg: {}", e))?;
+
+    let mut duration: f64 = 0.0;
+    let mut bitrate: f64 = 0.0;
+    
+    // Parse ffmpeg output for duration
+    while let Some(event) = rx.recv().await {
+        if let CommandEvent::Stderr(line) = event {
+            let line_str = String::from_utf8_lossy(&line);
+            // Parse duration: Duration: 01:23:45.67
+            if let Some(duration_idx) = line_str.find("Duration: ") {
+                let duration_str = &line_str[duration_idx + 10..];
+                if let Some(comma_idx) = duration_str.find(',') {
+                    let time_str = &duration_str[..comma_idx].trim();
+                    // Parse HH:MM:SS.ms format
+                    let parts: Vec<&str> = time_str.split(':').collect();
+                    if parts.len() == 3 {
+                        if let (Ok(h), Ok(m), Ok(s)) = (
+                            parts[0].parse::<f64>(),
+                            parts[1].parse::<f64>(),
+                            parts[2].parse::<f64>()
+                        ) {
+                            duration = h * 3600.0 + m * 60.0 + s;
+                        }
+                    }
+                }
+            }
+            // Parse bitrate: bitrate: 128 kb/s
+            if let Some(bitrate_idx) = line_str.find("bitrate: ") {
+                let bitrate_str = &line_str[bitrate_idx + 9..];
+                if let Some(space_idx) = bitrate_str.find(' ') {
+                    let num_str = &bitrate_str[..space_idx].trim();
+                    if let Ok(num) = num_str.parse::<f64>() {
+                        bitrate = num;
+                    }
+                }
+            }
+        }
+    }
+
+    if duration <= 0.0 {
+        // Fallback: assume 10 minute chunks if we can't determine duration
+        duration = 600.0;
+    }
+
+    // Calculate chunk duration based on bitrate to stay under 25MB
+    // At 128 kbps, 25MB ≈ 26 minutes
+    // At 192 kbps, 25MB ≈ 17 minutes  
+    // At 320 kbps, 25MB ≈ 10 minutes
+    // We'll use a conservative 8 minutes per chunk (safer for variable bitrate)
+    let chunk_duration = max_chunk_duration_seconds.unwrap_or(480.0); // 8 minutes default
+    let num_chunks = (duration / chunk_duration).ceil() as usize;
+    
+    let temp_dir = app_handle.path().app_cache_dir()
+        .map_err(|e| format!("Failed to get cache dir: {}", e))?
+        .join("groq_chunks");
+    
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| format!("Failed to create chunks directory: {}", e))?;
+
+    let mut chunks = Vec::with_capacity(num_chunks);
+    
+    // Create chunks using ffmpeg
+    for i in 0..num_chunks {
+        let start_time = i as f64 * chunk_duration;
+        let end_time = (start_time + chunk_duration).min(duration);
+        let actual_duration = end_time - start_time;
+        
+        let chunk_filename = format!("chunk_{:04}.mp3", i);
+        let chunk_path = temp_dir.join(&chunk_filename);
+        
+        // Extract chunk using ffmpeg
+        let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
+            .map_err(|e| format!("Failed to get ffmpeg sidecar: {}", e))?
+            .args([
+                "-i", &file_path,
+                "-ss", &start_time.to_string(),
+                "-t", &actual_duration.to_string(),
+                "-ar", "16000",     // 16kHz sample rate (optimal for speech)
+                "-ac", "1",          // Mono
+                "-b:a", "32k",       // 32 kbps (good quality for speech, small size)
+                "-f", "mp3",         // MP3 format
+                "-y",                 // Overwrite
+                chunk_path.to_str().unwrap()
+            ])
+            .spawn()
+            .map_err(|e| format!("Failed to spawn ffmpeg: {}", e))?;
+
+        let mut success = false;
+        while let Some(event) = rx.recv().await {
+            if let CommandEvent::Terminated(payload) = event {
+                success = payload.code == Some(0);
+                break;
+            }
+        }
+
+        if !success {
+            return Err(format!("Failed to create chunk {}", i));
+        }
+
+        chunks.push(AudioChunk {
+            index: i,
+            path: chunk_path.to_string_lossy().to_string(),
+            start_time,
+            end_time,
+            duration: actual_duration,
+        });
+    }
+
+    Ok(chunks)
+}
+
+/// Clean up audio chunks after transcription
+#[tauri::command]
+pub async fn cleanup_audio_chunks(
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let temp_dir = app_handle.path().app_cache_dir()
+        .map_err(|e| format!("Failed to get cache dir: {}", e))?
+        .join("groq_chunks");
+    
+    if temp_dir.exists() {
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+    
+    Ok(())
+}
+
+/// Read file bytes for Groq upload
+#[tauri::command]
+pub async fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
+    std::fs::read(&file_path)
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
 // ============================================================================
 // Video Extract commands
 // ============================================================================

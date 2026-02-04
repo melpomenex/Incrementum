@@ -192,9 +192,24 @@ interface PrivacySettings {
 }
 
 /**
+ * Groq Transcription Settings
+ */
+interface GroqTranscriptionSettings {
+  apiKey: string;
+  model: 'whisper-large-v3' | 'whisper-large-v3-turbo';
+  useFreeTier: boolean;
+  usage: {
+    lastResetDate: string;
+    audioSecondsProcessed: number;
+    requestsMade: number;
+  };
+}
+
+/**
  * Audio Transcription Settings
  */
 interface AudioTranscriptionSettings {
+  provider: 'local' | 'groq';
   autoTranscription: boolean;
   autoTranscribeLocalVideos: boolean;
   preferredModelId?: string;
@@ -203,6 +218,7 @@ interface AudioTranscriptionSettings {
   speakerDiarization: boolean;
   confidenceScores: boolean;
   confidenceThreshold: number;
+  groq: GroqTranscriptionSettings;
 }
 
 /**
@@ -394,6 +410,7 @@ export const defaultSettings: Settings = {
     analyticsEnabled: false,
   },
   audioTranscription: {
+    provider: 'local',
     autoTranscription: false,
     autoTranscribeLocalVideos: true,
     preferredModelId: "distil-small.en",
@@ -402,6 +419,16 @@ export const defaultSettings: Settings = {
     speakerDiarization: false,
     confidenceScores: false,
     confidenceThreshold: 0.7,
+    groq: {
+      apiKey: '',
+      model: 'whisper-large-v3-turbo',
+      useFreeTier: true,
+      usage: {
+        lastResetDate: new Date().toISOString(),
+        audioSecondsProcessed: 0,
+        requestsMade: 0,
+      },
+    },
   },
   smartQueue: {
     autoRefresh: false,

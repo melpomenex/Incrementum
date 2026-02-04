@@ -856,6 +856,8 @@ export function LocalVideoPlayer({
   const autoInProgress = transcriptionStatus === "queued" || transcriptionStatus === "processing";
   const autoFailed = transcriptionStatus === "failed";
   const autoNeedsModel = transcriptionStatus === "needs-model";
+  const autoNeedsApiKey = transcriptionStatus === "needs-api-key";
+  const autoFileTooLarge = transcriptionStatus === "file-too-large";
 
   return (
     <div
@@ -1195,11 +1197,29 @@ export function LocalVideoPlayer({
                         Transcribing in the background…
                       </div>
                     )}
-                    {autoNeedsModel && (
+                    {isTauri() && autoNeedsModel && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
                         <p className="font-medium">Model required for transcription</p>
                         <p className="mt-1 text-amber-800/90">
                           Download a model in Settings → Audio Transcription to enable transcription.
+                        </p>
+                      </div>
+                    )}
+                    {autoNeedsApiKey && (
+                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-xs text-orange-900">
+                        <p className="font-medium">Groq API key required</p>
+                        <p className="mt-1 text-orange-800/90">
+                          Add your Groq API key in Settings → Audio Transcription to use cloud transcription.
+                        </p>
+                      </div>
+                    )}
+                    {autoFileTooLarge && (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
+                        <p className="font-medium">File too large</p>
+                        <p className="mt-1 text-blue-800/90">
+                          {isTauri() 
+                            ? "This video exceeds Groq's 25MB free tier limit. Switch to Local Whisper in settings."
+                            : "This video is too large to transcribe in the web app. Please use the desktop app for large files."}
                         </p>
                       </div>
                     )}
