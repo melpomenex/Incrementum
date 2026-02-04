@@ -8,7 +8,7 @@ import { PDFViewer } from "./PDFViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { EPUBViewer } from "./EPUBViewer";
 import { YouTubeViewer } from "./YouTubeViewer";
-import { LocalVideoPlayer } from "./LocalVideoPlayer";
+import { LocalVideoPlayer } from "./LocalVideoPlayerWrapper";
 import { AudiobookViewer } from "./AudiobookViewer";
 import { ExtractsList } from "../extracts/ExtractsList";
 import { LearningCardsList } from "../learning/LearningCardsList";
