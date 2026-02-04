@@ -37,6 +37,7 @@ import {
   importOpmlAuto,
   exportOPML,
   exportOpmlAuto,
+  syncFeedToTauri,
   formatFeedDate,
   setRssPreferencesAuto,
   getRssPreferencesAuto,
@@ -176,18 +177,26 @@ export function RSSReader() {
         try {
           const updated = await fetchFeed(feed.feedUrl);
           if (updated) {
-            // Preserve read/favorite status from existing items
-            const existing = getSubscribedFeeds().find((f) => f.id === feed.id);
-            if (existing) {
-              updated.items.forEach((newItem) => {
-                const existingItem = existing.items.find((i) => i.id === newItem.id);
-                if (existingItem) {
-                  newItem.read = existingItem.read;
-                  newItem.favorite = existingItem.favorite;
-                }
-              });
+            if (isTauri()) {
+              const merged = {
+                ...updated,
+                category: feed.category ?? updated.category,
+              };
+              await syncFeedToTauri(merged, feed.items);
+            } else {
+              // Preserve read/favorite status from existing items
+              const existing = getSubscribedFeeds().find((f) => f.id === feed.id);
+              if (existing) {
+                updated.items.forEach((newItem) => {
+                  const existingItem = existing.items.find((i) => i.id === newItem.id);
+                  if (existingItem) {
+                    newItem.read = existingItem.read;
+                    newItem.favorite = existingItem.favorite;
+                  }
+                });
+              }
+              subscribeToFeed(updated);
             }
-            subscribeToFeed(updated);
           }
         } catch (error) {
           console.warn(`[RSS Auto-Refresh] Failed to refresh feed ${feed.title}:`, error);
@@ -333,13 +342,17 @@ export function RSSReader() {
                   try {
                     const updated = await fetchFeed(feed.feedUrl);
                     if (updated) {
-                      await subscribeToFeedAuto(updated);
+                      const merged = {
+                        ...updated,
+                        category: feed.category ?? updated.category,
+                      };
+                      await syncFeedToTauri(merged);
                       return;
                     }
-                    await subscribeToFeedAuto(feed);
+                    await syncFeedToTauri(feed);
                   } catch (error) {
                     console.warn("Failed to fetch feed during OPML import:", feed.feedUrl, error);
-                    await subscribeToFeedAuto(feed);
+                    await syncFeedToTauri(feed);
                   }
                 })
               );
