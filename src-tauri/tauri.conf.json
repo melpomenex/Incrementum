@@ -32,39 +32,41 @@
     ],
     "security": {
       "csp": "default-src 'self' https: wss: http://localhost:*; connect-src 'self' https: wss: http://localhost:* ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http://localhost:* https://www.youtube.com https://s.ytimg.com http://www.youtube.com; script-src-elem 'self' 'unsafe-inline' https: http://localhost:* https://www.youtube.com https://s.ytimg.com http://www.youtube.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http://localhost:*; font-src 'self' data: https:; media-src 'self' https: blob:; frame-src 'self' https: http://localhost:* https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+    }
   },
-      "bundle": {
+  "bundle": {
         "active": true,
         "targets": "all",
         "externalBin": [
           "bin/ffmpeg",
           "bin/whisper"
         ],
-        "icon": [      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "publisher": "Incrementum",
-    "copyright": "Copyright © 2025 Incrementum",
-    "category": "Education",
-    "shortDescription": "Incrementum - Spaced repetition and incremental reading for effective learning",
-    "longDescription": "Incrementum is a powerful learning application that combines spaced repetition, incremental reading, and AI-powered flashcard generation to help you learn more effectively.",
-    "linux": {
-      "deb": {
-        "depends": []
+        "icon": [
+          "icons/32x32.png",
+          "icons/128x128.png",
+          "icons/128x128@2x.png",
+          "icons/icon.icns",
+          "icons/icon.ico"
+        ],
+        "publisher": "Incrementum",
+        "copyright": "Copyright © 2025 Incrementum",
+        "category": "Education",
+        "shortDescription": "Incrementum - Spaced repetition and incremental reading for effective learning",
+        "longDescription": "Incrementum is a powerful learning application that combines spaced repetition, incremental reading, and AI-powered flashcard generation to help you learn more effectively.",
+        "linux": {
+          "deb": {
+            "depends": []
+          },
+          "appimage": {
+            "bundleMediaFramework": false
+          }
+        },
+        "macOS": {
+          "frameworks": [],
+          "minimumSystemVersion": "10.13",
+          "entitlements": null,
+          "signingIdentity": null
+        }
       },
-      "appimage": {
-        "bundleMediaFramework": false
-      }
-    },
-    "macOS": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13",
-      "entitlements": null,
-      "signingIdentity": null
-    }
-  },
   "plugins": {}
 }
