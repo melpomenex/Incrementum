@@ -7,6 +7,7 @@ import {
   GroqTranscriptionError,
 } from "../api/groqTranscription";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useToastStore, ToastType } from "../components/common/Toast";
 import { isTauri } from "./tauri";
 
 type VideoTranscriptionStatus = "queued" | "processing" | "completed" | "failed" | "needs-model" | "needs-api-key" | "file-too-large";
@@ -14,14 +15,32 @@ type VideoTranscriptionStatus = "queued" | "processing" | "completed" | "failed"
 interface VideoTranscriptionJob {
   documentId: string;
   filePath: string;
+  documentTitle?: string;
   provider: 'local' | 'groq';
   modelId?: string;
   language: string;
 }
 
+/**
+ * Callback for when user clicks "Open Document" on completion toast
+ */
+type OpenDocumentCallback = (documentId: string) => void;
+let openDocumentCallback: OpenDocumentCallback | null = null;
+
+/**
+ * Register a callback to open documents from toast notifications
+ */
+export function registerOpenDocumentCallback(callback: OpenDocumentCallback): () => void {
+  openDocumentCallback = callback;
+  return () => {
+    openDocumentCallback = null;
+  };
+}
+
 interface VideoTranscriptionRequest {
   documentId: string;
   filePath: string;
+  documentTitle?: string;
   provider?: 'local' | 'groq';
   modelId?: string;
   language?: string;
@@ -33,6 +52,7 @@ const queue: VideoTranscriptionJob[] = [];
 const statusByDocument = new Map<string, VideoTranscriptionStatus>();
 const listenersByDocument = new Map<string, Set<StatusListener>>();
 const activePlaybackDocuments = new Set<string>();
+const documentTitles = new Map<string, string>(); // Store titles for notifications
 let isProcessing = false;
 
 function notify(documentId: string, status: VideoTranscriptionStatus) {
@@ -146,6 +166,37 @@ async function processWithLocalWhisper(job: VideoTranscriptionJob): Promise<void
   }
 }
 
+/**
+ * Show toast notification for transcription completion
+ */
+function showCompletionToast(documentId: string, provider: 'local' | 'groq', success: boolean) {
+  const title = documentTitles.get(documentId) || 'Video';
+  const providerName = provider === 'groq' ? 'Groq Cloud' : 'Local Whisper';
+  
+  if (success) {
+    useToastStore.getState().addToast({
+      type: ToastType.Success,
+      title: 'Transcription Complete',
+      message: `"${title}" has been transcribed using ${providerName}`,
+      duration: 8000,
+      action: openDocumentCallback ? {
+        label: 'Open Document',
+        onClick: () => openDocumentCallback!(documentId),
+      } : undefined,
+    });
+  } else {
+    useToastStore.getState().addToast({
+      type: ToastType.Error,
+      title: 'Transcription Failed',
+      message: `"${title}" could not be transcribed using ${providerName}`,
+      duration: 8000,
+    });
+  }
+  
+  // Clean up stored title
+  documentTitles.delete(documentId);
+}
+
 async function processNext() {
   const job = queue.shift();
   if (!job) {
@@ -171,12 +222,14 @@ async function processNext() {
     }
     
     notify(job.documentId, "completed");
+    showCompletionToast(job.documentId, job.provider, true);
   } catch (error) {
     console.error("Transcription failed:", error);
     // Only set to failed if not already set to a specific error state
     const currentStatus = statusByDocument.get(job.documentId);
     if (currentStatus === "processing") {
       notify(job.documentId, "failed");
+      showCompletionToast(job.documentId, job.provider, false);
     }
   } finally {
     isProcessing = false;
@@ -222,15 +275,32 @@ export async function enqueueVideoTranscription(request: VideoTranscriptionReque
   
   const settings = useSettingsStore.getState().settings.audioTranscription;
   
+  // Store document title for notifications
+  if (request.documentTitle) {
+    documentTitles.set(request.documentId, request.documentTitle);
+  }
+  
   queue.push({
     documentId: request.documentId,
     filePath: request.filePath,
+    documentTitle: request.documentTitle,
     provider,
     modelId: request.modelId,
     language: request.language || settings.language || 'en',
   });
   
   notify(request.documentId, "queued");
+  
+  // Show initial notification that transcription is queued
+  const title = request.documentTitle || 'Video';
+  const providerName = provider === 'groq' ? 'Groq Cloud' : 'Local Whisper';
+  useToastStore.getState().addToast({
+    type: ToastType.Info,
+    title: 'Transcription Queued',
+    message: `"${title}" will be transcribed using ${providerName} in the background`,
+    duration: 5000,
+  });
+  
   kickQueue();
 }
 
