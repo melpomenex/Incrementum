@@ -1,7 +1,9 @@
 //! Video import and features commands
 //! Handles importing local video files and video-specific features
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
 use std::sync::{Arc, Mutex};
 use crate::transcription::engine::TranscriptionEngine;
 use crate::transcription::model_manager::ModelManager;

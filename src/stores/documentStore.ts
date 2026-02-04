@@ -217,17 +217,31 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       );
       console.log('[DocumentStore] Created document:', doc);
 
-      // For HTML files, update the document with the full HTML content
-      if (docData.fileType === 'html' && docData.content && docData.content.length > 100) {
-        console.log('[DocumentStore] Updating document with HTML content...');
-        try {
-          const updatedDoc = await documentsApi.updateDocumentContent(doc.id, docData.content);
-          console.log('[DocumentStore] Document updated with HTML content');
-          // Update the doc reference
-          Object.assign(doc, updatedDoc);
-        } catch (updateError) {
-          console.warn('[DocumentStore] Failed to update HTML content:', updateError);
-        }
+      // Prepare full update with all document data including FSRS fields
+      const fullUpdate: Partial<Document> = {
+        content: docData.content,
+        tags: docData.tags,
+        category: docData.category,
+        metadata: docData.metadata,
+        priorityRating: docData.priorityRating,
+        prioritySlider: docData.prioritySlider,
+        priorityScore: docData.priorityScore,
+        // FSRS fields - new documents start fresh
+        nextReadingDate: docData.nextReadingDate,
+        stability: docData.stability,
+        difficulty: docData.difficulty,
+        reps: docData.reps,
+        totalTimeSpent: docData.totalTimeSpent,
+      };
+
+      // Update document with all fields
+      console.log('[DocumentStore] Updating document with full data...');
+      try {
+        const updatedDoc = await documentsApi.updateDocument(doc.id, fullUpdate as Document);
+        console.log('[DocumentStore] Document updated with full data');
+        Object.assign(doc, updatedDoc);
+      } catch (updateError) {
+        console.warn('[DocumentStore] Failed to update document fully:', updateError);
       }
 
       // Add to state and assign to active collection
