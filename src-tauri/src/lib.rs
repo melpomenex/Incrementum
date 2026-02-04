@@ -101,7 +101,8 @@ pub fn run() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        writeln!(file, "[{timestamp}] startup: run() entry")
+        writeln!(file, "[{timestamp}] startup: run() entry")?;
+        Ok(())
     })();
 
     // Load .env file for environment variables (OAuth client IDs, etc.)
@@ -124,7 +125,8 @@ pub fn run() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        writeln!(file, "[{timestamp}] startup: after dotenv")
+        writeln!(file, "[{timestamp}] startup: after dotenv")?;
+        Ok(())
     })();
 
     // Fix WebKitGTK video freezing and crashes on Linux
@@ -154,7 +156,8 @@ pub fn run() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        writeln!(file, "[{timestamp}] startup: before chrono")
+        writeln!(file, "[{timestamp}] startup: before chrono")?;
+        Ok(())
     })();
 
     // Early log for debugging startup crashes
@@ -168,7 +171,8 @@ pub fn run() {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        writeln!(file, "[{timestamp}] startup: before builder")
+        writeln!(file, "[{timestamp}] startup: before builder")?;
+        Ok(())
     })();
 
     tauri::Builder::default()
