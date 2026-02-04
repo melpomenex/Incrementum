@@ -288,6 +288,9 @@ pub fn run() {
             commands::set_video_transcript,
             commands::get_video_transcript,
             commands::generate_video_transcript,
+            commands::split_audio_for_groq,
+            commands::cleanup_audio_chunks,
+            commands::read_file_bytes,
             // Video extract commands
             commands::create_video_extract,
             commands::get_video_extracts,

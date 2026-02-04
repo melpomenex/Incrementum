@@ -453,51 +453,101 @@ export function AudiobookImportDialog({
       showSuccess("Transcript generated", "Your audiobook is now ready for incremental reading");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      const match = message.match(/Model '([^']+)' is not installed/i);
-
-      if (match) {
-        const missingModelId = match[1];
+      
+      // Handle Groq-specific errors
+      if (message.includes('Groq API key not configured')) {
         showError(
-          "Model not installed",
-          `The "${missingModelId}" model is required for transcription.`,
+          "Groq API Key Required",
+          "Please configure your Groq API key in Audio Transcription settings to use cloud transcription.",
           {
             action: {
-              label: "Download model",
-              onClick: async () => {
-                try {
-                  setIsGeneratingTranscript(true);
-                  const profiles = await getTranscriptionProfiles();
-                  const target = profiles.find((p) => p.id === missingModelId) || profiles[0];
-                  if (!target) {
-                    showError("Download failed", "No transcription models are available.");
-                    return;
-                  }
-                  showInfo(
-                    "Downloading model",
-                    `${target.name} (${Math.round(target.size_bytes / 1024 / 1024)} MB)`
-                  );
-                  await downloadTranscriptionModel(target.id);
-                  showSuccess("Model downloaded", "Retrying transcription...");
-                  const result = await generateTranscript(filePath);
-                  setTranscript(result);
-                  showSuccess(
-                    "Transcript generated",
-                    "Your audiobook is now ready for incremental reading"
-                  );
-                } catch (downloadErr) {
-                  showError(
-                    "Download failed",
-                    downloadErr instanceof Error ? downloadErr.message : "Unknown error"
-                  );
-                } finally {
-                  setIsGeneratingTranscript(false);
-                }
+              label: "Open Settings",
+              onClick: () => {
+                // Navigate to settings - this would need to be implemented based on your routing
+                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
+                  detail: { section: 'audio-transcription' } 
+                }));
+              },
+            },
+          }
+        );
+      } else if (message.includes('Rate limit')) {
+        showError(
+          "Groq Rate Limit Reached",
+          message,
+          {
+            action: {
+              label: "Switch to Local",
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
+                  detail: { section: 'audio-transcription' } 
+                }));
+              },
+            },
+          }
+        );
+      } else if (message.includes('25MB limit')) {
+        showError(
+          "File Too Large for Groq",
+          "This audiobook exceeds Groq's 25MB free tier limit. Consider using local Whisper instead.",
+          {
+            action: {
+              label: "Switch to Local",
+              onClick: () => {
+                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
+                  detail: { section: 'audio-transcription' } 
+                }));
               },
             },
           }
         );
       } else {
-        showError("Generation failed", message || "Unknown error");
+        // Handle local Whisper errors
+        const match = message.match(/Model '([^']+)' is not installed/i);
+        if (match) {
+          const missingModelId = match[1];
+          showError(
+            "Model not installed",
+            `The "${missingModelId}" model is required for transcription.`,
+            {
+              action: {
+                label: "Download model",
+                onClick: async () => {
+                  try {
+                    setIsGeneratingTranscript(true);
+                    const profiles = await getTranscriptionProfiles();
+                    const target = profiles.find((p) => p.id === missingModelId) || profiles[0];
+                    if (!target) {
+                      showError("Download failed", "No transcription models are available.");
+                      return;
+                    }
+                    showInfo(
+                      "Downloading model",
+                      `${target.name} (${Math.round(target.size_bytes / 1024 / 1024)} MB)`
+                    );
+                    await downloadTranscriptionModel(target.id);
+                    showSuccess("Model downloaded", "Retrying transcription...");
+                    const result = await generateTranscript(filePath);
+                    setTranscript(result);
+                    showSuccess(
+                      "Transcript generated",
+                      "Your audiobook is now ready for incremental reading"
+                    );
+                  } catch (downloadErr) {
+                    showError(
+                      "Download failed",
+                      downloadErr instanceof Error ? downloadErr.message : "Unknown error"
+                    );
+                  } finally {
+                    setIsGeneratingTranscript(false);
+                  }
+                },
+              },
+            }
+          );
+        } else {
+          showError("Generation failed", message || "Unknown error");
+        }
       }
     } finally {
       setIsGeneratingTranscript(false);
