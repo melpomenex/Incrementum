@@ -28,7 +28,9 @@ mod transcription;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
+use anyhow::Context;
 use database::Database;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use url::Url;
@@ -47,6 +49,36 @@ impl AppState {
             db: Arc::new(Mutex::new(None)),
         }
     }
+}
+
+fn startup_log_path(app: &tauri::AppHandle) -> std::path::PathBuf {
+    if let Ok(app_dir) = app.path().app_data_dir() {
+        app_dir.join("logs").join("startup.log")
+    } else {
+        std::env::temp_dir().join("incrementum-startup.log")
+    }
+}
+
+fn log_startup(app: &tauri::AppHandle, message: &str) {
+    let log_path = startup_log_path(app);
+    if let Some(parent) = log_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        let _ = writeln!(file, "[{timestamp}] {message}");
+    }
+}
+
+fn install_panic_hook(app: tauri::AppHandle) {
+    std::panic::set_hook(Box::new(move |info| {
+        log_startup(&app, &format!("panic: {info}"));
+    }));
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -89,29 +121,41 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
         .setup(|app| {
+            let app_handle = app.handle().clone();
+            install_panic_hook(app_handle.clone());
+            log_startup(&app_handle, "startup: begin");
+
             // Initialize async runtime for database setup
-            tauri::async_runtime::block_on(async {
+            let result: anyhow::Result<()> = tauri::async_runtime::block_on(async {
                 // Get app data directory
                 let app_dir = app
                     .path()
                     .app_data_dir()
-                    .expect("Failed to get app data dir");
+                    .context("Failed to get app data dir")?;
+
+                log_startup(&app_handle, &format!("startup: app data dir = {}", app_dir.display()));
 
                 // Ensure directory exists
                 std::fs::create_dir_all(&app_dir)
-                    .expect("Failed to create app data dir");
+                    .with_context(|| format!("Failed to create app data dir: {}", app_dir.display()))?;
+
+                log_startup(&app_handle, "startup: app data dir ready");
 
                 let db_path = app_dir.join("incrementum.db");
 
                 // Initialize database
                 let db = Database::new(db_path)
                     .await
-                    .expect("Failed to initialize database");
+                    .context("Failed to initialize database")?;
+
+                log_startup(&app_handle, "startup: database initialized");
 
                 // Run migrations
                 db.migrate()
                     .await
-                    .expect("Failed to run migrations");
+                    .context("Failed to run migrations")?;
+
+                log_startup(&app_handle, "startup: migrations complete");
 
                 // Store database in app state
                 let state = AppState::new();
@@ -157,7 +201,15 @@ pub fn run() {
                 }
 
                 Ok(())
-            })
+            });
+
+            if let Err(err) = result {
+                log_startup(&app_handle, &format!("startup: error: {err:#}"));
+                return Err(err.into());
+            }
+
+            log_startup(&app_handle, "startup: complete");
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             greet,
