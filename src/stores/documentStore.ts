@@ -205,7 +205,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     try {
       // Use existing utility to fetch and create document data
       console.log('[DocumentStore] Fetching content from URL...');
-      const docData = await importFromUrlUtil(url);
+      const docData = await importFromUrlUtil(url, { preserveImages: true });
       console.log('[DocumentStore] Got docData:', docData);
 
       // Create document in backend
@@ -233,6 +233,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         reps: docData.reps,
         totalTimeSpent: docData.totalTimeSpent,
       };
+
+      // Persist content separately for Tauri (update_document doesn't store content)
+      if (docData.content && docData.content.trim().length > 0) {
+        try {
+          const updatedContentDoc = await documentsApi.updateDocumentContent(doc.id, docData.content);
+          Object.assign(doc, updatedContentDoc);
+        } catch (contentError) {
+          console.warn("[DocumentStore] Failed to persist document content:", contentError);
+        }
+      }
 
       // Update document with all fields
       console.log('[DocumentStore] Updating document with full data...');

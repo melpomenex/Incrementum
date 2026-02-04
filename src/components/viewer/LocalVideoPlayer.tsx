@@ -143,6 +143,8 @@ export function LocalVideoPlayer({
     localStorage.setItem('transcript-visibility', String(showTranscript));
   }, [showTranscript]);
 
+  
+
   // Persist transcript width to localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -482,22 +484,41 @@ export function LocalVideoPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, volume, playbackRate]);
 
+  const buildPlayErrorMessage = (error: unknown) => {
+    if (error instanceof DOMException) {
+      if (error.name === 'NotSupportedError' || /not supported/i.test(error.message)) {
+        return 'This video codec is not supported. Please convert to MP4 (H.264/AAC). '
+          + 'Some MP4 files use HEVC/H.265 or AV1 which are unsupported.';
+      }
+      if (error.name === 'NotAllowedError') {
+        return 'Playback was blocked. Click the video to play.';
+      }
+      return error.message || 'Failed to play video';
+    }
+    if (error instanceof Error) return error.message;
+    return 'Failed to play video';
+  };
+
+  const attemptPlay = async (context: string) => {
+    if (!videoRef.current) return;
+    try {
+      await videoRef.current.play();
+    } catch (error) {
+      const errorMessage = buildPlayErrorMessage(error);
+      console.error(`[LocalVideoPlayer] Play error (${context}):`, errorMessage);
+      setPlayError(errorMessage);
+      toast.error('Playback Error', errorMessage);
+    }
+  };
+
   // Toggle play/pause
   const togglePlay = async () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        setPlayError(null);
-        try {
-          await videoRef.current.play();
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to play video';
-          console.error('[LocalVideoPlayer] Play error:', errorMessage);
-          setPlayError(errorMessage);
-          toast.error('Playback Error', errorMessage);
-        }
-      } else {
-        videoRef.current.pause();
-      }
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      setPlayError(null);
+      await attemptPlay('toggle');
+    } else {
+      videoRef.current.pause();
     }
   };
 
@@ -598,7 +619,7 @@ export function LocalVideoPlayer({
       && time >= activeExtractEndTime
     ) {
       videoRef.current.currentTime = activeExtractStartTime;
-      videoRef.current.play();
+      void attemptPlay('extract-loop');
     }
   }, [activeExtractStartTime, activeExtractEndTime]);
 
@@ -634,7 +655,7 @@ export function LocalVideoPlayer({
       toast.error("Missing file path", "This video does not have a local file path.");
       return;
     }
-    if (!audioSettings.preferredModelId) {
+    if (audioSettings.provider === 'local' && !audioSettings.preferredModelId) {
       toast.error("Model required", "Select a Whisper model in Settings → Audio Transcription.");
       return;
     }
@@ -643,6 +664,7 @@ export function LocalVideoPlayer({
       await enqueueVideoTranscription({
         documentId,
         filePath: documentFilePath,
+        provider: audioSettings.provider,
         modelId: audioSettings.preferredModelId,
         language: audioSettings.language || "en",
       });
@@ -1285,6 +1307,8 @@ export function LocalVideoPlayer({
             <div className="p-4 border-b border-border">
               <VideoFeatures
                 documentId={documentId}
+                documentTitle={title}
+                filePath={documentFilePath ?? undefined}
                 currentTime={currentTime}
                 duration={duration}
                 onSeek={handleSeek}

@@ -29,6 +29,7 @@ import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useToast } from '../common/Toast';
 import { isTauri } from '../../lib/tauri';
+import { isGroqConfigured } from '../../api/groqTranscription';
 
 interface VideoBookmark {
   id: string;
@@ -55,6 +56,8 @@ interface VideoTranscriptSegment {
 
 interface VideoFeaturesProps {
   documentId: string;
+  documentTitle?: string;
+  filePath?: string;
   currentTime: number;
   duration: number;
   onSeek: (time: number) => void;
@@ -63,6 +66,8 @@ interface VideoFeaturesProps {
 
 export function VideoFeatures({
   documentId,
+  documentTitle,
+  filePath,
   currentTime,
   duration,
   onSeek,
@@ -77,6 +82,8 @@ export function VideoFeatures({
   // Get document from store
   const documents = useDocumentStore((state) => state.documents);
   const document = documents.find((d) => d.id === documentId);
+  const resolvedFilePath = filePath ?? document?.filePath;
+  const resolvedTitle = documentTitle ?? document?.title;
 
   // Load data when tab changes
   useEffect(() => {
@@ -273,8 +280,8 @@ export function VideoFeatures({
             {activeTab === 'transcript' && (
               <TranscriptView
                 documentId={documentId}
-                documentTitle={document?.title}
-                filePath={document?.filePath}
+                documentTitle={resolvedTitle}
+                filePath={resolvedFilePath}
                 currentTime={currentTime}
                 onSeek={onSeek}
               />
@@ -464,6 +471,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   const [autoStatus, setAutoStatus] = useState<ReturnType<typeof getVideoTranscriptionStatus>>(null);
   const { settings, updateSettings } = useSettingsStore();
   const audioSettings = settings.audioTranscription;
+  const [selectedProvider, setSelectedProvider] = useState<'local' | 'groq'>(audioSettings.provider);
   const [selectedModel, setSelectedModel] = useState<string>(audioSettings.preferredModelId || "distil-small.en");
   const [language, setLanguage] = useState<string>(audioSettings.language || "en");
   const toast = useToast();
@@ -519,6 +527,12 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   }, [audioSettings.language, language]);
 
   useEffect(() => {
+    if (audioSettings.provider !== selectedProvider) {
+      setSelectedProvider(audioSettings.provider);
+    }
+  }, [audioSettings.provider, selectedProvider]);
+
+  useEffect(() => {
     setAutoStatus(getVideoTranscriptionStatus(documentId));
     const unsubscribe = subscribeVideoTranscriptionStatus(documentId, (status) => {
       setAutoStatus(status);
@@ -530,13 +544,20 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   }, [documentId, loadTranscript]);
 
   const handleGenerateTranscript = async () => {
-    if (!isTauri()) {
+    if (selectedProvider === 'local' && !isTauri()) {
       toast.error("Desktop app required", "Local video transcription only works in the Tauri app.");
       return;
     }
-
     if (!filePath) {
       toast.error("Missing file path", "This video does not have a local file path.");
+      return;
+    }
+    if (selectedProvider === 'local' && !selectedModel) {
+      toast.error("Model required", "Select a Whisper model in Settings → Audio Transcription.");
+      return;
+    }
+    if (selectedProvider === 'groq' && !isGroqConfigured()) {
+      toast.error("Groq API key required", "Add your Groq API key in Settings → Audio Transcription.");
       return;
     }
 
@@ -546,7 +567,8 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
       await enqueueVideoTranscription({
         documentId,
         filePath,
-        modelId: selectedModel,
+        provider: selectedProvider,
+        modelId: selectedProvider === 'local' ? selectedModel : undefined,
         language,
       });
       toast.success("Transcription queued", "Your video will be transcribed in the background.");
@@ -570,6 +592,8 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   const autoInProgress = autoStatus === "queued" || autoStatus === "processing";
   const autoFailed = autoStatus === "failed";
   const autoNeedsModel = autoStatus === "needs-model";
+  const autoNeedsApiKey = autoStatus === "needs-api-key";
+  const autoFileTooLarge = autoStatus === "file-too-large";
 
   if (transcript.length === 0) {
     return (
@@ -594,6 +618,24 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
             </p>
           </div>
         )}
+        {autoNeedsApiKey && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-xs text-orange-900">
+            <p className="font-medium">Groq API key required</p>
+            <p className="mt-1 text-orange-800/90">
+              Add your Groq API key in Settings → Audio Transcription to use cloud transcription.
+            </p>
+          </div>
+        )}
+        {autoFileTooLarge && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
+            <p className="font-medium">File too large</p>
+            <p className="mt-1 text-blue-800/90">
+              {isTauri()
+                ? "This video exceeds Groq's 25MB free tier limit. Switch to Local Whisper in settings."
+                : "This video is too large to transcribe in the web app. Please use the desktop app for large files."}
+            </p>
+          </div>
+        )}
 
         <div className="rounded-xl border border-border bg-gradient-to-br from-primary/10 via-background to-muted/40 p-4">
           <div className="flex items-start gap-3">
@@ -603,7 +645,9 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Generate a transcript</p>
               <p className="text-xs text-muted-foreground">
-                Whisper runs locally on your machine. Keep watching while it works.
+                {selectedProvider === 'groq'
+                  ? "Groq transcribes quickly in the cloud. Keep watching while it works."
+                  : "Whisper runs locally on your machine. Keep watching while it works."}
               </p>
             </div>
           </div>
@@ -611,25 +655,58 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
           <div className="mt-4 grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs font-medium text-muted-foreground">
-                Model
+                Provider
                 <select
-                  value={selectedModel}
+                  value={selectedProvider}
                   onChange={(e) => {
-                    const next = e.target.value;
-                    setSelectedModel(next);
-                    updateSettings({ audioTranscription: { ...audioSettings, preferredModelId: next } });
+                    const next = e.target.value as 'local' | 'groq';
+                    setSelectedProvider(next);
+                    updateSettings({ audioTranscription: { ...audioSettings, provider: next } });
                   }}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
-                  {profiles.length === 0 && (
-                    <option value="distil-small.en">Distil Small (English)</option>
-                  )}
-                  {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </option>
-                  ))}
+                  <option value="local">Local Whisper</option>
+                  <option value="groq">Groq Cloud</option>
                 </select>
+              </label>
+              <label className="text-xs font-medium text-muted-foreground">
+                {selectedProvider === 'groq' ? "Groq Model" : "Model"}
+                {selectedProvider === 'groq' ? (
+                  <select
+                    value={audioSettings.groq.model}
+                    onChange={(e) =>
+                      updateSettings({
+                        audioTranscription: {
+                          ...audioSettings,
+                          groq: { ...audioSettings.groq, model: e.target.value as 'whisper-large-v3' | 'whisper-large-v3-turbo' },
+                        },
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="whisper-large-v3-turbo">Whisper Large V3 Turbo (Fastest)</option>
+                    <option value="whisper-large-v3">Whisper Large V3 (Most Accurate)</option>
+                  </select>
+                ) : (
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setSelectedModel(next);
+                      updateSettings({ audioTranscription: { ...audioSettings, preferredModelId: next } });
+                    }}
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  >
+                    {profiles.length === 0 && (
+                      <option value="distil-small.en">Distil Small (English)</option>
+                    )}
+                    {profiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               <label className="text-xs font-medium text-muted-foreground">
                 Language
