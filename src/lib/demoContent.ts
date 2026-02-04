@@ -50,6 +50,12 @@ export async function getDemoApkgFiles(): Promise<string[]> {
       return [];
     }
 
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      console.log('[Demo Content] Demo content index is not JSON (not deployed)');
+      return [];
+    }
+
     const index = await response.json();
     return index.apkgFiles || [];
   } catch (error) {
@@ -65,6 +71,12 @@ export async function getDemoBookFiles(): Promise<string[]> {
   try {
     const response = await fetch(`${DEMO_CONTENT_CONFIG.baseUrl}/index.json`);
     if (!response.ok) {
+      return [];
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      console.log('[Demo Content] Demo content index is not JSON (not deployed)');
       return [];
     }
 
