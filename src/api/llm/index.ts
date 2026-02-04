@@ -64,6 +64,28 @@ export async function chatWithLLM(request: LLMRequest): Promise<LLMResponse> {
 /**
  * Chat with LLM with context (non-streaming)
  */
+/**
+ * Normalize context content to ensure it's always a string
+ * Content can be stored as: string, Uint8Array, or number[] (byte array)
+ */
+function normalizeContextContent(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value instanceof Uint8Array) {
+    return new TextDecoder("utf-8").decode(value);
+  }
+  if (Array.isArray(value) && value.every((entry) => typeof entry === "number")) {
+    try {
+      return new TextDecoder("utf-8").decode(Uint8Array.from(value));
+    } catch {
+      return undefined;
+    }
+  }
+  return String(value);
+}
+
 export async function chatWithContext(
   provider: LLMProvider,
   model: string | undefined,
@@ -72,7 +94,10 @@ export async function chatWithContext(
   apiKey?: string,
   baseUrl?: string
 ): Promise<LLMResponse> {
-  return await invokeCommand<LLMResponse>("llm_chat_with_context", {
+  // Normalize context content to ensure it's always a string
+  const normalizedContent = normalizeContextContent(context.content);
+
+  const args = {
     provider,
     model,
     messages,
@@ -81,12 +106,20 @@ export async function chatWithContext(
       documentId: context.documentId,
       url: context.url,
       selection: context.selection,
-      content: context.content,
+      content: normalizedContent,
       contextWindowTokens: context.contextWindowTokens,
     },
     apiKey,
     baseUrl,
-  });
+  };
+
+  console.log('[llm/index.ts] Full args being sent to Tauri:', JSON.stringify(args, null, 2));
+  console.log('[llm/index.ts] Context type:', typeof args.context);
+  console.log('[llm/index.ts] Context keys:', Object.keys(args.context));
+  console.log('[llm/index.ts] Original content type:', typeof context.content);
+  console.log('[llm/index.ts] Normalized content type:', typeof normalizedContent);
+
+  return await invokeCommand<LLMResponse>("llm_chat_with_context", args);
 }
 
 /**
