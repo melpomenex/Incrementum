@@ -17,7 +17,8 @@ mod integrations;
 mod ocr;
 mod segmentation;
 mod notifications;
-mod mcp;
+// TEMPORARILY DISABLED for debugging Windows startup crash
+// mod mcp;
 mod cloud;
 mod cloud_sync;
 mod backup;
@@ -89,6 +90,20 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // EARLY LOG: Entry point
+    let _ = (|| -> anyhow::Result<()> {
+        let log_path = std::env::temp_dir().join("incrementum-startup.log");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        writeln!(file, "[{timestamp}] startup: run() entry")
+    })();
+
     // Load .env file for environment variables (OAuth client IDs, etc.)
     // This must happen before any code that reads environment variables
     if let Err(e) = dotenvy::dotenv() {
@@ -97,6 +112,20 @@ pub fn run() {
             eprintln!("Warning: Failed to load .env file: {}", e);
         }
     }
+
+    // EARLY LOG: After dotenv
+    let _ = (|| -> anyhow::Result<()> {
+        let log_path = std::env::temp_dir().join("incrementum-startup.log");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        writeln!(file, "[{timestamp}] startup: after dotenv")
+    })();
 
     // Fix WebKitGTK video freezing and crashes on Linux
     #[cfg(target_os = "linux")]
@@ -114,11 +143,41 @@ pub fn run() {
 
     const LOCALHOST_PORT: u16 = 9527;
 
+    // EARLY LOG: Before chrono
+    let _ = (|| -> anyhow::Result<()> {
+        let log_path = std::env::temp_dir().join("incrementum-startup.log");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        writeln!(file, "[{timestamp}] startup: before chrono")
+    })();
+
+    // Early log for debugging startup crashes
+    let _ = (|| -> anyhow::Result<()> {
+        let log_path = std::env::temp_dir().join("incrementum-startup.log");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        writeln!(file, "[{timestamp}] startup: before builder")
+    })();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_notification::init())
+        // Temporarily disabled - may cause Windows crash on startup
+        // TODO: Re-enable with proper Windows notification handling
+        //.plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -437,15 +496,15 @@ pub fn run() {
             commands::get_notification_settings,
             commands::update_notification_settings,
             commands::create_custom_notification,
-            // MCP commands
-            commands::mcp::mcp_list_servers,
-            commands::mcp::mcp_add_server,
-            commands::mcp::mcp_remove_server,
-            commands::mcp::mcp_update_server,
-            commands::mcp::mcp_list_tools,
-            commands::mcp::mcp_call_tool,
-            commands::mcp::mcp_get_incrementum_tools,
-            commands::mcp::mcp_call_incrementum_tool,
+            // MCP commands - TEMPORARILY DISABLED for debugging Windows startup crash
+            // commands::mcp::mcp_list_servers,
+            // commands::mcp::mcp_add_server,
+            // commands::mcp::mcp_remove_server,
+            // commands::mcp::mcp_update_server,
+            // commands::mcp::mcp_list_tools,
+            // commands::mcp::mcp_call_tool,
+            // commands::mcp::mcp_get_incrementum_tools,
+            // commands::mcp::mcp_call_incrementum_tool,
             // LLM commands
             commands::llm::llm_chat,
             commands::llm::llm_chat_with_context,
@@ -515,15 +574,15 @@ pub fn run() {
             transcription::delete_transcription_model,
             transcription::start_transcription,
             transcription::get_transcript,
-            // Semantic search commands
-            commands::generate_embedding,
-            commands::generate_embeddings_batch,
-            commands::index_transcript,
-            commands::semantic_search,
-            commands::get_embedding_models,
-            commands::clear_all_embeddings,
-            commands::get_embedding_stats,
-            commands::is_indexed,
+            // Semantic search commands - TEMPORARILY DISABLED for debugging Windows startup crash
+            // commands::generate_embedding,
+            // commands::generate_embeddings_batch,
+            // commands::index_transcript,
+            // commands::semantic_search,
+            // commands::get_embedding_models,
+            // commands::clear_all_embeddings,
+            // commands::get_embedding_stats,
+            // commands::is_indexed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

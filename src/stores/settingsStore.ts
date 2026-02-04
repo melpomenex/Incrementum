@@ -249,6 +249,8 @@ export interface RSSQueueSettings {
   percentage: number;
   /** Maximum number of RSS items to include per session (0 = unlimited) */
   maxItemsPerSession: number;
+  /** Hide RSS items older than this many days (0 = no limit) */
+  maxItemAgeDays: number;
   /** Specific feed IDs to include in the queue (empty = all feeds) */
   includedFeedIds: string[];
   /** Feed IDs explicitly excluded from the queue */
@@ -445,6 +447,7 @@ export const defaultSettings: Settings = {
     includeInQueue: true,
     percentage: 20, // 20% of queue should be RSS by default
     maxItemsPerSession: 10, // Max 10 RSS items per session
+    maxItemAgeDays: 2, // Hide RSS items older than 2 days by default
     includedFeedIds: [], // Empty = all feeds included by default
     excludedFeedIds: [], // No feeds excluded by default
     unreadOnly: true, // Only include unread items
@@ -561,6 +564,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (!Array.isArray(merged.rssQueue.excludedFeedIds)) {
           merged.rssQueue.excludedFeedIds = [];
+        }
+        if (typeof merged.rssQueue.maxItemAgeDays !== "number" || merged.rssQueue.maxItemAgeDays < 0) {
+          merged.rssQueue.maxItemAgeDays = defaultSettings.rssQueue.maxItemAgeDays;
         }
         if (!merged.documents.ocr.language) {
           merged.documents.ocr.language = defaultSettings.documents.ocr.language;

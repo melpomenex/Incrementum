@@ -1,0 +1,92 @@
+name: Windows Test Build
+
+# Only run on test branches - faster builds for debugging Windows issues
+on:
+  push:
+    branches:
+      - 'test/**'
+      - 'fix/**'
+      - 'windows/**'
+      - '*windows*'
+  pull_request:
+    branches:
+      - 'test/**'
+      - 'fix/**'
+      - 'windows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows (Test)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Increase Rust stack size (Windows)
+        run: echo "RUST_MIN_STACK=33554432" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri application (Windows)
+        uses: tauri-apps/tauri-action@v0
+        with:
+          args: --bundles all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
+          SQLITE3_STATIC: "1"
+          VCPKGRS_DYNAMIC: "0"
+          SQLX_OFFLINE: "true"
+
+      - name: List bundle directory (debug)
+        run: |
+          echo "=== Bundle directory contents ==="
+          find src-tauri/target -name "bundle" -type d 2>/dev/null
+          echo "=== Windows artifacts ==="
+          Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -File | Select-Object -First 20 | ForEach-Object { $_.FullName }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: incrementum-windows-test
+          path: |
+            src-tauri/target/**/release/bundle/**
+            src-tauri/target/*/release/incrementum.exe
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Build summary
+        run: |
+          echo "### Windows Test Build Complete! :rocket:" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "Download the artifact from the Actions tab and test on Windows!" >> $env:GITHUB_STEP_SUMMARY
