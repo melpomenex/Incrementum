@@ -45,13 +45,15 @@ import {
   AudiobookTranscript,
   TranscriptSegment,
   formatDuration,
+  extractAudioCoverArt,
+  searchAudiobookCover,
 } from "../../api/audiobooks";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { startTranscription } from "../../api/transcription";
 import { isTauri } from "../../lib/tauri";
-import { readDocumentFile } from "../../api/documents";
+import { readDocumentFile, updateDocument as updateDocumentApi } from "../../api/documents";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -115,7 +117,54 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const [sleepTimer, setSleepTimer] = useState<SleepTimer | null>(null);
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
-  
+  const [localCoverUrl, setLocalCoverUrl] = useState<string | undefined>(document.coverImageUrl);
+
+  // Auto-fetch cover if document has none
+  useEffect(() => {
+    if (document.coverImageUrl) {
+      setLocalCoverUrl(document.coverImageUrl);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchCover = async () => {
+      try {
+        // Step 1: Try to extract embedded cover from audio file
+        const embeddedCover = await extractAudioCoverArt(document.filePath);
+        if (cancelled) return;
+
+        if (embeddedCover) {
+          setLocalCoverUrl(embeddedCover);
+          await updateDocumentApi(document.id, {
+            ...document,
+            coverImageUrl: embeddedCover,
+          } as any);
+          return;
+        }
+
+        // Step 2: Search Google Books using title/author
+        const author = metadata.author || document.metadata?.author;
+        const covers = await searchAudiobookCover(document.title, author);
+        if (cancelled) return;
+
+        if (covers.length > 0) {
+          setLocalCoverUrl(covers[0]);
+          await updateDocumentApi(document.id, {
+            ...document,
+            coverImageUrl: covers[0],
+          } as any);
+        }
+      } catch (error) {
+        console.error("[AudiobookViewer] Failed to auto-fetch cover:", error);
+      }
+    };
+
+    fetchCover();
+
+    return () => { cancelled = true; };
+  }, [document.id, document.coverImageUrl]);
+
   // Debug fileContent
   useEffect(() => {
     console.log('[AudiobookViewer] fileContent:', fileContent ? fileContent.substring(0, 100) + '...' : 'undefined');
@@ -713,10 +762,17 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="flex flex-col items-center max-w-md w-full">
               {/* Cover */}
-              <div className="relative mb-6 aspect-square w-full max-w-[300px] rounded-xl overflow-hidden shadow-2xl">
-                {document.coverImageUrl ? (
+              <div
+                className="relative mb-6 aspect-square w-full max-w-[300px] rounded-xl overflow-hidden shadow-2xl cursor-pointer group"
+                onClick={togglePlay}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePlay(); } }}
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {localCoverUrl ? (
                   <img
-                    src={document.coverImageUrl}
+                    src={localCoverUrl}
                     alt={document.title}
                     className="h-full w-full object-cover"
                   />
@@ -725,7 +781,18 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     <Headphones className="h-24 w-24 text-muted-foreground" />
                   </div>
                 )}
-                
+
+                {/* Play/pause overlay on hover */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all duration-200">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {isPlaying ? (
+                      <Pause className="h-16 w-16 text-white drop-shadow-lg" />
+                    ) : (
+                      <Play className="h-16 w-16 text-white drop-shadow-lg" />
+                    )}
+                  </div>
+                </div>
+
                 {/* Playing indicator */}
                 {isPlaying && (
                   <div className="absolute bottom-4 right-4 flex gap-1">
