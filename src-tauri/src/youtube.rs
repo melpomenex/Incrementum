@@ -1058,7 +1058,7 @@ pub async fn import_youtube_video(
     let mut doc = Document::new(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube);
 
     // Set YouTube-specific fields
-    doc.category = Some("YouTube Videos".to_string());
+    // Note: category is not set to avoid foreign key constraint issues
     doc.tags = vec!["youtube".to_string(), "video".to_string()];
     doc.total_pages = Some(info.duration as i32);
     doc.priority_score = 7.0; // YouTube videos get higher priority
