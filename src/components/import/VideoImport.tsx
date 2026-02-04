@@ -67,6 +67,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         void enqueueVideoTranscription({
           documentId: result.id,
           filePath: result.filePath,
+          documentTitle: result.title,
           modelId: settings.audioTranscription.preferredModelId,
           language: settings.audioTranscription.language || 'en',
         });

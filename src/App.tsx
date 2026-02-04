@@ -11,6 +11,7 @@ import { KeyboardShortcutsHelp } from "./components/common/KeyboardShortcutsHelp
 import { Breadcrumb } from "./components/common/Breadcrumb";
 import { useToast } from "./components/common/Toast";
 import { initializeNotifications } from "./utils/notificationService";
+import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
 
 // Page components
 import { DocumentsPage } from "./pages/DocumentsPage";
@@ -94,7 +95,21 @@ function App() {
     // Initialize notifications
     initializeNotifications();
 
-    return unsubscribe;
+    // Register callback for transcription completion toasts
+    const unregisterCallback = registerOpenDocumentCallback((documentId: string) => {
+      // Navigate to documents page and open the transcribed document
+      setCurrentPage("documents");
+      // Find and set the document
+      const doc = useDocumentStore.getState().documents.find(d => d.id === documentId);
+      if (doc) {
+        useDocumentStore.getState().setCurrentDocument(doc);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unregisterCallback();
+    };
   }, [loadAll, loadDocuments]);
 
   // Keyboard shortcut to show help
