@@ -17,13 +17,12 @@ import {
 } from "lucide-react";
 import {
   extractYouTubeID,
-  extractPlaylistID,
-  extractChannelID,
   isYouTubeURL,
   getYouTubeURLType,
   getYouTubeThumbnail,
   getYouTubeWatchURL,
 } from "../../api/youtube";
+import { invokeCommand, isTauri } from "../../lib/tauri";
 
 interface YouTubeVideoInfo {
   id: string;
@@ -64,6 +63,8 @@ export function YouTubeImportDialog({
   const [downloadSubtitles, setDownloadSubtitles] = useState(true);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [installingYtdlp, setInstallingYtdlp] = useState(false);
+  const [installMessage, setInstallMessage] = useState<string | null>(null);
 
   // Check yt-dlp availability on mount
   useEffect(() => {
@@ -74,14 +75,32 @@ export function YouTubeImportDialog({
 
   const checkYTDLP = async () => {
     try {
-      const available = await invoke<boolean>("check_ytdlp");
+      const available = await invokeCommand<boolean>("check_ytdlp");
       setYtdlpAvailable(available);
       if (!available) {
-        setError("yt-dlp is not installed. Please install it to download YouTube videos.");
+        setError(null);
       }
     } catch {
       setYtdlpAvailable(false);
       setError("Failed to check yt-dlp availability");
+    }
+  };
+
+  const handleInstallYtdlp = async () => {
+    setInstallingYtdlp(true);
+    setError(null);
+    setInstallMessage(null);
+
+    try {
+      const version = await invokeCommand<string>("setup_ytdlp_auto");
+      setYtdlpAvailable(true);
+      setInstallMessage(`yt-dlp installed (${version}).`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to install yt-dlp";
+      setYtdlpAvailable(false);
+      setError(message);
+    } finally {
+      setInstallingYtdlp(false);
     }
   };
 
@@ -110,7 +129,7 @@ export function YouTubeImportDialog({
     setError(null);
 
     try {
-      const info = await invoke<YouTubeVideoInfo>("get_youtube_video_info", { url });
+      const info = await invokeCommand<YouTubeVideoInfo>("get_youtube_video_info", { url });
       setVideoInfo(info);
       setStatus("ready");
     } catch (err) {
@@ -181,20 +200,47 @@ export function YouTubeImportDialog({
         <div className="p-4 space-y-4">
           {/* yt-dlp Status */}
           {ytdlpAvailable === false && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-sm">
-                yt-dlp is not installed.{" "}
-                <a
-                  href="https://github.com/yt-dlp/yt-dlp#installation"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Install yt-dlp
-                </a>{" "}
-                to download YouTube videos.
-              </span>
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5" />
+                <div className="text-sm">
+                  <div>yt-dlp is not installed. You can install it with one click.</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleInstallYtdlp}
+                      disabled={!isTauri() || installingYtdlp}
+                      className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {installingYtdlp ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      {installingYtdlp ? "Installing..." : "Install yt-dlp"}
+                    </button>
+                    <a
+                      href="https://github.com/yt-dlp/yt-dlp#installation"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-sm"
+                    >
+                      Manual install guide
+                    </a>
+                  </div>
+                  {!isTauri() && (
+                    <div className="mt-2 text-xs text-destructive/80">
+                      One-click install is available in the desktop app (Windows, macOS, Linux).
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {installMessage && (
+            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500">
+              <Check className="w-4 h-4" />
+              <span className="text-sm">{installMessage}</span>
             </div>
           )}
 

@@ -1,5 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link2, List, Search, X, Youtube, LayoutGrid, BookOpen, Trash2, FileText, Filter, Globe, FileText as FileTextIcon, BookAudio } from "lucide-react";
+import {
+  AlertCircle,
+  BookAudio,
+  BookOpen,
+  Check,
+  Download,
+  FileText,
+  FileText as FileTextIcon,
+  Filter,
+  Globe,
+  LayoutGrid,
+  Link2,
+  List,
+  Loader2,
+  Search,
+  Trash2,
+  X,
+  Youtube,
+} from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { AnnaArchiveSearch } from "../import/AnnaArchiveSearch";
@@ -29,7 +47,7 @@ import {
 import { importYouTubeVideo, resolveDocumentCover, updateDocument as updateDocumentApi } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { getDeviceInfo } from "../../lib/pwa";
-import { isTauri } from "../../lib/tauri";
+import { invokeCommand, isTauri } from "../../lib/tauri";
 import { storeBrowserFile } from "../../lib/browser-file-store";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
@@ -146,6 +164,9 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [ytdlpAvailable, setYtdlpAvailable] = useState<boolean | null>(null);
+  const [ytdlpInstalling, setYtdlpInstalling] = useState(false);
+  const [ytdlpInstallMessage, setYtdlpInstallMessage] = useState<string | null>(null);
 
   const [savedViews, setSavedViews] = useState<SavedView[]>(() => {
     if (typeof window === "undefined") return [];
@@ -185,6 +206,34 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       window.localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(savedViews));
     }
   }, [savedViews]);
+
+  useEffect(() => {
+    if (!showYouTubeImport) return;
+    setYtdlpInstallMessage(null);
+    if (!isTauri()) {
+      setYtdlpAvailable(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const available = await invokeCommand<boolean>("check_ytdlp");
+        if (!cancelled) {
+          setYtdlpAvailable(available);
+          if (available) {
+            setYtdlpInstallMessage(null);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setYtdlpAvailable(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showYouTubeImport]);
 
   const searchTokens = useMemo(() => parseDocumentSearch(debouncedSearch), [debouncedSearch]);
   
@@ -321,6 +370,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       setYoutubeError("Please enter a YouTube URL");
       return;
     }
+    if (isTauri() && ytdlpAvailable === false) {
+      setYoutubeError("yt-dlp is not installed. Please install it first.");
+      return;
+    }
     setYoutubeLoading(true);
     setYoutubeError(null);
     try {
@@ -343,6 +396,23 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       setYoutubeError(err instanceof Error ? err.message : "Failed to import YouTube video");
     } finally {
       setYoutubeLoading(false);
+    }
+  };
+
+  const handleInstallYtdlp = async () => {
+    setYtdlpInstalling(true);
+    setYoutubeError(null);
+    setYtdlpInstallMessage(null);
+    try {
+      const version = await invokeCommand<string>("setup_ytdlp_auto");
+      setYtdlpAvailable(true);
+      setYtdlpInstallMessage(`yt-dlp installed (${version}).`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to install yt-dlp";
+      setYtdlpAvailable(false);
+      setYoutubeError(message);
+    } finally {
+      setYtdlpInstalling(false);
     }
   };
 
@@ -1136,6 +1206,51 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
               {youtubeError && (
                 <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-lg text-sm">
                   {youtubeError}
+                </div>
+              )}
+
+              {ytdlpAvailable === false && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5" />
+                    <div className="text-sm">
+                      <div>yt-dlp is not installed. Install it to enable YouTube imports.</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={handleInstallYtdlp}
+                          disabled={!isTauri() || ytdlpInstalling}
+                          className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {ytdlpInstalling ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                          {ytdlpInstalling ? "Installing..." : "Install yt-dlp"}
+                        </button>
+                        <a
+                          href="https://github.com/yt-dlp/yt-dlp#installation"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-sm"
+                        >
+                          Manual install guide
+                        </a>
+                      </div>
+                      {!isTauri() && (
+                        <div className="mt-2 text-xs text-destructive/80">
+                          One-click install is available in the desktop app (Windows, macOS, Linux).
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {ytdlpInstallMessage && (
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500 text-sm">
+                  <Check className="w-4 h-4" />
+                  <span>{ytdlpInstallMessage}</span>
                 </div>
               )}
 

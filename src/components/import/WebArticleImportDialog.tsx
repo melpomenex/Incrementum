@@ -1,11 +1,11 @@
 /**
  * Web Article Import Dialog
  * 
- * Import web articles by URL, similar to the browser extension.
- * Fetches content, extracts metadata, and creates a document.
+ * Import web articles by URL with a rich preview that preserves the original page styling.
+ * Uses CORS proxies for browser mode and integrates with the FSRS scheduling system.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Globe,
   Link2,
@@ -17,14 +17,18 @@ import {
   Clock,
   Tag,
   ExternalLink,
-  Download,
   BookOpen,
   Sparkles,
+  Eye,
+  Code,
+  RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
 import type { Document } from "../../types/document";
+import { isTauri } from "../../lib/tauri";
 
 interface WebArticleImportDialogProps {
   isOpen: boolean;
@@ -39,11 +43,13 @@ interface ArticlePreview {
   description?: string;
   text: string;
   html?: string;
+  processedHtml?: string;
   wordCount: number;
   readingTime: number;
   siteName?: string;
   image?: string;
   favicon?: string;
+  fetchMethod?: 'direct' | 'proxy';
 }
 
 export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebArticleImportDialogProps) {
@@ -51,11 +57,15 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [preview, setPreview] = useState<ArticlePreview | null>(null);
   const [tags, setTags] = useState<string[]>(["article", "web"]);
   const [newTag, setNewTag] = useState("");
   const [importSuccess, setImportSuccess] = useState(false);
   const [importedDoc, setImportedDoc] = useState<Document | null>(null);
+  const [previewMode, setPreviewMode] = useState<'rendered' | 'text'>('rendered');
+  const [showCorsWarning, setShowCorsWarning] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { importFromUrl, loadDocuments } = useDocumentStore();
   const { success: showSuccess, error: showError } = useToast();
@@ -66,9 +76,12 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       setUrl("");
       setPreview(null);
       setError(null);
+      setErrorDetails(null);
       setTags(["article", "web"]);
       setNewTag("");
       setImportSuccess(false);
+      setShowCorsWarning(false);
+      setPreviewMode('rendered');
     }
   }, [isOpen]);
 
@@ -86,6 +99,166 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     return Math.ceil(wordCount / wordsPerMinute);
   };
 
+  /**
+   * Fetch article content with CORS proxy fallback for browser mode
+   */
+  const fetchArticleContent = async (targetUrl: string): Promise<{
+    html: string;
+    title: string;
+    text: string;
+    fetchMethod: 'direct' | 'proxy';
+  }> => {
+    const corsProxies = [
+      null, // Try direct first
+      'https://api.allorigins.win/raw?url=',
+      'https://corsproxy.io/?',
+      'https://api.codetabs.com/v1/proxy?quest='
+    ];
+
+    let lastError: Error | null = null;
+
+    // Try direct fetch first (works in Tauri, or for CORS-enabled sites)
+    for (const proxy of corsProxies) {
+      try {
+        const fetchUrl = proxy ? proxy + encodeURIComponent(targetUrl) : targetUrl;
+        console.log(`[WebArticleImport] Trying fetch:`, proxy || 'direct');
+        
+        const response = await fetch(fetchUrl, {
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const html = await response.text();
+        
+        if (html.length < 100) {
+          throw new Error('Response too short, likely an error page');
+        }
+
+        // Parse the HTML to extract title and text
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract title
+        const title = doc.querySelector('title')?.textContent?.trim() || 
+                      doc.querySelector('h1')?.textContent?.trim() || 
+                      extractSiteName(targetUrl);
+
+        // Extract text content
+        const text = doc.body?.textContent?.trim() || '';
+
+        console.log(`[WebArticleImport] Successfully fetched via ${proxy || 'direct'}`);
+        
+        return {
+          html,
+          title,
+          text,
+          fetchMethod: proxy ? 'proxy' : 'direct',
+        };
+      } catch (err) {
+        console.log(`[WebArticleImport] Fetch failed:`, proxy || 'direct', err);
+        lastError = err as Error;
+        continue;
+      }
+    }
+
+    throw new Error(`Failed to fetch article. ${lastError?.message || 'All fetch methods failed.'}`);
+  };
+
+  /**
+   * Process HTML for display - preserves styling but sanitizes dangerous content
+   */
+  const processHtmlForDisplay = (rawHtml: string, baseUrl: string): string => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    
+    // Remove dangerous elements
+    const dangerousSelectors = [
+      'script',
+      'iframe',
+      'object',
+      'embed',
+      'form',
+      'input[type="password"]',
+      'input[type="submit"]',
+      'button[type="submit"]',
+    ];
+    
+    dangerousSelectors.forEach(selector => {
+      doc.querySelectorAll(selector).forEach(el => {
+        console.log(`[WebArticleImport] Removing dangerous element:`, el.tagName);
+        el.remove();
+      });
+    });
+
+    // Remove event handlers from all elements
+    const allElements = doc.querySelectorAll('*');
+    allElements.forEach(el => {
+      const attributes = Array.from(el.attributes);
+      attributes.forEach(attr => {
+        if (attr.name.startsWith('on')) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    });
+
+    // Add base tag for relative URLs
+    let baseTag = doc.querySelector('base');
+    if (!baseTag) {
+      baseTag = doc.createElement('base');
+      baseTag.href = new URL(baseUrl).origin + '/';
+      doc.head.insertBefore(baseTag, doc.head.firstChild);
+    }
+
+    // Add custom styles for better preview
+    const styleTag = doc.createElement('style');
+    styleTag.textContent = `
+      /* Reset for consistent preview */
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+      }
+      
+      /* Ensure images don't overflow */
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+      
+      /* Improve readability */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      
+      /* Hide potentially distracting elements */
+      nav[role="navigation"],
+      .navigation,
+      .nav,
+      header[role="banner"],
+      .site-header,
+      footer[role="contentinfo"],
+      .site-footer,
+      .comments,
+      #comments,
+      .social-share,
+      .share-buttons,
+      .advertisement,
+      .ads,
+      #disqus_thread {
+        display: none !important;
+      }
+    `;
+    doc.head.appendChild(styleTag);
+
+    return doc.documentElement.outerHTML;
+  };
+
   const handleFetch = useCallback(async () => {
     if (!url.trim()) {
       setError("Please enter a URL");
@@ -101,42 +274,93 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
 
     setIsLoading(true);
     setError(null);
+    setErrorDetails(null);
     setPreview(null);
+    setShowCorsWarning(false);
 
     try {
-      // Use the store's importFromUrl to fetch and create
-      const doc = await importFromUrl(processedUrl);
+      // Validate URL format
+      new URL(processedUrl);
+
+      // Fetch article content
+      const { html, title, text, fetchMethod } = await fetchArticleContent(processedUrl);
       
-      // Store the imported document
-      setImportedDoc(doc);
+      // Process HTML for display
+      const processedHtml = processHtmlForDisplay(html, processedUrl);
       
-      // Create preview from the imported document
-      const wordCount = doc.content?.split(/\s+/).length || 0;
+      // Calculate metadata
+      const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
       
+      // Extract author if available
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const author = 
+        doc.querySelector('meta[name="author"]')?.getAttribute('content') ||
+        doc.querySelector('meta[property="article:author"]')?.getAttribute('content') ||
+        doc.querySelector('[rel="author"]')?.textContent ||
+        undefined;
+
+      // Extract description
+      const description = 
+        doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+        doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+        undefined;
+
+      // Extract favicon
+      const favicon = 
+        doc.querySelector('link[rel="icon"]')?.getAttribute('href') ||
+        doc.querySelector('link[rel="shortcut icon"]')?.getAttribute('href') ||
+        `${new URL(processedUrl).origin}/favicon.ico`;
+
+      // Extract main image
+      const image = 
+        doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+        doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content') ||
+        undefined;
+
       setPreview({
         url: processedUrl,
-        title: doc.title || extractSiteName(processedUrl),
-        author: doc.metadata?.author,
-        description: doc.metadata?.subject,
-        text: doc.content || "",
-        html: doc.content,
+        title,
+        author,
+        description,
+        text,
+        html,
+        processedHtml,
         wordCount,
         readingTime: calculateReadingTime(wordCount),
         siteName: extractSiteName(processedUrl),
+        image,
+        favicon,
+        fetchMethod,
       });
-      
-      // Set default tags from the imported document
-      if (doc.tags && doc.tags.length > 0) {
-        setTags(doc.tags);
+
+      // Show CORS warning if we had to use a proxy
+      if (fetchMethod === 'proxy' && !isTauri()) {
+        setShowCorsWarning(true);
       }
+
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch article";
       setError(message);
+      
+      // Provide helpful error details based on error type
+      if (message.includes('CORS') || message.includes('Failed to fetch')) {
+        setErrorDetails(
+          isTauri() 
+            ? "The website may be blocking automated requests. Try a different URL."
+            : "Browser security (CORS) is preventing direct access. The app tried multiple proxy servers but couldn't retrieve the content. Try using the desktop app for better compatibility."
+        );
+      } else if (message.includes('404')) {
+        setErrorDetails("The page was not found. Please check the URL and try again.");
+      } else if (message.includes('403')) {
+        setErrorDetails("Access to this page is forbidden. The site may require authentication.");
+      }
+      
       showError("Fetch failed", message);
     } finally {
       setIsLoading(false);
     }
-  }, [url, importFromUrl, showError]);
+  }, [url, showError]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -158,15 +382,37 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
   };
 
   const handleImport = async () => {
-    if (!preview || !importedDoc) return;
+    if (!preview) return;
 
     setIsImporting(true);
     setError(null);
 
     try {
-      // Update the imported document with user-selected tags
+      // Import the document using the store
+      const doc = await importFromUrl(preview.url);
+      
+      setImportedDoc(doc);
+
+      // Update the document with user-selected tags and additional metadata
       const { updateDocument } = useDocumentStore.getState();
-      await updateDocument(importedDoc.id, { tags });
+      
+      await updateDocument(doc.id, { 
+        tags,
+        title: preview.title || doc.title,
+        content: preview.processedHtml || preview.text,
+        metadata: {
+          ...doc.metadata,
+          author: preview.author,
+          subject: preview.description,
+          source: preview.url,
+          siteName: preview.siteName,
+          image: preview.image,
+          favicon: preview.favicon,
+          fetchMethod: preview.fetchMethod,
+          wordCount: preview.wordCount,
+          readingTime: preview.readingTime,
+        }
+      });
       
       // Reload to get latest state
       await loadDocuments();
@@ -177,8 +423,8 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       // Close dialog and open the document
       setTimeout(() => {
         onClose();
-        if (onOpenDocument) {
-          onOpenDocument(importedDoc);
+        if (onOpenDocument && doc) {
+          onOpenDocument(doc);
         }
       }, 800);
     } catch (err) {
@@ -201,7 +447,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+      <div className="relative flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
           <div className="flex items-center gap-3">
@@ -262,6 +508,21 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   Enter a URL to fetch the article content. Supports most websites.
                 </p>
               </div>
+
+              {/* CORS Warning */}
+              {showCorsWarning && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-800 dark:text-amber-200">
+                      <strong>CORS Proxy Used</strong>
+                      <p className="mt-0.5">
+                        This page was fetched through a CORS proxy. Some resources like images may not load properly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Tags */}
               <div className="mb-6">
@@ -331,8 +592,20 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-destructive">{error}</p>
+                    <div className="flex-1">
+                      <p className="text-sm text-destructive font-medium">{error}</p>
+                      {errorDetails && (
+                        <p className="text-xs text-destructive/80 mt-1">{errorDetails}</p>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={handleFetch}
+                    className="mt-2 flex items-center gap-1 text-xs text-destructive hover:underline"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Try Again
+                  </button>
                 </div>
               )}
             </div>
@@ -377,6 +650,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               <div className="flex h-full flex-col items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
                 <p className="text-sm text-muted-foreground">Fetching article...</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Trying direct fetch, then CORS proxies if needed
+                </p>
               </div>
             ) : !preview ? (
               <div className="flex h-full flex-col items-center justify-center p-8 text-center">
@@ -389,12 +665,18 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                 <p className="max-w-sm text-sm text-muted-foreground">
                   Enter a URL to fetch article content. The page will be saved to your library for reading and extracting.
                 </p>
-                <div className="mt-6 flex gap-2 text-xs text-muted-foreground">
+                <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   <span className="rounded bg-muted px-2 py-1">Medium</span>
                   <span className="rounded bg-muted px-2 py-1">Substack</span>
                   <span className="rounded bg-muted px-2 py-1">Wikipedia</span>
                   <span className="rounded bg-muted px-2 py-1">+ more</span>
                 </div>
+                {!isTauri() && (
+                  <div className="mt-4 text-xs text-amber-600 dark:text-amber-400 max-w-sm">
+                    <strong>Note:</strong> In browser mode, some websites may not be accessible due to CORS restrictions. 
+                    For best results, use the desktop app.
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col h-full overflow-hidden">
@@ -425,6 +707,15 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                           <Clock className="h-3 w-3" />
                           {preview.readingTime} min read
                         </span>
+                        {preview.fetchMethod === 'proxy' && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                              <ShieldAlert className="h-3 w-3" />
+                              Via Proxy
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <a
@@ -455,26 +746,69 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       </span>
                     ))}
                   </div>
+
+                  {/* Preview mode toggle */}
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Preview mode:</span>
+                    <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                      <button
+                        onClick={() => setPreviewMode('rendered')}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                          previewMode === 'rendered' 
+                            ? "bg-background text-foreground shadow-sm" 
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Eye className="h-3 w-3" />
+                        Rendered
+                      </button>
+                      <button
+                        onClick={() => setPreviewMode('text')}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                          previewMode === 'text' 
+                            ? "bg-background text-foreground shadow-sm" 
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Code className="h-3 w-3" />
+                        Text
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Content preview */}
-                <div className="flex-1 overflow-y-auto p-5">
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    {preview.text ? (
-                      <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {preview.text.substring(0, 3000)}
-                        {preview.text.length > 3000 && (
-                          <span className="text-muted-foreground/50">
-                            {"\n\n"}... (content truncated in preview)
-                          </span>
+                <div className="flex-1 overflow-hidden bg-background">
+                  {previewMode === 'rendered' && preview.processedHtml ? (
+                    <iframe
+                      ref={iframeRef}
+                      srcDoc={preview.processedHtml}
+                      className="w-full h-full border-0"
+                      sandbox="allow-same-origin allow-scripts"
+                      title="Article Preview"
+                    />
+                  ) : (
+                    <div className="h-full overflow-y-auto p-5">
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        {preview.text ? (
+                          <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {preview.text.substring(0, 5000)}
+                            {preview.text.length > 5000 && (
+                              <span className="text-muted-foreground/50">
+                                {"\n\n"}... (content truncated in preview)
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground italic">
+                            No text content available for preview.
+                          </p>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-muted-foreground italic">
-                        No text content available for preview.
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -377,10 +377,12 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   clearBulkResult: () => set({ bulkOperationResult: null }),
 }));
 
-useCollectionStore.subscribe(
-  (state) => state.activeCollectionId,
-  () => {
-    const { applyFilters } = useQueueStore.getState();
-    applyFilters();
-  }
-);
+if (typeof useCollectionStore.subscribe === "function") {
+  useCollectionStore.subscribe(
+    (state) => state.activeCollectionId,
+    () => {
+      const { applyFilters } = useQueueStore.getState();
+      applyFilters();
+    }
+  );
+}
