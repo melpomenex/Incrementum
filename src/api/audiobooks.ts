@@ -3,9 +3,20 @@
  * 
  * Handles audiobook metadata extraction, transcript management,
  * chapter parsing, and cover art fetching.
+ * 
+ * Supports both local Whisper and Groq cloud transcription.
  */
 
 import { isTauri } from "../lib/tauri";
+import { useSettingsStore } from "../stores/settingsStore";
+import { 
+  transcribeWithGroq, 
+  convertGroqToInternalFormat,
+  isGroqConfigured,
+  GroqTranscriptionError,
+  isFileSizeValid,
+  type GroqTranscriptionOptions 
+} from "./groqTranscription";
 import type { Document } from "../types/document";
 
 export interface AudiobookMetadata {
@@ -314,15 +325,45 @@ export async function searchAudiobookMetadata(
   }
 }
 
-// Generate transcript using Whisper (Tauri only)
-export async function generateTranscript(
+/**
+ * Get file as Blob from Tauri file system
+ */
+async function getAudioFileBlob(filePath: string): Promise<Blob | null> {
+  if (!isTauri()) return null;
+  
+  try {
+    const { invokeCommand } = await import("../lib/tauri");
+    const bytes = await invokeCommand<number[]>("read_file_bytes", { filePath });
+    if (!bytes) return null;
+    
+    const ext = filePath.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes: Record<string, string> = {
+      'mp3': 'audio/mpeg',
+      'm4b': 'audio/mp4',
+      'm4a': 'audio/mp4',
+      'aac': 'audio/aac',
+      'ogg': 'audio/ogg',
+      'opus': 'audio/opus',
+      'wav': 'audio/wav',
+      'flac': 'audio/flac',
+      'wma': 'audio/x-ms-wma',
+    };
+    
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+    return new Blob([new Uint8Array(bytes)], { type: mimeType });
+  } catch (error) {
+    console.error("Failed to read audio file:", error);
+    return null;
+  }
+}
+
+/**
+ * Generate transcript using local Whisper
+ */
+async function generateTranscriptWithLocalWhisper(
   filePath: string,
   onProgress?: (progress: number) => void
 ): Promise<AudiobookTranscript> {
-  if (!isTauri()) {
-    throw new Error("Transcript generation requires the desktop app");
-  }
-  
   const { invokeCommand, listen } = await import("../lib/tauri");
   
   // Listen for progress events
@@ -334,15 +375,16 @@ export async function generateTranscript(
   }
 
   try {
+    const settings = useSettingsStore.getState().settings.audioTranscription;
+    
     // Use Tauri backend with Whisper
     const result = await invokeCommand<{
       segments: TranscriptSegment[];
       language?: string;
     }>("generate_audiobook_transcript", { 
       filePath,
-      // Model options
-      model: "distil-small.en",
-      language: "auto",
+      model: settings.preferredModelId || "distil-small.en",
+      language: settings.language === 'auto' ? undefined : settings.language,
     });
     
     const fullText = result.segments.map(s => s.text).join(" ");
@@ -357,6 +399,121 @@ export async function generateTranscript(
   } finally {
     if (unlisten) unlisten();
   }
+}
+
+/**
+ * Generate transcript using Groq API
+ * Automatically handles chunking for large files
+ */
+async function generateTranscriptWithGroq(
+  filePath: string,
+  onProgress?: (progress: number) => void
+): Promise<AudiobookTranscript> {
+  // Check if API key is configured
+  if (!isGroqConfigured()) {
+    throw new Error("Groq API key not configured. Please add your API key in Audio Transcription settings.");
+  }
+  
+  const settings = useSettingsStore.getState().settings.audioTranscription;
+  const language = settings.language === 'auto' ? undefined : settings.language;
+  
+  try {
+    // Use the transcribeWithGroq API with filePath - it handles chunking automatically
+    const response = await transcribeWithGroq({
+      filePath,
+      language,
+      responseFormat: 'verbose_json',
+      timestampGranularities: ['segment'],
+      temperature: 0,
+      onProgress,
+    });
+    
+    const converted = convertGroqToInternalFormat(response);
+    
+    // Map to our segment format
+    const segments: TranscriptSegment[] = converted.segments.map((seg, index) => ({
+      id: `segment-${index}`,
+      text: seg.text,
+      startTime: seg.start_ms / 1000,
+      endTime: seg.end_ms / 1000,
+      confidence: seg.confidence,
+    }));
+    
+    return {
+      segments,
+      fullText: converted.text,
+      language: response.language,
+      source: "generated",
+      lastUpdated: new Date().toISOString(),
+    };
+    
+  } catch (error) {
+    if (error instanceof GroqTranscriptionError) {
+      // Enhance error messages for audiobook context
+      if (error.code === 'RATE_LIMITED') {
+        throw new Error(
+          `Groq rate limit reached. ${error.message} ` +
+          `You can switch to local Whisper in settings or wait until your limits reset.`
+        );
+      }
+      if (error.code === 'FILE_TOO_LARGE' || error.code === 'CHUNKING_FAILED') {
+        throw new Error(
+          `This audiobook is too large for Groq's free tier. ` +
+          `Consider switching to local Whisper in settings for large audiobooks.`
+        );
+      }
+      throw new Error(`Groq transcription failed: ${error.message}`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Generate transcript using Whisper (Tauri only)
+ * Automatically uses the configured provider (local or Groq)
+ * 
+ * @param filePath Path to the audio file
+ * @param onProgress Progress callback (0-100)
+ * @returns Transcript with segments
+ */
+export async function generateTranscript(
+  filePath: string,
+  onProgress?: (progress: number) => void
+): Promise<AudiobookTranscript> {
+  if (!isTauri()) {
+    throw new Error("Transcript generation requires the desktop app");
+  }
+  
+  const provider = useSettingsStore.getState().settings.audioTranscription.provider;
+  
+  if (provider === 'groq') {
+    return generateTranscriptWithGroq(filePath, onProgress);
+  } else {
+    return generateTranscriptWithLocalWhisper(filePath, onProgress);
+  }
+}
+
+/**
+ * Get the currently configured transcription provider
+ */
+export function getTranscriptionProvider(): 'local' | 'groq' {
+  return useSettingsStore.getState().settings.audioTranscription.provider;
+}
+
+/**
+ * Check if transcription is available based on current provider and configuration
+ */
+export function isTranscriptionAvailable(): boolean {
+  if (!isTauri()) return false;
+  
+  const provider = getTranscriptionProvider();
+  
+  if (provider === 'groq') {
+    return isGroqConfigured();
+  }
+  
+  // Local is always "available" (will fail at runtime if no model)
+  return true;
 }
 
 // Import transcript from file

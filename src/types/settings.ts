@@ -133,8 +133,22 @@ export interface QASettings {
   fromSegments: boolean;
 }
 
+// Groq Transcription Settings
+export interface GroqTranscriptionSettings {
+  apiKey: string;
+  model: 'whisper-large-v3' | 'whisper-large-v3-turbo';
+  useFreeTier: boolean;
+  // Usage tracking (reset monthly)
+  usage: {
+    lastResetDate: string;
+    audioSecondsProcessed: number;
+    requestsMade: number;
+  };
+}
+
 // Audio Transcription Settings
 export interface AudioTranscriptionSettings {
+  provider: 'local' | 'groq';
   autoTranscription: boolean;
   autoTranscribeLocalVideos: boolean;
   preferredModelId?: string;
@@ -143,6 +157,7 @@ export interface AudioTranscriptionSettings {
   speakerDiarization: boolean;
   confidenceScores: boolean;
   confidenceThreshold: number;
+  groq: GroqTranscriptionSettings;
 }
 
 // Integration Settings
