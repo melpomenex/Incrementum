@@ -57,7 +57,11 @@ export function cfiPosition(cfi: string, offset?: number): DocumentPosition {
  * Create a time position (video/audio)
  */
 export function timePosition(seconds: number, totalDuration?: number): DocumentPosition {
-  return { type: 'time', seconds, total_duration: totalDuration };
+  const normalizedSeconds = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
+  const normalizedDuration = Number.isFinite(totalDuration ?? NaN)
+    ? Math.floor(totalDuration as number)
+    : undefined;
+  return { type: 'time', seconds: normalizedSeconds, total_duration: normalizedDuration };
 }
 
 /**

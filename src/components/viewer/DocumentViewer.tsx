@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
@@ -29,6 +29,7 @@ import type { ReviewRating } from "../../api/review";
 import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
 import { ocrPdfFile } from "../../api/ocrCommands";
 import { renderMarkdown } from "../../utils/markdown";
+import { processHtmlContent } from "../../utils/documentImport";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl, updateUrlHash } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import { getViewState, getViewStateKey, parseViewState, setViewState } from "../../lib/readerPosition";
@@ -155,7 +156,7 @@ export function DocumentViewer({
   onVideoContextChange,
 }: DocumentViewerProps) {
   const toast = useToast();
-  const { documents, setCurrentDocument, currentDocument: globalCurrentDocument } = useDocumentStore();
+  const { documents, setCurrentDocument, currentDocument: globalCurrentDocument, updateDocument } = useDocumentStore();
   
   // Use local document lookup by documentId prop instead of global currentDocument
   // This allows multiple DocumentViewers to show different documents in split panes
@@ -169,6 +170,7 @@ export function DocumentViewer({
   const [scale, setScale] = useState(1.0);
   const [zoomMode, setZoomMode] = useState<"custom" | "fit-width" | "fit-page">("fit-width");
   const [fileData, setFileData] = useState<Uint8Array | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const mediaSrcRef = useRef<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -630,6 +632,7 @@ export function DocumentViewer({
     if (!doc) return;
 
     setIsLoading(true);
+    setHtmlContent(null);
 
     // Infer fileType from filePath if missing (handles empty string or undefined)
     const ext = doc.filePath?.split('.').pop()?.toLowerCase();
@@ -702,6 +705,34 @@ export function DocumentViewer({
         console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);
         setMediaError(errorMessage);
       } finally {
+        setIsLoading(false);
+      }
+    } else if (inferredType === "html") {
+      if (!doc.content && doc.filePath) {
+        try {
+          const base64Data = await documentsApi.readDocumentFile(doc.filePath);
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const text = new TextDecoder("utf-8").decode(bytes);
+          const baseUrl = doc.metadata?.source || doc.filePath;
+          const processed = processHtmlContent(text, baseUrl, doc.title, true);
+          setHtmlContent(processed);
+          try {
+            const updated = await documentsApi.updateDocumentContent(doc.id, processed);
+            updateDocument(doc.id, { content: updated.content ?? processed });
+          } catch (error) {
+            console.warn("[DocumentViewer] Failed to persist HTML content:", error);
+            updateDocument(doc.id, { content: processed });
+          }
+        } catch (error) {
+          console.error(`[DocumentViewer] Failed to load html file:`, error);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
         setIsLoading(false);
       }
     } else {
@@ -1778,6 +1809,26 @@ export function DocumentViewer({
     }
   };
 
+  const htmlSource = currentDocument?.content || htmlContent || "";
+  const htmlForDisplay = useMemo(() => {
+    if (!htmlSource) return "";
+    if (settings.documents.webImportPreserveImages) return htmlSource;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlSource, "text/html");
+      const styleTag = doc.createElement("style");
+      styleTag.textContent = `
+        img, picture, source {
+          display: none !important;
+        }
+      `;
+      doc.head.appendChild(styleTag);
+      return doc.documentElement.outerHTML;
+    } catch {
+      return htmlSource;
+    }
+  }, [htmlSource, settings.documents.webImportPreserveImages]);
+
   if (!currentDocument) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -2252,11 +2303,12 @@ export function DocumentViewer({
             <MarkdownViewer document={currentDocument} content={currentDocument.content} />
           </div>
         ) : docType === "html" ? (
-          <div className="reading-surface min-h-[500px]">
-            <h1 className="reading-title">{currentDocument.title}</h1>
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert reading-prose"
-              dangerouslySetInnerHTML={{ __html: currentDocument.content || "" }}
+          <div className="h-full w-full overflow-hidden bg-background">
+            <iframe
+              title={currentDocument.title}
+              className="h-full w-full border-0"
+              sandbox="allow-same-origin"
+              srcDoc={htmlForDisplay}
             />
           </div>
         ) : docType === "youtube" ? (

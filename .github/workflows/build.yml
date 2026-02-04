@@ -190,6 +190,8 @@ jobs:
     steps:
       - name: Install git for checkout
         run: |
+          pacman-key --init
+          pacman-key --populate archlinux
           pacman -Syu --noconfirm
           pacman -S --noconfirm --needed git
 

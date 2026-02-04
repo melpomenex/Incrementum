@@ -94,6 +94,7 @@ interface DocumentSettings {
   defaultCategory: string;
   autoProcessOnImport: boolean;
   detectDuplicates: boolean;
+  webImportPreserveImages: boolean;
   pdfSettings: PDFSettings;
   epubSettings: EPUBSettings;
   segmentation: SegmentationSettings;
@@ -328,6 +329,7 @@ export const defaultSettings: Settings = {
     defaultCategory: "Uncategorized",
     autoProcessOnImport: false,
     detectDuplicates: true,
+    webImportPreserveImages: true,
     pdfSettings: {
       defaultZoom: 1.0,
       twoPageSpread: false,
