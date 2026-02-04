@@ -567,7 +567,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
       await enqueueVideoTranscription({
         documentId,
         filePath,
-        documentTitle: resolvedTitle,
+        documentTitle,
         provider: selectedProvider,
         modelId: selectedProvider === 'local' ? selectedModel : undefined,
         language,
