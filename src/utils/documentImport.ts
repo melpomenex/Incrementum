@@ -75,9 +75,21 @@ async function fetchArticleWithProxy(url: string): Promise<{
 /**
  * Process HTML content for safe display
  */
-function processHtmlContent(rawHtml: string, baseUrl: string, title: string): string {
+export function processHtmlContent(rawHtml: string, baseUrl: string, title: string, preserveImages: boolean): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(rawHtml, 'text/html');
+  let baseHref = baseUrl;
+  try {
+    baseHref = new URL(baseUrl).origin + '/';
+  } catch {
+    if (baseUrl.startsWith('file://')) {
+      baseHref = baseUrl;
+    } else if (baseUrl.startsWith('/')) {
+      baseHref = `file://${baseUrl}`;
+    } else {
+      baseHref = window.location.origin + '/';
+    }
+  }
   
   // Remove dangerous elements
   const dangerousSelectors = [
@@ -93,6 +105,13 @@ function processHtmlContent(rawHtml: string, baseUrl: string, title: string): st
     doc.querySelectorAll(selector).forEach(el => el.remove());
   });
 
+  if (!preserveImages) {
+    const imageSelectors = ['img', 'picture', 'source'];
+    imageSelectors.forEach(selector => {
+      doc.querySelectorAll(selector).forEach(el => el.remove());
+    });
+  }
+
   // Remove event handlers
   doc.querySelectorAll('*').forEach(el => {
     Array.from(el.attributes).forEach(attr => {
@@ -106,73 +125,74 @@ function processHtmlContent(rawHtml: string, baseUrl: string, title: string): st
   let baseTag = doc.querySelector('base');
   if (!baseTag) {
     baseTag = doc.createElement('base');
-    baseTag.href = new URL(baseUrl).origin + '/';
+    baseTag.href = baseHref;
     doc.head.insertBefore(baseTag, doc.head.firstChild);
   }
 
-  // Try to extract main content
-  const contentSelectors = [
-    'main',
-    'article',
-    '[role="main"]',
-    '.content',
-    '.main-content',
-    '#content',
-    '#main',
-    '.post-content',
-    '.entry-content',
-    '.article-content'
-  ];
+  // Add minimal styles for cross-platform consistency without overriding site layout
+  const styleTag = doc.createElement('style');
+  styleTag.textContent = `
+    /* Reset for consistent preview */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow-x: hidden !important;
+    }
 
-  let mainElement = null;
-  for (const selector of contentSelectors) {
-    mainElement = doc.querySelector(selector);
-    if (mainElement) break;
+    /* Ensure images don't overflow */
+    img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    /* Improve readability */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* Hide potentially distracting elements */
+    nav[role="navigation"],
+    .navigation,
+    .nav,
+    header[role="banner"],
+    .site-header,
+    footer[role="contentinfo"],
+    .site-footer,
+    .comments,
+    #comments,
+    .social-share,
+    .share-buttons,
+    .advertisement,
+    .ads,
+    #disqus_thread {
+      display: none !important;
+    }
+  `;
+  doc.head.appendChild(styleTag);
+
+  // Ensure title exists for display contexts
+  if (!doc.querySelector('title')) {
+    const titleTag = doc.createElement('title');
+    titleTag.textContent = title;
+    doc.head.appendChild(titleTag);
   }
 
-  const contentHtml = mainElement ? mainElement.innerHTML : doc.body.innerHTML;
-
-  // Create clean document
-  const cleanDoc = document.implementation.createHTMLDocument(title);
-  cleanDoc.head.innerHTML = `
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="${new URL(baseUrl).origin}/">
-    <title>${title}</title>
-    <style>
-      body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-        line-height: 1.6; 
-        max-width: 800px; 
-        margin: 0 auto; 
-        padding: 20px; 
-        color: #333;
-      }
-      img { max-width: 100%; height: auto; }
-      pre { background: #f4f4f4; padding: 1em; overflow-x: auto; border-radius: 4px; }
-      code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
-      blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 1em; color: #666; }
-      h1, h2, h3, h4, h5, h6 { margin-top: 1.5em; margin-bottom: 0.5em; }
-      p { margin-bottom: 1em; }
-      a { color: #0066cc; }
-      /* Hide distracting elements */
-      nav, .nav, .navigation, .sidebar, .comments, #comments, .advertisement, .ads { display: none !important; }
-    </style>
-  `;
-
-  cleanDoc.body.innerHTML = contentHtml;
-
-  return cleanDoc.documentElement.outerHTML;
+  return doc.documentElement.outerHTML;
 }
 
 /**
  * Fetch content from a URL and create a document
  */
-export async function importFromUrl(url: string): Promise<Omit<Document, 'id'>> {
+export async function importFromUrl(
+  url: string,
+  options?: { preserveImages?: boolean }
+): Promise<Omit<Document, 'id'>> {
   try {
     // Validate URL
     const validUrl = new URL(url);
     const hostname = validUrl.hostname;
+    const preserveImages = options?.preserveImages ?? true;
 
     let title: string;
     let content: string;
@@ -209,7 +229,7 @@ export async function importFromUrl(url: string): Promise<Omit<Document, 'id'>> 
         try {
           const base64Content = await readDocumentFile(fetched.file_path);
           const htmlContent = atob(base64Content);
-          content = processHtmlContent(htmlContent, url, title);
+          content = processHtmlContent(htmlContent, url, title, preserveImages);
         } catch (error) {
           console.warn('Failed to process HTML content:', error);
           content = `<div style="font-family: sans-serif; padding: 20px;">
@@ -228,7 +248,7 @@ export async function importFromUrl(url: string): Promise<Omit<Document, 'id'>> 
       title = fetchedTitle;
       
       // Process HTML content
-      content = processHtmlContent(html, url, title);
+      content = processHtmlContent(html, url, title, preserveImages);
       
       // Store the HTML in a virtual file path for browser mode
       // In Tauri mode, the backend would have stored it

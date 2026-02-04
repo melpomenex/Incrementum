@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { useToast } from "../common/Toast";
 import type { Document } from "../../types/document";
 import { isTauri } from "../../lib/tauri";
@@ -169,10 +170,16 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     throw new Error(`Failed to fetch article. ${lastError?.message || 'All fetch methods failed.'}`);
   };
 
+  const { settings } = useSettingsStore();
+
   /**
    * Process HTML for display - preserves styling but sanitizes dangerous content
    */
-  const processHtmlForDisplay = (rawHtml: string, baseUrl: string): string => {
+  const processHtmlForDisplay = (
+    rawHtml: string,
+    baseUrl: string,
+    preserveImages: boolean
+  ): string => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(rawHtml, 'text/html');
     
@@ -194,6 +201,15 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
         el.remove();
       });
     });
+
+    if (!preserveImages) {
+      const imageSelectors = ['img', 'picture', 'source'];
+      imageSelectors.forEach(selector => {
+        doc.querySelectorAll(selector).forEach(el => {
+          el.remove();
+        });
+      });
+    }
 
     // Remove event handlers from all elements
     const allElements = doc.querySelectorAll('*');
@@ -286,7 +302,11 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       const { html, title, text, fetchMethod } = await fetchArticleContent(processedUrl);
       
       // Process HTML for display
-      const processedHtml = processHtmlForDisplay(html, processedUrl);
+      const processedHtml = processHtmlForDisplay(
+        html,
+        processedUrl,
+        settings.documents.webImportPreserveImages
+      );
       
       // Calculate metadata
       const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
