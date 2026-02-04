@@ -413,23 +413,26 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       // Build LLM context
       const llmContext = contextData.currentContext as AssistantContext;
       const contextWindow = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
-      const effectiveContextWindow = llmContext.contextWindowTokens && llmContext.contextWindowTokens > 0
+      const effectiveContextWindow = llmContext?.contextWindowTokens && llmContext.contextWindowTokens > 0
         ? llmContext.contextWindowTokens
         : contextWindow;
+
+      // Build context object for LLM API - ensure required fields are valid
+      const llmContextData = {
+        type: llmContext?.type || "general",
+        documentId: llmContext?.documentId,
+        url: llmContext?.url,
+        selection: llmContext?.selection,
+        content: llmContext?.content,
+        contextWindowTokens: effectiveContextWindow,
+      };
 
       // Call the LLM API
       const response = await chatWithContext(
         effectiveProvider,
         provider.model,
         llmMessages,
-        {
-          type: llmContext.type,
-          documentId: llmContext.documentId,
-          url: llmContext.url,
-          selection: llmContext.selection,
-          content: llmContext.content,
-          contextWindowTokens: effectiveContextWindow,
-        },
+        llmContextData,
         provider.apiKey,
         provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined
       );
