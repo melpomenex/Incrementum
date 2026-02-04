@@ -199,6 +199,89 @@ pub async fn extract_audio_sample(
     Ok(String::new()) 
 }
 
+/// Extract embedded cover art from an audio file using ffmpeg sidecar.
+/// Returns a data:image URL (base64-encoded) or None if no cover is found.
+#[tauri::command]
+pub async fn extract_audio_cover_art(
+    app_handle: AppHandle,
+    file_path: String,
+) -> Result<Option<String>> {
+    use base64::{engine::general_purpose, Engine as _};
+
+    let path = Path::new(&file_path);
+    if !path.exists() {
+        return Err(IncrementumError::NotFound(format!(
+            "Audio file not found: {}", file_path
+        )));
+    }
+
+    // Create temp directory for cover extraction
+    let temp_dir = app_handle.path().app_cache_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get cache dir: {}", e)))?
+        .join("cover_art");
+
+    if !temp_dir.exists() {
+        std::fs::create_dir_all(&temp_dir)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to create temp dir: {}", e)))?;
+    }
+
+    let cover_filename = format!("{}.jpg", uuid::Uuid::new_v4());
+    let cover_path = temp_dir.join(&cover_filename);
+
+    // Use ffmpeg to extract embedded cover art
+    let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get ffmpeg sidecar: {}", e)))?
+        .args([
+            "-i", &file_path,
+            "-an",              // no audio
+            "-vcodec", "copy",  // copy the video stream (cover art)
+            "-f", "image2",     // output as image
+            "-y",               // overwrite
+            cover_path.to_str().unwrap()
+        ])
+        .spawn()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to spawn ffmpeg: {}", e)))?;
+
+    // Wait for ffmpeg to finish
+    while let Some(event) = rx.recv().await {
+        if let CommandEvent::Terminated(_) = event {
+            break;
+        }
+    }
+
+    // Check if the output file was created and has content
+    if cover_path.exists() {
+        let file_size = std::fs::metadata(&cover_path)
+            .map(|m| m.len())
+            .unwrap_or(0);
+
+        if file_size > 0 {
+            let bytes = std::fs::read(&cover_path)
+                .map_err(|e| IncrementumError::Internal(format!("Failed to read cover: {}", e)))?;
+
+            let _ = std::fs::remove_file(&cover_path);
+
+            // Detect MIME type from file magic bytes
+            let mime = if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                "image/jpeg"
+            } else if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                "image/png"
+            } else if bytes.starts_with(b"RIFF") && bytes.len() > 12 && &bytes[8..12] == b"WEBP" {
+                "image/webp"
+            } else {
+                "image/jpeg"
+            };
+
+            let encoded = general_purpose::STANDARD.encode(&bytes);
+            return Ok(Some(format!("data:{};base64,{}", mime, encoded)));
+        } else {
+            let _ = std::fs::remove_file(&cover_path);
+        }
+    }
+
+    Ok(None)
+}
+
 /// Generate a transcript for an audiobook using Whisper (Tauri only)
 #[tauri::command]
 pub async fn generate_audiobook_transcript(

@@ -306,6 +306,7 @@ pub fn run() {
             commands::parse_audiobook_chapters,
             commands::extract_audio_sample,
             commands::generate_audiobook_transcript,
+            commands::extract_audio_cover_art,
             // YouTube playlist auto-import commands
             commands::subscribe_to_playlist,
             commands::get_playlist_subscriptions,
