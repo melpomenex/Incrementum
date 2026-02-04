@@ -3,6 +3,7 @@
 use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use crate::error::{IncrementumError, Result};
 
@@ -19,13 +20,27 @@ impl Database {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        // Create connection options
+        // Create connection options with proper concurrency settings
         let options = SqliteConnectOptions::from_str(&format!("sqlite:{}", path.display()))
             .map_err(|e| IncrementumError::Internal(format!("Invalid database path: {}", e)))?
-            .create_if_missing(true);
+            .create_if_missing(true)
+            // Set busy timeout to wait for locks instead of failing immediately
+            .busy_timeout(Duration::from_secs(30))
+            // Enable foreign keys
+            .pragma("foreign_keys", "ON");
 
         // Create connection pool
         let pool = SqlitePool::connect_with(options).await?;
+
+        // Enable WAL mode for better concurrency
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&pool)
+            .await?;
+
+        // Set synchronous mode to NORMAL for better performance with WAL
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&pool)
+            .await?;
 
         Ok(Self { pool })
     }
