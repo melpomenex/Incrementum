@@ -136,6 +136,29 @@ export function LocalVideoPlayer({
     durationRef.current = duration;
   }, [duration]);
 
+  // Seek to saved position when startTime changes and video is ready
+  // This handles the race condition where metadata loads before saved position is fetched
+  useEffect(() => {
+    console.log('[LocalVideoPlayer] startTime effect triggered:', {
+      startTime,
+      videoRefExists: !!videoRef.current,
+      readyState: videoRef.current?.readyState,
+      currentTime: videoRef.current?.currentTime,
+    });
+    if (startTime > 0 && videoRef.current && videoRef.current.readyState >= 1) {
+      // Only seek if we're still at the beginning (or close to it)
+      // This prevents overwriting user navigation after the video has loaded
+      if (videoRef.current.currentTime < 1) {
+        videoRef.current.currentTime = startTime;
+        console.log(`[LocalVideoPlayer] Seeked to saved position from effect: ${startTime}s`);
+      } else {
+        console.log(`[LocalVideoPlayer] Not seeking from effect - currentTime is ${videoRef.current.currentTime}`);
+      }
+    } else {
+      console.log(`[LocalVideoPlayer] Cannot seek from effect - startTime: ${startTime}, readyState: ${videoRef.current?.readyState}`);
+    }
+  }, [startTime]);
+
   // Persist playback rate to localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -248,12 +271,20 @@ export function LocalVideoPlayer({
   // Load saved position from document
   const loadSavedPosition = useCallback(async () => {
     if (!documentId) {
+      console.log('[LocalVideoPlayer] No documentId, skipping position load');
       setPositionLoaded(true);
       return;
     }
 
     try {
+      console.log('[LocalVideoPlayer] Loading saved position for document:', documentId);
       const doc = await getDocumentAuto(documentId);
+      console.log('[LocalVideoPlayer] Got document:', {
+        documentId,
+        currentPage: doc?.currentPage,
+        current_page: doc?.current_page,
+        docKeys: doc ? Object.keys(doc) : null,
+      });
       setDocumentFilePath(doc?.filePath ?? null);
       const savedTime = doc?.currentPage ?? doc?.current_page ?? 0;
       console.log("[LocalVideoPlayer] Loaded saved time:", {
@@ -270,11 +301,15 @@ export function LocalVideoPlayer({
         if (videoRef.current && videoRef.current.readyState >= 1) {
           videoRef.current.currentTime = savedTime;
           console.log(`[LocalVideoPlayer] Restored position immediately: ${savedTime}s`);
+        } else {
+          console.log(`[LocalVideoPlayer] Video not ready yet, will seek when ready. readyState:`, videoRef.current?.readyState);
         }
         console.log(`[LocalVideoPlayer] Saved position set: ${savedTime}s`);
+      } else {
+        console.log(`[LocalVideoPlayer] Saved time ${savedTime} is less than 3s, not restoring`);
       }
     } catch (error) {
-      console.log('[LocalVideoPlayer] Failed to load position:', error);
+      console.error('[LocalVideoPlayer] Failed to load position:', error);
     } finally {
       setPositionLoaded(true);
     }
@@ -318,7 +353,10 @@ export function LocalVideoPlayer({
   // Save current position
   const savePosition = useCallback(async (time: number) => {
     const currentDocumentId = documentIdRef.current;
-    if (!currentDocumentId) return;
+    if (!currentDocumentId) {
+      console.log('[LocalVideoPlayer] Cannot save position: no documentId');
+      return;
+    }
 
     // Avoid saving if time hasn't changed significantly
     if (Math.abs(time - lastSavedTimeRef.current) < 1) {
@@ -330,19 +368,22 @@ export function LocalVideoPlayer({
       console.log("[LocalVideoPlayer] Saving position:", {
         documentId: currentDocumentId,
         time: roundedTime,
+        lastSaved: lastSavedTimeRef.current,
         duration,
         mediaType,
       });
       await updateDocumentProgressAuto(currentDocumentId, roundedTime);
+      console.log("[LocalVideoPlayer] Position saved to document successfully:", roundedTime);
       if (typeof window !== "undefined" && "__TAURI__" in window) {
         await saveDocumentPosition(
           currentDocumentId,
           timePosition(roundedTime, duration)
         );
+        console.log("[LocalVideoPlayer] Position saved to position API:", roundedTime);
       }
       lastSavedTimeRef.current = time;
     } catch (error) {
-      console.log('[LocalVideoPlayer] Failed to save position:', error);
+      console.error('[LocalVideoPlayer] Failed to save position:', error);
     }
   }, [duration, mediaType]);
 
@@ -771,6 +812,11 @@ export function LocalVideoPlayer({
       src={src}
       className="sr-only"
       onLoadedMetadata={() => {
+        console.log('[LocalVideoPlayer] Audio onLoadedMetadata fired:', {
+          startTimeRef: startTimeRef.current,
+          duration: videoRef.current?.duration,
+          readyState: videoRef.current?.readyState,
+        });
         if (videoRef.current) {
           const mediaDuration = videoRef.current.duration;
           setDuration(mediaDuration);
@@ -778,6 +824,8 @@ export function LocalVideoPlayer({
           if (startTimeRef.current > 0) {
             videoRef.current.currentTime = startTimeRef.current;
             console.log("[LocalVideoPlayer] Seeked audio to saved time:", startTimeRef.current);
+          } else {
+            console.log("[LocalVideoPlayer] No saved time to restore for audio (startTimeRef is 0)");
           }
           // Apply saved playback rate
           if (playbackRate !== 1) {
@@ -833,6 +881,11 @@ export function LocalVideoPlayer({
       src={src}
       className="w-full max-h-full bg-black cursor-pointer"
       onLoadedMetadata={() => {
+        console.log('[LocalVideoPlayer] onLoadedMetadata fired:', {
+          startTimeRef: startTimeRef.current,
+          duration: videoRef.current?.duration,
+          readyState: videoRef.current?.readyState,
+        });
         if (videoRef.current) {
           const mediaDuration = videoRef.current.duration;
           setDuration(mediaDuration);
@@ -840,6 +893,8 @@ export function LocalVideoPlayer({
           if (startTimeRef.current > 0) {
             videoRef.current.currentTime = startTimeRef.current;
             console.log("[LocalVideoPlayer] Seeked video to saved time:", startTimeRef.current);
+          } else {
+            console.log("[LocalVideoPlayer] No saved time to restore (startTimeRef is 0)");
           }
           // Apply saved playback rate
           if (playbackRate !== 1) {
