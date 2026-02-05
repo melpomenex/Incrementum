@@ -648,7 +648,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
               <button
                 onClick={() => setShowAnnaArchiveSearch(true)}
                 className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-                title="Search and download books from Anna's Archive"
+                title="Search and download books from Anna's Archive (LibGen.li)"
               >
                 <BookOpen className="w-4 h-4" />
                 Anna's Archive

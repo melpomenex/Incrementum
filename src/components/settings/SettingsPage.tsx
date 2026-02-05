@@ -39,6 +39,7 @@ import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
+import { useSettingsStore } from "../../stores";
 
 /**
  * Settings tab
@@ -655,6 +656,14 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
  * Appearance Settings Component
  */
 function AppearanceSettings({ onChange }: { onChange: () => void }) {
+  const { settings, updateSettingsCategory } = useSettingsStore();
+  const { toolbarPosition } = settings.interface;
+
+  const handleToolbarPositionChange = (value: "top" | "left" | "right") => {
+    updateSettingsCategory("interface", { toolbarPosition: value });
+    onChange();
+  };
+
   return (
     <>
       <SettingsSection title="Theme" description="Customize the look and feel">
@@ -720,6 +729,21 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
         title="Display"
         description="Display preferences"
       >
+        <SettingsRow
+          label="Toolbar Position"
+          description="Position of the main toolbar (desktop only)"
+        >
+          <select
+            className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
+            value={toolbarPosition}
+            onChange={(e) => handleToolbarPositionChange(e.target.value as "top" | "left" | "right")}
+          >
+            <option value="top">Top</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </SettingsRow>
+
         <SettingsRow
           label="Compact Mode"
           description="Reduce spacing and padding for more content"

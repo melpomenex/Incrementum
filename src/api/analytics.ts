@@ -10,6 +10,9 @@ export interface DashboardStats {
   average_difficulty: number;
   total_documents: number;
   total_extracts: number;
+  due_documents: number;
+  cards_reviewed_today: number;
+  daily_goal: number;
 }
 
 export interface ActivityDay {
