@@ -268,6 +268,15 @@ pub const MIGRATIONS: &[Migration] = &[
         "#,
     ),
 
+    // Migration 004: Add GUIDs for RSS articles
+    Migration::new(
+        "004_add_rss_article_guid",
+        r#"
+        ALTER TABLE rss_articles ADD COLUMN guid TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_rss_articles_guid ON rss_articles(guid) WHERE guid IS NOT NULL;
+        "#,
+    ),
+
     // Migration 004: Add sync tables
     Migration::new(
         "004_add_sync_tables",
@@ -1129,6 +1138,7 @@ pub const MIGRATIONS: &[Migration] = &[
             reps INTEGER NOT NULL DEFAULT 0,
             html_content TEXT,
             source_url TEXT,
+            selection_context TEXT,
             FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
         );
 

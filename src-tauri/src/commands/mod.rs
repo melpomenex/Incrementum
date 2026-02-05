@@ -16,7 +16,7 @@ pub mod review;
 pub mod rss;
 pub mod segmentation;
 pub mod notifications;
-pub mod mcp;
+// pub mod mcp;
 pub mod llm;
 pub mod cloud;
 pub mod scheduler;

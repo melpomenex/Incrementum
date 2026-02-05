@@ -294,17 +294,17 @@ export function QueueScrollPage() {
         reason: response.reason,
       });
       
-      // Show toast for resuming
-      if (response.is_resuming && lastPosition && lastPosition > 0) {
-        toast.info("Resuming where you left off", `Position ${lastPosition + 1} of ${totalItems}`);
-      }
-      
-      return response.start_position;
+      // Return both position and whether we should show toast
+      return {
+        position: response.start_position,
+        shouldShowToast: response.is_resuming && lastPosition !== undefined && lastPosition > 0,
+        lastPosition: lastPosition ?? 0,
+      };
     } catch (error) {
       console.error("Failed to get smart start position:", error);
-      return 0;
+      return { position: 0, shouldShowToast: false, lastPosition: 0 };
     }
-  }, [itemsReviewedThisSession, toast]);
+  }, [itemsReviewedThisSession]);
 
   // Load queue, documents, and due flashcards/extracts on mount
   // IMPORTANT: Await loadDocuments() to prevent race condition in YouTube filter
@@ -340,7 +340,8 @@ export function QueueScrollPage() {
   // Apply smart start position once items are loaded
   useEffect(() => {
     if (scrollItems.length > 0 && currentIndex === 0 && !smartStartInfo) {
-      calculateSmartStart(scrollItems.length).then(startPos => {
+      calculateSmartStart(scrollItems.length).then(result => {
+        const { position: startPos, shouldShowToast, lastPosition } = result;
         if (startPos > 0) {
           setCurrentIndex(startPos);
           setRenderedIndex(startPos);
@@ -355,10 +356,15 @@ export function QueueScrollPage() {
               },
             });
           }
+          
+          // Only show toast when position is actually applied
+          if (shouldShowToast) {
+            toast.info("Resuming where you left off", `Position ${lastPosition + 1} of ${scrollItems.length}`);
+          }
         }
       });
     }
-  }, [scrollItems.length, currentIndex, smartStartInfo, calculateSmartStart, activeTabId, updateTab]);
+  }, [scrollItems.length, currentIndex, smartStartInfo, calculateSmartStart, activeTabId, updateTab, toast]);
 
   // Save current position to session storage and tab data
   useEffect(() => {
@@ -519,13 +525,23 @@ export function QueueScrollPage() {
         }
 
         // Filter by feed inclusion/exclusion
-        const filteredRssItems = rssItemsToProcess.filter(({ feed }) => {
+        const filteredRssItems = rssItemsToProcess.filter(({ feed, item }) => {
           // Check if feed is explicitly excluded
           if (rssSettings.excludedFeedIds.includes(feed.id)) return false;
 
           // Check if feed is explicitly included (if inclusion list is not empty)
           if (rssSettings.includedFeedIds.length > 0) {
             return rssSettings.includedFeedIds.includes(feed.id);
+          }
+
+          if (rssSettings.maxItemAgeDays > 0) {
+            const publishedAt = Date.parse(item.pubDate);
+            if (!Number.isNaN(publishedAt)) {
+              const maxAgeMs = rssSettings.maxItemAgeDays * 24 * 60 * 60 * 1000;
+              if (Date.now() - publishedAt > maxAgeMs) {
+                return false;
+              }
+            }
           }
 
           return true;
@@ -1639,7 +1655,12 @@ export function QueueScrollPage() {
 
       {/* Assistant Toggle */}
       {!isMobile && renderedItem && renderedItem.type !== "flashcard" && (
-        <div className="fixed bottom-20 md:bottom-6 left-4 md:left-6 z-[70] pointer-events-auto">
+        <div
+          className={cn(
+            "fixed bottom-20 md:bottom-6 left-4 md:left-6 z-[70] transition-opacity duration-300",
+            showControls ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+        >
           <button
             onClick={toggleAssistantVisibility}
             className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-black/70 text-white rounded-lg shadow-lg hover:bg-black/80 transition-colors min-h-[44px] text-sm md:text-base"
