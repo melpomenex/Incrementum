@@ -31,6 +31,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
   const [includeInQueue, setIncludeInQueue] = useState(rssSettings.includeInQueue);
   const [percentage, setPercentage] = useState(rssSettings.percentage);
   const [maxItems, setMaxItems] = useState(rssSettings.maxItemsPerSession);
+  const [maxItemAgeDays, setMaxItemAgeDays] = useState(rssSettings.maxItemAgeDays);
   const [includedFeedIds, setIncludedFeedIds] = useState<string[]>(rssSettings.includedFeedIds);
   const [excludedFeedIds, setExcludedFeedIds] = useState<string[]>(rssSettings.excludedFeedIds);
   const [unreadOnly, setUnreadOnly] = useState(rssSettings.unreadOnly);
@@ -41,6 +42,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     setIncludeInQueue(rssSettings.includeInQueue);
     setPercentage(rssSettings.percentage);
     setMaxItems(rssSettings.maxItemsPerSession);
+    setMaxItemAgeDays(rssSettings.maxItemAgeDays);
     setIncludedFeedIds(rssSettings.includedFeedIds);
     setExcludedFeedIds(rssSettings.excludedFeedIds);
     setUnreadOnly(rssSettings.unreadOnly);
@@ -52,6 +54,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
       includeInQueue,
       percentage,
       maxItemsPerSession: maxItems,
+      maxItemAgeDays,
       includedFeedIds,
       excludedFeedIds,
       unreadOnly,
@@ -61,7 +64,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     updateSettingsCategory("rssQueue", newSettings);
     toast.success("Settings saved", "RSS queue settings have been updated");
     onClose();
-  }, [includeInQueue, percentage, maxItems, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, updateSettingsCategory, toast, onClose]);
+  }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, updateSettingsCategory, toast, onClose]);
   
   const toggleFeedInclusion = useCallback((feedId: string) => {
     setIncludedFeedIds(prev => {
@@ -206,6 +209,32 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 </p>
               </div>
               
+              {/* Auto-remove old items */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ListFilter className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">Auto-Remove Old Items</span>
+                  </div>
+                  <span className="text-sm font-medium">
+                    {maxItemAgeDays === 0 ? "Off" : `${maxItemAgeDays}d`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="14"
+                  value={maxItemAgeDays}
+                  onChange={(e) => setMaxItemAgeDays(parseInt(e.target.value))}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <p className="text-sm text-muted-foreground">
+                  {maxItemAgeDays === 0
+                    ? "Keep RSS items in the queue regardless of age"
+                    : `Hide RSS items older than ${maxItemAgeDays} day${maxItemAgeDays === 1 ? "" : "s"} from the queue`}
+                </p>
+              </div>
+
               {/* Options */}
               <div className="space-y-3">
                 <h3 className="font-medium flex items-center gap-2">

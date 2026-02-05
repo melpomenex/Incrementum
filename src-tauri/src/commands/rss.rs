@@ -28,6 +28,7 @@ pub struct RssArticle {
     pub id: String,
     pub feed_id: String,
     pub url: String,
+    pub guid: Option<String>,
     pub title: String,
     pub author: Option<String>,
     pub published_date: Option<String>,
@@ -264,6 +265,7 @@ pub async fn delete_rss_feed(id: String, repo: State<'_, Repository>) -> Result<
 pub async fn create_rss_article(
     feed_id: String,
     url: String,
+    guid: Option<String>,
     title: String,
     author: Option<String>,
     published_date: Option<String>,
@@ -272,47 +274,148 @@ pub async fn create_rss_article(
     image_url: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<RssArticle> {
-    let id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
 
-    let article = RssArticle {
-        id: id.clone(),
-        feed_id,
-        url,
-        title,
-        author,
-        published_date,
-        content,
-        summary,
-        image_url,
-        is_queued: false,
-        is_read: false,
-        date_added: now,
+    let existing_by_guid = if let Some(ref guid_value) = guid {
+        sqlx::query("SELECT * FROM rss_articles WHERE guid = ?")
+            .bind(guid_value)
+            .fetch_optional(repo.pool())
+            .await
+            .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to find RSS article: {}", e)))?
+    } else {
+        None
     };
 
-    sqlx::query(
-        r#"
-        INSERT INTO rss_articles (id, feed_id, url, title, author, published_date, content, summary, image_url, is_queued, is_read, date_added)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
-        "#,
-    )
-    .bind(&article.id)
-    .bind(&article.feed_id)
-    .bind(&article.url)
-    .bind(&article.title)
-    .bind(&article.author)
-    .bind(&article.published_date)
-    .bind(&article.content)
-    .bind(&article.summary)
-    .bind(&article.image_url)
-    .bind(article.is_queued)
-    .bind(article.is_read)
-    .bind(&article.date_added)
-    .execute(repo.pool())
-    .await
-    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create RSS article: {}", e)))?;
+    let existing_by_url = if existing_by_guid.is_none() {
+        sqlx::query("SELECT * FROM rss_articles WHERE url = ?")
+            .bind(&url)
+            .fetch_optional(repo.pool())
+            .await
+            .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to find RSS article: {}", e)))?
+    } else {
+        None
+    };
 
-    Ok(article)
+    if let Some(row) = existing_by_guid {
+        let id = row.get::<String, _>("id");
+        sqlx::query(
+            r#"
+            UPDATE rss_articles
+            SET feed_id = ?,
+                title = ?,
+                author = ?,
+                published_date = ?,
+                content = ?,
+                summary = ?,
+                image_url = ?,
+                guid = COALESCE(?, guid)
+            WHERE id = ?
+            "#,
+        )
+        .bind(&feed_id)
+        .bind(&title)
+        .bind(&author)
+        .bind(&published_date)
+        .bind(&content)
+        .bind(&summary)
+        .bind(&image_url)
+        .bind(&guid)
+        .bind(&id)
+        .execute(repo.pool())
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS article: {}", e)))?;
+    } else if let Some(row) = existing_by_url {
+        let id = row.get::<String, _>("id");
+        sqlx::query(
+            r#"
+            UPDATE rss_articles
+            SET feed_id = ?,
+                title = ?,
+                author = ?,
+                published_date = ?,
+                content = ?,
+                summary = ?,
+                image_url = ?,
+                guid = COALESCE(?, guid)
+            WHERE id = ?
+            "#,
+        )
+        .bind(&feed_id)
+        .bind(&title)
+        .bind(&author)
+        .bind(&published_date)
+        .bind(&content)
+        .bind(&summary)
+        .bind(&image_url)
+        .bind(&guid)
+        .bind(&id)
+        .execute(repo.pool())
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS article: {}", e)))?;
+    } else {
+        let id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"
+            INSERT INTO rss_articles (id, feed_id, url, guid, title, author, published_date, content, summary, image_url, is_queued, is_read, date_added)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            "#,
+        )
+        .bind(&id)
+        .bind(&feed_id)
+        .bind(&url)
+        .bind(&guid)
+        .bind(&title)
+        .bind(&author)
+        .bind(&published_date)
+        .bind(&content)
+        .bind(&summary)
+        .bind(&image_url)
+        .bind(false)
+        .bind(false)
+        .bind(&now)
+        .execute(repo.pool())
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create RSS article: {}", e)))?;
+    }
+
+    let row = if let Some(ref guid_value) = guid {
+        if let Some(row) = sqlx::query("SELECT * FROM rss_articles WHERE guid = ?")
+            .bind(guid_value)
+            .fetch_optional(repo.pool())
+            .await
+            .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to load RSS article: {}", e)))?
+        {
+            row
+        } else {
+            sqlx::query("SELECT * FROM rss_articles WHERE url = ?")
+                .bind(&url)
+                .fetch_one(repo.pool())
+                .await
+                .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to load RSS article: {}", e)))?
+        }
+    } else {
+        sqlx::query("SELECT * FROM rss_articles WHERE url = ?")
+            .bind(&url)
+            .fetch_one(repo.pool())
+            .await
+            .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to load RSS article: {}", e)))?
+    };
+
+    Ok(RssArticle {
+        id: row.get("id"),
+        feed_id: row.get("feed_id"),
+        url: row.get("url"),
+        guid: row.get("guid"),
+        title: row.get("title"),
+        author: row.get("author"),
+        published_date: row.get("published_date"),
+        content: row.get("content"),
+        summary: row.get("summary"),
+        image_url: row.get("image_url"),
+        is_queued: row.get("is_queued"),
+        is_read: row.get("is_read"),
+        date_added: row.get("date_added"),
+    })
 }
 
 /// Get articles for a feed
@@ -339,6 +442,7 @@ pub async fn get_rss_articles(
             id: row.get("id"),
             feed_id: row.get("feed_id"),
             url: row.get("url"),
+            guid: row.get("guid"),
             title: row.get("title"),
             author: row.get("author"),
             published_date: row.get("published_date"),
@@ -965,6 +1069,7 @@ pub async fn get_rss_articles_http(
             id: row.get("id"),
             feed_id: row.get("feed_id"),
             url: row.get("url"),
+            guid: row.get("guid"),
             title: row.get("title"),
             author: row.get("author"),
             published_date: row.get("published_date"),
