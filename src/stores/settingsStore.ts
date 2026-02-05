@@ -133,6 +133,7 @@ interface InterfaceSettings {
   showStats: boolean;
   compactMode: boolean;
   animationsEnabled: boolean;
+  toolbarPosition: "top" | "left" | "right";
 }
 
 /**
@@ -309,6 +310,7 @@ export const defaultSettings: Settings = {
     showStats: true,
     compactMode: false,
     animationsEnabled: true,
+    toolbarPosition: "top",
   },
   learning: {
     algorithm: "fsrs",

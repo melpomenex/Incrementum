@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTabsStore, createTabPane, normalizePane } from "../../stores";
 import { useDocumentStore } from "../../stores";
+import { useSettingsStore } from "../../stores";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
 import { VimiumNavigationProvider, useVimiumEnabled, type VimiumCommand } from "../common/VimiumNavigation";
@@ -26,6 +27,9 @@ export function MainLayout() {
   const [vimiumEnabled] = useVimiumEnabled();
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
+  
+  // Get toolbar position from settings
+  const toolbarPosition = useSettingsStore((state) => state.settings.interface.toolbarPosition);
   
   // Find the first tab pane and its active tab for keyboard navigation
   useEffect(() => {
@@ -341,6 +345,67 @@ export function MainLayout() {
     restoreTab: () => reopenLastClosedTab(),
   }), [activePaneTabId, closeTab, reopenLastClosedTab, setActiveTab]);
 
+  // Render layout based on toolbar position
+  const renderLayout = () => {
+    // Toolbar on the left
+    if (toolbarPosition === "left") {
+      return (
+        <div className="flex h-screen w-full overflow-hidden bg-background">
+          {/* Toolbar - Left side - Hidden on mobile */}
+          <div className="flex-shrink-0 hidden md:block h-full">
+            <Toolbar position="left" />
+          </div>
+
+          {/* Tabbed Interface - takes remaining space */}
+          <div className="flex-1 min-w-0" data-vimium-scroll>
+            <Tabs />
+          </div>
+
+          {/* Global Command Center */}
+          <CommandCenter />
+        </div>
+      );
+    }
+
+    // Toolbar on the right
+    if (toolbarPosition === "right") {
+      return (
+        <div className="flex h-screen w-full overflow-hidden bg-background">
+          {/* Tabbed Interface - takes remaining space */}
+          <div className="flex-1 min-w-0" data-vimium-scroll>
+            <Tabs />
+          </div>
+
+          {/* Toolbar - Right side - Hidden on mobile */}
+          <div className="flex-shrink-0 hidden md:block h-full">
+            <Toolbar position="right" />
+          </div>
+
+          {/* Global Command Center */}
+          <CommandCenter />
+        </div>
+      );
+    }
+
+    // Default: Toolbar on top
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
+        {/* Toolbar - Fixed at top - Hidden on mobile */}
+        <div className="flex-shrink-0 hidden md:block">
+          <Toolbar position="top" />
+        </div>
+
+        {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
+        <div className="flex-1 min-h-0" data-vimium-scroll>
+          <Tabs />
+        </div>
+
+        {/* Global Command Center */}
+        <CommandCenter />
+      </div>
+    );
+  };
+
   return (
     <MobileLayoutWrapper>
       <VimiumNavigationProvider
@@ -348,20 +413,7 @@ export function MainLayout() {
         commands={vimiumCommands}
         actions={vimiumActions}
       >
-        <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
-          {/* Toolbar - Fixed at top - Hidden on mobile */}
-          <div className="flex-shrink-0 hidden md:block">
-            <Toolbar />
-          </div>
-
-          {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
-          <div className="flex-1 min-h-0" data-vimium-scroll>
-            <Tabs />
-          </div>
-
-          {/* Global Command Center */}
-          <CommandCenter />
-        </div>
+        {renderLayout()}
       </VimiumNavigationProvider>
     </MobileLayoutWrapper>
   );

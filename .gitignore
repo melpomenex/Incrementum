@@ -39,3 +39,4 @@ rustc-ice-*.txt
 
 # Vagrant
 .vagrant
+*.bin

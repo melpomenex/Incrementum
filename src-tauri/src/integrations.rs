@@ -5,7 +5,7 @@
 
 use crate::error::AppError;
 use crate::database::Repository;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs;
 use tokio::net::TcpListener;
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
@@ -13,9 +13,12 @@ use futures::{StreamExt, SinkExt};
 use tokio::net::TcpStream as TokioTcpStream;
 use tokio_tungstenite::tungstenite::protocol::Role;
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
+use chrono::Utc;
 
 /// Obsidian vault configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ObsidianConfig {
     pub vault_path: String,
     pub notes_folder: String,
@@ -25,6 +28,7 @@ pub struct ObsidianConfig {
 
 /// Anki configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnkiConfig {
     pub url: String,
     pub deck_name: String,
@@ -142,16 +146,13 @@ pub async fn export_document_to_obsidian(
     let document = repo.get_document(document_id).await?
         .ok_or_else(|| AppError::NotFound(format!("Document {} not found", document_id)))?;
 
-    let vault_path = PathBuf::from(&config.vault_path);
-    let notes_path = vault_path.join(&config.notes_folder);
+    let notes_path = obsidian_notes_path(config);
 
     // Create notes folder if it doesn't exist
     fs::create_dir_all(&notes_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to create notes folder: {}", e)))?;
 
-    // Generate filename from title
-    let filename = format!("{}.md", sanitize_filename(&document.title));
-    let file_path = notes_path.join(&filename);
+    let file_path = resolve_obsidian_markdown_path(&notes_path, &document.title, &document.id)?;
 
     // Generate markdown content
     let markdown = generate_obsidian_markdown(&document);
@@ -172,14 +173,13 @@ pub async fn export_extract_to_obsidian_internal(
     let extract = repo.get_extract(extract_id).await?
         .ok_or_else(|| AppError::NotFound(format!("Extract {} not found", extract_id)))?;
 
-    let vault_path = PathBuf::from(&config.vault_path);
-    let notes_path = vault_path.join(&config.notes_folder);
+    let notes_path = obsidian_extracts_path(config);
 
     fs::create_dir_all(&notes_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to create notes folder: {}", e)))?;
 
-    let filename = format!("{}.md", sanitize_filename(extract.page_title.as_deref().unwrap_or("Untitled")));
-    let file_path = notes_path.join(&filename);
+    let title = extract.page_title.as_deref().unwrap_or("Untitled");
+    let file_path = resolve_obsidian_markdown_path(&notes_path, title, &extract.id)?;
 
     let markdown = generate_extract_markdown(&extract);
 
@@ -196,6 +196,7 @@ fn generate_obsidian_markdown(document: &crate::models::Document) -> String {
     // Frontmatter
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: {}\n", document.title));
+    markdown.push_str("incrementum-type: document\n");
     if let Some(metadata) = &document.metadata {
         if let Some(author) = &metadata.author {
             markdown.push_str(&format!("author: {}\n", author));
@@ -232,6 +233,7 @@ fn generate_extract_markdown(extract: &crate::models::Extract) -> String {
     markdown.push_str("---\n");
     let title = extract.page_title.as_deref().unwrap_or("Untitled");
     markdown.push_str(&format!("title: {}\n", title));
+    markdown.push_str("incrementum-type: extract\n");
     markdown.push_str(&format!("incrementum-id: {}\n", extract.id));
     markdown.push_str(&format!("document-id: {}\n", extract.document_id));
     markdown.push_str(&format!("disclosure-level: {}\n", extract.progressive_disclosure_level));
@@ -466,12 +468,98 @@ pub async fn import_from_obsidian_internal(
     // Parse frontmatter
     let (frontmatter, body) = parse_frontmatter(&content);
 
+    let incrementum_type = frontmatter
+        .get("incrementum-type")
+        .and_then(|v| v.as_str())
+        .map(|v| v.to_lowercase());
+
+    let is_extract = incrementum_type.as_deref() == Some("extract")
+        || frontmatter.get("document-id").is_some();
+
+    if is_extract {
+        let extract_id = frontmatter.get("incrementum-id").and_then(|v| v.as_str());
+        let document_id = frontmatter
+            .get("document-id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AppError::InvalidInput("Missing document-id for extract".to_string()))?;
+
+        let title = frontmatter
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| extract_title_from_content(&body));
+
+        let disclosure_level = frontmatter
+            .get("disclosure-level")
+            .and_then(|v| v.as_str())
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
+
+        let content = strip_extract_metadata(&body, title);
+
+        if let Some(extract_id) = extract_id {
+            if let Some(existing) = repo.get_extract(extract_id).await? {
+                let mut updated = existing.clone();
+                updated.content = content.to_string();
+                updated.page_title = Some(title.to_string());
+                updated.progressive_disclosure_level = disclosure_level;
+                updated.date_modified = Utc::now();
+                repo.update_extract(&updated).await?;
+                return Ok((existing.document_id, vec![extract_id.to_string()]));
+            }
+        }
+
+        let mut extract = crate::models::Extract::new(document_id.to_string(), content.to_string());
+        if let Some(extract_id) = extract_id {
+            extract.id = extract_id.to_string();
+        }
+        extract.page_title = Some(title.to_string());
+        extract.progressive_disclosure_level = disclosure_level;
+        extract.date_modified = Utc::now();
+        let created = repo.create_extract(&extract).await?;
+        return Ok((created.document_id, vec![created.id]));
+    }
+
     // Check if it's an Incrementum export
     if let Some(id) = frontmatter.get("incrementum-id") {
-        // Update existing document
         let document_id = id.as_str().unwrap();
-        // Implementation would update the document
-        return Ok((document_id.to_string(), vec![]));
+        if let Some(existing) = repo.get_document(document_id).await? {
+            let title = frontmatter.get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| extract_title_from_content(&body));
+
+            let mut updates = existing.clone();
+            updates.title = title.to_string();
+            updates.file_path = file_path.to_string();
+            updates.date_modified = Utc::now();
+
+            repo.update_document(document_id, &updates).await?;
+
+            let mut metadata = existing.metadata.unwrap_or(crate::models::DocumentMetadata {
+                author: None,
+                subject: None,
+                keywords: None,
+                created_at: None,
+                modified_at: None,
+                file_size: None,
+                language: None,
+                page_count: None,
+                word_count: None,
+            });
+
+            if let Some(author) = frontmatter.get("author").and_then(|v| v.as_str()) {
+                metadata.author = Some(author.to_string());
+            }
+
+            repo.update_document_content(
+                document_id,
+                body.trim(),
+                None,
+                None,
+                Some(metadata),
+            ).await?;
+
+            return Ok((document_id.to_string(), vec![]));
+        }
     }
 
     // Create new document
@@ -480,8 +568,14 @@ pub async fn import_from_obsidian_internal(
         .unwrap_or_else(|| extract_title_from_content(&body));
 
     // Create document
+    let document_id = frontmatter
+        .get("incrementum-id")
+        .and_then(|v| v.as_str())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
     let document = crate::models::Document {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: document_id,
         title: title.to_string(),
         file_path: file_path.to_string(),
         file_type: crate::models::FileType::Markdown,
@@ -563,6 +657,80 @@ fn parse_frontmatter(content: &str) -> (serde_json::Map<String, serde_json::Valu
     (frontmatter, body.to_string())
 }
 
+fn obsidian_notes_path(config: &ObsidianConfig) -> PathBuf {
+    PathBuf::from(&config.vault_path).join(&config.notes_folder)
+}
+
+fn obsidian_extracts_path(config: &ObsidianConfig) -> PathBuf {
+    if let Some(folder) = &config.dataview_folder {
+        PathBuf::from(&config.vault_path).join(folder)
+    } else {
+        obsidian_notes_path(config)
+    }
+}
+
+fn short_id(id: &str) -> String {
+    id.chars().take(8).collect::<String>()
+}
+
+fn find_obsidian_markdown_by_incrementum_id(
+    root: &Path,
+    incrementum_id: &str,
+) -> Result<Option<PathBuf>, AppError> {
+    if !root.exists() {
+        return Ok(None);
+    }
+
+    for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        if entry.path().extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+
+        let content = fs::read_to_string(entry.path())?;
+        let (frontmatter, _) = parse_frontmatter(&content);
+        if let Some(id_value) = frontmatter.get("incrementum-id").and_then(|value| value.as_str()) {
+            if id_value == incrementum_id {
+                return Ok(Some(entry.path().to_path_buf()));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+fn resolve_obsidian_markdown_path(
+    root: &Path,
+    title: &str,
+    incrementum_id: &str,
+) -> Result<PathBuf, AppError> {
+    if let Some(existing) = find_obsidian_markdown_by_incrementum_id(root, incrementum_id)? {
+        return Ok(existing);
+    }
+
+    let base_name = sanitize_filename(title);
+    let mut candidate = root.join(format!("{}.md", base_name));
+    if candidate.exists() {
+        let content = fs::read_to_string(&candidate).unwrap_or_default();
+        let (frontmatter, _) = parse_frontmatter(&content);
+        let existing_id = frontmatter.get("incrementum-id").and_then(|value| value.as_str());
+        if existing_id != Some(incrementum_id) {
+            let unique_name = format!("{} ({})", base_name, short_id(incrementum_id));
+            candidate = root.join(format!("{}.md", unique_name));
+        }
+    }
+
+    Ok(candidate)
+}
+
+fn strip_extract_metadata<'a>(body: &'a str, title: &str) -> &'a str {
+    let content = body.split("\n---\n").next().unwrap_or(body);
+    let heading = format!("## {}\n\n", title);
+    content.strip_prefix(&heading).unwrap_or(content).trim()
+}
+
 /// Extract title from content (first # heading or first line)
 fn extract_title_from_content(content: &str) -> &str {
     for line in content.lines() {
@@ -635,15 +803,126 @@ pub async fn import_from_obsidian(
 
 #[tauri::command]
 pub async fn sync_to_obsidian(
-    _config: ObsidianConfig,
-    _repo: tauri::State<'_, Repository>,
+    config: ObsidianConfig,
+    repo: tauri::State<'_, Repository>,
 ) -> Result<SyncStats, AppError> {
     // Sync all documents, extracts, and flashcards
+    let documents = repo.list_documents().await?;
+    let extracts = repo.list_all_extracts().await?;
+
+    for document in &documents {
+        export_document_to_obsidian(&document.id, &config, &repo).await?;
+    }
+
+    for extract in &extracts {
+        export_extract_to_obsidian_internal(&extract.id, &config, &repo).await?;
+    }
+
     Ok(SyncStats {
-        documents: 0,
-        extracts: 0,
+        documents: documents.len(),
+        extracts: extracts.len(),
         flashcards: 0,
     })
+}
+
+#[tauri::command]
+pub async fn sync_from_obsidian(
+    config: ObsidianConfig,
+    repo: tauri::State<'_, Repository>,
+) -> Result<SyncStats, AppError> {
+    let notes_path = obsidian_notes_path(&config);
+    let extracts_path = obsidian_extracts_path(&config);
+
+    let mut documents = 0;
+    let mut extracts = 0;
+
+    for entry in WalkDir::new(&notes_path).into_iter().filter_map(Result::ok) {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        if entry.path().extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+
+        let content = fs::read_to_string(entry.path())?;
+        let (frontmatter, _) = parse_frontmatter(&content);
+        if frontmatter.get("incrementum-id").is_none() {
+            continue;
+        }
+        let is_extract = frontmatter.get("document-id").is_some()
+            || frontmatter.get("incrementum-type").and_then(|v| v.as_str()) == Some("extract");
+        if is_extract {
+            extracts += 1;
+        } else {
+            documents += 1;
+        }
+        let _ = import_from_obsidian_internal(
+            entry.path().to_string_lossy().as_ref(),
+            &repo,
+        ).await?;
+    }
+
+    if extracts_path != notes_path {
+        for entry in WalkDir::new(&extracts_path).into_iter().filter_map(Result::ok) {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if entry.path().extension().and_then(|ext| ext.to_str()) != Some("md") {
+                continue;
+            }
+
+            let content = fs::read_to_string(entry.path())?;
+            let (frontmatter, _) = parse_frontmatter(&content);
+            if frontmatter.get("incrementum-id").is_none() {
+                continue;
+            }
+
+            let is_extract = frontmatter.get("document-id").is_some()
+                || frontmatter.get("incrementum-type").and_then(|v| v.as_str()) == Some("extract");
+            if !is_extract {
+                continue;
+            }
+
+            extracts += 1;
+            let _ = import_from_obsidian_internal(
+                entry.path().to_string_lossy().as_ref(),
+                &repo,
+            ).await?;
+        }
+    }
+
+    Ok(SyncStats {
+        documents,
+        extracts,
+        flashcards: 0,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObsidianDeleteRequest {
+    pub incrementum_id: String,
+    pub kind: String,
+}
+
+#[tauri::command]
+pub async fn delete_from_obsidian(
+    config: ObsidianConfig,
+    request: ObsidianDeleteRequest,
+) -> Result<bool, AppError> {
+    let root = if request.kind == "extract" {
+        obsidian_extracts_path(&config)
+    } else {
+        obsidian_notes_path(&config)
+    };
+
+    let path = find_obsidian_markdown_by_incrementum_id(&root, &request.incrementum_id)?
+        .ok_or_else(|| AppError::NotFound(format!("No Obsidian file found for {}", request.incrementum_id)))?;
+
+    fs::remove_file(&path)
+        .map_err(|e| AppError::IntegrationError(format!("Failed to delete file: {}", e)))?;
+
+    Ok(true)
 }
 
 #[tauri::command]
