@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Search, BookOpen, Download, Loader2, AlertCircle, ExternalLink, CheckCircle } from "lucide-react";
+import { Search, BookOpen, Download, Loader2, AlertCircle, CheckCircle, ServerOff, Globe, RefreshCw } from "lucide-react";
 import {
   searchBooks,
   downloadBook,
-  getSuggestedDownloadPath,
   getFormatDisplayName,
   type BookSearchResult,
   type BookFormat,
@@ -17,11 +16,17 @@ interface AnnaArchiveSearchProps {
 
 const AVAILABLE_FORMATS: BookFormat[] = ["pdf", "epub", "mobi", "azw3"];
 
+interface SearchError {
+  message: string;
+  type: "network" | "parse" | "not_found" | "unknown";
+  solutions: string[];
+}
+
 export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<BookSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SearchError | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<BookFormat>("epub");
   const [downloadingBookId, setDownloadingBookId] = useState<string | null>(null);
   const [importedBookIds, setImportedBookIds] = useState<Set<string>>(new Set());
@@ -35,9 +40,25 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
 
     try {
       const searchResults = await searchBooks(query, 20);
-      setResults(searchResults);
+      
+      if (searchResults.length === 0) {
+        setError({
+          message: `No books found for "${query}"`,
+          type: "not_found",
+          solutions: [
+            "Try different keywords or a shorter search term",
+            "Search by author name instead of book title",
+            "Check your spelling or try alternative spellings",
+            "Try searching by ISBN if you have it",
+            "Some books may not be available in the archive",
+          ],
+        });
+      } else {
+        setResults(searchResults);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to search books");
+      const errorMessage = err instanceof Error ? err.message : "Failed to search books";
+      setError(analyzeError(errorMessage));
     } finally {
       setIsLoading(false);
     }
@@ -58,9 +79,10 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
       setImportedBookIds((prev) => new Set(prev).add(book.id));
 
       // Notify parent component
-      onImportComplete?.(importedDoc.file_path);
+      onImportComplete?.(importedDoc.filePath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to download book");
+      const errorMessage = err instanceof Error ? err.message : "Failed to download book";
+      setError(analyzeError(errorMessage));
     } finally {
       setDownloadingBookId(null);
     }
@@ -72,10 +94,21 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
     }
   };
 
+  const handleRetry = () => {
+    if (query.trim()) {
+      handleSearch();
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Search Anna's Archive</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Search Anna's Archive</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Search millions of books from Library Genesis mirrors
+          </p>
+        </div>
         {onClose && (
           <button
             onClick={onClose}
@@ -141,9 +174,42 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
 
       {/* Error Display */}
       {error && (
-        <div className="mb-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded-md flex items-start gap-2 text-sm">
-          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
+        <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 mt-0.5">
+              {error.type === "network" && <ServerOff className="w-5 h-5 text-destructive" />}
+              {error.type === "not_found" && <Search className="w-5 h-5 text-destructive" />}
+              {error.type === "parse" && <AlertCircle className="w-5 h-5 text-destructive" />}
+              {error.type === "unknown" && <AlertCircle className="w-5 h-5 text-destructive" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-destructive mb-2">{error.message}</p>
+              
+              {error.solutions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">Suggested solutions:</p>
+                  <ul className="space-y-1">
+                    {error.solutions.map((solution, index) => (
+                      <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>{solution}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {error.type === "network" && (
+                <button
+                  onClick={handleRetry}
+                  className="mt-3 px-3 py-1.5 bg-primary text-primary-foreground rounded text-xs hover:opacity-90 flex items-center gap-1.5 w-fit"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -175,12 +241,89 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           <p className="text-sm">
             {query
               ? "No results found. Try a different search term."
-              : "Enter a search term to find books on Anna's Archive."}
+              : "Enter a search term to find books."}
           </p>
+          {!query && (
+            <p className="text-xs mt-2 max-w-sm mx-auto">
+              Anna's Archive searches through Library Genesis, a library of over 3 million freely available books. 
+              Search by title, author, or ISBN to find and download books.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * Analyze error message and return structured error info with solutions
+ */
+function analyzeError(message: string): SearchError {
+  const lowerMsg = message.toLowerCase();
+
+  // Network errors
+  if (lowerMsg.includes("failed to fetch") || 
+      lowerMsg.includes("network error") ||
+      lowerMsg.includes("connection") ||
+      lowerMsg.includes("timeout") ||
+      lowerMsg.includes("dns") ||
+      lowerMsg.includes("ssl") ||
+      lowerMsg.includes("certificate")) {
+    return {
+      message: "Unable to connect to book archive servers",
+      type: "network",
+      solutions: [
+        "Check your internet connection",
+        "The archive servers may be temporarily down - try again in a few minutes",
+        "Some networks block archive sites - try using a VPN",
+        "If using a VPN, try connecting to a different server location",
+        "Check if your firewall or antivirus is blocking the connection",
+      ],
+    };
+  }
+
+  // Parse errors
+  if (lowerMsg.includes("parse") || 
+      lowerMsg.includes("html") ||
+      lowerMsg.includes("json") ||
+      lowerMsg.includes("invalid response")) {
+    return {
+      message: "Failed to parse search results from the archive",
+      type: "parse",
+      solutions: [
+        "The archive server may have changed their layout - try again later",
+        "The server may be experiencing issues - try again in a few minutes",
+        "Try a simpler search query with fewer special characters",
+      ],
+    };
+  }
+
+  // Not found errors
+  if (lowerMsg.includes("not found") || 
+      lowerMsg.includes("no results") ||
+      lowerMsg.includes("empty")) {
+    return {
+      message: message,
+      type: "not_found",
+      solutions: [
+        "Try different keywords or a shorter search term",
+        "Search by author name instead of book title",
+        "Check your spelling or try alternative spellings",
+        "Try searching by ISBN if you have it",
+      ],
+    };
+  }
+
+  // Default unknown error
+  return {
+    message: message || "An unexpected error occurred",
+    type: "unknown",
+    solutions: [
+      "Try again in a few moments",
+      "If the problem persists, try restarting the application",
+      "Check your internet connection",
+    ],
+  };
 }
 
 interface BookResultCardProps {
@@ -192,6 +335,11 @@ interface BookResultCardProps {
 }
 
 function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDownload }: BookResultCardProps) {
+  // Generate view URL using the book's MD5
+  const viewUrl = book.md5 
+    ? `https://libgen.li/ads.php?md5=${book.md5}`
+    : null;
+
   return (
     <div className={`bg-background border border-border rounded-md p-4 hover:bg-muted/30 transition-colors ${isImported ? "border-green-500/30 bg-green-500/5" : ""}`}>
       <div className="flex gap-4">
@@ -202,6 +350,19 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
               src={book.cover_url}
               alt={book.title}
               className="w-20 h-28 object-cover rounded flex-shrink-0"
+              onError={(e) => {
+                // Hide image on error and show placeholder
+                (e.target as HTMLImageElement).style.display = 'none';
+                const parent = (e.target as HTMLImageElement).parentElement;
+                if (parent) {
+                  const placeholder = document.createElement('div');
+                  placeholder.className = 'w-20 h-28 bg-muted rounded flex items-center justify-center flex-shrink-0';
+                  placeholder.innerHTML = isImported 
+                    ? '<svg class="w-8 h-8 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                    : '<svg class="w-8 h-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>';
+                  parent.appendChild(placeholder);
+                }
+              }}
             />
             {isImported && (
               <div className="absolute inset-0 bg-green-500/20 rounded flex items-center justify-center">
@@ -229,6 +390,7 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
             {book.year && <span>{book.year}</span>}
             {book.publisher && <span>• {book.publisher}</span>}
             {book.language && <span>• {book.language}</span>}
+            {book.file_size && <span>• {book.file_size}</span>}
           </div>
           {book.description && (
             <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{book.description}</p>
@@ -242,8 +404,8 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
                 <span
                   key={format}
                   className={`px-2 py-0.5 text-xs rounded ${
-                    book.formats.includes(selectedFormat)
-                      ? "bg-primary/10 text-primary"
+                    format === selectedFormat
+                      ? "bg-primary/10 text-primary font-medium"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -254,7 +416,7 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {isImported ? (
               <div className="px-3 py-1.5 bg-green-500/10 text-green-500 rounded text-sm flex items-center gap-1.5">
                 <CheckCircle className="w-3.5 h-3.5" />
@@ -274,23 +436,29 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
                 ) : (
                   <>
                     <Download className="w-3.5 h-3.5" />
-                    Download
+                    Download {book.formats.includes(selectedFormat) ? getFormatDisplayName(selectedFormat) : ""}
                   </>
                 )}
               </button>
             )}
-            {book.isbn && (
+            {viewUrl && (
               <a
-                href={`https://annas-archive.org/isbn/${book.isbn}`}
+                href={viewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1.5 bg-muted text-muted-foreground rounded text-sm hover:bg-muted/80 flex items-center gap-1.5"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                View on Anna's Archive
+                <Globe className="w-3.5 h-3.5" />
+                View Source
               </a>
             )}
           </div>
+          
+          {!book.formats.includes(selectedFormat) && !isImported && (
+            <p className="text-xs text-amber-600 mt-1.5">
+              {getFormatDisplayName(selectedFormat)} not available for this book. Select a different format above.
+            </p>
+          )}
         </div>
       </div>
     </div>

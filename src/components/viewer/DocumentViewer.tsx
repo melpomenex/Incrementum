@@ -865,6 +865,216 @@ export function DocumentViewer({
     prevViewModeRef.current = viewMode;
   }, [viewMode, savePdfProgress]);
 
+  // Track if this tab is currently visible/active
+  const isVisibleRef = useRef(true);
+  
+  // Save position when tab becomes hidden (user switches to another tab)
+  // and restore position when tab becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden;
+      const wasVisible = isVisibleRef.current;
+      
+      console.log("[DocumentViewer] Visibility change:", { 
+        isVisible, 
+        wasVisible, 
+        documentId,
+        docType 
+      });
+      
+      if (!isVisible && wasVisible) {
+        // Tab is being hidden - save position immediately
+        console.log("[DocumentViewer] Tab hidden, saving position");
+        
+        // IMPORTANT: Flush any pending debounced scroll save before saving
+        if (scrollSaveTimeoutRef.current !== null) {
+          clearTimeout(scrollSaveTimeoutRef.current);
+          scrollSaveTimeoutRef.current = null;
+          // Persist the last scroll state immediately
+          if (lastScrollStateRef.current) {
+            persistScrollState(lastScrollStateRef.current);
+          }
+        }
+        
+        // Also call savePdfProgress for any additional cleanup
+        savePdfProgress("tab-hidden");
+        
+        // CRITICAL: Also write directly to localStorage to bypass setViewState debounce
+        // This ensures the position is available immediately when tab becomes visible again
+        if (currentDocument?.id && lastScrollStateRef.current) {
+          const state = lastScrollStateRef.current;
+          const now = Date.now();
+          
+          // Write to the view state key directly (bypassing debounce)
+          const viewStateKey = resolveViewStateKey(currentDocument.id);
+          if (viewStateKey) {
+            const viewState: ViewState = {
+              docId: currentDocument.id,
+              pageNumber: state.pageNumber,
+              scale: scaleRef.current,
+              zoomMode: zoomModeRef.current,
+              rotation: 0,
+              viewMode: viewModeRef.current,
+              dest: null,
+              scrollTop: state.scrollTop,
+              scrollLeft: state.scrollLeft,
+              scrollPercent: state.scrollPercent,
+              updatedAt: now,
+              version: 1,
+            };
+            localStorage.setItem(viewStateKey, JSON.stringify(viewState));
+            lastViewStateRef.current = viewState;
+          }
+          
+          // Also update legacy keys
+          localStorage.setItem(`document-scroll-position:${currentDocument.id}`, JSON.stringify({
+            pageNumber: state.pageNumber,
+            scrollPercent: state.scrollPercent,
+            scrollTop: state.scrollTop,
+            scrollLeft: state.scrollLeft,
+            scrollHeight: state.scrollHeight,
+            clientHeight: state.clientHeight,
+            updatedAt: now,
+          }));
+          localStorage.setItem(`pdf-position-${currentDocument.id}`, JSON.stringify({
+            type: "page",
+            page: state.pageNumber,
+            scrollTop: state.scrollTop,
+            percent: state.scrollPercent,
+            updatedAt: now
+          }));
+        }
+        
+        isVisibleRef.current = false;
+      } else if (isVisible && !wasVisible) {
+        // Tab is becoming visible again
+        console.log("[DocumentViewer] Tab visible again");
+        isVisibleRef.current = true;
+        
+        // For PDFs, we need to restore the scroll position
+        // because the PDFViewer might have reset to page 1
+        if (docType === "pdf" && currentDocument?.id) {
+          // Reset restoration state so the restoration effect will run
+          restoreScrollDoneRef.current = false;
+          restorationInProgressRef.current = true;
+          setSuppressPdfAutoScroll(true);
+          
+          // Use in-memory state first (most recent), fallback to localStorage
+          // This is needed because setViewState is debounced and localStorage might have stale data
+          let viewStateToRestore: ViewState | null = lastViewStateRef.current;
+          
+          // If no in-memory state, try localStorage
+          if (!viewStateToRestore) {
+            const viewStateKey = resolveViewStateKey(currentDocument.id);
+            viewStateToRestore = viewStateKey ? getViewState(viewStateKey) : null;
+          }
+          
+          // If still no state, try the legacy storage keys
+          if (!viewStateToRestore) {
+            const scrollStorageKey = `document-scroll-position:${currentDocument.id}`;
+            const stored = localStorage.getItem(scrollStorageKey);
+            const legacyStored = localStorage.getItem(`pdf-position-${currentDocument.id}`);
+            
+            let legacyParsed: { pageNumber?: number; scrollPercent?: number; scrollTop?: number; updatedAt?: number } | null = null;
+            if (stored) {
+              try {
+                legacyParsed = JSON.parse(stored);
+              } catch { /* ignore */ }
+            }
+            if (!legacyParsed && legacyStored) {
+              try {
+                const legacyState = JSON.parse(legacyStored);
+                legacyParsed = {
+                  pageNumber: legacyState.page ?? legacyState.pageNumber ?? 1,
+                  scrollTop: legacyState.scrollTop,
+                  scrollPercent: legacyState.percent ?? legacyState.scrollPercent,
+                  updatedAt: legacyState.updatedAt
+                };
+              } catch { /* ignore */ }
+            }
+            
+            if (legacyParsed) {
+              viewStateToRestore = {
+                docId: currentDocument.id,
+                pageNumber: legacyParsed.pageNumber ?? 1,
+                scale: scaleRef.current,
+                zoomMode: zoomModeRef.current,
+                rotation: 0,
+                viewMode: viewModeRef.current,
+                dest: null,
+                scrollTop: legacyParsed.scrollTop ?? null,
+                scrollLeft: null,
+                scrollPercent: legacyParsed.scrollPercent ?? null,
+                updatedAt: legacyParsed.updatedAt ?? Date.now(),
+                version: 1,
+              };
+            }
+          }
+          
+          if (viewStateToRestore) {
+            console.log("[DocumentViewer] Restoring position on tab visibility:", viewStateToRestore);
+            pendingViewStateRef.current = viewStateToRestore;
+            lastViewStateRef.current = viewStateToRestore;
+            currentPageRef.current = viewStateToRestore.pageNumber;
+            setRestoreState(viewStateToRestore);
+            
+            if (viewStateToRestore.zoomMode) {
+              setZoomMode(viewStateToRestore.zoomMode);
+            }
+            if (typeof viewStateToRestore.scale === "number") {
+              setScale(viewStateToRestore.scale);
+            }
+            if (typeof viewStateToRestore.pageNumber === "number" && viewStateToRestore.pageNumber > 0) {
+              setPageNumber(viewStateToRestore.pageNumber);
+            }
+          }
+        }
+      }
+    };
+
+    // Also handle pagehide event (fires when page is being unloaded/navigated away)
+    const handlePageHide = () => {
+      console.log("[DocumentViewer] Page hide, saving position");
+      
+      // Flush any pending debounced save before page hides
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current);
+        scrollSaveTimeoutRef.current = null;
+        if (lastScrollStateRef.current) {
+          persistScrollState(lastScrollStateRef.current);
+        }
+      }
+      
+      savePdfProgress("pagehide");
+    };
+
+    // Handle beforeunload as an extra safety measure (especially for desktop browsers)
+    const handleBeforeUnload = () => {
+      console.log("[DocumentViewer] Before unload, saving position");
+      
+      // Flush any pending debounced save
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current);
+        scrollSaveTimeoutRef.current = null;
+        if (lastScrollStateRef.current) {
+          persistScrollState(lastScrollStateRef.current);
+        }
+      }
+      
+      savePdfProgress("beforeunload");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [documentId, docType, currentDocument?.id, savePdfProgress, resolveViewStateKey, persistScrollState]);
+
   // Parse URL fragment and restore state after document is loaded
   useEffect(() => {
     if (!currentDocument || !documentId || !enablePdfUrlSync) return;
@@ -1233,24 +1443,7 @@ export function DocumentViewer({
     loadQueue();
   }, [loadQueue]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        savePdfProgress("visibilitychange");
-      }
-    };
-    const handlePageHide = () => {
-      savePdfProgress("pagehide");
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", handlePageHide);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pagehide", handlePageHide);
-    };
-  }, [savePdfProgress]);
+  // Note: visibilitychange handling is done in the effect above with restoration logic
 
 
   useEffect(() => {
@@ -1260,6 +1453,7 @@ export function DocumentViewer({
       }
       if (scrollSaveTimeoutRef.current !== null) {
         clearTimeout(scrollSaveTimeoutRef.current);
+        scrollSaveTimeoutRef.current = null;
       }
 
       const storageKey = lastScrollMetaRef.current?.storageKey;
@@ -1270,17 +1464,20 @@ export function DocumentViewer({
         return;
       }
 
-      // Try to capture current scroll state from DOM (PDF might still be mounted)
+      // Always try to capture the latest scroll state from DOM first
+      // This is more reliable than the debounced ref which might be stale
       let stateToSave = lastScrollStateRef.current;
-
-      if (!stateToSave) {
-        // Fallback: try reading from DOM, then use current page number
-        const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
-        if (container) {
-          const scrollTop = container.scrollTop;
-          const scrollLeft = container.scrollLeft;
-          const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-          const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+      
+      // Try reading from DOM first - the scroll container might still be available
+      const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
+      if (container) {
+        const scrollTop = container.scrollTop;
+        const scrollLeft = container.scrollLeft;
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+        
+        // Only use DOM values if they seem valid (scrollTop > 0 or we have no better data)
+        if (scrollTop > 0 || !stateToSave) {
           stateToSave = {
             pageNumber: currentPageRef.current,
             scrollTop,
@@ -1289,23 +1486,34 @@ export function DocumentViewer({
             clientHeight: container.clientHeight,
             scrollPercent,
           };
-          console.log("[DocumentViewer] Cleanup - captured from DOM:", stateToSave);
+          console.log("[DocumentViewer] Cleanup - captured fresh from DOM:", stateToSave);
+        }
+      }
+
+      if (!stateToSave) {
+        // Fallback: try using last view state
+        const fallbackViewState = lastViewStateRef.current;
+        if (fallbackViewState) {
+          stateToSave = {
+            pageNumber: fallbackViewState.pageNumber ?? currentPageRef.current,
+            scrollTop: fallbackViewState.scrollTop ?? 0,
+            scrollLeft: fallbackViewState.scrollLeft ?? 0,
+            scrollHeight: 0,
+            clientHeight: 0,
+            scrollPercent: fallbackViewState.scrollPercent ?? 0,
+          };
+          console.log("[DocumentViewer] Cleanup - captured from last view state:", stateToSave);
         } else {
-          const fallbackViewState = lastViewStateRef.current;
-          if (fallbackViewState) {
-            stateToSave = {
-              pageNumber: fallbackViewState.pageNumber ?? currentPageRef.current,
-              scrollTop: fallbackViewState.scrollTop ?? 0,
-              scrollLeft: fallbackViewState.scrollLeft ?? 0,
-              scrollHeight: 0,
-              clientHeight: 0,
-              scrollPercent: fallbackViewState.scrollPercent ?? 0,
-            };
-            console.log("[DocumentViewer] Cleanup - captured from last view state:", stateToSave);
-          } else {
-            console.log("[DocumentViewer] Cleanup - no scroll state available, skipping save");
-            return;
-          }
+          // Last resort: use current page ref
+          stateToSave = {
+            pageNumber: currentPageRef.current,
+            scrollTop: 0,
+            scrollLeft: 0,
+            scrollHeight: 0,
+            clientHeight: 0,
+            scrollPercent: 0,
+          };
+          console.log("[DocumentViewer] Cleanup - using current page ref:", stateToSave);
         }
       }
 
@@ -1326,7 +1534,6 @@ export function DocumentViewer({
       
       // Also sync to PDFViewer's legacy key
       if (documentId) {
-        // We can't easily check docType here without ref, but we can assume safe to write if we have data
         const legacyPayload = {
           type: "page",
           page: stateToSave.pageNumber,
