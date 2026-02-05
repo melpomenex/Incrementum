@@ -21,6 +21,7 @@ Incrementum provides Optical Character Recognition (OCR) capabilities to extract
 | Provider | Type | Best For | Internet Required |
 |----------|------|----------|-------------------|
 | **Tesseract** | Local | General text, on-device privacy | No |
+| **GLM-Ocr** | Local | High-quality document OCR, CPU or GPU | No |
 | **Google Cloud Vision** | Cloud | High accuracy, multiple languages | Yes |
 | **AWS Textract** | Cloud | Documents, tables, forms | Yes |
 | **Mistral OCR** | Cloud | Modern AI-based extraction | Yes |
@@ -31,6 +32,58 @@ Incrementum provides Optical Character Recognition (OCR) capabilities to extract
 ---
 
 ## Setup Guide
+
+### GLM-Ocr (Local AI OCR)
+
+GLM-Ocr is a high-quality local OCR model that runs entirely on your device. It provides excellent accuracy for document text extraction without sending data to external servers.
+
+#### Deployment Options
+
+**CPU Mode (Default)**
+- Runs on any modern CPU
+- No GPU required
+- Slower but highly accurate
+- Ideal for privacy-sensitive documents
+
+**GPU Mode (vLLM)**
+- Requires NVIDIA GPU with CUDA support
+- Significantly faster processing
+- Recommended for batch OCR workflows
+- Deploy via vLLM for optimized inference
+
+#### Setup
+
+1. **Install GLM-Ocr** (one-time setup):
+   ```bash
+   # CPU deployment
+   pip install glm-ocr
+   
+   # GPU deployment with vLLM
+   pip install glm-ocr vllm
+   ```
+
+2. **Start the local server**:
+   ```bash
+   # CPU mode
+   glm-ocr-server --port 8000
+   
+   # GPU mode with vLLM
+   glm-ocr-server --port 8000 --backend vllm --device cuda
+   ```
+
+3. In Incrementum: **Settings → OCR → GLM-Ocr**
+4. Enter server URL (default: `http://localhost:8000`)
+5. Test with a sample image
+
+#### Features
+
+- **High Accuracy**: State-of-the-art text recognition
+- **Document Optimized**: Excellent for scanned documents and PDFs
+- **Multi-language**: Supports 100+ languages automatically
+- **Layout Preservation**: Maintains paragraph and line structure
+- **Private**: All processing happens locally
+
+---
 
 ### Tesseract (Local OCR)
 
@@ -266,6 +319,7 @@ Google Cloud Vision, AWS Textract, and AI providers support most languages autom
 
 2. **Choose the right provider**:
    - Clear printed text: Tesseract (free, private)
+   - High-quality documents: GLM-Ocr (local AI)
    - Handwriting: GPT-4o Vision or Google Cloud
    - Equations: Mathpix
    - Tables/forms: AWS Textract
@@ -287,6 +341,7 @@ Google Cloud Vision, AWS Textract, and AI providers support most languages autom
 | Provider | Cost | Limitations |
 |----------|------|-------------|
 | Tesseract | Free | Requires local installation, lower accuracy on poor quality images |
+| GLM-Ocr | Free | Requires local setup, GPU recommended for best performance |
 
 ### Cloud Pricing (as of 2026)
 
@@ -340,6 +395,7 @@ Google Cloud Vision, AWS Textract, and AI providers support most languages autom
 | Provider | Data Privacy |
 |----------|-------------|
 | Tesseract | ✅ Local processing - most private |
+| GLM-Ocr | ✅ Local processing - most private |
 | Google Cloud Vision | ⚠️ Sent to Google servers |
 | AWS Textract | ⚠️ Sent to AWS servers |
 | Mistral OCR | ⚠️ Sent to Mistral servers |
@@ -347,7 +403,7 @@ Google Cloud Vision, AWS Textract, and AI providers support most languages autom
 | GPT-4o | ⚠️ Sent to OpenAI servers |
 | Claude | ⚠️ Sent to Anthropic servers |
 
-**Recommendation**: Use Tesseract for sensitive documents.
+**Recommendation**: Use Tesseract or GLM-Ocr for sensitive documents (both process locally).
 
 ---
 
@@ -412,7 +468,7 @@ const extractedText = await invoke('ocr_image', {
 
 Planned OCR improvements:
 
-- [ ] On-device ML models (no cloud required)
+- [x] On-device ML models (no cloud required) ✅ GLM-Ocr
 - [ ] Real-time camera OCR
 - [ ] Batch processing improvements
 - [ ] Custom model training
@@ -420,4 +476,198 @@ Planned OCR improvements:
 
 ---
 
-*Last updated: January 2026*
+# Audio & Video Features
+
+Incrementum includes powerful audio and video processing capabilities for importing and working with multimedia content.
+
+---
+
+## Audiobook Import
+
+Import audiobooks and automatically transcribe them for study and review.
+
+### Supported Formats
+
+- **MP3** - Common audiobook format
+- **M4B** - Apple audiobook format with chapter support
+- **AAC** - Advanced Audio Coding
+- **FLAC** - Lossless audio compression
+- **WAV** - Uncompressed audio
+
+### Import Process
+
+1. Click **Documents → Import → Audiobook**
+2. Select your audiobook file(s)
+3. Configure import options:
+   - **Transcribe**: Enable automatic speech-to-text
+   - **Provider**: Choose transcription service (Groq, Local Whisper, etc.)
+   - **Language**: Select audio language for better accuracy
+   - **Split by chapters**: Create separate documents per chapter
+4. Review and save imported content
+
+### Audiobook Features
+
+**Chapter Detection**
+- Automatically detects chapters from M4B metadata
+- Creates separate documents for each chapter
+- Preserves chapter titles and ordering
+
+**Progress Tracking**
+- Syncs playback position with reading progress
+- Resume listening where you left off
+- Visual progress indicator in document list
+
+**Transcription Integration**
+- Full text transcription available alongside audio
+- Search within transcribed content
+- Create extracts from specific sections
+
+---
+
+## Video Transcription
+
+Extract and transcribe audio from video files for studying lectures, tutorials, and presentations.
+
+### Supported Formats
+
+- **MP4** - Standard video format
+- **MKV** - Matroska container
+- **AVI** - Audio Video Interleave
+- **MOV** - QuickTime format
+- **WEBM** - Web video format
+
+### Local Video Player
+
+The built-in video player provides a seamless study experience:
+
+**Playback Controls**
+- Standard play/pause, seek, volume controls
+- Keyboard shortcuts (Space to play/pause, arrow keys to seek)
+- Speed control: 0.5x to 2.5x playback speed
+
+**Transcript View**
+- Synchronized transcript alongside video
+- Click any transcript line to jump to that timestamp
+- Search and filter transcript content
+- Auto-scroll follows video playback
+
+**Video Clipping**
+- Create clips from specific video segments
+- Define start and end timestamps
+- Extract clips as separate documents
+- Preserve clip context and source reference
+
+### Transcription Providers
+
+| Provider | Type | Speed | Quality | Setup |
+|----------|------|-------|---------|-------|
+| **Groq** | Cloud | Very Fast | Excellent | API key required |
+| **Local Whisper** | Local | Medium | Good | Runs on your device |
+| **OpenAI Whisper** | Cloud | Fast | Excellent | API key required |
+
+#### Groq Transcription (Recommended)
+
+Fastest option with excellent accuracy:
+1. Get API key from [Groq Console](https://console.groq.com/)
+2. Enter key in **Settings → Transcription → Groq**
+3. Select model: `whisper-large-v3` or `distil-whisper`
+
+#### Local Whisper
+
+Fully private transcription on your device:
+1. Download Whisper model (tiny, base, small, medium, large)
+2. Runs on CPU (any device) or GPU (NVIDIA with CUDA)
+3. No internet required after model download
+4. Configure in **Settings → Transcription → Local Whisper**
+
+### Chapter Detection
+
+Automatically detect and extract chapters from video files:
+
+**Supported Sources**
+- YouTube videos (with chapter timestamps)
+- Local video files with embedded chapters
+- Manually defined chapter markers
+
+**Chapter Features**
+- Creates document outline from chapters
+- Navigate between chapters easily
+- Extract individual chapters as separate documents
+- Preserve chapter hierarchy
+
+### Using Video Content
+
+**Creating Extracts**
+1. Watch video with transcript visible
+2. Select text in transcript
+3. Click **Extract** to create extract with timestamp
+4. Extract includes video reference for context
+
+**Flashcards from Video**
+1. Pause at key moment
+2. Create extract from transcript
+3. Generate flashcards from extract
+4. Review includes timestamp link back to video
+
+**Video Clips**
+1. Select video segment (start/end timestamps)
+2. Click **Create Clip**
+3. Clip appears as separate document
+4. Original context preserved
+
+---
+
+## YouTube Integration
+
+Import YouTube videos with automatic metadata extraction and transcription.
+
+### Import Methods
+
+**URL Import**
+1. Copy YouTube video URL
+2. Click **Documents → Import → YouTube URL**
+3. Paste URL and confirm
+4. Metadata (title, description, chapters) auto-fetched
+
+**Browser Tab**
+1. Open **Browser** tab
+2. Navigate to YouTube video
+3. Click **Import** button when prompted
+4. Video added to library with transcription
+
+### YouTube Features
+
+- **Automatic Transcription**: Full transcript extraction
+- **Chapter Support**: Recognizes YouTube chapter markers
+- **Thumbnail Import**: Saves video thumbnail as cover
+- **Description Preservation**: Full video description included
+- **Comments (Optional)**: Import top comments for context
+
+---
+
+## Transcription Notifications
+
+Receive toast notifications when transcription completes:
+
+- **Progress Indicator**: Shows transcription status
+- **Completion Toast**: "Transcription complete" with Open button
+- **Error Handling**: Clear error messages if transcription fails
+- **Background Processing**: Continue using app during transcription
+
+---
+
+## Privacy Considerations
+
+| Feature | Local Processing | Cloud Processing |
+|---------|-----------------|------------------|
+| Audiobook Import | ✅ File stays local | ⚠️ Only if transcribed via cloud |
+| Local Video | ✅ Fully local | ⚠️ Only if transcribed via cloud |
+| YouTube Videos | N/A | ⚠️ Fetched from YouTube servers |
+| Local Whisper | ✅ Fully private | N/A |
+| Groq Transcription | N/A | ⚠️ Sent to Groq servers |
+
+**Recommendation**: Use Local Whisper for maximum privacy with audio/video content.
+
+---
+
+*Last updated: February 2026*

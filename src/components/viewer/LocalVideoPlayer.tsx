@@ -120,6 +120,8 @@ export function LocalVideoPlayer({
   const lastSavedTimeRef = useRef(0);
   const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const documentIdRef = useRef(documentId);
+  const currentTimeRef = useRef(0); // Track current time for unmount save
+  const durationRef = useRef(0); // Track duration for unmount save
 
   // Update refs when values change
   useEffect(() => {
@@ -129,6 +131,10 @@ export function LocalVideoPlayer({
   useEffect(() => {
     startTimeRef.current = startTime;
   }, [startTime]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
 
   // Persist playback rate to localStorage
   useEffect(() => {
@@ -396,12 +402,27 @@ export function LocalVideoPlayer({
   // Save position when unmounting or pausing
   useEffect(() => {
     return () => {
-      // Save on unmount
-      if (videoRef.current && documentIdRef.current) {
-        savePosition(videoRef.current.currentTime);
+      // Save on unmount using the ref value (videoRef may be null by now)
+      if (documentIdRef.current && currentTimeRef.current > 0) {
+        // Use a synchronous approach for unmount to ensure it completes
+        const timeToSave = Math.floor(currentTimeRef.current);
+        const docId = documentIdRef.current;
+        // Avoid saving if time hasn't changed significantly
+        if (Math.abs(timeToSave - lastSavedTimeRef.current) >= 1) {
+          console.log("[LocalVideoPlayer] Saving position on unmount:", {
+            documentId: docId,
+            time: timeToSave,
+          });
+          // Fire and forget - don't await since we're in cleanup
+          void updateDocumentProgressAuto(docId, timeToSave);
+          if (typeof window !== "undefined" && "__TAURI__" in window) {
+            void saveDocumentPosition(docId, timePosition(timeToSave, durationRef.current));
+          }
+        }
       }
     };
-  }, [savePosition]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run on unmount, use refs for values
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -611,6 +632,7 @@ export function LocalVideoPlayer({
     if (!videoRef.current) return;
     const time = videoRef.current.currentTime;
     setCurrentTime(time);
+    currentTimeRef.current = time; // Keep ref updated for unmount save
 
     if (
       activeExtractStartTime !== null

@@ -818,6 +818,7 @@ interface BackendRssArticle {
   id: string;
   feed_id: string;
   url: string;
+  guid: string | null;
   title: string;
   author: string | null;
   published_date: string | null;
@@ -846,6 +847,7 @@ interface TauriRssArticle {
   id: string;
   feed_id: string;
   url: string;
+  guid: string | null;
   title: string;
   author: string | null;
   published_date: string | null;
@@ -882,7 +884,7 @@ function backendFeedToFrontend(feed: BackendRssFeed & { unread_count?: number },
       pubDate: item.published_date || item.date_added,
       author: item.author || undefined,
       categories: [],
-      guid: item.id,
+      guid: item.guid || undefined,
       read: item.is_read,
       favorite: false,
       feedId: feed.id,
@@ -914,7 +916,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
       pubDate: item.published_date || item.date_added,
       author: item.author || undefined,
       categories: [],
-      guid: item.id,
+      guid: item.guid || undefined,
       read: item.is_read,
       favorite: false,
       feedId: feed.id,
@@ -983,6 +985,7 @@ async function createArticlesViaTauri(feedId: string, items: FeedItem[]): Promis
         feedId,
         feed_id: feedId,
         url: item.link,
+        guid: item.guid || null,
         title: item.title,
         author: item.author || null,
         publishedDate: item.pubDate || null,
