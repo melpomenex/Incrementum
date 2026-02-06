@@ -600,6 +600,7 @@ pub async fn import_from_obsidian_internal(
         priority_score: 0.0,
         is_archived: false,
         is_favorite: false,
+        is_dismissed: false,
         metadata: Some(crate::models::DocumentMetadata {
             author: frontmatter.get("author").and_then(|v| v.as_str()).map(|s| s.to_string()),
             subject: None,

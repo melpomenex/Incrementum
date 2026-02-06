@@ -41,6 +41,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url
 ).toString();
 
+// Suppress verbose PDF.js warnings (Unicode mismatch, unknown glyph name, etc.)
+// Only show errors, not warnings or info messages
+(pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
+
 type CommandHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
 /**
@@ -99,7 +103,7 @@ async function extractEpubText(data: ArrayBuffer): Promise<string> {
  */
 async function extractPdfText(data: ArrayBuffer): Promise<string> {
     try {
-        const loadingTask = pdfjsLib.getDocument({ data });
+        const loadingTask = pdfjsLib.getDocument({ data, verbosity: 0 });
         const pdfDoc = await loadingTask.promise;
         const numPages = pdfDoc.numPages;
         const textParts: string[] = [];

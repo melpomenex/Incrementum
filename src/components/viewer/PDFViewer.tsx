@@ -19,6 +19,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
+// Suppress verbose PDF.js warnings (Unicode mismatch, unknown glyph name, etc.)
+// Only show errors, not warnings or info messages
+(pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
+
 interface PDFViewerProps {
   documentId: string;
   fileData: Uint8Array;
@@ -186,7 +190,7 @@ export function PDFViewer({
       setError(null);
 
       try {
-        const loadingTask = pdfjsLib.getDocument({ data: fileData.slice() });
+        const loadingTask = pdfjsLib.getDocument({ data: fileData.slice(), verbosity: 0 });
         const pdfDoc = await loadingTask.promise;
 
         if (!mounted) return;

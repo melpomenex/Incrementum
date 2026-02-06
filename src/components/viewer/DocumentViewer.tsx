@@ -143,6 +143,11 @@ function extractYouTubeId(urlOrId: string): string {
 interface DocumentViewerProps {
   documentId: string;
   disableHoverRating?: boolean;
+  /**
+   * When true, the viewer is being rendered inside another reading surface
+   * (eg Scroll Mode) and should not render its own top chrome.
+   */
+  embedded?: boolean;
   onSelectionChange?: (selection: string) => void;
   onScrollPositionChange?: (state: { pageNumber: number; scrollPercent: number }) => void;
   initialViewMode?: ViewMode;
@@ -164,6 +169,7 @@ interface DocumentViewerProps {
 export function DocumentViewer({
   documentId,
   disableHoverRating = false,
+  embedded = false,
   onSelectionChange,
   onScrollPositionChange,
   initialViewMode,
@@ -2258,6 +2264,7 @@ export function DocumentViewer({
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
+      {!embedded && (
       <div className="flex items-center justify-between p-4 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           <button
@@ -2569,6 +2576,7 @@ export function DocumentViewer({
           )}
         </div>
       </div>
+      )}
 
       {/* Content Area */}
       <div 
@@ -2805,12 +2813,13 @@ export function DocumentViewer({
             onRatingSubmitted={handleRating}
             position="absolute"
             disableBackdropBlur={docType === "epub"}
+            compactMode={docType === "epub" && isPWA()}
           />
         )}
       </div>
 
       {/* Floating Rating Bubbles for Audiobooks */}
-      {viewMode === "document" && docType === "audio" && hasDocumentHistory && (
+      {viewMode === "document" && docType === "audio" && hasDocumentHistory && !embedded && (
         <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
           {[
             { value: 1, label: "A", title: "Again", color: "bg-red-500 hover:bg-red-600", shadow: "shadow-red-500/30" },

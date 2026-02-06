@@ -131,15 +131,15 @@ pub async fn import_collection_archive(
                 total_pages, current_page, current_scroll_percent, current_cfi, current_view_state,
                 position_json, progress_percent, category, tags, date_added, date_modified, date_last_reviewed,
                 extract_count, learning_item_count, priority_rating, priority_slider, priority_score,
-                is_archived, is_favorite, metadata, cover_image_url, cover_image_source,
+                is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source,
                 next_reading_date, reading_count, stability, difficulty, reps, total_time_spent, consecutive_count
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6,
                 ?7, ?8, ?9, ?10, ?11,
                 ?12, ?13, ?14, ?15, ?16, ?17, ?18,
                 ?19, ?20, ?21, ?22, ?23,
-                ?24, ?25, ?26, ?27, ?28,
-                ?29, ?30, ?31, ?32, ?33, ?34, ?35
+                ?24, ?25, ?26, ?27, ?28, ?29,
+                ?30, ?31, ?32, ?33, ?34, ?35, ?36
             )
             "#,
         )
@@ -168,6 +168,7 @@ pub async fn import_collection_archive(
         .bind(doc.priority_score)
         .bind(doc.is_archived)
         .bind(doc.is_favorite)
+        .bind(doc.is_dismissed)
         .bind(metadata_json)
         .bind(&doc.cover_image_url)
         .bind(&doc.cover_image_source)

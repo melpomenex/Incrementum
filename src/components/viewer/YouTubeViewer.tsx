@@ -92,12 +92,13 @@ export function YouTubeViewer({
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
-  
+
   // SponsorBlock state
   const [segments, setSegments] = useState<SponsorBlockSegment[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSkippedSegmentIdRef = useRef<string | null>(null);
+  const playerReadyRef = useRef(false);
 
   // Video features panel state
   const [showVideoFeatures, setShowVideoFeatures] = useState(false);
@@ -117,6 +118,11 @@ export function YouTubeViewer({
   useEffect(() => {
     documentIdRef.current = documentId;
   }, [documentId]);
+
+  // Reset player ready state when videoId changes
+  useEffect(() => {
+    playerReadyRef.current = false;
+  }, [videoId]);
 
   useEffect(() => {
     onTranscriptLoadRef.current = onTranscriptLoad;
@@ -347,20 +353,43 @@ export function YouTubeViewer({
   useEffect(() => {
     if (!documentId) return;
     if (typeof initialSeekTime === "number" && initialSeekTime >= 0) return;
-    
+
     (async () => {
       try {
         const doc = await getDocumentAuto(documentId);
         const savedTime = doc?.current_page ?? doc?.currentPage;
         if (savedTime !== null && savedTime !== undefined && savedTime >= 3) {
+          console.log(`[YouTubeViewer] Restoring video position: ${savedTime}s`);
           setStartTime(savedTime);
-          console.log(`Restoring video position: ${savedTime}s`);
+          // If player is already ready, seek immediately
+          if (playerReadyRef.current && playerRef.current) {
+            playerRef.current.seekTo(savedTime, true);
+            console.log(`[YouTubeViewer] Seeked to loaded position: ${savedTime}s`);
+          }
         }
       } catch (error) {
         console.log("Failed to load saved position:", error);
       }
     })();
   }, [documentId]);
+
+  // Seek when startTime changes and player is ready
+  // This handles the case where saved position loads after player is ready
+  useEffect(() => {
+    if (startTime > 0 && playerReadyRef.current && playerRef.current) {
+      // Only seek if current time is still at the beginning (or close to it)
+      // This prevents overwriting user navigation
+      playerRef.current.getCurrentTime().then((currentTime: number) => {
+        if (currentTime < 1) {
+          playerRef.current?.seekTo(startTime, true);
+          console.log(`[YouTubeViewer] Seeked to startTime after player ready: ${startTime}s`);
+        }
+      }).catch(() => {
+        // If getCurrentTime fails, just seek
+        playerRef.current?.seekTo(startTime, true);
+      });
+    }
+  }, [startTime]);
 
   // Save current position to document
   const saveCurrentPosition = useCallback(async (time: number) => {
@@ -382,29 +411,31 @@ export function YouTubeViewer({
   useEffect(() => {
     if (!isPlaying || !playerRef.current) return;
 
+    // Use a longer interval to reduce cross-origin iframe calls
+    // 1000ms is sufficient for position updates and segment checking
     const intervalId = setInterval(async () => {
       try {
         const time = await playerRef.current.getCurrentTime();
         setCurrentTime(time);
-        
+
         // Notify parent
         onTimeUpdate?.(time);
-        
-        // Save position periodically (every 5 seconds roughly via saveCurrentPosition check)
+
+        // Save position periodically (throttled inside saveCurrentPosition)
         saveCurrentPosition(time);
 
         // Check SponsorBlock segments
         if (segments.length > 0) {
           for (const segment of segments) {
             const [start, end] = segment.segment;
-            
+
             // If current time is within a segment and we haven't just skipped it
             if (time >= start && time < end) {
               if (lastSkippedSegmentIdRef.current !== segment.UUID) {
                 // Skip segment
                 playerRef.current.seekTo(end, true);
                 lastSkippedSegmentIdRef.current = segment.UUID;
-                
+
                 // Show toast
                 const categoryName = getCategoryDisplayName(segment.category);
                 toast.info(`Skipped ${categoryName}`, "SponsorBlock");
@@ -430,7 +461,7 @@ export function YouTubeViewer({
       } catch (e) {
         // Ignore errors from player (e.g. if it's not ready)
       }
-    }, 500);
+    }, 1000); // Increased from 500ms to 1000ms to reduce cross-origin calls
 
     return () => clearInterval(intervalId);
   }, [
@@ -527,11 +558,14 @@ export function YouTubeViewer({
   // YouTube Player Event Handlers
   const onPlayerReady = (event: any) => {
     playerRef.current = event.target;
-    setDuration(event.target.getDuration());
-    
-    // Resume at start time if set
+    playerReadyRef.current = true;
+    const playerDuration = event.target.getDuration();
+    setDuration(playerDuration);
+
+    // Resume at start time if set (either from saved position or initial seek)
     if (startTime > 0) {
       event.target.seekTo(startTime, true);
+      console.log(`[YouTubeViewer] onPlayerReady: Seeked to startTime: ${startTime}s`);
     }
 
     if (autoPlayOnOpen) {
@@ -606,6 +640,7 @@ export function YouTubeViewer({
         {showInlinePlayer ? (
           <div className="absolute inset-0 w-full h-full">
             <YouTube
+              key={videoId}
               videoId={videoId}
               opts={youtubeOpts}
               onReady={onPlayerReady}

@@ -838,19 +838,8 @@ export function LocalVideoPlayer({
   }, [duration, toast]);
 
   // Handle video click to toggle play/pause
-  const handleVideoClick = useCallback((e: React.MouseEvent) => {
-    // Only toggle if clicking directly on the video element, not controls
-    if (e.target === videoRef.current) {
-      togglePlay();
-    }
-  }, []);
-
-  // Handle double click to toggle fullscreen
-  const handleVideoDoubleClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === videoRef.current) {
-      toggleFullscreen();
-    }
-  }, []);
+  // Note: click/dblclick handlers are attached to the container so clicks on letterboxed
+  // areas (not just the <video> pixels) still work. Controls opt-out via data attr.
 
   const mediaElement = mediaType === "audio" ? (
     <audio
@@ -896,11 +885,9 @@ export function LocalVideoPlayer({
       }}
       // Use timeupdate as fallback for browsers without requestVideoFrameCallback
       onTimeUpdate={() => {
-        if (!videoRef.current || typeof videoRef.current.requestVideoFrameCallback === 'function') {
-          return; // Skip if rAF is handling updates
-        }
         handleTimeUpdate();
       }}
+      onSeeked={() => handleTimeUpdate()}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
@@ -973,11 +960,9 @@ export function LocalVideoPlayer({
       }}
       // Use timeupdate as fallback for browsers without requestVideoFrameCallback
       onTimeUpdate={() => {
-        if (!videoRef.current || typeof videoRef.current.requestVideoFrameCallback === 'function') {
-          return; // Skip if rAF is handling updates
-        }
         handleTimeUpdate();
       }}
+      onSeeked={() => handleTimeUpdate()}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
@@ -1007,8 +992,6 @@ export function LocalVideoPlayer({
         toast.error('Video Error', userFriendlyMessage);
       }}
       onWheel={handleScroll}
-      onClick={handleVideoClick}
-      onDoubleClick={handleVideoDoubleClick}
     />
   );
 
@@ -1034,6 +1017,16 @@ export function LocalVideoPlayer({
           transcriptLayout === 'side' && showTranscript ? "h-full" : "w-full"
         )}
         style={transcriptLayout === 'side' && showTranscript ? { flex: 1 } : undefined}
+        onClick={(e) => {
+          const target = e.target as Element | null;
+          if (target?.closest?.('[data-local-video-controls="true"]')) return;
+          void togglePlay();
+        }}
+        onDoubleClick={(e) => {
+          const target = e.target as Element | null;
+          if (target?.closest?.('[data-local-video-controls="true"]')) return;
+          toggleFullscreen();
+        }}
       >
         {/* Media Element */}
         {mediaElement}
@@ -1106,7 +1099,10 @@ export function LocalVideoPlayer({
               : "bg-gradient-to-b from-black/30 via-transparent to-black/50"
           )}
         >
-          <div className="pointer-events-auto flex h-full flex-col justify-between">
+          <div
+            className="pointer-events-auto flex h-full flex-col justify-between"
+            data-local-video-controls="true"
+          >
         {/* Top Controls */}
         <div className="flex items-center justify-between">
           <div className={cn("text-sm truncate", mediaType === "audio" ? "text-foreground" : "text-white")}>
@@ -1193,6 +1189,17 @@ export function LocalVideoPlayer({
           <div className={cn("flex items-center justify-between", mediaType === "audio" ? "text-foreground" : "text-white")}>
             {/* Left side - Time and playback speed */}
             <div className="flex items-center gap-4">
+              <button
+                onClick={togglePlay}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                title="Play/Pause (Space/K)"
+              >
+                {isPlaying ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4 ml-0.5" />
+                )}
+              </button>
               <span className="text-sm font-mono">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
