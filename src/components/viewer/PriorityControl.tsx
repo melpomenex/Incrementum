@@ -97,8 +97,9 @@ export function PriorityControl({
           onClick={() => setIsExpanded(!isExpanded)}
           className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-            "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isExpanded && "bg-muted"
+            "bg-muted hover:bg-muted/80 border border-border",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            isExpanded && "bg-muted/80 ring-1 ring-border"
           )}
           title={`Priority: ${currentInfo.label} - ${currentInfo.description}`}
         >
@@ -107,7 +108,7 @@ export function PriorityControl({
             style={{ color: currentInfo.color }}
             fill={currentInfo.color}
           />
-          <span className="text-muted-foreground">{currentInfo.label}</span>
+          <span className="text-foreground">{currentInfo.label}</span>
           {isExpanded ? (
             <ChevronUp className="h-3 w-3 text-muted-foreground" />
           ) : (
@@ -138,8 +139,9 @@ export function PriorityControl({
                       onClick={() => handlePresetClick(preset.value)}
                       className={cn(
                         "flex flex-col items-center gap-1 p-2 rounded-md transition-all",
-                        "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        slider === preset.value && "bg-muted ring-1 ring-ring"
+                        "bg-muted hover:bg-muted/70 border border-border",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        slider === preset.value && "bg-primary/10 ring-1 ring-primary/30"
                       )}
                       title={preset.description}
                     >
