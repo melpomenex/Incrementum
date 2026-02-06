@@ -264,11 +264,11 @@ jobs:
           license=('MIT')
           depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc')
           makedepends=('cargo')
-          source=("$pkgname-$pkgver::git+https://github.com/melpomenex/incrementum-tauri.git#tag=v$pkgver")
+          source=("\$pkgname-\$pkgver::git+https://github.com/melpomenex/incrementum-tauri.git#tag=v\$pkgver")
           sha256sums=('SKIP')
 
           build() {
-            cd "$pkgname-$pkgver"
+            cd "\$pkgname-\$pkgver"
             npm ci
             npm run build
             cd src-tauri
@@ -276,10 +276,10 @@ jobs:
           }
 
           package() {
-            cd "$pkgname-$pkgver"
-            install -Dm755 "src-tauri/target/release/incrementum-tauri" "$pkgdir/usr/bin/incrementum"
-            install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/incrementum.png"
-            install -Dm644 "src-tauri/incrementum.desktop" "$pkgdir/usr/share/applications/incrementum.desktop" || true
+            cd "\$pkgname-\$pkgver"
+            install -Dm755 "src-tauri/target/release/incrementum-tauri" "\$pkgdir/usr/bin/incrementum"
+            install -Dm644 "src-tauri/icons/128x128.png" "\$pkgdir/usr/share/icons/hicolor/128x128/apps/incrementum.png"
+            install -Dm644 "src-tauri/incrementum.desktop" "\$pkgdir/usr/share/applications/incrementum.desktop" || true
           }
           EOF
 
