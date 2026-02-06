@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-02-06
+
+### Fixed
+- **Audiobook rating controls** - Changed to floating circular bubbles on right side
+  - Circular buttons (12x12) stacked vertically on right edge
+  - Color-coded: Red (Again), Orange (Hard), Blue (Good), Green (Easy)
+  - Single letter labels: A, H, G, E
+  - Hover scale effect and colored shadows
+  - Positioned fixed at vertical center of screen
+
 ## [1.6.2] - 2026-02-06
 
 ### Fixed
