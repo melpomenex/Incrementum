@@ -35,6 +35,20 @@ import type { UIState } from "../../stores/uiStore";
 import type { StudyDeckState } from "../../stores/studyDeckStore";
 import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
+import * as documentsApi from "../../api/documents";
+
+type SearchHitLocation =
+  | { kind: "pdf"; pageNumber: number }
+  | { kind: "epub"; cfi: string }
+  | { kind: "html"; scrollPercent: number }
+  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
+
+type SearchHit = {
+  id: string;
+  location: SearchHitLocation;
+  excerptHtml?: string;
+  label?: string;
+};
 
 const STOPWORDS = new Set([
   "a",
@@ -131,6 +145,14 @@ const buildTranscriptText = (segments: Array<{ text: string }>): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+const formatTimestamp = (seconds: number): string => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
 // Stable selectors defined outside component to avoid infinite re-renders
 const selectAddTab = (state: TabsState) => state.addTab;
 const selectActiveDeckId = (state: StudyDeckState) => state.activeDeckId;
@@ -163,6 +185,8 @@ export function CommandCenter() {
   const documentsFetchInFlight = useRef<Promise<Document[]> | null>(null);
   const transcriptCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
+  const htmlTextCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
+  const epubSearchCacheRef = useRef<Map<string, Map<string, SearchHit[]>>>(new Map());
 
   useEffect(() => {
     if (!documentsLoading && documents.length === 0) {
@@ -256,6 +280,122 @@ export function CommandCenter() {
     const maxExtractsToScan = isWeb ? 1000 : Infinity;
     const maxTranscriptFetches = isWeb ? 5 : 20;
     let transcriptFetches = 0;
+    const maxEpubSearches = isWeb ? 1 : 3;
+    let epubSearches = 0;
+
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+    const findAllOccurrences = (haystackLower: string, needleLower: string, limit: number): number[] => {
+      if (!needleLower) return [];
+      const out: number[] = [];
+      let idx = 0;
+      while (idx >= 0 && out.length < limit) {
+        idx = haystackLower.indexOf(needleLower, idx);
+        if (idx >= 0) {
+          out.push(idx);
+          idx += Math.max(1, needleLower.length);
+        }
+      }
+      return out;
+    };
+
+    const excerptFromIndex = (source: string, index: number, rawQuery: string): string => {
+      const context = 90;
+      const start = Math.max(0, index - context);
+      const end = Math.min(source.length, index + context);
+      const slice = source.slice(start, end);
+      const { excerpt } = highlightSearchTerms(slice, rawQuery, 200);
+      return excerpt;
+    };
+
+    const buildPdfPageFromIndex = (doc: Document, index: number, contentLength: number): number => {
+      const totalPages = doc.totalPages ?? doc.metadata?.pageCount ?? 1;
+      if (!contentLength || totalPages <= 1) return 1;
+      const pct = clamp(index / contentLength, 0, 1);
+      return clamp(Math.round(pct * (totalPages - 1)) + 1, 1, totalPages);
+    };
+
+    const getHtmlText = (doc: Document): { text: string; lower: string } => {
+      const cached = htmlTextCacheRef.current.get(doc.id);
+      if (cached) return cached;
+      const html = doc.content ?? "";
+      if (!html) {
+        const empty = { text: "", lower: "" };
+        htmlTextCacheRef.current.set(doc.id, empty);
+        return empty;
+      }
+      try {
+        const parser = new DOMParser();
+        const parsed = parser.parseFromString(html, "text/html");
+        parsed.querySelectorAll("script, style").forEach((el) => el.remove());
+        const text = (parsed.body?.textContent ?? "").replace(/\s+/g, " ").trim();
+        const entry = { text, lower: text.toLowerCase() };
+        htmlTextCacheRef.current.set(doc.id, entry);
+        return entry;
+      } catch {
+        const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        const entry = { text, lower: text.toLowerCase() };
+        htmlTextCacheRef.current.set(doc.id, entry);
+        return entry;
+      }
+    };
+
+    const getEpubHits = async (doc: Document, rawQuery: string): Promise<SearchHit[]> => {
+      const cachedForDoc = epubSearchCacheRef.current.get(doc.id);
+      if (cachedForDoc?.has(rawQuery)) {
+        return cachedForDoc.get(rawQuery) ?? [];
+      }
+
+      if (epubSearches >= maxEpubSearches) return [];
+      epubSearches += 1;
+
+      try {
+        const base64 = await documentsApi.readDocumentFile(doc.filePath);
+        if (!base64) return [];
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const { default: ePub } = await import("epubjs");
+        const book: any = ePub(bytes.buffer);
+        await book.ready;
+        if (typeof book.search !== "function") return [];
+        const found: any[] = await book.search(rawQuery);
+        const hits: SearchHit[] = (found || []).slice(0, 6).map((item, i) => {
+          const cfi = item?.cfi || item?.cfiRange || item?.cfiRange?.start || item?.cfiRange;
+          const excerptText = (item?.excerpt || item?.text || "").toString();
+          const { excerpt } = highlightSearchTerms(excerptText || rawQuery, rawQuery, 200);
+          return {
+            id: `epub-hit-${doc.id}-${i}`,
+            location: { kind: "epub", cfi: String(cfi) },
+            label: "EPUB",
+            excerptHtml: excerpt,
+          };
+        }).filter((hit) => !!(hit.location as any)?.cfi);
+
+        if (!epubSearchCacheRef.current.has(doc.id)) {
+          epubSearchCacheRef.current.set(doc.id, new Map());
+        }
+        epubSearchCacheRef.current.get(doc.id)!.set(rawQuery, hits);
+
+        try {
+          book.destroy?.();
+        } catch {
+          // ignore
+        }
+
+        return hits;
+      } catch (error) {
+        console.warn("[CommandCenter] EPUB search failed", doc.id, error);
+        return [];
+      }
+    };
+
+    const groupedDocs = new Map<string, {
+      doc: Document;
+      score: number;
+      excerpt?: string;
+      highlights?: string[];
+      transcriptMatch?: boolean;
+      hits: SearchHit[];
+    }>();
 
     let docsForSearch = documents.length > 0 ? documents : documentsSnapshotRef.current;
     if (docsForSearch.length === 0 && !documentsLoading) {
@@ -393,29 +533,36 @@ export function CommandCenter() {
       });
     });
 
-    // 2. Search Documents
-    // If types filter is set and doesn't include Document, skip
+    // 2. Search Documents (grouped: one row per document)
     if (!query.types || query.types.includes(SearchResultType.Document)) {
       const scopedDocs = docsForSearch;
       let scanned = 0;
       for (const doc of scopedDocs) {
-        if (scanned >= maxDocsToScan || results.length >= maxResults) break;
+        if (scanned >= maxDocsToScan || groupedDocs.size >= maxResults) break;
         scanned += 1;
 
         const titleLower = doc.title.toLowerCase();
         const titleMatch = matchesTerms(titleLower, searchTerms) || (!allowContentSearch && titleLower.includes(term)) || fuzzyMatches(titleLower);
-        const content = doc.content ?? "";
-        const contentLower = content.toLowerCase();
+
+        let content = doc.content ?? "";
+        let contentLower = content.toLowerCase();
+        if (doc.fileType === "html") {
+          const htmlText = getHtmlText(doc);
+          content = htmlText.text;
+          contentLower = htmlText.lower;
+        }
+
         const contentMatch = !isWeb && allowContentSearch && matchesTerms(contentLower, searchTerms);
 
+        const hits: SearchHit[] = [];
+
+        // Transcript hits (YouTube)
         let transcriptMatch = false;
-        let transcriptText: string | null = null;
-        if (allowContentSearch && doc.fileType === "youtube" && results.length < maxResults) {
+        if (allowContentSearch && doc.fileType === "youtube" && groupedDocs.size < maxResults) {
           const cached = transcriptCacheRef.current.get(doc.id);
-          if (cached) {
-            transcriptMatch = matchesTerms(cached.lower, searchTerms);
-            transcriptText = cached.text;
-          } else if (!transcriptFetchInFlightRef.current.has(doc.id) && transcriptFetches < maxTranscriptFetches) {
+          let transcriptText: string | null = cached?.text ?? null;
+          let transcriptLower: string | null = cached?.lower ?? null;
+          if (!cached && !transcriptFetchInFlightRef.current.has(doc.id) && transcriptFetches < maxTranscriptFetches) {
             transcriptFetchInFlightRef.current.add(doc.id);
             transcriptFetches += 1;
             try {
@@ -427,9 +574,28 @@ export function CommandCenter() {
                   if (text) {
                     const entry = { text, lower: text.toLowerCase() };
                     transcriptCacheRef.current.set(doc.id, entry);
-                    transcriptMatch = matchesTerms(entry.lower, searchTerms);
                     transcriptText = entry.text;
+                    transcriptLower = entry.lower;
                   }
+
+                  // Build segment-level hits (timestamps)
+                  const matchingSegments = segments
+                    .map((seg, idx) => ({ seg, idx }))
+                    .filter(({ seg }) => {
+                      const segLower = seg.text.toLowerCase();
+                      return matchesTerms(segLower, searchTerms);
+                    })
+                    .slice(0, 6);
+
+                  matchingSegments.forEach(({ seg, idx }, i) => {
+                    const { excerpt } = highlightSearchTerms(seg.text, query.query, 200);
+                    hits.push({
+                      id: `yt-hit-${doc.id}-${i}`,
+                      location: { kind: "youtube", timeSeconds: seg.start, segmentId: `seg-${idx}` },
+                      label: formatTimestamp(seg.start),
+                      excerptHtml: excerpt,
+                    });
+                  });
                 }
               }
             } catch (error) {
@@ -437,81 +603,156 @@ export function CommandCenter() {
             } finally {
               transcriptFetchInFlightRef.current.delete(doc.id);
             }
+          } else if (cached && transcriptLower) {
+            transcriptMatch = matchesTerms(transcriptLower, searchTerms);
+          }
+
+          if (transcriptLower) {
+            transcriptMatch = matchesTerms(transcriptLower, searchTerms);
           }
         }
 
-        if (!titleMatch && !contentMatch && !transcriptMatch) continue;
+        // Text hits (PDF/HTML/Markdown/etc)
+        if (allowContentSearch && doc.fileType !== "youtube") {
+          for (const t of searchTerms) {
+            if (hits.length >= 6) break;
+            const occ = findAllOccurrences(contentLower, t, 6 - hits.length);
+            occ.forEach((index, i) => {
+              if (doc.fileType === "pdf") {
+                const pageNum = buildPdfPageFromIndex(doc, index, Math.max(1, contentLower.length));
+                hits.push({
+                  id: `hit-${doc.id}-${t}-${index}`,
+                  location: { kind: "pdf", pageNumber: pageNum },
+                  label: `Page ${pageNum}`,
+                  excerptHtml: excerptFromIndex(content, index, query.query),
+                });
+              } else if (doc.fileType === "epub") {
+                // EPUB hits prefer real CFIs; fill later if we can.
+                hits.push({
+                  id: `hit-${doc.id}-${t}-${index}`,
+                  location: { kind: "html", scrollPercent: clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100) },
+                  label: "EPUB",
+                  excerptHtml: excerptFromIndex(content, index, query.query),
+                });
+              } else if (doc.fileType === "html") {
+                const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
+                hits.push({
+                  id: `hit-${doc.id}-${t}-${index}`,
+                  location: { kind: "html", scrollPercent: pct },
+                  label: `${pct}%`,
+                  excerptHtml: excerptFromIndex(content, index, query.query),
+                });
+              } else {
+                const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
+                hits.push({
+                  id: `hit-${doc.id}-${t}-${index}`,
+                  location: { kind: "html", scrollPercent: pct },
+                  label: `${pct}%`,
+                  excerptHtml: excerptFromIndex(content, index, query.query),
+                });
+              }
+            });
+          }
+        }
 
-        const excerptSource = transcriptMatch && transcriptText
-          ? transcriptText
-          : contentMatch
-            ? content
-            : doc.title;
-        const { excerpt, highlights } = highlightSearchTerms(excerptSource, query.query);
+        // EPUB: upgrade hits to CFI-based when possible
+        if (doc.fileType === "epub" && allowContentSearch && (contentMatch || titleMatch)) {
+          const epubHits = await getEpubHits(doc, query.query);
+          if (epubHits.length > 0) {
+            hits.splice(0, hits.length, ...epubHits);
+          }
+        }
+
+        const isMatch = titleMatch || contentMatch || transcriptMatch || hits.length > 0;
+        if (!isMatch) continue;
+
         const score = calculateRelevanceScore(
-          { title: doc.title, content: transcriptMatch && transcriptText ? transcriptText : content },
+          { title: doc.title, content: content },
           query.query,
           SearchResultType.Document
-        );
+        ) / 100;
 
-        results.push({
-          id: doc.id,
-          type: SearchResultType.Document,
-          title: doc.title,
-          excerpt: transcriptMatch
-            ? `Transcript — ${excerpt}`
-            : contentMatch
-              ? excerpt
-              : undefined,
-          highlights,
-          score: score / 100,
-          metadata: {
-            documentId: doc.id,
-            fileType: doc.fileType,
-            category: doc.category,
-            tags: doc.tags ?? [],
-            transcriptMatch,
-          },
+        groupedDocs.set(doc.id, {
+          doc,
+          score,
+          transcriptMatch,
+          hits,
         });
       }
     }
 
-    // 3. Search Extracts (full content search)
+    // 3. Search Extracts and attach as secondary hits to their parent document.
     if (!query.types || query.types.includes(SearchResultType.Extract)) {
       let scanned = 0;
       for (const extract of extracts) {
-        if (scanned >= maxExtractsToScan || results.length >= maxResults) break;
+        if (scanned >= maxExtractsToScan) break;
         scanned += 1;
 
         const content = extract.content ?? "";
         const contentLower = content.toLowerCase();
         if (!allowContentSearch || !matchesTerms(contentLower, searchTerms)) continue;
-        const parentDoc = documents.find((doc) => doc.id === extract.documentId);
-        const { excerpt, highlights } = highlightSearchTerms(content, query.query);
-        const prefix = extract.pageNumber ? `Page ${extract.pageNumber} — ` : "";
 
-        results.push({
-          id: extract.id,
-          type: SearchResultType.Extract,
-          title: extract.pageTitle || parentDoc?.title || "Extract",
-          excerpt: `${prefix}${excerpt}`,
-          highlights,
-          score: calculateRelevanceScore(
-            { title: extract.pageTitle || parentDoc?.title || "Extract", content },
-            query.query,
-            SearchResultType.Extract
-          ) / 100,
-          metadata: {
-            documentId: extract.documentId,
-            tags: extract.tags ?? [],
-            category: extract.category,
-          },
+        const docId = extract.documentId;
+        const parentDoc = documents.find((d) => d.id === docId);
+        if (!parentDoc) continue;
+
+        if (!groupedDocs.has(docId) && groupedDocs.size < maxResults) {
+          groupedDocs.set(docId, { doc: parentDoc, score: 0.5, hits: [], transcriptMatch: false });
+        }
+
+        const entry = groupedDocs.get(docId);
+        if (!entry) continue;
+
+        const { excerpt } = highlightSearchTerms(content, query.query, 200);
+        const pageNum = extract.pageNumber && extract.pageNumber > 0 ? extract.pageNumber : 1;
+        entry.hits.push({
+          id: `extract-hit-${extract.id}`,
+          location: { kind: "pdf", pageNumber: pageNum },
+          label: `Page ${pageNum}`,
+          excerptHtml: excerpt,
         });
       }
     }
 
-    // Sort by score
-    return results.sort((a, b) => b.score - a.score);
+    // Materialize grouped results: one row per document.
+    groupedDocs.forEach((entry) => {
+      const doc = entry.doc;
+      const sortedHits = entry.hits.slice(0);
+
+      // Prefer YouTube transcript hits first, then extract hits, then others.
+      sortedHits.sort((a, b) => {
+        const ak = a.location.kind;
+        const bk = b.location.kind;
+        const pri = (k: string) => k === "youtube" ? 0 : k === "pdf" ? 1 : 2;
+        return pri(ak) - pri(bk);
+      });
+
+      const primaryHit = sortedHits[0];
+      const secondaryHits = sortedHits.slice(1, 6);
+
+      results.push({
+        id: doc.id,
+        type: SearchResultType.Document,
+        title: doc.title,
+        excerpt: primaryHit?.excerptHtml
+          ? (entry.transcriptMatch ? `Transcript — ${primaryHit.excerptHtml}` : primaryHit.excerptHtml)
+          : undefined,
+        highlights: [],
+        score: entry.score,
+        metadata: {
+          documentId: doc.id,
+          fileType: doc.fileType,
+          category: doc.category,
+          tags: doc.tags ?? [],
+          transcriptMatch: entry.transcriptMatch,
+          highlightQuery: query.query,
+          primaryHit,
+          secondaryHits: secondaryHits.length > 0 ? secondaryHits : undefined,
+        },
+      });
+    });
+
+    return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }, [documents, extracts, addTab, activeDeck, shouldFilterByDeck]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
@@ -528,13 +769,20 @@ export function CommandCenter() {
         : result.id;
       const doc = documents.find(d => d.id === docId);
       if (doc) {
+        const primaryHit = (result.metadata as any)?.primaryHit as SearchHit | undefined;
+        const highlightQuery = (result.metadata as any)?.highlightQuery as string | undefined;
         addTab({
           title: doc.title,
           icon: doc.fileType === "pdf" ? "📕" : doc.fileType === "epub" ? "📖" : doc.fileType === "youtube" ? "📺" : "📄",
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
-          data: { documentId: doc.id },
+          data: {
+            documentId: doc.id,
+            highlightQuery,
+            initialJump: primaryHit?.location,
+            autoPlay: primaryHit?.location.kind === "youtube",
+          },
         });
       }
     }

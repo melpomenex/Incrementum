@@ -26,6 +26,8 @@ interface PDFViewerProps {
   scale: number;
   zoomMode?: ZoomMode;
   suppressAutoScroll?: boolean;
+  highlightQuery?: string;
+  highlightPageNumber?: number;
   onPageChange?: (pageNumber: number) => void;
   onLoad?: (numPages: number, outline: any[]) => void;
   onPagesRendered?: () => void;
@@ -56,6 +58,8 @@ export function PDFViewer({
   scale,
   zoomMode: externalZoomMode,
   suppressAutoScroll = false,
+  highlightQuery,
+  highlightPageNumber,
   onPageChange,
   onLoad,
   onPagesRendered,
@@ -102,9 +106,12 @@ export function PDFViewer({
   const [outline, setOutline] = useState<any[]>([]);
   const [showTOC, setShowTOC] = useState(false);
   const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
+  const [fallbackPageSize, setFallbackPageSize] = useState<{ width: number; height: number } | null>(null);
+  const [renderPass, setRenderPass] = useState(0);
   // Lazy loading: track which pages should be rendered
   const [renderedPageRange, setRenderedPageRange] = useState<{ start: number; end: number }>({ start: 1, end: 1 });
   const renderedPageRangeRef = useRef({ start: 1, end: 1 });
+  const pendingNavRef = useRef<{ pageNumber: number; destArray: any[] | null } | null>(null);
 
   // Position persistence refs
   const docIdRef = useRef<string>("");
@@ -123,7 +130,46 @@ export function PDFViewer({
   // Pan state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
+  const scrollPositionRef = useRef({ x: 0, y: 0 });
+
+  const highlightConfigRef = useRef<{ query: string; pageNumber: number } | null>(null);
+  useEffect(() => {
+    if (highlightQuery && highlightPageNumber) {
+      highlightConfigRef.current = { query: highlightQuery, pageNumber: highlightPageNumber };
+    } else {
+      highlightConfigRef.current = null;
+    }
+  }, [highlightQuery, highlightPageNumber]);
+
+  const applyTextLayerHighlights = useCallback((pageIndex: number) => {
+    const cfg = highlightConfigRef.current;
+    if (!cfg) return;
+    if (cfg.pageNumber - 1 !== pageIndex) return;
+    const root = textLayerRootsRef.current[pageIndex];
+    if (!root) return;
+
+    const query = cfg.query.trim();
+    if (!query) return;
+    const terms = Array.from(new Set(query.split(/\s+/).map((t) => t.trim()).filter((t) => t.length >= 2))).slice(0, 8);
+    if (terms.length === 0) return;
+
+    const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+
+    const spans = Array.from(root.querySelectorAll("span"));
+    for (const span of spans) {
+      const el = span as HTMLElement;
+      if (!el.dataset.origHtml) {
+        el.dataset.origHtml = el.innerHTML;
+      } else {
+        el.innerHTML = el.dataset.origHtml;
+      }
+      const text = el.textContent ?? "";
+      if (!re.test(text)) continue;
+      re.lastIndex = 0;
+      el.innerHTML = text.replace(re, `<mark class="pdf-search-highlight">$1</mark>`);
+    }
+  }, []);
 
   // Update zoom mode when external prop changes
   useEffect(() => {
@@ -148,13 +194,23 @@ export function PDFViewer({
         setPdf(pdfDoc);
         onPdfInfo?.({ fingerprint: (pdfDoc as any).fingerprint ?? null });
         textCacheRef.current.clear();
+        pageOffsetsRef.current = [];
         setNumPages(pdfDoc.numPages);
+        try {
+          const first = await pdfDoc.getPage(1);
+          const vp = first.getViewport({ scale: 1 });
+          setFallbackPageSize({ width: vp.width, height: vp.height });
+        } catch {
+          setFallbackPageSize(null);
+        }
         // Clear and initialize rendered pages tracking
         renderedPagesRef.current.clear();
-        // Render all pages - no lazy loading
-        const initialEnd = pdfDoc.numPages;
-        setRenderedPageRange({ start: 1, end: initialEnd });
-        renderedPageRangeRef.current = { start: 1, end: initialEnd };
+        // Windowed rendering: start with a small range around the initial page.
+        const initialBuffer = 2;
+        const start = Math.max(1, pageNumber - initialBuffer);
+        const end = Math.min(pdfDoc.numPages, pageNumber + initialBuffer);
+        setRenderedPageRange({ start, end });
+        renderedPageRangeRef.current = { start, end };
         onLoad?.(pdfDoc.numPages, []);
 
         // Get outline (table of contents)
@@ -182,6 +238,17 @@ export function PDFViewer({
     // shouldn't trigger reloading the PDF, only fileData changes should
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileData]);
+
+  // Update rendered page window around the current page.
+  useEffect(() => {
+    if (!pdf || numPages <= 0) return;
+    const buffer = 2;
+    const start = Math.max(1, pageNumber - buffer);
+    const end = Math.min(numPages, pageNumber + buffer);
+    const current = renderedPageRangeRef.current;
+    if (current.start === start && current.end === end) return;
+    setRenderedPageRange({ start, end });
+  }, [pdf, numPages, pageNumber]);
 
   // Store documentId in ref for use in callbacks
   useEffect(() => {
@@ -385,37 +452,54 @@ export function PDFViewer({
   }, [clearSelectionHighlights]);
 
   useEffect(() => {
+    if (!pdf || numPages <= 0) return;
+    // Any zoom change invalidates previous renders (especially fit-width/page).
+    renderedPagesRef.current.clear();
+    recomputePageOffsets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, zoomMode, numPages, pdf]);
+
+  useEffect(() => {
     let mounted = true;
-
-    const renderInitialPages = async () => {
-      if (!pdf) return;
+    const run = async () => {
+      if (!pdf || numPages <= 0) return;
       const renderId = ++renderIdRef.current;
+      // Use state directly; the ref can lag a render behind and cause blank pages until the next update.
+      renderedPageRangeRef.current = renderedPageRange;
+      const { start, end } = renderedPageRange;
+      let needsRetry = false;
 
-      console.log("PDFViewer: Rendering all", numPages, "pages");
-
-      for (let i = 1; i <= numPages; i++) {
-        if (!mounted || renderId !== renderIdRef.current) {
-          return;
+      for (let i = start; i <= end; i += 1) {
+        if (!mounted || renderId !== renderIdRef.current) return;
+        if (renderedPagesRef.current.has(i)) continue;
+        const ok = await renderPage(pdf, i);
+        if (ok) {
+          renderedPagesRef.current.add(i);
+        } else {
+          needsRetry = true;
         }
-        // Mark as rendered before actual render to prevent duplicate renders
-        renderedPagesRef.current.add(i);
-        await renderPage(pdf, i);
       }
 
-      // Call onPagesRendered after all pages are rendered
+      // Signal "ready enough" once we rendered the current window.
       if (mounted && renderId === renderIdRef.current) {
         onPagesRendered?.();
       }
+
+      // If refs were not ready for some pages, retry shortly.
+      if (mounted && renderId === renderIdRef.current && needsRetry) {
+        setTimeout(() => {
+          if (mounted) setRenderPass((v) => v + 1);
+        }, 50);
+      }
     };
 
-    renderInitialPages();
-
+    void run();
     return () => {
       mounted = false;
     };
-    // Note: onPagesRendered is intentionally excluded from deps as it's a callback
+    // Note: onPagesRendered is intentionally excluded from deps (callback identity).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdf, numPages, scale, zoomMode]);
+  }, [pdf, numPages, renderedPageRange, scale, zoomMode, renderPass]);
 
   // Sync renderedPageRangeRef when state changes
   useEffect(() => {
@@ -496,7 +580,6 @@ export function PDFViewer({
           // Skip resize handling while scroll position restoration is in progress
           // suppressAutoScroll is controlled by DocumentViewer and stays true until restoration completes
           if (suppressAutoScroll) {
-            console.log("PDFViewer: Skipping resize - suppressAutoScroll is true");
             return;
           }
 
@@ -505,36 +588,31 @@ export function PDFViewer({
           const isInInitialLoadWindow = now < initialLoadWindowRef.current;
           const isInRestorationWindow = now < restorationWindowRef.current;
           if (isInInitialLoadWindow || isInRestorationWindow) {
-            console.log("PDFViewer: Skipping resize during protection window", { isInInitialLoadWindow, isInRestorationWindow });
             return;
           }
 
           if (pdf && (zoomMode === "fit-width" || zoomMode === "fit-page")) {
-            console.log("PDFViewer: Container resized, re-rendering all pages");
-
             // Save current scroll position before re-render
             const scrollTop = container.scrollTop;
             const scrollHeight = container.scrollHeight;
             const scrollPercent = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
 
-            console.log("PDFViewer: Re-rendering all", numPages, "pages");
-
-            // Re-render all pages
+            // Re-render only a small window to keep resize responsive.
             const renderId = ++renderIdRef.current;
-            for (let i = 1; i <= numPages; i++) {
+            renderedPagesRef.current.clear();
+            const { start, end } = renderedPageRangeRef.current;
+            for (let i = start; i <= end; i += 1) {
               if (renderId !== renderIdRef.current) {
                 return;
               }
-              // Mark as rendered and re-render when zoom mode changes
-              renderedPagesRef.current.add(i);
-              await renderPage(pdf, i);
+              const ok = await renderPage(pdf, i);
+              if (ok) renderedPagesRef.current.add(i);
             }
 
             // Restore scroll position after re-render (based on percentage)
             if (container.scrollHeight > 0 && scrollPercent > 0) {
               const newScrollTop = scrollPercent * container.scrollHeight;
               container.scrollTop = newScrollTop;
-              console.log("PDFViewer: Restored scroll position after resize", { scrollPercent, newScrollTop });
             }
           }
         }, 100);
@@ -740,7 +818,7 @@ export function PDFViewer({
     };
   }, [onSelectionChange, buildPdfSelectionContext, clearSelectionHighlights, updateSelectionHighlights]);
 
-  const renderPage = async (pdfDoc: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
+  const renderPage = async (pdfDoc: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<boolean> => {
     const page = await pdfDoc.getPage(pageNum);
     const pageIndex = pageNum - 1;
     const canvas = canvasRefs.current[pageIndex];
@@ -748,10 +826,11 @@ export function PDFViewer({
     const pageContainer = pageContainerRefs.current[pageIndex];
     const scrollContainer = scrollContainerRef.current;
 
-    if (!canvas || !textLayerContainer || !pageContainer) return;
+    // If the page DOM hasn't mounted yet, let the caller retry later.
+    if (!canvas || !textLayerContainer || !pageContainer) return false;
 
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) return false;
 
     // Calculate scale based on zoom mode
     let actualScale = scale;
@@ -816,7 +895,7 @@ export function PDFViewer({
     } catch (err: any) {
       // Ignore cancelled render errors
       if (err?.name === 'RenderingCancelledException') {
-        return;
+        return false;
       }
       throw err;
     }
@@ -845,9 +924,13 @@ export function PDFViewer({
 
       textLayerBuildersRef.current[pageIndex] = textLayerBuilder;
       await textLayerBuilder.render({ viewport });
+      applyTextLayerHighlights(pageIndex);
     } catch (err) {
       console.warn("Text layer rendering failed:", err);
     }
+
+    recomputePageOffsets();
+    return true;
   };
 
   useEffect(() => {
@@ -888,6 +971,64 @@ export function PDFViewer({
     if (isInRestorationWindow && restoredPageRef.current !== null && pageNumber !== restoredPageRef.current) {
       console.log("[PDFViewer] Blocking auto-scroll to different page during restoration:", { pageNumber, restoredPage: restoredPageRef.current });
       return;
+    }
+
+    const pending = pendingNavRef.current;
+    if (pending && pending.pageNumber === pageNumber) {
+      pendingNavRef.current = null;
+
+      const pageIndex = pageNumber - 1;
+      const viewport = pageViewportRefs.current[pageIndex];
+      const destArray = pending.destArray;
+
+      let targetTop = Math.max(0, pageContainer.offsetTop - 16);
+      let targetLeft = container.scrollLeft;
+
+      if (destArray && viewport) {
+        const kindRaw = destArray[1];
+        const kind =
+          (kindRaw && typeof kindRaw === "object" && typeof (kindRaw as any).name === "string"
+            ? (kindRaw as any).name
+            : typeof kindRaw === "string"
+              ? kindRaw
+              : null) as string | null;
+
+        try {
+          if (kind === "XYZ") {
+            const leftPdf = typeof destArray[2] === "number" ? destArray[2] : 0;
+            const topPdf = typeof destArray[3] === "number" ? destArray[3] : null;
+            if (topPdf !== null) {
+              const [vx, vy] = viewport.convertToViewportPoint(leftPdf, topPdf);
+              if (Number.isFinite(vy)) targetTop = Math.max(0, pageContainer.offsetTop + vy - 16);
+              if (Number.isFinite(vx)) targetLeft = Math.max(0, vx);
+            }
+          } else if (kind === "FitH" || kind === "FitBH") {
+            const topPdf = typeof destArray[2] === "number" ? destArray[2] : null;
+            if (topPdf !== null) {
+              const [, vy] = viewport.convertToViewportPoint(0, topPdf);
+              if (Number.isFinite(vy)) targetTop = Math.max(0, pageContainer.offsetTop + vy - 16);
+            }
+          }
+        } catch {
+          // Ignore dest parsing issues and fall back to top-of-page scroll.
+        }
+      }
+
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      targetTop = Math.min(Math.max(0, targetTop), maxScrollTop);
+      targetLeft = Math.min(Math.max(0, targetLeft), maxScrollLeft);
+
+      isProgrammaticScrollRef.current = true;
+      container.scrollTo({ top: targetTop, left: targetLeft, behavior: "smooth" });
+
+      const timeout = setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 300);
+
+      return () => {
+        clearTimeout(timeout);
+      };
     }
 
     isProgrammaticScrollRef.current = true;
@@ -1014,11 +1155,53 @@ export function PDFViewer({
     }
   };
 
-  const handleTocClick = async (pageIndex: number) => {
-    if (pageIndex >= 0 && pageIndex < numPages) {
-      onPageChange?.(pageIndex + 1);
+  const resolveOutlineDest = useCallback(async (dest: any) => {
+    if (!pdf) return null;
+
+    // Some PDFs/creators return a direct page index (0-based). Keep supporting it.
+    if (typeof dest === "number" && Number.isFinite(dest)) {
+      const pageIndex = Math.max(0, Math.min(Math.max(0, numPages - 1), dest));
+      return { pageIndex, destArray: null as any[] | null };
     }
-  };
+
+    let destArray: any[] | null = null;
+    if (typeof dest === "string") {
+      try {
+        destArray = (await pdf.getDestination(dest)) as any[] | null;
+      } catch {
+        destArray = null;
+      }
+    } else if (Array.isArray(dest)) {
+      destArray = dest as any[];
+    }
+
+    if (!destArray || !Array.isArray(destArray) || destArray.length === 0) return null;
+
+    const pageRef = destArray[0];
+    try {
+      if (typeof pageRef === "number" && Number.isFinite(pageRef)) {
+        const pageIndex = Math.max(0, Math.min(Math.max(0, numPages - 1), pageRef));
+        return { pageIndex, destArray };
+      }
+
+      // PDF.js uses a Ref object for the page reference in explicit destinations.
+      const pageIndex = await pdf.getPageIndex(pageRef as any);
+      if (!Number.isFinite(pageIndex)) return null;
+      return { pageIndex, destArray };
+    } catch {
+      return null;
+    }
+  }, [pdf, numPages]);
+
+  const handleTocClick = useCallback(async (dest: any) => {
+    const resolved = await resolveOutlineDest(dest);
+    if (!resolved) return;
+
+    const nextPageNumber = resolved.pageIndex + 1;
+    pendingNavRef.current = { pageNumber: nextPageNumber, destArray: resolved.destArray };
+    setShowTOC(false);
+    onPageChange?.(nextPageNumber);
+  }, [onPageChange, resolveOutlineDest]);
 
   const handleZoomModeChange = (mode: ZoomMode) => {
     setZoomMode(mode);
@@ -1029,14 +1212,7 @@ export function PDFViewer({
       <div key={index}>
         <button
           onClick={() => {
-            if (item.dest) {
-              // Handle destination - could be a page number or array
-              if (typeof item.dest === "number") {
-                handleTocClick(item.dest);
-              } else if (Array.isArray(item.dest) && item.dest[0] !== null) {
-                handleTocClick(item.dest[0]);
-              }
-            }
+            if (item.dest) handleTocClick(item.dest);
           }}
           className={cn(
             "block w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md transition-colors",
@@ -1066,7 +1242,8 @@ export function PDFViewer({
       const targetNode = e.target as Node;
       if (textLayerRootsRef.current.some((layer) => layer?.contains(targetNode))) return;
       setIsDragging(true);
-      setDragStart({ x: e.clientX - scrollPosition.x, y: e.clientY - scrollPosition.y });
+      const sp = scrollPositionRef.current;
+      setDragStart({ x: e.clientX - sp.x, y: e.clientY - sp.y });
     }
   };
 
@@ -1078,7 +1255,7 @@ export function PDFViewer({
       const newY = e.clientY - dragStart.y;
       container.scrollLeft = -newX;
       container.scrollTop = -newY;
-      setScrollPosition({ x: newX, y: newY });
+      scrollPositionRef.current = { x: newX, y: newY };
     }
   };
 
@@ -1092,13 +1269,34 @@ export function PDFViewer({
 
   // Track which pages have been rendered
   const renderedPagesRef = useRef<Set<number>>(new Set());
+  const pageOffsetsRef = useRef<number[]>([]);
+  const offsetsUpdateRafRef = useRef<number | null>(null);
+
+  const recomputePageOffsets = useCallback(() => {
+    if (offsetsUpdateRafRef.current !== null) return;
+    offsetsUpdateRafRef.current = requestAnimationFrame(() => {
+      offsetsUpdateRafRef.current = null;
+      const offsets: number[] = new Array(numPages).fill(0);
+      for (let i = 0; i < numPages; i += 1) {
+        const el = pageContainerRefs.current[i];
+        offsets[i] = el ? el.offsetTop : (i > 0 ? offsets[i - 1] : 0);
+      }
+      pageOffsetsRef.current = offsets;
+    });
+  }, [numPages]);
+
+  useEffect(() => {
+    if (numPages <= 0) return;
+    recomputePageOffsets();
+    // Recompute again shortly to catch late layout (fonts, text layer, etc).
+    const t = setTimeout(() => recomputePageOffsets(), 150);
+    return () => clearTimeout(t);
+  }, [numPages]);
 
   // Sync scroll position
   const handleScroll = () => {
     const container = scrollContainerRef.current;
-    if (container) {
-      setScrollPosition({ x: -container.scrollLeft, y: -container.scrollTop });
-    }
+    if (container) scrollPositionRef.current = { x: -container.scrollLeft, y: -container.scrollTop };
 
     if (!container || scrollRafRef.current !== null) return;
 
@@ -1112,15 +1310,24 @@ export function PDFViewer({
       }
 
       const scrollTop = container.scrollTop;
-      let currentPage = 1;
-      for (let i = 0; i < pageContainerRefs.current.length; i += 1) {
-        const pageEl = pageContainerRefs.current[i];
-        if (!pageEl) continue;
-        if (pageEl.offsetTop - 24 <= scrollTop) {
-          currentPage = i + 1;
-        } else {
-          break;
+      const offsets = pageOffsetsRef.current;
+      const target = scrollTop + 24;
+      let currentPage = pageNumber;
+      if (offsets.length === numPages && numPages > 0) {
+        // Binary search last offset <= target.
+        let lo = 0;
+        let hi = offsets.length - 1;
+        let ans = 0;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (offsets[mid] <= target) {
+            ans = mid;
+            lo = mid + 1;
+          } else {
+            hi = mid - 1;
+          }
         }
+        currentPage = ans + 1;
       }
 
       if (currentPage !== pageNumber && !suppressAutoScroll) {
@@ -1131,7 +1338,7 @@ export function PDFViewer({
 
         // Block backward page changes during restoration window to prevent reset to page 1
         if (isInRestorationWindow && restoredPage !== null && currentPage < restoredPage) {
-          console.log("[PDFViewer] Blocking backward page change during restoration:", { currentPage, restoredPage });
+          // Ignore transient "current page" changes while restoring.
         } else {
           // Clear restoration tracking if we've moved past the window or forward
           if (!isInRestorationWindow) {
@@ -1162,7 +1369,6 @@ export function PDFViewer({
       const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
       const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
       const scrollLeft = container.scrollLeft;
-      console.log("[PDFViewer] Scroll position change:", { currentPage, scrollTop, scrollLeft, scrollPercent });
       onScrollPositionChange?.({
         pageNumber: currentPage,
         scrollTop,
@@ -1353,6 +1559,14 @@ export function PDFViewer({
                       data-pdf-page
                       data-page-number={pageNum}
                       className="relative shadow-lg border border-border bg-white transition-transform duration-200"
+                      style={
+                        fallbackPageSize
+                          ? {
+                              minWidth: `${Math.round(fallbackPageSize.width)}px`,
+                              minHeight: `${Math.round(fallbackPageSize.height)}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <canvas
                         ref={(el) => {

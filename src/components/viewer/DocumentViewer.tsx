@@ -61,6 +61,12 @@ type PdfViewMode = "pdf" | "ocr-html";
 
 type DocumentType = "pdf" | "epub" | "markdown" | "html" | "youtube" | "video" | "audio";
 
+type InitialJump =
+  | { kind: "pdf"; pageNumber: number }
+  | { kind: "epub"; cfi: string }
+  | { kind: "html"; scrollPercent: number }
+  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
+
 const DOCUMENT_TYPES: DocumentType[] = ["pdf", "epub", "markdown", "html", "youtube", "video", "audio"];
 const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "m4a", "m4b", "aac", "ogg", "flac", "opus"]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "mkv", "avi", "m4v"]);
@@ -140,6 +146,9 @@ interface DocumentViewerProps {
   onSelectionChange?: (selection: string) => void;
   onScrollPositionChange?: (state: { pageNumber: number; scrollPercent: number }) => void;
   initialViewMode?: ViewMode;
+  highlightQuery?: string;
+  initialJump?: InitialJump;
+  autoPlay?: boolean;
   onPdfContextTextChange?: (text: string) => void;
   contextPageWindow?: number;
   onExtractCreated?: (extract: Extract) => void;
@@ -158,6 +167,9 @@ export function DocumentViewer({
   onSelectionChange,
   onScrollPositionChange,
   initialViewMode,
+  highlightQuery,
+  initialJump,
+  autoPlay,
   onPdfContextTextChange,
   contextPageWindow,
   onExtractCreated,
@@ -200,6 +212,9 @@ export function DocumentViewer({
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<{
@@ -2104,22 +2119,103 @@ export function DocumentViewer({
   const htmlSource = currentDocument?.content || htmlContent || "";
   const htmlForDisplay = useMemo(() => {
     if (!htmlSource) return "";
-    if (settings.documents.webImportPreserveImages) return htmlSource;
+    const preserveImages = settings.documents.webImportPreserveImages;
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlSource, "text/html");
-      const styleTag = doc.createElement("style");
-      styleTag.textContent = `
-        img, picture, source {
-          display: none !important;
+      if (!preserveImages) {
+        const styleTag = doc.createElement("style");
+        styleTag.textContent = `
+          img, picture, source {
+            display: none !important;
+          }
+        `;
+        doc.head.appendChild(styleTag);
+      }
+      let html = doc.documentElement.outerHTML;
+      if (!jumpHighlightQuery) return html;
+
+      // Highlight query terms inside HTML text nodes. This runs only when opening via jump navigation.
+      try {
+        const highlightDoc = parser.parseFromString(html, "text/html");
+        highlightDoc.querySelectorAll("script, style").forEach((el) => el.remove());
+        const terms = jumpHighlightQuery
+          .split(/\s+/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        if (terms.length === 0) return html;
+
+        const walker = highlightDoc.createTreeWalker(highlightDoc.body, NodeFilter.SHOW_TEXT);
+        const regex = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+
+        const textNodes: Text[] = [];
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          if (!node.nodeValue || !node.nodeValue.trim()) continue;
+          textNodes.push(node);
         }
-      `;
-      doc.head.appendChild(styleTag);
-      return doc.documentElement.outerHTML;
+
+        for (const node of textNodes) {
+          const value = node.nodeValue || "";
+          if (!regex.test(value)) continue;
+          regex.lastIndex = 0;
+          const frag = highlightDoc.createDocumentFragment();
+          let last = 0;
+          let match: RegExpExecArray | null;
+          while ((match = regex.exec(value)) !== null) {
+            const start = match.index;
+            const end = start + match[0].length;
+            if (start > last) frag.append(value.slice(last, start));
+            const mark = highlightDoc.createElement("mark");
+            mark.setAttribute("data-search-highlight", "true");
+            mark.style.background = "rgba(245, 158, 11, 0.35)"; // amber
+            mark.style.borderRadius = "2px";
+            mark.textContent = value.slice(start, end);
+            frag.append(mark);
+            last = end;
+          }
+          if (last < value.length) frag.append(value.slice(last));
+          node.parentNode?.replaceChild(frag, node);
+        }
+
+        html = highlightDoc.documentElement.outerHTML;
+      } catch {
+        // If highlighting fails, fall back to unmodified HTML.
+      }
+
+      return html;
     } catch {
       return htmlSource;
     }
-  }, [htmlSource, settings.documents.webImportPreserveImages]);
+  }, [htmlSource, settings.documents.webImportPreserveImages, jumpHighlightQuery]);
+
+  // Apply initial jump navigation (page/scroll/time) on document load.
+  useEffect(() => {
+    if (!currentDocument) return;
+    if (!initialJump) return;
+
+    if (docType === "pdf" && initialJump.kind === "pdf" && typeof initialJump.pageNumber === "number") {
+      const page = Math.max(1, Math.floor(initialJump.pageNumber));
+      setSuppressPdfAutoScroll(false);
+      setPageNumber(page);
+      return;
+    }
+
+    if (docType === "html" && initialJump.kind === "html" && typeof initialJump.scrollPercent === "number") {
+      const pct = Math.max(0, Math.min(100, initialJump.scrollPercent));
+      setTimeout(() => {
+        const frame = iframeRef.current;
+        const win = frame?.contentWindow;
+        const doc = frame?.contentDocument;
+        if (!win || !doc) return;
+        const el = doc.scrollingElement || doc.documentElement || doc.body;
+        const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
+        win.scrollTo(0, (pct / 100) * maxScroll);
+      }, 150);
+      return;
+    }
+  }, [currentDocument?.id, docType, initialJump]);
 
   if (!currentDocument) {
     return (
@@ -2514,6 +2610,8 @@ export function DocumentViewer({
             contextPageWindow={contextPageWindow}
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
+            highlightQuery={jumpHighlightQuery}
+            highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
           />
           )
         ) : docType === "epub" && fileData ? (
@@ -2524,6 +2622,8 @@ export function DocumentViewer({
             onLoad={(toc) => handleDocumentLoad(0, toc)}
             onSelectionChange={updateSelection}
             onContextTextChange={onPdfContextTextChange}
+            highlightQuery={jumpHighlightQuery}
+            initialCfi={initialJump?.kind === "epub" ? initialJump.cfi : undefined}
           />
         ) : docType === "audio" ? (
           mediaSrc ? (
@@ -2606,9 +2706,21 @@ export function DocumentViewer({
           <div className="h-full w-full overflow-hidden bg-background">
             <iframe
               title={currentDocument.title}
+              ref={iframeRef}
               className="h-full w-full border-0"
               sandbox="allow-same-origin"
               srcDoc={htmlForDisplay}
+              onLoad={() => {
+                if (!initialJump || initialJump.kind !== "html") return;
+                const pct = Math.max(0, Math.min(100, initialJump.scrollPercent));
+                const frame = iframeRef.current;
+                const win = frame?.contentWindow;
+                const doc = frame?.contentDocument;
+                if (!win || !doc) return;
+                const el = doc.scrollingElement || doc.documentElement || doc.body;
+                const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
+                win.scrollTo(0, (pct / 100) * maxScroll);
+              }}
             />
           </div>
         ) : docType === "youtube" ? (
@@ -2618,6 +2730,10 @@ export function DocumentViewer({
               documentId={currentDocument.id}
               title={currentDocument.title}
               onLoad={handleYouTubeLoad}
+              initialSeekTime={initialJump?.kind === "youtube" ? initialJump.timeSeconds : undefined}
+              initialTranscriptHighlightQuery={jumpHighlightQuery}
+              initialTranscriptSegmentId={initialJump?.kind === "youtube" ? initialJump.segmentId : undefined}
+              autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}
               onArchive={() => {
                 loadQueue();
               }}
