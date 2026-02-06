@@ -23,6 +23,51 @@ function isVoiceSupported(): boolean {
   return !!getSpeechRecognitionCtor();
 }
 
+async function ensureMicrophonePermission(): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!window.isSecureContext) {
+    return {
+      ok: false,
+      message: "Microphone permissions require HTTPS (or localhost). Open the app over https:// and try again.",
+    };
+  }
+
+  // If embedded, permissions prompts are often blocked unless the embedding frame allows microphone.
+  if (window.top && window.top !== window) {
+    return {
+      ok: false,
+      message:
+        "Microphone permission prompts are blocked in embedded views. Open this page directly (not inside an iframe) and try again.",
+    };
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return {
+      ok: false,
+      message: "This browser does not support microphone capture. Try a Chromium-based browser.",
+    };
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Immediately stop: we only needed to trigger / verify permission.
+    stream.getTracks().forEach((t) => t.stop());
+    return { ok: true };
+  } catch (e) {
+    const name = (e as any)?.name;
+    if (name === "NotAllowedError" || name === "SecurityError") {
+      return {
+        ok: false,
+        message:
+          "Microphone permission is blocked. Allow microphone access for this site in your browser settings, then try again.",
+      };
+    }
+    if (name === "NotFoundError" || name === "OverconstrainedError") {
+      return { ok: false, message: "No microphone was found (or it is unavailable). Connect a mic and try again." };
+    }
+    return { ok: false, message: "Could not access the microphone. You can still type your question." };
+  }
+}
+
 export function PwaAssistantButton({
   context,
   side,
@@ -235,7 +280,13 @@ export function PwaAssistantButton({
     setTranscript("");
     setInput("");
     // Requirement: click invokes voice capture.
-    startListening();
+    ensureMicrophonePermission().then((res) => {
+      if (!res.ok) {
+        setError(res.message);
+        return;
+      }
+      startListening();
+    });
   };
 
   // When listening ends, copy transcript into input (ready to send).
