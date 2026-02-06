@@ -2806,35 +2806,33 @@ export function DocumentViewer({
         )}
       </div>
 
-      {/* Side Rating Controls for Audiobooks */}
+      {/* Floating Rating Bubbles for Audiobooks */}
       {viewMode === "document" && docType === "audio" && hasDocumentHistory && (
-        <div className="absolute top-20 right-4 flex flex-col gap-2 z-40">
-          <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
-            <div className="text-xs text-muted-foreground text-center mb-2">Rate</div>
-            <div className="flex flex-col gap-1">
-              {[
-                { value: 1, label: "Again", color: "bg-red-500 hover:bg-red-600" },
-                { value: 2, label: "Hard", color: "bg-orange-500 hover:bg-orange-600" },
-                { value: 3, label: "Good", color: "bg-blue-500 hover:bg-blue-600" },
-                { value: 4, label: "Easy", color: "bg-green-500 hover:bg-green-600" },
-              ].map((rating) => (
-                <button
-                  key={rating.value}
-                  onClick={() => handleRating(rating.value as ReviewRating)}
-                  className={cn(
-                    "px-3 py-2 text-white text-xs font-medium rounded transition-colors",
-                    rating.color
-                  )}
-                  title={`${rating.label} (${rating.value})`}
-                >
-                  {rating.label}
-                </button>
-              ))}
-            </div>
-            <div className="text-[10px] text-muted-foreground text-center mt-2">
-              Press 1-4
-            </div>
-          </div>
+        <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+          {[
+            { value: 1, label: "A", title: "Again", color: "bg-red-500 hover:bg-red-600", shadow: "shadow-red-500/30" },
+            { value: 2, label: "H", title: "Hard", color: "bg-orange-500 hover:bg-orange-600", shadow: "shadow-orange-500/30" },
+            { value: 3, label: "G", title: "Good", color: "bg-blue-500 hover:bg-blue-600", shadow: "shadow-blue-500/30" },
+            { value: 4, label: "E", title: "Easy", color: "bg-green-500 hover:bg-green-600", shadow: "shadow-green-500/30" },
+          ].map((rating) => (
+            <button
+              key={rating.value}
+              onClick={() => handleRating(rating.value as ReviewRating)}
+              className={cn(
+                "w-12 h-12 rounded-full text-white font-bold text-sm",
+                "flex items-center justify-center",
+                "transition-all duration-150",
+                "hover:scale-110 active:scale-95",
+                "shadow-lg hover:shadow-xl",
+                rating.color,
+                rating.shadow
+              )}
+              title={`${rating.title} (${rating.value})`}
+              aria-label={`Rate ${rating.title}`}
+            >
+              {rating.label}
+            </button>
+          ))}
         </div>
       )}
 
