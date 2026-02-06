@@ -35,7 +35,7 @@ export function KnowledgeSpherePage() {
       // Fetch data from backend
       const documents = await invokeCommand<any[]>("get_documents");
       const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
-      const learningItems = await invokeCommand<any[]>("get_learning_items");
+      const learningItems = await invokeCommand<any[]>("get_all_learning_items");
 
       // Build nodes array
       const nodeMap = new Map<string, Node>();

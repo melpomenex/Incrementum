@@ -4,11 +4,12 @@
 
 import { useState, useEffect } from "react";
 import { invokeCommand } from "../../lib/tauri";
-import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck } from "lucide-react";
+import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck, Database } from "lucide-react";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { buildCollectionArchive, parseCollectionArchive, restoreBrowserArchive, restoreLocalStorage, shouldUseTauriImport } from "../../utils/collectionArchive";
 import type { CollectionExportScope } from "../../types/archive";
+import { AppStateBackupDialog } from "./AppStateBackupDialog";
 
 /**
  * Export options
@@ -42,6 +43,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const [archiveScope, setArchiveScope] = useState<CollectionExportScope>("current");
   const [archiveInProgress, setArchiveInProgress] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
+  const [showAppStateDialog, setShowAppStateDialog] = useState(false);
 
   // Load demo content status on mount
   useEffect(() => {
@@ -220,6 +222,38 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
 
   return (
     <>
+      <SettingsSection
+        title="Complete App Backup"
+        description="Backup or restore your entire app state including all documents, study progress, settings, and preferences"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg">
+            <h4 className="text-sm font-medium mb-2 text-foreground">What&apos;s included</h4>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• All documents with metadata and reading positions</li>
+              <li>• Extracts and highlights</li>
+              <li>• Flashcards with FSRS scheduling data</li>
+              <li>• Collections and document assignments</li>
+              <li>• All settings and preferences</li>
+              <li>• Optional: Actual document files (PDFs, EPUBs, etc.)</li>
+            </ul>
+          </div>
+
+          <button
+            onClick={() => setShowAppStateDialog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            <Database className="w-4 h-4" />
+            Open Backup & Restore
+          </button>
+        </div>
+      </SettingsSection>
+
+      <AppStateBackupDialog
+        isOpen={showAppStateDialog}
+        onClose={() => setShowAppStateDialog(false)}
+      />
+
       <SettingsSection
         title="Collection Archive (Recommended)"
         description="Create a portable backup that includes data, files, settings, and Anki .apkg"

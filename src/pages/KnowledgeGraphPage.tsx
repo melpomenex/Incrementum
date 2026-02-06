@@ -40,7 +40,7 @@ export function KnowledgeGraphPage() {
       // Fetch data from backend
       const documents = await invokeCommand<any[]>("get_documents");
       const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
-      const learningItems = await invokeCommand<any[]>("get_learning_items");
+      const learningItems = await invokeCommand<any[]>("get_all_learning_items");
       const inActiveCollection = (documentId?: string | null) => {
         if (!activeCollectionId) return true;
         if (!documentId) return true;

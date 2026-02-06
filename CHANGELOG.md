@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.1] - 2026-02-06
+## [1.6.0] - 2026-02-06
+
+### Added
+- **Complete App State Backup & Restore System**
+  - Export all application state to `.incrementum` backup files
+  - Export includes: settings, documents (metadata), extracts, learning items, collections, and optional document files
+  - Import with progress tracking and validation
+  - Selective import options (choose what to restore)
+  - Duplicate handling strategies (skip, replace, merge)
+  - Full UI dialog for backup/restore with export preview
+  - Cross-platform support (Tauri desktop and browser)
+- **Drag & Drop Upload Component** - New reusable component for file uploads
+- **Tab System Improvements** - Enhanced SplitPaneContainer, TabBar, and Tabs components
 
 ### Fixed
 - Priority control visibility in dark mode - replaced transparent backgrounds with solid colors, improved text contrast

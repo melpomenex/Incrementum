@@ -18,8 +18,12 @@ fn early_log(message: &str) {
 }
 
 fn install_early_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
+    // Keep the default panic output (stderr) while also logging to a file for
+    // cases where the terminal output is not visible (e.g., GUI launches).
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
         early_log(&format!("panic: {info}"));
+        default_hook(info);
     }));
 }
 

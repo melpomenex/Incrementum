@@ -1,3 +1,9 @@
 [build]
 jobs = 1
 target-dir = "target"
+
+# Force a known-good linker path on Linux. This avoids rust-lld/LLD issues on
+# large builds (crashes, relocation errors) and works across Rust toolchains.
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]

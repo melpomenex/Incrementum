@@ -28,6 +28,7 @@ import { WebArticleImportDialog } from "../import/WebArticleImportDialog";
 import { AudiobookImportDialog } from "../import/AudiobookImportDialog";
 import { EmptyDocuments, EmptySearch } from "../common/EmptyState";
 import { DocumentCardSkeleton, DocumentGridSkeleton } from "../common/Skeleton";
+import { DragDropUpload } from "../common/DragDropUpload";
 import type { Document } from "../../types/document";
 import {
   DocumentSortDirection,
@@ -50,7 +51,7 @@ import { importYouTubeVideo, resolveDocumentCover, updateDocument as updateDocum
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { getDeviceInfo } from "../../lib/pwa";
 import { invokeCommand, isTauri } from "../../lib/tauri";
-import { storeBrowserFile } from "../../lib/browser-file-store";
+import { importAnkiPackage } from "../../utils/ankiImport";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
 const SAVED_VIEWS_KEY = "documentsSavedViews";
@@ -157,7 +158,6 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [isInspectorOpen, setInspectorOpen] = useState(() => !isMobile);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  const [isDragging, setIsDragging] = useState(false);
   const [showYouTubeImport, setShowYouTubeImport] = useState(false);
   const [showAnnaArchiveSearch, setShowAnnaArchiveSearch] = useState(false);
   const [showArxivImport, setShowArxivImport] = useState(false);
@@ -321,39 +321,9 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     }
   }, [openFilePickerAndImport, onOpenDocument]);
 
-  const handleDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    async (event: React.DragEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsDragging(false);
-
-      const files = Array.from(event.dataTransfer.files);
-      if (files.length === 0) return;
-
-      let filePaths: string[];
-
-      if (isTauri()) {
-        // In Tauri, files have a path property
-        filePaths = files
-          .map((file) => (file as any).path)
-          .filter((path) => path && typeof path === "string");
-      } else {
-        // In web mode, store files in browser file store and get virtual paths
-        filePaths = files.map((file) => storeBrowserFile(file));
-      }
-
+  // Handle files from drag and drop upload component
+  const handleDragDropFiles = useCallback(
+    async (filePaths: string[]) => {
       if (filePaths.length === 0) return;
       try {
         const importedDocs = await importFromFiles(filePaths);
@@ -365,6 +335,22 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       }
     },
     [importFromFiles, onOpenDocument]
+  );
+
+  // Handle Anki package import
+  const handleAnkiPackage = useCallback(
+    async (filePath: string) => {
+      try {
+        const decks = await importAnkiPackage(filePath);
+        console.log(`Imported ${decks.length} decks from Anki package`);
+        // TODO: Show a dialog to let user select which decks to import
+        // For now, just log success
+        await loadDocuments();
+      } catch (err) {
+        console.error("Failed to import Anki package:", err);
+      }
+    },
+    [loadDocuments]
   );
 
   const handleYouTubeImport = async () => {
@@ -596,12 +582,12 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   };
 
   return (
-    <div
-      className={`h-full flex flex-col bg-cream ${isDragging ? "bg-primary/10" : ""}`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+    <DragDropUpload
+      onFilesImported={handleDragDropFiles}
+      onAnkiPackage={handleAnkiPackage}
+      className="h-full"
     >
+    <div className="h-full flex flex-col bg-cream">
       {/* Header */}
       <div className="border-b border-border bg-card p-3 sm:p-4">
         {/* Title and Import Actions - Single Row on Mobile */}
@@ -1252,20 +1238,6 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         )}
       </div>
 
-      {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/20 backdrop-blur-sm pointer-events-none">
-          <div className="text-center p-8 bg-card border-2 border-primary rounded-lg shadow-lg">
-            <div className="text-6xl mb-4">📄</div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              Drop files to import
-            </h3>
-            <p className="text-muted-foreground">
-              Release to import documents
-            </p>
-          </div>
-        </div>
-      )}
-
       {enableYouTubeImport && showYouTubeImport && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg w-full max-w-md p-6">
@@ -1425,6 +1397,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         onOpenDocument={onOpenDocument}
       />
     </div>
+    </DragDropUpload>
   );
 }
 
