@@ -8,8 +8,14 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) {
+  // Helper to get item type - handles both snake_case and camelCase from different backends
+  const getItemType = (): string => {
+    const item = card as any;
+    return item.item_type || item.itemType || "flashcard";
+  };
+
   const getItemIcon = (itemType: string) => {
-    switch (itemType) {
+    switch (itemType?.toLowerCase()) {
       case "cloze":
         return "📝";
       case "qa":
@@ -22,7 +28,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
   };
 
   const getItemTypeLabel = (itemType: string) => {
-    switch (itemType) {
+    switch (itemType?.toLowerCase()) {
       case "cloze":
         return "Cloze Deletion";
       case "qa":
@@ -34,8 +40,10 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
     }
   };
 
+  const itemType = getItemType();
+
   const renderQuestion = () => {
-    if (card.item_type === "cloze" && card.cloze_text) {
+    if ((itemType === "cloze" || itemType === "Cloze") && card.cloze_text) {
       // For cloze cards, hide the clozed portion
       const parts = card.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
       return (
@@ -88,12 +96,12 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-2 md:px-0" role="article" aria-label={`${getItemTypeLabel(card.item_type)} card`}>
+    <div className="w-full max-w-2xl mx-auto px-2 md:px-0" role="article" aria-label={`${getItemTypeLabel(itemType)} card`}>
       {/* Card Type Badge */}
       <div className="flex items-center gap-2 mb-3 md:mb-4">
-        <span className="text-xl md:text-2xl" aria-hidden="true">{getItemIcon(card.item_type)}</span>
+        <span className="text-xl md:text-2xl" aria-hidden="true">{getItemIcon(itemType)}</span>
         <span className="text-xs md:text-sm uppercase tracking-wide text-foreground/80 font-medium">
-          {getItemTypeLabel(card.item_type)}
+          {getItemTypeLabel(itemType)}
         </span>
         {card.tags.length > 0 && (
           <>
@@ -115,7 +123,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
         {/* Question */}
         <div className="mb-2">
           <div className="text-sm uppercase tracking-wide text-foreground/80 mb-3 font-medium">
-            {card.item_type === "cloze" ? "Complete the sentence" : "Question"}
+            {(itemType === "cloze" || itemType === "Cloze") ? "Complete the sentence" : "Question"}
           </div>
           {renderQuestion()}
         </div>

@@ -2355,10 +2355,14 @@ async function parseAndReturnFeed(xmlText: string, feedUrl: string) {
  */
 async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
     // Parse the .apkg file
+    console.log('[Browser] Parsing Anki package...');
     const decks = await parseAnkiPackage(fileOrBytes);
+    console.log(`[Browser] Parsed ${decks.length} decks`);
 
     // Convert to Incrementum format
+    console.log('[Browser] Converting to Incrementum format...');
     const { documents, learningItems } = convertAnkiToLearningItems(decks);
+    console.log(`[Browser] Converted: ${documents.length} documents, ${learningItems.length} learning items`);
 
     // Store documents
     const docIds: string[] = [];
@@ -2378,6 +2382,7 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
     }
 
     // Create learning items
+    console.log(`[Browser] Creating ${learningItems.length} learning items in database...`);
     const items = [];
     for (const item of learningItems) {
         const createdItem = await db.createLearningItem({
@@ -2385,11 +2390,14 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
             item_type: item.itemType,
             question: item.question,
             answer: item.answer,
+            cloze_text: item.clozeText,
+            cloze_ranges: item.clozeRanges,
         });
 
         // Convert to camelCase and return as plain object
         items.push(toCamelCase(createdItem));
     }
+    console.log(`[Browser] Successfully created ${items.length} learning items`);
 
     return items;
 }

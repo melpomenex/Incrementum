@@ -470,6 +470,7 @@ export interface LearningItem {
     question: string;
     answer?: string;
     cloze_text?: string;
+    cloze_ranges?: [number, number][];
     difficulty: number;
     interval: number;
     ease_factor: number;
@@ -497,6 +498,7 @@ export async function createLearningItem(item: Partial<LearningItem>): Promise<L
         question: item.question || '',
         answer: item.answer,
         cloze_text: item.cloze_text,
+        cloze_ranges: item.cloze_ranges,
         difficulty: item.difficulty || 0.3,
         interval: item.interval || 0,
         ease_factor: item.ease_factor || 2.5,
