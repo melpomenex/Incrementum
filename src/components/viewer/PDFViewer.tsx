@@ -80,6 +80,10 @@ export function PDFViewer({
   const renderIdRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
   const isProgrammaticScrollRef = useRef(false);
+  // If the page number update came from scroll syncing, don't auto-scroll to the top of the page.
+  const pageUpdateFromScrollRef = useRef(false);
+  // If the user scrolls during an in-flight restore attempt, cancel further restore retries.
+  const userScrolledDuringRestoreRef = useRef(false);
   const textCacheRef = useRef<Map<number, string>>(new Map());
   const textWindowRef = useRef<{ start: number; end: number }>({ start: 1, end: 1 });
   const skipAutoScrollOnceRef = useRef(false);
@@ -851,6 +855,13 @@ export function PDFViewer({
     const pageContainer = pageContainerRefs.current[pageNumber - 1];
     if (!container || !pageContainer) return;
 
+    // If the pageNumber update came from scroll syncing, avoid auto-scrolling
+    // (it feels like the viewer is "snapping back" while scrolling).
+    if (pageUpdateFromScrollRef.current) {
+      pageUpdateFromScrollRef.current = false;
+      return;
+    }
+
     if (suppressAutoScroll) {
       skipAutoScrollOnceRef.current = true;
       // Track the restored page to prevent scroll events from resetting it backwards
@@ -896,64 +907,99 @@ export function PDFViewer({
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const pageIndex = Math.max(0, restoreState.pageNumber - 1);
-    const pageEl = pageContainerRefs.current[pageIndex];
-    const viewport = pageViewportRefs.current[pageIndex];
+    // Restore can run before page layout is stable (especially on first load or fit-width reflows).
+    // Retry for a short window until we have enough layout to map the anchor into scroll coords.
+    userScrolledDuringRestoreRef.current = false;
+    const start = Date.now();
+    const deadline = start + 8000;
+    let canceled = false;
+    let settleTimeout: ReturnType<typeof setTimeout> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    let targetScrollTop: number | null = null;
-    let targetScrollLeft: number | null = null;
-    const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+    const attempt = () => {
+      if (canceled) return;
+      if (userScrolledDuringRestoreRef.current) return;
+      const activeContainer = scrollContainerRef.current;
+      if (!activeContainer) return;
 
-    if (restoreState.dest && pageEl && viewport) {
-      const left = restoreState.dest.left ?? 0;
-      const top = restoreState.dest.top ?? 0;
-      const [viewportX, viewportY] = viewport.convertToViewportPoint(left, top);
-      targetScrollTop = pageEl.offsetTop + viewportY;
-      targetScrollLeft = viewportX;
-    } else if (
-      typeof restoreState.scrollTop === "number"
-      || typeof restoreState.scrollPercent === "number"
-    ) {
-      const scrollLeft = typeof restoreState.scrollLeft === "number" ? restoreState.scrollLeft : null;
-      if (typeof restoreState.scrollPercent === "number" && maxScroll > 0) {
-        const percentScrollTop = (restoreState.scrollPercent / 100) * maxScroll;
-        if (typeof restoreState.scrollTop === "number") {
-          const delta = Math.abs(restoreState.scrollTop - percentScrollTop);
-          const threshold = Math.max(200, maxScroll * 0.05);
-          targetScrollTop = delta > threshold ? percentScrollTop : restoreState.scrollTop;
-        } else {
-          targetScrollTop = percentScrollTop;
+      const clampedPageNumber = Math.max(1, Math.min(restoreState.pageNumber, Math.max(1, numPages || 1)));
+      const pageIndex = clampedPageNumber - 1;
+      const pageEl = pageContainerRefs.current[pageIndex];
+      const viewport = pageViewportRefs.current[pageIndex];
+
+      let targetScrollTop: number | null = null;
+      let targetScrollLeft: number | null = null;
+      const maxScroll = Math.max(0, activeContainer.scrollHeight - activeContainer.clientHeight);
+
+      if (restoreState.dest && pageEl && viewport && pageEl.offsetHeight > 0) {
+        const left = restoreState.dest.left ?? 0;
+        const top = restoreState.dest.top ?? 0;
+        const [viewportX, viewportY] = viewport.convertToViewportPoint(left, top);
+        if (Number.isFinite(viewportY)) {
+          targetScrollTop = pageEl.offsetTop + viewportY;
         }
-      } else if (typeof restoreState.scrollTop === "number") {
-        targetScrollTop = restoreState.scrollTop;
-      } else if (typeof restoreState.scrollPercent === "number") {
-        targetScrollTop = (restoreState.scrollPercent / 100) * maxScroll;
+        if (Number.isFinite(viewportX)) {
+          targetScrollLeft = viewportX;
+        }
+      } else if (
+        typeof restoreState.scrollTop === "number"
+        || typeof restoreState.scrollPercent === "number"
+      ) {
+        const scrollLeft = typeof restoreState.scrollLeft === "number" ? restoreState.scrollLeft : null;
+        if (typeof restoreState.scrollPercent === "number" && maxScroll > 0) {
+          const percentScrollTop = (restoreState.scrollPercent / 100) * maxScroll;
+          if (typeof restoreState.scrollTop === "number") {
+            const delta = Math.abs(restoreState.scrollTop - percentScrollTop);
+            const threshold = Math.max(200, maxScroll * 0.05);
+            targetScrollTop = delta > threshold ? percentScrollTop : restoreState.scrollTop;
+          } else {
+            targetScrollTop = percentScrollTop;
+          }
+        } else if (typeof restoreState.scrollTop === "number") {
+          targetScrollTop = restoreState.scrollTop;
+        } else if (typeof restoreState.scrollPercent === "number" && maxScroll > 0) {
+          targetScrollTop = (restoreState.scrollPercent / 100) * maxScroll;
+        }
+        targetScrollLeft = scrollLeft;
       }
-      targetScrollLeft = scrollLeft;
-    }
 
-    if (targetScrollTop === null) return;
-    const clamped = Math.min(Math.max(0, targetScrollTop), maxScroll);
+      const hasEnoughLayout =
+        maxScroll > 0 ||
+        (!!pageEl && pageEl.offsetHeight > 0) ||
+        (activeContainer.scrollHeight > 0 && activeContainer.clientHeight > 0);
 
-    restoredPageRef.current = restoreState.pageNumber;
-    restorationWindowRef.current = Date.now() + 2000;
-    isProgrammaticScrollRef.current = true;
-    container.scrollTop = clamped;
+      if (targetScrollTop === null || !hasEnoughLayout) {
+        if (!userScrolledDuringRestoreRef.current && Date.now() < deadline) {
+          retryTimeout = setTimeout(attempt, 120);
+        }
+        return;
+      }
 
-    // Restore horizontal scroll position if available
-    if (targetScrollLeft !== null) {
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      container.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
-    }
+      const clamped = Math.min(Math.max(0, targetScrollTop), maxScroll > 0 ? maxScroll : targetScrollTop);
+      restoredPageRef.current = clampedPageNumber;
+      restorationWindowRef.current = Date.now() + 2000;
+      isProgrammaticScrollRef.current = true;
+      activeContainer.scrollTop = clamped;
 
-    const timeout = setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 300);
+      if (targetScrollLeft !== null) {
+        const maxScrollLeft = Math.max(0, activeContainer.scrollWidth - activeContainer.clientWidth);
+        activeContainer.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
+      }
+
+      if (settleTimeout) clearTimeout(settleTimeout);
+      settleTimeout = setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 300);
+    };
+
+    attempt();
 
     return () => {
-      clearTimeout(timeout);
+      canceled = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (settleTimeout) clearTimeout(settleTimeout);
     };
-  }, [restoreRequestId, restoreState]);
+  }, [numPages, restoreRequestId, restoreState]);
 
 
   const handlePrevPage = () => {
@@ -1060,6 +1106,11 @@ export function PDFViewer({
       scrollRafRef.current = null;
       if (isProgrammaticScrollRef.current) return;
 
+      // User scrolled. If we're still trying to restore, don't snap them back later.
+      if (restoreState && restoreRequestId !== undefined) {
+        userScrolledDuringRestoreRef.current = true;
+      }
+
       const scrollTop = container.scrollTop;
       let currentPage = 1;
       for (let i = 0; i < pageContainerRefs.current.length; i += 1) {
@@ -1086,6 +1137,7 @@ export function PDFViewer({
           if (!isInRestorationWindow) {
             restoredPageRef.current = null;
           }
+          pageUpdateFromScrollRef.current = true;
           onPageChange?.(currentPage);
         }
       }
@@ -1142,14 +1194,19 @@ export function PDFViewer({
   };
 
   return (
-    <div ref={outerContainerRef} className="flex flex-col h-full bg-background" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div
+      ref={outerContainerRef}
+      className="flex flex-col h-full min-h-0 bg-background"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+    >
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg m-4">
           Failed to load PDF: {error}
         </div>
       )}
 
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 min-h-0 relative">
         {/* Table of Contents Sidebar - Overlay on mobile, inline on desktop */}
         {showTOC && (
           <>
@@ -1269,7 +1326,7 @@ export function PDFViewer({
             ref={scrollContainerRef}
             onScroll={handleScroll}
             className={cn(
-              "flex-1 overflow-auto bg-muted/30 p-4",
+              "flex-1 min-h-0 overflow-auto bg-muted/30 p-4",
               isDragging && "cursor-grabbing",
               !isDragging && (scale > 1 || zoomMode === "custom") && "cursor-grab"
             )}

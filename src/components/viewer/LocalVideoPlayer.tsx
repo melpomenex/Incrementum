@@ -546,7 +546,7 @@ export function LocalVideoPlayer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, volume, playbackRate]);
 
-  const buildPlayErrorMessage = (error: unknown) => {
+  const buildPlayErrorMessage = useCallback((error: unknown) => {
     if (error instanceof DOMException) {
       if (error.name === 'NotSupportedError' || /not supported/i.test(error.message)) {
         return 'This video codec is not supported. Please convert to MP4 (H.264/AAC). '
@@ -559,9 +559,9 @@ export function LocalVideoPlayer({
     }
     if (error instanceof Error) return error.message;
     return 'Failed to play video';
-  };
+  }, []);
 
-  const attemptPlay = async (context: string) => {
+  const attemptPlay = useCallback(async (context: string) => {
     if (!videoRef.current) return;
     try {
       await videoRef.current.play();
@@ -571,7 +571,7 @@ export function LocalVideoPlayer({
       setPlayError(errorMessage);
       toast.error('Playback Error', errorMessage);
     }
-  };
+  }, [buildPlayErrorMessage]);
 
   // Toggle play/pause
   const togglePlay = async () => {
@@ -669,10 +669,17 @@ export function LocalVideoPlayer({
     }
   };
 
+  // Use requestVideoFrameCallback for smoother playback when available
+  // Falls back to timeupdate event for older browsers
+  const rafCallbackRef = useRef<number | undefined>(undefined);
+
   const handleTimeUpdate = useCallback(() => {
     if (!videoRef.current) return;
     const time = videoRef.current.currentTime;
-    setCurrentTime(time);
+    // Only update state if time changed significantly (reduces re-renders)
+    if (Math.abs(time - currentTimeRef.current) > 0.1) {
+      setCurrentTime(time);
+    }
     currentTimeRef.current = time; // Keep ref updated for unmount save
 
     if (
@@ -685,6 +692,45 @@ export function LocalVideoPlayer({
       void attemptPlay('extract-loop');
     }
   }, [activeExtractStartTime, activeExtractEndTime]);
+
+  // Set up video frame callback for smoother updates
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof video.requestVideoFrameCallback !== 'function') {
+      return;
+    }
+
+    const onFrame = () => {
+      if (video) {
+        const time = video.currentTime;
+        // Update state every frame for smooth progress bar
+        if (Math.abs(time - currentTimeRef.current) > 0.05) {
+          setCurrentTime(time);
+        }
+        currentTimeRef.current = time;
+
+        // Check extract loop
+        if (
+          activeExtractStartTime !== null
+          && activeExtractEndTime !== null
+          && activeExtractEndTime > activeExtractStartTime
+          && time >= activeExtractEndTime
+        ) {
+          video.currentTime = activeExtractStartTime;
+          void attemptPlay('extract-loop');
+        }
+      }
+      rafCallbackRef.current = video.requestVideoFrameCallback(onFrame);
+    };
+
+    rafCallbackRef.current = video.requestVideoFrameCallback(onFrame);
+
+    return () => {
+      if (rafCallbackRef.current !== undefined && typeof video.cancelVideoFrameCallback === 'function') {
+        video.cancelVideoFrameCallback(rafCallbackRef.current);
+      }
+    };
+  }, [activeExtractStartTime, activeExtractEndTime, attemptPlay]);
 
   const handleCreateExtract = () => {
     setShowCreateExtract(false);
@@ -848,7 +894,13 @@ export function LocalVideoPlayer({
           savePosition(videoRef.current.currentTime);
         }
       }}
-      onTimeUpdate={handleTimeUpdate}
+      // Use timeupdate as fallback for browsers without requestVideoFrameCallback
+      onTimeUpdate={() => {
+        if (!videoRef.current || typeof videoRef.current.requestVideoFrameCallback === 'function') {
+          return; // Skip if rAF is handling updates
+        }
+        handleTimeUpdate();
+      }}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
@@ -879,6 +931,8 @@ export function LocalVideoPlayer({
     <video
       ref={videoRef}
       src={src}
+      preload="metadata"
+      playsInline
       className="w-full max-h-full bg-black cursor-pointer"
       onLoadedMetadata={() => {
         console.log('[LocalVideoPlayer] onLoadedMetadata fired:', {
@@ -917,7 +971,13 @@ export function LocalVideoPlayer({
           savePosition(videoRef.current.currentTime);
         }
       }}
-      onTimeUpdate={handleTimeUpdate}
+      // Use timeupdate as fallback for browsers without requestVideoFrameCallback
+      onTimeUpdate={() => {
+        if (!videoRef.current || typeof videoRef.current.requestVideoFrameCallback === 'function') {
+          return; // Skip if rAF is handling updates
+        }
+        handleTimeUpdate();
+      }}
       onVolumeChange={() => {
         if (videoRef.current) {
           setVolume(videoRef.current.volume * 100);
