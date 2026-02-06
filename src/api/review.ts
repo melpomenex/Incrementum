@@ -57,10 +57,11 @@ export interface LearningItem {
   id: string;
   extract_id?: string;
   document_id?: string;
-  item_type: "flashcard" | "cloze" | "qa" | "basic";
+  item_type: "flashcard" | "cloze" | "qa" | "basic" | "Cloze";
   question: string;
   answer?: string;
   cloze_text?: string;
+  cloze_ranges?: [number, number][];
   difficulty: number;
   interval: number;
   ease_factor: number;
