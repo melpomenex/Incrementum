@@ -53,7 +53,8 @@ import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { startTranscription } from "../../api/transcription";
 import { isTauri } from "../../lib/tauri";
-import { readDocumentFile, updateDocument as updateDocumentApi } from "../../api/documents";
+import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto } from "../../api/documents";
+import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -119,6 +120,14 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const [localCoverUrl, setLocalCoverUrl] = useState<string | undefined>(document.coverImageUrl);
 
+  const documentIdRef = useRef(document.id);
+  const currentTimeRef = useRef(0);
+  const currentGlobalTimeRef = useRef(0);
+  const durationRef = useRef(0);
+  const totalDurationSecondsRef = useRef<number | undefined>(undefined);
+  const lastSavedGlobalTimeRef = useRef(0);
+  const pendingSeekTimeRef = useRef<number | null>(null);
+
   // Auto-fetch cover if document has none
   useEffect(() => {
     if (document.coverImageUrl) {
@@ -172,6 +181,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
 
   // Load audiobook data
   useEffect(() => {
+    documentIdRef.current = document.id;
     const loadAudiobookData = async () => {
       const data = localStorage.getItem(`audiobook-${document.id}`);
       if (data) {
@@ -204,14 +214,109 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     
     loadAudiobookData();
   }, [document.id]);
-  
-  // Load saved progress
-  useEffect(() => {
-    const savedTime = document.currentPage;
-    if (savedTime && audioRef.current) {
-      audioRef.current.currentTime = savedTime;
-      setCurrentTime(savedTime);
+
+  const getTotalDurationSeconds = useCallback((): number | undefined => {
+    if (multiPartInfo?.partDurations?.length) {
+      const sum = multiPartInfo.partDurations.reduce(
+        (acc, d) => acc + (Number.isFinite(d) ? d : 0),
+        0
+      );
+      return Number.isFinite(sum) && sum > 0 ? Math.floor(sum) : undefined;
     }
+    return Number.isFinite(durationRef.current) && durationRef.current > 0
+      ? Math.floor(durationRef.current)
+      : undefined;
+  }, [multiPartInfo?.partDurations]);
+
+  // Keep a ref for cleanup/unmount saves (avoid stale closures).
+  useEffect(() => {
+    totalDurationSecondsRef.current = getTotalDurationSeconds();
+  }, [getTotalDurationSeconds, duration, multiPartInfo?.partDurations]);
+
+  const toGlobalSeconds = useCallback(
+    (partIndex: number, timeInPart: number): number => {
+      if (!multiPartInfo?.partDurations?.length) return timeInPart;
+      const base = multiPartInfo.partDurations
+        .slice(0, Math.max(0, partIndex))
+        .reduce((acc, d) => acc + (Number.isFinite(d) ? d : 0), 0);
+      return base + timeInPart;
+    },
+    [multiPartInfo?.partDurations]
+  );
+
+  const fromGlobalSeconds = useCallback(
+    (globalSeconds: number): { partIndex: number; timeInPart: number } => {
+      if (!multiPartInfo?.partDurations?.length) {
+        return { partIndex: 0, timeInPart: globalSeconds };
+      }
+
+      const totalParts = multiPartInfo.partDurations.length;
+      let remaining = Math.max(0, globalSeconds);
+      for (let i = 0; i < totalParts; i++) {
+        const d = Number.isFinite(multiPartInfo.partDurations[i]) ? multiPartInfo.partDurations[i] : 0;
+        if (remaining < d || i === totalParts - 1) {
+          return { partIndex: i, timeInPart: Math.min(remaining, Math.max(0, d - 0.25)) };
+        }
+        remaining -= d;
+      }
+
+      return { partIndex: 0, timeInPart: globalSeconds };
+    },
+    [multiPartInfo?.partDurations]
+  );
+
+  const savePosition = useCallback(
+    async (timeInPart: number) => {
+      const docId = documentIdRef.current;
+      if (!docId) return;
+
+      const globalSeconds = toGlobalSeconds(currentPartIndex, timeInPart);
+      const rounded = Math.floor(globalSeconds);
+
+      if (!Number.isFinite(rounded) || rounded < 0) return;
+      if (Math.abs(rounded - lastSavedGlobalTimeRef.current) < 1) return;
+
+      try {
+        await updateDocumentProgressAuto(docId, rounded);
+        await saveDocumentPosition(docId, timePosition(rounded, getTotalDurationSeconds()));
+        lastSavedGlobalTimeRef.current = rounded;
+      } catch (error) {
+        console.warn("[AudiobookViewer] Failed to save position:", error);
+      }
+    },
+    [currentPartIndex, getTotalDurationSeconds, toGlobalSeconds]
+  );
+
+  const loadSavedPosition = useCallback(async () => {
+    let savedSeconds: number | null = null;
+
+    try {
+      const pos = await getDocumentPosition(document.id);
+      if (pos?.type === "time" && typeof pos.seconds === "number") {
+        savedSeconds = pos.seconds;
+      }
+    } catch (error) {
+      console.warn("[AudiobookViewer] Failed to load saved position from position API:", error);
+    }
+
+    if (savedSeconds == null && typeof document.currentPage === "number") {
+      savedSeconds = document.currentPage;
+    }
+
+    if (savedSeconds == null || !Number.isFinite(savedSeconds) || savedSeconds <= 0) {
+      return;
+    }
+
+    const { partIndex, timeInPart } = fromGlobalSeconds(savedSeconds);
+    if (multiPartInfo && partIndex !== currentPartIndex) {
+      setCurrentPartIndex(partIndex);
+    }
+    pendingSeekTimeRef.current = timeInPart;
+  }, [currentPartIndex, document.currentPage, document.id, fromGlobalSeconds, multiPartInfo]);
+
+  // Load saved progress + audio prefs
+  useEffect(() => {
+    void loadSavedPosition();
     
     const savedVolume = localStorage.getItem("audiobook-volume");
     if (savedVolume) {
@@ -228,13 +333,15 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         audioRef.current.playbackRate = parseFloat(savedRate);
       }
     }
-  }, [document.id, document.currentPage]);
+  }, [document.id, document.currentPage, loadSavedPosition]);
   
   // Audio event handlers
   const handleTimeUpdate = useCallback(() => {
     if (audioRef.current) {
       const time = audioRef.current.currentTime;
       setCurrentTime(time);
+      currentTimeRef.current = time;
+      currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, time);
       
       // Update active transcript segment
       if (transcript?.segments) {
@@ -256,11 +363,21 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
       }
     }
-  }, [transcript, activeSegmentId, showTranscript]);
+  }, [activeSegmentId, currentPartIndex, showTranscript, toGlobalSeconds, transcript]);
   
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
+      durationRef.current = audioRef.current.duration;
+
+      // Apply a deferred seek after the correct src has loaded.
+      if (pendingSeekTimeRef.current != null) {
+        const t = pendingSeekTimeRef.current;
+        pendingSeekTimeRef.current = null;
+        audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || t, t));
+        setCurrentTime(audioRef.current.currentTime);
+        currentTimeRef.current = audioRef.current.currentTime;
+      }
     }
   };
   
@@ -269,6 +386,8 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     if (multiPartInfo && currentPartIndex < multiPartInfo.partFiles.length - 1) {
       const nextPartIndex = currentPartIndex + 1;
       setCurrentPartIndex(nextPartIndex);
+      currentTimeRef.current = 0;
+      currentGlobalTimeRef.current = toGlobalSeconds(nextPartIndex, 0);
       // Load next part - audio element will auto-play if it was playing
       if (audioRef.current) {
         audioRef.current.src = partSources[nextPartIndex] || "";
@@ -290,6 +409,8 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     if (!multiPartInfo || partIndex < 0 || partIndex >= multiPartInfo.partFiles.length) return;
     
     setCurrentPartIndex(partIndex);
+    currentTimeRef.current = 0;
+    currentGlobalTimeRef.current = toGlobalSeconds(partIndex, 0);
     if (audioRef.current) {
       audioRef.current.src = partSources[partIndex] || "";
       audioRef.current.load();
@@ -313,6 +434,13 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       }
     } else {
       console.warn('[AudiobookViewer] No audio ref');
+    }
+  };
+
+  const handlePause = () => {
+    setIsPlaying(false);
+    if (audioRef.current) {
+      void savePosition(audioRef.current.currentTime);
     }
   };
 
@@ -383,9 +511,44 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   
   const seek = (time: number) => {
     if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(0, Math.min(duration, time));
+      const clamped = Math.max(0, Math.min(duration, time));
+      audioRef.current.currentTime = clamped;
+      setCurrentTime(clamped);
+      currentTimeRef.current = clamped;
+      currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
     }
   };
+
+  // Auto-save every 5s while playing
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const id = window.setInterval(() => {
+      if (audioRef.current) {
+        void savePosition(audioRef.current.currentTime);
+      }
+    }, 5000);
+
+    return () => window.clearInterval(id);
+  }, [isPlaying, savePosition]);
+
+  // Save on unmount
+  useEffect(() => {
+    return () => {
+      const docId = documentIdRef.current;
+      const globalRounded = Math.floor(
+        Number.isFinite(currentGlobalTimeRef.current) && currentGlobalTimeRef.current > 0
+          ? currentGlobalTimeRef.current
+          : currentTimeRef.current
+      );
+      if (docId && Number.isFinite(globalRounded) && globalRounded > 0) {
+        // Fire-and-forget in cleanup.
+        void updateDocumentProgressAuto(docId, globalRounded);
+        void saveDocumentPosition(docId, timePosition(globalRounded, totalDurationSecondsRef.current));
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps: refs carry the latest values
   
   const skip = (seconds: number) => {
     seek(currentTime + seconds);
@@ -651,7 +814,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
         onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onPause={handlePause}
         onError={handleAudioError}
       />
       
