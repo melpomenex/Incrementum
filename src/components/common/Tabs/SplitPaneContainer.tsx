@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Pane, TabPane, SplitPane, SplitDirection, Tab } from "../../../stores/tabsStore";
+import { useSettingsStore } from "../../../stores";
 import { TabBar } from "./TabBar";
 import { TabContent } from "./TabContent";
 
@@ -11,6 +12,7 @@ interface SplitPaneContainerProps {
   onMoveTab: (fromIndex: number, toIndex: number, paneId: string) => void;
   onMoveTabToPane: (tabId: string, fromPaneId: string, toPaneId: string, targetIndex?: number) => void;
   onSplitPane: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
+  onSpawnTabInSplit: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
   onResizeSplit: (splitPaneId: string, sizes: number[]) => void;
   onCollapseSplit: (splitPaneId: string, childPaneId: string) => void;
   draggedTabId: string | null;
@@ -33,6 +35,7 @@ export function SplitPaneContainer({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onSpawnTabInSplit,
   onResizeSplit,
   onCollapseSplit,
   draggedTabId,
@@ -50,6 +53,7 @@ export function SplitPaneContainer({
         onMoveTab={onMoveTab}
         onMoveTabToPane={onMoveTabToPane}
         onSplitPane={onSplitPane}
+        onSpawnTabInSplit={onSpawnTabInSplit}
         onResizeSplit={onResizeSplit}
         onCollapseSplit={onCollapseSplit}
         draggedTabId={draggedTabId}
@@ -69,6 +73,7 @@ export function SplitPaneContainer({
       onMoveTab={onMoveTab}
       onMoveTabToPane={onMoveTabToPane}
       onSplitPane={onSplitPane}
+      onSpawnTabInSplit={onSpawnTabInSplit}
       draggedTabId={draggedTabId}
       draggedTabSourcePaneId={draggedTabSourcePaneId}
       onDragStart={onDragStart}
@@ -89,6 +94,7 @@ function SplitView({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onSpawnTabInSplit,
   onResizeSplit,
   onCollapseSplit,
   draggedTabId,
@@ -180,6 +186,7 @@ function SplitView({
             onMoveTab={onMoveTab}
             onMoveTabToPane={onMoveTabToPane}
             onSplitPane={onSplitPane}
+            onSpawnTabInSplit={onSpawnTabInSplit}
             onResizeSplit={onResizeSplit}
             onCollapseSplit={onCollapseSplit}
             draggedTabId={draggedTabId}
@@ -221,6 +228,7 @@ function TabPaneView({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onSpawnTabInSplit,
   draggedTabId,
   draggedTabSourcePaneId,
   onDragStart,
@@ -231,6 +239,27 @@ function TabPaneView({
   const containerRef = useRef<HTMLDivElement>(null);
   const paneTabs = tabs.filter((t) => pane.tabIds.includes(t.id));
   const activeTab = paneTabs.find((t) => t.id === pane.activeTabId);
+  const splitViewSpawn = useSettingsStore((s) => s.settings.interface.splitViewSpawn);
+
+  const shouldSpawnSplitForEvent = (e: React.MouseEvent) => {
+    if (!splitViewSpawn) return false;
+    if (e.button !== splitViewSpawn.button) return false;
+
+    switch (splitViewSpawn.modifier) {
+      case "none":
+        return !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+      case "ctrl":
+        return e.ctrlKey;
+      case "alt":
+        return e.altKey;
+      case "shift":
+        return e.shiftKey;
+      case "meta":
+        return e.metaKey;
+      default:
+        return false;
+    }
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -247,8 +276,10 @@ function TabPaneView({
     const width = rect.width;
     const height = rect.height;
 
-    // Calculate distances to each edge
-    const edgeThreshold = Math.min(80, width * 0.15, height * 0.15);
+    // Calculate distances to each edge.
+    // Use separate thresholds so left/right splitting doesn't become hard to trigger on short panes.
+    const xEdgeThreshold = Math.min(180, Math.max(80, width * 0.25));
+    const yEdgeThreshold = Math.min(140, Math.max(60, height * 0.2));
     
     const distLeft = x;
     const distRight = width - x;
@@ -258,10 +289,10 @@ function TabPaneView({
     let position: DropIndicator["position"];
     
     // Check if we're in an edge zone and which edge is closest
-    const inLeftZone = distLeft < edgeThreshold;
-    const inRightZone = distRight < edgeThreshold;
-    const inTopZone = distTop < edgeThreshold;
-    const inBottomZone = distBottom < edgeThreshold;
+    const inLeftZone = distLeft < xEdgeThreshold;
+    const inRightZone = distRight < xEdgeThreshold;
+    const inTopZone = distTop < yEdgeThreshold;
+    const inBottomZone = distBottom < yEdgeThreshold;
     
     // Find the closest edge
     const minDist = Math.min(
@@ -384,6 +415,7 @@ function TabPaneView({
           onTabClick={(tabId) => onSetActiveTab(pane.id, tabId)}
           onTabClose={onCloseTab}
           onTabMove={(fromIndex, toIndex) => onMoveTab(fromIndex, toIndex, pane.id)}
+          onMoveTabToPane={onMoveTabToPane}
           onDragStart={(tabId) => onDragStart(tabId, pane.id)}
           onDragEnd={onDragEnd}
           onSplitPane={onSplitPane}
@@ -391,7 +423,17 @@ function TabPaneView({
       </div>
 
       {/* Tab Content */}
-      <div className={`flex-1 min-h-0 relative ${draggedTabId ? "pointer-events-none" : ""}`}>
+      <div
+        className={`flex-1 min-h-0 relative ${draggedTabId ? "pointer-events-none" : ""}`}
+        onMouseDownCapture={(e) => {
+          if (!pane.activeTabId) return;
+          if (!shouldSpawnSplitForEvent(e)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          // "horizontal" direction = split panes side-by-side (vertical divider).
+          onSpawnTabInSplit(pane.id, pane.activeTabId, "horizontal", "after");
+        }}
+      >
         {activeTab ? (
           <TabContent tabs={paneTabs} activeTabId={pane.activeTabId} paneId={pane.id} />
         ) : (

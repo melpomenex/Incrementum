@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useTabsStore, type Tab } from "../../../stores";
+import type { Tab } from "../../../stores";
 import { TabContextMenu } from "./TabContextMenu";
 
 interface TabBarProps {
@@ -9,6 +9,7 @@ interface TabBarProps {
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   onTabMove?: (fromIndex: number, toIndex: number) => void;
+  onMoveTabToPane?: (tabId: string, fromPaneId: string, toPaneId: string, targetIndex?: number) => void;
   onDragStart?: (tabId: string) => void;
   onDragEnd?: () => void;
   onSplitPane?: (paneId: string, tabId: string, direction: "horizontal" | "vertical", side: "before" | "after") => void;
@@ -21,6 +22,7 @@ export function TabBar({
   onTabClick,
   onTabClose,
   onTabMove,
+  onMoveTabToPane,
   onDragStart,
   onDragEnd,
   onSplitPane,
@@ -36,6 +38,28 @@ export function TabBar({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
+
+  const getDraggedTabPayload = (e: React.DragEvent) => {
+    const read = (key: string) => {
+      const raw = e.dataTransfer.getData(key);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as { tabId?: string; sourcePaneId?: string; sourceIndex?: number };
+      } catch {
+        return null;
+      }
+    };
+
+    const payload = read("application/x-incrementum-tab") ?? read("text/plain");
+    if (!payload?.tabId || !payload.sourcePaneId) return null;
+    return payload as { tabId: string; sourcePaneId: string; sourceIndex?: number };
+  };
+
+  const getInsertIndexFromPointer = (e: React.DragEvent, el: HTMLElement, index: number) => {
+    const rect = el.getBoundingClientRect();
+    const after = e.clientX > rect.left + rect.width / 2;
+    return after ? index + 1 : index;
+  };
 
   // Detect narrow container
   useEffect(() => {
@@ -121,12 +145,20 @@ export function TabBar({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
+    // Highlight valid drop targets even when the drag started in a different pane.
+    const payload = getDraggedTabPayload(e);
+    if (payload && payload.tabId) {
+      setDragOverIndex(index);
+      e.dataTransfer.dropEffect = "move";
+      return;
+    }
+
     if (draggedIndex === null || draggedIndex === index) {
       setDragOverIndex(null);
       return;
     }
-    
+
     setDragOverIndex(index);
     e.dataTransfer.dropEffect = "move";
   };
@@ -148,11 +180,36 @@ export function TabBar({
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current = 0;
-    
-    if (draggedIndex !== null && draggedIndex !== dropIndex && onTabMove) {
-      onTabMove(draggedIndex, dropIndex);
+
+    const payload = getDraggedTabPayload(e);
+    const fromPaneId = payload?.sourcePaneId;
+    const tabId = payload?.tabId;
+    const fromIndex = draggedIndex ?? payload?.sourceIndex ?? null;
+
+    const targetEl = e.currentTarget as HTMLElement;
+    const insertIndex = getInsertIndexFromPointer(e, targetEl, dropIndex);
+
+    // Reorder within this pane.
+    if (paneId && fromPaneId === paneId && fromIndex !== null && onTabMove) {
+      const clampedToIndex = Math.max(0, Math.min(tabs.length - 1, insertIndex));
+      if (fromIndex !== clampedToIndex) {
+        onTabMove(fromIndex, clampedToIndex);
+      }
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      onDragEnd?.();
+      return;
     }
-    
+
+    // Move from another pane into this pane at the drop position.
+    if (paneId && fromPaneId && tabId && onMoveTabToPane && fromPaneId !== paneId) {
+      onMoveTabToPane(tabId, fromPaneId, paneId, insertIndex);
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      onDragEnd?.();
+      return;
+    }
+
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -301,26 +358,43 @@ export function TabBar({
           })}
           
           {/* Empty drop zone at the end */}
-          {tabs.length > 0 && (
-            <div
-              className="flex-1 min-w-[30px] h-full"
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggedIndex !== null) {
-                  setDragOverIndex(tabs.length);
-                }
-              }}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (draggedIndex !== null && onTabMove) {
-                  onTabMove(draggedIndex, tabs.length);
-                }
+          <div
+            className="flex-1 min-w-[30px] h-full"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Allow both in-pane reorder and cross-pane moves to land "at the end".
+              const payload = getDraggedTabPayload(e);
+              if (payload?.tabId) {
+                setDragOverIndex(tabs.length);
+              } else if (draggedIndex !== null) {
+                setDragOverIndex(tabs.length);
+              }
+            }}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              const payload = getDraggedTabPayload(e);
+              if (paneId && payload?.sourcePaneId && payload.tabId && onMoveTabToPane && payload.sourcePaneId !== paneId) {
+                onMoveTabToPane(payload.tabId, payload.sourcePaneId, paneId, tabs.length);
                 setDragOverIndex(null);
                 setDraggedIndex(null);
-              }}
-            />
-          )}
+                onDragEnd?.();
+                return;
+              }
+
+              if (draggedIndex !== null && onTabMove && tabs.length > 0) {
+                // `moveTab()` expects an index in-range. Dropping "at the end" means last index.
+                onTabMove(draggedIndex, tabs.length - 1);
+              }
+
+              setDragOverIndex(null);
+              setDraggedIndex(null);
+              onDragEnd?.();
+            }}
+          />
         </div>
 
         {/* Right scroll button - compact in narrow mode */}

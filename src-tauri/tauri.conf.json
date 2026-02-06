@@ -27,7 +27,7 @@
         "skipTaskbar": false,
         "devtools": true,
         "hiddenTitle": true,
-        "dragDropEnabled": false
+        "dragDropEnabled": true
       }
     ],
     "security": {

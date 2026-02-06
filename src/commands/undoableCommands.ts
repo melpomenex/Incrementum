@@ -180,9 +180,9 @@ export class DeleteLearningItemCommand extends UndoableCommandBase {
 
   async execute(): Promise<void> {
     // Get the item before deleting
-    this.deletedItem = await invoke<LearningItem>("get_learning_items").then(
-      (items) => items.find((i) => i.id === this.itemId) || null
-    );
+    this.deletedItem = await invoke<LearningItem | null>("get_learning_item", {
+      itemId: this.itemId,
+    });
 
     if (!this.deletedItem) {
       throw new Error("Learning item not found");
@@ -225,7 +225,7 @@ export class BulkDeleteItemsCommand extends UndoableCommandBase {
 
   async execute(): Promise<void> {
     // Get all items before deleting
-    const allItems = await invoke<LearningItem[]>("get_learning_items");
+    const allItems = await invoke<LearningItem[]>("get_all_learning_items");
     this.deletedItems = allItems.filter((i) => this.itemIds.includes(i.id));
 
     await invoke("bulk_delete_items", { itemIds: this.itemIds });

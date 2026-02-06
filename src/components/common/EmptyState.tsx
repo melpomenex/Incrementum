@@ -95,7 +95,7 @@ export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
     <EmptyState
       icon="documents"
       title="No documents yet"
-      description="Start building your knowledge library by importing your first document. We support PDFs, EPUBs, YouTube videos, and more."
+      description="Start building your knowledge library by importing your first document. We support PDFs, EPUBs, YouTube videos, and more. You can also drag and drop files or entire folders directly onto this page!"
       action={
         onImport
           ? {
