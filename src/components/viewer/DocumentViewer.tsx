@@ -32,7 +32,15 @@ import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl, updateUrlHash } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
-import { getViewState, getViewStateKey, parseViewState, setViewState } from "../../lib/readerPosition";
+import {
+  flushAllViewStateWrites,
+  getPreferredViewStateKey,
+  getViewState,
+  getViewStateKey,
+  getViewStateKeyCandidates,
+  parseViewState,
+  setViewState,
+} from "../../lib/readerPosition";
 import type { ViewState } from "../../types/readerPosition";
 import { saveDocumentPosition, pagePosition, scrollPosition, cfiPosition, timePosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
@@ -260,9 +268,19 @@ export function DocumentViewer({
     };
   }, []);
 
-  const resolveViewStateKey = useCallback(
+  const resolvePreferredViewStateKey = useCallback(
     (docId?: string | null) =>
-      getViewStateKey({
+      getPreferredViewStateKey({
+        documentId: docId ?? currentDocument?.id ?? null,
+        contentHash: currentDocument?.contentHash ?? null,
+        pdfFingerprint: pdfFingerprintRef.current,
+      }),
+    [currentDocument?.contentHash, currentDocument?.id]
+  );
+
+  const resolveViewStateKeyCandidates = useCallback(
+    (docId?: string | null) =>
+      getViewStateKeyCandidates({
         documentId: docId ?? currentDocument?.id ?? null,
         contentHash: currentDocument?.contentHash ?? null,
         pdfFingerprint: pdfFingerprintRef.current,
@@ -491,7 +509,8 @@ export function DocumentViewer({
         localStorage.setItem(`pdf-position-${docId}`, JSON.stringify(legacyPayload));
       }
 
-      const viewStateKey = docId ? resolveViewStateKey(docId) : null;
+      const primaryViewStateKey = docId ? resolvePreferredViewStateKey(docId) : null;
+      const legacyViewStateKey = docId ? getViewStateKey({ documentId: docId }) : null;
       const viewState =
         viewStateOverride ??
         (docId
@@ -511,8 +530,11 @@ export function DocumentViewer({
           }
           : null);
 
-      if (viewStateKey && viewState) {
-        setViewState(viewStateKey, viewState);
+      if (viewState && (primaryViewStateKey || legacyViewStateKey)) {
+        if (primaryViewStateKey) setViewState(primaryViewStateKey, viewState);
+        if (legacyViewStateKey && legacyViewStateKey !== primaryViewStateKey) {
+          setViewState(legacyViewStateKey, viewState);
+        }
         lastViewStateRef.current = viewState;
       }
 
@@ -531,7 +553,7 @@ export function DocumentViewer({
         }
       }
     },
-    [currentDocument?.id, currentDocument?.fileType, resolveViewStateKey, scale, scrollStorageKey, viewMode, zoomMode]
+    [currentDocument?.id, currentDocument?.fileType, resolvePreferredViewStateKey, scale, scrollStorageKey, viewMode, zoomMode]
   );
 
   const handleScrollPositionChange = useCallback(
@@ -558,8 +580,9 @@ export function DocumentViewer({
       });
 
       const docId = currentDocument?.id;
-      const viewStateKey = docId ? resolveViewStateKey(docId) : null;
-      if (docId && viewStateKey) {
+      const primaryViewStateKey = docId ? resolvePreferredViewStateKey(docId) : null;
+      const legacyViewStateKey = docId ? getViewStateKey({ documentId: docId }) : null;
+      if (docId && (primaryViewStateKey || legacyViewStateKey)) {
         const updatedAt = Date.now();
         const viewState: ViewState = {
           docId,
@@ -576,7 +599,10 @@ export function DocumentViewer({
           version: 1,
         };
         lastViewStateRef.current = viewState;
-        setViewState(viewStateKey, viewState);
+        if (primaryViewStateKey) setViewState(primaryViewStateKey, viewState);
+        if (legacyViewStateKey && legacyViewStateKey !== primaryViewStateKey) {
+          setViewState(legacyViewStateKey, viewState);
+        }
       }
 
       if (!scrollStorageKey) return;
@@ -587,7 +613,7 @@ export function DocumentViewer({
         persistScrollState(state);
       }, 500);
     },
-    [currentDocument?.id, onScrollPositionChange, persistScrollState, resolveViewStateKey, scale, scrollStorageKey, viewMode, zoomMode]
+    [currentDocument?.id, onScrollPositionChange, persistScrollState, resolvePreferredViewStateKey, scale, scrollStorageKey, viewMode, zoomMode]
   );
 
   const captureScrollState = useCallback(() => {
@@ -609,6 +635,40 @@ export function DocumentViewer({
       scale,
     };
   }, [pageNumber, scale]);
+
+  // Persist view-state changes that affect coordinate resolution even if the user doesn't scroll.
+  // Example: zoom mode/scale changes should not cause us to "forget" the exact anchor in the document.
+  useEffect(() => {
+    if (docType !== "pdf") return;
+    if (viewMode !== "document") return;
+    if (!currentDocument?.id) return;
+    if (restorationInProgressRef.current || suppressPdfAutoScroll) return;
+
+    const state = lastScrollStateRef.current ?? captureScrollState();
+    if (!state) return;
+
+    const docId = currentDocument.id;
+    const primaryKey = resolvePreferredViewStateKey(docId);
+    const legacyKey = getViewStateKey({ documentId: docId });
+    const nextViewState: ViewState = {
+      docId,
+      pageNumber: state.pageNumber,
+      scale,
+      zoomMode,
+      rotation: 0,
+      viewMode,
+      dest: lastViewStateRef.current?.dest ?? null,
+      scrollTop: state.scrollTop,
+      scrollLeft: state.scrollLeft,
+      scrollPercent: state.scrollPercent,
+      updatedAt: Date.now(),
+      version: 1,
+    };
+
+    lastViewStateRef.current = nextViewState;
+    if (primaryKey) setViewState(primaryKey, nextViewState);
+    if (legacyKey && legacyKey !== primaryKey) setViewState(legacyKey, nextViewState);
+  }, [captureScrollState, currentDocument?.id, docType, resolvePreferredViewStateKey, scale, suppressPdfAutoScroll, viewMode, zoomMode]);
 
   const savePdfProgress = useCallback((reason: string) => {
     if (docType !== "pdf" || viewMode !== "document") return;
@@ -906,25 +966,25 @@ export function DocumentViewer({
           const now = Date.now();
           
           // Write to the view state key directly (bypassing debounce)
-          const viewStateKey = resolveViewStateKey(currentDocument.id);
-          if (viewStateKey) {
-            const viewState: ViewState = {
-              docId: currentDocument.id,
-              pageNumber: state.pageNumber,
-              scale: scaleRef.current,
-              zoomMode: zoomModeRef.current,
-              rotation: 0,
-              viewMode: viewModeRef.current,
-              dest: null,
-              scrollTop: state.scrollTop,
-              scrollLeft: state.scrollLeft,
-              scrollPercent: state.scrollPercent,
-              updatedAt: now,
-              version: 1,
-            };
-            localStorage.setItem(viewStateKey, JSON.stringify(viewState));
-            lastViewStateRef.current = viewState;
-          }
+          const viewState: ViewState = {
+            docId: currentDocument.id,
+            pageNumber: state.pageNumber,
+            scale: scaleRef.current,
+            zoomMode: zoomModeRef.current,
+            rotation: 0,
+            viewMode: viewModeRef.current,
+            dest: null,
+            scrollTop: state.scrollTop,
+            scrollLeft: state.scrollLeft,
+            scrollPercent: state.scrollPercent,
+            updatedAt: now,
+            version: 1,
+          };
+          const primaryKey = resolvePreferredViewStateKey(currentDocument.id);
+          const legacyKey = getViewStateKey({ documentId: currentDocument.id });
+          if (primaryKey) localStorage.setItem(primaryKey, JSON.stringify(viewState));
+          if (legacyKey && legacyKey !== primaryKey) localStorage.setItem(legacyKey, JSON.stringify(viewState));
+          lastViewStateRef.current = viewState;
           
           // Also update legacy keys
           localStorage.setItem(`document-scroll-position:${currentDocument.id}`, JSON.stringify({
@@ -965,8 +1025,14 @@ export function DocumentViewer({
           
           // If no in-memory state, try localStorage
           if (!viewStateToRestore) {
-            const viewStateKey = resolveViewStateKey(currentDocument.id);
-            viewStateToRestore = viewStateKey ? getViewState(viewStateKey) : null;
+            const keys = resolveViewStateKeyCandidates(currentDocument.id);
+            let best: ViewState | null = null;
+            for (const key of keys) {
+              const candidate = getViewState(key);
+              if (!candidate) continue;
+              if (!best || candidate.updatedAt > best.updatedAt) best = candidate;
+            }
+            viewStateToRestore = best;
           }
           
           // If still no state, try the legacy storage keys
@@ -1035,6 +1101,7 @@ export function DocumentViewer({
     // Also handle pagehide event (fires when page is being unloaded/navigated away)
     const handlePageHide = () => {
       console.log("[DocumentViewer] Page hide, saving position");
+      flushAllViewStateWrites();
       
       // Flush any pending debounced save before page hides
       if (scrollSaveTimeoutRef.current !== null) {
@@ -1051,6 +1118,7 @@ export function DocumentViewer({
     // Handle beforeunload as an extra safety measure (especially for desktop browsers)
     const handleBeforeUnload = () => {
       console.log("[DocumentViewer] Before unload, saving position");
+      flushAllViewStateWrites();
       
       // Flush any pending debounced save
       if (scrollSaveTimeoutRef.current !== null) {
@@ -1073,7 +1141,7 @@ export function DocumentViewer({
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [documentId, docType, currentDocument?.id, savePdfProgress, resolveViewStateKey, persistScrollState]);
+  }, [documentId, docType, currentDocument?.id, savePdfProgress, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, persistScrollState]);
 
   // Parse URL fragment and restore state after document is loaded
   useEffect(() => {
@@ -1184,8 +1252,23 @@ export function DocumentViewer({
     restorationInProgressRef.current = true;
 
     const docId = currentDocument.id;
-    const viewStateKey = resolveViewStateKey(docId);
-    const localViewState = viewStateKey ? getViewState(viewStateKey) : null;
+    const preferredKey = resolvePreferredViewStateKey(docId);
+    const candidateKeys = resolveViewStateKeyCandidates(docId);
+    let localViewState: ViewState | null = null;
+    let localViewStateKey: string | null = null;
+    for (const key of candidateKeys) {
+      const candidate = getViewState(key);
+      if (!candidate) continue;
+      if (!localViewState || candidate.updatedAt > localViewState.updatedAt) {
+        localViewState = candidate;
+        localViewStateKey = key;
+      }
+    }
+
+    // Migrate legacy/local state into the preferred key so future restores use the stable, namespaced key.
+    if (preferredKey && localViewState && localViewStateKey && localViewStateKey !== preferredKey) {
+      setViewState(preferredKey, localViewState);
+    }
     const remoteRaw = (currentDocument as any)?.currentViewState ?? (currentDocument as any)?.current_view_state;
     let remoteViewState: ViewState | null = null;
     if (typeof remoteRaw === "string") {
@@ -1336,13 +1419,12 @@ export function DocumentViewer({
       setPageNumber(selectedViewState.pageNumber);
     }
     // Note: restorationInProgressRef will be cleared by the verification effect after restoration completes
-  }, [currentDocument, docType, isLoading, resolveViewStateKey, scrollStorageKey]);
+  }, [currentDocument, docType, isLoading, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, scrollStorageKey]);
 
   useEffect(() => {
     if (viewMode !== "document") return;
     if (docType !== "pdf") return;
     if (isLoading) return;
-    if (!pagesRendered) return;
     if (restoreScrollDoneRef.current) return;
 
     const state = restoreState ?? pendingViewStateRef.current;
@@ -1437,7 +1519,7 @@ export function DocumentViewer({
     };
 
     restoreScrollTimeoutRef.current = window.setTimeout(attemptVerify, 200);
-  }, [docType, isLoading, pagesRendered, restoreState, viewMode]);
+  }, [docType, isLoading, restoreState, viewMode]);
 
   useEffect(() => {
     loadQueue();
@@ -1544,7 +1626,8 @@ export function DocumentViewer({
         localStorage.setItem(`pdf-position-${documentId}`, JSON.stringify(legacyPayload));
       }
 
-      const viewStateKey = getViewStateKey({ documentId });
+      const primaryViewStateKey = getPreferredViewStateKey({ documentId });
+      const legacyViewStateKey = getViewStateKey({ documentId });
       const viewState = lastViewStateRef.current
         ? { ...lastViewStateRef.current, updatedAt: Date.now() }
         : {
@@ -1562,9 +1645,11 @@ export function DocumentViewer({
           version: 1,
         };
 
-      if (viewStateKey) {
-        setViewState(viewStateKey, viewState);
+      if (primaryViewStateKey) setViewState(primaryViewStateKey, viewState);
+      if (legacyViewStateKey && legacyViewStateKey !== primaryViewStateKey) {
+        setViewState(legacyViewStateKey, viewState);
       }
+      flushAllViewStateWrites();
 
       updateDocumentProgressAuto(documentId, stateToSave.pageNumber, stateToSave.scrollPercent, null, viewState)
         .catch((error) => console.warn("Failed to save document progress on cleanup:", error));
@@ -2371,7 +2456,15 @@ export function DocumentViewer({
 
       {/* Content Area */}
       <div 
-        className="flex-1 overflow-auto bg-muted/30 relative"
+        className={cn(
+          "flex-1 bg-muted/30 relative min-h-0",
+          // Avoid nested scrolling for PDFs: the PDF viewer owns the scroll container and
+          // restores based on it. If this wrapper also scrolls, restore appears "broken"
+          // because the user is scrolling a different element.
+          viewMode === "document" && docType === "pdf" && !(pdfViewMode === "ocr-html" && ocrResult)
+            ? "overflow-hidden"
+            : "overflow-auto"
+        )}
         onClick={(e) => {
           // Toggle controls/fullscreen on click/tap if not clicking interactive elements
           const isMobile = window.matchMedia("(max-width: 768px)").matches;
