@@ -14,6 +14,9 @@ const BLOCKED_KEYS = new Set([
   "llm-providers-storage",
   "mcp-servers-storage",
   "integration_settings",
+  // Theme preferences should be device-specific and not synced
+  "incrementum-last-theme",
+  "incrementum-custom-themes",
 ]);
 
 const BLOCKED_PREFIXES = [

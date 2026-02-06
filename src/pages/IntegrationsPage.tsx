@@ -26,7 +26,13 @@ export function IntegrationsPage() {
     setObsidianStatus("exporting");
 
     try {
-      await invoke("export_to_obsidian", { vaultPath: obsidianVault });
+      await invoke("sync_to_obsidian", {
+        config: {
+          vaultPath: obsidianVault,
+          notesFolder: "Incrementum",
+          attachmentsFolder: "Incrementum Assets",
+        },
+      });
       setObsidianStatus("success");
       setTimeout(() => setObsidianStatus(""), 3000);
     } catch (error: any) {
@@ -43,7 +49,13 @@ export function IntegrationsPage() {
     setObsidianStatus("syncing");
 
     try {
-      await invoke("sync_to_obsidian", { vaultPath: obsidianVault });
+      await invoke("sync_to_obsidian", {
+        config: {
+          vaultPath: obsidianVault,
+          notesFolder: "Incrementum",
+          attachmentsFolder: "Incrementum Assets",
+        },
+      });
       setObsidianStatus("success");
       setTimeout(() => setObsidianStatus(""), 3000);
     } catch (error: any) {

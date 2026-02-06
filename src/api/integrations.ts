@@ -200,6 +200,29 @@ export async function syncToObsidian(
   return await invokeCommand("sync_to_obsidian", { config });
 }
 
+/**
+ * Sync updates from Obsidian into Incrementum
+ */
+export async function syncFromObsidian(
+  config: ObsidianConfig
+): Promise<{ documents: number; extracts: number; flashcards: number }> {
+  return await invokeCommand("sync_from_obsidian", { config });
+}
+
+/**
+ * Delete an Obsidian file by Incrementum ID
+ */
+export async function deleteFromObsidian(
+  config: ObsidianConfig,
+  incrementumId: string,
+  kind: "document" | "extract" = "document"
+): Promise<boolean> {
+  return await invokeCommand("delete_from_obsidian", {
+    config,
+    request: { incrementumId, kind },
+  });
+}
+
 // ============================================================================
 // ANKI INTEGRATION
 // ============================================================================

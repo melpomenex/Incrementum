@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0]
+
+### Added
+- Toolbar position settings - move toolbar to top, left, or right side of the screen
+- Obsidian two-way sync (sync from Obsidian into Incrementum)
+- Obsidian delete command for notes by Incrementum ID
+- Groq cloud transcription support with automatic file chunking
+- Web article import via URL
+- TikTok-style scroll mode for document queue
+- FSRS-first document scheduling system
+- RSS feed tab with NewsBlur-inspired UX and queue integration
+- Comprehensive delete functionality for learning items and flashcards
+- Floating extract button for web browser text selection
+- 6 new colorful themes
+- App version display in settings
+- Proper sprout logo icons for all platforms
+
+### Changed
+- Obsidian export now reuses existing files by matching `incrementum-id`
+- Obsidian sync exports all documents and extracts
+- Obsidian settings UI includes a "Sync From Obsidian" action
+
+### Fixed
+- Tauri Obsidian integration now accepts camelCase config fields (`vaultPath`, `notesFolder`, etc.)
+- LocalVideoPlayer seeking and duplicate panels
+- Windows startup crash and build errors
+- NotReadableError from corrupted IndexedDB blobs
+- Foreign key constraint on extracts.category
+- YouTube iframe API loading on Windows (CSP fix)
+- Database locking issues
+- YouTube import foreign key constraint error
+- Transcription variable error in TranscriptView
+- RSS Feed button not opening RSS tab
+- Frontend loading with Tauri v2 API usage
 
 ## [1.2.0] - 2026-02-04
 

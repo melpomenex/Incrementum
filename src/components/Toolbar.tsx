@@ -1,6 +1,7 @@
 import { useTabsStore } from "../stores";
 import { useDocumentStore } from "../stores";
 import { useUIStore } from "../stores";
+import { useSettingsStore } from "../stores";
 import { captureAndSaveScreenshot } from "../utils/screenshotCaptureFlow";
 import {
   ReviewTab,
@@ -34,6 +35,8 @@ import {
   Command,
 } from "lucide-react";
 
+export type ToolbarPosition = "top" | "left" | "right";
+
 interface ToolbarButton {
   id: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -47,9 +50,10 @@ interface ToolbarButton {
 
 interface ToolbarButtonProps {
   button: ToolbarButton;
+  orientation?: "horizontal" | "vertical";
 }
 
-function ToolbarButton({ button }: ToolbarButtonProps) {
+function ToolbarButton({ button, orientation = "horizontal" }: ToolbarButtonProps) {
   const Icon = button.icon;
 
   const handleAuxClick = (e: React.MouseEvent) => {
@@ -61,6 +65,8 @@ function ToolbarButton({ button }: ToolbarButtonProps) {
     }
   };
 
+  const isVertical = orientation === "vertical";
+
   return (
     <button
       onClick={button.action}
@@ -68,26 +74,33 @@ function ToolbarButton({ button }: ToolbarButtonProps) {
       disabled={button.disabled}
       title={`${button.label} (${button.shortcut})`}
       className={`
-        relative p-2 rounded transition-colors
+        relative rounded transition-colors
         hover:bg-muted hover:text-foreground
         disabled:opacity-50 disabled:cursor-not-allowed
         ${button.disabled ? "text-muted-foreground" : "text-foreground"}
+        ${isVertical ? "p-2.5 w-full flex justify-center" : "p-2"}
       `}
       aria-label={button.label}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className={isVertical ? "w-5 h-5" : "w-5 h-5"} />
       <span className="sr-only">{button.label}</span>
     </button>
   );
 }
 
-export function Toolbar() {
+interface ToolbarProps {
+  position?: ToolbarPosition;
+}
+
+export function Toolbar({ position = "top" }: ToolbarProps) {
   const addTab = useTabsStore((state) => state.addTab);
   const addTabInBackground = useTabsStore((state) => state.addTabInBackground);
   const openFilePickerAndImport = useDocumentStore((state) => state.openFilePickerAndImport);
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
   const queueFilterMode = useQueueStore((state) => state.queueFilterMode);
+
+  const isVertical = position === "left" || position === "right";
 
   // Import File button
   const handleImportFile = async () => {
@@ -515,6 +528,42 @@ export function Toolbar() {
   // Get unique group numbers
   const groups = Array.from(new Set(buttons.map((b) => b.group))).sort();
 
+  if (isVertical) {
+    // Vertical toolbar for left/right positions
+    const borderClass = position === "left" 
+      ? "border-r border-border" 
+      : "border-l border-border";
+    
+    return (
+      <div className={`h-full bg-card ${borderClass} flex flex-col`}>
+        <div className="flex-1 overflow-y-auto py-2 px-1">
+          <div className="flex flex-col gap-1">
+            {groups.map((group, groupIndex) => (
+              <div key={group} className="flex flex-col">
+                {/* Render buttons for this group */}
+                {buttons
+                  .filter((b) => b.group === group)
+                  .map((button) => (
+                    <ToolbarButton 
+                      key={button.id} 
+                      button={button} 
+                      orientation="vertical"
+                    />
+                  ))}
+
+                {/* Add separator between groups (except after last group) */}
+                {groupIndex < groups.length - 1 && (
+                  <div className="w-6 h-px bg-border mx-auto my-1" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Horizontal toolbar (default, top position)
   return (
     <div className="sticky top-0 z-40 bg-card border-b border-border">
       <div className="flex items-center px-2 py-1 gap-1">
@@ -536,4 +585,9 @@ export function Toolbar() {
       </div>
     </div>
   );
+}
+
+export function ToolbarWithSettings() {
+  const toolbarPosition = useSettingsStore((state) => state.settings.interface.toolbarPosition);
+  return <Toolbar position={toolbarPosition} />;
 }
