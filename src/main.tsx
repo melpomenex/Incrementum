@@ -1,9 +1,26 @@
 // Early error handler - must be first
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (e) => {
-    console.error('[Global Error]', e.error);
     const root = document.getElementById('root');
-    if (root) {
+
+    // Chromium sometimes emits this as an "error" event even though it's a benign
+    // ResizeObserver warning. Our early handler is intentionally aggressive for
+    // startup failures, so we must ignore it to avoid nuking the UI.
+    const message = e.message || "";
+    if (
+      message.includes("ResizeObserver loop limit exceeded") ||
+      message.includes("ResizeObserver loop completed with undelivered notifications")
+    ) {
+      e.preventDefault();
+      e.stopImmediatePropagation?.();
+      return;
+    }
+
+    // Only replace the app UI during initial bootstrap. After React mounts,
+    // log the error but don't clobber the DOM.
+    const isMounted = root?.getAttribute("data-incrementum-mounted") === "true";
+    console.error("[Global Error]", e.error ?? message);
+    if (root && !isMounted) {
       root.innerHTML = '<div style="padding:20px;background:#000;color:#fff;font-family:monospace;"><h2>Startup Error</h2><pre style="white-space:pre-wrap;">' + e.message + '\n' + (e.error?.stack || '') + '</pre></div>';
     }
   });
@@ -168,7 +185,9 @@ if (!(window as any).__TAURI__) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+const rootEl = document.getElementById("root") as HTMLElement;
+const reactRoot = ReactDOM.createRoot(rootEl);
+reactRoot.render(
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
@@ -190,3 +209,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     </QueryClientProvider>
   </ErrorBoundary>
 );
+
+// Mark as mounted so the early error handler doesn't replace the UI for
+// runtime errors (it should only do that for bootstrap failures).
+requestAnimationFrame(() => {
+  rootEl?.setAttribute("data-incrementum-mounted", "true");
+});
