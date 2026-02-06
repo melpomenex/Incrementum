@@ -4,6 +4,7 @@ import { chatWithContext, type LLMMessage } from "../../api/llm";
 import { renderMarkdown } from "../../utils/markdown";
 import { useLLMProvidersStore, useSettingsStore } from "../../stores";
 import type { AssistantContext } from "./AssistantPanel";
+import * as documentsApi from "../../api/documents";
 
 type Side = "left" | "right";
 
@@ -90,6 +91,7 @@ export function PwaAssistantButton({
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastUsedProviderLabel, setLastUsedProviderLabel] = useState<string>("");
+  const [isExtractingContent, setIsExtractingContent] = useState(false);
 
   const recognitionRef = useRef<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -284,8 +286,54 @@ export function PwaAssistantButton({
     }
   };
 
-  const handleOpen = () => {
+  const handleOpen = async () => {
     if (!enabled) return;
+
+    // Check if we have document context
+    if (!context.content && context.type === "document") {
+      console.warn("[PwaAssistantButton] No document content available:", { context });
+
+      // Try to extract content on-demand
+      if (context.documentId) {
+        setIsExtractingContent(true);
+        try {
+          const result = await documentsApi.extractDocumentText(context.documentId);
+          console.log("[PwaAssistantButton] Extracted document content:", {
+            hasContent: !!result.content,
+            contentLength: result.content?.length,
+            wasExtracted: result.extracted,
+          });
+
+          if (result.content && result.content.length > 0) {
+            // Content extracted successfully, update the context
+            // Note: This won't update the props immediately, so we show the assistant anyway
+            // and let the LLM use the extracted content
+            setError(null);
+          } else {
+            setError("This document doesn't have any content available for the assistant to use.");
+            setIsExtractingContent(false);
+            return;
+          }
+        } catch (error) {
+          console.error("[PwaAssistantButton] Failed to extract document content:", error);
+          setError("Could not load document content. Please try again.");
+          setIsExtractingContent(false);
+          return;
+        }
+        setIsExtractingContent(false);
+      } else {
+        setError("Document content is not available.");
+        return;
+      }
+    }
+
+    console.log("[PwaAssistantButton] Opening assistant with context:", {
+      type: context.type,
+      hasContent: !!context.content,
+      contentLength: context.content?.length,
+      documentId: context.documentId,
+    });
+
     setIsOpen(true);
     setError(null);
     setInterim("");
