@@ -26,6 +26,7 @@ mod scheduler;
 mod demo;
 mod browser_sync_server;
 mod transcription;
+mod utils;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 

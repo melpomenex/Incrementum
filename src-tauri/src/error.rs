@@ -48,6 +48,13 @@ impl From<tauri_plugin_shell::Error> for IncrementumError {
     }
 }
 
+// Implement From<anyhow::Error> for IncrementumError
+impl From<anyhow::Error> for IncrementumError {
+    fn from(e: anyhow::Error) -> Self {
+        IncrementumError::Internal(e.to_string())
+    }
+}
+
 impl serde::Serialize for IncrementumError {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where

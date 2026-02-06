@@ -13,6 +13,17 @@ let tauriDialogOpen: ((options: unknown) => Promise<string | string[] | null>) |
 let tauriEventListen: (<T>(event: string, handler: (event: T) => void) => Promise<() => void>) | null = null;
 let tauriConvertFileSrc: ((path: string, protocol?: string) => string) | null = null;
 
+function coerceError(err: unknown, context?: string): Error {
+  if (err instanceof Error) return err;
+  if (typeof err === "string") return new Error(context ? `${context}: ${err}` : err);
+  try {
+    const json = JSON.stringify(err);
+    return new Error(context ? `${context}: ${json}` : json);
+  } catch {
+    return new Error(context ? `${context}: ${String(err)}` : String(err));
+  }
+}
+
 /**
  * Check if running in Tauri environment
  */
@@ -99,7 +110,7 @@ export async function invokeCommand<T>(command: string, args?: Record<string, un
       return await tauriInvoke(command, args) as T;
     } catch (error) {
       console.error(`Tauri command "${command}" failed:`, error);
-      throw error;
+      throw coerceError(error);
     }
   } else {
     // Browser/PWA environment - use IndexedDB backend

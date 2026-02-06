@@ -373,8 +373,8 @@ pub async fn split_audio_for_groq(
     }
 
     // Get file info using ffmpeg
-    let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
-        .map_err(|e| format!("Failed to get ffmpeg sidecar: {}", e))?
+    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
+        .map_err(|e| format!("Failed to get ffmpeg command: {}", e))?
         .args([
             "-i", &file_path,
             "-f", "null",
@@ -453,8 +453,8 @@ pub async fn split_audio_for_groq(
         let chunk_path = temp_dir.join(&chunk_filename);
         
         // Extract chunk using ffmpeg
-        let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
-            .map_err(|e| format!("Failed to get ffmpeg sidecar: {}", e))?
+        let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
+            .map_err(|e| format!("Failed to get ffmpeg command: {}", e))?
             .args([
                 "-i", &file_path,
                 "-ss", &start_time.to_string(),

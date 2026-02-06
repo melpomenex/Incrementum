@@ -36,7 +36,7 @@ impl TranscriptionEngine {
 
         let output_path = temp_dir.join(format!("{}.wav", uuid::Uuid::new_v4()));
 
-        let (mut rx, _) = self.app_handle.shell().sidecar("ffmpeg")?
+        let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&self.app_handle)?
             .args([
                 "-i", input_path.to_str().unwrap(),
                 "-ar", "16000",
