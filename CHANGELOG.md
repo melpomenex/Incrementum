@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-02-06
+
+### Fixed
+- Priority control visibility in dark mode - replaced transparent backgrounds with solid colors, improved text contrast
+
+## [1.5.0] - 2026-02-06
+
+### Added
+- Fullscreen support for mobile PWA
+- Floating voice document assistant button with microphone permission preflight
+- Speech recognition started within user gesture for better browser compatibility
+- Mobile-friendly Documents tab header for PWA
+
+### Changed
+- Mobile menus repositioned to top right next to title for better accessibility
+
+### Fixed
+- Cmd/Ctrl+K hotkeys now work while viewing items
+
 ## [1.4.0] - 2026-02-06
 
 ### Fixed
