@@ -2795,7 +2795,7 @@ export function DocumentViewer({
         )}
 
         {/* Hover Rating Controls - for quick document rating */}
-        {viewMode === "document" && !disableHoverRating && docType !== "youtube" && hasDocumentHistory && (
+        {viewMode === "document" && !disableHoverRating && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && (
           <HoverRatingControls
             context="document"
             documentId={documentId}
@@ -2805,6 +2805,38 @@ export function DocumentViewer({
           />
         )}
       </div>
+
+      {/* Side Rating Controls for Audiobooks */}
+      {viewMode === "document" && docType === "audio" && hasDocumentHistory && (
+        <div className="absolute top-20 right-4 flex flex-col gap-2 z-40">
+          <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
+            <div className="text-xs text-muted-foreground text-center mb-2">Rate</div>
+            <div className="flex flex-col gap-1">
+              {[
+                { value: 1, label: "Again", color: "bg-red-500 hover:bg-red-600" },
+                { value: 2, label: "Hard", color: "bg-orange-500 hover:bg-orange-600" },
+                { value: 3, label: "Good", color: "bg-blue-500 hover:bg-blue-600" },
+                { value: 4, label: "Easy", color: "bg-green-500 hover:bg-green-600" },
+              ].map((rating) => (
+                <button
+                  key={rating.value}
+                  onClick={() => handleRating(rating.value as ReviewRating)}
+                  className={cn(
+                    "px-3 py-2 text-white text-xs font-medium rounded transition-colors",
+                    rating.color
+                  )}
+                  title={`${rating.label} (${rating.value})`}
+                >
+                  {rating.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-[10px] text-muted-foreground text-center mt-2">
+              Press 1-4
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Action Button for Extract Creation */}
       {selectedText && viewMode === "document" && (
