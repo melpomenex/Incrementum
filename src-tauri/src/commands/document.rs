@@ -443,8 +443,21 @@ pub async fn read_document_file(
     use std::fs;
     use base64::{Engine as _, engine::general_purpose};
 
-    let bytes = fs::read(&file_path)
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to read file: {}", e)))?;
+    let bytes = match fs::read(&file_path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(crate::error::IncrementumError::NotFound(format!(
+                "Document file not found: {}",
+                file_path
+            )));
+        }
+        Err(e) => {
+            return Err(crate::error::IncrementumError::Internal(format!(
+                "Failed to read file: {}",
+                e
+            )));
+        }
+    };
 
     let base64_string = general_purpose::STANDARD.encode(&bytes);
     Ok(base64_string)

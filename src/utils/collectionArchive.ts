@@ -106,7 +106,9 @@ export async function buildCollectionArchive(options: {
         size: bytes.byteLength,
       });
     } catch (error) {
-      console.warn("Failed to add document file to archive:", doc.filePath, error);
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "Unknown error");
+      console.warn("Failed to add document file to archive:", doc.filePath, message);
     }
   }
 

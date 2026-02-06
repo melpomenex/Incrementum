@@ -14,6 +14,29 @@ import type { Document, Extract, LearningItem } from "../types/document";
 import { isTauri } from "../lib/tauri";
 import { getBrowserFile } from "../lib/browser-file-store";
 
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function isLikelyNotFoundError(error: unknown): boolean {
+  const msg = formatUnknownError(error);
+  // Linux/macOS: "No such file or directory (os error 2)"
+  // Windows: "The system cannot find the file specified"
+  return (
+    msg.includes("No such file or directory") ||
+    msg.includes("os error 2") ||
+    msg.includes("Document file not found") ||
+    msg.startsWith("Not found:") ||
+    msg.includes("cannot find the file specified")
+  );
+}
+
 /**
  * App State Export Schema Version
  * Increment this when making breaking changes to the export format
@@ -255,8 +278,7 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
             fileData = await invokeCommand<string>("read_document_file", { filePath: doc.filePath });
           } catch (readError: any) {
             // Check if it's a "file not found" error
-            if (readError?.message?.includes("No such file or directory") || 
-                readError?.includes?.("No such file or directory")) {
+            if (isLikelyNotFoundError(readError)) {
               skippedFiles.push({
                 id: doc.id,
                 title: doc.title,
@@ -317,7 +339,7 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
           id: doc.id,
           title: doc.title,
           path: doc.filePath,
-          reason: error instanceof Error ? error.message : "Unknown error",
+          reason: formatUnknownError(error),
         });
       }
     }
