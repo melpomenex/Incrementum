@@ -657,10 +657,15 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
  */
 function AppearanceSettings({ onChange }: { onChange: () => void }) {
   const { settings, updateSettingsCategory } = useSettingsStore();
-  const { toolbarPosition } = settings.interface;
+  const { toolbarPosition, splitViewSpawn } = settings.interface;
 
   const handleToolbarPositionChange = (value: "top" | "left" | "right") => {
     updateSettingsCategory("interface", { toolbarPosition: value });
+    onChange();
+  };
+
+  const handleSplitViewSpawnChange = (updates: Partial<typeof splitViewSpawn>) => {
+    updateSettingsCategory("interface", { splitViewSpawn: { ...splitViewSpawn, ...updates } });
     onChange();
   };
 
@@ -742,6 +747,39 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
             <option value="left">Left</option>
             <option value="right">Right</option>
           </select>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Split View Spawn Gesture"
+          description="Mouse gesture to duplicate the active tab into a vertical split"
+        >
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <select
+              className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
+              value={splitViewSpawn.button}
+              onChange={(e) => handleSplitViewSpawnChange({ button: Number(e.target.value) as 0 | 1 | 2 })}
+            >
+              <option value={1}>Middle Click (Wheel)</option>
+              <option value={2}>Right Click</option>
+              <option value={0}>Left Click</option>
+            </select>
+
+            <select
+              className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
+              value={splitViewSpawn.modifier}
+              onChange={(e) =>
+                handleSplitViewSpawnChange({
+                  modifier: e.target.value as "none" | "ctrl" | "alt" | "shift" | "meta",
+                })
+              }
+            >
+              <option value="none">No Modifier</option>
+              <option value="ctrl">Ctrl</option>
+              <option value="alt">Alt</option>
+              <option value="shift">Shift</option>
+              <option value="meta">Meta</option>
+            </select>
+          </div>
         </SettingsRow>
 
         <SettingsRow

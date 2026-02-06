@@ -15,7 +15,7 @@ export const defaultSettings: Settings = {
   },
 
   interface: {
-    theme: 'milky-matcha',
+    theme: 'super-game-bro',
     denseMode: false,
     toolbarIconSize: 24,
     showStatistics: true,

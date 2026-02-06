@@ -77,8 +77,12 @@ fn log_startup(app: &tauri::AppHandle, message: &str) {
 }
 
 fn install_panic_hook(app: tauri::AppHandle) {
+    // Preserve the default hook so panics are still visible in the console,
+    // while also writing to the startup log for GUI launches.
+    let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         log_startup(&app, &format!("panic: {info}"));
+        default_hook(info);
     }));
 }
 
@@ -175,9 +179,6 @@ pub fn run() {
         Ok(())
     })();
 
-    // Menu IDs (used for on_menu_event routing).
-    const MENU_ID_COMMAND_PALETTE: &str = "command_palette";
-
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -187,42 +188,8 @@ pub fn run() {
         //.plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
         .menu(|app| {
-            use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-
-            // This accelerator is handled by the OS menu system, so it still works even if a
-            // cross-origin iframe (eg YouTube) has focus and key events don't reach the webview JS.
-            let command_palette = MenuItem::with_id(
-                app,
-                MENU_ID_COMMAND_PALETTE,
-                "Command Palette...",
-                true,
-                Some("CmdOrCtrl+K"),
-            )?;
-
-            let edit = Submenu::with_items(
-                app,
-                "Edit",
-                true,
-                &[
-                    &command_palette,
-                    &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::cut(app, None)?,
-                    &PredefinedMenuItem::copy(app, None)?,
-                    &PredefinedMenuItem::paste(app, None)?,
-                    &PredefinedMenuItem::select_all(app, None)?,
-                ],
-            )?;
-
-            // Keep the menu minimal. On macOS, Tauri will still add the application menu.
-            Menu::with_items(app, &[&edit])
-        })
-        .on_menu_event(|app, event| {
-            if event.id().as_ref() == MENU_ID_COMMAND_PALETTE {
-                if let Some(win) = app.get_webview_window("main") {
-                    // Bridge into the existing frontend toggle path.
-                    let _ = win.eval("window.dispatchEvent(new CustomEvent('command-palette-open'))");
-                }
-            }
+            use tauri::menu::Menu;
+            Menu::new(app)
         })
         .setup(|app| {
             let app_handle = app.handle().clone();

@@ -69,7 +69,19 @@ export default defineConfig(async ({ mode }) => {
       ws: isTauriBuild ? false : undefined,
       watch: {
         // 3. tell Vite to ignore watching `src-tauri`
-        ignored: ["**/src-tauri/**", "**/server/**"],
+        // Keep the watcher set small; this repo contains large non-frontend trees.
+        ignored: [
+          "**/src-tauri/**",
+          "**/server/**",
+          "**/whisper.cpp/**",
+          "**/transcript-tester/**",
+          "**/api/**",
+          "**/browser_extension/**",
+          "**/docs/**",
+          "**/dist/**",
+          "**/demo/**",
+          "**/vps-service/**",
+        ],
       },
       // Proxy API requests in development
       proxy: isPWA
@@ -91,6 +103,8 @@ export default defineConfig(async ({ mode }) => {
       modulePreload: isPWA || !isProd,
       cssCodeSplit: isPWA || !isProd,
       rollupOptions: {
+        // Externalize Tauri-specific modules that are only available in Tauri builds
+        external: isPWA ? ["@tauri-apps/plugin-fs", "@tauri-apps/plugin-dialog", "@tauri-apps/api/path"] : [],
         output:
           isProd && !isPWA
             ? {

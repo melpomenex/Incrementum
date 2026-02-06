@@ -114,7 +114,7 @@ function loadLastThemeId(): ThemeId {
   } catch (error) {
     console.error('Failed to load last theme:', error);
   }
-  return 'milky-matcha'; // Default theme
+  return 'super-game-bro'; // Default theme
 }
 
 /**

@@ -129,6 +129,7 @@ export interface TabsState {
   
   // Split actions
   splitPane: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
+  spawnTabInSplit: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
   moveTabToSplit: (tabId: string, fromPaneId: string, targetPaneId: string, direction: SplitDirection, side: "before" | "after") => void;
   resizeSplit: (splitPaneId: string, newSizes: number[]) => void;
   collapseSplit: (splitPaneId: string, childPaneId: string) => void;
@@ -787,6 +788,40 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       setTimeout(() => get().saveTabs(), 0);
 
       return { rootPane: newRootPane };
+    });
+  },
+
+  spawnTabInSplit: (paneId, tabId, direction, side) => {
+    set((state) => {
+      const pane = findPaneByIdRecursive(state.rootPane, paneId) as TabPane;
+      if (!pane || pane.type !== "tabs") return state;
+
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) return state;
+
+      const newTabId = generateId();
+      const clonedTab: Tab = { ...tab, id: newTabId };
+
+      const newPane = createTabPane([newTabId], newTabId);
+      const children = side === "before" ? [newPane, pane] : [pane, newPane];
+      const splitPane = createSplitPane(direction, children, [50, 50]);
+
+      const parent = findParentPane(state.rootPane, paneId);
+      let newRootPane: Pane;
+      if (parent) {
+        newRootPane = updatePaneInTree(state.rootPane, parent.id, (p) => {
+          const splitParent = p as SplitPane;
+          return {
+            ...splitParent,
+            children: splitParent.children.map((child) => (child.id === paneId ? splitPane : child)),
+          };
+        });
+      } else {
+        newRootPane = splitPane;
+      }
+
+      setTimeout(() => get().saveTabs(), 0);
+      return { tabs: [...state.tabs, clonedTab], rootPane: newRootPane };
     });
   },
 

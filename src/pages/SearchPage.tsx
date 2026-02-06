@@ -106,7 +106,7 @@ export function SearchPage() {
       }
 
       if (selectedFilters.has("flashcard")) {
-        const cards = await invokeCommand<any[]>("get_learning_items");
+        const cards = await invokeCommand<any[]>("get_all_learning_items");
         cards.forEach((card: any) => {
           if (
             card.question?.toLowerCase().includes(query.toLowerCase()) ||

@@ -134,6 +134,14 @@ interface InterfaceSettings {
   compactMode: boolean;
   animationsEnabled: boolean;
   toolbarPosition: "top" | "left" | "right";
+  /**
+   * Mouse gesture to duplicate the active tab into a new vertical split.
+   * button: 0=left, 1=middle (wheel), 2=right
+   */
+  splitViewSpawn: {
+    button: 0 | 1 | 2;
+    modifier: "none" | "ctrl" | "alt" | "shift" | "meta";
+  };
 }
 
 /**
@@ -314,6 +322,7 @@ export const defaultSettings: Settings = {
     compactMode: false,
     animationsEnabled: true,
     toolbarPosition: "top",
+    splitViewSpawn: { button: 1, modifier: "none" },
   },
   learning: {
     algorithm: "fsrs",

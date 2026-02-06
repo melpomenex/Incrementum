@@ -671,7 +671,80 @@ Export your data for analysis:
 - Sync on app start/close
 - Conflict handling
 
-#### Backup
+#### Backup & Restore
+
+Incrementum provides a complete backup and restore system to protect your learning data and migrate between devices.
+
+#### Complete App Backup
+
+**What Gets Backed Up:**
+- **Settings**: All preferences, themes, learning parameters
+- **Documents**: All imported documents with metadata
+- **Extracts**: All highlights and extracted content
+- **Learning Items**: All flashcards, cloze deletions, Q&A cards
+- **Scheduling Data**: FSRS memory states, due dates, intervals, ease factors
+- **Collections**: All collections and document assignments
+- **UI State**: Sidebar state, theme preferences
+- **Optional**: Actual document files (PDFs, EPUBs, etc.)
+
+**Creating a Backup:**
+
+1. Go to **Settings → Import/Export → Complete App Backup**
+2. Click **Open Backup & Restore**
+3. Select **Export Backup**
+4. Add an optional label (e.g., "Before reformatting PC")
+5. Choose whether to include document files:
+   - **Metadata Only**: Smaller file (~KB-MB), re-import files separately
+   - **Include Files**: Larger file (~MB-GB), complete self-contained backup
+6. Click **Export Backup** and save the `.incrementum` file
+
+**File Format:**
+- Extension: `.incrementum`
+- Format: JSON with header comment
+- Naming: `incrementum-backup-[label]-[date]-[time].incrementum`
+
+**Restoring from Backup:**
+
+1. Go to **Settings → Import/Export → Complete App Backup**
+2. Click **Open Backup & Restore**
+3. Select **Import Backup**
+4. Choose your `.incrementum` file
+5. Preview what's in the backup:
+   - Document count
+   - Extract count
+   - Learning item count
+   - Collection count
+   - Whether files are included
+6. Configure import options (optional):
+   - **What to Import**: Choose specific data types
+   - **Duplicate Handling**: Skip, Replace, or Merge
+   - **Import Files**: Whether to restore document files
+7. Click **Import Backup**
+8. Wait for the import to complete (progress shown)
+
+**Duplicate Handling Strategies:**
+- **Skip**: Skip items that already exist (recommended for most cases)
+- **Replace**: Overwrite existing items with backup versions
+- **Merge**: Create new copies of all items (may create duplicates)
+
+**Use Cases:**
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| **Migrate to new computer** | Export with files, import on new machine |
+| **Backup before major changes** | Quick metadata-only backup |
+| **Sync between devices** | Export/import workflow |
+| **Share collections** | Export specific collections |
+| **Archive old data** | Export and store long-term |
+| **Restore after reformatting** | Import complete backup with files |
+
+**Important Notes:**
+- **Scheduling Preservation**: All FSRS scheduling data (stability, difficulty, due dates) is preserved exactly
+- **File Paths**: When importing without files, you'll need to re-import the original documents. Incrementum will match them by content hash and restore the metadata
+- **Version Compatibility**: Backups are forward-compatible but may not work with older app versions
+- **Storage**: Keep backups secure - they contain your personal learning data
+
+#### Legacy Backup Options
 
 **Automatic Backups:**
 - Backup frequency (daily, weekly)
