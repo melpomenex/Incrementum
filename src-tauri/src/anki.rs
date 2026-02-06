@@ -199,6 +199,15 @@ fn extract_notes_from_deck(
         let (id, guid, mid, tags_str, fields_str, timestamp) = note_row
             .map_err(|e| IncrementumError::NotFound(format!("Cannot parse note row: {}", e)))?;
 
+        // Skip notes that contain the upgrade error message
+        // This happens when .apkg files are exported from older Anki versions
+        // and the notes weren't properly upgraded
+        const UPGRADE_ERROR_MARKER: &str = "Please update to the latest Anki version";
+        if fields_str.contains(UPGRADE_ERROR_MARKER) {
+            eprintln!("[Anki Import] Skipping note {} with upgrade error marker", id);
+            continue;
+        }
+
         // Get model name
         let model_name = models
             .get(mid.to_string())
