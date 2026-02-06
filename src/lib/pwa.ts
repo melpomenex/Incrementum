@@ -10,7 +10,123 @@
  */
 export function isPWA(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches ||
+         window.matchMedia('(display-mode: fullscreen)').matches ||
          (window.navigator as any).standalone === true;
+}
+
+/**
+ * Check if currently in fullscreen mode
+ */
+export function isFullscreen(): boolean {
+  return !!(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).msFullscreenElement
+  );
+}
+
+/**
+ * Request fullscreen mode
+ * Returns true if successful, false if not supported or failed
+ */
+export async function enterFullscreen(): Promise<boolean> {
+  const doc = document as any;
+  
+  // Check if already fullscreen
+  if (isFullscreen()) return true;
+  
+  // Try standard fullscreen API
+  if (document.documentElement.requestFullscreen) {
+    try {
+      await document.documentElement.requestFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to enter fullscreen:', error);
+    }
+  }
+  
+  // Try webkit prefix (iOS Safari)
+  if (doc.documentElement.webkitRequestFullscreen) {
+    try {
+      await doc.documentElement.webkitRequestFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to enter webkit fullscreen:', error);
+    }
+  }
+  
+  // Try ms prefix (IE/Edge legacy)
+  if (doc.documentElement.msRequestFullscreen) {
+    try {
+      await doc.documentElement.msRequestFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to enter MS fullscreen:', error);
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Exit fullscreen mode
+ */
+export async function exitFullscreen(): Promise<boolean> {
+  const doc = document as any;
+  
+  if (!isFullscreen()) return true;
+  
+  if (document.exitFullscreen) {
+    try {
+      await document.exitFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to exit fullscreen:', error);
+    }
+  }
+  
+  if (doc.webkitExitFullscreen) {
+    try {
+      await doc.webkitExitFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to exit webkit fullscreen:', error);
+    }
+  }
+  
+  if (doc.msExitFullscreen) {
+    try {
+      await doc.msExitFullscreen();
+      return true;
+    } catch (error) {
+      console.warn('[PWA] Failed to exit MS fullscreen:', error);
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Toggle fullscreen mode
+ */
+export async function toggleFullscreen(): Promise<boolean> {
+  if (isFullscreen()) {
+    return exitFullscreen();
+  } else {
+    return enterFullscreen();
+  }
+}
+
+/**
+ * Check if fullscreen API is supported
+ */
+export function isFullscreenSupported(): boolean {
+  const doc = document as any;
+  return !!(
+    document.documentElement.requestFullscreen ||
+    doc.documentElement.webkitRequestFullscreen ||
+    doc.documentElement.msRequestFullscreen
+  );
 }
 
 /**
