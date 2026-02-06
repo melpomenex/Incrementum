@@ -168,7 +168,7 @@ function TopHeaderBar({
           className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Search (Ctrl+K)"
           aria-label="Open search (Ctrl+K)"
-          onClick={() => window.dispatchEvent(new CustomEvent('command-palette-toggle'))}
+          onClick={() => window.dispatchEvent(new CustomEvent('command-palette-open'))}
         >
           <Search className="w-4 h-4 text-foreground-secondary" />
         </button>

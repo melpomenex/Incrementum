@@ -794,8 +794,16 @@ export function CommandCenter() {
       setCommandPaletteOpen(!isOpen);
     };
 
+    const handleOpen = () => {
+      setCommandPaletteOpen(true);
+    };
+
     window.addEventListener("command-palette-toggle", handleToggle as EventListener);
-    return () => window.removeEventListener("command-palette-toggle", handleToggle as EventListener);
+    window.addEventListener("command-palette-open", handleOpen as EventListener);
+    return () => {
+      window.removeEventListener("command-palette-toggle", handleToggle as EventListener);
+      window.removeEventListener("command-palette-open", handleOpen as EventListener);
+    };
   }, [setCommandPaletteOpen]);
 
   return (
