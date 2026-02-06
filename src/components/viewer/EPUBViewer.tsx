@@ -486,6 +486,10 @@ export function EPUBViewer({
             contents.document.addEventListener("selectionchange", selectionHandler);
             contents.document.addEventListener("mouseup", selectionHandler);
             contents.document.addEventListener("touchend", selectionHandler);
+
+            // Key events inside the EPUB iframe don't reliably reach the parent window.
+            // Bind Cmd/Ctrl+K here so the command palette always opens while reading.
+            contents.window.addEventListener("keydown", handleCommandPaletteHotkey, true);
             console.log("EPUBViewer: Injected override styles into content");
           });
 
@@ -868,7 +872,7 @@ export function EPUBViewer({
     if (isMobile) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl/Cmd + Plus to increase font size
-      if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+" || e.key === "k")) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+")) {
         e.preventDefault();
         increaseFontSize();
       }
@@ -934,6 +938,13 @@ export function EPUBViewer({
 
     setChromeVisible((prev) => !prev);
   };
+
+  const handleCommandPaletteHotkey = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("command-palette-open"));
+    }
+  }, []);
 
   const handleSelectionChange = useCallback((contents: any) => {
     const selection = contents.window.getSelection();
