@@ -147,6 +147,9 @@ interface AISettings {
   temperature: number;
   maxTokens: number;
   ollamaBaseUrl?: string;
+  // PWA-only: floating voice assistant button while reading documents.
+  pwaAssistantButtonEnabled: boolean;
+  pwaAssistantButtonSide: "left" | "right";
 }
 
 /**
@@ -387,6 +390,8 @@ export const defaultSettings: Settings = {
     model: "gpt-4o-mini",
     temperature: 0.7,
     maxTokens: 4096,
+    pwaAssistantButtonEnabled: true,
+    pwaAssistantButtonSide: "right",
   },
   sync: {
     enabled: false,

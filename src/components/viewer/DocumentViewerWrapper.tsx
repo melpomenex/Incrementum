@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DocumentViewer as BaseDocumentViewer } from "./DocumentViewer";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../assistant/AssistantPanel";
+import { PwaAssistantButton } from "../assistant/PwaAssistantButton";
 import { useDocumentStore, useSettingsStore } from "../../stores";
 import * as documentsApi from "../../api/documents";
 import { trimToTokenWindow } from "../../utils/tokenizer";
@@ -34,6 +35,8 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
   const currentDocument = useDocumentStore((state) => state.currentDocument);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
   const aiModel = useSettingsStore((state) => state.settings.ai.model);
+  const pwaAssistantEnabled = useSettingsStore((state) => state.settings.ai.pwaAssistantButtonEnabled);
+  const pwaAssistantSide = useSettingsStore((state) => state.settings.ai.pwaAssistantButtonSide);
   const [documentContent, setDocumentContent] = useState<string | undefined>(undefined);
   const [assistantContent, setAssistantContent] = useState<string | undefined>(undefined);
   const [assistantPosition, setAssistantPosition] = useState<AssistantPosition>(() => {
@@ -191,7 +194,16 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
   return (
     <div className="flex h-full">
       {isMobile ? (
-        documentViewer
+        <>
+          {documentViewer}
+          {deviceInfo.isPWA && (
+            <PwaAssistantButton
+              context={assistantContext}
+              enabled={pwaAssistantEnabled}
+              side={pwaAssistantSide}
+            />
+          )}
+        </>
       ) : assistantPosition === "left" ? (
         <>
           {assistantPanel}

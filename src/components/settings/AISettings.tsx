@@ -45,6 +45,8 @@ export function AISettings() {
   // Context window tokens (for document content)
   const { settings, updateSettingsCategory } = useSettingsStore();
   const [contextWindowTokens, setContextWindowTokens] = useState(settings.ai.maxTokens);
+  const [pwaAssistantEnabled, setPwaAssistantEnabled] = useState(settings.ai.pwaAssistantButtonEnabled);
+  const [pwaAssistantSide, setPwaAssistantSide] = useState<"left" | "right">(settings.ai.pwaAssistantButtonSide);
 
   useEffect(() => {
     async function loadConfig() {
@@ -59,6 +61,8 @@ export function AISettings() {
         }
         // Load context window tokens from settings store
         setContextWindowTokens(settings.ai.maxTokens);
+        setPwaAssistantEnabled(settings.ai.pwaAssistantButtonEnabled);
+        setPwaAssistantSide(settings.ai.pwaAssistantButtonSide);
       } catch (error) {
         console.error("Failed to load AI config:", error);
       } finally {
@@ -97,7 +101,11 @@ export function AISettings() {
       setConfigState(updatedConfig);
 
       // Save context window tokens to settings store
-      updateSettingsCategory("ai", { maxTokens: contextWindowTokens });
+      updateSettingsCategory("ai", {
+        maxTokens: contextWindowTokens,
+        pwaAssistantButtonEnabled: pwaAssistantEnabled,
+        pwaAssistantButtonSide: pwaAssistantSide,
+      });
     } catch (error) {
       console.error("Failed to save AI config:", error);
       alert("Failed to save configuration");
@@ -385,6 +393,42 @@ export function AISettings() {
             <p className="text-xs text-muted-foreground mt-1">
               How much document content to send to the AI (tokens)
             </p>
+          </div>
+
+          {/* PWA Assistant Button */}
+          <div className="md:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <label className="block text-sm font-medium text-foreground">
+                  PWA Voice Assistant Button
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Show a floating voice assistant button while reading documents in PWA mode.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={pwaAssistantEnabled}
+                  onChange={(e) => setPwaAssistantEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Enabled
+              </label>
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+              <div className="text-sm text-muted-foreground">Side</div>
+              <select
+                value={pwaAssistantSide}
+                onChange={(e) => setPwaAssistantSide(e.target.value as "left" | "right")}
+                disabled={!pwaAssistantEnabled}
+                className="px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              >
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
