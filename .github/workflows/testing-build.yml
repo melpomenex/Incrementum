@@ -1,0 +1,87 @@
+name: Testing Build (Windows + macOS)
+
+# Build artifacts on the `testing` branch without creating a release.
+on:
+  push:
+    branches: [testing]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Increase Rust stack size (Unix)
+        if: runner.os != 'Windows'
+        run: echo "RUST_MIN_STACK=33554432" >> $GITHUB_ENV
+
+      - name: Increase Rust stack size (Windows)
+        if: runner.os == 'Windows'
+        run: echo "RUST_MIN_STACK=33554432" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Install create-dmg (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      # Ad-hoc signing to avoid requiring Apple certificates for test builds.
+      - name: Import ad-hoc signing (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "TAURI_SIGNING_IDENTITY=-" >> $GITHUB_ENV
+          echo "APPLE_SIGNING_IDENTITY=-" >> $GITHUB_ENV
+
+      - name: Build Tauri application
+        uses: tauri-apps/tauri-action@v0
+        with:
+          args: ${{ runner.os == 'macOS' && '--bundles dmg' || '--bundles nsis,msi' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
+          SQLITE3_STATIC: "1"
+          VCPKGRS_DYNAMIC: "0"
+          SQLX_OFFLINE: "true"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: incrementum-${{ runner.os }}-testing
+          path: |
+            src-tauri/target/**/release/bundle/**
+          if-no-files-found: warn
+          retention-days: 14
+
