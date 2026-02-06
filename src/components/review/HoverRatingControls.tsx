@@ -14,6 +14,8 @@ export interface HoverRatingControlsProps {
   className?: string;
   position?: "fixed" | "absolute";
   disableBackdropBlur?: boolean;
+  /** Use compact floating button mode instead of hover zone (recommended for mobile EPUB) */
+  compactMode?: boolean;
 }
 
 // Rating colors from the plan
@@ -42,12 +44,14 @@ export function HoverRatingControls({
   className,
   position = "fixed",
   disableBackdropBlur = false,
+  compactMode = false,
 }: HoverRatingControlsProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewIntervals, setPreviewIntervals] = useState<PreviewIntervals | null>(initialPreviewIntervals);
   const [hoverZoneActive, setHoverZoneActive] = useState(false);
-  
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // Detect mobile for padding adjustment
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
@@ -98,6 +102,92 @@ export function HoverRatingControls({
 
   const positionClass = position === "absolute" ? "absolute" : "fixed";
 
+  // Compact mode: floating button that expands into rating panel
+  if (compactMode) {
+    return (
+      <div className={cn(`${positionClass} bottom-20 right-4 z-50`, className)}>
+        {/* Floating rating button */}
+        {!isExpanded ? (
+          <button
+            onClick={() => setIsExpanded(true)}
+            disabled={disabled}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full shadow-lg",
+              "bg-primary text-primary-foreground",
+              "transition-all duration-200 active:scale-95",
+              "hover:shadow-xl",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+            style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}
+          >
+            <span className="text-sm font-medium">Rate</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+        ) : (
+          /* Expanded rating panel */
+          <div
+            className={cn(
+              "bg-card border border-border rounded-2xl shadow-2xl p-3",
+              "transition-all duration-200"
+            )}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs text-muted-foreground">Rate this document</span>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="ml-auto p-1 rounded-full hover:bg-muted"
+                aria-label="Close"
+              >
+                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {(Object.keys(RATING_LABELS) as Array<keyof typeof RATING_LABELS>).slice(0, 4).map((ratingKey) => {
+                const rating = parseInt(ratingKey) as ReviewRating;
+                const colors = RATING_COLORS[rating];
+                const label = RATING_LABELS[rating];
+
+                return (
+                  <button
+                    key={rating}
+                    onClick={() => {
+                      handleRating(rating);
+                      setIsExpanded(false);
+                    }}
+                    disabled={disabled || isSubmitting}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg flex-1",
+                      "transition-all duration-150 active:scale-95",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      "hover:shadow-md",
+                      colors.text
+                    )}
+                    style={{
+                      backgroundColor: colors.bg,
+                    }}
+                    title={label}
+                  >
+                    <span className="text-sm font-bold">{label}</span>
+                  </button>
+                );
+              })}
+              {isSubmitting && (
+                <div className="flex items-center justify-center px-3">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Original hover-based mode
   return (
     <div
       className={cn(

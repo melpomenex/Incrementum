@@ -74,8 +74,8 @@ impl Repository {
                 total_pages, current_page, current_scroll_percent, current_cfi, current_view_state, category, tags,
                 date_added, date_modified, date_last_reviewed,
                 extract_count, learning_item_count, priority_rating, priority_slider, priority_score,
-                is_archived, is_favorite, metadata, cover_image_url, cover_image_source
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+                is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
             "#,
         )
         .bind(&document.id)
@@ -101,6 +101,7 @@ impl Repository {
         .bind(document.priority_score)
         .bind(document.is_archived)
         .bind(document.is_favorite)
+        .bind(document.is_dismissed)
         .bind(metadata_json)
         .bind(&document.cover_image_url)
         .bind(&document.cover_image_source)
@@ -153,6 +154,7 @@ impl Repository {
                     priority_score: row.get("priority_score"),
                     is_archived: row.get("is_archived"),
                     is_favorite: row.get("is_favorite"),
+                    is_dismissed: row.try_get("is_dismissed").unwrap_or(false),
                     metadata,
                     cover_image_url: row.try_get("cover_image_url").ok(),
                     cover_image_source: row.try_get("cover_image_source").ok(),
@@ -213,6 +215,7 @@ impl Repository {
                     priority_score: row.get("priority_score"),
                     is_archived: row.get("is_archived"),
                     is_favorite: row.get("is_favorite"),
+                    is_dismissed: row.try_get("is_dismissed").unwrap_or(false),
                     metadata,
                     cover_image_url: row.try_get("cover_image_url").ok(),
                     cover_image_source: row.try_get("cover_image_source").ok(),
@@ -272,6 +275,7 @@ impl Repository {
                 priority_score: row.get("priority_score"),
                 is_archived: row.get("is_archived"),
                 is_favorite: row.get("is_favorite"),
+                is_dismissed: row.try_get("is_dismissed").unwrap_or(false),
                 metadata,
                 cover_image_url: row.try_get("cover_image_url").ok(),
                 cover_image_source: row.try_get("cover_image_source").ok(),
@@ -405,6 +409,32 @@ impl Repository {
         .bind(priority_rating)
         .bind(priority_slider)
         .bind(priority_score)
+        .bind(now)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        self.get_document(id).await?.ok_or_else(|| {
+            crate::error::IncrementumError::NotFound(format!("Document {}", id))
+        })
+    }
+
+    pub async fn update_document_dismiss(
+        &self,
+        id: &str,
+        is_dismissed: bool,
+    ) -> Result<Document> {
+        let now = Utc::now();
+
+        sqlx::query(
+            r#"
+            UPDATE documents SET
+                is_dismissed = ?1,
+                date_modified = ?2
+            WHERE id = ?3
+            "#,
+        )
+        .bind(is_dismissed)
         .bind(now)
         .bind(id)
         .execute(&self.pool)

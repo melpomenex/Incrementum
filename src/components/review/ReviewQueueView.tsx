@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  EyeOff,
   Filter,
   Info,
   Keyboard,
@@ -38,6 +39,7 @@ import {
   type SessionCustomization,
 } from "./SessionCustomizeModal";
 import { postponeItem } from "../../api/queue";
+import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import { getSessionStats, clearQueueSession } from "../../lib/queueSession";
 import { RotateCcw } from "lucide-react";
@@ -281,6 +283,25 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     const daysUntil = Math.max(1, getDaysUntilDue(selectedItem));
     const deltaDays = Math.max(1, Math.round(daysUntil * 0.5));
     await applyScheduleShift("Downgrade frequency", deltaDays);
+  };
+
+  const handleDismissDocument = async (item: QueueItem) => {
+    if (item.itemType !== "document") {
+      toast.info("Dismiss not available", "Only documents can be dismissed");
+      return;
+    }
+
+    try {
+      await dismissDocument(item.documentId, true);
+      toast.success("Document dismissed", "Item hidden from queue. You can still find it via search.");
+      await refreshQueue();
+    } catch (error) {
+      console.error("Failed to dismiss document:", error);
+      toast.error(
+        "Dismiss failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    }
   };
 
   useEffect(() => {
@@ -739,6 +760,24 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                         </div>
                         <div className="flex items-center gap-3">
                           <PriorityGlyph vector={priorityVector} />
+                          
+                          {/* Dismiss Button - Only for documents */}
+                          {item.itemType === "document" && (
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDismissDocument(item);
+                              }}
+                              className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
+                              title="Dismiss - Hide from queue (still searchable)"
+                            >
+                              <EyeOff className="w-4 h-4 text-white" />
+                              <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                                Dismiss
+                              </span>
+                            </button>
+                          )}
+                          
                           <ItemDetailsPopover
                             target={buildDetailsTarget(item)}
                             renderTrigger={({ onClick, isOpen }) => (

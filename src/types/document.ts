@@ -28,6 +28,7 @@ export interface Document {
   priorityScore: number;
   isArchived: boolean;
   isFavorite: boolean;
+  isDismissed?: boolean;
   metadata?: DocumentMetadata;
   coverImageUrl?: string;
   coverImageSource?: string;

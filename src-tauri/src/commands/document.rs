@@ -437,6 +437,16 @@ pub async fn delete_document(
 }
 
 #[tauri::command]
+pub async fn dismiss_document(
+    id: String,
+    dismissed: bool,
+    repo: State<'_, Repository>,
+) -> Result<Document> {
+    let updated = repo.update_document_dismiss(&id, dismissed).await?;
+    Ok(updated)
+}
+
+#[tauri::command]
 pub async fn read_document_file(
     file_path: String,
 ) -> Result<String> {

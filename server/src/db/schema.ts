@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS documents (
   priority_score DOUBLE PRECISION DEFAULT 50.0,
   is_archived BOOLEAN DEFAULT FALSE,
   is_favorite BOOLEAN DEFAULT FALSE,
+  is_dismissed BOOLEAN DEFAULT FALSE,
   metadata JSONB,
   next_reading_date TIMESTAMPTZ,
   reading_count INTEGER DEFAULT 0,
