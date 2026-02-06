@@ -1025,6 +1025,9 @@ Quick access to all commands:
 - Keyboard navigation
 - Recently used commands
 - Search by name or shortcut
+- Search results jump to the matching location in documents and highlight the query (PDF, EPUB, Web Imports)
+- YouTube transcript matches seek to the timestamp and start playback
+- Hover a document result to see additional matches from the same document
 
 **Common Commands:**
 - "Import document"

@@ -459,6 +459,7 @@ impl Repository {
         reps: Option<i32>,
         total_time_spent: Option<i32>,
     ) -> Result<()> {
+        let now = Utc::now();
         sqlx::query(
             r#"
             UPDATE documents SET
@@ -467,8 +468,9 @@ impl Repository {
                 difficulty = ?3,
                 reps = ?4,
                 total_time_spent = ?5,
-                date_modified = ?6
-            WHERE id = ?7
+                date_last_reviewed = ?6,
+                date_modified = ?7
+            WHERE id = ?8
             "#,
         )
         .bind(next_reading_date)
@@ -476,7 +478,8 @@ impl Repository {
         .bind(difficulty)
         .bind(reps)
         .bind(total_time_spent)
-        .bind(Utc::now())
+        .bind(now)
+        .bind(now)
         .bind(id)
         .execute(&self.pool)
         .await?;
@@ -494,6 +497,7 @@ impl Repository {
         total_time_spent: Option<i32>,
         consecutive_count: Option<i32>,
     ) -> Result<()> {
+        let now = Utc::now();
         sqlx::query(
             r#"
             UPDATE documents SET
@@ -503,8 +507,9 @@ impl Repository {
                 reps = ?4,
                 total_time_spent = ?5,
                 consecutive_count = ?6,
-                date_modified = ?7
-            WHERE id = ?8
+                date_last_reviewed = ?7,
+                date_modified = ?8
+            WHERE id = ?9
             "#,
         )
         .bind(next_reading_date)
@@ -513,7 +518,8 @@ impl Repository {
         .bind(reps)
         .bind(total_time_spent)
         .bind(consecutive_count)
-        .bind(Utc::now())
+        .bind(now)
+        .bind(now)
         .bind(id)
         .execute(&self.pool)
         .await?;

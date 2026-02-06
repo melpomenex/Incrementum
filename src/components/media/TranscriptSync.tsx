@@ -23,6 +23,15 @@ interface TranscriptSyncProps {
   onSelectionChange?: (text: string) => void;
   className?: string;
   /**
+   * Highlights matching terms without filtering the transcript.
+   * Intended for "jump to match" flows (e.g., command palette search).
+   */
+  highlightQuery?: string;
+  /**
+   * Optionally emphasize and scroll to a specific segment id.
+   */
+  highlightedSegmentId?: string;
+  /**
    * Whether to show paragraph-level grouping for better readability
    */
   groupParagraphs?: boolean;
@@ -38,6 +47,8 @@ export function TranscriptSync({
   onExport,
   onSelectionChange,
   className = "flex-1 min-h-0",
+  highlightQuery,
+  highlightedSegmentId,
   groupParagraphs = true,
 }: TranscriptSyncProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +56,7 @@ export function TranscriptSync({
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
+  const highlightedSegmentRef = useRef<HTMLDivElement>(null);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Filter segments based on search query
@@ -79,6 +91,14 @@ export function TranscriptSync({
       }
     }
   }, [currentTime, segments, activeIndex, autoScroll]);
+
+  // Scroll to an externally highlighted segment (jump navigation)
+  useEffect(() => {
+    if (!highlightedSegmentId) return;
+    if (!containerRef.current) return;
+    if (!highlightedSegmentRef.current) return;
+    highlightedSegmentRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightedSegmentId]);
 
   // Format time
   const formatTime = (time: number) => {
@@ -256,17 +276,21 @@ export function TranscriptSync({
           filteredSegments.map((segment, index) => {
             const segmentIndex = (segments || []).indexOf(segment);
             const isActive = segmentIndex === activeIndex;
-            const isHighlighted = searchQuery && segment.text.toLowerCase().includes(searchQuery.toLowerCase());
+            const effectiveHighlightQuery = (highlightQuery && highlightQuery.trim()) ? highlightQuery : searchQuery;
+            const isHighlighted = effectiveHighlightQuery && segment.text.toLowerCase().includes(effectiveHighlightQuery.toLowerCase());
+            const isExternallyHighlighted = highlightedSegmentId && segment.id === highlightedSegmentId;
             const isParagraphStart = (segment as any).isParagraphStart;
 
             return (
               <div
                 key={segment.id}
-                ref={isActive ? activeSegmentRef : null}
+                ref={isActive ? activeSegmentRef : isExternallyHighlighted ? highlightedSegmentRef : null}
                 onClick={() => handleSegmentClick(segment)}
                 className={`group relative rounded-lg cursor-pointer transition-all duration-200 ${
                   isActive
                     ? "bg-primary/15 border-l-4 border-l-primary border-y border-r border-primary/20 shadow-sm"
+                    : isExternallyHighlighted
+                    ? "bg-amber-500/15 border-l-4 border-l-amber-500 border-y border-r border-amber-500/30 shadow-sm"
                     : isHighlighted
                     ? "bg-amber-500/10 border-l-4 border-l-amber-500 border-y border-r border-amber-500/20"
                     : "bg-transparent hover:bg-muted/40 border-l-4 border-l-transparent border-y border-r border-transparent"
@@ -315,7 +339,7 @@ export function TranscriptSync({
                         ? "text-foreground font-medium" 
                         : "text-foreground/90"
                     }`}>
-                      {highlightText(segment.text, searchQuery)}
+                      {highlightText(segment.text, effectiveHighlightQuery)}
                     </span>
                   </div>
                 </div>

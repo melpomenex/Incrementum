@@ -199,7 +199,13 @@ impl EngagingScheduler {
                 rating,
             );
 
-        let interval_days = modified_interval.round() as i64;
+        // We store next_reading_date with day-level granularity for the queue.
+        // Without a minimum of 1 day, ratings like "Hard" can round to 0 and keep resurfacing
+        // immediately (because next_review == now, thus still due).
+        let mut interval_days = modified_interval.round() as i64;
+        if !matches!(rating, ReviewRating::Again) {
+            interval_days = interval_days.max(1);
+        }
         let next_review = Utc::now() + Duration::days(interval_days);
 
         let scheduling_reason = if is_serendipity {
@@ -612,6 +618,15 @@ mod tests {
         // Should have some interval
         assert!(result.interval_days > 0);
         assert!(result.stability > 0.0);
+    }
+
+    #[test]
+    fn test_hard_rating_never_rounds_to_zero_days() {
+        let mut scheduler = EngagingScheduler::default();
+        let result = scheduler
+            .schedule_item(ReviewRating::Hard, None, None, 0.0, 0)
+            .unwrap();
+        assert!(result.interval_days >= 1);
     }
 
     #[test]
