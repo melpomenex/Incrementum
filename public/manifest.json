@@ -3,7 +3,7 @@
     "short_name": "Incrementum",
     "description": "Smart learning with spaced repetition, document management, and AI-powered study tools",
     "start_url": "/",
-    "display": "standalone",
+    "display": "fullscreen",
     "background_color": "#0a0a0a",
     "theme_color": "#6366f1",
     "orientation": "any",

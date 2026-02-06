@@ -18,7 +18,10 @@ import {
   BarChart3,
   X,
   Newspaper,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
+import { toggleFullscreen, isFullscreen, isFullscreenSupported, isPWA } from "../../lib/pwa";
 import { useTabsStore } from "../../stores";
 import type { TabType } from "../../stores/tabsStore";
 import {
@@ -135,6 +138,15 @@ const allNavItems: NavItem[] = [
   },
 ];
 
+// Additional actions for the more menu (not navigation items)
+interface MoreAction {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  condition?: () => boolean;
+}
+
 interface MobileNavigationProps {
   dueCount?: number;
   unreadCount?: number;
@@ -148,6 +160,36 @@ export function MobileNavigation({
 }: MobileNavigationProps) {
   const { tabs, rootPane, addTab, setActiveTab } = useTabsStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [fullscreenState, setFullscreenState] = useState(isFullscreen());
+  
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setFullscreenState(isFullscreen());
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+  
+  // Handle fullscreen toggle
+  const handleFullscreenToggle = async () => {
+    await toggleFullscreen();
+    setFullscreenState(isFullscreen());
+    setShowMoreMenu(false);
+  };
+  
+  // Show fullscreen option only when:
+  // 1. Fullscreen API is supported
+  // 2. Not in PWA fullscreen mode already (manifest display: fullscreen)
+  const showFullscreenOption = isFullscreenSupported() && !isPWA();
   
   // Get active tab ID from the first tab pane
   const activeTabId = useMemo(() => {
@@ -248,7 +290,7 @@ export function MobileNavigation({
           onClick={() => setShowMoreMenu(false)}
         >
           <div 
-            className="absolute bottom-20 left-4 right-4 bg-card rounded-2xl shadow-2xl overflow-hidden"
+            className="absolute bottom-20 left-4 right-4 bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-border">
@@ -282,6 +324,29 @@ export function MobileNavigation({
                   </button>
                 );
               })}
+              
+              {/* Divider */}
+              <div className="my-2 border-t border-border" />
+              
+              {/* Fullscreen Toggle */}
+              {showFullscreenOption && (
+                <button
+                  onClick={handleFullscreenToggle}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                >
+                  {fullscreenState ? (
+                    <>
+                      <Minimize2 className="w-5 h-5 text-muted-foreground" />
+                      <span className="flex-1 text-left text-foreground">Exit Fullscreen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-5 h-5 text-muted-foreground" />
+                      <span className="flex-1 text-left text-foreground">Enter Fullscreen</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
