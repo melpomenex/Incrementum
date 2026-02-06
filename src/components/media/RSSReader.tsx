@@ -17,6 +17,7 @@ import {
   X,
   Scroll,
   ArrowLeft,
+  Link2,
 } from "lucide-react";
 import {
   Feed,
@@ -45,6 +46,7 @@ import {
 } from "../../api/rss";
 import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizationPanel";
 import { NewsletterDirectory } from "../newsletter/NewsletterDirectory";
+import { NewsletterUrlImporter } from "../newsletter/NewsletterUrlImporter";
 import { RSSScrollMode } from "./RSSScrollMode";
 import { isTauri } from "../../lib/tauri";
 import { getDeviceInfo } from "../../lib/pwa";
@@ -64,6 +66,7 @@ export function RSSReader() {
   const [lastNonSearchViewMode, setLastNonSearchViewMode] = useState<ViewMode>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showUrlImport, setShowUrlImport] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
   const [showNewsletterDirectory, setShowNewsletterDirectory] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState("");
@@ -547,40 +550,57 @@ export function RSSReader() {
                   <Plus className="w-4 h-4" />
                 </button>
                 <button
+                  onClick={() => setShowUrlImport(true)}
+                  className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
+                  title="Import by URL"
+                >
+                  <Link2 className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => setShowNewsletterDirectory(true)}
                   className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
-                  title="Browse newsletter directory"
+                  title="Browse directory"
                 >
                   <Newspaper className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={handleImportOPML}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
-                  title="Import OPML"
-                >
-                  <Import className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleExportOPML}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
-                  title="Export OPML"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowCustomization(true)}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
-                  title="Customize view"
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-                <button
                   onClick={() => setScrollMode(true)}
                   className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
-                  title="Enter scroll mode"
+                  title="Scroll mode"
                 >
                   <Scroll className="w-4 h-4" />
                 </button>
+                <div className="relative group">
+                  <button
+                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
+                    title="More options"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                    <button
+                      onClick={handleImportOPML}
+                      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 first:rounded-t-lg flex items-center gap-2"
+                    >
+                      <Import className="w-4 h-4" />
+                      Import OPML
+                    </button>
+                    <button
+                      onClick={handleExportOPML}
+                      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export OPML
+                    </button>
+                    <button
+                      onClick={() => setShowCustomization(true)}
+                      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 last:rounded-b-lg flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Customize
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -958,6 +978,40 @@ export function RSSReader() {
                 {isAdding ? "Adding..." : "Add Feed"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* URL Import Modal */}
+      {showUrlImport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Link2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Import Newsletter</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Paste any newsletter URL to subscribe
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowUrlImport(false)}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <NewsletterUrlImporter
+              onSuccess={(feed) => {
+                loadFeeds();
+                setShowUrlImport(false);
+              }}
+              onCancel={() => setShowUrlImport(false)}
+            />
           </div>
         </div>
       )}
