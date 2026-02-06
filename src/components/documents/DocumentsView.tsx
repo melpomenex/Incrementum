@@ -604,9 +604,9 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     >
       {/* Header */}
       <div className="border-b border-border bg-card p-3 sm:p-4">
-        {/* Title and Import Actions */}
-        <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0">
+        {/* Title and Import Actions - Single Row on Mobile */}
+        <div className="flex items-start justify-between gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Documents</h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
               {sortedDocuments.length} documents • prioritize your next action
@@ -668,15 +668,15 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
             </button>
           </div>
 
-          {/* Mobile Import Actions - Compact */}
-          <div className="flex sm:hidden items-center gap-2">
+          {/* Mobile Import Actions - Top Right */}
+          <div className="flex sm:hidden items-center gap-1.5 flex-shrink-0">
             <button
               onClick={handleImport}
               disabled={isImporting}
-              className="flex-1 px-3 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+              className="px-3 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px] min-h-[44px]"
+              aria-label={isImporting ? "Importing..." : "Import document"}
             >
-              <Plus className="w-4 h-4" />
-              {isImporting ? "Importing..." : "Import"}
+              <Plus className="w-5 h-5" />
             </button>
             <MobileImportMenu
               enableYouTubeImport={enableYouTubeImport}
@@ -691,40 +691,8 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
 
         {/* Controls Bar */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 bg-muted/40 rounded-lg p-1 self-start">
-            <button
-              onClick={() => setMode("grid")}
-              className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
-                mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">Grid</span>
-            </button>
-            <button
-              onClick={() => setMode("list")}
-              className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
-                mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-              aria-label="List view"
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden sm:inline">List</span>
-            </button>
-          </div>
-
-          {/* Inspector Toggle - Desktop only */}
-          <button
-            onClick={() => setInspectorOpen((prev) => !prev)}
-            className="hidden sm:block px-3 py-2 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
-          >
-            {isInspectorOpen ? "Hide Inspector" : "Show Inspector"}
-          </button>
-
           {/* Search */}
-          <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
+          <div className="relative flex-1 min-w-0 order-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               ref={searchRef}
@@ -736,8 +704,90 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
             />
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-2">
+          {/* Mobile Controls Row - View Toggle + Views + Filter */}
+          <div className="flex sm:hidden items-center gap-2 order-2">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
+              <button
+                onClick={() => setMode("grid")}
+                className={`p-2 rounded-md transition-all ${
+                  mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setMode("list")}
+                className={`p-2 rounded-md transition-all ${
+                  mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-label="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Type Filter */}
+            <div className="relative">
+              <select
+                value={selectedFileType}
+                onChange={(event) => setSelectedFileType(event.target.value)}
+                className="pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="all">All</option>
+                {availableFileTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Saved Views */}
+            <MobileSavedViewsMenu
+              savedViews={savedViews}
+              activeViewId={activeViewId}
+              onApplyView={handleApplyView}
+              onSaveView={handleSaveView}
+            />
+          </div>
+
+          {/* Desktop Controls */}
+          <div className="hidden sm:flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2 bg-muted/40 rounded-lg p-1">
+              <button
+                onClick={() => setMode("grid")}
+                className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                  mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Grid
+              </button>
+              <button
+                onClick={() => setMode("list")}
+                className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                  mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List
+              </button>
+            </div>
+
+            <button
+              onClick={() => setInspectorOpen((prev) => !prev)}
+              className="px-3 py-2 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
+            >
+              {isInspectorOpen ? "Hide Inspector" : "Show Inspector"}
+            </button>
+
+            {/* Type Filter */}
             <div className="relative">
               <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <select
@@ -758,45 +808,35 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                 </svg>
               </div>
             </div>
-          </div>
 
-          {/* Saved Views - Desktop */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={activeViewId ?? ""}
-                onChange={(event) => handleApplyView(event.target.value)}
-                className="pl-3 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">Saved Views</option>
-                {savedViews.map((view) => (
-                  <option key={view.id} value={view.id}>
-                    {view.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+            {/* Saved Views */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={activeViewId ?? ""}
+                  onChange={(event) => handleApplyView(event.target.value)}
+                  className="pl-3 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">Saved Views</option>
+                  {savedViews.map((view) => (
+                    <option key={view.id} value={view.id}>
+                      {view.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
+              <button
+                onClick={handleSaveView}
+                className="px-3 py-2.5 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
+              >
+                Save View
+              </button>
             </div>
-            <button
-              onClick={handleSaveView}
-              className="px-3 py-2.5 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
-            >
-              Save View
-            </button>
-          </div>
-
-          {/* Mobile Saved Views */}
-          <div className="flex sm:hidden items-center gap-2">
-            <MobileSavedViewsMenu
-              savedViews={savedViews}
-              activeViewId={activeViewId}
-              onApplyView={handleApplyView}
-              onSaveView={handleSaveView}
-            />
           </div>
         </div>
       </div>
