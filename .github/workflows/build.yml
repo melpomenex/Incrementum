@@ -47,9 +47,9 @@ jobs:
         run: npm run build
 
       - name: Build Tauri application (Windows)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles all
+          args: --bundles msi,nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
@@ -119,9 +119,9 @@ jobs:
 
       - name: Build Tauri application (Windows)
         if: runner.os == 'Windows'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles all
+          args: --bundles msi,nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Force bundled SQLite - prevents looking for system sqlite3.lib
@@ -131,11 +131,19 @@ jobs:
           # Disable sqlx compile-time checking to avoid needing sqlite during macro compilation
           SQLX_OFFLINE: "true"
 
-      - name: Build Tauri application (non-Windows)
-        if: runner.os != 'Windows'
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri application (macOS)
+        if: runner.os == 'macOS'
+        uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles all
+          args: --bundles dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Tauri application (Linux)
+        if: runner.os == 'Linux'
+        uses: tauri-apps/tauri-action@v0.6
+        with:
+          args: --bundles appimage,deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
