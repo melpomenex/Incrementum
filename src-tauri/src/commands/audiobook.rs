@@ -77,7 +77,7 @@ pub async fn parse_audiobook_metadata(
     // Try to use ffprobe to get metadata
     // ffprobe -v quiet -print_format json -show_format -show_chapters input.mp3
     
-    let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")? // Actually we need ffprobe, but we only downloaded ffmpeg/whisper.
+    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)? // Uses system ffmpeg on Linux, sidecar on Windows/macOS
         // Wait, did we download ffprobe? No.
         // Can we use ffmpeg to get metadata?
         // ffmpeg -i input.mp3 -f ffmetadata -
@@ -229,8 +229,8 @@ pub async fn extract_audio_cover_art(
     let cover_path = temp_dir.join(&cover_filename);
 
     // Use ffmpeg to extract embedded cover art
-    let (mut rx, _) = app_handle.shell().sidecar("ffmpeg")
-        .map_err(|e| IncrementumError::Internal(format!("Failed to get ffmpeg sidecar: {}", e)))?
+    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get ffmpeg command: {}", e)))?
         .args([
             "-i", &file_path,
             "-an",              // no audio

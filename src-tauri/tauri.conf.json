@@ -38,7 +38,6 @@
         "active": true,
         "targets": "all",
         "externalBin": [
-          "bin/ffmpeg",
           "bin/whisper"
         ],
         "icon": [
@@ -55,7 +54,9 @@
         "longDescription": "Incrementum is a powerful learning application that combines spaced repetition, incremental reading, and AI-powered flashcard generation to help you learn more effectively.",
         "linux": {
           "deb": {
-            "depends": []
+            "depends": [
+              "ffmpeg"
+            ]
           },
           "appimage": {
             "bundleMediaFramework": false
