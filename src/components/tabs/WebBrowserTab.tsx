@@ -475,6 +475,34 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     }
   };
 
+  // Poll for selection data from webview (for Tauri webview bridge).
+  // Must be declared before any callbacks that reference it, otherwise the
+  // dependency arrays will hit the temporal dead zone in production builds.
+  const pollWebviewSelection = useCallback(async () => {
+    if (!isTauri() || !webviewRef.current) return null;
+
+    try {
+      // Try to get selection data from the webview's localStorage via evaluateJavaScript
+      const result = await webviewRef.current.evaluateJavaScript<string>(`
+        (function() {
+          const data = localStorage.getItem('${SELECTION_STORAGE_KEY}');
+          if (data) {
+            localStorage.removeItem('${SELECTION_STORAGE_KEY}');
+            return data;
+          }
+          return null;
+        })()
+      `);
+
+      if (result) {
+        return JSON.parse(result);
+      }
+    } catch (error) {
+      console.log("Could not poll webview selection:", error);
+    }
+    return null;
+  }, []);
+
   // Extract creation - handles cross-origin iframe limitations
   const handleCreateExtract = useCallback(async () => {
     // Try to get selection from the iframe if same-origin, otherwise from main window
@@ -682,32 +710,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         }, 50);
       });
     });
-  }, []);
-
-  // Poll for selection data from webview (for Tauri webview bridge)
-  const pollWebviewSelection = useCallback(async () => {
-    if (!isTauri() || !webviewRef.current) return null;
-    
-    try {
-      // Try to get selection data from the webview's localStorage via evaluateJavaScript
-      const result = await webviewRef.current.evaluateJavaScript<string>(`
-        (function() {
-          const data = localStorage.getItem('${SELECTION_STORAGE_KEY}');
-          if (data) {
-            localStorage.removeItem('${SELECTION_STORAGE_KEY}');
-            return data;
-          }
-          return null;
-        })()
-      `);
-      
-      if (result) {
-        return JSON.parse(result);
-      }
-    } catch (error) {
-      console.log("Could not poll webview selection:", error);
-    }
-    return null;
   }, []);
 
   // Initialize
