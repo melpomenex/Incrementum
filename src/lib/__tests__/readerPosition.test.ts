@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   getViewStateKey,
+  getPreferredViewStateKey,
+  getViewStateKeyCandidates,
   parseViewState,
   setViewState,
   serializeViewState,
+  flushViewState,
 } from "../readerPosition";
 import type { ViewState } from "../../types/readerPosition";
 
@@ -50,6 +53,29 @@ describe("readerPosition", () => {
       .toBe("document-view-state:fingerprint:fp-1");
   });
 
+  it("builds preferred view state keys with user namespace and stable identifiers", () => {
+    localStorage.setItem("incrementum_user", JSON.stringify({ id: "user-1" }));
+    expect(getPreferredViewStateKey({ documentId: "doc-123", contentHash: "hash-abc" }))
+      .toBe("document-view-state:v2:u:user-1:hash:hash-abc");
+    expect(getPreferredViewStateKey({ documentId: "doc-123", contentHash: null, pdfFingerprint: "fp-1" }))
+      .toBe("document-view-state:v2:u:user-1:fingerprint:fp-1");
+    expect(getPreferredViewStateKey({ documentId: "doc-123" }))
+      .toBe("document-view-state:v2:u:user-1:doc:doc-123");
+  });
+
+  it("returns ordered key candidates for lookup (preferred then legacy)", () => {
+    localStorage.setItem("incrementum_user", JSON.stringify({ id: "user-1" }));
+    const keys = getViewStateKeyCandidates({
+      documentId: "doc-123",
+      contentHash: "hash-abc",
+      pdfFingerprint: "fp-1",
+    });
+    expect(keys[0]).toBe("document-view-state:v2:u:user-1:hash:hash-abc");
+    expect(keys).toContain("document-view-state:doc-123");
+    expect(keys).toContain("document-view-state:hash:hash-abc");
+    expect(keys).toContain("document-view-state:fingerprint:fp-1");
+  });
+
   it("parses valid view state and rejects invalid payloads", () => {
     const valid = JSON.stringify(baseState({ updatedAt: 123 }));
     expect(parseViewState(valid)?.docId).toBe("doc-1");
@@ -74,6 +100,19 @@ describe("readerPosition", () => {
     // Same normalized state should not trigger another write
     setViewState(key, { ...state, updatedAt: 3000 }, { debounceMs: 200 });
     vi.advanceTimersByTime(200);
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushes a pending debounced write immediately", () => {
+    const key = "document-view-state:flush-test";
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+    const state = baseState({ updatedAt: 111 });
+    setViewState(key, state, { debounceMs: 10_000 });
+    flushViewState(key);
+    expect(setItemSpy).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(key)).toBeTruthy();
+    // Timer should be canceled; advancing time should not write again.
+    vi.advanceTimersByTime(10_000);
     expect(setItemSpy).toHaveBeenCalledTimes(1);
   });
 

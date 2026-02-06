@@ -31,6 +31,7 @@ import {
   syncFlashcardsToAnki,
   exportToObsidian,
   syncToObsidian,
+  syncFromObsidian,
   startBrowserSyncServer,
   stopBrowserSyncServer,
   getBrowserSyncServerStatus,
@@ -525,6 +526,24 @@ export function IntegrationSettings() {
                 >
                   <Upload className="w-4 h-4" />
                   Sync All to Obsidian
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsOperating(true);
+                    try {
+                      await syncFromObsidian(settings.obsidian);
+                      showResult(true, "Synced from Obsidian successfully");
+                    } catch {
+                      showResult(false, "Failed to sync from Obsidian");
+                    } finally {
+                      setIsOperating(false);
+                    }
+                  }}
+                  disabled={isOperating}
+                  className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Sync From Obsidian
                 </button>
               </div>
             </div>

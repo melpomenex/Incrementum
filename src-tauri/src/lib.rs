@@ -448,6 +448,8 @@ pub fn run() {
             integrations::export_assistant_message_to_obsidian,
             integrations::import_from_obsidian,
             integrations::sync_to_obsidian,
+            integrations::sync_from_obsidian,
+            integrations::delete_from_obsidian,
             integrations::sync_flashcard_to_anki,
             integrations::sync_flashcards_to_anki,
             integrations::start_extension_server,

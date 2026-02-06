@@ -32,7 +32,11 @@ export interface DownloadResult {
 }
 
 /**
- * Search for books on Anna's Archive
+ * Search for books on LibGen.li (Library Genesis)
+ * 
+ * Note: This function searches LibGen.li (not Anna's Archive directly) as it provides
+ * a more reliable search API with faster response times. LibGen.li is one of the
+ * largest free book libraries with over 3 million titles.
  *
  * @param query - Search query (title, author, ISBN, etc.)
  * @param limit - Maximum number of results (default: 20, max: 100)
@@ -46,9 +50,9 @@ export async function searchBooks(query: string, limit?: number): Promise<BookSe
 }
 
 /**
- * Download a book from Anna's Archive
+ * Download a book from LibGen.li
  *
- * @param bookId - The ID of the book to download
+ * @param bookId - The MD5 hash of the book to download (used as ID)
  * @param format - The format to download (pdf, epub, etc.)
  * @param downloadPath - Optional: Where to save the downloaded file (default: temp directory)
  * @returns Download result with file path and metadata
@@ -66,7 +70,7 @@ export async function downloadBook(
 }
 
 /**
- * Get available Anna's Archive mirror domains
+ * Get available LibGen mirror domains
  *
  * @returns Array of mirror URLs
  */
@@ -130,4 +134,26 @@ export function getFormatDisplayName(format: BookFormat): string {
     rtf: "RTF",
   };
   return names[format] ?? format.toUpperCase();
+}
+
+/**
+ * Get the LibGen.li URL for a book
+ * 
+ * @param md5 - The MD5 hash of the book
+ * @returns Full URL to the book's page on LibGen.li
+ */
+export function getLibGenBookUrl(md5: string): string {
+  return `https://libgen.li/ads.php?md5=${md5}`;
+}
+
+/**
+ * Get the cover image URL for a book
+ * 
+ * @param fileId - The file ID from LibGen
+ * @returns Full URL to the cover image
+ */
+export function getCoverImageUrl(fileId: string): string {
+  // LibGen stores covers in a directory structure based on file ID prefix
+  const prefix = fileId.slice(0, Math.min(3, fileId.length));
+  return `https://libgen.li/covers/${prefix}/${fileId}-g.jpg`;
 }
