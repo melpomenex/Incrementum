@@ -13,6 +13,8 @@ import {
   Link2,
   List,
   Loader2,
+  MoreHorizontal,
+  Plus,
   Search,
   Trash2,
   X,
@@ -601,15 +603,18 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="border-b border-border bg-card p-4">
-        <div className="flex flex-col items-start justify-between gap-3 mb-4 md:flex-row md:items-start md:gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Documents</h1>
-            <p className="text-sm text-muted-foreground">
+      <div className="border-b border-border bg-card p-3 sm:p-4">
+        {/* Title and Import Actions */}
+        <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Documents</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {sortedDocuments.length} documents • prioritize your next action
             </p>
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
+          
+          {/* Desktop Import Buttons */}
+          <div className="hidden sm:flex flex-wrap items-center gap-2 justify-end">
             {enableYouTubeImport && (
               <button
                 onClick={() => setShowYouTubeImport(true)}
@@ -662,83 +667,136 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
               {isImporting ? "Importing..." : "Import Document"}
             </button>
           </div>
+
+          {/* Mobile Import Actions - Compact */}
+          <div className="flex sm:hidden items-center gap-2">
+            <button
+              onClick={handleImport}
+              disabled={isImporting}
+              className="flex-1 px-3 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {isImporting ? "Importing..." : "Import"}
+            </button>
+            <MobileImportMenu
+              enableYouTubeImport={enableYouTubeImport}
+              onYouTubeClick={() => setShowYouTubeImport(true)}
+              onArxivClick={() => setShowArxivImport(true)}
+              onWebArticleClick={() => setShowWebArticleImport(true)}
+              onAudiobookClick={() => setShowAudiobookImport(true)}
+              onAnnaArchiveClick={() => setShowAnnaArchiveSearch(true)}
+            />
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-muted/40 rounded-md p-1">
+        {/* Controls Bar */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2 bg-muted/40 rounded-lg p-1 self-start">
             <button
               onClick={() => setMode("grid")}
-              className={`px-2 py-1 rounded text-sm flex items-center gap-1 ${
-                mode === "grid" ? "bg-background shadow text-foreground" : "text-muted-foreground"
+              className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
+              aria-label="Grid view"
             >
               <LayoutGrid className="w-4 h-4" />
-              Grid
+              <span className="hidden sm:inline">Grid</span>
             </button>
             <button
               onClick={() => setMode("list")}
-              className={`px-2 py-1 rounded text-sm flex items-center gap-1 ${
-                mode === "list" ? "bg-background shadow text-foreground" : "text-muted-foreground"
+              className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
+              aria-label="List view"
             >
               <List className="w-4 h-4" />
-              List
+              <span className="hidden sm:inline">List</span>
             </button>
           </div>
+
+          {/* Inspector Toggle - Desktop only */}
           <button
             onClick={() => setInspectorOpen((prev) => !prev)}
-            className="px-3 py-2 bg-muted text-foreground rounded-md text-sm hover:bg-muted/80"
+            className="hidden sm:block px-3 py-2 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
           >
             {isInspectorOpen ? "Hide Inspector" : "Show Inspector"}
           </button>
 
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          {/* Search */}
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               ref={searchRef}
               type="text"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search documents or use tag:History extracts=0"
-              className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Search or use tag:History"
+              className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
             />
           </div>
 
+          {/* Filters */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <select
-              value={selectedFileType}
-              onChange={(event) => setSelectedFileType(event.target.value)}
-              className="px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
-            >
-              <option value="all">All Types</option>
-              {availableFileTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <select
+                value={selectedFileType}
+                onChange={(event) => setSelectedFileType(event.target.value)}
+                className="pl-8 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="all">All Types</option>
+                {availableFileTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <select
-              value={activeViewId ?? ""}
-              onChange={(event) => handleApplyView(event.target.value)}
-              className="px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground"
-            >
-              <option value="">Saved Views</option>
-              {savedViews.map((view) => (
-                <option key={view.id} value={view.id}>
-                  {view.name}
-                </option>
-              ))}
-            </select>
+          {/* Saved Views - Desktop */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="relative">
+              <select
+                value={activeViewId ?? ""}
+                onChange={(event) => handleApplyView(event.target.value)}
+                className="pl-3 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value="">Saved Views</option>
+                {savedViews.map((view) => (
+                  <option key={view.id} value={view.id}>
+                    {view.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
             <button
               onClick={handleSaveView}
-              className="px-3 py-2 bg-muted text-foreground rounded-md text-sm hover:bg-muted/80"
+              className="px-3 py-2.5 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
             >
               Save View
             </button>
+          </div>
+
+          {/* Mobile Saved Views */}
+          <div className="flex sm:hidden items-center gap-2">
+            <MobileSavedViewsMenu
+              savedViews={savedViews}
+              activeViewId={activeViewId}
+              onApplyView={handleApplyView}
+              onSaveView={handleSaveView}
+            />
           </div>
         </div>
       </div>
@@ -1475,6 +1533,260 @@ function TagsInline({ tags }: { tags: string[] }) {
         <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
           +{remaining}
         </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Mobile Import Menu
+ * 
+ * A compact dropdown menu for mobile devices that consolidates all import options.
+ * Reduces visual clutter while keeping all functionality accessible.
+ */
+interface MobileImportMenuProps {
+  enableYouTubeImport?: boolean;
+  onYouTubeClick: () => void;
+  onArxivClick: () => void;
+  onWebArticleClick: () => void;
+  onAudiobookClick: () => void;
+  onAnnaArchiveClick: () => void;
+}
+
+function MobileImportMenu({
+  enableYouTubeImport,
+  onYouTubeClick,
+  onArxivClick,
+  onWebArticleClick,
+  onAudiobookClick,
+  onAnnaArchiveClick,
+}: MobileImportMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const handleAction = (action: () => void) => {
+    action();
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-3 py-2.5 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+        aria-label="More import options"
+        aria-expanded={isOpen}
+      >
+        <MoreHorizontal className="w-5 h-5" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-lg z-50 py-1.5 animate-in fade-in slide-in-from-top-1">
+          <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Import from
+          </div>
+          
+          {enableYouTubeImport && (
+            <button
+              onClick={() => handleAction(onYouTubeClick)}
+              className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <Youtube className="w-4 h-4 text-red-500" />
+              </div>
+              <span>YouTube</span>
+            </button>
+          )}
+          
+          <button
+            onClick={() => handleAction(onArxivClick)}
+            className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+              <FileTextIcon className="w-4 h-4 text-orange-500" />
+            </div>
+            <span>ArXiv</span>
+          </button>
+          
+          <button
+            onClick={() => handleAction(onWebArticleClick)}
+            className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <Globe className="w-4 h-4 text-blue-500" />
+            </div>
+            <span>Web Article</span>
+          </button>
+          
+          <button
+            onClick={() => handleAction(onAudiobookClick)}
+            className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <BookAudio className="w-4 h-4 text-amber-600" />
+            </div>
+            <span>Audiobook</span>
+          </button>
+          
+          {isTauri() && (
+            <>
+              <div className="my-1 border-t border-border" />
+              <button
+                onClick={() => handleAction(onAnnaArchiveClick)}
+                className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-4 h-4 text-purple-500" />
+                </div>
+                <span>Anna&apos;s Archive</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Mobile Saved Views Menu
+ * 
+ * A compact dropdown for saved views on mobile devices.
+ * Consolidates view selection and save functionality.
+ */
+interface MobileSavedViewsMenuProps {
+  savedViews: SavedView[];
+  activeViewId: string | null;
+  onApplyView: (viewId: string) => void;
+  onSaveView: () => void;
+}
+
+function MobileSavedViewsMenu({
+  savedViews,
+  activeViewId,
+  onApplyView,
+  onSaveView,
+}: MobileSavedViewsMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const activeView = savedViews.find((v) => v.id === activeViewId);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="relative flex-1" ref={menuRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 transition-colors min-h-[44px] ${
+          activeView
+            ? "bg-primary/10 text-primary border border-primary/20"
+            : "bg-background border border-border text-foreground hover:bg-muted/60"
+        }`}
+        aria-label="Saved views"
+        aria-expanded={isOpen}
+      >
+        <span className="truncate">{activeView?.name ?? "Views"}</span>
+        <svg
+          className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-56 bg-card border border-border rounded-xl shadow-lg z-50 py-1.5 animate-in fade-in slide-in-from-top-1">
+          <button
+            onClick={() => {
+              onSaveView();
+              setIsOpen(false);
+            }}
+            className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-primary hover:bg-primary/5 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </div>
+            <span className="font-medium">Save Current View</span>
+          </button>
+
+          {savedViews.length > 0 && <div className="my-1 border-t border-border" />}
+
+          <div className="max-h-48 overflow-y-auto">
+            {savedViews.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                No saved views yet
+              </div>
+            ) : (
+              savedViews.map((view) => (
+                <button
+                  key={view.id}
+                  onClick={() => {
+                    onApplyView(view.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-3 py-2.5 flex items-center gap-3 text-sm transition-colors ${
+                    activeViewId === view.id
+                      ? "bg-primary/5 text-primary"
+                      : "text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    activeViewId === view.id ? "bg-primary/10" : "bg-muted"
+                  }`}>
+                    {view.mode === "grid" ? (
+                      <LayoutGrid className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`} />
+                    ) : (
+                      <List className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`} />
+                    )}
+                  </div>
+                  <span className="truncate">{view.name}</span>
+                  {activeViewId === view.id && (
+                    <Check className="w-4 h-4 ml-auto flex-shrink-0" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {savedViews.length > 0 && (
+            <>
+              <div className="my-1 border-t border-border" />
+              <button
+                onClick={() => {
+                  onApplyView("");
+                  setIsOpen(false);
+                }}
+                className="w-full px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                Reset to default
+              </button>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
