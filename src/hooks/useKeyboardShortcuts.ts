@@ -93,7 +93,7 @@ export function useGlobalShortcuts() {
 
   // Command palette
   const openCommandPalette = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("command-palette-toggle"));
+    window.dispatchEvent(new CustomEvent("command-palette-open"));
   }, []);
 
   const shortcuts: ShortcutGroup[] = [

@@ -2217,6 +2217,26 @@ export function DocumentViewer({
     }
   }, [currentDocument?.id, docType, initialJump]);
 
+  // Make Cmd/Ctrl+K work even when an embedded same-origin iframe has focus (eg HTML imports).
+  // Key events inside iframes do not bubble to the parent window, so we also bind to the frame window.
+  useEffect(() => {
+    if (!currentDocument) return;
+    if (docType !== "html") return;
+    const frame = iframeRef.current;
+    const win = frame?.contentWindow;
+    if (!win) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("command-palette-open"));
+      }
+    };
+
+    win.addEventListener("keydown", handler, true);
+    return () => win.removeEventListener("keydown", handler, true);
+  }, [currentDocument?.id, docType]);
+
   if (!currentDocument) {
     return (
       <div className="flex items-center justify-center h-full">
