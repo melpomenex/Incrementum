@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-02-06
+
+### Fixed
+- **Linux .deb package ffmpeg conflict** - The .deb package was bundling ffmpeg which conflicted with system ffmpeg installations
+  - Removed ffmpeg from bundled external binaries
+  - Added ffmpeg as a package dependency for Linux .deb
+  - Created new `utils::ffmpeg` helper module that uses system ffmpeg from PATH
+  - Updated all ffmpeg call sites to use the new helper
+
+### Added
+- New `utils` module with ffmpeg helper for cross-platform ffmpeg execution
+- Better error handling for missing document files in backup/export
+- Error coercion utilities in tauri.ts
+
 ## [1.6.0] - 2026-02-06
 
 ### Added
