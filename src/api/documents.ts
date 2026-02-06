@@ -86,6 +86,16 @@ export async function updateDocumentPriority(
   return await invokeCommand<Document>("update_document_priority", { id, rating, slider });
 }
 
+export async function dismissDocument(
+  id: string,
+  dismissed: boolean
+): Promise<Document> {
+  if (isWebMode()) {
+    return await browserInvoke<Document>("dismiss_document", { id, dismissed });
+  }
+  return await invokeCommand<Document>("dismiss_document", { id, dismissed });
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   if (isWebMode()) {
     await browserInvoke("delete_document", { id });

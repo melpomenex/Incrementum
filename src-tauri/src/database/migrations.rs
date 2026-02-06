@@ -1175,6 +1175,18 @@ pub const MIGRATIONS: &[Migration] = &[
         END;
         "#,
     ),
+
+    // Migration 029: Add is_dismissed column to documents table
+    Migration::new(
+        "029_add_document_is_dismissed",
+        r#"
+        -- Add is_dismissed column to documents table
+        ALTER TABLE documents ADD COLUMN is_dismissed INTEGER NOT NULL DEFAULT 0;
+
+        -- Create index for filtering dismissed documents
+        CREATE INDEX IF NOT EXISTS idx_documents_is_dismissed ON documents(is_dismissed);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

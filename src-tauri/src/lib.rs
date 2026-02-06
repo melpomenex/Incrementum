@@ -295,6 +295,7 @@ pub fn run() {
             commands::update_document_priority,
             commands::update_document_progress,
             commands::delete_document,
+            commands::dismiss_document,
             // Position tracking commands
             commands::get_document_position,
             commands::save_document_position,

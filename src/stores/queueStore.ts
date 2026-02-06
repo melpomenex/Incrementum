@@ -223,8 +223,12 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     const { items, searchQuery, filters, sortOptions } = get();
     let filtered = [...items];
     const { activeCollectionId, documentAssignments } = useCollectionStore.getState();
+    const documents = useDocumentStore.getState().documents;
     const archivedDocumentIds = new Set(
-      useDocumentStore.getState().documents.filter((doc) => doc.isArchived).map((doc) => doc.id)
+      documents.filter((doc) => doc.isArchived).map((doc) => doc.id)
+    );
+    const dismissedDocumentIds = new Set(
+      documents.filter((doc) => doc.isDismissed).map((doc) => doc.id)
     );
 
     if (activeCollectionId) {
@@ -237,6 +241,11 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
     if (archivedDocumentIds.size > 0) {
       filtered = filtered.filter((item) => !item.documentId || !archivedDocumentIds.has(item.documentId));
+    }
+
+    // Filter out dismissed documents from queue view (they remain searchable)
+    if (dismissedDocumentIds.size > 0) {
+      filtered = filtered.filter((item) => !item.documentId || !dismissedDocumentIds.has(item.documentId));
     }
 
     // Apply search query

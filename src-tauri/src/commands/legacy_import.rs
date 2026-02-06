@@ -518,6 +518,7 @@ fn parse_document_row(row: &sqlx::sqlite::SqliteRow) -> Result<Document> {
         priority_score: row.try_get("priority_score").unwrap_or(0.0),
         is_archived: row.try_get::<i64, _>("is_archived").unwrap_or(0) != 0,
         is_favorite: row.try_get::<i64, _>("is_favorite").unwrap_or(0) != 0,
+        is_dismissed: row.try_get::<i64, _>("is_dismissed").unwrap_or(0) != 0,
         metadata,
         cover_image_url: row.try_get("cover_image_url").ok(),
         cover_image_source: row.try_get("cover_image_source").ok(),

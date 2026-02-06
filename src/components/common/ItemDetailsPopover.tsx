@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Info, Loader2, X } from "lucide-react";
-import { getDocument } from "../../api/documents";
+import { Info, Loader2, X, EyeOff, Eye } from "lucide-react";
+import { getDocument, dismissDocument } from "../../api/documents";
+import { useToast } from "../common/Toast";
 import { getExtract } from "../../api/extracts";
 import { getLearningItem } from "../../api/learning-items";
 import { getAlgorithmParams } from "../../api/algorithm";
@@ -46,6 +47,7 @@ interface ItemDetailsData {
   lapses?: number | null;
   previewIntervals?: PreviewIntervals | null;
   raw?: Record<string, unknown> | null;
+  isDismissed?: boolean;
 }
 
 interface ItemDetailsPopoverProps {
@@ -140,6 +142,7 @@ async function loadItemDetails(target: ItemDetailsTarget): Promise<ItemDetailsDa
       reps: document?.reps ?? document?.readingCount ?? null,
       lapses: null,
       previewIntervals: null,
+      isDismissed: document?.isDismissed ?? false,
       raw: document ? { ...document } : null,
     };
   }
@@ -158,7 +161,9 @@ export function ItemDetailsPopover({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [isUpdatingDismiss, setIsUpdatingDismiss] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   const targetKey = useMemo(() => {
     if (target.type === "rss") return `rss:${target.title}`;
@@ -225,6 +230,31 @@ export function ItemDetailsPopover({
 
   const handleToggle = () => {
     setIsOpen((prev) => !prev);
+  };
+
+  const handleDismissToggle = async () => {
+    if (target.type !== "document") return;
+    
+    setIsUpdatingDismiss(true);
+    try {
+      const newDismissedState = !details.isDismissed;
+      await dismissDocument(target.id, newDismissedState);
+      setDetails((prev) => ({ ...prev, isDismissed: newDismissedState }));
+      toast.success(
+        newDismissedState ? "Document dismissed" : "Document restored",
+        newDismissedState 
+          ? "Item hidden from queue. You can still find it via search."
+          : "Item will appear in queue again."
+      );
+    } catch (error) {
+      console.error("Failed to update dismiss status:", error);
+      toast.error(
+        "Update failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsUpdatingDismiss(false);
+    }
   };
 
   const tags = target.type === "rss" ? [] : target.tags ?? [];
@@ -368,6 +398,40 @@ export function ItemDetailsPopover({
 {JSON.stringify(details.raw, null, 2)}
                   </pre>
                 )}
+              </div>
+            )}
+
+            {/* Dismiss/Undismiss button for documents */}
+            {target.type === "document" && (
+              <div className="border-t border-border pt-3">
+                <button
+                  onClick={handleDismissToggle}
+                  disabled={isUpdatingDismiss}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    details.isDismissed
+                      ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                      : "bg-slate-500/10 text-slate-600 hover:bg-slate-500/20"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isUpdatingDismiss ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : details.isDismissed ? (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      Undismiss (restore to queue)
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-4 h-4" />
+                      Dismiss (hide from queue)
+                    </>
+                  )}
+                </button>
+                <p className="mt-1 text-xs text-muted-foreground text-center">
+                  {details.isDismissed
+                    ? "This item is hidden from the queue but remains searchable"
+                    : "Dismissed items remain in the database and are searchable"}
+                </p>
               </div>
             )}
           </div>

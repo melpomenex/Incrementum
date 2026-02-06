@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { TabPane } from "../stores/tabsStore";
-import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
@@ -32,7 +32,7 @@ import { AssistantPanel, type AssistantContext, type AssistantPosition } from ".
 import { useToast } from "../components/common/Toast";
 import { getDeviceInfo } from "../lib/pwa";
 import { RSSQueueSettingsModal } from "../components/settings/RSSQueueSettings";
-import { createDocument, updateDocumentContent } from "../api/documents";
+import { createDocument, updateDocumentContent, dismissDocument } from "../api/documents";
 import { trimToTokenWindow } from "../utils/tokenizer";
 import { fetchYouTubeTranscript } from "../api/youtube";
 
@@ -269,6 +269,9 @@ export function QueueScrollPage() {
 
     // Skip if document not loaded yet (shouldn't happen after loadDocuments() awaits)
     if (!doc) return false;
+
+    // Skip dismissed documents (they remain in database and searchable)
+    if (doc.isDismissed) return false;
 
     return true;
   }), [allQueueItems, documents, ratedDocumentIds]);
@@ -1224,6 +1227,70 @@ export function QueueScrollPage() {
     }
   };
 
+  // Handle dismiss - hide document from queue but keep in database
+  const handleDismiss = async () => {
+    console.log("[QueueScroll] handleDismiss called:", {
+      currentItem: currentItem?.id,
+      type: currentItem?.type,
+      documentId: currentItem?.documentId,
+      isRating,
+    });
+
+    if (!currentItem) {
+      console.log("[QueueScroll] handleDismiss early return: no currentItem");
+      return;
+    }
+
+    if (isRating) {
+      console.log("[QueueScroll] handleDismiss early return: already processing");
+      return;
+    }
+
+    // Only documents can be dismissed
+    if (currentItem.type !== "document" || !currentItem.documentId) {
+      toast.info("Dismiss not available", "Only documents can be dismissed");
+      return;
+    }
+
+    setIsRating(true);
+    const dismissedItemId = currentItem.id;
+
+    try {
+      console.log(`[QueueScroll] Dismissing document ${currentItem.documentId}`);
+
+      // Call API to dismiss document
+      await dismissDocument(currentItem.documentId, true);
+      console.log("[QueueScroll] Document dismissed successfully");
+
+      // Track dismissed document
+      setRatedDocumentIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(currentItem.documentId!);
+        return newSet;
+      });
+
+      // Track items reviewed this session
+      setItemsReviewedThisSession((prev) => prev + 1);
+
+      // Show success toast
+      toast.success("Document dismissed", "Item hidden from queue. You can still find it via search.");
+
+      // Remove the dismissed document from scrollItems and reload queue
+      advanceAfterRemoval(dismissedItemId);
+      void loadQueue();
+    } catch (error) {
+      console.error("[QueueScroll] Failed to dismiss document:", error);
+      toast.error(
+        "Dismiss failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setTimeout(() => {
+        setIsRating(false);
+      }, 500);
+    }
+  };
+
   const handleRssToggleFavorite = useCallback(async (feedId: string, itemId: string) => {
     try {
       await toggleItemFavoriteAuto(feedId, itemId);
@@ -1508,6 +1575,7 @@ export function QueueScrollPage() {
               <DocumentViewer
                 key={renderedItem.documentId}
                 documentId={renderedItem.documentId!}
+                embedded={true}
                 disableHoverRating={true}
                 onExtractCreated={() => {
                   toast.success("Extract created", "Saved in scroll mode.");
@@ -1924,35 +1992,69 @@ export function QueueScrollPage() {
                     Easy (4)
                   </span>
                 </button>
+
+                {/* Dismiss Button - Only for documents */}
+                {currentItem.type === "document" && (
+                  <button
+                    type="button"
+                    onClick={handleDismiss}
+                    disabled={isRating}
+                    className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                    title="Dismiss - Hide from queue (still searchable)"
+                  >
+                    <EyeOff className="w-6 h-6 text-white" />
+                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Dismiss (hide from queue)
+                    </span>
+                  </button>
+                )}
               </>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log("[QueueScroll] Mark as Read clicked:", { 
-                    id: currentItem?.id, 
-                    type: currentItem?.type, 
-                    documentId: currentItem?.documentId,
-                    isRating,
-                    isNewDocument 
-                  });
-                  if (!isRating && currentItem) {
-                    handleRating(3);
-                  } else {
-                    console.log("[QueueScroll] Mark as Read blocked - isRating:", isRating, "hasItem:", !!currentItem);
-                  }
-                }}
-                disabled={isRating}
-                className="group relative p-4 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                title={currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
-              >
-                <CheckCircle className="w-7 h-7 text-white" />
-                <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  {currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
-                </span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("[QueueScroll] Mark as Read clicked:", { 
+                      id: currentItem?.id, 
+                      type: currentItem?.type, 
+                      documentId: currentItem?.documentId,
+                      isRating,
+                      isNewDocument 
+                    });
+                    if (!isRating && currentItem) {
+                      handleRating(3);
+                    } else {
+                      console.log("[QueueScroll] Mark as Read blocked - isRating:", isRating, "hasItem:", !!currentItem);
+                    }
+                  }}
+                  disabled={isRating}
+                  className="group relative p-4 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                  title={currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
+                >
+                  <CheckCircle className="w-7 h-7 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
+                  </span>
+                </button>
+
+                {/* Dismiss Button for new documents */}
+                {currentItem?.type === "document" && (
+                  <button
+                    type="button"
+                    onClick={handleDismiss}
+                    disabled={isRating}
+                    className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                    title="Dismiss - Hide from queue (still searchable)"
+                  >
+                    <EyeOff className="w-6 h-6 text-white" />
+                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Dismiss (hide from queue)
+                    </span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
