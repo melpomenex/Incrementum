@@ -1,6 +1,6 @@
 [package]
 name = "incrementum-tauri"
-version = "1.4.1"
+version = "1.5.1"
 description = "Incrementum - Incremental Reading and Spaced Repetition"
 authors = ["Incrementum Team"]
 edition = "2021"
@@ -106,3 +106,10 @@ screenshot = ["xcap"]
 # Disable LTO to avoid bitcode compatibility issues
 [profile.release]
 lto = false
+
+# NOTE: In some environments we've observed rustc/LLVM crashing (SIGSEGV) when
+# compiling large dependency graphs with full debuginfo/incremental enabled.
+# Disabling both improves build stability for `tauri dev`.
+[profile.dev]
+debug = 0
+incremental = false
