@@ -1494,6 +1494,33 @@ export async function discoverNewsletterFeedUrl(url: string): Promise<Newsletter
       }
     }
 
+    // Try custom domain detection for Substack (handles rohan-paul.com style URLs)
+    const substackResult = await detectSubstackCustomDomain(normalizedUrl);
+    if (substackResult) {
+      const isValid = await verifyFeedUrl(substackResult.feedUrl);
+      if (isValid) {
+        return substackResult;
+      }
+    }
+
+    // Try custom domain detection for Beehiiv
+    const beehiivResult = await detectBeehiivCustomDomain(normalizedUrl);
+    if (beehiivResult) {
+      const isValid = await verifyFeedUrl(beehiivResult.feedUrl);
+      if (isValid) {
+        return beehiivResult;
+      }
+    }
+
+    // Try custom domain detection for Ghost
+    const ghostResult = await detectGhostBlog(normalizedUrl);
+    if (ghostResult) {
+      const isValid = await verifyFeedUrl(ghostResult.feedUrl);
+      if (isValid) {
+        return ghostResult;
+      }
+    }
+
     // Try generic RSS auto-discovery (medium confidence)
     const genericResult = await discoverGenericFeed(normalizedUrl);
     if (genericResult) {
@@ -1597,6 +1624,190 @@ function detectPlatformFeed(url: string): NewsletterFeedResult | null {
   // We'll try this as a fallback
 
   return null;
+}
+
+/**
+ * Detect if a custom domain is running Substack
+ * This handles cases like https://www.rohan-paul.com/ which use Substack on custom domains
+ */
+async function detectSubstackCustomDomain(url: string): Promise<NewsletterFeedResult | null> {
+  try {
+    // Fetch the HTML page
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "text/html,application/xhtml+xml",
+        "User-Agent": "Mozilla/5.0 (compatible; RSS Reader Bot)"
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const html = await response.text();
+
+    // Substack detection indicators (in order of confidence)
+    const indicators = {
+      // High confidence: Generator meta tag
+      generator: /<meta[^>]*name=["']generator["'][^>]*content=["'][^"']*Substack/i.test(html),
+      
+      // High confidence: Substack CDN links
+      cdn: /substackcdn\.com|substack\.com\/min\/main/.test(html),
+      
+      // High confidence: Substack-specific scripts
+      scripts: /window\.__SUBSTACK_UI|window\.__SUBSTACK_PUBLICations/.test(html),
+      
+      // High confidence: Feed link with substack
+      feedLink: /<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["'][^"']*substack\.com/i.test(html),
+      
+      // Medium confidence: Substack data attributes
+      dataAttrs: /data-substack|data-publication/i.test(html),
+      
+      // Medium confidence: Substack-specific CSS classes
+      css: /\.substack-|substack-wrapper|publication-content/.test(html),
+      
+      // Medium confidence: Substack JSON-LD
+      jsonLd: /"@type":\s*"NewsArticle"[^}]*substack/i.test(html),
+    };
+
+    // Calculate confidence score
+    const highConfidenceCount = [indicators.generator, indicators.cdn, indicators.scripts, indicators.feedLink].filter(Boolean).length;
+    const mediumConfidenceCount = [indicators.dataAttrs, indicators.css, indicators.jsonLd].filter(Boolean).length;
+
+    // Determine if this is likely a Substack site
+    const isSubstack = highConfidenceCount >= 1 || (highConfidenceCount + mediumConfidenceCount >= 2);
+
+    if (!isSubstack) {
+      return null;
+    }
+
+    // Determine confidence level
+    let confidence: "high" | "medium" | "low" = "low";
+    if (highConfidenceCount >= 2) {
+      confidence = "high";
+    } else if (highConfidenceCount >= 1 || mediumConfidenceCount >= 2) {
+      confidence = "medium";
+    }
+
+    // Try to find the actual feed URL
+    // First, look for RSS link in HTML
+    const feedMatch = html.match(/<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["']([^"']+)["']/i);
+    if (feedMatch) {
+      const feedUrl = new URL(feedMatch[1], url).toString();
+      return {
+        feedUrl,
+        platform: "Substack",
+        confidence,
+      };
+    }
+
+    // Try common Substack feed patterns
+    const feedPatterns = [`${url}/feed`, `${url}/feed.xml`];
+    
+    for (const feedUrl of feedPatterns) {
+      try {
+        const isValid = await verifyFeedUrl(feedUrl);
+        if (isValid) {
+          return {
+            feedUrl,
+            platform: "Substack",
+            confidence,
+          };
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[Substack Detection] Failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Detect Beehiiv custom domain
+ */
+async function detectBeehiivCustomDomain(url: string): Promise<NewsletterFeedResult | null> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "text/html",
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Beehiiv indicators
+    const isBeehiiv = /beehiiv\.com|beehiiv-cdn|window\.__BEEHIIV/.test(html);
+
+    if (!isBeehiiv) return null;
+
+    // Try feed patterns
+    const feedPatterns = [`${url}/feed`, `${url}/feed.xml`];
+    
+    for (const feedUrl of feedPatterns) {
+      const isValid = await verifyFeedUrl(feedUrl);
+      if (isValid) {
+        return {
+          feedUrl,
+          platform: "Beehiiv",
+          confidence: "high",
+        };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Detect Ghost blog on custom domain
+ */
+async function detectGhostBlog(url: string): Promise<NewsletterFeedResult | null> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "text/html",
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Ghost indicators
+    const isGhost = /<meta[^>]*name=["']generator["'][^>]*content=["']Ghost/i.test(html) || 
+                    /ghost\.io|ghost\.org/.test(html);
+
+    if (!isGhost) return null;
+
+    // Ghost RSS patterns
+    const feedPatterns = [`${url}/rss/`, `${url}/rss`, `${url}/feed`];
+    
+    for (const feedUrl of feedPatterns) {
+      const isValid = await verifyFeedUrl(feedUrl);
+      if (isValid) {
+        return {
+          feedUrl,
+          platform: "Ghost",
+          confidence: "high",
+        };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
