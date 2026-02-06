@@ -23,7 +23,7 @@ function isVoiceSupported(): boolean {
   return !!getSpeechRecognitionCtor();
 }
 
-async function ensureMicrophonePermission(): Promise<{ ok: true } | { ok: false; message: string }> {
+function preflightVoice(): { ok: true } | { ok: false; message: string } {
   if (!window.isSecureContext) {
     return {
       ok: false,
@@ -47,25 +47,29 @@ async function ensureMicrophonePermission(): Promise<{ ok: true } | { ok: false;
     };
   }
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    // Immediately stop: we only needed to trigger / verify permission.
-    stream.getTracks().forEach((t) => t.stop());
-    return { ok: true };
-  } catch (e) {
-    const name = (e as any)?.name;
-    if (name === "NotAllowedError" || name === "SecurityError") {
-      return {
-        ok: false,
-        message:
-          "Microphone permission is blocked. Allow microphone access for this site in your browser settings, then try again.",
-      };
-    }
-    if (name === "NotFoundError" || name === "OverconstrainedError") {
-      return { ok: false, message: "No microphone was found (or it is unavailable). Connect a mic and try again." };
-    }
-    return { ok: false, message: "Could not access the microphone. You can still type your question." };
-  }
+  return { ok: true };
+}
+
+function requestMicPermissionInGesture(setError: (msg: string) => void) {
+  // Trigger the browser's mic permission prompt within the click gesture.
+  // Do not await, so we don't lose user activation for SpeechRecognition.start().
+  navigator.mediaDevices
+    .getUserMedia({ audio: true })
+    .then((stream) => {
+      stream.getTracks().forEach((t) => t.stop());
+    })
+    .catch((e) => {
+      const name = (e as any)?.name;
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(
+          "Microphone permission is blocked. Allow microphone access for this site in your browser settings, then try again."
+        );
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setError("No microphone was found (or it is unavailable). Connect a mic and try again.");
+      } else {
+        setError("Could not access the microphone. You can still type your question.");
+      }
+    });
 }
 
 export function PwaAssistantButton({
@@ -160,7 +164,15 @@ export function PwaAssistantButton({
     rec.onerror = (e: any) => {
       // Common: "not-allowed", "service-not-allowed", "no-speech"
       const msg = typeof e?.error === "string" ? e.error : "Voice capture failed";
-      setError(`Voice error: ${msg}`);
+      if (msg === "not-allowed" || msg === "service-not-allowed") {
+        setError(
+          "Voice permission is blocked (not-allowed). Enable microphone permission for this site in your browser settings, then try again. You can still type your question below."
+        );
+      } else if (msg === "no-speech") {
+        setError("No speech was detected. Try again in a quieter environment, or type your question.");
+      } else {
+        setError(`Voice error: ${msg}`);
+      }
       setIsListening(false);
     };
 
@@ -280,13 +292,14 @@ export function PwaAssistantButton({
     setTranscript("");
     setInput("");
     // Requirement: click invokes voice capture.
-    ensureMicrophonePermission().then((res) => {
-      if (!res.ok) {
-        setError(res.message);
-        return;
-      }
-      startListening();
-    });
+    // Keep voice start synchronous to preserve user activation.
+    const preflight = preflightVoice();
+    if (!preflight.ok) {
+      setError(preflight.message);
+      return;
+    }
+    requestMicPermissionInGesture(setError);
+    startListening();
   };
 
   // When listening ends, copy transcript into input (ready to send).
