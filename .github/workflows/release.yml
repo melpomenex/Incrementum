@@ -190,7 +190,6 @@ jobs:
 
       - name: Build Tauri AppImage (without custom-protocol)
         run: |
-          cd src-tauri
           npm run tauri -- build --bundles appimage
         env:
           TAURI_BUNDLE_APPIMAGE: "true"
