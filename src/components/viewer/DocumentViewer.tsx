@@ -2619,7 +2619,10 @@ export function DocumentViewer({
             pageNumber={pageNumber}
             scale={scale}
             zoomMode={zoomMode}
-            suppressAutoScroll={suppressPdfAutoScroll}
+            // On mobile, opening the extract modal (or the on-screen keyboard)
+            // can cause rapid viewport/container resizes. Avoid resize-driven
+            // re-render loops while the modal is open.
+            suppressAutoScroll={suppressPdfAutoScroll || isExtractDialogOpen}
             onPageChange={handlePageChange}
             onLoad={handleDocumentLoad}
             onPdfInfo={handlePdfInfo}
