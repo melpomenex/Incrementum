@@ -23,6 +23,19 @@ export enum SearchResultType {
   Command = "command",
 }
 
+export type SearchHitLocation =
+  | { kind: "pdf"; pageNumber: number }
+  | { kind: "epub"; cfi: string }
+  | { kind: "html"; scrollPercent: number }
+  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
+
+export interface SearchHit {
+  id: string;
+  location: SearchHitLocation;
+  excerptHtml?: string;
+  label?: string;
+}
+
 /**
  * Search result
  */
@@ -42,6 +55,9 @@ export interface SearchResult {
     createdAt?: Date;
     fileType?: string;
     transcriptMatch?: boolean;
+    highlightQuery?: string;
+    primaryHit?: SearchHit;
+    secondaryHits?: SearchHit[];
   };
 }
 
@@ -475,10 +491,16 @@ export function GlobalSearch({
               ) : (
                 <div>
                   {results.map((result, index) => (
-                    <button
+                    <div
                       key={result.id}
+                      role="button"
+                      tabIndex={-1}
+                      onMouseDown={(e) => {
+                        // Prevent input blur on click; keep palette focus behavior stable.
+                        e.preventDefault();
+                      }}
                       onClick={() => handleResultClick(result)}
-                      className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors text-left ${
+                      className={`group relative w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors text-left cursor-pointer ${
                         index === selectedIndex ? "bg-muted" : ""
                       }`}
                     >
@@ -537,13 +559,62 @@ export function GlobalSearch({
                             </span>
                           ))}
                         </div>
+
+                        {/* More matches (hover) */}
+                        {result.metadata?.secondaryHits && result.metadata.secondaryHits.length > 0 && (
+                          <div className="mt-2 hidden group-hover:block">
+                            <div className="text-[11px] text-muted-foreground mb-1">
+                              More matches in this document
+                            </div>
+                            <div className="space-y-1">
+                              {result.metadata.secondaryHits.slice(0, 5).map((hit) => (
+                                <button
+                                  key={hit.id}
+                                  type="button"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Forward a synthetic result that uses the chosen hit as the primary hit.
+                                    const synthetic: SearchResult = {
+                                      ...result,
+                                      metadata: {
+                                        ...(result.metadata || {}),
+                                        primaryHit: hit,
+                                      },
+                                    };
+                                    handleResultClick(synthetic);
+                                  }}
+                                  className="w-full text-left px-2 py-1 rounded bg-background/60 border border-border hover:bg-background transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {hit.label && (
+                                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                        {hit.label}
+                                      </span>
+                                    )}
+                                    {hit.excerptHtml ? (
+                                      <span
+                                        className="text-[12px] text-muted-foreground line-clamp-1"
+                                        dangerouslySetInnerHTML={{ __html: hit.excerptHtml }}
+                                      />
+                                    ) : (
+                                      <span className="text-[12px] text-muted-foreground line-clamp-1">
+                                        Jump to match
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Score */}
                       <div className="flex-shrink-0 text-xs text-muted-foreground">
                         {Math.round(result.score * 100)}%
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

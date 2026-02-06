@@ -38,6 +38,10 @@ interface YouTubeViewerProps {
   onTimeUpdate?: (time: number) => void;
   onSelectionChange?: (text: string) => void;
   onArchive?: () => void;
+  initialSeekTime?: number;
+  autoPlayOnOpen?: boolean;
+  initialTranscriptHighlightQuery?: string;
+  initialTranscriptSegmentId?: string;
 }
 
 export function YouTubeViewer({ 
@@ -49,6 +53,10 @@ export function YouTubeViewer({
   onTimeUpdate,
   onSelectionChange,
   onArchive,
+  initialSeekTime,
+  autoPlayOnOpen,
+  initialTranscriptHighlightQuery,
+  initialTranscriptSegmentId,
 }: YouTubeViewerProps) {
   const toast = useToast();
   const updateDocumentInStore = useDocumentStore((state) => state.updateDocument);
@@ -320,16 +328,25 @@ export function YouTubeViewer({
 
   // Parse URL fragment to get initial timestamp
   useEffect(() => {
+    if (typeof initialSeekTime === "number" && initialSeekTime >= 0) return;
     const state = parseStateFromUrl();
     if (state.time !== undefined) {
       setStartTime(state.time);
       console.log(`[YouTubeViewer] Restoring timestamp from URL: ${state.time}s`);
     }
-  }, [videoId]);
+  }, [videoId, initialSeekTime]);
+
+  // Explicit initial seek (command palette jump)
+  useEffect(() => {
+    if (typeof initialSeekTime !== "number" || initialSeekTime < 0) return;
+    setStartTime(initialSeekTime);
+    setShowInlinePlayer(true);
+  }, [videoId, initialSeekTime]);
 
   // Load saved position from document
   useEffect(() => {
     if (!documentId) return;
+    if (typeof initialSeekTime === "number" && initialSeekTime >= 0) return;
     
     (async () => {
       try {
@@ -515,6 +532,14 @@ export function YouTubeViewer({
     // Resume at start time if set
     if (startTime > 0) {
       event.target.seekTo(startTime, true);
+    }
+
+    if (autoPlayOnOpen) {
+      try {
+        event.target.playVideo?.();
+      } catch {
+        // Autoplay may be blocked by browser policies.
+      }
     }
   };
 
@@ -818,6 +843,8 @@ export function YouTubeViewer({
                   onSeek={handleSeek}
                   onSelectionChange={onSelectionChange}
                   className="h-full"
+                  highlightQuery={initialTranscriptHighlightQuery}
+                  highlightedSegmentId={initialTranscriptSegmentId}
                 />
               )}
             </div>

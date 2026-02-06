@@ -16,6 +16,8 @@ interface EPUBViewerProps {
   onLoad?: (toc: any[]) => void;
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
   onContextTextChange?: (text: string) => void;
+  initialCfi?: string;
+  highlightQuery?: string;
 }
 
 export function EPUBViewer({
@@ -25,6 +27,8 @@ export function EPUBViewer({
   onLoad,
   onSelectionChange,
   onContextTextChange,
+  initialCfi,
+  highlightQuery,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +45,7 @@ export function EPUBViewer({
   const [currentChapter, setCurrentChapter] = useState("");
   const selectionActiveRef = useRef(false);
   const initialDisplayCompleteRef = useRef(false);
+  const activeSearchHighlightsRef = useRef<string[]>([]);
 
   // Get current theme colors
   const theme = useThemeStore((state) => state.theme);
@@ -233,6 +238,11 @@ export function EPUBViewer({
         color: ${themeRef.current.colors.primary} !important;
         text-decoration: underline !important;
         background-color: transparent !important;
+      }
+      .epub-search-highlight {
+        background: rgba(245, 158, 11, 0.35) !important;
+        border-radius: 2px !important;
+        padding: 0 2px !important;
       }
       * {
         text-rendering: optimizeLegibility !important;
@@ -487,7 +497,10 @@ export function EPUBViewer({
           console.log("EPUBViewer: Displaying book...");
           const savedPosition = await loadReadingPosition();
 
-          if (savedPosition) {
+          if (initialCfi) {
+            await rendition.display(initialCfi);
+            console.log("EPUBViewer: Displayed at initial CFI:", initialCfi);
+          } else if (savedPosition) {
             await rendition.display(savedPosition);
             console.log("EPUBViewer: Displayed at saved position:", savedPosition);
           } else {
@@ -659,12 +672,77 @@ export function EPUBViewer({
     // Note: onLoad is intentionally excluded from deps - it's a callback that
     // shouldn't trigger reloading the EPUB, only fileData changes should
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileData, documentId, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
+  }, [fileData, documentId, initialCfi, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
 
   // Re-apply styles when settings or theme change
   useEffect(() => {
     applyRenditionTheme();
   }, [applyRenditionTheme, epubSettings.fontFamily, epubSettings.fontSize, epubSettings.lineHeight, theme]);
+
+  const applySearchHighlights = useCallback(async () => {
+    if (!highlightQuery || !highlightQuery.trim()) return;
+    if (!rendition || !book) return;
+
+    // Remove existing highlights
+    try {
+      for (const cfi of activeSearchHighlightsRef.current) {
+        rendition.annotations?.remove?.(cfi, "highlight");
+      }
+    } catch {
+      // ignore
+    }
+    activeSearchHighlightsRef.current = [];
+
+    const query = highlightQuery.trim();
+    let results: any[] = [];
+    try {
+      if (typeof (book as any).search === "function") {
+        results = await (book as any).search(query);
+      }
+    } catch (error) {
+      console.warn("EPUBViewer: book.search failed:", error);
+      results = [];
+    }
+
+    const cfis = (results || [])
+      .map((r: any) => r?.cfi)
+      .filter(Boolean)
+      .slice(0, 30)
+      .map((cfi: any) => String(cfi));
+
+    if (cfis.length > 0) {
+      if (!initialCfi) {
+        try {
+          await rendition.display(cfis[0]);
+        } catch {
+          // ignore
+        }
+      }
+
+      for (const cfi of cfis) {
+        try {
+          rendition.annotations?.highlight?.(cfi, {}, undefined, "epub-search-highlight");
+          activeSearchHighlightsRef.current.push(cfi);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [book, highlightQuery, initialCfi, rendition]);
+
+  useEffect(() => {
+    void applySearchHighlights();
+    return () => {
+      try {
+        for (const cfi of activeSearchHighlightsRef.current) {
+          rendition?.annotations?.remove?.(cfi, "highlight");
+        }
+      } catch {
+        // ignore
+      }
+      activeSearchHighlightsRef.current = [];
+    };
+  }, [applySearchHighlights, rendition]);
 
   const handlePrevPage = () => {
     if (rendition) {

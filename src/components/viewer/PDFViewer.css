@@ -118,6 +118,13 @@
   top: 0;
 }
 
+/* === SEARCH HIGHLIGHTING (command palette jump) === */
+.pdf-search-highlight {
+  background: rgba(245, 158, 11, 0.35);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 /* Canvas sits below the text layer */
 [data-pdf-page] canvas {
   position: relative;

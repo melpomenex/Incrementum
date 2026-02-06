@@ -14,9 +14,12 @@ const ASSISTANT_POSITION_KEY = "assistant-panel-position";
 interface DocumentViewerWithAssistantProps {
   documentId: string;
   initialViewMode?: "document" | "extracts" | "cards";
+  highlightQuery?: string;
+  initialJump?: any;
+  autoPlay?: boolean;
 }
 
-export function DocumentViewer({ documentId, initialViewMode }: DocumentViewerWithAssistantProps) {
+export function DocumentViewer({ documentId, initialViewMode, highlightQuery, initialJump, autoPlay }: DocumentViewerWithAssistantProps) {
   const [assistantInputActive, setAssistantInputActive] = useState(false);
   const [selection, setSelection] = useState("");
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
@@ -175,6 +178,9 @@ export function DocumentViewer({ documentId, initialViewMode }: DocumentViewerWi
         onSelectionChange={setSelection}
         onScrollPositionChange={setScrollState}
         initialViewMode={initialViewMode}
+        highlightQuery={highlightQuery}
+        initialJump={initialJump}
+        autoPlay={autoPlay}
         onPdfContextTextChange={setPdfContextText}
         contextPageWindow={2}
         onVideoContextChange={setVideoContext}
