@@ -20,6 +20,7 @@ import { getDocumentAuto, updateDocument, updateDocumentProgressAuto } from "../
 import { generateYouTubeShareUrl, copyShareLink, parseStateFromUrl } from "../../lib/shareLink";
 import { cn } from "../../utils";
 import { saveDocumentPosition, timePosition } from "../../api/position";
+import { getDocumentPosition } from "../../api/position";
 import { isTauri } from "../../lib/tauri";
 import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
 import { 
@@ -44,10 +45,10 @@ interface YouTubeViewerProps {
   initialTranscriptSegmentId?: string;
 }
 
-export function YouTubeViewer({ 
-  videoId, 
-  documentId, 
-  title, 
+export function YouTubeViewer({
+  videoId,
+  documentId,
+  title,
   onLoad,
   onTranscriptLoad,
   onTimeUpdate,
@@ -84,7 +85,13 @@ export function YouTubeViewer({
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState(0);
+  // Initialize startTime from initialSeekTime to ensure YouTube player starts at correct position
+  const [startTime, setStartTime] = useState(() => {
+    if (typeof initialSeekTime === "number" && initialSeekTime >= 0) {
+      return initialSeekTime;
+    }
+    return 0;
+  });
   const [resolvedTitle, setResolvedTitle] = useState<string | undefined>(title);
   const titleFetchRef = useRef<string | null>(null);
   const [showInlinePlayer, setShowInlinePlayer] = useState(false);
@@ -92,6 +99,9 @@ export function YouTubeViewer({
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+  const [playerError, setPlayerError] = useState<{ code: number; message: string } | null>(null);
+  const [inlinePlaybackLikelyUnsupported, setInlinePlaybackLikelyUnsupported] = useState(false);
+  const [forceInlinePlayback, setForceInlinePlayback] = useState(false);
 
   // SponsorBlock state
   const [segments, setSegments] = useState<SponsorBlockSegment[]>([]);
@@ -99,6 +109,11 @@ export function YouTubeViewer({
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSkippedSegmentIdRef = useRef<string | null>(null);
   const playerReadyRef = useRef(false);
+  const desiredStartTimeRef = useRef(0);
+  const initialSeekAppliedRef = useRef(false);
+  const userInteractedRef = useRef(false);
+  const initialSeekAttemptsRef = useRef(0);
+  const initialSeekAttemptsDesiredRef = useRef(0);
 
   // Video features panel state
   const [showVideoFeatures, setShowVideoFeatures] = useState(false);
@@ -114,6 +129,16 @@ export function YouTubeViewer({
   const [activeExtractStartTime, setActiveExtractStartTime] = useState<number | null>(null);
   const [activeExtractEndTime, setActiveExtractEndTime] = useState<number | null>(null);
 
+  const localResumeKey = useMemo(() => {
+    // Stored in localStorage as a best-effort fallback when backend/IndexedDB state
+    // is missing or stale (e.g. transient persistence issues in dev).
+    return documentId ? `youtube-resume:${documentId}` : null;
+  }, [documentId]);
+
+  useEffect(() => {
+    console.log("[YouTubeViewer] initialSeekTime prop:", initialSeekTime, "documentId:", documentId);
+  }, [documentId, initialSeekTime]);
+
   // Update refs when values change
   useEffect(() => {
     documentIdRef.current = documentId;
@@ -122,7 +147,39 @@ export function YouTubeViewer({
   // Reset player ready state when videoId changes
   useEffect(() => {
     playerReadyRef.current = false;
+    initialSeekAppliedRef.current = false;
+    userInteractedRef.current = false;
+    desiredStartTimeRef.current = 0;
+    initialSeekAttemptsRef.current = 0;
+    initialSeekAttemptsDesiredRef.current = 0;
+    setPlayerError(null);
   }, [videoId]);
+
+  // If the viewer is reused across document switches, ensure we start in "thumbnail" mode
+  // so the user reliably sees the Resume button/badge for the current document.
+  useEffect(() => {
+    setShowInlinePlayer(false);
+    setForceInlinePlayback(false);
+    setPlayerError(null);
+  }, [documentId, videoId]);
+
+  // Preflight: WebKitGTK builds often lack H.264/MP4 codecs, causing YouTube to show
+  // "Your browser can't play this video." Provide a clear fallback message.
+  useEffect(() => {
+    if (!isTauri()) return;
+    try {
+      const v = document.createElement("video");
+      const h264 = v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+      const anyMp4 = v.canPlayType("video/mp4");
+      const likelyUnsupported = !h264 && !anyMp4;
+      setInlinePlaybackLikelyUnsupported(likelyUnsupported);
+      if (likelyUnsupported) {
+        console.warn("[YouTubeViewer] Inline playback may be unsupported (missing MP4/H.264 codecs).");
+      }
+    } catch {
+      setInlinePlaybackLikelyUnsupported(false);
+    }
+  }, []);
 
   useEffect(() => {
     onTranscriptLoadRef.current = onTranscriptLoad;
@@ -338,30 +395,88 @@ export function YouTubeViewer({
     const state = parseStateFromUrl();
     if (state.time !== undefined) {
       setStartTime(state.time);
+      desiredStartTimeRef.current = state.time;
+      initialSeekAppliedRef.current = false;
       console.log(`[YouTubeViewer] Restoring timestamp from URL: ${state.time}s`);
     }
   }, [videoId, initialSeekTime]);
 
   // Explicit initial seek (command palette jump)
   useEffect(() => {
+    console.log("[YouTubeViewer] Initial seek effect running:", initialSeekTime);
     if (typeof initialSeekTime !== "number" || initialSeekTime < 0) return;
+    console.log(`[YouTubeViewer] Setting startTime from initialSeekTime: ${initialSeekTime}s`);
     setStartTime(initialSeekTime);
+    desiredStartTimeRef.current = initialSeekTime;
+    initialSeekAppliedRef.current = false;
     setShowInlinePlayer(true);
   }, [videoId, initialSeekTime]);
 
   // Load saved position from document
   useEffect(() => {
     if (!documentId) return;
-    if (typeof initialSeekTime === "number" && initialSeekTime >= 0) return;
+    console.log("[YouTubeViewer] Document restoration effect check, initialSeekTime:", initialSeekTime);
+    if (typeof initialSeekTime === "number" && initialSeekTime >= 0) {
+      console.log("[YouTubeViewer] Skipping document restoration - initialSeekTime provided");
+      return;
+    }
 
+    console.log("[YouTubeViewer] Loading saved position from document:", documentId);
     (async () => {
       try {
+        // Prefer unified position API (works even if legacy current_page isn't being updated yet).
+        const position = await getDocumentPosition(documentId);
+        console.log("[YouTubeViewer] Position API returned:", position);
+        if (position?.type === "time" && typeof position.seconds === "number" && position.seconds >= 3) {
+          const savedTime = position.seconds;
+          console.log(`[YouTubeViewer] Restoring video position from position API: ${savedTime}s`);
+          setStartTime(savedTime);
+          desiredStartTimeRef.current = savedTime;
+          initialSeekAppliedRef.current = false;
+          if (playerReadyRef.current && playerRef.current) {
+            playerRef.current.seekTo(savedTime, true);
+            console.log(`[YouTubeViewer] Seeked to loaded position: ${savedTime}s`);
+          }
+          return;
+        }
+
+        // Fallback: localStorage (useful in browser dev if IndexedDB/backend state is missing).
+        if (localResumeKey) {
+          const raw = localStorage.getItem(localResumeKey);
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw) as { seconds?: number; updatedAt?: number };
+              const seconds = typeof parsed.seconds === "number" ? parsed.seconds : 0;
+              if (seconds >= 3) {
+                console.log(`[YouTubeViewer] Restoring video position from localStorage: ${seconds}s`);
+                setStartTime(seconds);
+                desiredStartTimeRef.current = seconds;
+                initialSeekAppliedRef.current = false;
+                if (playerReadyRef.current && playerRef.current) {
+                  playerRef.current.seekTo(seconds, true);
+                  console.log(`[YouTubeViewer] Seeked to localStorage position: ${seconds}s`);
+                }
+                return;
+              }
+            } catch (e) {
+              console.warn("[YouTubeViewer] Failed to parse local resume position:", e);
+            }
+          }
+        }
+
+        // Fallback: legacy fields on Document.
         const doc = await getDocumentAuto(documentId);
         const savedTime = doc?.current_page ?? doc?.currentPage;
+        console.log("[YouTubeViewer] Legacy saved position:", {
+          current_page: doc?.current_page,
+          currentPage: doc?.currentPage,
+          savedTime,
+        });
         if (savedTime !== null && savedTime !== undefined && savedTime >= 3) {
-          console.log(`[YouTubeViewer] Restoring video position: ${savedTime}s`);
+          console.log(`[YouTubeViewer] Restoring video position from legacy field: ${savedTime}s`);
           setStartTime(savedTime);
-          // If player is already ready, seek immediately
+          desiredStartTimeRef.current = savedTime;
+          initialSeekAppliedRef.current = false;
           if (playerReadyRef.current && playerRef.current) {
             playerRef.current.seekTo(savedTime, true);
             console.log(`[YouTubeViewer] Seeked to loaded position: ${savedTime}s`);
@@ -373,23 +488,64 @@ export function YouTubeViewer({
     })();
   }, [documentId]);
 
+  const tryApplyInitialSeek = useCallback(async (reason: string) => {
+    const desired = desiredStartTimeRef.current;
+    const player = playerRef.current;
+    if (!playerReadyRef.current || !player) return;
+    if (userInteractedRef.current) return;
+    if (desired <= 0) return;
+    if (initialSeekAppliedRef.current) return;
+
+    if (initialSeekAttemptsDesiredRef.current !== desired) {
+      initialSeekAttemptsDesiredRef.current = desired;
+      initialSeekAttemptsRef.current = 0;
+    }
+    if (initialSeekAttemptsRef.current >= 8) {
+      console.log("[YouTubeViewer] Giving up on initial seek after attempts:", {
+        desired,
+        attempts: initialSeekAttemptsRef.current,
+        reason,
+      });
+      // Avoid retry loops; user can still manually seek via transcript/extract actions.
+      initialSeekAppliedRef.current = true;
+      return;
+    }
+
+    try {
+      const current = await player.getCurrentTime();
+      if (Number.isFinite(current) && Math.abs(current - desired) <= 1.5) {
+        initialSeekAppliedRef.current = true;
+        return;
+      }
+    } catch {
+      // Ignore and attempt seek anyway.
+    }
+
+    try {
+      initialSeekAttemptsRef.current += 1;
+      await player.seekTo(desired, true);
+      console.log(`[YouTubeViewer] Applied initial seek (${reason}): ${desired}s`);
+    } catch (error) {
+      console.log("[YouTubeViewer] Failed to apply initial seek:", error);
+      return;
+    }
+
+    // Verify (and re-apply once) because YouTube sometimes ignores an early seek
+    // until the player has transitioned states.
+    window.setTimeout(() => {
+      void tryApplyInitialSeek("verify");
+    }, 250);
+  }, []);
+
   // Seek when startTime changes and player is ready
   // This handles the case where saved position loads after player is ready
   useEffect(() => {
-    if (startTime > 0 && playerReadyRef.current && playerRef.current) {
-      // Only seek if current time is still at the beginning (or close to it)
-      // This prevents overwriting user navigation
-      playerRef.current.getCurrentTime().then((currentTime: number) => {
-        if (currentTime < 1) {
-          playerRef.current?.seekTo(startTime, true);
-          console.log(`[YouTubeViewer] Seeked to startTime after player ready: ${startTime}s`);
-        }
-      }).catch(() => {
-        // If getCurrentTime fails, just seek
-        playerRef.current?.seekTo(startTime, true);
-      });
+    console.log("[YouTubeViewer] Seek effect running:", { startTime, playerReady: playerReadyRef.current });
+    if (startTime > 0) {
+      desiredStartTimeRef.current = startTime;
+      void tryApplyInitialSeek("startTimeEffect");
     }
-  }, [startTime]);
+  }, [startTime, tryApplyInitialSeek]);
 
   // Save current position to document
   const saveCurrentPosition = useCallback(async (time: number) => {
@@ -400,12 +556,15 @@ export function YouTubeViewer({
     try {
       await updateDocumentProgressAuto(currentDocumentId, Math.floor(time));
       await saveDocumentPosition(currentDocumentId, timePosition(Math.floor(time), duration));
+      if (localResumeKey) {
+        localStorage.setItem(localResumeKey, JSON.stringify({ seconds: Math.floor(time), updatedAt: Date.now() }));
+      }
       lastSavedTimeRef.current = time;
       console.log(`Saved video position: ${Math.floor(time)}s`);
     } catch (error) {
       console.log("Failed to save position:", error);
     }
-  }, [duration]);
+  }, [duration, localResumeKey]);
 
   // Monitor playback for SponsorBlock segments and position saving
   useEffect(() => {
@@ -424,8 +583,14 @@ export function YouTubeViewer({
         // Save position periodically (throttled inside saveCurrentPosition)
         saveCurrentPosition(time);
 
-        // Check SponsorBlock segments
-        if (segments.length > 0) {
+        // Check SponsorBlock segments.
+        // Important: don't let SponsorBlock seek override a pending resume seek.
+        const pendingInitialSeek =
+          desiredStartTimeRef.current > 0 &&
+          !initialSeekAppliedRef.current &&
+          !userInteractedRef.current;
+
+        if (!pendingInitialSeek && segments.length > 0) {
           for (const segment of segments) {
             const [start, end] = segment.segment;
 
@@ -476,8 +641,11 @@ export function YouTubeViewer({
 
   // Seek to time - opens video at specific timestamp
   const handleSeek = useCallback((time: number, endTime?: number) => {
+    userInteractedRef.current = true;
+    initialSeekAppliedRef.current = true;
     setCurrentTime(time);
     setStartTime(time);
+    desiredStartTimeRef.current = time;
     saveCurrentPosition(time);
     if (typeof endTime === "number" && endTime > time) {
       setActiveExtractStartTime(time);
@@ -559,14 +727,15 @@ export function YouTubeViewer({
   const onPlayerReady = (event: any) => {
     playerRef.current = event.target;
     playerReadyRef.current = true;
-    const playerDuration = event.target.getDuration();
-    setDuration(playerDuration);
-
-    // Resume at start time if set (either from saved position or initial seek)
-    if (startTime > 0) {
-      event.target.seekTo(startTime, true);
-      console.log(`[YouTubeViewer] onPlayerReady: Seeked to startTime: ${startTime}s`);
-    }
+    void (async () => {
+      try {
+        const playerDuration = await event.target.getDuration();
+        if (typeof playerDuration === "number" && playerDuration > 0) setDuration(playerDuration);
+      } catch {
+        // Ignore duration failures.
+      }
+      void tryApplyInitialSeek("onReady");
+    })();
 
     if (autoPlayOnOpen) {
       try {
@@ -582,6 +751,7 @@ export function YouTubeViewer({
     setIsPlaying(event.data === 1);
     
     if (event.data === 1) { // Playing
+      void tryApplyInitialSeek("statePlaying");
       if (hasEnded) {
         setHasEnded(false);
       }
@@ -589,8 +759,16 @@ export function YouTubeViewer({
         setShowArchivePrompt(false);
       }
       // Ensure duration is set
-      const d = event.target.getDuration();
-      if (d && d > 0) setDuration(d);
+      void (async () => {
+        try {
+          const d = await event.target.getDuration();
+          if (typeof d === "number" && d > 0) setDuration(d);
+        } catch {
+          // Ignore.
+        }
+      })();
+    } else if (event.data === 5) { // Video cued
+      void tryApplyInitialSeek("stateCued");
     } else if (event.data === 0) { // Ended
       setHasEnded(true);
       setShowArchivePrompt(true);
@@ -598,6 +776,21 @@ export function YouTubeViewer({
         saveCurrentPosition(duration);
       }
     }
+  };
+
+  const onPlayerError = (event: any) => {
+    const code = typeof event?.data === "number" ? event.data : -1;
+    const message =
+      code === 5
+        ? "YouTube HTML5 playback failed in the embedded webview."
+        : code === 101 || code === 150
+          ? "This video cannot be played in an embedded player."
+          : code === 100
+            ? "This video is unavailable."
+            : "YouTube playback error.";
+
+    console.warn("[YouTubeViewer] Player error:", { code, message });
+    setPlayerError({ code, message });
   };
 
   const displayTitle = resolvedTitle || title || "YouTube Video";
@@ -645,9 +838,53 @@ export function YouTubeViewer({
               opts={youtubeOpts}
               onReady={onPlayerReady}
               onStateChange={onPlayerStateChange}
+              onError={onPlayerError}
               className="w-full h-full"
               iframeClassName="w-full h-full"
             />
+            {playerError && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-4">
+                <div className="w-full max-w-lg rounded-xl bg-background border border-border shadow-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-foreground">
+                        Inline YouTube playback failed
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {playerError.message} (code {playerError.code})
+                      </div>
+                      {inlinePlaybackLikelyUnsupported && (
+                        <div className="text-xs text-muted-foreground mt-2">
+                          On Linux, this often means the WebView is missing H.264/MP4 codecs (GStreamer plugins).
+                        </div>
+                      )}
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                        <a
+                          href={getYouTubeWatchURL(videoId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors font-medium border border-gray-700"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Open in Browser
+                        </a>
+                        <button
+                          onClick={() => {
+                            setPlayerError(null);
+                            setShowInlinePlayer(false);
+                          }}
+                          className="inline-flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-4 py-2 rounded-lg transition-colors font-medium"
+                        >
+                          <X className="w-4 h-4" />
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-gray-900 to-black flex items-center justify-center">
@@ -696,7 +933,10 @@ export function YouTubeViewer({
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
-                  onClick={handlePlayVideo}
+                  onClick={() => {
+                    if (inlinePlaybackLikelyUnsupported && !forceInlinePlayback) return;
+                    handlePlayVideo();
+                  }}
                   className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-lg shadow-red-600/20"
                 >
                   <Play className="w-5 h-5" />
@@ -721,6 +961,31 @@ export function YouTubeViewer({
                   Browser
                 </a>
               </div>
+
+              {inlinePlaybackLikelyUnsupported && !forceInlinePlayback && (
+                <div className="mt-4 mx-auto max-w-lg rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-left">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-sm text-foreground font-medium">
+                        Inline playback may not work in this Tauri webview
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        This machine appears to lack MP4/H.264 support, which YouTube typically requires in WebKitGTK.
+                      </div>
+                      <button
+                        onClick={() => {
+                          setForceInlinePlayback(true);
+                          setShowInlinePlayer(true);
+                        }}
+                        className="mt-2 inline-flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors text-sm"
+                      >
+                        Try inline anyway
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -802,6 +1067,31 @@ export function YouTubeViewer({
               </div>
 
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                {startTime >= 3 && (
+                  <button
+                    onClick={() => {
+                      userInteractedRef.current = true;
+                      initialSeekAppliedRef.current = true;
+                      desiredStartTimeRef.current = startTime;
+                      setCurrentTime(startTime);
+                      if (playerRef.current && showInlinePlayer) {
+                        playerRef.current.seekTo(startTime, true);
+                        playerRef.current.playVideo?.();
+                      } else {
+                        setShowInlinePlayer(true);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
+                    title={`Resume from ${formatTime(startTime)}`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span className="font-medium">Resume</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatTime(startTime)}
+                    </span>
+                  </button>
+                )}
+
                 {/* Video Features panel button */}
                 {documentId && (
                   <button

@@ -6,6 +6,7 @@ import { captureAndSaveScreenshot } from "../utils/screenshotCaptureFlow";
 import {
   ReviewTab,
   DashboardTab,
+  ContinueReadingTab,
   SettingsTab,
   DocumentViewer,
   WebBrowserTab,
@@ -22,6 +23,7 @@ import {
   FileUp,
   Link,
   BookMarked,
+  BookOpen,
   Dices,
   Brain,
   Rss,
@@ -232,6 +234,16 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       type: "dashboard",
       content: DashboardTab,
       closable: false,
+    });
+  };
+
+  const handleContinueReading = () => {
+    addTab({
+      title: "Continue Reading",
+      icon: "📚",
+      type: "continue-reading",
+      content: ContinueReadingTab,
+      closable: true,
     });
   };
 
@@ -459,6 +471,14 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       label: "Dashboard",
       shortcut: "Ctrl+1",
       action: handleDashboard,
+      group: 3,
+    },
+    {
+      id: "continue-reading",
+      icon: BookOpen,
+      label: "Continue Reading",
+      shortcut: "Ctrl+2",
+      action: handleContinueReading,
       group: 3,
     },
     {

@@ -5,6 +5,7 @@ import { lazy } from "react";
 // Components use named exports, so we need to convert them to default exports
 
 export const DashboardTab = lazy(() => import("./DashboardTab").then(m => ({ default: m.DashboardTab })));
+export const ContinueReadingTab = lazy(() => import("./ContinueReadingTab").then(m => ({ default: m.ContinueReadingTab })));
 export const QueueTab = lazy(() => import("./QueueTab").then(m => ({ default: m.QueueTab })));
 export const ReviewTab = lazy(() => import("./ReviewTab").then(m => ({ default: m.ReviewTab })));
 export const DocumentsTab = lazy(() => import("./DocumentsTab").then(m => ({ default: m.DocumentsTab })));

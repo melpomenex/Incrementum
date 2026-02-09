@@ -2,7 +2,7 @@
  * Tauri API wrapper for document commands
  */
 
-import { invokeCommand, openFilePicker as tauriOpenFilePicker, openFolderPicker as tauriOpenFolderPicker } from "../lib/tauri";
+import { invokeCommand, isTauri, openFilePicker as tauriOpenFilePicker, openFolderPicker as tauriOpenFolderPicker } from "../lib/tauri";
 import { browserInvoke } from "../lib/browser-backend";
 import { serializeViewState } from "../lib/readerPosition";
 import { Document } from "../types/document";
@@ -12,7 +12,8 @@ import type { ViewState } from "../types/readerPosition";
  * Check if running in web mode (not Tauri)
  */
 function isWebMode(): boolean {
-  return !("__TAURI__" in window);
+  // Tauri v2 does not reliably define `window.__TAURI__` in all contexts.
+  return !isTauri();
 }
 
 export async function getDocuments(): Promise<Document[]> {
@@ -272,12 +273,13 @@ export async function updateDocumentProgressAuto(
     });
   }
 
+  // Tauri invoke expects camelCase for snake_case Rust parameters.
   return await invokeCommand<Document>("update_document_progress", {
     id,
-    current_page: currentPage ?? null,
-    current_scroll_percent: currentScrollPercent ?? null,
-    current_cfi: currentCfi ?? null,
-    current_view_state: viewStatePayload,
+    currentPage: currentPage ?? null,
+    currentScrollPercent: currentScrollPercent ?? null,
+    currentCfi: currentCfi ?? null,
+    currentViewState: viewStatePayload,
   });
 }
 
