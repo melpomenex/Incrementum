@@ -1013,6 +1013,92 @@ export const minecraftTheme: Theme = {
   },
 };
 
+// Burnt Umber Theme
+export const burntUmberTheme: Theme = {
+  id: 'burnt-umber',
+  name: 'Burnt Umber',
+  variant: 'dark',
+  description: 'Deep, nearly-uniform sepia brown theme',
+  colors: {
+    // Near-uniform brown backdrop (matches the solid look in the reference screenshot).
+    background: '#5A3200',
+    onBackground: '#F7E9D6',
+    surface: '#5A3200',
+    onSurface: '#F7E9D6',
+    surfaceVariant: '#623803',
+    primary: '#F7B955',
+    onPrimary: '#2B1F17',
+    primaryContainer: '#7A430A',
+    onPrimaryContainer: '#FFE8C7',
+    secondary: '#C8923E',
+    onSecondary: '#2B1F17',
+    outline: '#8B5F2B',
+    outlineVariant: '#744814',
+    error: '#FF6B6B',
+    onError: '#2B1F17',
+    errorContainer: '#8C2B2B',
+    onErrorContainer: '#FFE0DF',
+    success: '#7FBF7F',
+    warning: '#FFBF4D',
+    // Component colors kept close to background to preserve the flat, solid feel.
+    toolbar: '#5A3200',
+    sidebar: '#5A3200',
+    card: '#5A3200',
+    input: '#623803',
+    border: '#8B5F2B',
+    text: '#F7E9D6',
+    textSecondary: '#E7CFAF',
+    link: '#FFD08A',
+  },
+  typography: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.375rem',
+    lg: '0.5rem',
+    xl: '0.75rem',
+    '2xl': '1rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 1px 2px 0 rgb(0 0 0 / 0.25)',
+    md: '0 4px 6px -1px rgb(0 0 0 / 0.35)',
+    lg: '0 10px 15px -3px rgb(0 0 0 / 0.35)',
+    xl: '0 20px 25px -5px rgb(0 0 0 / 0.35)',
+  },
+};
+
 // Mistral Light Theme
 export const mistralLightTheme: Theme = {
   id: 'mistral-light',
@@ -1722,6 +1808,7 @@ export const builtInThemes: Theme[] = [
   milkyMatchaTheme,
   sandstoneLightTheme,
   minecraftTheme,
+  burntUmberTheme,
   mistralLightTheme,
   modernPolishedTheme,
   omarChyBlissTheme,

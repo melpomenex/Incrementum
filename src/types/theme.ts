@@ -133,6 +133,7 @@ export const BUILTIN_THEMES = {
   MAPQUEST: 'mapquest',
   MILKY_MATCHA: 'milky-matcha',
   MINECRAFT: 'minecraft',
+  BURNT_UMBER: 'burnt-umber',
   NOCTURNE_DARK: 'nocturne-dark',
   OMAR_CHY_BLISS: 'omar-chy-bliss',
   SANDSTONE_LIGHT: 'sandstone-light',
