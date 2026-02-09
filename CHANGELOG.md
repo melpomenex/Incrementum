@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - 2026-02-09
+
+### Added
+- **Continue Reading tab** - New dedicated tab for resuming recently read documents
+  - Accessible via toolbar button (Ctrl+2) or middle-click on icon
+  - Lists documents with progress for quick continuation
+
+### Fixed
+- **Tauri v2 compatibility fixes**
+  - Fixed `beforeDevCommand` to properly run `npm run dev` instead of `true`
+  - Fixed API parameter serialization: Tauri v2 expects camelCase for snake_case Rust parameters
+  - Fixed `isWebMode()` check to use `isTauri()` helper instead of unreliable `window.__TAURI__`
+
+- **YouTube viewer improvements**
+  - Fixed video position restoration with unified position API (fallback to localStorage, then legacy fields)
+  - Added error handling for missing H.264/MP4 codecs in WebKitGTK (Linux)
+  - Added resume button in player controls to jump to saved position
+  - Improved inline playback detection with clear fallback to browser option
+  - Better SponsorBlock integration that doesn't override pending resume seeks
+
+- **Browser/PWA backend improvements**
+  - Time-based media (YouTube, audio, video) now correctly saves position as time type instead of page
+
 ## [1.7.4] - 2026-02-06
 
 ### Fixed

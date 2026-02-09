@@ -2,7 +2,7 @@
  * Position tracking API
  */
 
-import { invokeCommand } from '../lib/tauri';
+import { invokeCommand, isTauri } from '../lib/tauri';
 import { browserInvoke } from '../lib/browser-backend';
 import type {
   Bookmark,
@@ -22,7 +22,8 @@ export {
 } from '../types/position';
 
 function isWebMode(): boolean {
-  return !("__TAURI__" in window);
+  // Tauri v2 does not reliably define `window.__TAURI__` in all contexts.
+  return !isTauri();
 }
 
 /**
@@ -32,6 +33,7 @@ export async function getDocumentPosition(documentId: string): Promise<DocumentP
   if (isWebMode()) {
     return await browserInvoke<DocumentPosition | null>('get_document_position', { document_id: documentId });
   }
+  // Tauri invoke expects camelCase for snake_case Rust parameters.
   return await invokeCommand<DocumentPosition | null>('get_document_position', { documentId });
 }
 
@@ -46,6 +48,7 @@ export async function saveDocumentPosition(
     await browserInvoke('save_document_position', { document_id: documentId, position });
     return;
   }
+  // Tauri invoke expects camelCase for snake_case Rust parameters.
   await invokeCommand('save_document_position', { documentId, position });
 }
 
@@ -91,7 +94,7 @@ export async function deleteBookmark(bookmarkId: string): Promise<void> {
     await browserInvoke('delete_bookmark', { bookmark_id: bookmarkId });
     return;
   }
-  await invokeCommand('delete_bookmark', { bookmarkId });
+  return await invokeCommand('delete_bookmark', { bookmarkId });
 }
 
 /**
@@ -107,10 +110,7 @@ export async function startReadingSession(
       progress_start: progressStart,
     });
   }
-  return await invokeCommand<ReadingSession>('start_reading_session', {
-    documentId,
-    progressStart,
-  });
+  return await invokeCommand<ReadingSession>('start_reading_session', { documentId, progressStart });
 }
 
 /**
