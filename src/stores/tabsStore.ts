@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import { generateId } from "../utils/id";
 
 export type TabType =
+  | "continue-reading"
   | "dashboard"
   | "queue"
   | "queue-scroll"

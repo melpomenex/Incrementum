@@ -24,6 +24,7 @@ import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
 import * as documentsApi from "../../api/documents";
 import { updateDocumentProgressAuto } from "../../api/documents";
+import { getDocumentPosition } from "../../api/position";
 import { rateDocument } from "../../api/algorithm";
 import type { ReviewRating } from "../../api/review";
 import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";

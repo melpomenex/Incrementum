@@ -423,8 +423,16 @@ const commandHandlers: Record<string, CommandHandler> = {
             }
         }
 
-        // Create new unified position based on what's being updated
-        if (currentPage !== undefined && currentPage !== null) {
+        // Create new unified position based on what's being updated and document type
+        // For YouTube videos and other time-based media, use time position instead of page position
+        const isTimeBasedMedia = existingDoc?.file_type === 'youtube' ||
+                                 existingDoc?.file_type === 'audio' ||
+                                 existingDoc?.file_type === 'video';
+
+        if (isTimeBasedMedia && currentPage !== undefined && currentPage !== null) {
+            // For time-based media, use time position (seconds)
+            position = { type: 'time', seconds: currentPage };
+        } else if (currentPage !== undefined && currentPage !== null) {
             position = { type: 'page', page: currentPage };
         } else if (scrollPercent !== undefined && scrollPercent !== null) {
             position = { type: 'scroll', percent: scrollPercent };

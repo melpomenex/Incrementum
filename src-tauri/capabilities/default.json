@@ -7,7 +7,11 @@
       "http://localhost:9527/*",
       "http://127.0.0.1:9527/*",
       "http://localhost:15173/*",
-      "http://127.0.0.1:15173/*"
+      "http://127.0.0.1:15173/*",
+      "https://www.youtube.com/*",
+      "https://www.youtube-nocookie.com/*",
+      "https://*.googlevideo.com/*",
+      "https://*.ytimg.com/*"
     ]
   },
   "windows": [
