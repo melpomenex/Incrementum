@@ -252,6 +252,9 @@ function normalizeCardType(value?: string): DraftCardType | null {
 function parseCardsFromResponse(content: string, sourceMessageId: string): { cards: DraftCard[]; cleaned: string } {
   const normalized = content.replace(/\r\n/g, "\n");
 
+  const summaryText = (count: number) =>
+    `Generated ${count} draft card${count === 1 ? "" : "s"} (see Draft Cards).`;
+
   const normalizeJsonLike = (raw: string): string => {
     let s = raw.trim();
     // Some models literally include a leading "json" line.
@@ -266,6 +269,49 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     return s.trim();
   };
 
+  const extractBalancedObjects = (text: string): string[] => {
+    // Extract top-level `{...}` objects from a JSON-ish stream. Useful when the model
+    // returns a sequence of objects but forgets to wrap them in `[...]` or `{ cards: [...] }`.
+    const out: string[] = [];
+    let inString = false;
+    let escaping = false;
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+
+      if (escaping) {
+        escaping = false;
+        continue;
+      }
+      if (ch === "\\") {
+        if (inString) escaping = true;
+        continue;
+      }
+      if (ch === "\"") {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+
+      if (ch === "{") {
+        if (depth === 0) start = i;
+        depth++;
+        continue;
+      }
+      if (ch === "}") {
+        depth--;
+        if (depth === 0 && start >= 0) {
+          out.push(text.slice(start, i + 1));
+          start = -1;
+        }
+      }
+    }
+
+    return out;
+  };
+
   const extractBalancedJson = (text: string): string | null => {
     // Heuristic for models that forget to close fences or include extra text around JSON.
     // Extract the first balanced JSON object/array starting at the first "{" or "[".
@@ -278,8 +324,6 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     let escaping = false;
     let depth = 0;
     let started = false;
-    const opening = text[start];
-    const closing = opening === "[" ? "]" : "}";
 
     for (let i = start; i < text.length; i++) {
       const ch = text[i];
@@ -321,6 +365,59 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     return candidate;
   };
 
+  const cardsFromParsedList = (list: unknown[], sourceId: string): DraftCard[] => {
+    const cards: DraftCard[] = [];
+    list.forEach((entry: unknown, index: number) => {
+      const e = entry as { type?: string; question?: string; answer?: string; text?: string };
+      let type = normalizeCardType(e?.type);
+
+      // If the model forgot "type", infer from fields.
+      if (!type) {
+        if (typeof e?.question === "string" && typeof e?.answer === "string") type = "qa";
+        else if (typeof e?.text === "string") type = "cloze";
+      }
+      if (!type) return;
+
+      const baseCard = {
+        id: `draft-${sourceId}-${cards.length}`,
+        type,
+        selected: true,
+        sourceMessageId: sourceId,
+        createdAt: Date.now(),
+        tags: [],
+      };
+
+      if (type === "qa") {
+        const question = typeof e?.question === "string" ? e.question.trim() : "";
+        const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
+        if (!question || !answer) return;
+        cards.push({ ...baseCard, question, answer });
+      } else {
+        const text = typeof e?.text === "string" ? e.text.trim() : "";
+        if (!text) return;
+        cards.push({ ...baseCard, text });
+      }
+    });
+    return cards;
+  };
+
+  const tryParseJsonishObjectStream = (text: string): DraftCard[] => {
+    const objs = extractBalancedObjects(text);
+    if (objs.length === 0) return [];
+
+    const parsedObjects: unknown[] = [];
+    for (const obj of objs) {
+      const raw = normalizeJsonLike(obj);
+      try {
+        parsedObjects.push(JSON.parse(raw));
+      } catch {
+        // ignore
+      }
+    }
+    if (parsedObjects.length === 0) return [];
+    return cardsFromParsedList(parsedObjects, sourceMessageId);
+  };
+
   const tryParseFromJson = (): { cards: DraftCard[]; cleaned: string } | null => {
     // Prefer explicit json fenced blocks, but accept generic fences too.
     const fences = [...normalized.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
@@ -342,36 +439,11 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
         : [];
       if (!Array.isArray(list) || list.length === 0) continue;
 
-      const cards: DraftCard[] = [];
-      list.forEach((entry: unknown, index: number) => {
-        const e = entry as { type?: string; question?: string; answer?: string; text?: string };
-        const type = normalizeCardType(e?.type);
-        if (!type) return;
-
-        const baseCard = {
-          id: `draft-${sourceMessageId}-${index}`,
-          type,
-          selected: true,
-          sourceMessageId,
-          createdAt: Date.now(),
-          tags: [],
-        };
-
-        if (type === "qa") {
-          const question = typeof e?.question === "string" ? e.question.trim() : "";
-          const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
-          if (!question || !answer) return;
-          cards.push({ ...baseCard, question, answer });
-        } else {
-          const text = typeof e?.text === "string" ? e.text.trim() : "";
-          if (!text) return;
-          cards.push({ ...baseCard, text });
-        }
-      });
+      const cards = cardsFromParsedList(list, sourceMessageId);
 
       if (cards.length === 0) continue;
       const cleaned = normalized.replace(m[0], "").trim();
-      return { cards, cleaned: cleaned || content };
+      return { cards, cleaned: cleaned || summaryText(cards.length) };
     }
 
     // Models sometimes start a fence but forget to close it.
@@ -409,6 +481,12 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
       return tryParseFromJsonFromSingleFence(rebuilt);
     }
 
+    // If we couldn't parse a full JSON payload, try extracting per-card objects.
+    const streamCards = tryParseJsonishObjectStream(normalized);
+    if (streamCards.length > 0) {
+      return { cards: streamCards, cleaned: summaryText(streamCards.length) };
+    }
+
     return null;
   };
 
@@ -432,35 +510,10 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
       : [];
     if (!Array.isArray(list) || list.length === 0) return null;
 
-    const cards: DraftCard[] = [];
-    list.forEach((entry: unknown, index: number) => {
-      const e = entry as { type?: string; question?: string; answer?: string; text?: string };
-      const type = normalizeCardType(e?.type);
-      if (!type) return;
-
-      const baseCard = {
-        id: `draft-${sourceMessageId}-${index}`,
-        type,
-        selected: true,
-        sourceMessageId,
-        createdAt: Date.now(),
-        tags: [],
-      };
-
-      if (type === "qa") {
-        const question = typeof e?.question === "string" ? e.question.trim() : "";
-        const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
-        if (!question || !answer) return;
-        cards.push({ ...baseCard, question, answer });
-      } else {
-        const text = typeof e?.text === "string" ? e.text.trim() : "";
-        if (!text) return;
-        cards.push({ ...baseCard, text });
-      }
-    });
+    const cards = cardsFromParsedList(list, sourceMessageId);
 
     if (cards.length === 0) return null;
-    return { cards, cleaned: content };
+    return { cards, cleaned: summaryText(cards.length) };
   };
 
   const tryParseFromText = (): DraftCard[] => {
