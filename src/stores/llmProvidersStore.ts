@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/id';
+import type { ModelInfo } from '../api/llm';
 
 export interface LLMProviderConfig {
   id: string;
@@ -10,6 +11,8 @@ export interface LLMProviderConfig {
   baseUrl?: string;
   model: string;
   enabled: boolean;
+  // Store pricing information for cost calculations
+  modelPricing?: Record<string, ModelInfo>;
 }
 
 interface LLMProvidersState {

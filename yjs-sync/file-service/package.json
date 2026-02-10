@@ -1,0 +1,11 @@
+{
+  "name": "incrementum-file-service",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1"
+  }
+}
+

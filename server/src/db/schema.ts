@@ -11,11 +11,28 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Files table (for document file storage)
+CREATE TABLE IF NOT EXISTS files (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  filename VARCHAR(500) NOT NULL,
+  content_type VARCHAR(100),
+  size_bytes BIGINT,
+  storage_path TEXT NOT NULL,
+  deleted_at TIMESTAMPTZ,
+  sync_version BIGINT DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);
+CREATE INDEX IF NOT EXISTS idx_files_sync ON files(user_id, sync_version);
+
 -- Documents table (mirrors Rust model)
 CREATE TABLE IF NOT EXISTS documents (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title VARCHAR(500) NOT NULL,
+  file_id UUID REFERENCES files(id) ON DELETE SET NULL,
   file_path TEXT,
   file_type VARCHAR(50) NOT NULL,
   content TEXT,
@@ -112,19 +129,6 @@ CREATE TABLE IF NOT EXISTS learning_items (
 CREATE INDEX IF NOT EXISTS idx_learning_items_user ON learning_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_learning_items_sync ON learning_items(user_id, sync_version);
 
--- Files table (for document file storage)
-CREATE TABLE IF NOT EXISTS files (
-  id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  filename VARCHAR(500) NOT NULL,
-  content_type VARCHAR(100),
-  size_bytes BIGINT,
-  storage_path TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id);
-
 -- Sync state tracking
 CREATE TABLE IF NOT EXISTS sync_cursors (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -136,6 +140,10 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR(20) DEFAULT 'free';
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS current_scroll_percent DOUBLE PRECISION;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS current_cfi TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_id UUID;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS sync_version BIGINT DEFAULT 1;
+CREATE INDEX IF NOT EXISTS idx_files_sync ON files(user_id, sync_version);
 `;
 
 export async function migrate(): Promise<void> {
