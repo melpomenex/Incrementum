@@ -48,6 +48,7 @@ interface PDFViewerProps {
   onPdfInfo?: (info: { fingerprint?: string | null }) => void;
   restoreState?: ViewState | null;
   restoreRequestId?: number;
+  onUserScrollDuringRestore?: () => void;
   contextPageWindow?: number;
   onTextWindowChange?: (text: string) => void;
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
@@ -71,6 +72,7 @@ export function PDFViewer({
   onPdfInfo,
   restoreState,
   restoreRequestId,
+  onUserScrollDuringRestore,
   contextPageWindow = 2,
   onTextWindowChange,
   onSelectionChange,
@@ -92,6 +94,7 @@ export function PDFViewer({
   const pageUpdateFromScrollRef = useRef(false);
   // If the user scrolls during an in-flight restore attempt, cancel further restore retries.
   const userScrolledDuringRestoreRef = useRef(false);
+  const userScrollSignaledRef = useRef(false);
   const textCacheRef = useRef<Map<number, string>>(new Map());
   const textWindowRef = useRef<{ start: number; end: number }>({ start: 1, end: 1 });
   const skipAutoScrollOnceRef = useRef(false);
@@ -1055,6 +1058,7 @@ export function PDFViewer({
     // Restore can run before page layout is stable (especially on first load or fit-width reflows).
     // Retry for a short window until we have enough layout to map the anchor into scroll coords.
     userScrolledDuringRestoreRef.current = false;
+    userScrollSignaledRef.current = false;
     const start = Date.now();
     const deadline = start + 8000;
     let canceled = false;
@@ -1311,6 +1315,10 @@ export function PDFViewer({
       // User scrolled. If we're still trying to restore, don't snap them back later.
       if (restoreState && restoreRequestId !== undefined) {
         userScrolledDuringRestoreRef.current = true;
+        if (!userScrollSignaledRef.current) {
+          userScrollSignaledRef.current = true;
+          onUserScrollDuringRestore?.();
+        }
       }
 
       const scrollTop = container.scrollTop;

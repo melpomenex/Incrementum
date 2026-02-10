@@ -1,0 +1,95 @@
+services:
+  yjs-sync:
+    image: node:20-alpine
+    working_dir: /app
+    command: >-
+      sh -c "
+        if [ ! -f package.json ]; then
+          npm init -y >/dev/null 2>&1;
+        fi;
+        npm install --no-save y-websocket@^1.5.4 >/dev/null 2>&1;
+        YPERSISTENCE=/data PORT=1234 HOST=0.0.0.0 node --max-old-space-size=4096 node_modules/y-websocket/bin/server.js
+      "
+    environment:
+      - YPERSISTENCE=/data
+      - PORT=1234
+    volumes:
+      - yjs_data:/data
+      - yjs_app:/app
+    networks:
+      - internal
+    restart: unless-stopped
+
+  file-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.files
+    environment:
+      - PORT=8787
+      - FILES_DATA_DIR=/data/files
+      # Optional. If unset, allows all origins.
+      # - CORS_ORIGINS=https://readsync.org,http://localhost:5173
+    volumes:
+      - yjs_files:/data/files
+    networks:
+      - internal
+    restart: unless-stopped
+
+  transcript-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.transcript
+    container_name: transcript-service
+    restart: unless-stopped
+    ports:
+      - "8766:8766"  # Expose to all interfaces (protected by Tailscale firewall)
+    environment:
+      - TRANSCRIPT_API_KEY=${TRANSCRIPT_API_KEY:-change-me-in-production}
+      - PROXY_HOST=${PROXY_HOST:-REDACTED_PROXY}
+      - PROXY_PORT=${PROXY_PORT:-10001}
+      - PROXY_USER=${PROXY_USER:-REDACTED_USER}
+      - PROXY_PASS=${PROXY_PASS:-REDACTED_PASS}
+    volumes:
+      - transcript_cache:/app/transcript_cache
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8766/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  caddy:
+    image: caddy:2-alpine
+    env_file:
+      - .env
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - yjs-sync
+      - file-service
+      - transcript-service
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  yjs_data:
+  yjs_app:
+  yjs_files:
+  caddy_data:
+  caddy_config:
+  transcript_cache:
+
+networks:
+  internal:
+    driver: bridge

@@ -47,6 +47,9 @@ const upload = multer({
 // All file routes require authentication
 filesRouter.use(authMiddleware);
 
+// Default: allow file sync for everyone. Flip this on when you want to enforce paid tiers.
+const REQUIRE_PAID_FILE_SYNC = process.env.REQUIRE_PAID_FILE_SYNC === 'true';
+
 const checkPaidTier = async (req: AuthRequest, res: any, next: any) => {
     try {
         const pool = getPool();
@@ -61,8 +64,32 @@ const checkPaidTier = async (req: AuthRequest, res: any, next: any) => {
     }
 };
 
+async function allocateSyncVersions(client: any, userId: string, count: number): Promise<{ startVersion: number, endVersion: number }> {
+    await client.query(`
+      INSERT INTO sync_cursors (user_id, last_sync_version, last_sync_at)
+      VALUES ($1, 0, NOW())
+      ON CONFLICT (user_id) DO NOTHING
+    `, [userId]);
+
+    const result = await client.query(`
+      UPDATE sync_cursors
+      SET last_sync_version = last_sync_version + $2,
+          last_sync_at = NOW()
+      WHERE user_id = $1
+      RETURNING last_sync_version
+    `, [userId, count]);
+
+    const endVersion = Number(result.rows[0].last_sync_version);
+    const startVersion = endVersion - count + 1;
+    return { startVersion, endVersion };
+}
+
+if (REQUIRE_PAID_FILE_SYNC) {
+    filesRouter.use(checkPaidTier);
+}
+
 // Upload a file
-filesRouter.post('/', checkPaidTier, upload.single('file'), async (req: AuthRequest, res, next) => {
+filesRouter.post('/', upload.single('file'), async (req: AuthRequest, res, next) => {
     try {
         if (!req.file) {
             throw createError('No file uploaded', 400, 'NO_FILE');
@@ -70,19 +97,33 @@ filesRouter.post('/', checkPaidTier, upload.single('file'), async (req: AuthRequ
 
         const pool = getPool();
         const fileId = uuidv4();
-        const storagePath = req.file.path;
+        const storagePathOnDisk = req.file.path;
 
-        await pool.query(`
-      INSERT INTO files (id, user_id, filename, content_type, size_bytes, storage_path)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [
-            fileId,
-            req.userId,
-            req.file.originalname,
-            req.file.mimetype,
-            req.file.size,
-            storagePath,
-        ]);
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const { startVersion } = await allocateSyncVersions(client, req.userId!, 1);
+
+            await client.query(`
+        INSERT INTO files (id, user_id, filename, content_type, size_bytes, storage_path, sync_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+                fileId,
+                req.userId,
+                req.file.originalname,
+                req.file.mimetype,
+                req.file.size,
+                storagePathOnDisk,
+                startVersion,
+            ]);
+
+            await client.query('COMMIT');
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
 
         res.status(201).json({
             id: fileId,
@@ -108,6 +149,9 @@ filesRouter.get('/:id', async (req: AuthRequest, res, next) => {
         }
 
         const file = result.rows[0];
+        if (file.deleted_at) {
+            throw createError('File not found', 404, 'FILE_NOT_FOUND');
+        }
         res.download(file.storage_path, file.filename);
     } catch (error) {
         next(error);
@@ -118,25 +162,49 @@ filesRouter.get('/:id', async (req: AuthRequest, res, next) => {
 filesRouter.delete('/:id', async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
-        const result = await pool.query(`
-      SELECT * FROM files WHERE id = $1 AND user_id = $2
-    `, [req.params.id, req.userId]);
-
-        if (result.rows.length === 0) {
-            throw createError('File not found', 404, 'FILE_NOT_FOUND');
-        }
-
-        const file = result.rows[0];
-
-        // Delete from disk
+        const client = await pool.connect();
         try {
-            await fs.unlink(file.storage_path);
-        } catch (e) {
-            console.warn('File already deleted from disk:', file.storage_path);
-        }
+            await client.query('BEGIN');
 
-        // Delete from database
-        await pool.query('DELETE FROM files WHERE id = $1', [req.params.id]);
+            const result = await client.query(`
+        SELECT * FROM files WHERE id = $1 AND user_id = $2
+      `, [req.params.id, req.userId]);
+
+            if (result.rows.length === 0) {
+                throw createError('File not found', 404, 'FILE_NOT_FOUND');
+            }
+
+            const file = result.rows[0];
+            if (file.deleted_at) {
+                // Idempotent delete
+                await client.query('COMMIT');
+                return res.json({ success: true });
+            }
+
+            const { startVersion } = await allocateSyncVersions(client, req.userId!, 1);
+
+            // Delete from disk
+            try {
+                await fs.unlink(file.storage_path);
+            } catch (e) {
+                console.warn('File already deleted from disk:', file.storage_path);
+            }
+
+            // Soft delete in database so other clients can sync the tombstone.
+            await client.query(`
+        UPDATE files
+        SET deleted_at = NOW(),
+            sync_version = $3
+        WHERE id = $1 AND user_id = $2
+      `, [req.params.id, req.userId, startVersion]);
+
+            await client.query('COMMIT');
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
 
         res.json({ success: true });
     } catch (error) {
@@ -150,7 +218,7 @@ filesRouter.get('/', async (req: AuthRequest, res, next) => {
         const pool = getPool();
         const result = await pool.query(`
       SELECT id, filename, content_type, size_bytes, created_at
-      FROM files WHERE user_id = $1 ORDER BY created_at DESC
+      FROM files WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
     `, [req.userId]);
 
         res.json(result.rows);

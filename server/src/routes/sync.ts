@@ -8,11 +8,22 @@ export const syncRouter = Router();
 // All sync routes require authentication
 syncRouter.use(authMiddleware);
 
+// Default: include file metadata in sync for everyone. Flip this on when you want to enforce paid tiers.
+const REQUIRE_PAID_FILE_SYNC = process.env.REQUIRE_PAID_FILE_SYNC === 'true';
+
 interface SyncPullResponse {
     documents: unknown[];
     extracts: unknown[];
     learningItems: unknown[];
+    files?: unknown[];
     syncVersion: number;
+}
+
+async function getSubscriptionTier(userId: string): Promise<'free' | 'paid'> {
+    const pool = getPool();
+    const result = await pool.query('SELECT subscription_tier FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) return 'free';
+    return result.rows[0].subscription_tier === 'free' ? 'free' : 'paid';
 }
 
 // Pull changes since last sync
@@ -21,9 +32,18 @@ syncRouter.get('/pull', async (req: AuthRequest, res, next) => {
         const pool = getPool();
         const userId = req.userId!;
         const since = parseInt(req.query.since as string) || 0;
+        const tier = REQUIRE_PAID_FILE_SYNC ? await getSubscriptionTier(userId) : 'paid';
+        const includeFiles = !REQUIRE_PAID_FILE_SYNC || tier === 'paid';
 
         // Get current max sync version
-        const versionResult = await pool.query(`
+        const versionResult = await pool.query(includeFiles ? `
+      SELECT GREATEST(
+        COALESCE((SELECT MAX(sync_version) FROM documents WHERE user_id = $1), 0),
+        COALESCE((SELECT MAX(sync_version) FROM extracts WHERE user_id = $1), 0),
+        COALESCE((SELECT MAX(sync_version) FROM learning_items WHERE user_id = $1), 0),
+        COALESCE((SELECT MAX(sync_version) FROM files WHERE user_id = $1), 0)
+      ) as max_version
+    ` : `
       SELECT GREATEST(
         COALESCE((SELECT MAX(sync_version) FROM documents WHERE user_id = $1), 0),
         COALESCE((SELECT MAX(sync_version) FROM extracts WHERE user_id = $1), 0),
@@ -53,10 +73,19 @@ syncRouter.get('/pull', async (req: AuthRequest, res, next) => {
       ORDER BY sync_version
     `, [userId, since]);
 
+        // Get changed files (metadata only). Clients download bytes via /files/:id.
+        const files = includeFiles ? await pool.query(`
+      SELECT id, filename, content_type, size_bytes, created_at, deleted_at, sync_version
+      FROM files
+      WHERE user_id = $1 AND sync_version > $2
+      ORDER BY sync_version
+    `, [userId, since]) : null;
+
         const response: SyncPullResponse = {
             documents: documents.rows,
             extracts: extracts.rows,
             learningItems: learningItems.rows,
+            ...(files ? { files: files.rows } : {}),
             syncVersion: currentVersion,
         };
 
@@ -72,6 +101,27 @@ interface SyncPushPayload {
     learningItems?: unknown[];
 }
 
+async function allocateSyncVersions(client: any, userId: string, count: number): Promise<{ startVersion: number, endVersion: number }> {
+    // Ensure cursor row exists, then atomically allocate a contiguous block of versions.
+    await client.query(`
+      INSERT INTO sync_cursors (user_id, last_sync_version, last_sync_at)
+      VALUES ($1, 0, NOW())
+      ON CONFLICT (user_id) DO NOTHING
+    `, [userId]);
+
+    const result = await client.query(`
+      UPDATE sync_cursors
+      SET last_sync_version = last_sync_version + $2,
+          last_sync_at = NOW()
+      WHERE user_id = $1
+      RETURNING last_sync_version
+    `, [userId, count]);
+
+    const endVersion = Number(result.rows[0].last_sync_version);
+    const startVersion = endVersion - count + 1;
+    return { startVersion, endVersion };
+}
+
 // Push local changes to server
 syncRouter.post('/push', async (req: AuthRequest, res, next) => {
     try {
@@ -83,30 +133,32 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
         try {
             await client.query('BEGIN');
 
-            // Get next sync version
-            const versionResult = await client.query(`
-        SELECT GREATEST(
-          COALESCE((SELECT MAX(sync_version) FROM documents WHERE user_id = $1), 0),
-          COALESCE((SELECT MAX(sync_version) FROM extracts WHERE user_id = $1), 0),
-          COALESCE((SELECT MAX(sync_version) FROM learning_items WHERE user_id = $1), 0)
-        ) + 1 as next_version
-      `, [userId]);
-            let nextVersion = versionResult.rows[0].next_version;
+            const totalChanges =
+                (payload.documents?.length || 0) +
+                (payload.extracts?.length || 0) +
+                (payload.learningItems?.length || 0);
+
+            const { startVersion, endVersion } = totalChanges > 0
+                ? await allocateSyncVersions(client, userId, totalChanges)
+                : { startVersion: 0, endVersion: 0 };
+
+            let nextVersion = startVersion;
 
             // Upsert documents
             if (payload.documents?.length) {
                 for (const doc of payload.documents as any[]) {
                     await client.query(`
             INSERT INTO documents (
-              id, user_id, title, file_path, file_type, content, content_hash,
+              id, user_id, title, file_id, file_path, file_type, content, content_hash,
               total_pages, current_page, category, tags, date_added, date_modified,
               date_last_reviewed, extract_count, learning_item_count, priority_rating,
               priority_slider, priority_score, is_archived, is_favorite, metadata,
               next_reading_date, reading_count, stability, difficulty, reps,
               total_time_spent, deleted_at, sync_version
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
             ON CONFLICT (id) DO UPDATE SET
               title = EXCLUDED.title,
+              file_id = EXCLUDED.file_id,
               file_path = EXCLUDED.file_path,
               file_type = EXCLUDED.file_type,
               content = EXCLUDED.content,
@@ -134,7 +186,7 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
               deleted_at = EXCLUDED.deleted_at,
               sync_version = EXCLUDED.sync_version
           `, [
-                        doc.id, userId, doc.title, doc.file_path, doc.file_type,
+                        doc.id, userId, doc.title, doc.file_id || null, doc.file_path, doc.file_type,
                         doc.content, doc.content_hash, doc.total_pages, doc.current_page,
                         doc.category, JSON.stringify(doc.tags || []), doc.date_added,
                         doc.date_modified, doc.date_last_reviewed, doc.extract_count,
@@ -235,17 +287,23 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
                 }
             }
 
-            // Update sync cursor
-            await client.query(`
-        UPDATE sync_cursors SET last_sync_version = $1, last_sync_at = NOW()
-        WHERE user_id = $2
-      `, [nextVersion - 1, userId]);
-
             await client.query('COMMIT');
+
+            // If nothing was pushed, return the user's current cursor without advancing it.
+            let currentCursor = endVersion;
+            if (totalChanges === 0) {
+                await client.query(`
+                  INSERT INTO sync_cursors (user_id, last_sync_version, last_sync_at)
+                  VALUES ($1, 0, NOW())
+                  ON CONFLICT (user_id) DO NOTHING
+                `, [userId]);
+                const cursorResult = await client.query('SELECT last_sync_version FROM sync_cursors WHERE user_id = $1', [userId]);
+                currentCursor = Number(cursorResult.rows[0]?.last_sync_version ?? 0);
+            }
 
             res.json({
                 success: true,
-                syncVersion: nextVersion - 1,
+                syncVersion: currentCursor,
                 pushed: {
                     documents: payload.documents?.length || 0,
                     extracts: payload.extracts?.length || 0,

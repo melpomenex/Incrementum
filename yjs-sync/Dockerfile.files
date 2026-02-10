@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY file-service/package.json ./package.json
+RUN npm install --omit=dev
+
+COPY file-service/index.js ./index.js
+
+ENV PORT=8787
+ENV FILES_DATA_DIR=/data/files
+
+EXPOSE 8787
+
+CMD ["node", "index.js"]
+
