@@ -162,6 +162,8 @@ When creating flashcards, return them as JSON in a code block using this exact s
 }
 \`\`\`
 
+Return ONLY the JSON code block (no other text) when the user is asking you to create flashcards.
+
 Rules for excellent flashcards:
 - Use "qa" for conceptual questions that benefit from detailed explanations
 - Use "cloze" for factual recall with {{c1::}} or {{::}} deletions
@@ -248,50 +250,149 @@ function normalizeCardType(value?: string): DraftCardType | null {
 }
 
 function parseCardsFromResponse(content: string, sourceMessageId: string): { cards: DraftCard[]; cleaned: string } {
-  const codeBlockRegex = /```json\s*([\s\S]*?)```/i;
-  const match = codeBlockRegex.exec(content);
-  if (!match) return { cards: [], cleaned: content };
+  const normalized = content.replace(/\r\n/g, "\n");
 
-  const raw = match[1].trim();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { cards: [], cleaned: content };
-  }
+  const tryParseFromJson = (): { cards: DraftCard[]; cleaned: string } | null => {
+    // Prefer explicit json fenced blocks, but accept generic fences too.
+    const fences = [...normalized.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
+    for (const m of fences) {
+      const raw = (m[1] ?? "").trim();
+      if (!raw) continue;
 
-  const list = Array.isArray(parsed) ? parsed : Array.isArray((parsed as { cards?: unknown[] })?.cards) ? (parsed as { cards: unknown[] }).cards : [];
-  if (!Array.isArray(list)) return { cards: [], cleaned: content };
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        continue;
+      }
 
-  const cards: DraftCard[] = [];
-  list.forEach((entry: unknown, index: number) => {
-    const e = entry as { type?: string; question?: string; answer?: string; text?: string };
-    const type = normalizeCardType(e?.type);
-    if (!type) return;
-    
-    const baseCard = {
-      id: `draft-${sourceMessageId}-${index}`,
-      type,
-      selected: true,
-      sourceMessageId,
-      createdAt: Date.now(),
-      tags: [],
-    };
-    
-    if (type === "qa") {
-      const question = typeof e?.question === "string" ? e.question.trim() : "";
-      const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
-      if (!question || !answer) return;
-      cards.push({ ...baseCard, question, answer });
-    } else {
-      const text = typeof e?.text === "string" ? e.text.trim() : "";
-      if (!text) return;
-      cards.push({ ...baseCard, text });
+      const list = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { cards?: unknown[] })?.cards)
+        ? (parsed as { cards: unknown[] }).cards
+        : [];
+      if (!Array.isArray(list) || list.length === 0) continue;
+
+      const cards: DraftCard[] = [];
+      list.forEach((entry: unknown, index: number) => {
+        const e = entry as { type?: string; question?: string; answer?: string; text?: string };
+        const type = normalizeCardType(e?.type);
+        if (!type) return;
+
+        const baseCard = {
+          id: `draft-${sourceMessageId}-${index}`,
+          type,
+          selected: true,
+          sourceMessageId,
+          createdAt: Date.now(),
+          tags: [],
+        };
+
+        if (type === "qa") {
+          const question = typeof e?.question === "string" ? e.question.trim() : "";
+          const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
+          if (!question || !answer) return;
+          cards.push({ ...baseCard, question, answer });
+        } else {
+          const text = typeof e?.text === "string" ? e.text.trim() : "";
+          if (!text) return;
+          cards.push({ ...baseCard, text });
+        }
+      });
+
+      if (cards.length === 0) continue;
+      const cleaned = normalized.replace(m[0], "").trim();
+      return { cards, cleaned: cleaned || content };
     }
-  });
+    return null;
+  };
 
-  const cleaned = content.replace(match[0], "").trim();
-  return { cards, cleaned: cleaned || content };
+  const tryParseFromText = (): DraftCard[] => {
+    const cards: DraftCard[] = [];
+
+    const pushQa = (questionRaw: string, answerRaw: string) => {
+      const question = questionRaw.trim();
+      const answer = answerRaw.trim();
+      if (!question || !answer) return;
+      const id = `draft-${sourceMessageId}-${cards.length}`;
+      cards.push({
+        id,
+        type: "qa",
+        question,
+        answer,
+        selected: true,
+        sourceMessageId,
+        createdAt: Date.now(),
+        tags: [],
+      });
+    };
+
+    const pushCloze = (textRaw: string) => {
+      const text = textRaw.trim();
+      if (!text) return;
+      const id = `draft-${sourceMessageId}-${cards.length}`;
+      cards.push({
+        id,
+        type: "cloze",
+        text,
+        selected: true,
+        sourceMessageId,
+        createdAt: Date.now(),
+        tags: [],
+      });
+    };
+
+    // 1) Prefer explicit "Card N" sections (matches the UI screenshot output).
+    const hasCardHeaders = /(?:^|\n)\s*Card\s+\d+\s*:?\s*(?:\n|$)/i.test(normalized);
+    if (hasCardHeaders) {
+      const parts = normalized.split(/(?:^|\n)\s*Card\s+\d+\s*:?\s*(?:\n|$)/i).slice(1);
+      for (const part of parts) {
+        const block = part.trim();
+        if (!block) continue;
+
+        const qMatch = block.match(/(?:^|\n)\s*(?:Q|Question|Front)\s*:\s*([\s\S]*?)(?=(?:\n\s*(?:A|Answer|Back)\s*:)|$)/i);
+        const aMatch = block.match(/(?:^|\n)\s*(?:A|Answer|Back)\s*:\s*([\s\S]*?)(?=$)/i);
+        if (qMatch?.[1] && aMatch?.[1]) {
+          pushQa(qMatch[1], aMatch[1]);
+          continue;
+        }
+
+        // If the model outputs a cloze line in a "Card N" section, stage it.
+        if (block.includes("{{") && block.includes("}}")) {
+          pushCloze(block);
+        }
+      }
+
+      return cards;
+    }
+
+    // 2) Otherwise, try to parse repeated Q/A pairs anywhere in the message.
+    const qaRegex = /(?:^|\n)\s*(?:Q|Question|Front)\s*:\s*([\s\S]*?)\n\s*(?:A|Answer|Back)\s*:\s*([\s\S]*?)(?=(?:\n\s*(?:Q|Question|Front)\s*:)|$)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = qaRegex.exec(normalized)) !== null) {
+      const q = m[1] ?? "";
+      const a = m[2] ?? "";
+      pushQa(q, a);
+    }
+    if (cards.length > 0) return cards;
+
+    // 3) As a last resort, stage any obvious cloze strings.
+    const clozeRegex = /(?:^|\n)\s*(?:Cloze\s*:)?\s*([^\n]*\{\{[^}]+\}\}[^\n]*)/gi;
+    while ((m = clozeRegex.exec(normalized)) !== null) {
+      const t = m[1] ?? "";
+      if (t.includes("{{") && t.includes("}}")) pushCloze(t);
+    }
+
+    return cards;
+  };
+
+  const jsonResult = tryParseFromJson();
+  if (jsonResult) return jsonResult;
+
+  const textCards = tryParseFromText();
+  if (textCards.length > 0) return { cards: textCards, cleaned: content };
+
+  return { cards: [], cleaned: content };
 }
 
 function formatRelativeTime(timestamp: number): string {
