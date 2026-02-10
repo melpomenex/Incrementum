@@ -252,6 +252,20 @@ function normalizeCardType(value?: string): DraftCardType | null {
 function parseCardsFromResponse(content: string, sourceMessageId: string): { cards: DraftCard[]; cleaned: string } {
   const normalized = content.replace(/\r\n/g, "\n");
 
+  const normalizeJsonLike = (raw: string): string => {
+    let s = raw.trim();
+    // Some models literally include a leading "json" line.
+    s = s.replace(/^\s*json\s*\n/i, "");
+
+    // Common mistake: returning `"cards": [...]` instead of `{ "cards": [...] }`
+    if (/^\s*\"cards\"\s*:/.test(s)) s = `{${s}}`;
+
+    // Allow trailing commas (JSON5-ish) by stripping them.
+    s = s.replace(/,\s*([}\]])/g, "$1");
+
+    return s.trim();
+  };
+
   const extractBalancedJson = (text: string): string | null => {
     // Heuristic for models that forget to close fences or include extra text around JSON.
     // Extract the first balanced JSON object/array starting at the first "{" or "[".
@@ -290,8 +304,6 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
         depth--;
         if (started && depth === 0) {
           const candidate = text.slice(start, i + 1).trim();
-          // Quick sanity check to avoid parsing irrelevant JSON from unrelated text.
-          if (!candidate.includes("\"cards\"")) return null;
           return candidate;
         }
       }
@@ -299,11 +311,21 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     return null;
   };
 
+  const extractCardsArrayFromLooseKey = (text: string): string | null => {
+    const m = /\"cards\"\s*:\s*\[/i.exec(text);
+    if (!m || m.index === undefined) return null;
+    const bracketIndex = text.indexOf("[", m.index);
+    if (bracketIndex < 0) return null;
+    const candidate = extractBalancedJson(text.slice(bracketIndex));
+    if (!candidate || !candidate.startsWith("[")) return null;
+    return candidate;
+  };
+
   const tryParseFromJson = (): { cards: DraftCard[]; cleaned: string } | null => {
     // Prefer explicit json fenced blocks, but accept generic fences too.
     const fences = [...normalized.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
     for (const m of fences) {
-      const raw = (m[1] ?? "").trim();
+      const raw = normalizeJsonLike((m[1] ?? "").trim());
       if (!raw) continue;
 
       let parsed: unknown;
@@ -356,17 +378,19 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     const fenceStart = normalized.match(/```(?:json)?\s*\n?/i);
     if (fenceStart?.index !== undefined) {
       const afterFence = normalized.slice(fenceStart.index + fenceStart[0].length).trim();
-      const candidate = extractBalancedJson(afterFence);
+      const candidate =
+        extractCardsArrayFromLooseKey(afterFence) ??
+        extractBalancedJson(afterFence);
       if (candidate) {
         try {
-          const parsed = JSON.parse(candidate) as unknown;
+          const parsed = JSON.parse(normalizeJsonLike(candidate)) as unknown;
           const list = Array.isArray(parsed)
             ? parsed
             : Array.isArray((parsed as { cards?: unknown[] })?.cards)
             ? (parsed as { cards: unknown[] }).cards
             : [];
           if (Array.isArray(list) && list.length > 0) {
-            const rebuilt = `\`\`\`json\n${candidate}\n\`\`\``;
+            const rebuilt = `\`\`\`json\n${normalizeJsonLike(candidate)}\n\`\`\``;
             // Recurse through the normal path for consistent validation.
             return tryParseFromJsonFromSingleFence(rebuilt);
           }
@@ -377,9 +401,11 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     }
 
     // Finally: attempt to parse JSON even if there's no fence at all.
-    const unfencedCandidate = extractBalancedJson(normalized);
+    const unfencedCandidate =
+      extractCardsArrayFromLooseKey(normalized) ??
+      extractBalancedJson(normalized);
     if (unfencedCandidate) {
-      const rebuilt = `\`\`\`json\n${unfencedCandidate}\n\`\`\``;
+      const rebuilt = `\`\`\`json\n${normalizeJsonLike(unfencedCandidate)}\n\`\`\``;
       return tryParseFromJsonFromSingleFence(rebuilt);
     }
 
@@ -389,7 +415,7 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
   const tryParseFromJsonFromSingleFence = (fenced: string): { cards: DraftCard[]; cleaned: string } | null => {
     const m = /```(?:json)?\s*([\s\S]*?)```/i.exec(fenced);
     if (!m) return null;
-    const raw = (m[1] ?? "").trim();
+    const raw = normalizeJsonLike((m[1] ?? "").trim());
     if (!raw) return null;
 
     let parsed: unknown;
