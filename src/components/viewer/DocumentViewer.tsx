@@ -638,6 +638,22 @@ export function DocumentViewer({
     [currentDocument?.id, onScrollPositionChange, persistScrollState, resolvePreferredViewStateKey, scale, scrollStorageKey, viewMode, zoomMode]
   );
 
+  const handleUserScrollDuringRestore = useCallback(() => {
+    if (!restorationInProgressRef.current && !suppressPdfAutoScroll) return;
+
+    console.log("[DocumentViewer] User scrolled during restore, canceling restoration");
+    restoreScrollDoneRef.current = true;
+    restorationInProgressRef.current = false;
+    pendingViewStateRef.current = null;
+    setRestoreState(null);
+    setSuppressPdfAutoScroll(false);
+
+    if (restoreScrollTimeoutRef.current !== null) {
+      clearTimeout(restoreScrollTimeoutRef.current);
+      restoreScrollTimeoutRef.current = null;
+    }
+  }, [setRestoreState, setSuppressPdfAutoScroll, suppressPdfAutoScroll]);
+
   const captureScrollState = useCallback(() => {
     const container = document.querySelector(
       "[data-document-scroll-container]"
@@ -2637,6 +2653,7 @@ export function DocumentViewer({
             onPdfInfo={handlePdfInfo}
             onPagesRendered={() => setPagesRendered(true)}
             onScrollPositionChange={handleScrollPositionChange}
+            onUserScrollDuringRestore={handleUserScrollDuringRestore}
             restoreState={restoreState}
             restoreRequestId={restoreRequestId}
             contextPageWindow={contextPageWindow}

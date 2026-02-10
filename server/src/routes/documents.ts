@@ -14,7 +14,7 @@ documentsRouter.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res
 
         // Query document, filtering by user if authenticated
         const result = await pool.query(`
-            SELECT id, title, file_path, file_type, content, content_hash,
+            SELECT id, title, file_id, file_path, file_type, content, content_hash,
                    total_pages, current_page, current_scroll_percent, current_cfi,
                    category, tags, date_added, date_modified, date_last_reviewed,
                    extract_count, learning_item_count, priority_rating,

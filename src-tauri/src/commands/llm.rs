@@ -584,24 +584,24 @@ async fn stream_ollama(
 }
 
 #[tauri::command]
-pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url: Option<String>) -> Result<Vec<String>, String> {
+pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url: Option<String>) -> Result<Vec<ModelInfo>, String> {
     match provider.as_str() {
         "openai" => Ok(vec![
-            "gpt-4o".to_string(),
-            "gpt-4o-mini".to_string(),
-            "gpt-4-turbo".to_string(),
-            "gpt-3.5-turbo".to_string(),
+            ModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.0025), completion: Some(0.01), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+            ModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.00015), completion: Some(0.0006), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+            ModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.01), completion: Some(0.03), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+            ModelInfo { id: "gpt-3.5-turbo".to_string(), name: "GPT-3.5 Turbo".to_string(), context_length: Some(16385), pricing: Some(ModelPricing { prompt: Some(0.0005), completion: Some(0.0015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
         ]),
         "anthropic" => Ok(vec![
-            "claude-3-5-sonnet-20241022".to_string(),
-            "claude-3-5-haiku-20241022".to_string(),
-            "claude-3-opus-20240229".to_string(),
+            ModelInfo { id: "claude-3-5-sonnet-20241022".to_string(), name: "Claude 3.5 Sonnet".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: Some(0.0003), cache_write: Some(0.00375), }) },
+            ModelInfo { id: "claude-3-5-haiku-20241022".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: Some(0.00008), cache_write: Some(0.001), }) },
+            ModelInfo { id: "claude-3-opus-20240229".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: Some(0.0015), cache_write: Some(0.01875), }) },
         ]),
         "ollama" => Ok(vec![
-            "llama3.2".to_string(),
-            "mistral".to_string(),
-            "codellama".to_string(),
-            "phi3".to_string(),
+            ModelInfo { id: "llama3.2".to_string(), name: "Llama 3.2".to_string(), context_length: Some(128000), pricing: None },
+            ModelInfo { id: "mistral".to_string(), name: "Mistral".to_string(), context_length: Some(32000), pricing: None },
+            ModelInfo { id: "codellama".to_string(), name: "CodeLlama".to_string(), context_length: Some(16000), pricing: None },
+            ModelInfo { id: "phi3".to_string(), name: "Phi-3".to_string(), context_length: Some(128000), pricing: None },
         ]),
         "openrouter" => {
             // Fetch from OpenRouter API if API key is provided
@@ -611,18 +611,18 @@ pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url:
                 let url = normalize_base_url(base_url, "openrouter");
                 return fetch_openrouter_models(&client, &url, &key).await;
             }
-            // Fallback to default list
+            // Fallback to default list with approximate pricing
             Ok(vec![
-                "anthropic/claude-3.5-sonnet".to_string(),
-                "anthropic/claude-3.5-sonnet:beta".to_string(),
-                "anthropic/claude-3.5-haiku".to_string(),
-                "anthropic/claude-3-opus".to_string(),
-                "openai/gpt-4o".to_string(),
-                "openai/gpt-4o-mini".to_string(),
-                "openai/gpt-4-turbo".to_string(),
-                "google/gemini-pro-1.5".to_string(),
-                "meta-llama/llama-3.1-405b-instruct".to_string(),
-                "deepseek/deepseek-chat".to_string(),
+                ModelInfo { id: "anthropic/claude-3.5-sonnet".to_string(), name: "Claude 3.5 Sonnet".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "anthropic/claude-3.5-sonnet:beta".to_string(), name: "Claude 3.5 Sonnet (Beta)".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "anthropic/claude-3.5-haiku".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "anthropic/claude-3-opus".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "openai/gpt-4o".to_string(), name: "GPT-4o".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.0025), completion: Some(0.01), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "openai/gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.00015), completion: Some(0.0006), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "openai/gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.01), completion: Some(0.03), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "google/gemini-pro-1.5".to_string(), name: "Gemini Pro 1.5".to_string(), context_length: Some(2000000), pricing: Some(ModelPricing { prompt: Some(0.00125), completion: Some(0.005), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "meta-llama/llama-3.1-405b-instruct".to_string(), name: "Llama 3.1 405B".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.005), completion: Some(0.005), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ModelInfo { id: "deepseek/deepseek-chat".to_string(), name: "DeepSeek Chat".to_string(), context_length: Some(64000), pricing: Some(ModelPricing { prompt: Some(0.00027), completion: Some(0.0011), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
             ])
         }
         _ => Err(format!("Unknown provider: {}", provider)),
@@ -1012,19 +1012,34 @@ async fn test_openrouter_connection(
     Ok(true)
 }
 
+// Model pricing information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelPricing {
+    pub prompt: Option<f64>,
+    pub completion: Option<f64>,
+    pub request: Option<f64>,
+    pub image: Option<f64>,
+    pub web_search: Option<f64>,
+    #[serde(rename = "cache_read")]
+    pub cache_read: Option<f64>,
+    #[serde(rename = "cache_write")]
+    pub cache_write: Option<f64>,
+}
+
+// Model information with pricing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub context_length: Option<usize>,
+    pub pricing: Option<ModelPricing>,
+}
+
 async fn fetch_openrouter_models(
     client: &Client,
     base_url: &str,
     api_key: &str,
-) -> Result<Vec<String>, String> {
-    #[derive(Debug, Deserialize)]
-    struct OpenRouterModel {
-        id: String,
-        name: String,
-        context_length: Option<usize>,
-        pricing: Option<serde_json::Value>,
-    }
-
+) -> Result<Vec<ModelInfo>, String> {
     let response = client
         .get(format!("{}/models", base_url))
         .header("Authorization", format!("Bearer {}", api_key))
@@ -1042,7 +1057,15 @@ async fn fetch_openrouter_models(
 
     #[derive(Debug, Deserialize)]
     struct OpenRouterModelsResponse {
-        data: Vec<OpenRouterModel>,
+        data: Vec<OpenRouterModelResponse>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct OpenRouterModelResponse {
+        id: String,
+        name: Option<String>,
+        context_length: Option<usize>,
+        pricing: Option<ModelPricing>,
     }
 
     let models_response: OpenRouterModelsResponse = response
@@ -1050,14 +1073,19 @@ async fn fetch_openrouter_models(
         .await
         .map_err(|e| format!("Failed to parse OpenRouter models response: {}", e))?;
 
-    // Extract model IDs and sort them
-    let mut models: Vec<String> = models_response
+    // Convert to ModelInfo and sort by ID
+    let mut models: Vec<ModelInfo> = models_response
         .data
         .into_iter()
-        .map(|m| m.id)
+        .map(|m| ModelInfo {
+            id: m.id.clone(),
+            name: m.name.unwrap_or_else(|| m.id.clone()),
+            context_length: m.context_length,
+            pricing: m.pricing,
+        })
         .collect();
 
-    models.sort();
+    models.sort_by(|a, b| a.id.cmp(&b.id));
 
     Ok(models)
 }

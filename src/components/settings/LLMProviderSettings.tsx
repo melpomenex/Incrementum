@@ -3,8 +3,8 @@
  * Configure API keys and model preferences
  */
 import { useState } from "react";
-import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw } from "lucide-react";
-import { getAvailableModels } from "../../api/llm";
+import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw, DollarSign } from "lucide-react";
+import { getAvailableModels, type ModelInfo } from "../../api/llm";
 
 export interface LLMProviderConfig {
   id: string;
@@ -14,6 +14,8 @@ export interface LLMProviderConfig {
   baseUrl?: string;
   model: string;
   enabled: boolean;
+  // Store pricing information for cost calculations
+  modelPricing?: Record<string, ModelInfo>;
 }
 
 interface LLMProviderSettingsProps {
@@ -22,6 +24,7 @@ interface LLMProviderSettingsProps {
   onUpdateProvider: (id: string, updates: Partial<LLMProviderConfig>) => void;
   onRemoveProvider: (id: string) => void;
   onTestConnection: (config: LLMProviderConfig) => Promise<boolean>;
+  onRefreshModels?: (providerId: string, models: ModelInfo[]) => void;
 }
 
 const PROVIDER_INFO = {
@@ -90,8 +93,9 @@ export function LLMProviderSettings({
   const [testingConnection, setTestingConnection] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
-  const [dynamicModels, setDynamicModels] = useState<Record<string, string[]>>({});
+  const [dynamicModels, setDynamicModels] = useState<Record<string, ModelInfo[]>>({});
   const [refreshingModels, setRefreshingModels] = useState(false);
+  const [showPricing, setShowPricing] = useState<Record<string, boolean>>({});
 
   const handleAddProvider = () => {
     if (!newProviderName.trim() || !newProviderApiKey.trim()) {
@@ -99,6 +103,15 @@ export function LLMProviderSettings({
     }
 
     const info = PROVIDER_INFO[newProviderType];
+    
+    // Build pricing map from dynamic models
+    const modelPricing: Record<string, ModelInfo> = {};
+    const models = dynamicModels[newProviderType];
+    if (models) {
+      models.forEach((model) => {
+        modelPricing[model.id] = model;
+      });
+    }
 
     onAddProvider({
       provider: newProviderType,
@@ -107,6 +120,7 @@ export function LLMProviderSettings({
       baseUrl: newProviderBaseUrl || info.baseUrl,
       model: newProviderModel || info.defaultModel,
       enabled: true,
+      modelPricing: Object.keys(modelPricing).length > 0 ? modelPricing : undefined,
     });
 
     // Reset form
@@ -114,6 +128,7 @@ export function LLMProviderSettings({
     setNewProviderApiKey("");
     setNewProviderBaseUrl("");
     setNewProviderModel("");
+    setDynamicModels({});
     setShowAddForm(false);
   };
 
@@ -137,9 +152,8 @@ export function LLMProviderSettings({
   };
 
   const handleRefreshModels = async () => {
-    if (newProviderType !== "openrouter") return;
     if (!newProviderApiKey.trim()) {
-      alert("Please enter an API key first to fetch models from OpenRouter");
+      alert("Please enter an API key first to fetch models");
       return;
     }
 
@@ -154,16 +168,41 @@ export function LLMProviderSettings({
         throw new Error("Failed to fetch models - invalid response");
       }
       setDynamicModels({ ...dynamicModels, [newProviderType]: models });
+      
+      // Create a pricing map for easy lookup
+      const pricingMap: Record<string, ModelInfo> = {};
+      models.forEach((model) => {
+        pricingMap[model.id] = model;
+      });
+      
       // Set the first model as default if current model is not in the list
-      if (models.length > 0 && !models.includes(newProviderModel)) {
-        setNewProviderModel(models[0]);
+      if (models.length > 0 && !models.find(m => m.id === newProviderModel)) {
+        setNewProviderModel(models[0].id);
       }
+      
+      return pricingMap;
     } catch (error) {
-      console.error("Failed to fetch models from OpenRouter:", error);
-      alert(`Failed to fetch models from OpenRouter: ${error instanceof Error ? error.message : String(error)}`);
+      console.error("Failed to fetch models:", error);
+      alert(`Failed to fetch models: ${error instanceof Error ? error.message : String(error)}`);
+      return undefined;
     } finally {
       setRefreshingModels(false);
     }
+  };
+
+  // Format pricing for display
+  const formatPrice = (price?: number) => {
+    if (price === undefined || price === null) return "N/A";
+    if (price === 0) return "Free";
+    if (price < 0.001) return `$${(price * 1000).toFixed(2)} per 1M tokens`;
+    return `$${price.toFixed(4)} per 1K tokens`;
+  };
+
+  // Get pricing info for a model
+  const getModelPricing = (providerType: string, modelId: string): ModelInfo | undefined => {
+    const models = dynamicModels[providerType];
+    if (!models) return undefined;
+    return models.find(m => m.id === modelId);
   };
 
   return (
@@ -378,17 +417,15 @@ export function LLMProviderSettings({
               <label className="block text-sm font-medium text-foreground">
                 Model
               </label>
-              {newProviderType === "openrouter" && (
-                <button
-                  onClick={handleRefreshModels}
-                  disabled={refreshingModels || !newProviderApiKey.trim()}
-                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Fetch latest models from OpenRouter"
-                >
-                  <RefreshCw className={`w-3 h-3 ${refreshingModels ? "animate-spin" : ""}`} />
-                  Refresh
-                </button>
-              )}
+              <button
+                onClick={handleRefreshModels}
+                disabled={refreshingModels || !newProviderApiKey.trim()}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={`Fetch latest models and pricing from ${PROVIDER_INFO[newProviderType].name}`}
+              >
+                <RefreshCw className={`w-3 h-3 ${refreshingModels ? "animate-spin" : ""}`} />
+                Refresh Models
+              </button>
             </div>
             <select
               value={newProviderModel}
@@ -396,15 +433,70 @@ export function LLMProviderSettings({
               disabled={refreshingModels}
               className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground disabled:opacity-50"
             >
-              {(dynamicModels[newProviderType] || PROVIDER_INFO[newProviderType].models).map((model) => (
-                <option key={model} value={model}>
-                  {model}
+              {(dynamicModels[newProviderType] || 
+                PROVIDER_INFO[newProviderType].models.map(id => ({ 
+                  id, 
+                  name: id,
+                  context_length: undefined,
+                  pricing: undefined 
+                } as ModelInfo))
+              ).map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name} {model.pricing?.prompt !== undefined && 
+                    `(in: ${formatPrice(model.pricing.prompt)}, out: ${formatPrice(model.pricing.completion)})`
+                  }
                 </option>
               ))}
             </select>
-            {newProviderType === "openrouter" && dynamicModels[newProviderType] && (
+            
+            {/* Pricing Display for Selected Model */}
+            {(() => {
+              const selectedModel = getModelPricing(newProviderType, newProviderModel);
+              if (!selectedModel?.pricing) return null;
+              return (
+                <div className="mt-2 p-2 bg-muted/50 rounded-lg text-xs">
+                  <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                    <DollarSign className="w-3 h-3" />
+                    <span className="font-medium">Pricing per 1K tokens:</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedModel.pricing.prompt !== undefined && (
+                      <div>
+                        <span className="text-muted-foreground">Input:</span>{" "}
+                        <span className="font-medium">{formatPrice(selectedModel.pricing.prompt)}</span>
+                      </div>
+                    )}
+                    {selectedModel.pricing.completion !== undefined && (
+                      <div>
+                        <span className="text-muted-foreground">Output:</span>{" "}
+                        <span className="font-medium">{formatPrice(selectedModel.pricing.completion)}</span>
+                      </div>
+                    )}
+                    {selectedModel.pricing.cache_read !== undefined && (
+                      <div>
+                        <span className="text-muted-foreground">Cache read:</span>{" "}
+                        <span className="font-medium">{formatPrice(selectedModel.pricing.cache_read)}</span>
+                      </div>
+                    )}
+                    {selectedModel.pricing.cache_write !== undefined && (
+                      <div>
+                        <span className="text-muted-foreground">Cache write:</span>{" "}
+                        <span className="font-medium">{formatPrice(selectedModel.pricing.cache_write)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedModel.context_length && (
+                    <div className="mt-1 text-muted-foreground">
+                      Context window: {(selectedModel.context_length / 1000).toFixed(0)}k tokens
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            
+            {dynamicModels[newProviderType] && (
               <p className="text-xs text-muted-foreground mt-1">
-                {dynamicModels[newProviderType]!.length} models available from OpenRouter
+                {dynamicModels[newProviderType]!.length} models available from {PROVIDER_INFO[newProviderType].name}
               </p>
             )}
           </div>

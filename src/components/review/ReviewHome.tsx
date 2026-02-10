@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Compass, Layers, Plus, RefreshCw, Tag, Zap } from "lucide-react";
+import { BarChart3, Compass, Layers, Plus, RefreshCw, Sparkles, Tag, Zap } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { getDueItems, type LearningItem } from "../../api/review";
 import { filterByDeck, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
 import type { StudyDeck } from "../../types/study-decks";
+import { FlashcardStudioModal } from "./FlashcardStudioModal";
 
 interface ReviewHomeProps {
   onStartReview: () => Promise<void>;
@@ -44,6 +45,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const [error, setError] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState("");
   const [newDeckTags, setNewDeckTags] = useState("");
+  const [isFlashcardStudioOpen, setIsFlashcardStudioOpen] = useState(false);
 
   const deckSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -147,6 +149,13 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
+              </button>
+              <button
+                onClick={() => setIsFlashcardStudioOpen(true)}
+                className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary/15"
+              >
+                <Sparkles className="h-4 w-4" />
+                Create Flashcards
               </button>
               <button
                 onClick={onStartReview}
@@ -386,6 +395,10 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
           </div>
         </div>
       </div>
+      <FlashcardStudioModal
+        isOpen={isFlashcardStudioOpen}
+        onClose={() => setIsFlashcardStudioOpen(false)}
+      />
     </div>
   );
 }

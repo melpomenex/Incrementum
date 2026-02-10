@@ -101,7 +101,8 @@ impl MCPToolRegistry {
                 "type": "object",
                 "properties": {
                     "text": {"type": "string", "description": "Text with cloze deletions"},
-                    "document_id": {"type": "string", "description": "Associated document ID"}
+                    "document_id": {"type": "string", "description": "Associated document ID"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"}
                 },
                 "required": ["text"]
             }),
@@ -115,7 +116,8 @@ impl MCPToolRegistry {
                 "properties": {
                     "question": {"type": "string"},
                     "answer": {"type": "string"},
-                    "document_id": {"type": "string"}
+                    "document_id": {"type": "string"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"}
                 },
                 "required": ["question", "answer"]
             }),
@@ -593,10 +595,17 @@ impl MCPToolRegistry {
     async fn execute_create_cloze_card(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
         let text = args["text"].as_str().ok_or("text is required")?;
         let document_id = args["document_id"].as_str();
+        let tags = args["tags"].as_array();
 
         let mut item = LearningItem::new(ItemType::Cloze, text.to_string());
         item.document_id = document_id.map(|s| s.to_string());
         item.cloze_text = Some(text.to_string());
+        if let Some(tags) = tags {
+            item.tags = tags
+                .iter()
+                .filter_map(|tag| tag.as_str().map(|value| value.to_string()))
+                .collect();
+        }
 
         match self.repository.create_learning_item(&item).await {
             Ok(created) => Ok(ToolCallResult {
@@ -628,10 +637,17 @@ impl MCPToolRegistry {
         let question = args["question"].as_str().ok_or("question is required")?;
         let answer = args["answer"].as_str().ok_or("answer is required")?;
         let document_id = args["document_id"].as_str();
+        let tags = args["tags"].as_array();
 
         let mut item = LearningItem::new(ItemType::Qa, question.to_string());
         item.document_id = document_id.map(|s| s.to_string());
         item.answer = Some(answer.to_string());
+        if let Some(tags) = tags {
+            item.tags = tags
+                .iter()
+                .filter_map(|tag| tag.as_str().map(|value| value.to_string()))
+                .collect();
+        }
 
         match self.repository.create_learning_item(&item).await {
             Ok(created) => Ok(ToolCallResult {

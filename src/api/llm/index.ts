@@ -174,14 +174,37 @@ export async function streamChatWithLLM(
 }
 
 /**
- * Get available models for a provider
+ * Model pricing information (per 1K tokens)
+ */
+export interface ModelPricing {
+  prompt?: number;        // Input token cost per 1K tokens
+  completion?: number;    // Output token cost per 1K tokens
+  request?: number;       // Per-request cost
+  image?: number;         // Image processing cost
+  web_search?: number;    // Web search cost
+  cache_read?: number;    // Cache read cost per 1K tokens
+  cache_write?: number;   // Cache write cost per 1K tokens
+}
+
+/**
+ * Model information with pricing
+ */
+export interface ModelInfo {
+  id: string;
+  name: string;
+  context_length?: number;
+  pricing?: ModelPricing;
+}
+
+/**
+ * Get available models for a provider with pricing information
  */
 export async function getAvailableModels(
   provider: LLMProvider,
   apiKey?: string,
   baseUrl?: string
-): Promise<string[]> {
-  return await invokeCommand<string[]>("llm_get_models", {
+): Promise<ModelInfo[]> {
+  return await invokeCommand<ModelInfo[]>("llm_get_models", {
     provider,
     apiKey,
     baseUrl,

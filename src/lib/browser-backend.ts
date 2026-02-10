@@ -5,6 +5,7 @@
 
 import * as db from './database.js';
 import { getBrowserFile } from './browser-file-store';
+import { createYjsFilePath, downloadRoomFile, parseYjsFilePath, uploadRoomFile } from './yjs-file-service.js';
 import { parseAnkiPackage, convertAnkiToLearningItems } from '../utils/ankiParserBrowser';
 import {
     getDemoContentStatus,
@@ -46,6 +47,20 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 (pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
 
 type CommandHandler = (args: Record<string, unknown>) => Promise<unknown>;
+
+async function blobToBase64DataUrlPayload(blob: Blob): Promise<string> {
+    // Returns only the base64 payload portion (no "data:...;base64,").
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const raw = String(reader.result || '');
+            const base64 = raw.split(',')[1] || '';
+            resolve(base64);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
 
 /**
  * Extract text content from an EPUB file
@@ -608,41 +623,66 @@ const commandHandlers: Record<string, CommandHandler> = {
     import_document: async (args) => {
         // In browser mode, file is passed as File object or base64
         const filePath = args.filePath as string;
-        const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'Untitled';
-        const fileType = fileName.split('.').pop()?.toLowerCase() || 'pdf';
+        let fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'Untitled';
+        let fileType = fileName.split('.').pop()?.toLowerCase() || 'pdf';
         console.log(`[Browser] import_document:`, { filePath, fileName, fileType });
         let extractedContent = '';
+        let finalFilePath = filePath;
 
-        // Check if this is a virtual browser file path
+        // browser-file://: new uploads from file picker / drag-drop (in-memory store).
+        // browser-fetched://: files fetched via fetch_url_content and stored in IndexedDB.
+        // For both, we attempt to upload to yjs-sync and rewrite file_path to yjs-file://...
+        let sourceFile: File | null = null;
         if (filePath.startsWith('browser-file://')) {
             const file = getBrowserFile(filePath);
             console.log(`[Browser] Looking up file in browser store:`, file ? `found (${file.size} bytes)` : 'not found');
-            if (file) {
-                // Store the file blob in IndexedDB with the filePath as key
-                console.log(`[Browser] Storing file in IndexedDB...`);
-                await db.storeFile(file, filePath);
-                console.log(`[Browser] File stored in IndexedDB`);
-
-                // Extract text content from PDFs and EPUBs
-                if (fileType === 'pdf' || fileType === 'epub') {
-                    try {
-                        const arrayBuffer = await file.arrayBuffer();
-                        extractedContent = fileType === 'epub'
-                            ? await extractEpubText(arrayBuffer)
-                            : await extractPdfText(arrayBuffer);
-                        console.log(`[Browser] Extracted ${extractedContent.length} characters from ${fileType.toUpperCase()}`);
-                    } catch (error) {
-                        console.warn(`[Browser] Failed to extract ${fileType.toUpperCase()} text:`, error);
-                    }
+            if (file) sourceFile = file;
+        } else if (filePath.startsWith('browser-fetched://')) {
+            const stored = await db.getFile(filePath);
+            if (stored) {
+                // Use the real filename (not the synthetic browser-fetched:// id) for title/type.
+                if (stored.filename) {
+                    fileName = stored.filename;
+                    fileType = fileName.split('.').pop()?.toLowerCase() || fileType;
                 }
-            } else {
-                console.warn('[Browser] File not found in browser store:', filePath);
+                sourceFile = new File([stored.blob], stored.filename, { type: stored.content_type || (stored.blob as any).type || '' });
             }
+        }
+
+        if (sourceFile) {
+            // Upload to yjs-sync file service (so other devices can fetch it),
+            // and store a local cached copy keyed by the yjs-file:// path.
+            try {
+                const meta = await uploadRoomFile(sourceFile);
+                finalFilePath = createYjsFilePath(meta.room, meta.id, meta.filename);
+                console.log('[Browser] Uploaded file to yjs-sync:', { id: meta.id, room: meta.room, filePath: finalFilePath });
+                await db.storeFile(sourceFile, finalFilePath);
+            } catch (e) {
+                console.warn('[Browser] yjs-sync upload failed, falling back to local-only file:', e);
+                // Fallback: ensure it is in IndexedDB under its original key.
+                await db.storeFile(sourceFile, filePath);
+                finalFilePath = filePath;
+            }
+
+            // Extract text content from PDFs and EPUBs
+            if (fileType === 'pdf' || fileType === 'epub') {
+                try {
+                    const arrayBuffer = await sourceFile.arrayBuffer();
+                    extractedContent = fileType === 'epub'
+                        ? await extractEpubText(arrayBuffer)
+                        : await extractPdfText(arrayBuffer);
+                    console.log(`[Browser] Extracted ${extractedContent.length} characters from ${fileType.toUpperCase()}`);
+                } catch (error) {
+                    console.warn(`[Browser] Failed to extract ${fileType.toUpperCase()} text:`, error);
+                }
+            }
+        } else if (filePath.startsWith('browser-file://') || filePath.startsWith('browser-fetched://')) {
+            console.warn('[Browser] File not found for import:', filePath);
         }
 
         const doc = await db.createDocument({
             title: fileName.replace(/\.[^/.]+$/, ''),
-            file_path: filePath,
+            file_path: finalFilePath,
             file_type: fileType,
             content: extractedContent || undefined,
         });
@@ -665,6 +705,24 @@ const commandHandlers: Record<string, CommandHandler> = {
         const filePath = args.filePath as string;
         console.log('[Browser] read_document_file:', filePath);
 
+        // yjs-file://...: try IndexedDB cache first; otherwise download from yjs-sync and cache it.
+        const yjsInfo = parseYjsFilePath(filePath);
+        if (yjsInfo) {
+            const cached = await db.getFile(filePath);
+            if (cached) {
+                console.log('[Browser] Found yjs-file in IndexedDB cache:', cached.filename, 'size:', cached.blob?.size);
+                return await blobToBase64DataUrlPayload(cached.blob);
+            }
+
+            console.log('[Browser] yjs-file not cached; downloading:', yjsInfo);
+            const blob = await downloadRoomFile(yjsInfo.room, yjsInfo.id);
+            const filename = yjsInfo.filename || 'document';
+            const contentType = (blob as any).type || 'application/octet-stream';
+            const file = new File([blob], filename, { type: contentType });
+            await db.storeFile(file, filePath);
+            return await blobToBase64DataUrlPayload(file);
+        }
+
         // If it's a browser-file:// path, try to find it in the file store first (IndexedDB)
         if (filePath.startsWith('browser-file://')) {
             // Workaround: We will use the file content from the browserFileStore if it's still in memory (session),
@@ -673,16 +731,9 @@ const commandHandlers: Record<string, CommandHandler> = {
             const file = getBrowserFile(filePath);
             if (file) {
                 console.log('[Browser] Found file in memory store:', file.name, 'size:', file.size);
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const base64 = (reader.result as string).split(',')[1];
-                        console.log('[Browser] Read file from memory, base64 length:', base64?.length);
-                        resolve(base64);
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
+                const base64 = await blobToBase64DataUrlPayload(file);
+                console.log('[Browser] Read file from memory, base64 length:', base64?.length);
+                return base64;
             }
 
             // If not in memory (page refresh), try IndexedDB by path first, then by filename
@@ -699,25 +750,31 @@ const commandHandlers: Record<string, CommandHandler> = {
             }
 
             if (storedFile) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const base64 = (reader.result as string).split(',')[1];
-                        console.log('[Browser] Read file from IndexedDB, base64 length:', base64?.length);
-                        resolve(base64);
-                    };
-                    reader.onerror = async (error) => {
-                        console.warn('[Browser] Failed to read file blob, deleting corrupted entry:', error);
-                        // Delete the corrupted file entry
-                        await db.deleteFile(storedFile.id);
-                        reject(error);
-                    };
-                    try {
-                        reader.readAsDataURL(storedFile.blob);
-                    } catch (e) {
-                        reader.onerror(e);
-                    }
-                });
+                try {
+                    const base64 = await blobToBase64DataUrlPayload(storedFile.blob);
+                    console.log('[Browser] Read file from IndexedDB, base64 length:', base64?.length);
+                    return base64;
+                } catch (error) {
+                    console.warn('[Browser] Failed to read file blob, deleting corrupted entry:', error);
+                    await db.deleteFile(storedFile.id);
+                    throw error;
+                }
+            }
+        }
+
+        // browser-fetched:// path: only IndexedDB (no in-memory store).
+        if (filePath.startsWith('browser-fetched://')) {
+            const storedFile = await db.getFile(filePath);
+            if (storedFile) {
+                try {
+                    const base64 = await blobToBase64DataUrlPayload(storedFile.blob);
+                    console.log('[Browser] Read fetched file from IndexedDB, base64 length:', base64?.length);
+                    return base64;
+                } catch (error) {
+                    console.warn('[Browser] Failed to read fetched file blob, deleting corrupted entry:', error);
+                    await db.deleteFile(storedFile.id);
+                    throw error;
+                }
             }
         }
 
@@ -2047,22 +2104,52 @@ const commandHandlers: Record<string, CommandHandler> = {
         const apiKey = args.apiKey as string | undefined;
         const baseUrl = args.baseUrl as string | undefined;
 
-        // Default models for each provider
-        const defaultModels: Record<string, string[]> = {
-            openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-            anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-            ollama: ['llama3.2', 'mistral', 'codellama', 'phi3'],
+        // Helper to create model info with pricing
+        const createModelInfo = (id: string, name: string, contextLength?: number, pricing?: { prompt?: number; completion?: number }) => ({
+            id,
+            name,
+            context_length: contextLength,
+            pricing: pricing ? {
+                prompt: pricing.prompt,
+                completion: pricing.completion,
+                request: undefined,
+                image: undefined,
+                web_search: undefined,
+                cache_read: undefined,
+                cache_write: undefined,
+            } : undefined,
+        });
+
+        // Default models for each provider with pricing (approximate, per 1K tokens)
+        const defaultModels: Record<string, ReturnType<typeof createModelInfo>[]> = {
+            openai: [
+                createModelInfo('gpt-4o', 'GPT-4o', 128000, { prompt: 0.0025, completion: 0.01 }),
+                createModelInfo('gpt-4o-mini', 'GPT-4o Mini', 128000, { prompt: 0.00015, completion: 0.0006 }),
+                createModelInfo('gpt-4-turbo', 'GPT-4 Turbo', 128000, { prompt: 0.01, completion: 0.03 }),
+                createModelInfo('gpt-3.5-turbo', 'GPT-3.5 Turbo', 16385, { prompt: 0.0005, completion: 0.0015 }),
+            ],
+            anthropic: [
+                createModelInfo('claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet', 200000, { prompt: 0.003, completion: 0.015 }),
+                createModelInfo('claude-3-5-haiku-20241022', 'Claude 3.5 Haiku', 200000, { prompt: 0.0008, completion: 0.004 }),
+                createModelInfo('claude-3-opus-20240229', 'Claude 3 Opus', 200000, { prompt: 0.015, completion: 0.075 }),
+            ],
+            ollama: [
+                createModelInfo('llama3.2', 'Llama 3.2', 128000),
+                createModelInfo('mistral', 'Mistral', 32000),
+                createModelInfo('codellama', 'CodeLlama', 16000),
+                createModelInfo('phi3', 'Phi-3', 128000),
+            ],
             openrouter: [
-                'anthropic/claude-3.5-sonnet',
-                'anthropic/claude-3.5-sonnet:beta',
-                'anthropic/claude-3.5-haiku',
-                'anthropic/claude-3-opus',
-                'openai/gpt-4o',
-                'openai/gpt-4o-mini',
-                'openai/gpt-4-turbo',
-                'google/gemini-pro-1.5',
-                'meta-llama/llama-3.1-405b-instruct',
-                'deepseek/deepseek-chat',
+                createModelInfo('anthropic/claude-3.5-sonnet', 'Claude 3.5 Sonnet', 200000, { prompt: 0.003, completion: 0.015 }),
+                createModelInfo('anthropic/claude-3.5-sonnet:beta', 'Claude 3.5 Sonnet (Beta)', 200000, { prompt: 0.003, completion: 0.015 }),
+                createModelInfo('anthropic/claude-3.5-haiku', 'Claude 3.5 Haiku', 200000, { prompt: 0.0008, completion: 0.004 }),
+                createModelInfo('anthropic/claude-3-opus', 'Claude 3 Opus', 200000, { prompt: 0.015, completion: 0.075 }),
+                createModelInfo('openai/gpt-4o', 'GPT-4o', 128000, { prompt: 0.0025, completion: 0.01 }),
+                createModelInfo('openai/gpt-4o-mini', 'GPT-4o Mini', 128000, { prompt: 0.00015, completion: 0.0006 }),
+                createModelInfo('openai/gpt-4-turbo', 'GPT-4 Turbo', 128000, { prompt: 0.01, completion: 0.03 }),
+                createModelInfo('google/gemini-pro-1.5', 'Gemini Pro 1.5', 2000000, { prompt: 0.00125, completion: 0.005 }),
+                createModelInfo('meta-llama/llama-3.1-405b-instruct', 'Llama 3.1 405B', 128000, { prompt: 0.005, completion: 0.005 }),
+                createModelInfo('deepseek/deepseek-chat', 'DeepSeek Chat', 64000, { prompt: 0.00027, completion: 0.0011 }),
             ],
         };
 
@@ -2081,7 +2168,17 @@ const commandHandlers: Record<string, CommandHandler> = {
                 if (response.ok) {
                     const data = await response.json();
                     if (data && data.data && Array.isArray(data.data)) {
-                        const models = data.data.map((m: { id: string }) => m.id).sort();
+                        const models = data.data.map((m: { 
+                            id: string; 
+                            name?: string; 
+                            context_length?: number;
+                            pricing?: { prompt?: number; completion?: number; request?: number; image?: number };
+                        }) => createModelInfo(
+                            m.id, 
+                            m.name || m.id, 
+                            m.context_length,
+                            m.pricing ? { prompt: m.pricing.prompt, completion: m.pricing.completion } : undefined
+                        )).sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
                         return models;
                     }
                 }
@@ -2142,6 +2239,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                     properties: {
                         text: { type: 'string', description: 'Text with cloze deletions' },
                         document_id: { type: 'string', description: 'Associated document ID' },
+                        tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags' },
                     },
                     required: ['text'],
                 },
@@ -2155,6 +2253,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                         question: { type: 'string' },
                         answer: { type: 'string' },
                         document_id: { type: 'string' },
+                        tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags' },
                     },
                     required: ['question', 'answer'],
                 },
@@ -2259,6 +2358,9 @@ const commandHandlers: Record<string, CommandHandler> = {
                     item_type: 'qa',
                     question: toolArgs.question as string,
                     answer: toolArgs.answer as string,
+                    tags: Array.isArray(toolArgs.tags)
+                        ? toolArgs.tags.filter((tag) => typeof tag === 'string')
+                        : undefined,
                 });
                 return {
                     content: [{ type: 'text', text: `Created Q&A card: ${item.id}` }],
@@ -2271,6 +2373,9 @@ const commandHandlers: Record<string, CommandHandler> = {
                     item_type: 'cloze',
                     question: toolArgs.text as string,
                     answer: toolArgs.text as string,
+                    tags: Array.isArray(toolArgs.tags)
+                        ? toolArgs.tags.filter((tag) => typeof tag === 'string')
+                        : undefined,
                 });
                 return {
                     content: [{ type: 'text', text: `Created cloze card: ${item.id}` }],
