@@ -1079,6 +1079,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftCardsContainerRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   // Initialize provider
   useEffect(() => {
@@ -1149,15 +1150,21 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     if (!isOpen) return;
     // Use requestAnimationFrame to ensure DOM is updated before scrolling
     requestAnimationFrame(() => {
-      if (messagesContainerRef.current && messagesEndRef.current) {
+      if (messagesContainerRef.current && messagesEndRef.current && shouldAutoScrollRef.current) {
         const container = messagesContainerRef.current;
-        const endElement = messagesEndRef.current;
-        // Calculate the scroll position to bring the end element into view
-        const scrollTop = endElement.offsetTop - container.offsetTop + endElement.offsetHeight - container.clientHeight + 20;
-        container.scrollTo({ top: Math.max(0, scrollTop), behavior: "smooth" });
+        // Use scrollHeight; offsetTop math is brittle in nested/fixed layouts.
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
       }
     });
   }, [messages, isOpen]);
+
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // If the user scrolls up, don't yank them back to the bottom.
+    shouldAutoScrollRef.current = distanceToBottom < 80;
+  }, []);
 
   // Auto-scroll draft cards to top when new cards are added (they're prepended)
   useEffect(() => {
@@ -1651,13 +1658,17 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         )}
 
         {/* Main Content */}
-        <div className="grid flex-1 gap-0 overflow-hidden lg:grid-cols-[1fr_400px]">
+        <div className="grid flex-1 min-h-0 gap-0 overflow-hidden lg:grid-cols-[1fr_400px]">
           {/* Left Panel */}
-          <div className="flex h-full flex-col border-r border-border">
+          <div className="flex h-full min-h-0 flex-col border-r border-border">
             {viewMode === "chat" && (
               <>
                 {/* Messages */}
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div
+                  ref={messagesContainerRef}
+                  onScroll={handleMessagesScroll}
+                  className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4"
+                >
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
                       <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
@@ -1767,7 +1778,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             )}
 
             {viewMode === "templates" && (
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 min-h-0 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
                   <h3 className="text-lg font-semibold text-foreground mb-2">Quick Templates</h3>
                   <p className="text-sm text-muted-foreground mb-6">
@@ -1788,7 +1799,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             )}
 
             {viewMode === "history" && (
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 min-h-0 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
                   <div className="flex items-center justify-between mb-6">
                     <div>
@@ -1857,7 +1868,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
           </div>
 
           {/* Right Panel - Draft Cards */}
-          <div className="flex h-full flex-col bg-muted/20">
+          <div className="flex h-full min-h-0 flex-col bg-muted/20">
             {/* Draft Header */}
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
               <div>
@@ -1948,7 +1959,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             )}
 
             {/* Cards List */}
-            <div ref={draftCardsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div ref={draftCardsContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
               {draftCards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                   <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
