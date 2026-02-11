@@ -14,6 +14,88 @@ import {
   fetchFeed,
   type Feed,
 } from "../api/rss";
+import { useDocumentStore } from "../stores/documentStore";
+
+/**
+ * Duplicate check result
+ */
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  existingItem?: {
+    id: string;
+    title: string;
+    type: "document" | "feed";
+  };
+}
+
+/**
+ * Check if a URL has already been imported
+ */
+export function checkForDuplicate(
+  urlType: URLType,
+  url: string,
+  documents: Array<{ id: string; title: string; filePath: string; fileType: string }>
+): DuplicateCheckResult {
+  if (urlType === URLType.YouTube) {
+    // Extract video ID
+    const videoIdMatch = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    );
+    if (videoIdMatch) {
+      const videoId = videoIdMatch[1];
+      // Check if any YouTube document has this video ID in its filePath
+      const existing = documents.find(
+        (doc) => doc.fileType === "youtube" && doc.filePath.includes(videoId)
+      );
+      if (existing) {
+        return {
+          isDuplicate: true,
+          existingItem: {
+            id: existing.id,
+            title: existing.title,
+            type: "document",
+          },
+        };
+      }
+    }
+  } else if (urlType === URLType.RSSFeed) {
+    // For RSS feeds, check if any document has this feed URL
+    // RSS feeds might be stored differently, so we check the filePath
+    const normalizedUrl = url.toLowerCase().trim();
+    const existing = documents.find(
+      (doc) => doc.filePath.toLowerCase().includes(normalizedUrl) ||
+               (doc.fileType === "rss" && doc.filePath.toLowerCase() === normalizedUrl)
+    );
+    if (existing) {
+      return {
+        isDuplicate: true,
+        existingItem: {
+          id: existing.id,
+          title: existing.title,
+          type: "feed",
+        },
+      };
+    }
+  } else if (urlType === URLType.WebPage) {
+    // For web pages, check if any HTML document has this URL
+    const normalizedUrl = url.toLowerCase().trim();
+    const existing = documents.find(
+      (doc) => doc.fileType === "html" && doc.filePath.toLowerCase() === normalizedUrl
+    );
+    if (existing) {
+      return {
+        isDuplicate: true,
+        existingItem: {
+          id: existing.id,
+          title: existing.title,
+          type: "document",
+        },
+      };
+    }
+  }
+
+  return { isDuplicate: false };
+}
 
 /**
  * Metadata fetch state
@@ -252,4 +334,18 @@ export function useURLImport() {
     isImporting,
     error,
   };
+}
+
+/**
+ * Hook for checking if a URL has already been imported
+ */
+export function useDuplicateCheck(urlType: URLType, url: string): DuplicateCheckResult {
+  const documents = useDocumentStore((state) => state.documents);
+
+  return useCallback(() => {
+    if (!url || urlType === URLType.Unknown) {
+      return { isDuplicate: false };
+    }
+    return checkForDuplicate(urlType, url, documents);
+  }, [urlType, url, documents])();
 }
