@@ -7,8 +7,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Search, X, Clock, Star, Filter, SlidersHorizontal, Link2 } from "lucide-react";
 import { useURLDetector, URLType } from "../../hooks/useURLDetector";
-import { useURLMetadata, useURLImport } from "../../hooks/useURLMetadata";
-import { ImportPreview } from "../import/ImportPreview";
+import { useURLMetadata, useURLImport, useDuplicateCheck } from "../../hooks/useURLMetadata";
+import { ImportPreview, type ImportOptions } from "../import/ImportPreview";
 import { useToast } from "../../components/common/Toast";
 
 /**
@@ -101,6 +101,7 @@ export interface SavedSearch {
 export function GlobalSearch({
   onSearch,
   onResultClick,
+  onNavigateToDocument,
   recentSearches = [],
   savedSearches = [],
   onSaveSearch,
@@ -110,6 +111,7 @@ export function GlobalSearch({
 }: {
   onSearch: (query: SearchQuery) => Promise<SearchResult[]>;
   onResultClick: (result: SearchResult) => void;
+  onNavigateToDocument?: (documentId: string) => void;
   recentSearches?: string[];
   savedSearches?: SavedSearch[];
   onSaveSearch?: (name: string, query: SearchQuery) => void;
@@ -151,7 +153,9 @@ export function GlobalSearch({
     { debounceMs: 500, enabled: urlDetection.isURL }
   );
   const { importURL, isImporting, error: importError } = useURLImport();
+  const duplicateCheck = useDuplicateCheck(urlDetection.type, urlDetection.url);
   const toast = useToast();
+  const [importOptions, setImportOptions] = useState<ImportOptions>({ tags: [], collectionId: undefined });
 
   const isURLMode = urlDetection.isURL && urlDetection.type !== URLType.Unknown;
 
@@ -200,6 +204,61 @@ export function GlobalSearch({
     }
   }, [isOpen]);
 
+  const handleResultClick = useCallback(
+    (result: SearchResult) => {
+      onResultClick(result);
+      setIsOpen(false);
+      setQuery("");
+      setResults([]);
+    },
+    [onResultClick, setIsOpen]
+  );
+
+  const handleURLImport = useCallback(async (options: ImportOptions) => {
+    if (!urlDetection.isURL || !urlMetadata) return;
+
+    try {
+      const result = await importURL(urlDetection.type, urlDetection.url, {
+        tags: options.tags,
+        collectionId: options.collectionId,
+      });
+
+      // Get document ID from result (structure varies by import type)
+      const documentId = (result as any)?.document_id || (result as any)?.id;
+
+      // Show success toast
+      const title = urlDetection.type === URLType.YouTube
+        ? `Imported: ${(urlMetadata as any).title}`
+        : urlDetection.type === URLType.RSSFeed
+        ? `Subscribed to: ${(urlMetadata as any).title}`
+        : `Imported: ${(urlMetadata as any).title}`;
+
+      toast.success(title, "Click to view", {
+        action: {
+          label: "Open",
+          onClick: () => {
+            if (documentId && onNavigateToDocument) {
+              onNavigateToDocument(documentId);
+            }
+            setIsOpen(false);
+          },
+        },
+      } as any);
+
+      // Clear for next import and refocus input
+      setQuery("");
+      setImportOptions({ tags: [], collectionId: undefined });
+
+      // Refocus input for next import
+      setTimeout(() => inputRef.current?.focus(), 0);
+    } catch (err) {
+      toast.error(
+        "Import failed",
+        err instanceof Error ? err.message : "Unknown error"
+      );
+    }
+  }, [urlDetection, urlMetadata, importURL, toast, setIsOpen, onNavigateToDocument]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -225,7 +284,7 @@ export function GlobalSearch({
           e.preventDefault();
           if (isURLMode && urlMetadata && !isImporting) {
             // Handle URL import
-            handleURLImport();
+            handleURLImport(importOptions);
           } else if (results[selectedIndex]) {
             handleResultClick(results[selectedIndex]);
           }
@@ -245,53 +304,7 @@ export function GlobalSearch({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, results, selectedIndex, setIsOpen]);
-
-  const handleResultClick = useCallback(
-    (result: SearchResult) => {
-      onResultClick(result);
-      setIsOpen(false);
-      setQuery("");
-      setResults([]);
-    },
-    [onResultClick, setIsOpen]
-  );
-
-  const handleURLImport = useCallback(async () => {
-    if (!urlDetection.isURL || !urlMetadata) return;
-
-    try {
-      await importURL(urlDetection.type, urlDetection.url, {
-        tags: [],
-        collectionId: undefined,
-      });
-
-      // Show success toast
-      const title = urlDetection.type === URLType.YouTube
-        ? `Imported: ${(urlMetadata as any).title}`
-        : urlDetection.type === URLType.RSSFeed
-        ? `Subscribed to: ${(urlMetadata as any).title}`
-        : `Imported: ${(urlMetadata as any).title}`;
-
-      toast.success(title, "Click to view", {
-        action: {
-          label: "Open",
-          onClick: () => {
-            // TODO: Navigate to imported item
-            setIsOpen(false);
-          },
-        },
-      } as any);
-
-      // Clear for next import
-      setQuery("");
-    } catch (err) {
-      toast.error(
-        "Import failed",
-        err instanceof Error ? err.message : "Unknown error"
-      );
-    }
-  }, [urlDetection, urlMetadata, importURL, toast, setIsOpen]);
+  }, [isOpen, results, selectedIndex, setIsOpen, isURLMode, urlMetadata, isImporting, importOptions, handleURLImport, handleResultClick]);
 
   const toggleTypeFilter = useCallback((type: SearchResultType) => {
     setFilters((prev) => ({
@@ -337,7 +350,23 @@ export function GlobalSearch({
           />
 
           {/* Search Panel */}
-          <div className="relative w-full max-w-2xl bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
+          <div
+            className="relative w-full max-w-2xl bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Global search"
+          >
+            {/* Accessibility announcements */}
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {isURLMode && urlMetadata && !isMetadataLoading && "URL detected. Press Enter to import."}
+              {isImporting && "Importing..."}
+            </div>
+
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
               {isURLMode ? (
@@ -419,15 +448,25 @@ export function GlobalSearch({
             >
               {/* URL Import Mode */}
               {isURLMode ? (
-                <ImportPreview
-                  urlType={urlDetection.type}
-                  url={urlDetection.url}
-                  data={urlMetadata}
-                  isLoading={isMetadataLoading}
-                  error={metadataError}
-                  onImport={handleURLImport}
-                  isImporting={isImporting}
-                />
+                <div
+                  role="region"
+                  aria-label="URL import preview"
+                  aria-busy={isMetadataLoading}
+                  className="transition-opacity duration-200"
+                >
+                  <ImportPreview
+                    urlType={urlDetection.type}
+                    url={urlDetection.url}
+                    data={urlMetadata}
+                    isLoading={isMetadataLoading}
+                    error={metadataError}
+                    onImport={handleURLImport}
+                    isImporting={isImporting}
+                    onOptionsChange={setImportOptions}
+                    duplicateCheck={duplicateCheck}
+                    onOpenExisting={onNavigateToDocument}
+                  />
+                </div>
               ) : !query ? (
                 <div className="p-6">
                   {/* Recent Searches */}

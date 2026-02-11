@@ -767,26 +767,45 @@ export function CommandCenter() {
       const docId = result.type === SearchResultType.Extract
         ? (result.metadata as any)?.documentId
         : result.id;
-      const doc = documents.find(d => d.id === docId);
-      if (doc) {
-        const primaryHit = (result.metadata as any)?.primaryHit as SearchHit | undefined;
-        const highlightQuery = (result.metadata as any)?.highlightQuery as string | undefined;
-        addTab({
-          title: doc.title,
-          icon: doc.fileType === "pdf" ? "📕" : doc.fileType === "epub" ? "📖" : doc.fileType === "youtube" ? "📺" : "📄",
-          type: "document-viewer",
-          content: DocumentViewer,
-          closable: true,
-          data: {
-            documentId: doc.id,
-            highlightQuery,
-            initialJump: primaryHit?.location,
-            autoPlay: primaryHit?.location.kind === "youtube",
-          },
-        });
-      }
+      openDocumentInTab(docId);
     }
   }, [documents, addTab]);
+
+  const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: SearchHit["location"] }) => {
+    const doc = documents.find(d => d.id === documentId);
+    if (doc) {
+      addTab({
+        title: doc.title,
+        icon: doc.fileType === "pdf" ? "📕" : doc.fileType === "epub" ? "📖" : doc.fileType === "youtube" ? "📺" : "📄",
+        type: "document-viewer",
+        content: DocumentViewer,
+        closable: true,
+        data: {
+          documentId: doc.id,
+          highlightQuery: options?.highlightQuery,
+          initialJump: options?.initialJump,
+          autoPlay: options?.initialJump?.kind === "youtube",
+        },
+      });
+    } else {
+      // Document might not be in cache yet (just imported), reload and retry
+      loadDocuments().then(() => {
+        const freshDoc = useDocumentStore.getState().documents.find(d => d.id === documentId);
+        if (freshDoc) {
+          addTab({
+            title: freshDoc.title,
+            icon: freshDoc.fileType === "pdf" ? "📕" : freshDoc.fileType === "epub" ? "📖" : freshDoc.fileType === "youtube" ? "📺" : "📄",
+            type: "document-viewer",
+            content: DocumentViewer,
+            closable: true,
+            data: {
+              documentId: freshDoc.id,
+            },
+          });
+        }
+      });
+    }
+  }, [documents, addTab, loadDocuments]);
 
   useEffect(() => {
     const handleToggle = () => {
@@ -810,6 +829,7 @@ export function CommandCenter() {
     <GlobalSearch
       onSearch={handleSearch}
       onResultClick={handleResultClick}
+      onNavigateToDocument={openDocumentInTab}
       hideTrigger={true}
       isOpen={commandPaletteOpen}
       onOpenChange={setCommandPaletteOpen}
