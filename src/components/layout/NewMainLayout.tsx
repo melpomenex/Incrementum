@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useAnalyticsStore } from "../../stores/analyticsStore";
 import { SyncStatusIndicator } from "../sync/SyncStatusIndicator";
@@ -13,11 +13,12 @@ import {
   Settings,
   Bell,
   Search,
-  User,
   ChevronLeft,
   ChevronRight,
   Network,
   BookMarked,
+  Menu,
+  X,
 } from "lucide-react";
 
 interface SidebarItem {
@@ -57,6 +58,10 @@ export function NewMainLayout({
   const settingsTheme = useSettingsStore((state) => state.settings.appearance?.theme || "system");
   const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
 
+  // Sidebar state for mobile responsiveness
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   // Apply theme
   useEffect(() => {
     const root = document.documentElement;
@@ -72,6 +77,26 @@ export function NewMainLayout({
     }
   }, [settingsTheme]);
 
+  // Handle keyboard shortcuts for sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle sidebar with Ctrl+B
+      if (e.ctrlKey && e.key === "b") {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Close mobile sidebar when page changes
+  const handlePageChange = useCallback((page: string) => {
+    onPageChange(page);
+    setIsSidebarOpen(false);
+  }, [onPageChange]);
+
   return (
     <div className="flex flex-col h-screen w-full bg-cream">
       {/* Toast Notifications */}
@@ -83,15 +108,29 @@ export function NewMainLayout({
         user={user}
         onLoginClick={onLoginClick}
         onLogout={onLogout}
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile Sidebar Overlay */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden animate-glass-fade-in"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* Left Sidebar */}
         <LeftSidebar
           activeItem={activeItem}
-          setActiveItem={onPageChange}
+          setActiveItem={handlePageChange}
           stats={dashboardStats}
+          isOpen={isSidebarOpen}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
         {/* Main Content */}
@@ -103,39 +142,57 @@ export function NewMainLayout({
   );
 }
 
+interface TopHeaderBarProps {
+  isAuthenticated?: boolean;
+  user?: { id: string; email: string; subscriptionTier?: string } | null;
+  onLoginClick?: () => void;
+  onLogout?: () => void;
+  onMenuClick?: () => void;
+  isSidebarOpen?: boolean;
+}
+
 function TopHeaderBar({
   isAuthenticated,
   user,
   onLoginClick,
   onLogout,
-}: {
-  isAuthenticated?: boolean;
-  user?: { id: string; email: string; subscriptionTier?: string } | null;
-  onLoginClick?: () => void;
-  onLogout?: () => void;
-}) {
+  onMenuClick,
+  isSidebarOpen,
+}: TopHeaderBarProps) {
   const handleOpenSettings = () => {
-    // This will be handled by parent navigation
     window.dispatchEvent(new CustomEvent('navigate-to-settings'));
   };
 
   return (
     <header
-      className="h-12 bg-card border-b border-border flex items-center justify-between px-3 flex-shrink-0 tauri-drag-region"
+      className="h-12 glass-panel-light flex items-center justify-between px-3 flex-shrink-0 tauri-drag-region relative z-50"
       data-tauri-drag-region
     >
       {/* Left side - navigation icons */}
       <div className="flex items-center gap-1">
-        <button 
-          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" 
+        {/* Mobile menu button */}
+        <button
+          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none lg:hidden"
+          title="Toggle menu"
+          aria-label="Toggle menu"
+          onClick={onMenuClick}
+        >
+          {isSidebarOpen ? (
+            <X className="w-4 h-4 text-foreground-secondary" />
+          ) : (
+            <Menu className="w-4 h-4 text-foreground-secondary" />
+          )}
+        </button>
+        <button
+          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Back"
           aria-label="Go back"
           onClick={() => window.history.back()}
         >
           <ChevronLeft className="w-4 h-4 text-foreground-secondary" />
         </button>
-        <button 
-          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" 
+        <button
+          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Forward"
           aria-label="Go forward"
           onClick={() => window.history.forward()}
@@ -143,8 +200,8 @@ function TopHeaderBar({
           <ChevronRight className="w-4 h-4 text-foreground-secondary" />
         </button>
         <div className="h-4 w-px bg-border mx-1" />
-        <button 
-          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" 
+        <button
+          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Home"
           aria-label="Go to dashboard"
           onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: '/dashboard' }))}
@@ -152,7 +209,7 @@ function TopHeaderBar({
           <Home className="w-4 h-4 text-foreground-secondary" />
         </button>
         <div className="ml-2 hidden sm:block">
-          <Breadcrumb 
+          <Breadcrumb
             onNavigate={(path) => window.dispatchEvent(new CustomEvent('navigate', { detail: path }))}
           />
         </div>
@@ -172,8 +229,8 @@ function TopHeaderBar({
         >
           <Search className="w-4 h-4 text-foreground-secondary" />
         </button>
-        <button 
-          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" 
+        <button
+          className="p-2.5 min-w-[44px] min-h-[44px] hover:bg-muted rounded transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           title="Notifications"
           aria-label="View notifications"
           onClick={() => window.dispatchEvent(new CustomEvent('show-notifications'))}
@@ -191,7 +248,7 @@ function TopHeaderBar({
           onLoginClick && (
             <button
               onClick={onLoginClick}
-              className="px-4 py-2 min-h-[44px] text-sm bg-primary-300 text-white rounded hover:opacity-90 transition-opacity focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="px-4 py-2 min-h-[44px] text-sm glass-button text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               aria-label="Sign in to your account"
             >
               Sign in
@@ -207,70 +264,169 @@ interface LeftSidebarProps {
   activeItem: string;
   setActiveItem: (item: string) => void;
   stats: any;
+  isOpen: boolean;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  onClose: () => void;
 }
 
-function LeftSidebar({ activeItem, setActiveItem, stats }: LeftSidebarProps) {
-  return (
-    <aside className="w-64 flex flex-col sidebar-section flex-shrink-0">
-      {/* Sidebar Items */}
-      <div className="flex-1 overflow-y-auto">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveItem(item.id)}
-            className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
-              activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
-            }`}
-            aria-current={activeItem === item.id ? "page" : undefined}
-            aria-label={`Navigate to ${item.label}`}
-          >
-            <item.icon className="w-5 h-5 text-foreground" />
-            <span className="text-sm font-medium text-foreground flex-1 text-left">
-              {item.label}
-            </span>
-            {item.count !== undefined && (
-              <span className="text-xs text-foreground-muted">{item.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
+function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, onToggleCollapse, onClose }: LeftSidebarProps) {
+  const sidebarWidth = isCollapsed ? "w-16" : "w-64";
 
-      {/* Bottom Stats Panel */}
-      <div className="bg-card border-t border-border p-3 flex-shrink-0">
-        <div className="grid grid-cols-4 gap-2 text-center">
-          <div>
-            <div className="text-lg font-bold text-foreground">
-              {stats?.total_cards || 0}
-            </div>
-            <div className="text-[10px] text-foreground-secondary uppercase">
-              Total
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`hidden lg:flex flex-col sidebar-section flex-shrink-0 transition-all duration-300 ease-out ${sidebarWidth} relative`}
+      >
+        {/* Sidebar Items */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveItem(item.id)}
+              className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
+                activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
+              } ${isCollapsed ? "justify-center" : ""}`}
+              aria-current={activeItem === item.id ? "page" : undefined}
+              aria-label={`Navigate to ${item.label}`}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <item.icon className="w-5 h-5 text-foreground flex-shrink-0" />
+              {!isCollapsed && (
+                <span className="text-sm font-medium text-foreground flex-1 text-left truncate">
+                  {item.label}
+                </span>
+              )}
+              {!isCollapsed && item.count !== undefined && (
+                <span className="text-xs text-foreground-muted">{item.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Collapse Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="absolute top-1/2 -right-3 w-6 h-6 bg-card border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-muted transition-colors z-10"
+          title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-3 h-3 text-foreground-secondary" />
+          ) : (
+            <ChevronLeft className="w-3 h-3 text-foreground-secondary" />
+          )}
+        </button>
+
+        {/* Bottom Stats Panel */}
+        {!isCollapsed && (
+          <div className="glass-card-enhanced m-2 p-3 flex-shrink-0">
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {stats?.total_cards || 0}
+                </div>
+                <div className="text-[10px] text-foreground-secondary uppercase">
+                  Total
+                </div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {stats?.cards_learned || 0}
+                </div>
+                <div className="text-[10px] text-foreground-secondary uppercase">
+                  Learned
+                </div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">
+                  {stats?.cards_due_today || 0}
+                </div>
+                <div className="text-[10px] text-foreground-secondary uppercase">
+                  Due
+                </div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">0</div>
+                <div className="text-[10px] text-foreground-secondary uppercase">
+                  New
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-lg font-bold text-foreground">
-              {stats?.cards_learned || 0}
+        )}
+      </aside>
+
+      {/* Mobile Sidebar (Slide-in) */}
+      <aside
+        className={`fixed top-12 left-0 bottom-0 w-64 sidebar-section z-50 lg:hidden transform transition-transform duration-300 ease-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Sidebar Items */}
+        <div className="flex-1 overflow-y-auto">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveItem(item.id);
+                onClose();
+              }}
+              className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
+                activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
+              }`}
+              aria-current={activeItem === item.id ? "page" : undefined}
+              aria-label={`Navigate to ${item.label}`}
+            >
+              <item.icon className="w-5 h-5 text-foreground" />
+              <span className="text-sm font-medium text-foreground flex-1 text-left">
+                {item.label}
+              </span>
+              {item.count !== undefined && (
+                <span className="text-xs text-foreground-muted">{item.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Bottom Stats Panel */}
+        <div className="glass-card-enhanced m-2 p-3 flex-shrink-0">
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div>
+              <div className="text-lg font-bold text-foreground">
+                {stats?.total_cards || 0}
+              </div>
+              <div className="text-[10px] text-foreground-secondary uppercase">
+                Total
+              </div>
             </div>
-            <div className="text-[10px] text-foreground-secondary uppercase">
-              Learned
+            <div>
+              <div className="text-lg font-bold text-foreground">
+                {stats?.cards_learned || 0}
+              </div>
+              <div className="text-[10px] text-foreground-secondary uppercase">
+                Learned
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground">
-              {stats?.cards_due_today || 0}
+            <div>
+              <div className="text-lg font-bold text-foreground">
+                {stats?.cards_due_today || 0}
+              </div>
+              <div className="text-[10px] text-foreground-secondary uppercase">
+                Due
+              </div>
             </div>
-            <div className="text-[10px] text-foreground-secondary uppercase">
-              Due
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-bold text-foreground">0</div>
-            <div className="text-[10px] text-foreground-secondary uppercase">
-              New
+            <div>
+              <div className="text-lg font-bold text-foreground">0</div>
+              <div className="text-[10px] text-foreground-secondary uppercase">
+                New
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -306,7 +462,7 @@ export function MainContent({
     <div className="flex flex-col h-full">
       {/* Stats Bar */}
       {showStatsBar && stats && (
-        <div className="h-16 bg-card border-b border-border flex items-center px-6 flex-shrink-0">
+        <div className="h-16 glass-panel-light flex items-center px-6 flex-shrink-0">
           <div className="flex gap-8">
             <div>
               <div className="stats-number">{stats.total}</div>
@@ -327,12 +483,12 @@ export function MainContent({
       {/* Tabs */}
       {activeTab && onTabChange && (
         <div className="px-6 pt-4 pb-3 flex-shrink-0">
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`tab-button ${
+                className={`tab-button whitespace-nowrap ${
                   activeTab === tab.id ? "tab-button-active" : ""
                 }`}
               >
@@ -349,7 +505,7 @@ export function MainContent({
       </div>
 
       {/* Bottom Bar */}
-      <div className="h-8 bg-card border-t border-border flex items-center justify-between px-3 flex-shrink-0">
+      <div className="h-8 glass-panel-light flex items-center justify-between px-3 flex-shrink-0">
         <div className="text-xs text-foreground-secondary">
           {stats?.total || 0} items total
         </div>
