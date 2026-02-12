@@ -44,6 +44,7 @@ struct AppState {
 
 // Import AI command module types
 use commands::ai::AIState;
+use commands::focus_timer::FocusTimer;
 
 impl AppState {
     fn new() -> Self {
@@ -241,6 +242,7 @@ pub fn run() {
 
                 app.manage(state);
                 app.manage(AIState::default());
+                app.manage(FocusTimer::new());
                 app.manage(transcription::TranscriptionState {
                     job_queue: transcription::job_queue::JobQueue::new(app.handle().clone(), repo.clone()),
                 });
@@ -599,6 +601,16 @@ pub fn run() {
             // commands::clear_all_embeddings,
             // commands::get_embedding_stats,
             // commands::is_indexed,
+            // Focus timer commands
+            commands::get_focus_timer_state,
+            commands::start_focus_timer,
+            commands::pause_focus_timer,
+            commands::reset_focus_timer,
+            commands::skip_focus_timer_phase,
+            commands::update_focus_timer_config,
+            commands::get_focus_timer_remaining,
+            commands::tick_focus_timer,
+            commands::reset_focus_timer_daily_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

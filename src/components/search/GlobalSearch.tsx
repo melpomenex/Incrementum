@@ -342,16 +342,16 @@ export function GlobalSearch({
 
       {/* Search Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 animate-glass-fade-in">
+          {/* Backdrop with blur */}
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Search Panel */}
+          {/* Search Panel with glass styling */}
           <div
-            className="relative w-full max-w-2xl bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
+            className="relative w-full max-w-2xl glass-panel-heavy animate-glass-scale-in overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Global search"
@@ -368,9 +368,9 @@ export function GlobalSearch({
             </div>
 
             {/* Search Input */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-3 px-4 py-3 glass-divider">
               {isURLMode ? (
-                <Link2 className="w-5 h-5 text-blue-500" />
+                <Link2 className="w-5 h-5 text-primary-400" />
               ) : (
                 <Search className="w-5 h-5 text-muted-foreground" />
               )}
@@ -385,17 +385,17 @@ export function GlobalSearch({
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="p-1 hover:bg-muted rounded"
+                  className="p-1.5 glass-button rounded-lg"
                 >
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded transition-colors ${
+                className={`p-2 rounded-lg transition-all ${
                   hasActiveFilters
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
+                    ? "bg-primary-400/20 text-primary-300 backdrop-blur-sm"
+                    : "glass-button"
                 }`}
               >
                 <SlidersHorizontal className="w-4 h-4" />
@@ -404,13 +404,13 @@ export function GlobalSearch({
 
             {/* Filters */}
             {showFilters && (
-              <div className="p-4 border-b border-border bg-muted/30">
+              <div className="p-4 glass-panel-light">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Filters</span>
+                  <span className="text-sm font-medium text-foreground">Filters</span>
                   {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-xs text-primary-300 hover:text-primary-200 transition-colors"
                     >
                       Clear all
                     </button>
@@ -427,10 +427,10 @@ export function GlobalSearch({
                       <button
                         key={type}
                         onClick={() => toggleTypeFilter(type)}
-                        className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                        className={`px-3 py-1.5 text-xs rounded-full transition-all ${
                           filters.types.includes(type)
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            ? "bg-primary-400/30 text-primary-200 backdrop-blur-sm border border-primary-400/30"
+                            : "glass-button text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {type}
@@ -539,9 +539,12 @@ export function GlobalSearch({
                         e.preventDefault();
                       }}
                       onClick={() => handleResultClick(result)}
-                      className={`group relative w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors text-left cursor-pointer ${
-                        index === selectedIndex ? "bg-muted" : ""
+                      className={`group relative w-full flex items-start gap-3 px-4 py-3 transition-all text-left cursor-pointer animate-tab-enter ${
+                        index === selectedIndex
+                          ? "bg-primary-400/10 backdrop-blur-sm border-l-2 border-primary-400"
+                          : "hover:bg-glass-100"
                       }`}
+                      style={{ animationDelay: `${index * 30}ms` }}
                     >
                       {/* Type Icon */}
                       <div
@@ -660,19 +663,19 @@ export function GlobalSearch({
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2 border-t border-border bg-muted/30">
+            <div className="px-4 py-2 glass-panel-light">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-4">
                   {isURLMode ? (
                     <>
                       <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">
+                        <kbd className="px-1.5 py-0.5 glass-button rounded text-[10px]">
                           ↵
                         </kbd>
                         Import
                       </span>
                       <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">
+                        <kbd className="px-1.5 py-0.5 glass-button rounded text-[10px]">
                           ESC
                         </kbd>
                         Clear
@@ -681,19 +684,19 @@ export function GlobalSearch({
                   ) : (
                     <>
                       <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">
+                        <kbd className="px-1.5 py-0.5 glass-button rounded text-[10px]">
                           ↑↓
                         </kbd>
                         Navigate
                       </span>
                       <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">
+                        <kbd className="px-1.5 py-0.5 glass-button rounded text-[10px]">
                           ↵
                         </kbd>
                         Select
                       </span>
                       <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">
+                        <kbd className="px-1.5 py-0.5 glass-button rounded text-[10px]">
                           ESC
                         </kbd>
                         Close
@@ -712,7 +715,7 @@ export function GlobalSearch({
                         onSaveSearch(query.trim(), searchQuery);
                       }
                     }}
-                    className="hover:text-foreground flex items-center gap-1"
+                    className="hover:text-foreground flex items-center gap-1 glass-button px-2 py-1 rounded-lg transition-colors"
                   >
                     <Star className="w-3 h-3" />
                     Save search

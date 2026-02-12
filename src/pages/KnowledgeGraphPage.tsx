@@ -274,30 +274,30 @@ export function KnowledgeGraphPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Header */}
-      <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0 bg-card/50 backdrop-blur">
+    <div className="h-full flex flex-col bg-cream">
+      {/* Header with glass styling */}
+      <div className="h-16 glass-panel-light flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Network className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center">
+              <Network className="w-5 h-5 text-primary-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold">Knowledge Graph</h1>
+              <h1 className="text-lg font-semibold text-foreground">Knowledge Graph</h1>
               <p className="text-xs text-muted-foreground">
                 {filteredData.nodes.length} visible · {graphData.nodes.length} total
               </p>
             </div>
           </div>
 
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl ml-4">
+          {/* View mode toggle with glass styling */}
+          <div className="flex items-center gap-1 p-1 glass-panel rounded-xl ml-4">
             <button
               onClick={() => setViewMode("graph")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 viewMode === "graph"
-                  ? "bg-card shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "glass-panel-heavy text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-glass-100"
               }`}
             >
               <GitBranch className="w-4 h-4" />
@@ -307,8 +307,8 @@ export function KnowledgeGraphPage() {
               onClick={() => setViewMode("sphere")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 viewMode === "sphere"
-                  ? "bg-card shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "glass-panel-heavy text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-glass-100"
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -318,7 +318,7 @@ export function KnowledgeGraphPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Search */}
+          {/* Search with glass styling */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -329,7 +329,7 @@ export function KnowledgeGraphPage() {
                 setFilters((f) => ({ ...f, searchQuery: e.target.value }));
               }}
               placeholder="Search nodes..."
-              className="w-64 pl-10 pr-9 py-2 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 transition-all"
+              className="w-64 pl-10 pr-9 py-2 glass-input rounded-xl text-sm"
             />
             {searchQuery && (
               <button
@@ -344,21 +344,21 @@ export function KnowledgeGraphPage() {
             )}
           </div>
 
-          {/* Filter toggle */}
+          {/* Filter toggle with glass styling */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-              showFilters ? "bg-primary/10 text-primary" : "hover:bg-muted"
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all glass-button ${
+              showFilters ? "bg-primary-400/20 text-primary-300" : ""
             }`}
           >
             <Filter className="w-4 h-4" />
             Filters
           </button>
 
-          {/* Export */}
+          {/* Export with glass styling */}
           <button
             onClick={exportGraph}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-muted rounded-xl text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 py-2 glass-button rounded-xl text-sm font-medium transition-colors"
             title="Export graph"
           >
             <Download className="w-4 h-4" />
@@ -368,9 +368,9 @@ export function KnowledgeGraphPage() {
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Filters Sidebar */}
+        {/* Filters Sidebar with glass styling */}
         {showFilters && (
-          <div className="w-72 flex-shrink-0 border-r border-border">
+          <div className="w-72 flex-shrink-0 sidebar-section">
             <GraphFilterControls
               filters={filters}
               onFiltersChange={setFilters}
@@ -402,14 +402,14 @@ export function KnowledgeGraphPage() {
             />
           )}
 
-          {/* Empty state */}
+          {/* Empty state with glass styling */}
           {filteredData.nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center bg-card/80 backdrop-blur p-8 rounded-2xl border border-border shadow-xl">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+              <div className="text-center glass-card p-8 rounded-2xl animate-glass-scale-in">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full glass-panel flex items-center justify-center">
                   <Grid3x3 className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-1">No nodes visible</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-1">No nodes visible</h3>
                 <p className="text-sm text-muted-foreground">
                   Try adjusting your filters to see more content
                 </p>
