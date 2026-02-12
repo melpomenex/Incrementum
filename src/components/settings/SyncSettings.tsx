@@ -12,6 +12,9 @@ import {
   FileText,
   History,
   Shield,
+  Download,
+  Wifi,
+  HardDrive,
 } from "lucide-react";
 import {
   syncNow,
@@ -36,6 +39,7 @@ import {
 import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId } from "../../lib/yjsSync";
 import { QRCodeCanvas } from "qrcode.react";
 import { SyncQrScanner } from "./SyncQrScanner";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 type ViewMode = "status" | "config" | "conflicts" | "log";
 
@@ -51,6 +55,9 @@ export function SyncSettings() {
   const [roomMessage, setRoomMessage] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
+
+  // Get settings store for file sync settings
+  const { sync: syncSettings, updateSettings } = useSettingsStore();
 
   // Settings inputs
   const [endpoint, setEndpoint] = useState("");
@@ -478,6 +485,71 @@ export function SyncSettings() {
               </div>
             </div>
           )}
+
+          {/* File Sync Settings */}
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <HardDrive className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">File Sync</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Files are streamed directly between your devices in real-time. Devices must be online
+              simultaneously to sync files.
+            </p>
+
+            <div className="space-y-4">
+              {/* Auto-download setting */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Auto-download files from other devices
+                </label>
+                <select
+                  value={syncSettings.autoDownloadMode}
+                  onChange={(e) =>
+                    updateSettings({
+                      sync: {
+                        ...syncSettings,
+                        autoDownloadMode: e.target.value as "always" | "wifi-only" | "manual",
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground"
+                >
+                  <option value="always">
+                    Always - Download all files automatically
+                  </option>
+                  <option value="wifi-only">
+                    WiFi only - Auto-download only on WiFi (mobile)
+                  </option>
+                  <option value="manual">
+                    Manual - Never auto-download, request each file manually
+                  </option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {syncSettings.autoDownloadMode === "always" && (
+                    <span className="flex items-center gap-1">
+                      <Download className="w-3 h-3" /> Files will be downloaded automatically when announced by other devices
+                    </span>
+                  )}
+                  {syncSettings.autoDownloadMode === "wifi-only" && (
+                    <span className="flex items-center gap-1">
+                      <Wifi className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
+                    </span>
+                  )}
+                  {syncSettings.autoDownloadMode === "manual" && (
+                    <span>Files will appear with a download button - you choose what to download</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Info box */}
+              <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
+                <strong>Note:</strong> Files are not stored on the server. They stream directly between
+                devices that are online at the same time. If a device with a file you need is offline,
+                you&apos;ll see &quot;waiting for source&quot; status until it comes back online.
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

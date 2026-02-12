@@ -169,6 +169,8 @@ interface SyncSettings {
   interval: number;
   onStartup: boolean;
   lastSync?: string;
+  /** Auto-download behavior for files from other devices */
+  autoDownloadMode: "always" | "wifi-only" | "manual";
 }
 
 /**
@@ -407,6 +409,7 @@ export const defaultSettings: Settings = {
     provider: "dropbox",
     interval: 3600,
     onStartup: false,
+    autoDownloadMode: "wifi-only",
   },
   importExport: {
     autoBackup: false,
