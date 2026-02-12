@@ -28,7 +28,31 @@ impl PositionService {
         let position_json = serde_json::to_string(position)
             .map_err(|e| IncrementumError::Internal(format!("Failed to serialize position: {}", e)))?;
 
-        let progress = position.progress_percent().unwrap_or(0.0);
+        // Try to get progress from position, or calculate from document's total_pages
+        let progress = if let Some(p) = position.progress_percent() {
+            p
+        } else if let DocumentPosition::Page { page, .. } = position {
+            // For page positions, look up total_pages from the document and calculate progress
+            let total_pages: Option<i32> = sqlx::query_scalar(
+                "SELECT total_pages FROM documents WHERE id = ?1"
+            )
+            .bind(document_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to get total_pages: {}", e)))?;
+
+            if let Some(total) = total_pages {
+                if total > 0 {
+                    (*page as f32 / total as f32) * 100.0
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
 
         sqlx::query(
             r#"

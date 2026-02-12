@@ -494,7 +494,16 @@ const commandHandlers: Record<string, CommandHandler> = {
         const id = (args.document_id ?? args.documentId) as string;
         const position = args.position as unknown;
         if (!id || !position) return null;
-        const progress = getPositionProgress(position as any);
+        let progress = getPositionProgress(position as any);
+
+        // For page-based positions, calculate progress if we have total pages
+        if (progress === null && (position as any).type === 'page') {
+            const doc = await db.getDocument(id);
+            if (doc?.total_pages) {
+                progress = ((position as any).page / doc.total_pages) * 100;
+            }
+        }
+
         await db.updateDocument(id, {
             position_json: JSON.stringify(position),
             progress_percent: progress ?? 0,

@@ -1,9 +1,22 @@
 /**
- * Graph filtering and search component
+ * Modern Graph Filters Component
+ * Beautiful filtering and controls for the knowledge graph
  */
 
-import { useState, useCallback, useMemo } from "react";
-import { Search, Filter, X, ChevronDown } from "lucide-react";
+import { useState, useCallback } from "react";
+import {
+  Search,
+  Filter,
+  X,
+  ChevronDown,
+  LayoutGrid,
+  Circle,
+  Tags,
+  Calendar,
+  SlidersHorizontal,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import {
   GraphNode,
   GraphEdge,
@@ -11,9 +24,6 @@ import {
   LayoutAlgorithm,
 } from "./KnowledgeGraph";
 
-/**
- * Filter options
- */
 export interface GraphFilters {
   searchQuery: string;
   nodeTypes: GraphNodeType[];
@@ -27,9 +37,6 @@ export interface GraphFilters {
   };
 }
 
-/**
- * Graph filter controls props
- */
 export interface GraphFilterControlsProps {
   filters: GraphFilters;
   onFiltersChange: (filters: GraphFilters) => void;
@@ -37,11 +44,47 @@ export interface GraphFilterControlsProps {
   availableTags: string[];
   layout: LayoutAlgorithm;
   onLayoutChange: (layout: LayoutAlgorithm) => void;
+  nodeCounts: Record<GraphNodeType, number>;
 }
 
-/**
- * Graph filter controls component
- */
+const NODE_TYPE_CONFIG = {
+  [GraphNodeType.Document]: {
+    label: "Documents",
+    color: "bg-blue-500",
+    borderColor: "border-blue-500",
+    textColor: "text-blue-500",
+    icon: "📄",
+  },
+  [GraphNodeType.Extract]: {
+    label: "Extracts",
+    color: "bg-green-500",
+    borderColor: "border-green-500",
+    textColor: "text-green-500",
+    icon: "💬",
+  },
+  [GraphNodeType.Flashcard]: {
+    label: "Flashcards",
+    color: "bg-purple-500",
+    borderColor: "border-purple-500",
+    textColor: "text-purple-500",
+    icon: "🧠",
+  },
+  [GraphNodeType.Category]: {
+    label: "Categories",
+    color: "bg-amber-500",
+    borderColor: "border-amber-500",
+    textColor: "text-amber-500",
+    icon: "📁",
+  },
+  [GraphNodeType.Tag]: {
+    label: "Tags",
+    color: "bg-cyan-500",
+    borderColor: "border-cyan-500",
+    textColor: "text-cyan-500",
+    icon: "🏷️",
+  },
+};
+
 export function GraphFilterControls({
   filters,
   onFiltersChange,
@@ -49,11 +92,10 @@ export function GraphFilterControls({
   availableTags,
   layout,
   onLayoutChange,
+  nodeCounts,
 }: GraphFilterControlsProps) {
+  const [activeSection, setActiveSection] = useState<string | null>("types");
   const [isExpanded, setIsExpanded] = useState(true);
-  const [showTypeFilter, setShowTypeFilter] = useState(true);
-  const [showCategoryFilter, setShowCategoryFilter] = useState(true);
-  const [showTagFilter, setShowTagFilter] = useState(true);
 
   const updateSearchQuery = useCallback((query: string) => {
     onFiltersChange({ ...filters, searchQuery: query });
@@ -80,6 +122,14 @@ export function GraphFilterControls({
     onFiltersChange({ ...filters, tags: newTags });
   }, [filters, onFiltersChange]);
 
+  const selectAllTypes = useCallback(() => {
+    onFiltersChange({ ...filters, nodeTypes: [] });
+  }, [filters, onFiltersChange]);
+
+  const clearAllTypes = useCallback(() => {
+    onFiltersChange({ ...filters, nodeTypes: Object.values(GraphNodeType) });
+  }, [filters, onFiltersChange]);
+
   const clearAll = useCallback(() => {
     onFiltersChange({
       searchQuery: "",
@@ -95,32 +145,42 @@ export function GraphFilterControls({
     filters.categories.length > 0 ||
     filters.tags.length > 0;
 
+  const activeFiltersCount =
+    (filters.searchQuery ? 1 : 0) +
+    filters.nodeTypes.length +
+    filters.categories.length +
+    filters.tags.length;
+
   return (
-    <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+    <div className="flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">Filters</span>
-          {hasActiveFilters && (
-            <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
-              Active
-            </span>
-          )}
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Filter className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <span className="font-semibold text-sm">Filters</span>
+            {activeFiltersCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {hasActiveFilters && (
             <button
               onClick={clearAll}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              title="Clear all filters"
             >
-              <X className="w-3 h-3" />
-              Clear
+              <X className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:bg-muted rounded"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
             <ChevronDown
               className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`}
@@ -130,80 +190,206 @@ export function GraphFilterControls({
       </div>
 
       {isExpanded && (
-        <div className="p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto">
           {/* Search */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Search</label>
+          <div className="p-4 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={filters.searchQuery}
                 onChange={(e) => updateSearchQuery(e.target.value)}
-                placeholder="Search nodes..."
-                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Search knowledge..."
+                className="w-full pl-10 pr-9 py-2.5 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:bg-card transition-all"
               />
+              {filters.searchQuery && (
+                <button
+                  onClick={() => updateSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
           {/* Node Types */}
-          <div>
+          <div className="border-b border-border">
             <button
-              onClick={() => setShowTypeFilter(!showTypeFilter)}
-              className="flex items-center justify-between w-full text-sm font-medium mb-2"
+              onClick={() => setActiveSection(activeSection === "types" ? null : "types")}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
             >
-              <span>Node Types</span>
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium text-sm">Node Types</span>
+              </div>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${showTypeFilter ? "" : "-rotate-90"}`}
+                className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "types" ? "" : "-rotate-90"}`}
               />
             </button>
-            {showTypeFilter && (
-              <div className="grid grid-cols-2 gap-2">
-                {Object.values(GraphNodeType).map((type) => (
-                  <label
-                    key={type}
-                    className="flex items-center gap-2 text-sm cursor-pointer"
+
+            {activeSection === "types" && (
+              <div className="px-4 pb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={selectAllTypes}
+                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors"
                   >
+                    Select All
+                  </button>
+                  <button
+                    onClick={clearAllTypes}
+                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {Object.values(GraphNodeType).map((type) => {
+                    const config = NODE_TYPE_CONFIG[type];
+                    const isSelected = !filters.nodeTypes.includes(type);
+                    const count = nodeCounts[type] || 0;
+
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => toggleNodeType(type)}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all ${
+                          isSelected
+                            ? "bg-card border border-border shadow-sm"
+                            : "hover:bg-muted/50 opacity-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm ${
+                              isSelected ? config.color : "bg-muted"
+                            }`}
+                          >
+                            {config.icon}
+                          </div>
+                          <span className="text-sm">{config.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{count}</span>
+                          {isSelected ? (
+                            <Eye className="w-4 h-4 text-primary" />
+                          ) : (
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Layout */}
+          <div className="border-b border-border">
+            <button
+              onClick={() => setActiveSection(activeSection === "layout" ? null : "layout")}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium text-sm">Layout</span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "layout" ? "" : "-rotate-90"}`}
+              />
+            </button>
+
+            {activeSection === "layout" && (
+              <div className="px-4 pb-4">
+                <select
+                  value={layout}
+                  onChange={(e) => onLayoutChange(e.target.value as LayoutAlgorithm)}
+                  className="w-full px-3 py-2.5 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 transition-all"
+                >
+                  <option value={LayoutAlgorithm.Force}>Force Directed</option>
+                  <option value={LayoutAlgorithm.Circular}>Circular</option>
+                  <option value={LayoutAlgorithm.Hierarchical}>Hierarchical</option>
+                  <option value={LayoutAlgorithm.Grid}>Grid</option>
+                </select>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-muted-foreground">Node Size</span>
+                      <span className="font-medium">Auto</span>
+                    </div>
                     <input
-                      type="checkbox"
-                      checked={filters.nodeTypes.includes(type)}
-                      onChange={() => toggleNodeType(type)}
-                      className="rounded border-border"
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.1"
+                      defaultValue="1"
+                      className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                     />
-                    <span className="capitalize">{type}</span>
-                  </label>
-                ))}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-muted-foreground">Link Distance</span>
+                      <span className="font-medium">120px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="300"
+                      defaultValue="120"
+                      className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
           {/* Categories */}
           {availableCategories.length > 0 && (
-            <div>
+            <div className="border-b border-border">
               <button
-                onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-                className="flex items-center justify-between w-full text-sm font-medium mb-2"
+                onClick={() => setActiveSection(activeSection === "categories" ? null : "categories")}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
               >
-                <span>Categories</span>
+                <div className="flex items-center gap-2">
+                  <Circle className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-sm">Categories</span>
+                  {filters.categories.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-md">
+                      {filters.categories.length}
+                    </span>
+                  )}
+                </div>
                 <ChevronDown
-                  className={`w-4 h-4 transition-transform ${showCategoryFilter ? "" : "-rotate-90"}`}
+                  className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "categories" ? "" : "-rotate-90"}`}
                 />
               </button>
-              {showCategoryFilter && (
-                <div className="flex flex-wrap gap-2">
-                  {availableCategories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => toggleCategory(category)}
-                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                        filters.categories.includes(category)
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  ))}
+
+              {activeSection === "categories" && (
+                <div className="px-4 pb-4">
+                  <div className="flex flex-wrap gap-2">
+                    {availableCategories.map((category) => {
+                      const isSelected = filters.categories.includes(category);
+                      return (
+                        <button
+                          key={category}
+                          onClick={() => toggleCategory(category)}
+                          className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {category}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -211,53 +397,61 @@ export function GraphFilterControls({
 
           {/* Tags */}
           {availableTags.length > 0 && (
-            <div>
+            <div className="border-b border-border">
               <button
-                onClick={() => setShowTagFilter(!showTagFilter)}
-                className="flex items-center justify-between w-full text-sm font-medium mb-2"
+                onClick={() => setActiveSection(activeSection === "tags" ? null : "tags")}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
               >
-                <span>Tags</span>
+                <div className="flex items-center gap-2">
+                  <Tags className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-sm">Tags</span>
+                  {filters.tags.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-md">
+                      {filters.tags.length}
+                    </span>
+                  )}
+                </div>
                 <ChevronDown
-                  className={`w-4 h-4 transition-transform ${showTagFilter ? "" : "-rotate-90"}`}
+                  className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "tags" ? "" : "-rotate-90"}`}
                 />
               </button>
-              {showTagFilter && (
-                <div className="flex flex-wrap gap-2">
-                  {availableTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                        filters.tags.includes(tag)
-                          ? "bg-accent text-accent-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      #{tag}
-                    </button>
-                  ))}
+
+              {activeSection === "tags" && (
+                <div className="px-4 pb-4">
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => {
+                      const isSelected = filters.tags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                            isSelected
+                              ? "bg-accent text-accent-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
           )}
-
-          {/* Layout */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Layout</label>
-            <select
-              value={layout}
-              onChange={(e) => onLayoutChange(e.target.value as LayoutAlgorithm)}
-              className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value={LayoutAlgorithm.Force}>Force-Directed</option>
-              <option value={LayoutAlgorithm.Circular}>Circular</option>
-              <option value={LayoutAlgorithm.Hierarchical}>Hierarchical</option>
-              <option value={LayoutAlgorithm.Grid}>Grid</option>
-              <option value={LayoutAlgorithm.Random}>Random</option>
-            </select>
-          </div>
         </div>
       )}
+
+      {/* Footer stats */}
+      <div className="px-4 py-3 border-t border-border bg-muted/30">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Total Nodes</span>
+          <span className="font-medium text-foreground">
+            {Object.values(nodeCounts).reduce((a, b) => a + b, 0)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -283,17 +477,17 @@ export function applyGraphFilters(
     );
   }
 
-  // Filter by node types
+  // Filter by node types (inverted - we show types NOT in the filter list)
   if (filters.nodeTypes.length > 0) {
-    filteredNodes = filteredNodes.filter((node) =>
-      filters.nodeTypes.includes(node.type)
+    filteredNodes = filteredNodes.filter(
+      (node) => !filters.nodeTypes.includes(node.type)
     );
   }
 
   // Filter by categories
   if (filters.categories.length > 0) {
-    filteredNodes = filteredNodes.filter((node) =>
-      node.category && filters.categories.includes(node.category)
+    filteredNodes = filteredNodes.filter(
+      (node) => node.category && filters.categories.includes(node.category)
     );
   }
 
@@ -331,45 +525,6 @@ export function applyGraphFilters(
 }
 
 /**
- * Highlight nodes and edges related to a search query
- */
-export function highlightSearchResults(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  query: string
-): { highlightedNodes: string[]; highlightedEdges: string[] } {
-  if (!query) return { highlightedNodes: [], highlightedEdges: [] };
-
-  const lowerQuery = query.toLowerCase();
-  const matchingNodes = new Set<string>();
-  const matchingEdges = new Set<string>();
-
-  // Find matching nodes
-  nodes.forEach((node) => {
-    if (
-      node.label.toLowerCase().includes(lowerQuery) ||
-      node.description?.toLowerCase().includes(lowerQuery)
-    ) {
-      matchingNodes.add(node.id);
-    }
-  });
-
-  // Find edges connected to matching nodes
-  edges.forEach((edge) => {
-    if (matchingNodes.has(edge.source) || matchingNodes.has(edge.target)) {
-      matchingEdges.add(edge.id);
-      matchingNodes.add(edge.source);
-      matchingNodes.add(edge.target);
-    }
-  });
-
-  return {
-    highlightedNodes: Array.from(matchingNodes),
-    highlightedEdges: Array.from(matchingEdges),
-  };
-}
-
-/**
  * Extract available categories and tags from nodes
  */
 export function extractGraphMetadata(nodes: GraphNode[]): {
@@ -393,24 +548,18 @@ export function extractGraphMetadata(nodes: GraphNode[]): {
 }
 
 /**
- * Graph statistics
- */
-export interface GraphStatistics {
-  totalNodes: number;
-  totalEdges: number;
-  nodesByType: Record<GraphNodeType, number>;
-  averageConnections: number;
-  isolatedNodes: number;
-  connectedComponents: number;
-}
-
-/**
  * Calculate graph statistics
  */
 export function calculateGraphStatistics(
   nodes: GraphNode[],
   edges: GraphEdge[]
-): GraphStatistics {
+): {
+  totalNodes: number;
+  totalEdges: number;
+  nodesByType: Record<GraphNodeType, number>;
+  averageConnections: number;
+  isolatedNodes: number;
+} {
   const nodesByType: Record<GraphNodeType, number> = {
     [GraphNodeType.Document]: 0,
     [GraphNodeType.Extract]: 0,
@@ -436,35 +585,11 @@ export function calculateGraphStatistics(
 
   const isolatedNodes = Array.from(connectionCounts.values()).filter((c) => c === 0).length;
 
-  // Calculate connected components (simplified)
-  const visited = new Set<string>();
-  let components = 0;
-
-  const dfs = (nodeId: string) => {
-    visited.add(nodeId);
-    edges.forEach((edge) => {
-      if (edge.source === nodeId && !visited.has(edge.target)) {
-        dfs(edge.target);
-      }
-      if (edge.target === nodeId && !visited.has(edge.source)) {
-        dfs(edge.source);
-      }
-    });
-  };
-
-  nodes.forEach((node) => {
-    if (!visited.has(node.id)) {
-      components++;
-      dfs(node.id);
-    }
-  });
-
   return {
     totalNodes: nodes.length,
     totalEdges: edges.length,
     nodesByType,
     averageConnections,
     isolatedNodes,
-    connectedComponents: components,
   };
 }
