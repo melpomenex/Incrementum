@@ -24,6 +24,10 @@ interface DocumentState {
   error: string | null;
   searchQuery: string;
 
+  // Optimistic state tracking
+  pendingDeletions: Set<string>;
+  pendingUpdates: Map<string, Partial<Document>>;
+
   // Pagination
   currentPage: number;
   totalPages: number;
@@ -34,7 +38,10 @@ interface DocumentState {
   setCurrentDocument: (document: Document | null) => void;
   addDocument: (document: Document) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
+  updateDocumentOptimistic: (id: string, updates: Partial<Document>) => Promise<{ success: boolean; error?: Error }>;
   deleteDocument: (id: string) => Promise<void>;
+  deleteDocumentOptimistic: (id: string) => Promise<{ success: boolean; error?: Error; rollback?: () => void }>;
+  rollbackDocumentDeletion: (id: string, document: Document) => void;
   importFromFile: (filePath: string) => Promise<Document>;
   importFromFiles: (filePaths: string[]) => Promise<Document[]>;
   importFromUrl: (url: string) => Promise<Document>;
@@ -68,6 +75,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   searchQuery: "",
   currentPage: 1,
   totalPages: 1,
+  pendingDeletions: new Set(),
+  pendingUpdates: new Map(),
 
   // Actions
   loadDocuments: async () => {
@@ -119,6 +128,130 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       documents: state.documents.filter((doc) => doc.id !== id),
       currentDocument: state.currentDocument?.id === id ? null : state.currentDocument,
     }));
+  },
+
+  /**
+   * Optimistic delete - removes from UI immediately, rolls back on failure
+   */
+  deleteDocumentOptimistic: async (id) => {
+    // Capture the document for potential rollback
+    const docToDelete = get().documents.find((doc) => doc.id === id);
+    if (!docToDelete) {
+      return { success: false, error: new Error('Document not found') };
+    }
+
+    // Optimistically remove from UI
+    set((state) => ({
+      documents: state.documents.filter((doc) => doc.id !== id),
+      currentDocument: state.currentDocument?.id === id ? null : state.currentDocument,
+      pendingDeletions: new Set(state.pendingDeletions).add(id),
+    }));
+
+    try {
+      // Execute server deletion
+      await documentsApi.deleteDocument(id);
+
+      // Remove from pending on success
+      set((state) => {
+        const newPending = new Set(state.pendingDeletions);
+        newPending.delete(id);
+        return { pendingDeletions: newPending };
+      });
+
+      return { success: true };
+    } catch (error) {
+      // Rollback on failure
+      set((state) => {
+        const newPending = new Set(state.pendingDeletions);
+        newPending.delete(id);
+        return {
+          documents: [...state.documents, docToDelete],
+          pendingDeletions: newPending,
+        };
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        rollback: () => {
+          set((state) => ({
+            documents: [...state.documents, docToDelete],
+          }));
+        },
+      };
+    }
+  },
+
+  /**
+   * Rollback a document deletion
+   */
+  rollbackDocumentDeletion: (id, document) => {
+    set((state) => ({
+      documents: [...state.documents, document],
+      pendingDeletions: (() => {
+        const newPending = new Set(state.pendingDeletions);
+        newPending.delete(id);
+        return newPending;
+      })(),
+    }));
+  },
+
+  /**
+   * Optimistic update - applies changes immediately, rolls back on failure
+   */
+  updateDocumentOptimistic: async (id, updates) => {
+    // Capture current state for rollback
+    const currentDoc = get().documents.find((doc) => doc.id === id);
+    if (!currentDoc) {
+      return { success: false, error: new Error('Document not found') };
+    }
+
+    const originalDoc = { ...currentDoc };
+
+    // Optimistically apply update
+    set((state) => ({
+      documents: state.documents.map((doc) =>
+        doc.id === id ? { ...doc, ...updates, dateModified: new Date().toISOString() } : doc
+      ),
+      currentDocument:
+        state.currentDocument?.id === id
+          ? { ...state.currentDocument, ...updates, dateModified: new Date().toISOString() }
+          : state.currentDocument,
+      pendingUpdates: new Map(state.pendingUpdates).set(id, updates),
+    }));
+
+    try {
+      // Execute server update
+      await documentsApi.updateDocument(id, { ...currentDoc, ...updates } as Document);
+
+      // Remove from pending on success
+      set((state) => {
+        const newPending = new Map(state.pendingUpdates);
+        newPending.delete(id);
+        return { pendingUpdates: newPending };
+      });
+
+      return { success: true };
+    } catch (error) {
+      // Rollback on failure
+      set((state) => ({
+        documents: state.documents.map((doc) =>
+          doc.id === id ? originalDoc : doc
+        ),
+        currentDocument:
+          state.currentDocument?.id === id ? originalDoc : state.currentDocument,
+        pendingUpdates: (() => {
+          const newPending = new Map(state.pendingUpdates);
+          newPending.delete(id);
+          return newPending;
+        })(),
+      }));
+
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    }
   },
 
   importFromFile: async (filePath) => {
