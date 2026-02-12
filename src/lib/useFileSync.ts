@@ -22,14 +22,35 @@ export interface FileSyncState {
 
 let manifestInstance: FileManifest | null = null;
 let transferManagerInstance: FileTransferManager | null = null;
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Initialize file sync (must be called before getFileManifest)
+ */
+async function ensureFileSyncReady(): Promise<void> {
+  if (manifestInstance && transferManagerInstance) return;
+
+  if (!initPromise) {
+    initPromise = (async () => {
+      const sync = await getYjsSync();
+      if (!manifestInstance) {
+        manifestInstance = new FileManifest(sync.doc);
+      }
+      if (!transferManagerInstance) {
+        transferManagerInstance = new FileTransferManager(sync.provider, manifestInstance);
+      }
+    })();
+  }
+
+  return initPromise;
+}
 
 /**
  * Get or create the singleton FileManifest instance
  */
 export function getFileManifest(): FileManifest {
   if (!manifestInstance) {
-    const sync = getYjsSync();
-    manifestInstance = new FileManifest(sync.doc);
+    throw new Error("FileManifest not initialized. Call ensureFileSyncReady() first.");
   }
   return manifestInstance;
 }
@@ -39,9 +60,7 @@ export function getFileManifest(): FileManifest {
  */
 export function getFileTransferManager(): FileTransferManager {
   if (!transferManagerInstance) {
-    const sync = getYjsSync();
-    const manifest = getFileManifest();
-    transferManagerInstance = new FileTransferManager(sync.provider, manifest);
+    throw new Error("FileTransferManager not initialized. Call ensureFileSyncReady() first.");
   }
   return transferManagerInstance;
 }
@@ -59,64 +78,73 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
     }
 
     let mounted = true;
-    const manifest = getFileManifest();
-    const transferManager = getFileTransferManager();
+    let unsubManifest: (() => void) | null = null;
+    let unsubTransfer: (() => void) | null = null;
 
-    const checkStatus = async () => {
-      // Check if file is local
-      const cached = await getCachedFile(fileId);
-      if (cached && mounted) {
-        setState({ status: "synced" });
-        return;
-      }
-
-      // Check if file is available from another device
-      const available = manifest.isFileAvailable(fileId);
-      if (mounted) {
-        setState({ status: available ? "available" : "waiting" });
-      }
-    };
-
-    checkStatus();
-
-    // Subscribe to manifest changes
-    const unsubManifest = manifest.subscribe((event) => {
-      if (event.type === "device-online" || event.type === "device-offline" || event.type === "device-files-updated") {
-        checkStatus();
-      }
-    });
-
-    // Subscribe to transfer events
-    const unsubTransfer = transferManager.subscribe((event) => {
-      if (event.fileId !== fileId) return;
-
+    const init = async () => {
+      await ensureFileSyncReady();
       if (!mounted) return;
 
-      switch (event.type) {
-        case "transfer-started":
-          if (event.direction === "inbound") {
-            setState({ status: "downloading", progress: 0 });
-          }
-          break;
-        case "transfer-progress":
-          setState({ status: "downloading", progress: event.progress });
-          break;
-        case "transfer-complete":
+      const manifest = getFileManifest();
+      const transferManager = getFileTransferManager();
+
+      const checkStatus = async () => {
+        // Check if file is local
+        const cached = await getCachedFile(fileId);
+        if (cached && mounted) {
           setState({ status: "synced" });
-          break;
-        case "transfer-error":
-          setState({ status: "error", error: event.error });
-          break;
-        case "transfer-cancelled":
-          checkStatus(); // Reset to previous state
-          break;
-      }
-    });
+          return;
+        }
+
+        // Check if file is available from another device
+        const available = manifest.isFileAvailable(fileId);
+        if (mounted) {
+          setState({ status: available ? "available" : "waiting" });
+        }
+      };
+
+      checkStatus();
+
+      // Subscribe to manifest changes
+      unsubManifest = manifest.subscribe((event) => {
+        if (event.type === "device-online" || event.type === "device-offline" || event.type === "device-files-updated") {
+          checkStatus();
+        }
+      });
+
+      // Subscribe to transfer events
+      unsubTransfer = transferManager.subscribe((event) => {
+        if (event.fileId !== fileId) return;
+        if (!mounted) return;
+
+        switch (event.type) {
+          case "transfer-started":
+            if (event.direction === "inbound") {
+              setState({ status: "downloading", progress: 0 });
+            }
+            break;
+          case "transfer-progress":
+            setState({ status: "downloading", progress: event.progress });
+            break;
+          case "transfer-complete":
+            setState({ status: "synced" });
+            break;
+          case "transfer-error":
+            setState({ status: "error", error: event.error });
+            break;
+          case "transfer-cancelled":
+            checkStatus(); // Reset to previous state
+            break;
+        }
+      });
+    };
+
+    init();
 
     return () => {
       mounted = false;
-      unsubManifest();
-      unsubTransfer();
+      unsubManifest?.();
+      unsubTransfer?.();
     };
   }, [fileId]);
 
@@ -131,69 +159,79 @@ export function useAllFileSyncStatus(): Map<string, FileSyncState> {
 
   useEffect(() => {
     let mounted = true;
-    const manifest = getFileManifest();
-    const transferManager = getFileTransferManager();
+    let unsubManifest: (() => void) | null = null;
+    let unsubTransfer: (() => void) | null = null;
 
-    const updateStates = async () => {
-      const files = manifest.getAllFiles();
-      const newStates = new Map<string, FileSyncState>();
+    const init = async () => {
+      await ensureFileSyncReady();
+      if (!mounted) return;
 
-      for (const file of files) {
-        const cached = await getCachedFile(file.id);
-        const available = manifest.isFileAvailable(file.id);
+      const manifest = getFileManifest();
+      const transferManager = getFileTransferManager();
 
-        if (cached) {
-          newStates.set(file.id, { status: "synced" });
-        } else if (available) {
-          newStates.set(file.id, { status: "available" });
-        } else {
-          newStates.set(file.id, { status: "waiting" });
+      const updateStates = async () => {
+        const files = manifest.getAllFiles();
+        const newStates = new Map<string, FileSyncState>();
+
+        for (const file of files) {
+          const cached = await getCachedFile(file.id);
+          const available = manifest.isFileAvailable(file.id);
+
+          if (cached) {
+            newStates.set(file.id, { status: "synced" });
+          } else if (available) {
+            newStates.set(file.id, { status: "available" });
+          } else {
+            newStates.set(file.id, { status: "waiting" });
+          }
         }
-      }
 
-      if (mounted) {
-        setStates(newStates);
-      }
+        if (mounted) {
+          setStates(newStates);
+        }
+      };
+
+      updateStates();
+
+      unsubManifest = manifest.subscribe((event) => {
+        if (event.type === "file-added" || event.type === "file-removed") {
+          updateStates();
+        }
+        if (event.type === "device-online" || event.type === "device-offline" || event.type === "device-files-updated") {
+          updateStates();
+        }
+      });
+
+      unsubTransfer = transferManager.subscribe((event) => {
+        setStates((prev) => {
+          const next = new Map(prev);
+          switch (event.type) {
+            case "transfer-started":
+              if (event.direction === "inbound") {
+                next.set(event.fileId, { status: "downloading", progress: 0 });
+              }
+              break;
+            case "transfer-progress":
+              next.set(event.fileId, { status: "downloading", progress: event.progress });
+              break;
+            case "transfer-complete":
+              next.set(event.fileId, { status: "synced" });
+              break;
+            case "transfer-error":
+              next.set(event.fileId, { status: "error", error: event.error });
+              break;
+          }
+          return next;
+        });
+      });
     };
 
-    updateStates();
-
-    const unsubManifest = manifest.subscribe((event) => {
-      if (event.type === "file-added" || event.type === "file-removed") {
-        updateStates();
-      }
-      if (event.type === "device-online" || event.type === "device-offline" || event.type === "device-files-updated") {
-        updateStates();
-      }
-    });
-
-    const unsubTransfer = transferManager.subscribe((event) => {
-      setStates((prev) => {
-        const next = new Map(prev);
-        switch (event.type) {
-          case "transfer-started":
-            if (event.direction === "inbound") {
-              next.set(event.fileId, { status: "downloading", progress: 0 });
-            }
-            break;
-          case "transfer-progress":
-            next.set(event.fileId, { status: "downloading", progress: event.progress });
-            break;
-          case "transfer-complete":
-            next.set(event.fileId, { status: "synced" });
-            break;
-          case "transfer-error":
-            next.set(event.fileId, { status: "error", error: event.error });
-            break;
-        }
-        return next;
-      });
-    });
+    init();
 
     return () => {
       mounted = false;
-      unsubManifest();
-      unsubTransfer();
+      unsubManifest?.();
+      unsubTransfer?.();
     };
   }, []);
 
@@ -205,6 +243,7 @@ export function useAllFileSyncStatus(): Map<string, FileSyncState> {
  */
 export function useFileDownloader() {
   const downloadFile = useCallback(async (fileId: string): Promise<Blob | null> => {
+    await ensureFileSyncReady();
     const transferManager = getFileTransferManager();
 
     // Check if already local
@@ -232,6 +271,7 @@ export function useFileDownloader() {
 export function useFileUploader() {
   const uploadFile = useCallback(
     async (file: File): Promise<FileManifestEntry> => {
+      await ensureFileSyncReady();
       const manifest = getFileManifest();
       const transferManager = getFileTransferManager();
 

@@ -113,9 +113,125 @@ Multi-Format Import
 - Full keyboard navigation
 - High contrast support
 
+**Command Palette (v2.0)**
+- Quick access with `Ctrl+K` or `Cmd+K`
+- Search documents, extracts, and flashcards
+- Import URLs directly from the palette
+- Keyboard-first navigation
+
 ---
 
 ### 🔧 Advanced Features
+
+<details>
+<summary><b>🎨 Design System (v2.0)</b> <em>(click to expand)</em></summary>
+
+#### Glassmorphism Theme
+- **Glass Design System**: Premium frosted glass effects throughout the UI
+- **Custom CSS Variables**: Easily customizable colors, shadows, and blur values
+- **Dark Mode Support**: Optimized glass effects for both light and dark themes
+- **Utility Classes**: `.glass-panel`, `.glass-button`, `.glass-input`, `.glass-card`
+
+```css
+/* Available glass utility classes */
+.glass-panel      /* Main glass container */
+.glass-panel-light /* Subtle glass effect */
+.glass-panel-heavy /* Prominent glass effect */
+.glass-button     /* Interactive glass buttons */
+.glass-input      /* Glass-styled input fields */
+.glass-card       /* Glass card components */
+```
+
+#### Responsive Layout
+- **Collapsible Sidebar**: Responsive sidebar with Ctrl+B toggle
+- **Mobile-First Design**: Full mobile and tablet support
+- **Glass-styled Navigation**: Beautiful top nav and sidebar
+
+</details>
+
+<details>
+<summary><b>⏱️ Focus Timer (v2.0)</b> <em>(click to expand)</em></summary>
+
+#### Pomodoro-Style Productivity
+- **Work Sessions**: Configurable 25-minute focus sessions (default)
+- **Break Management**: Short breaks (5 min) and long breaks (15 min)
+- **Session Tracking**: Track completed sessions and total focus time
+- **Customization**: Adjust all timer durations to your preference
+
+#### Features
+- **Circular Progress**: Beautiful animated progress ring
+- **Sound Notifications**: Audio cues when sessions complete
+- **Desktop Notifications**: Optional system notifications
+- **Auto-start Options**: Automatically start breaks or work sessions
+
+#### Keyboard Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Space` | Start/Pause timer |
+| `R` | Reset timer |
+| `S` | Skip to next phase |
+
+</details>
+
+<details>
+<summary><b>🕸️ Knowledge Graph (v2.0)</b> <em>(click to expand)</em></summary>
+
+#### Visual Knowledge Exploration
+- **Force-Directed Graph**: Interactive node-link visualization
+- **3D Sphere View**: Alternative immersive visualization
+- **Node Types**: Documents, extracts, flashcards, categories, tags
+- **Relationship Visualization**: See connections between content
+
+#### Graph Interactions
+- **Click**: Select and view node details
+- **Double-Click**: Navigate to document or review
+- **Drag**: Reposition nodes in the graph
+- **Zoom & Pan**: Navigate large knowledge networks
+
+#### Filtering & Search
+- **Type Filters**: Show/hide specific content types
+- **Category Filters**: Focus on specific subject areas
+- **Tag Filters**: Filter by tags
+- **Search**: Find specific nodes quickly
+
+</details>
+
+<details>
+<summary><b>⚡ Optimistic UI (v2.0)</b> <em>(click to expand)</em></summary>
+
+#### Instant Feedback System
+- **Immediate Updates**: UI updates before server confirms
+- **Automatic Rollback**: Reverts changes if server fails
+- **Undo/Redo Support**: Full operation history
+- **Seamless Experience**: No waiting for network responses
+
+#### Operations with Optimistic Updates
+- Document deletion and updates
+- Review submissions
+- Queue operations
+- Extract management
+
+</details>
+
+<details>
+<summary><b>🎭 Haptic Feedback (v2.0)</b> <em>(click to expand)</em></summary>
+
+#### Audio & Visual Feedback
+- **Sound Effects**: Audio cues for key actions
+- **Visual Animations**: Pulse, bounce, shake effects
+- **Confetti**: Celebrate milestones!
+- **Customizable**: Enable/disable sounds and visual feedback
+
+#### Feedback Types
+| Event | Sound | Visual |
+|-------|-------|--------|
+| Success | Pleasant tone | Green pulse |
+| Error | Low tone | Red shake |
+| Complete | Triumphant chord | Star bounce |
+| Milestone | Fanfare | Confetti burst |
+| Delete | Soft click | Fade out |
+
+</details>
 
 <details>
 <summary><b>Integrations</b> <em>(click to expand)</em></summary>

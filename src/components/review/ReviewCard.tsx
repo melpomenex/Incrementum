@@ -1,5 +1,6 @@
 import { LearningItem } from "../../api/review";
-import { Brain, FileText } from "lucide-react";
+import { Brain, FileText, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import { useTTS } from "../../hooks/useTTS";
 
 interface ReviewCardProps {
   card: LearningItem;
@@ -8,6 +9,8 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) {
+  const { speak, stop, isSpeaking, isPaused, pause, resume, isSupported } = useTTS();
+
   // Helper to get item type - handles both snake_case and camelCase from different backends
   const getItemType = (): string => {
     const item = card as any;
@@ -41,6 +44,31 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
   };
 
   const itemType = getItemType();
+
+  // Get plain text for TTS
+  const getPlainText = (html: string): string => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return doc.body.textContent || "";
+  };
+
+  const handleSpeak = (text: string) => {
+    if (isSpeaking) {
+      if (isPaused) {
+        resume();
+      } else {
+        pause();
+      }
+    } else {
+      speak(text);
+    }
+  };
+
+  const handleStop = () => {
+    stop();
+  };
+
+  const questionText = getPlainText(card.question);
+  const answerText = card.answer ? getPlainText(card.answer) : "";
 
   const renderQuestion = () => {
     if ((itemType === "cloze" || itemType === "Cloze") && card.cloze_text) {
@@ -85,8 +113,33 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
 
     return (
       <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-border">
-        <div className="text-xs md:text-sm uppercase tracking-wide text-foreground/80 mb-2 font-medium">
-          Answer
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs md:text-sm uppercase tracking-wide text-foreground/80 font-medium">
+            Answer
+          </div>
+          {/* TTS Button for Answer */}
+          {isSupported && (
+            <button
+              onClick={() => handleSpeak(answerText)}
+              className={`p-2 rounded-lg transition-colors ${
+                isSpeaking
+                  ? "bg-primary/20 text-primary"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+              title={isSpeaking ? (isPaused ? "Resume" : "Pause") : "Read answer aloud"}
+              aria-label={isSpeaking ? (isPaused ? "Resume reading" : "Pause reading") : "Read answer aloud"}
+            >
+              {isSpeaking ? (
+                isPaused ? (
+                  <Play className="w-4 h-4" />
+                ) : (
+                  <Pause className="w-4 h-4" />
+                )
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </button>
+          )}
         </div>
         <div className="text-sm md:text-base leading-relaxed text-foreground">
           <span dangerouslySetInnerHTML={{ __html: card.answer }} />
@@ -115,6 +168,41 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
               </span>
             ))}
           </>
+        )}
+        {/* TTS Controls for Question */}
+        {isSupported && (
+          <div className="ml-auto flex items-center gap-1">
+            {isSpeaking && (
+              <button
+                onClick={handleStop}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Stop reading"
+                aria-label="Stop reading"
+              >
+                <VolumeX className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => handleSpeak(questionText)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                isSpeaking && !isPaused
+                  ? "bg-primary/20 text-primary"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+              title={isSpeaking ? (isPaused ? "Resume" : "Pause") : "Read question aloud"}
+              aria-label={isSpeaking ? (isPaused ? "Resume reading" : "Pause reading") : "Read question aloud"}
+            >
+              {isSpeaking ? (
+                isPaused ? (
+                  <Play className="w-4 h-4" />
+                ) : (
+                  <Pause className="w-4 h-4" />
+                )
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         )}
       </div>
 

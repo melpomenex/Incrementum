@@ -7,6 +7,7 @@ import { getDueItems, type LearningItem } from "../../api/review";
 import { filterByDeck, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
 import type { StudyDeck } from "../../types/study-decks";
 import { FlashcardStudioModal } from "./FlashcardStudioModal";
+import { ReviewPreviewModal } from "./ReviewPreviewModal";
 
 interface ReviewHomeProps {
   onStartReview: () => Promise<void>;
@@ -46,6 +47,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const [newDeckName, setNewDeckName] = useState("");
   const [newDeckTags, setNewDeckTags] = useState("");
   const [isFlashcardStudioOpen, setIsFlashcardStudioOpen] = useState(false);
+  const [isReviewPreviewOpen, setIsReviewPreviewOpen] = useState(false);
 
   const deckSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -158,7 +160,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 Create Flashcards
               </button>
               <button
-                onClick={onStartReview}
+                onClick={() => setIsReviewPreviewOpen(true)}
                 disabled={isLoading}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
               >
@@ -398,6 +400,17 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
       <FlashcardStudioModal
         isOpen={isFlashcardStudioOpen}
         onClose={() => setIsFlashcardStudioOpen(false)}
+      />
+      <ReviewPreviewModal
+        isOpen={isReviewPreviewOpen}
+        onClose={() => setIsReviewPreviewOpen(false)}
+        onStartReview={onStartReview}
+        totalCards={scopedItems.length}
+        newCards={newCount}
+        learningCards={learningCount}
+        reviewCards={reviewCount}
+        estimatedMinutes={Math.ceil(estimatedSeconds / 60)}
+        deckName={activeDeck?.name}
       />
     </div>
   );

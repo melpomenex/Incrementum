@@ -26,7 +26,9 @@ import { AnnaArchiveSearch } from "../import/AnnaArchiveSearch";
 import { ArxivImportDialog } from "../import/ArxivImportDialog";
 import { WebArticleImportDialog } from "../import/WebArticleImportDialog";
 import { AudiobookImportDialog } from "../import/AudiobookImportDialog";
+import { ImportProgressIndicator } from "../import/ImportProgressIndicator";
 import { EmptyDocuments, EmptySearch } from "../common/EmptyState";
+import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
 import { DocumentCardSkeleton, DocumentGridSkeleton } from "../common/Skeleton";
 import { DragDropUpload } from "../common/DragDropUpload";
 import type { Document } from "../../types/document";
@@ -153,6 +155,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Confirmation dialog for destructive actions
+  const confirmDialog = useConfirmDialog();
+
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
   const [isInspectorOpen, setInspectorOpen] = useState(() => !isMobile);
@@ -423,21 +429,49 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
 
   const handleBulkArchive = () => {
     if (selectedIds.size === 0) return;
-    selectedIds.forEach((id) => {
-      updateDocument(id, { isArchived: true });
+
+    const selectedDocs = documents.filter(d => selectedIds.has(d.id));
+    const docTitles = selectedDocs.map(d => d.title || "Untitled");
+
+    confirmDialog.confirm({
+      title: "Archive Documents",
+      message: `Archive ${selectedIds.size} document${selectedIds.size > 1 ? "s" : ""}? Archived documents are hidden from the main view but can be restored later.`,
+      variant: "warning",
+      confirmLabel: "Archive",
+      itemName: "document",
+      itemCount: selectedIds.size,
+      details: docTitles,
+      onConfirm: () => {
+        selectedIds.forEach((id) => {
+          updateDocument(id, { isArchived: true });
+        });
+        setSelectedIds(new Set());
+      },
     });
-    setSelectedIds(new Set());
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    const confirmed = window.confirm(`Are you sure you want to delete ${selectedIds.size} document(s)? This cannot be undone.`);
-    if (!confirmed) return;
-    for (const id of selectedIds) {
-      await deleteDocument(id);
-    }
-    setSelectedIds(new Set());
-    setActiveId(null);
+
+    const selectedDocs = documents.filter(d => selectedIds.has(d.id));
+    const docTitles = selectedDocs.map(d => d.title || "Untitled");
+
+    confirmDialog.confirm({
+      title: "Delete Documents",
+      message: `Are you sure you want to delete ${selectedIds.size} document${selectedIds.size > 1 ? "s" : ""}? All extracts and flashcards will also be removed.`,
+      variant: "danger",
+      confirmLabel: "Delete",
+      itemName: "document",
+      itemCount: selectedIds.size,
+      details: docTitles,
+      onConfirm: async () => {
+        for (const id of selectedIds) {
+          await deleteDocument(id);
+        }
+        setSelectedIds(new Set());
+        setActiveId(null);
+      },
+    });
   };
 
   const handleDeleteDocument = async (doc: Document) => {
@@ -648,6 +682,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
             <button
               onClick={handleImport}
               disabled={isImporting}
+              data-tutorial="import-button"
               className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
             >
               {isImporting ? "Importing..." : "Import Document"}
@@ -834,21 +869,15 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       )}
 
       {isImporting && importProgress.total > 0 && (
-        <div className="mx-4 mt-4 p-4 bg-muted rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">
-              {importProgress.fileName ? `Importing ${importProgress.fileName}...` : "Importing documents..."}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {importProgress.current} / {importProgress.total}
-            </span>
-          </div>
-          <div className="h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
-            />
-          </div>
+        <div className="mx-4 mt-4">
+          <ImportProgressIndicator
+            fileName={importProgress.fileName}
+            importType="unknown"
+            current={importProgress.current}
+            total={importProgress.total}
+            status="processing"
+            statusMessage={importProgress.fileName ? `Processing ${importProgress.fileName}` : "Importing documents..."}
+          />
         </div>
       )}
 
@@ -1395,6 +1424,19 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         isOpen={showAudiobookImport}
         onClose={() => setShowAudiobookImport(false)}
         onOpenDocument={onOpenDocument}
+      />
+
+      {/* Confirmation Dialog for bulk operations */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.close}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        details={confirmDialog.details}
+        itemName={confirmDialog.itemName}
+        itemCount={confirmDialog.itemCount}
       />
     </div>
     </DragDropUpload>

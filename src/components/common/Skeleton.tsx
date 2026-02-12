@@ -165,4 +165,121 @@ export function QueueListSkeleton({ count = 5 }: { count?: number }) {
   );
 }
 
+// Additional skeleton variants from LoadingSkeleton.tsx
+
+export function DocumentListItemSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
+      <Skeleton variant="circle" width={40} height={40} />
+      <div className="flex-1 min-w-0 space-y-2">
+        <Skeleton width="75%" height={16} />
+        <div className="flex items-center gap-2">
+          <Skeleton width={80} height={12} />
+          <Skeleton width={64} height={12} />
+        </div>
+      </div>
+      <Skeleton variant="circle" width={32} height={32} />
+    </div>
+  );
+}
+
+export function SettingsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Skeleton variant="circle" width={48} height={48} />
+        <div className="space-y-2">
+          <Skeleton width={128} height={24} />
+          <Skeleton width={192} height={16} />
+        </div>
+      </div>
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-4">
+          <Skeleton width={128} height={20} />
+          <div className="space-y-3">
+            {[1, 2, 3].map((j) => (
+              <div key={j} className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Skeleton width={96} height={16} />
+                  <Skeleton width={160} height={12} />
+                </div>
+                <Skeleton variant="circle" width={40} height={24} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SidebarSkeleton() {
+  return (
+    <div className="space-y-2 p-2">
+      <div className="flex items-center gap-2 p-2">
+        <Skeleton variant="circle" width={32} height={32} />
+        <Skeleton width="flex-1" height={20} />
+      </div>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="flex items-center gap-2 p-2">
+          <Skeleton variant="circle" width={20} height={20} />
+          <Skeleton width={96} height={16} />
+          {i % 2 === 0 && <Skeleton width={24} height={16} className="ml-auto" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AnalyticsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
+            <Skeleton width={64} height={16} />
+            <Skeleton width={80} height={32} />
+            <Skeleton width={96} height={12} />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <Skeleton width={128} height={20} />
+          <Skeleton width="100%" height={192} variant="card" />
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <Skeleton width={112} height={20} />
+          <Skeleton width="100%" height={192} variant="card" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TextSkeleton({ paragraphs = 3 }: { paragraphs?: number }) {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: paragraphs }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton width="100%" height={16} />
+          <Skeleton width="100%" height={16} />
+          <Skeleton width="83%" height={16} />
+          {i === 0 && <Skeleton width="67%" height={16} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ListSkeleton({ count = 5, itemHeight = 48 }: { count?: number; itemHeight?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} width="100%" height={itemHeight} variant="card" />
+      ))}
+    </div>
+  );
+}
+
 export default Skeleton;

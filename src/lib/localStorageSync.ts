@@ -17,6 +17,8 @@ const BLOCKED_KEYS = new Set([
   // Theme preferences should be device-specific and not synced
   "incrementum-last-theme",
   "incrementum-custom-themes",
+  // Corruption flag should not be synced
+  "incrementum-yjs-corruption-detected",
 ]);
 
 const BLOCKED_PREFIXES = [
@@ -25,6 +27,7 @@ const BLOCKED_PREFIXES = [
 ];
 
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 
 function isBlocked(key: string): boolean {
   if (BLOCKED_KEYS.has(key)) {
@@ -33,14 +36,18 @@ function isBlocked(key: string): boolean {
   return BLOCKED_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
-export function initLocalStorageSync(): void {
+export async function initLocalStorageSync(): Promise<void> {
   if (initialized || typeof window === "undefined" || !window.localStorage) {
     return;
   }
 
-  initialized = true;
+  // Return existing promise if already initializing
+  if (initPromise) {
+    return initPromise;
+  }
 
-  const sync = getYjsSync();
+  initPromise = (async () => {
+    const sync = await getYjsSync();
   const map = sync.doc.getMap<SyncEntry>("localStorage");
   const lastApplied = new Map<string, number>();
 
@@ -160,4 +167,9 @@ export function initLocalStorageSync(): void {
       applyRemote(key, entry);
     });
   });
+
+    initialized = true;
+  })();
+
+  return initPromise;
 }
