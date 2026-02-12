@@ -58,6 +58,7 @@ export function SyncSettings() {
 
   // Get settings store for file sync settings
   const { sync: syncSettings, updateSettings } = useSettingsStore();
+  const autoDownloadMode = syncSettings?.autoDownloadMode ?? "wifi-only";
 
   // Settings inputs
   const [endpoint, setEndpoint] = useState("");
@@ -504,7 +505,7 @@ export function SyncSettings() {
                   Auto-download files from other devices
                 </label>
                 <select
-                  value={syncSettings.autoDownloadMode}
+                  value={autoDownloadMode}
                   onChange={(e) =>
                     updateSettings({
                       sync: {
@@ -526,17 +527,17 @@ export function SyncSettings() {
                   </option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {syncSettings.autoDownloadMode === "always" && (
+                  {autoDownloadMode === "always" && (
                     <span className="flex items-center gap-1">
                       <Download className="w-3 h-3" /> Files will be downloaded automatically when announced by other devices
                     </span>
                   )}
-                  {syncSettings.autoDownloadMode === "wifi-only" && (
+                  {autoDownloadMode === "wifi-only" && (
                     <span className="flex items-center gap-1">
                       <Wifi className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
                     </span>
                   )}
-                  {syncSettings.autoDownloadMode === "manual" && (
+                  {autoDownloadMode === "manual" && (
                     <span>Files will appear with a download button - you choose what to download</span>
                   )}
                 </p>
