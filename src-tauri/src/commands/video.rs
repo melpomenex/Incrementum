@@ -56,14 +56,20 @@ pub struct VideoTranscriptionStatus {
 }
 
 /// Import a local video file into the document system
+/// Accepts a file path and copies the file to the app's video storage directory
 #[tauri::command]
 pub async fn import_video_file(
-    filename: String,
+    source_path: String,
     title: String,
-    content: Vec<u8>,
     repo: State<'_, Repository>,
 ) -> Result<Document, String> {
     let now = chrono::Utc::now();
+
+    // Validate the source file exists
+    let source = std::path::Path::new(&source_path);
+    if !source.exists() {
+        return Err(format!("Source file not found: {}", source_path));
+    }
 
     // Get the video storage directory
     let data_dir = dirs::data_dir()
@@ -77,16 +83,25 @@ pub async fn import_video_file(
 
     // Generate a unique filename to avoid conflicts
     let timestamp = now.timestamp();
-    let safe_filename = filename
+    let original_filename = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("video.mp4");
+    let safe_filename = original_filename
         .replace('/', "_")
         .replace('\\', "_")
         .replace(':', "_");
     let stored_filename = format!("{}-{}", timestamp, safe_filename);
-    let file_path = data_dir.join(&stored_filename);
+    let dest_path = data_dir.join(&stored_filename);
 
-    // Write the video file to disk
-    std::fs::write(&file_path, &content)
-        .map_err(|e| format!("Failed to write video file: {}", e))?;
+    // Get file size before copying
+    let file_size = std::fs::metadata(&source)
+        .map(|m| m.len() as i64)
+        .unwrap_or(0);
+
+    // Copy the file directly (avoids loading entire file into memory)
+    std::fs::copy(&source, &dest_path)
+        .map_err(|e| format!("Failed to copy video file: {}", e))?;
 
     // Create document for the video file
     let metadata = DocumentMetadata {
@@ -95,13 +110,13 @@ pub async fn import_video_file(
         keywords: None,
         created_at: None,
         modified_at: None,
-        file_size: Some(content.len() as i64),
+        file_size: Some(file_size),
         language: None,
         page_count: None,
         word_count: None,
     };
 
-    let mut document = Document::new(title, file_path.to_string_lossy().to_string(), FileType::Video);
+    let mut document = Document::new(title, dest_path.to_string_lossy().to_string(), FileType::Video);
     document.category = Some("Videos".to_string());
     document.metadata = Some(metadata);
     document.current_page = Some(0);
