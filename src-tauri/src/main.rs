@@ -38,10 +38,12 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         // Disable compositing mode (fixes white screen issues)
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-        // Disable sandbox (can cause issues in some environments)
-        std::env::set_var("WEBKIT_FORCE_SANDBOX", "0");
+        // WebKitGTK 2.44+ requires this env var for sandbox opt-out in dev.
+        std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
         // Use software rendering as fallback
         std::env::set_var("WEBKIT_USE_SURFACE_RENDERING", "1");
+        // Force software GL where EGL/DRI3 is unavailable.
+        std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
     }
     incrementum_tauri_lib::run()
 }
