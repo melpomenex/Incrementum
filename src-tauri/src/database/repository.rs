@@ -302,8 +302,8 @@ impl Repository {
                 title = ?1, file_path = ?2, current_page = ?3, category = ?4,
                 tags = ?5, date_modified = ?6, priority_rating = ?7,
                 priority_slider = ?8, priority_score = ?9,
-                is_archived = ?10, is_favorite = ?11
-            WHERE id = ?12
+                is_archived = ?10, is_favorite = ?11, total_pages = ?12
+            WHERE id = ?13
             "#,
         )
         .bind(&updates.title)
@@ -317,6 +317,7 @@ impl Repository {
         .bind(updates.priority_score)
         .bind(updates.is_archived)
         .bind(updates.is_favorite)
+        .bind(updates.total_pages)
         .bind(id)
         .execute(&self.pool)
         .await?;
