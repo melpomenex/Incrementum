@@ -11,6 +11,7 @@
   --reading-font-size: 18px; /* Slightly larger default for desktop */
   --reading-line-height: 1.6;
   --reading-max-width: 65ch; /* Optimal line length (~65 characters) */
+  --reading-markdown-max-width: 120ch; /* Wider measure for markdown-heavy docs */
   --reading-text-align: left;
   
   /* Derived/Fixed values */
@@ -26,6 +27,7 @@
   :root {
     --reading-font-size: 16px;
     --reading-max-width: 100%;
+    --reading-markdown-max-width: 100%;
     --reading-padding-x: 1rem;
     --reading-padding-y: 1.25rem;
   }
@@ -42,6 +44,10 @@
   padding: var(--reading-padding-y) var(--reading-padding-x);
   color: var(--color-foreground);
   transition: all 0.2s ease-in-out;
+}
+
+.reading-surface.reading-surface-markdown {
+  max-width: var(--reading-markdown-max-width);
 }
 
 /* Typography elements */
@@ -65,6 +71,8 @@
 /* Content prose styles */
 .reading-prose {
   width: 100%;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 .reading-prose p {
@@ -95,6 +103,12 @@
   overflow-x: auto;
   font-family: monospace;
   font-size: 0.9em;
+}
+
+.reading-prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
 }
 
 .reading-prose code {

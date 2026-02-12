@@ -344,3 +344,90 @@ export async function convertDocumentPdfToHtml(
     output_path: outputPath,
   });
 }
+
+// ============================================
+// Markdown Bundle Image APIs
+// ============================================
+
+/**
+ * Store a bundle image for a document
+ * In Tauri: copies the image to the document's bundle directory
+ * In browser: stores in IndexedDB
+ */
+export async function storeBundleImage(
+  docId: string,
+  imageName: string,
+  imageData: string // base64 encoded
+): Promise<void> {
+  if (isWebMode()) {
+    // Convert base64 to blob and store in IndexedDB
+    const response = await fetch(`data:application/octet-stream;base64,${imageData}`);
+    const blob = await response.blob();
+    const { storeImage } = await import("../lib/bundleImageStore");
+    await storeImage(docId, imageName, blob);
+    return;
+  }
+  return await invokeCommand<void>("store_bundle_image", {
+    docId,
+    imageName,
+    imageData,
+  });
+}
+
+/**
+ * Get a bundle image for a document
+ * Returns base64 encoded image data
+ */
+export async function getBundleImage(
+  docId: string,
+  imageName: string
+): Promise<string | null> {
+  if (isWebMode()) {
+    const { getImage } = await import("../lib/bundleImageStore");
+    const blob = await getImage(docId, imageName);
+    if (!blob) return null;
+
+    // Convert blob to base64
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Remove data URL prefix
+        const commaIndex = base64.indexOf(",");
+        resolve(commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  }
+  return await invokeCommand<string | null>("get_bundle_image", { docId, imageName });
+}
+
+/**
+ * Get a bundle image URL for display
+ * In Tauri: returns a special protocol URL
+ * In browser: creates a blob URL
+ */
+export async function getBundleImageUrl(
+  docId: string,
+  imageName: string
+): Promise<string | null> {
+  if (isWebMode()) {
+    const { getImageUrl } = await import("../lib/bundleImageStore");
+    return await getImageUrl(docId, imageName);
+  }
+  // In Tauri, return the API path that will be handled by the backend
+  return `/api/documents/${docId}/images/${encodeURIComponent(imageName)}`;
+}
+
+/**
+ * Delete all bundle images for a document
+ */
+export async function deleteBundleImages(docId: string): Promise<void> {
+  if (isWebMode()) {
+    const { deleteBundleImages: deleteImages } = await import("../lib/bundleImageStore");
+    await deleteImages(docId);
+    return;
+  }
+  return await invokeCommand<void>("delete_bundle_images", { docId });
+}

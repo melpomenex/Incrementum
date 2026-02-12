@@ -3,6 +3,7 @@
  *
  * Provides drag and drop file upload functionality for documents,
  * supporting PDF, EPUB, Markdown, TXT, HTML, and .apkg (Anki) files.
+ * Also supports markdown bundles (directories with .md + images + metadata).
  */
 
 import { useCallback, useState, useRef, useEffect } from "react";
@@ -11,6 +12,7 @@ import { cn } from "../../utils";
 import { isTauri } from "../../lib/tauri";
 import { storeBrowserFile } from "../../lib/browser-file-store";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { detectMarkdownBundle, type MarkdownBundle } from "../../utils/markdownBundleImport";
 
 export type SupportedFileType =
   | "pdf"
@@ -75,6 +77,8 @@ interface UploadFile {
 interface DragDropUploadProps {
   onFilesImported?: (filePaths: string[]) => void;
   onAnkiPackage?: (filePath: string) => void;
+  /** Called when a markdown bundle is detected (markdown + images + metadata) */
+  onBundleDetected?: (bundle: MarkdownBundle, files: File[]) => void;
   className?: string;
   children?: React.ReactNode;
 }
@@ -82,6 +86,7 @@ interface DragDropUploadProps {
 export function DragDropUpload({
   onFilesImported,
   onAnkiPackage,
+  onBundleDetected,
   className,
   children,
 }: DragDropUploadProps) {
@@ -124,8 +129,20 @@ export function DragDropUpload({
   }, []);
 
   // Validate and process dropped files
-  const processFiles = useCallback((files: FileList | null) => {
+  const processFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+
+    // Check for markdown bundles first
+    if (onBundleDetected) {
+      const bundleResult = await detectMarkdownBundle(fileArray);
+      if (bundleResult.isBundle && bundleResult.bundle) {
+        console.log("[DragDropUpload] Markdown bundle detected:", bundleResult.bundle);
+        onBundleDetected(bundleResult.bundle, fileArray);
+        return;
+      }
+    }
 
     const newUploads: UploadFile[] = [];
     const validFiles: File[] = [];
@@ -154,7 +171,7 @@ export function DragDropUpload({
       // Process the files
       processUploadQueue(newUploads);
     }
-  }, []);
+  }, [onBundleDetected]);
 
   // Process upload queue
   const processUploadQueue = async (files: UploadFile[]) => {

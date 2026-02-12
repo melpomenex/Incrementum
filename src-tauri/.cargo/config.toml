@@ -2,12 +2,11 @@
 jobs = 1
 target-dir = "target"
 
-# Force a known-good linker path on Linux. This avoids rust-lld/LLD issues on
-# large builds (crashes, relocation errors) and works across Rust toolchains.
-# Prefer the system C toolchain by default (typically GCC on Linux).
-# Using `clang` here has caused intermittent crashes in some environments.
+# Use LLVM's linker through clang to avoid GNU ld segfaults seen on large
+# local builds in this environment.
 [target.x86_64-unknown-linux-gnu]
-linker = "cc"
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 # NOTE: We intentionally do NOT force `mold` here.
 # In some environments `-fuse-ld=mold` has caused non-deterministic build

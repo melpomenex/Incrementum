@@ -2,7 +2,61 @@
  * Render Markdown text to HTML
  * Supports: headers, lists, tables, code blocks, blockquotes, links, bold, italic, etc.
  */
-export function renderMarkdown(text: string): string {
+
+export interface RenderMarkdownOptions {
+  /** Document ID for resolving bundle images */
+  docId?: string;
+  /** Map of original image paths to stored filenames */
+  imageManifest?: Record<string, string>;
+}
+
+/**
+ * Resolve a relative image path to a bundle storage URL
+ */
+function resolveImagePath(
+  path: string,
+  docId?: string,
+  imageManifest?: Record<string, string>
+): string {
+  // Skip if already absolute URL
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+
+  // Skip if already a bundle URL or blob
+  if (path.startsWith('/api/documents/') || path.startsWith('blob:')) {
+    return path;
+  }
+
+  // If we have a docId, resolve to bundle URL
+  if (docId) {
+    let cleanPath = path;
+
+    // Remove leading ./ if present
+    if (cleanPath.startsWith('./')) {
+      cleanPath = cleanPath.slice(2);
+    }
+
+    // Remove leading ../ if present (use just the filename)
+    if (cleanPath.startsWith('../')) {
+      const parts = cleanPath.split('/');
+      cleanPath = parts[parts.length - 1];
+    }
+
+    // Check if we have a manifest mapping
+    const storedName = imageManifest?.[path] || imageManifest?.[cleanPath];
+    const pathToUse = storedName || cleanPath;
+
+    // URL-encode the path for special characters
+    const encodedPath = encodeURI(pathToUse);
+
+    return `/api/documents/${docId}/images/${encodedPath}`;
+  }
+
+  return path;
+}
+
+export function renderMarkdown(text: string, options?: RenderMarkdownOptions): string {
   const escapeHtml = (value: string) =>
     value
       .replace(/&/g, "&amp;")
@@ -25,10 +79,13 @@ export function renderMarkdown(text: string): string {
 
   const formatInline = (value: string) => {
     let formatted = value;
-    // Images
+    // Images - with path resolution for bundle images
     formatted = formatted.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/g,
-      '<img class="max-w-full h-auto my-2 rounded border border-border" src="$2" alt="$1" />'
+      (match, alt, path) => {
+        const resolvedPath = resolveImagePath(path, options?.docId, options?.imageManifest);
+        return `<img class="max-w-full h-auto my-2 rounded border border-border" src="${resolvedPath}" alt="${alt}" onerror="this.style.display='none'" />`;
+      }
     );
     // Inline code
     formatted = formatted.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">$1</code>');

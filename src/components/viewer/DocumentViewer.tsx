@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import type { CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
@@ -61,11 +62,17 @@ type ViewMode = "document" | "extracts" | "cards";
 type PdfViewMode = "pdf" | "ocr-html";
 
 type DocumentType = "pdf" | "epub" | "markdown" | "html" | "youtube" | "video" | "audio";
+const MARKDOWN_WIDTH_STORAGE_KEY = "incrementum.markdown.width-ch";
+const MARKDOWN_MIN_WIDTH_CH = 80;
+const MARKDOWN_MAX_WIDTH_CH = 180;
+const MARKDOWN_DEFAULT_WIDTH_CH = 120;
+const MARKDOWN_LEGACY_DEFAULT_WIDTH_CH = 82;
 
 type InitialJump =
   | { kind: "pdf"; pageNumber: number }
   | { kind: "epub"; cfi: string }
   | { kind: "html"; scrollPercent: number }
+  | { kind: "markdown"; scrollPercent: number }
   | { kind: "youtube"; timeSeconds: number; segmentId?: string };
 
 const DOCUMENT_TYPES: DocumentType[] = ["pdf", "epub", "markdown", "html", "youtube", "video", "audio"];
@@ -219,6 +226,15 @@ export function DocumentViewer({
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [markdownWidthCh, setMarkdownWidthCh] = useState<number>(() => {
+    if (typeof window === "undefined") return MARKDOWN_DEFAULT_WIDTH_CH;
+    const raw = window.localStorage.getItem(MARKDOWN_WIDTH_STORAGE_KEY);
+    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+    if (Number.isNaN(parsed)) return MARKDOWN_DEFAULT_WIDTH_CH;
+    // Migrate old default to the new wider default automatically.
+    if (parsed === MARKDOWN_LEGACY_DEFAULT_WIDTH_CH) return MARKDOWN_DEFAULT_WIDTH_CH;
+    return Math.min(MARKDOWN_MAX_WIDTH_CH, Math.max(MARKDOWN_MIN_WIDTH_CH, parsed));
+  });
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
@@ -1865,6 +1881,23 @@ export function DocumentViewer({
     setZoomMode(mode);
   };
 
+  const handleWidenMarkdown = useCallback(() => {
+    setMarkdownWidthCh((prev) => Math.min(MARKDOWN_MAX_WIDTH_CH, prev + 2));
+  }, []);
+
+  const handleNarrowMarkdown = useCallback(() => {
+    setMarkdownWidthCh((prev) => Math.max(MARKDOWN_MIN_WIDTH_CH, prev - 2));
+  }, []);
+
+  const handleResetMarkdownWidth = useCallback(() => {
+    setMarkdownWidthCh(MARKDOWN_DEFAULT_WIDTH_CH);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(MARKDOWN_WIDTH_STORAGE_KEY, String(markdownWidthCh));
+  }, [markdownWidthCh]);
+
   const handlePdfInfo = useCallback((info: { fingerprint?: string | null }) => {
     pdfFingerprintRef.current = info.fingerprint ?? null;
   }, []);
@@ -2494,6 +2527,38 @@ export function DocumentViewer({
             </button>
           </div>
 
+          {/* Markdown Width Controls */}
+          {docType === "markdown" && viewMode === "document" && (
+            <div className="flex items-center bg-muted rounded-md p-1">
+              <button
+                onClick={handleNarrowMarkdown}
+                className="p-2 rounded-md hover:bg-background transition-colors"
+                title="Narrow text width"
+                disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs text-muted-foreground min-w-[54px] text-center">
+                {markdownWidthCh}ch
+              </span>
+              <button
+                onClick={handleWidenMarkdown}
+                className="p-2 rounded-md hover:bg-background transition-colors"
+                title="Widen text width"
+                disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleResetMarkdownWidth}
+                className="p-2 rounded-md hover:bg-background transition-colors"
+                title="Reset text width"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Queue Navigation Controls */}
           {viewMode === "document" && queueNav.totalDocuments > 0 && (
             <QueueNavigationControls
@@ -2772,8 +2837,48 @@ export function DocumentViewer({
             </div>
           )
         ) : docType === "markdown" ? (
-          <div className="reading-surface min-h-full">
-            <MarkdownViewer document={currentDocument} content={currentDocument.content} />
+          <div
+            className="reading-surface reading-surface-markdown relative min-h-full h-full overflow-x-hidden"
+            style={{ "--reading-markdown-max-width": `${markdownWidthCh}ch` } as CSSProperties}
+          >
+            {embedded && (
+              <div className="absolute top-3 right-3 z-20 flex items-center bg-card/85 backdrop-blur border border-border rounded-md p-1">
+                <button
+                  onClick={handleNarrowMarkdown}
+                  className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                  title="Narrow text width"
+                  disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[11px] text-muted-foreground min-w-[50px] text-center">
+                  {markdownWidthCh}ch
+                </span>
+                <button
+                  onClick={handleWidenMarkdown}
+                  className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                  title="Widen text width"
+                  disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <MarkdownViewer
+              document={currentDocument}
+              content={currentDocument.content}
+              initialScrollPercent={initialJump?.kind === "markdown" ? initialJump.scrollPercent : currentDocument.currentScrollPercent}
+              onScrollPositionChange={(scrollPercent) => {
+                handleScrollPositionChange({
+                  pageNumber: 1,
+                  scrollTop: 0,
+                  scrollLeft: 0,
+                  scrollHeight: 0,
+                  clientHeight: 0,
+                  scrollPercent,
+                });
+              }}
+            />
           </div>
         ) : docType === "html" ? (
           <div className="h-full w-full overflow-hidden bg-background">

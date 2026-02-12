@@ -36,12 +36,15 @@ EOF
 
   export TAURI_CLI_NO_DEV_SERVER_WAIT=true
   export CARGO_BUILD_JOBS=1
-  # The directory has a rustup override pinned to 1.90.0 in some environments;
-  # explicitly select a toolchain here for reproducible dev builds.
-  export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.90.0}"
+  # Linux WebKitGTK/EGL stability defaults for dev sessions.
+  export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS="${WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS:-1}"
+  unset WEBKIT_FORCE_SANDBOX || true
+  export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
+  # Explicitly select a known-good toolchain for reproducible dev builds.
+  export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.89.0}"
   # Some crates (notably parts of sqlx) can trigger deep compiler stacks on
   # this toolchain; keep this high to avoid rustc SIGSEGVs.
-  export RUST_MIN_STACK=536870912
+  export RUST_MIN_STACK=1073741824
   # Linker selection is handled in `src-tauri/.cargo/config.toml` (we avoid
   # rustc's self-contained rust-lld on Linux).
 
