@@ -64,6 +64,9 @@ export interface DocumentMetadata {
   arxivUrl?: string;
   pdfUrl?: string;
   originalFileName?: string;
+  // Markdown bundle metadata
+  bundleImages?: Record<string, string>; // relative path -> stored filename
+  hasBundleImages?: boolean;
 }
 
 export interface Extract {

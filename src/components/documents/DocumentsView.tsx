@@ -27,10 +27,14 @@ import { ArxivImportDialog } from "../import/ArxivImportDialog";
 import { WebArticleImportDialog } from "../import/WebArticleImportDialog";
 import { AudiobookImportDialog } from "../import/AudiobookImportDialog";
 import { ImportProgressIndicator } from "../import/ImportProgressIndicator";
+import { MarkdownBundlePreview } from "../import/MarkdownBundlePreview";
+import type { ImportBundleOptions } from "../import/MarkdownBundlePreview";
 import { EmptyDocuments, EmptySearch } from "../common/EmptyState";
 import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
 import { DocumentCardSkeleton, DocumentGridSkeleton } from "../common/Skeleton";
 import { DragDropUpload } from "../common/DragDropUpload";
+import type { MarkdownBundle } from "../../utils/markdownBundleImport";
+import { useMarkdownBundleImport } from "../../hooks/useMarkdownBundleImport";
 import type { Document } from "../../types/document";
 import {
   DocumentSortDirection,
@@ -169,6 +173,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [showArxivImport, setShowArxivImport] = useState(false);
   const [showWebArticleImport, setShowWebArticleImport] = useState(false);
   const [showAudiobookImport, setShowAudiobookImport] = useState(false);
+  const [showMarkdownBundlePreview, setShowMarkdownBundlePreview] = useState(false);
+  const [detectedBundle, setDetectedBundle] = useState<MarkdownBundle | null>(null);
+  const [bundleFiles, setBundleFiles] = useState<File[]>([]);
+  const { importBundle, isImporting: isBundleImporting } = useMarkdownBundleImport();
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeLoading, setYoutubeLoading] = useState(false);
@@ -357,6 +365,41 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       }
     },
     [loadDocuments]
+  );
+
+  // Handle markdown bundle detection
+  const handleBundleDetected = useCallback(
+    (bundle: MarkdownBundle, files: File[]) => {
+      console.log("[DocumentsView] Markdown bundle detected:", bundle);
+      setDetectedBundle(bundle);
+      setBundleFiles(files);
+      setShowMarkdownBundlePreview(true);
+    },
+    []
+  );
+
+  // Handle markdown bundle import
+  const handleBundleImport = useCallback(
+    async (options: ImportBundleOptions) => {
+      if (!detectedBundle) return;
+
+      try {
+        const doc = await importBundle(detectedBundle, options);
+        console.log("[DocumentsView] Bundle imported:", doc);
+        await loadDocuments();
+        setShowMarkdownBundlePreview(false);
+        setDetectedBundle(null);
+        setBundleFiles([]);
+
+        if (onOpenDocument) {
+          onOpenDocument(doc);
+        }
+      } catch (err) {
+        console.error("[DocumentsView] Failed to import bundle:", err);
+        throw err;
+      }
+    },
+    [detectedBundle, importBundle, loadDocuments, onOpenDocument]
   );
 
   const handleYouTubeImport = async () => {
@@ -619,6 +662,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     <DragDropUpload
       onFilesImported={handleDragDropFiles}
       onAnkiPackage={handleAnkiPackage}
+      onBundleDetected={handleBundleDetected}
       className="h-full"
     >
     <div className="h-full flex flex-col bg-cream">
@@ -1425,6 +1469,20 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         onClose={() => setShowAudiobookImport(false)}
         onOpenDocument={onOpenDocument}
       />
+
+      {/* Markdown Bundle Preview */}
+      {detectedBundle && (
+        <MarkdownBundlePreview
+          bundle={detectedBundle}
+          isOpen={showMarkdownBundlePreview}
+          onClose={() => {
+            setShowMarkdownBundlePreview(false);
+            setDetectedBundle(null);
+            setBundleFiles([]);
+          }}
+          onImport={handleBundleImport}
+        />
+      )}
 
       {/* Confirmation Dialog for bulk operations */}
       <ConfirmDialog

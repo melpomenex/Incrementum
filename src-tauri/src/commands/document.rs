@@ -211,7 +211,7 @@ pub async fn get_document(
         .unwrap_or(true)
         || has_epub_placeholder;
 
-    if needs_content && matches!(doc.file_type, FileType::Epub) {
+    if needs_content && matches!(doc.file_type, FileType::Epub | FileType::Markdown | FileType::Html) {
         if let Ok(extracted) = processor::extract_content(&doc.file_path, doc.file_type.clone()).await {
             if !extracted.text.trim().is_empty() {
                 let content_hash = Some(processor::generate_content_hash(&extracted.text));
