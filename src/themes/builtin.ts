@@ -1794,6 +1794,138 @@ export const lemonSliceTheme: Theme = {
   `,
 };
 
+// Glassmorphism Theme - Premium glass effect design system
+export const glassTheme: Theme = {
+  id: 'glass',
+  name: 'Glassmorphism',
+  variant: 'dark',
+  description: 'Premium glassmorphism design with frosted glass effects',
+  colors: {
+    background: '#0f172a',
+    onBackground: '#f1f5f9',
+    surface: 'rgba(30, 41, 59, 0.7)',
+    onSurface: '#f1f5f9',
+    surfaceVariant: 'rgba(51, 65, 85, 0.6)',
+    primary: '#38bdf8',
+    onPrimary: '#0c4a6e',
+    primaryContainer: 'rgba(56, 189, 248, 0.2)',
+    onPrimaryContainer: '#e0f2fe',
+    secondary: 'rgba(148, 163, 184, 0.5)',
+    onSecondary: '#f1f5f9',
+    outline: 'rgba(148, 163, 184, 0.2)',
+    outlineVariant: 'rgba(148, 163, 184, 0.1)',
+    error: '#f87171',
+    onError: '#ffffff',
+    errorContainer: 'rgba(248, 113, 113, 0.2)',
+    onErrorContainer: '#fecaca',
+    success: '#34d399',
+    warning: '#fbbf24',
+    toolbar: 'rgba(15, 23, 42, 0.8)',
+    sidebar: 'rgba(15, 23, 42, 0.6)',
+    card: 'rgba(30, 41, 59, 0.5)',
+    input: 'rgba(30, 41, 59, 0.4)',
+    border: 'rgba(148, 163, 184, 0.15)',
+    text: '#f1f5f9',
+    textSecondary: '#94a3b8',
+    link: '#7dd3fc',
+  },
+  typography: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.5rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.15)',
+    lg: '0 8px 32px rgba(31, 38, 135, 0.2)',
+    xl: '0 16px 48px rgba(31, 38, 135, 0.25)',
+  },
+  customCSS: `
+    /* Glass theme custom styles */
+    .sidebar-section {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .sidebar-item-active {
+      background: rgba(56, 189, 248, 0.15);
+      border-left: 3px solid #38bdf8;
+    }
+    .sidebar-item:hover {
+      background: rgba(148, 163, 184, 0.1);
+    }
+    .bg-sidebar-hover {
+      background: rgba(148, 163, 184, 0.08);
+    }
+    .stats-number {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .tab-button {
+      background: rgba(30, 41, 59, 0.4);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .tab-button:hover {
+      background: rgba(51, 65, 85, 0.5);
+      color: #f1f5f9;
+    }
+    .tab-button-active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.15) 100%);
+      color: #f1f5f9;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(8px);
+    }
+    .bg-cream {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+    /* Glass card effects */
+    .glass-card-enhanced {
+      background: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+  `,
+};
+
 // Export all built-in themes
 export const builtInThemes: Theme[] = [
   modernDarkTheme,
@@ -1817,4 +1949,5 @@ export const builtInThemes: Theme[] = [
   highContrastLightTheme,
   highContrastDarkTheme,
   lemonSliceTheme,
+  glassTheme,
 ];
