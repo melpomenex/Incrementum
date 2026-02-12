@@ -35,7 +35,7 @@ if (typeof window !== 'undefined') {
       if (!sessionStorage.getItem(resetKey)) {
         sessionStorage.setItem(resetKey, new Date().toISOString());
         import("./lib/yjsSync")
-          .then(({ getYjsSync }) => getYjsSync().persistence.clearData())
+          .then(({ getYjsSync }) => getYjsSync().then(sync => sync.persistence.clearData()))
           .catch((error) => console.error('[Yjs] Failed to clear persistence:', error))
           .finally(() => window.location.reload());
       }
@@ -150,7 +150,9 @@ console.log('[main.tsx] Starting Incrementum app...');
 initializePWA();
 
 // Initialize localStorage -> Yjs sync (shared state across devices).
-initLocalStorageSync();
+initLocalStorageSync().catch((error) => {
+  console.error("[main.tsx] Failed to initialize local storage sync:", error);
+});
 
 // Dev/Tauri: ensure no service worker or cache is present to avoid stale assets.
 if ((import.meta.env.DEV || isTauri()) && "serviceWorker" in navigator) {
