@@ -486,6 +486,14 @@ export function RSSReader() {
                 <Plus className="w-4 h-4" />
               </button>
               <button
+                onClick={refreshAllFeeds}
+                disabled={isAutoRefreshing}
+                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-500/10 rounded-lg mobile-density-tap disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Sync all feeds"
+              >
+                <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
                 onClick={() => setScrollMode(true)}
                 className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-lg mobile-density-tap"
                 title="Enter scroll mode"
@@ -569,6 +577,14 @@ export function RSSReader() {
                   title="Scroll mode"
                 >
                   <Scroll className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={refreshAllFeeds}
+                  disabled={isAutoRefreshing}
+                  className="p-2 text-green-600 dark:text-green-400 hover:bg-green-500/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Sync all feeds"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'animate-spin' : ''}`} />
                 </button>
                 <div className="relative group">
                   <button

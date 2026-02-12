@@ -777,27 +777,41 @@ export function DocumentViewer({
         setMediaError(null);
         const filePath = doc.filePath;
 
-        // Always use backend read for video/audio files
-        // convertFileSrc() has issues with many local file paths in Tauri v2
-        // Reading through backend and creating blob URL is more reliable
-        console.log(`[DocumentViewer] Using backend read for:`, filePath);
-        const base64Data = await documentsApi.readDocumentFile(filePath);
-        console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
-        if (!base64Data || base64Data.length === 0) {
-          throw new Error(`File not found or empty. The file may need to be re-imported.`);
+        // Try convertFileSrc first - this streams the file instead of loading into memory
+        // This is more efficient and avoids WebKit/GStreamer crashes on Linux
+        let mediaUrl: string | null = null;
+
+        try {
+          const assetUrl = await convertFileSrc(filePath, "asset");
+          console.log(`[DocumentViewer] Trying convertFileSrc URL:`, assetUrl);
+          mediaUrl = assetUrl;
+        } catch (convertError) {
+          console.warn(`[DocumentViewer] convertFileSrc failed, falling back to blob URL:`, convertError);
         }
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+
+        // If convertFileSrc didn't work or file is small, fall back to blob URL
+        // (blob URLs can crash WebKit/GStreamer with large video files)
+        if (!mediaUrl) {
+          console.log(`[DocumentViewer] Using backend read for:`, filePath);
+          const base64Data = await documentsApi.readDocumentFile(filePath);
+          console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
+          if (!base64Data || base64Data.length === 0) {
+            throw new Error(`File not found or empty. The file may need to be re-imported.`);
+          }
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const mimeType = inferredType === "audio"
+            ? getAudioMimeType(filePath)
+            : getVideoMimeType(filePath);
+          console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
+          mediaUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
         }
-        const mimeType = inferredType === "audio"
-          ? getAudioMimeType(filePath)
-          : getVideoMimeType(filePath);
-        console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
-        const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-        mediaSrcRef.current = blobUrl;
-        setMediaSrc(blobUrl);
+
+        mediaSrcRef.current = mediaUrl;
+        setMediaSrc(mediaUrl);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);

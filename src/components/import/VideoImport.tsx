@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Film, Upload, X, Clock, FileVideo } from 'lucide-react';
-import { invokeCommand } from '../../lib/tauri';
+import { Film, Upload, X, FileVideo } from 'lucide-react';
+import { invokeCommand, openFilePicker, isTauri } from '../../lib/tauri';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { enqueueVideoTranscription } from '../../lib/videoTranscriptionQueue';
 import type { Document } from '../../types/document';
@@ -17,28 +17,43 @@ interface VideoImportProps {
 
 export function VideoImport({ onImport, onCancel }: VideoImportProps) {
   const { settings } = useSettingsStore();
-  const [file, setFile] = useState<File | null>(null);
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>('');
   const [title, setTitle] = useState('');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    // Check if it's a video file
-    if (!selectedFile.type.startsWith('video/')) {
-      setError('Please select a video file');
+  const handleFileSelect = useCallback(async () => {
+    if (!isTauri()) {
+      setError('Video import is only available in the desktop app');
       return;
     }
 
-    setFile(selectedFile);
-    setTitle(selectedFile.name.replace(/\.[^/.]+$/, '')); // Remove extension
-    setError(null);
+    try {
+      const paths = await openFilePicker({
+        title: 'Select Video File',
+        multiple: false,
+        filters: [
+          { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v'] }
+        ],
+      });
+
+      if (paths && paths.length > 0) {
+        const selectedPath = paths[0];
+        setFilePath(selectedPath);
+        // Extract filename from path
+        const name = selectedPath.split(/[/\\]/).pop() || selectedPath;
+        setFileName(name);
+        setTitle(name.replace(/\.[^/.]+$/, '')); // Remove extension
+        setError(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to select file');
+    }
   }, []);
 
   const handleImport = async () => {
-    if (!file) {
+    if (!filePath) {
       setError('Please select a file');
       return;
     }
@@ -52,15 +67,10 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
     setError(null);
 
     try {
-      // Read file as array buffer
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-
-      // Import via Tauri command
+      // Import via Tauri command - pass file path instead of bytes
       const result = await invokeCommand<Document>('import_video_file', {
-        filename: file.name,
+        sourcePath: filePath,
         title: title.trim(),
-        content: Array.from(bytes),
       });
 
       if (settings.audioTranscription.autoTranscribeLocalVideos && result.filePath) {
@@ -80,33 +90,6 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
       setProcessing(false);
     }
   };
-
-  const getVideoDuration = async (): Promise<number> => {
-    if (!file) return 0;
-
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.src = URL.createObjectURL(file);
-
-      video.onloadedmetadata = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(video.duration);
-      };
-
-      video.onerror = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(0);
-      };
-    });
-  };
-
-  const [duration, setDuration] = useState<number | null>(null);
-
-  // Load duration when file is selected
-  if (file && duration === null) {
-    getVideoDuration().then(setDuration);
-  }
 
   return (
     <div className="p-6">
@@ -132,58 +115,36 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
             Video File
           </label>
           <div className="flex items-center gap-4">
-            <label className="flex-1">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="video-file-input"
-              />
-              <div
-                className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${
-                  file ? 'border-primary' : 'border-border'
-                }`}
-              >
-                {file ? (
-                  <>
-                    <FileVideo className="w-5 h-5 text-primary" />
-                    <span className="text-sm truncate">{file.name}</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-sm">Choose file...</span>
-                  </>
-                )}
-              </div>
-              <label htmlFor="video-file-input" className="cursor-pointer">
-                <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90">
-                  Browse
-                </button>
-              </label>
-            </label>
+            <div
+              onClick={handleFileSelect}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${
+                filePath ? 'border-primary' : 'border-border'
+              }`}
+            >
+              {filePath ? (
+                <>
+                  <FileVideo className="w-5 h-5 text-primary" />
+                  <span className="text-sm truncate">{fileName}</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm">Choose file...</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Video Info */}
-        {file && (
+        {filePath && (
           <div className="p-3 bg-muted/30 rounded-lg space-y-1">
             <div className="text-sm text-foreground">
-              <span className="font-medium">File:</span> {file.name}
+              <span className="font-medium">File:</span> {fileName}
             </div>
             <div className="text-sm text-foreground">
-              <span className="font-medium">Size:</span> {(file.size / (1024 * 1024)).toFixed(2)} MB
+              <span className="font-medium">Path:</span> {filePath}
             </div>
-            <div className="text-sm text-foreground">
-              <span className="font-medium">Type:</span> {file.type}
-            </div>
-            {duration !== null && duration > 0 && (
-              <div className="flex items-center gap-1 text-sm text-foreground">
-                <Clock className="w-3 h-3" />
-                <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
-              </div>
-            )}
           </div>
         )}
 
@@ -220,7 +181,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
           )}
           <button
             onClick={handleImport}
-            disabled={!file || !title.trim() || processing}
+            disabled={!filePath || !title.trim() || processing}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {processing ? (
