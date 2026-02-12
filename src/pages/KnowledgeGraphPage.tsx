@@ -1,46 +1,66 @@
-import { useEffect, useState, useCallback } from "react";
+/**
+ * Enhanced Knowledge Graph Page
+ * Beautiful, Obsidian-inspired graph visualization
+ */
+
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { invokeCommand } from "../lib/tauri";
-import { KnowledgeGraph, GraphNodeType, type GraphNode, type GraphEdge, type GraphData } from "../components/graph/KnowledgeGraph";
+import { ObsidianGraph } from "../components/graph/ObsidianGraph";
+import { ObsidianSphere } from "../components/graph/ObsidianSphere";
+import { GraphFilterControls, applyGraphFilters, extractGraphMetadata, calculateGraphStatistics } from "../components/graph/GraphFilters";
+import { NodeDetailView } from "../components/graph/NodeDetailView";
+import { GraphNodeType, type GraphNode, type GraphEdge, type GraphData, LayoutAlgorithm } from "../components/graph/KnowledgeGraph";
 import { useCollectionStore } from "../stores/collectionStore";
 import { useTabsStore } from "../stores/tabsStore";
 import { useReviewStore } from "../stores/reviewStore";
 import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
 import {
   Network,
-  Filter,
   Download,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  Settings2,
+  Share2,
+  Sparkles,
+  GitBranch,
+  Grid3x3,
+  Maximize2,
+  Search,
+  Filter,
+  X,
 } from "lucide-react";
+
+type ViewMode = "graph" | "sphere";
 
 export function KnowledgeGraphPage() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<string | undefined>();
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("graph");
+  const [showFilters, setShowFilters] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const { addTab } = useTabsStore();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
   const documentAssignments = useCollectionStore((state) => state.documentAssignments);
-  const [filters, setFilters] = useState({
-    documents: true,
-    extracts: true,
-    flashcards: true,
-    categories: true,
-  });
 
+  const [filters, setFilters] = useState({
+    searchQuery: "",
+    nodeTypes: [] as GraphNodeType[],
+    categories: [] as string[],
+    tags: [] as string[],
+  });
+  const [layout, setLayout] = useState(LayoutAlgorithm.Force);
+
+  // Load graph data
   useEffect(() => {
     loadGraphData();
-  }, [filters, activeCollectionId, documentAssignments]);
+  }, [activeCollectionId, documentAssignments]);
 
   const loadGraphData = async () => {
     setIsLoading(true);
 
     try {
-      // Fetch data from backend
       const documents = await invokeCommand<any[]>("get_documents");
       const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
       const learningItems = await invokeCommand<any[]>("get_all_learning_items");
+
       const inActiveCollection = (documentId?: string | null) => {
         if (!activeCollectionId) return true;
         if (!documentId) return true;
@@ -48,79 +68,80 @@ export function KnowledgeGraphPage() {
         return assigned ? assigned === activeCollectionId : true;
       };
 
-      // Build graph nodes
       const nodes: GraphNode[] = [];
       const edges: GraphEdge[] = [];
-      let nodeId = 0;
 
       // Add document nodes
-      if (filters.documents) {
-        documents.filter((doc: any) => inActiveCollection(doc.id)).forEach((doc: any) => {
-          nodes.push({
-            id: `doc-${doc.id}`,
-            type: GraphNodeType.Document,
-            label: doc.title || "Untitled",
-            x: Math.random() * 800 + 100,
-            y: Math.random() * 600 + 100,
-            radius: 25,
-            category: doc.category,
-            metadata: { fileType: doc.fileType },
-          });
+      documents.filter((doc: any) => inActiveCollection(doc.id)).forEach((doc: any) => {
+        nodes.push({
+          id: `doc-${doc.id}`,
+          type: GraphNodeType.Document,
+          label: doc.title || "Untitled Document",
+          description: doc.description || `${doc.fileType?.toUpperCase() || "Unknown"} document`,
+          x: Math.random() * 800 + 100,
+          y: Math.random() * 600 + 100,
+          radius: 24,
+          category: doc.category,
+          tags: doc.tags,
+          metadata: { fileType: doc.fileType, createdAt: doc.createdAt },
+          color: "#3b82f6",
         });
-      }
+      });
 
       // Add extract nodes
-      if (filters.extracts) {
-        extracts.filter((extract: any) => inActiveCollection(extract.documentId)).forEach((extract: any) => {
-          nodes.push({
-            id: `extract-${extract.id}`,
-            type: GraphNodeType.Extract,
-            label: extract.content?.substring(0, 30) + "..." || "Untitled",
-            description: extract.content,
-            x: Math.random() * 800 + 100,
-            y: Math.random() * 600 + 100,
-            radius: 15,
-            metadata: { documentId: extract.documentId },
-          });
-
-          // Create edge from document to extract
-          edges.push({
-            id: `edge-${extract.id}`,
-            source: `doc-${extract.documentId}`,
-            target: `extract-${extract.id}`,
-            type: "contains",
-          });
+      extracts.filter((extract: any) => inActiveCollection(extract.documentId)).forEach((extract: any) => {
+        const content = extract.content || "";
+        nodes.push({
+          id: `extract-${extract.id}`,
+          type: GraphNodeType.Extract,
+          label: content.length > 40 ? content.substring(0, 37) + "..." : content,
+          description: content,
+          x: Math.random() * 800 + 100,
+          y: Math.random() * 600 + 100,
+          radius: 16,
+          metadata: { documentId: extract.documentId, position: extract.position },
+          color: "#22c55e",
         });
-      }
+
+        edges.push({
+          id: `edge-extract-${extract.id}`,
+          source: `doc-${extract.documentId}`,
+          target: `extract-${extract.id}`,
+          type: "contains",
+        });
+      });
 
       // Add flashcard nodes
-      if (filters.flashcards) {
-        learningItems.filter((item: any) => inActiveCollection(item.documentId)).forEach((item: any) => {
-          nodes.push({
-            id: `card-${item.id}`,
-            type: GraphNodeType.Flashcard,
-            label: item.question?.substring(0, 20) + "..." || "Untitled",
-            description: item.question,
-            x: Math.random() * 800 + 100,
-            y: Math.random() * 600 + 100,
-            radius: 12,
-            metadata: {
-              documentId: item.documentId,
-              extractId: item.extractId,
-            },
-          });
-
-          // Create edge from extract to flashcard
-          if (item.extractId) {
-            edges.push({
-              id: `edge-card-${item.id}`,
-              source: `extract-${item.extractId}`,
-              target: `card-${item.id}`,
-              type: "derived",
-            });
-          }
+      learningItems.filter((item: any) => inActiveCollection(item.documentId)).forEach((item: any) => {
+        const question = item.question || "";
+        nodes.push({
+          id: `card-${item.id}`,
+          type: GraphNodeType.Flashcard,
+          label: question.length > 30 ? question.substring(0, 27) + "..." : question || "Flashcard",
+          description: question,
+          x: Math.random() * 800 + 100,
+          y: Math.random() * 600 + 100,
+          radius: 12,
+          metadata: { documentId: item.documentId, extractId: item.extractId, interval: item.interval },
+          color: "#a855f7",
         });
-      }
+
+        if (item.extractId) {
+          edges.push({
+            id: `edge-card-${item.id}`,
+            source: `extract-${item.extractId}`,
+            target: `card-${item.id}`,
+            type: "derived",
+          });
+        } else if (item.documentId) {
+          edges.push({
+            id: `edge-card-doc-${item.id}`,
+            source: `doc-${item.documentId}`,
+            target: `card-${item.id}`,
+            type: "derived",
+          });
+        }
+      });
 
       setGraphData({ nodes, edges });
     } catch (error) {
@@ -130,13 +151,63 @@ export function KnowledgeGraphPage() {
     }
   };
 
+  // Apply filters
+  const filteredData = useMemo(() => {
+    return applyGraphFilters(graphData.nodes, graphData.edges, filters);
+  }, [graphData, filters]);
+
+  // Extract metadata
+  const { categories, tags } = useMemo(() => {
+    return extractGraphMetadata(graphData.nodes);
+  }, [graphData]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    return calculateGraphStatistics(graphData.nodes, graphData.edges);
+  }, [graphData]);
+
+  // Node counts by type
+  const nodeCounts = useMemo(() => {
+    const counts: Record<GraphNodeType, number> = {
+      [GraphNodeType.Document]: 0,
+      [GraphNodeType.Extract]: 0,
+      [GraphNodeType.Flashcard]: 0,
+      [GraphNodeType.Category]: 0,
+      [GraphNodeType.Tag]: 0,
+    };
+    graphData.nodes.forEach((node) => {
+      counts[node.type]++;
+    });
+    return counts;
+  }, [graphData]);
+
+  // Get selected node data
+  const selectedNodeData = useMemo(() => {
+    if (!selectedNode) return null;
+    const node = graphData.nodes.find((n) => n.id === selectedNode);
+    if (!node) return null;
+
+    const connectedEdges = graphData.edges.filter(
+      (e) => e.source === selectedNode || e.target === selectedNode
+    );
+
+    const relatedNodeIds = new Set<string>();
+    connectedEdges.forEach((e) => {
+      if (e.source === selectedNode) relatedNodeIds.add(e.target);
+      else relatedNodeIds.add(e.source);
+    });
+
+    const relatedNodes = graphData.nodes.filter((n) => relatedNodeIds.has(n.id));
+
+    return { node, relatedNodes, connectedEdges };
+  }, [selectedNode, graphData]);
+
+  // Handlers
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode(node.id);
-    console.log("Clicked node:", node);
   }, []);
 
   const handleNodeDoubleClick = useCallback((node: GraphNode) => {
-    // Open the item in the relevant view
     switch (node.type) {
       case GraphNodeType.Document:
         addTab({
@@ -150,8 +221,8 @@ export function KnowledgeGraphPage() {
         break;
       case GraphNodeType.Extract:
         addTab({
-          title: node.label,
-          icon: "📄",
+          title: node.label.substring(0, 30),
+          icon: "💬",
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -164,7 +235,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Flashcard:
         addTab({
           title: "Review",
-          icon: "🎴",
+          icon: "🧠",
           type: "review",
           content: ReviewTab,
           closable: true,
@@ -181,7 +252,7 @@ export function KnowledgeGraphPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "knowledge-graph.json";
+      a.download = `knowledge-graph-${new Date().toISOString().split("T")[0]}.json`;
       a.click();
     } catch (error) {
       console.error("Failed to export graph:", error);
@@ -190,140 +261,182 @@ export function KnowledgeGraphPage() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-cream">
+      <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-300 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-foreground-secondary">Loading knowledge graph...</p>
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
+            <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-muted-foreground">Loading knowledge graph...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-cream">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="h-14 bg-card border-b border-border flex items-center justify-between px-4 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Network className="w-5 h-5 text-primary-600" />
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">
-              Knowledge Graph
-            </h1>
-            <p className="text-xs text-foreground-secondary">
-              {graphData.nodes.length} nodes • {graphData.edges.length} connections
-            </p>
+      <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0 bg-card/50 backdrop-blur">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Network className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">Knowledge Graph</h1>
+              <p className="text-xs text-muted-foreground">
+                {filteredData.nodes.length} visible · {graphData.nodes.length} total
+              </p>
+            </div>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-xl ml-4">
+            <button
+              onClick={() => setViewMode("graph")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === "graph"
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <GitBranch className="w-4 h-4" />
+              Graph
+            </button>
+            <button
+              onClick={() => setViewMode("sphere")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                viewMode === "sphere"
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              Sphere
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setFilters((f) => ({ ...f, searchQuery: e.target.value }));
+              }}
+              placeholder="Search nodes..."
+              className="w-64 pl-10 pr-9 py-2 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilters((f) => ({ ...f, searchQuery: "" }));
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+              showFilters ? "bg-primary/10 text-primary" : "hover:bg-muted"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+          </button>
+
+          {/* Export */}
           <button
             onClick={exportGraph}
-            className="p-2 hover:bg-muted rounded transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-muted rounded-xl text-sm font-medium transition-colors"
             title="Export graph"
           >
-            <Download className="w-4 h-4 text-foreground-secondary" />
+            <Download className="w-4 h-4" />
           </button>
         </div>
       </div>
 
+      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Filters Sidebar */}
-        <div className="w-56 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
-          <h3 className="text-sm font-medium text-foreground mb-4">Filters</h3>
-
-          <div className="space-y-3">
-            <FilterSection
-              label="Documents"
-              checked={filters.documents}
-              onChange={(checked) => setFilters({ ...filters, documents: checked })}
-              count={graphData.nodes.filter(n => n.type === GraphNodeType.Document).length}
-              color="bg-primary-500"
-            />
-            <FilterSection
-              label="Extracts"
-              checked={filters.extracts}
-              onChange={(checked) => setFilters({ ...filters, extracts: checked })}
-              count={graphData.nodes.filter(n => n.type === GraphNodeType.Extract).length}
-              color="bg-accent"
-            />
-            <FilterSection
-              label="Flashcards"
-              checked={filters.flashcards}
-              onChange={(checked) => setFilters({ ...filters, flashcards: checked })}
-              count={graphData.nodes.filter(n => n.type === GraphNodeType.Flashcard).length}
-              color="bg-success"
-            />
-            <FilterSection
-              label="Categories"
-              checked={filters.categories}
-              onChange={(checked) => setFilters({ ...filters, categories: checked })}
-              count={graphData.nodes.filter(n => n.type === GraphNodeType.Category).length}
-              color="bg-warning"
+        {showFilters && (
+          <div className="w-72 flex-shrink-0 border-r border-border">
+            <GraphFilterControls
+              filters={filters}
+              onFiltersChange={setFilters}
+              availableCategories={categories}
+              availableTags={tags}
+              layout={layout}
+              onLayoutChange={setLayout}
+              nodeCounts={nodeCounts}
             />
           </div>
+        )}
 
-          {selectedNode && (
-            <div className="mt-6 pt-6 border-t border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">
-                Selected Node
-              </h3>
-              <div className="p-3 bg-muted rounded">
-                <div className="text-sm text-foreground">
-                  {graphData.nodes.find(n => n.id === selectedNode)?.label}
+        {/* Graph/Sphere View */}
+        <div className="flex-1 relative">
+          {viewMode === "graph" ? (
+            <ObsidianGraph
+              data={filteredData}
+              onNodeClick={handleNodeClick}
+              onNodeDoubleClick={handleNodeDoubleClick}
+              selectedNode={selectedNode || undefined}
+              enablePhysics={true}
+              showLabels={true}
+            />
+          ) : (
+            <ObsidianSphere
+              nodes={filteredData.nodes}
+              edges={filteredData.edges}
+              onNodeClick={handleNodeClick}
+            />
+          )}
+
+          {/* Empty state */}
+          {filteredData.nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center bg-card/80 backdrop-blur p-8 rounded-2xl border border-border shadow-xl">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <Grid3x3 className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <div className="text-xs text-foreground-secondary mt-1">
-                  {graphData.nodes.find(n => n.id === selectedNode)?.type}
-                </div>
+                <h3 className="text-lg font-semibold mb-1">No nodes visible</h3>
+                <p className="text-sm text-muted-foreground">
+                  Try adjusting your filters to see more content
+                </p>
               </div>
             </div>
           )}
         </div>
-
-        {/* Graph */}
-        <div className="flex-1">
-          <KnowledgeGraph
-            data={graphData}
-            layout="force"
-            onNodeClick={handleNodeClick}
-            onNodeDoubleClick={handleNodeDoubleClick}
-            selectedNode={selectedNode}
-            enablePhysics={true}
-            showLabels={true}
-          />
-        </div>
       </div>
-    </div>
-  );
-}
 
-function FilterSection({
-  label,
-  checked,
-  onChange,
-  count,
-  color,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  count: number;
-  color: string;
-}) {
-  return (
-    <label className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer">
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="rounded"
+      {/* Node Detail Panel */}
+      {selectedNodeData && (
+        <NodeDetailView
+          node={selectedNodeData.node}
+          relatedNodes={selectedNodeData.relatedNodes}
+          connectedEdges={selectedNodeData.connectedEdges}
+          onClose={() => setSelectedNode(null)}
+          onNavigate={(nodeId) => {
+            const node = graphData.nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setSelectedNode(nodeId);
+            }
+          }}
+          onEdit={(nodeId) => {
+            console.log("Edit node:", nodeId);
+          }}
         />
-        <span className="text-sm text-foreground">{label}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className={`w-2 h-2 rounded ${color}`} />
-        <span className="text-xs text-foreground-secondary">{count}</span>
-      </div>
-    </label>
+      )}
+    </div>
   );
 }

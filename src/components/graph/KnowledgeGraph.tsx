@@ -102,7 +102,7 @@ export function KnowledgeGraph({
 }: KnowledgeGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const { theme } = useTheme();
   const accentColor = theme.colors.secondary;
   const infoColor = theme.colors.link;

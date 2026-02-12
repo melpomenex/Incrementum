@@ -1050,15 +1050,23 @@ export function PDFViewer({
     };
   }, [pageNumber, numPages, suppressAutoScroll]);
 
+  // Track the last restoreRequestId we've processed to detect new restore attempts
+  const lastProcessedRestoreIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!restoreState || restoreRequestId === undefined) return;
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // Restore can run before page layout is stable (especially on first load or fit-width reflows).
-    // Retry for a short window until we have enough layout to map the anchor into scroll coords.
-    userScrolledDuringRestoreRef.current = false;
-    userScrollSignaledRef.current = false;
+    // Only reset user scroll tracking when this is a genuinely NEW restore attempt
+    // (i.e., restoreRequestId changed for the first time, not just re-triggered by verification)
+    const isNewRestore = lastProcessedRestoreIdRef.current === null ||
+                         restoreRequestId < (lastProcessedRestoreIdRef.current ?? 0);
+    if (isNewRestore) {
+      userScrolledDuringRestoreRef.current = false;
+      userScrollSignaledRef.current = false;
+    }
+    lastProcessedRestoreIdRef.current = restoreRequestId;
     const start = Date.now();
     const deadline = start + 8000;
     let canceled = false;
@@ -1149,6 +1157,13 @@ export function PDFViewer({
       if (settleTimeout) clearTimeout(settleTimeout);
     };
   }, [numPages, restoreRequestId, restoreState]);
+
+  // Reset restore tracking when restoreState becomes null (restoration complete/cancelled)
+  useEffect(() => {
+    if (!restoreState) {
+      lastProcessedRestoreIdRef.current = null;
+    }
+  }, [restoreState]);
 
 
   const handlePrevPage = () => {

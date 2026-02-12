@@ -1857,9 +1857,19 @@ export function DocumentViewer({
 
   // Handle PDF/EPUB load
   const handleDocumentLoad = useCallback((numPages: number, outline: any[] = []) => {
-    // Update document with page count if needed
     console.log("Document loaded:", numPages, "pages", outline.length, "outline items");
-  }, []);
+
+    // Update document with page count if not already set
+    // This ensures the "Continue Reading" tab can calculate progress correctly
+    if (currentDocument && numPages > 0 && !currentDocument.totalPages) {
+      documentsApi.updateDocument(currentDocument.id, {
+        ...currentDocument,
+        totalPages: numPages,
+      }).catch(err => {
+        console.warn("Failed to update document total pages:", err);
+      });
+    }
+  }, [currentDocument]);
 
   // Handle YouTube load
   const handleYouTubeLoad = useCallback((metadata: { duration: number; title: string }) => {
