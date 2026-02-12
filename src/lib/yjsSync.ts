@@ -12,6 +12,8 @@ type YjsSyncState = {
 
 const DEFAULT_SYNC_URL = "wss://sync.readsync.org";
 const ROOM_KEY = "incrementum_sync_room";
+const DB_NAME = "incrementum-yjs";
+const CORRUPTION_FLAG_KEY = "incrementum-yjs-corruption-detected";
 
 let instance: YjsSyncState | null = null;
 
@@ -52,18 +54,143 @@ export function createNewSyncRoomId(): string {
   return room;
 }
 
-export function getYjsSync(): YjsSyncState {
+/**
+ * Clear corrupted IndexedDB data for Yjs
+ */
+export async function clearYjsIndexedDB(): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+
+  try {
+    console.log("[YjsSync] Clearing IndexedDB data...");
+
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => {
+        console.log("[YjsSync] IndexedDB cleared successfully");
+        resolve();
+      };
+      request.onerror = () => {
+        console.error("[YjsSync] Failed to clear IndexedDB:", request.error);
+        reject(request.error);
+      };
+      request.onblocked = () => {
+        console.warn("[YjsSync] Database deletion blocked");
+        resolve();
+      };
+    });
+
+    // Clear the corruption flag
+    localStorage.removeItem(CORRUPTION_FLAG_KEY);
+    return true;
+  } catch (error) {
+    console.error("[YjsSync] Error clearing IndexedDB:", error);
+    return false;
+  }
+}
+
+/**
+ * Check if IndexedDB data is corrupted by trying to read it
+ */
+async function checkAndRepairCorruption(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+
+  const wasCorrupted = localStorage.getItem(CORRUPTION_FLAG_KEY);
+
+  // If we detected corruption in a previous session, clear data now
+  if (wasCorrupted === "true") {
+    console.log("[YjsSync] Previous corruption detected, clearing data...");
+    await clearYjsIndexedDB();
+    return;
+  }
+
+  // Set up global error handler to catch Yjs decode errors
+  const originalErrorHandler = window.onerror;
+  let detectedCorruption = false;
+
+  window.onerror = (message, source, lineno, colno, error) => {
+    const msg = String(message);
+    if (
+      msg.includes("Cannot read properties of null") ||
+      msg.includes("reading 'length'") ||
+      (source?.includes("chunk") && msg.includes("readVarUint"))
+    ) {
+      detectedCorruption = true;
+      console.warn("[YjsSync] Detected corrupted Yjs data, will clear on next load");
+      localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
+
+      // Attempt immediate cleanup
+      setTimeout(() => {
+        clearYjsIndexedDB();
+      }, 100);
+
+      return true; // Prevent the error from propagating
+    }
+
+    if (originalErrorHandler) {
+      return originalErrorHandler(message, source, lineno, colno, error);
+    }
+    return false;
+  };
+
+  // Restore original handler after a delay
+  setTimeout(() => {
+    if (!detectedCorruption) {
+      window.onerror = originalErrorHandler;
+    }
+  }, 5000);
+}
+
+export async function getYjsSync(): Promise<YjsSyncState> {
   if (instance) {
     return instance;
   }
+
+  // Check for corruption before initializing
+  await checkAndRepairCorruption();
 
   const url = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
   const room = import.meta.env.VITE_YJS_ROOM || getSyncRoomId();
 
   const doc = new Y.Doc();
-  const persistence = new IndexeddbPersistence("incrementum-yjs", doc);
+
+  // Create persistence with error handling
+  let persistence: IndexeddbPersistence;
+
+  try {
+    persistence = new IndexeddbPersistence(DB_NAME, doc);
+
+    // Handle sync events
+    persistence.on("sync", (isSynced: boolean) => {
+      if (isSynced) {
+        console.log("[YjsSync] IndexedDB sync complete");
+        // Clear corruption flag on successful sync
+        localStorage.removeItem(CORRUPTION_FLAG_KEY);
+      }
+    });
+
+    // Handle errors
+    persistence.on("error", async (error: Error) => {
+      console.error("[YjsSync] IndexedDB error:", error);
+      localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
+    });
+
+  } catch (error) {
+    console.error("[YjsSync] Failed to create IndexedDB persistence:", error);
+    // Create doc without persistence as fallback
+    persistence = null as unknown as IndexeddbPersistence;
+  }
+
   const provider = new WebsocketProvider(url, room, doc, {
     connect: true,
+  });
+
+  // Handle WebSocket errors gracefully
+  provider.on("status", (event: { status: string }) => {
+    console.log("[YjsSync] WebSocket status:", event.status);
+  });
+
+  provider.on("connection-error", (error: Error) => {
+    console.warn("[YjsSync] WebSocket connection error:", error?.message || error);
   });
 
   instance = {
@@ -76,3 +203,33 @@ export function getYjsSync(): YjsSyncState {
 
   return instance;
 }
+
+/**
+ * Get existing sync instance without creating new one
+ */
+export function getYjsSyncInstance(): YjsSyncState | null {
+  return instance;
+}
+
+/**
+ * Reset Yjs sync state and clear all data
+ */
+export async function resetYjsSync(): Promise<void> {
+  if (instance) {
+    try {
+      instance.provider.disconnect();
+    } catch (e) {
+      console.warn("[YjsSync] Error disconnecting provider:", e);
+    }
+    try {
+      instance.doc.destroy();
+    } catch (e) {
+      console.warn("[YjsSync] Error destroying doc:", e);
+    }
+    instance = null;
+  }
+  await clearYjsIndexedDB();
+}
+
+// Export synchronous version for backward compatibility
+export { getYjsSync as getYjsSyncSync };

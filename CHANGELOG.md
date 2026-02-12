@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-02-12
+
+### Added
+- New review and analytics components, including progress rings, review heatmap, quick review widget, and review preview modal
+- Smart productivity and guidance UX: interactive tutorial, FSRS explanation modal, break reminder, keyboard shortcuts panel, and shortcut tooltips
+- New smart content helpers: AI tag suggestions, smart collections, and similar content recommendations
+- Mobile/PWA improvements with install/offline indicators and touch-friendly interaction hooks
+
+### Changed
+- Refreshed app shell and review/document views with improved loading skeletons, empty states, and onboarding polish
+
+### Fixed
+- Improved sync resilience across local storage, file sync, and Yjs sync flows
+
 ## [1.7.5] - 2026-02-09
 
 ### Added

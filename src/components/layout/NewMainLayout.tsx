@@ -5,6 +5,7 @@ import { SyncStatusIndicator } from "../sync/SyncStatusIndicator";
 import { UserMenu } from "../auth/UserMenu";
 import { Breadcrumb } from "../common/Breadcrumb";
 import { Toast } from "../common/Toast";
+import { OfflineIndicator } from "../pwa";
 import {
   Home,
   BookOpen,
@@ -217,6 +218,7 @@ function TopHeaderBar({
 
       {/* Right side - actions */}
       <div className="flex items-center gap-1">
+        <OfflineIndicator showLabel={false} />
         <SyncStatusIndicator
           isAuthenticated={isAuthenticated}
           onLoginClick={onLoginClick}
@@ -285,6 +287,7 @@ function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, on
             <button
               key={item.id}
               onClick={() => setActiveItem(item.id)}
+              data-tutorial={item.id === 'queue' ? 'queue-nav' : item.id === 'analytics' ? 'analytics-nav' : item.id === 'documents' ? 'document-list' : undefined}
               className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
                 activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
               } ${isCollapsed ? "justify-center" : ""}`}

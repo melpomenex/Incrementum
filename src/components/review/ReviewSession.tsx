@@ -11,6 +11,9 @@ import { QueueNavigationControls } from "../queue/QueueNavigationControls";
 import { ReviewRating } from "../../api/review";
 import { ReviewFeedback } from "./ReviewFeedback";
 import { ReviewCardSkeleton } from "../common/Skeleton";
+import { FSRSExplanationModal, useFSRSExplanation } from "../onboarding/FSRSExplanationModal";
+import { useSwipeGesture, getSwipeIndicatorStyle, SWIPE_RATINGS } from "../../hooks/useSwipeGesture";
+import { BreakReminderModal, useBreakReminder } from "./BreakReminderModal";
 
 interface ReviewSessionProps {
   onExit: () => void;
@@ -39,6 +42,32 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   } = useReviewStore();
   const [isQueueListOpen, setIsQueueListOpen] = useState(false);
   const queueListRef = useRef<HTMLDivElement | null>(null);
+
+  // FSRS explanation modal for first-time reviewers
+  const { shouldShow: showFSRSExplanation, markShown: markFSRSShown } = useFSRSExplanation();
+
+  // Swipe gestures for mobile/tablet (only when answer is shown and not submitting)
+  const {
+    ref: swipeRef,
+    direction: swipeDirection,
+    deltaX,
+    deltaY,
+  } = useSwipeGesture({
+    onSwipeLeft: () => isAnswerShown && !isSubmitting && handleRating(1 as ReviewRating),
+    onSwipeRight: () => isAnswerShown && !isSubmitting && handleRating(4 as ReviewRating),
+    onSwipeUp: () => isAnswerShown && !isSubmitting && handleRating(3 as ReviewRating),
+    onSwipeDown: () => isAnswerShown && !isSubmitting && handleRating(2 as ReviewRating),
+    threshold: 80,
+    preventDefaultTouch: true,
+  });
+
+  // Break reminder for long review sessions (30 minutes)
+  const {
+    showReminder: showBreakReminder,
+    sessionMinutes: breakSessionMinutes,
+    dismissReminder: dismissBreakReminder,
+    continueAfterReminder: continueAfterBreakReminder,
+  } = useBreakReminder(sessionStartTime, 30);
 
   const isDocumentItem = (item: ReviewSessionItem | null): item is ReviewDocumentItem =>
     !!item && (item as ReviewDocumentItem).itemType === "document";
@@ -303,7 +332,24 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           />
 
           {/* Card and Ratings */}
-          <div className="flex-1 flex flex-col justify-center">
+          <div ref={swipeRef} className="flex-1 flex flex-col justify-center relative touch-pan-y">
+            {/* Swipe Indicator Overlay */}
+            {swipeDirection && isAnswerShown && (
+              <div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 rounded-lg"
+                style={getSwipeIndicatorStyle(swipeDirection, deltaX, deltaY)}
+              >
+                <div className="flex flex-col items-center">
+                  <div className={`px-6 py-3 rounded-xl ${SWIPE_RATINGS[swipeDirection].color} text-white font-bold text-xl shadow-lg`}>
+                    {SWIPE_RATINGS[swipeDirection].label}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Release to rate
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isCurrentDocument ? (
               <>
                 <ReviewDocumentCard item={currentCard as ReviewDocumentItem} />
@@ -331,6 +377,12 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                     disabled={isSubmitting}
                     previewIntervals={previewIntervals}
                   />
+                  {/* Swipe hint for mobile */}
+                  <div className="mt-3 text-center text-xs text-muted-foreground md:hidden">
+                    <span className="inline-flex items-center gap-1">
+                      Swipe ← Again • ↑ Good • ↓ Hard • → Easy
+                    </span>
+                  </div>
                 </div>
               </>
             ) : (
@@ -364,6 +416,20 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         type={feedback.type}
         value={feedback.value}
         onClose={() => setFeedback({ type: null })}
+      />
+
+      {/* FSRS Explanation Modal for first-time reviewers */}
+      <FSRSExplanationModal
+        isOpen={showFSRSExplanation && !isLoading && queue.length > 0}
+        onClose={markFSRSShown}
+      />
+
+      {/* Break Reminder Modal for long review sessions */}
+      <BreakReminderModal
+        isOpen={showBreakReminder}
+        onClose={dismissBreakReminder}
+        onContinue={continueAfterBreakReminder}
+        sessionMinutes={breakSessionMinutes}
       />
     </div>
   );
