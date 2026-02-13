@@ -455,6 +455,7 @@ export function applyTheme(theme: Theme) {
 
   // Apply data attribute for mode
   root.setAttribute("data-theme", theme.mode);
+  root.setAttribute("data-theme-id", theme.id);
 }
 
 /**
