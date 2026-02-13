@@ -166,6 +166,23 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
   }, []);
 
+  const hasActiveSelectionInContent = useCallback(() => {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim() ?? "";
+    if (!text) return false;
+
+    const container = contentRef.current;
+    if (!container) return false;
+
+    const anchorNode = selection?.anchorNode ?? null;
+    const focusNode = selection?.focusNode ?? null;
+
+    return !!(
+      (anchorNode && container.contains(anchorNode)) ||
+      (focusNode && container.contains(focusNode))
+    );
+  }, []);
+
   // Summary state
   const [summaryMode, setSummaryMode] = useState<SummaryMode>(() => {
     const saved = localStorage.getItem("rss-summary-mode");
@@ -363,6 +380,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   // Mouse wheel scroll detection
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
+      // Do not navigate while user is selecting text.
+      if (hasActiveSelectionInContent()) {
+        return;
+      }
+
       const now = Date.now();
       if (now - lastScrollTime.current < scrollCooldown) {
         return;
@@ -395,7 +417,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       container.addEventListener("wheel", handleWheel, { passive: true });
       return () => container.removeEventListener("wheel", handleWheel);
     }
-  }, [goToNext, goToPrevious]);
+  }, [goToNext, goToPrevious, hasActiveSelectionInContent]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -410,11 +432,17 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         case "ArrowDown":
         case "PageDown":
         case " ":
+          if (hasActiveSelectionInContent()) {
+            return;
+          }
           e.preventDefault();
           goToNext();
           break;
         case "ArrowUp":
         case "PageUp":
+          if (hasActiveSelectionInContent()) {
+            return;
+          }
           e.preventDefault();
           goToPrevious();
           break;
@@ -430,7 +458,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNext, goToPrevious, onExit]);
+  }, [goToNext, goToPrevious, onExit, hasActiveSelectionInContent]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -650,6 +678,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+      // If text is actively selected, don't interpret gesture as navigation/swipe action.
+      if (hasActiveSelectionInContent()) {
+        return;
+      }
+
       const touchEndX = currentX;
       const touchEndY = currentY;
       const deltaX = touchEndX - touchStartX;
@@ -727,7 +760,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [scrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite]);
+  }, [scrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite, hasActiveSelectionInContent]);
 
   const handleUndo = useCallback(async () => {
     if (!undoState) return;
@@ -775,6 +808,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const text = selection?.toString().trim() ?? "";
     if (!text) {
       setSelectedText("");
+      selectedTextRef.current = "";
       return;
     }
 
@@ -786,6 +820,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       && ((anchorNode && container.contains(anchorNode)) || (focusNode && container.contains(focusNode)));
     if (!selectionInContainer) {
       setSelectedText("");
+      selectedTextRef.current = "";
       return;
     }
 
@@ -801,13 +836,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
   // Set up selection listeners
   useEffect(() => {
-    const handleSelection = () => updateSelection();
-    document.addEventListener("mouseup", handleSelection);
-    document.addEventListener("keyup", handleSelection);
+    document.addEventListener("selectionchange", updateSelection);
 
     return () => {
-      document.removeEventListener("mouseup", handleSelection);
-      document.removeEventListener("keyup", handleSelection);
+      document.removeEventListener("selectionchange", updateSelection);
     };
   }, [updateSelection]);
 
@@ -1247,11 +1279,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               {/* Article content */}
               <div
                 ref={contentRef}
-                className="flex-1 overflow-y-auto rss-article-content prose prose-lg max-w-none dark:prose-invert"
+                className="flex-1 overflow-y-auto rss-article-content prose prose-lg max-w-none dark:prose-invert select-text"
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
                   const link = target.closest("a[href]") as HTMLAnchorElement | null;
                   if (!link) return;
+                  if (hasActiveSelectionInContent()) return;
                   e.preventDefault();
                   void handleOpenOriginal(link.href);
                 }}
