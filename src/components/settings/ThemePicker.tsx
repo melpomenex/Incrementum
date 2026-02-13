@@ -183,6 +183,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
     'modern-dark',
     'material-you',
     'snow',
+    'windows-95',
     'mistral-dark',
     'aurora-light',
     'forest-light',

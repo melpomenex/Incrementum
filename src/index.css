@@ -132,6 +132,103 @@
   .tauri-drag-region textarea {
     -webkit-app-region: no-drag;
   }
+
+  :root[data-theme-id="windows-95"] {
+    color-scheme: light;
+    --font-family: "MS Sans Serif", Tahoma, "Segoe UI", sans-serif;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
+  }
+
+  :root[data-theme-id="windows-95"] body,
+  :root[data-theme-id="windows-95"] #root {
+    background: #008080;
+    color: #ffffff;
+    font-family: var(--font-family);
+    image-rendering: pixelated;
+  }
+
+  /* Keep text readable on the teal desktop background. */
+  :root[data-theme-id="windows-95"] .text-muted-foreground,
+  :root[data-theme-id="windows-95"] .text-foreground-secondary,
+  :root[data-theme-id="windows-95"] .bg-background {
+    color: #ffffff !important;
+  }
+
+  :root[data-theme-id="windows-95"] * {
+    border-radius: 0 !important;
+    text-shadow: none !important;
+  }
+
+  :root[data-theme-id="windows-95"] button,
+  :root[data-theme-id="windows-95"] input,
+  :root[data-theme-id="windows-95"] select,
+  :root[data-theme-id="windows-95"] textarea,
+  :root[data-theme-id="windows-95"] [role="button"],
+  :root[data-theme-id="windows-95"] .card,
+  :root[data-theme-id="windows-95"] [class*="rounded"] {
+    background: #c0c0c0 !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #808080 !important;
+    border-bottom: 2px solid #808080 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+
+  :root[data-theme-id="windows-95"] button:active,
+  :root[data-theme-id="windows-95"] [role="button"]:active {
+    border-top: 2px solid #808080 !important;
+    border-left: 2px solid #808080 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+    padding-top: calc(0.5rem + 1px);
+    padding-left: calc(0.75rem + 1px);
+  }
+
+  :root[data-theme-id="windows-95"] input,
+  :root[data-theme-id="windows-95"] select,
+  :root[data-theme-id="windows-95"] textarea {
+    background: #ffffff !important;
+    border-top: 2px solid #808080 !important;
+    border-left: 2px solid #808080 !important;
+    border-right: 2px solid #ffffff !important;
+    border-bottom: 2px solid #ffffff !important;
+  }
+
+  :root[data-theme-id="windows-95"] main,
+  :root[data-theme-id="windows-95"] header,
+  :root[data-theme-id="windows-95"] nav,
+  :root[data-theme-id="windows-95"] aside,
+  :root[data-theme-id="windows-95"] section,
+  :root[data-theme-id="windows-95"] article,
+  :root[data-theme-id="windows-95"] dialog,
+  :root[data-theme-id="windows-95"] [class*="panel"],
+  :root[data-theme-id="windows-95"] [class*="modal"] {
+    background-color: #c0c0c0 !important;
+    border-top: 2px solid #ffffff !important;
+    border-left: 2px solid #ffffff !important;
+    border-right: 2px solid #808080 !important;
+    border-bottom: 2px solid #808080 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+
+  :root[data-theme-id="windows-95"] a {
+    color: #0000ff !important;
+  }
+
+  :root[data-theme-id="windows-95"] .glass-panel,
+  :root[data-theme-id="windows-95"] .glass-panel-light,
+  :root[data-theme-id="windows-95"] .glass-panel-heavy,
+  :root[data-theme-id="windows-95"] .glass-button,
+  :root[data-theme-id="windows-95"] .glass-button-icon {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #c0c0c0 !important;
+  }
 }
 
 @layer utilities {

@@ -70,6 +70,7 @@ function applyThemeToDOM(theme: Theme): void {
 
   // Set theme variant on data attribute
   root.setAttribute('data-theme', theme.variant);
+  root.setAttribute('data-theme-id', theme.id);
   // Enable Tailwind dark: utilities and native form theming.
   const isDark = theme.variant === 'dark';
   root.classList.toggle('dark', isDark);
