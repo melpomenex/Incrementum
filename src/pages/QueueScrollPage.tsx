@@ -707,66 +707,75 @@ export function QueueScrollPage() {
     if (!isMobilePWA) return;
     if (renderedItem?.type !== "rss") return;
 
+    let rafId: number | null = null;
+
     const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      if (!selection) {
-        setMobileRssSelection(prev => ({ ...prev, showButton: false }));
-        return;
+      // Cancel any pending RAF to avoid multiple updates
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
 
-      const text = selection.toString().trim();
-
-      // Check if selection is within the RSS content
-      const anchorElement = selection.anchorNode instanceof Element
-        ? selection.anchorNode
-        : selection.anchorNode?.parentElement;
-      const focusElement = selection.focusNode instanceof Element
-        ? selection.focusNode
-        : selection.focusNode?.parentElement;
-
-      const container = rssContentRef.current;
-      const isInRssContent = container &&
-        ((anchorElement && container.contains(anchorElement)) ||
-         (focusElement && container.contains(focusElement)));
-
-      if (!text || text.length === 0 || !isInRssContent) {
-        setMobileRssSelection(prev => ({ ...prev, showButton: false }));
-        return;
-      }
-
-      // Get selection position for button placement
-      try {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-
-        // Position the button centered above the selection
-        const x = rect.left + rect.width / 2;
-        const y = rect.top - 60; // 60px above selection
-
-        setMobileRssSelection({
-          text,
-          position: { x, y },
-          showButton: true,
-        });
-
-        // Also update the regular RSS selection state
-        setRssSelectedText(text);
-
-        // Auto-hide after 5 seconds if not interacted with
-        if (mobileRssSelectionTimeoutRef.current) {
-          clearTimeout(mobileRssSelectionTimeoutRef.current);
-        }
-        mobileRssSelectionTimeoutRef.current = window.setTimeout(() => {
+      rafId = requestAnimationFrame(() => {
+        const selection = window.getSelection();
+        if (!selection) {
           setMobileRssSelection(prev => ({ ...prev, showButton: false }));
-        }, 5000);
-      } catch {
-        // Range might be invalid, ignore
-      }
+          return;
+        }
+
+        const text = selection.toString().trim();
+
+        // Check if selection is within the RSS content
+        const anchorElement = selection.anchorNode instanceof Element
+          ? selection.anchorNode
+          : selection.anchorNode?.parentElement;
+        const focusElement = selection.focusNode instanceof Element
+          ? selection.focusNode
+          : selection.focusNode?.parentElement;
+
+        const container = rssContentRef.current;
+        const isInRssContent = container &&
+          ((anchorElement && container.contains(anchorElement)) ||
+           (focusElement && container.contains(focusElement)));
+
+        if (!text || text.length === 0 || !isInRssContent) {
+          setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+          return;
+        }
+
+        // Get selection position for button placement
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+
+          // Position the button centered above the selection
+          const x = rect.left + rect.width / 2;
+          const y = rect.top - 60; // 60px above selection
+
+          setMobileRssSelection({
+            text,
+            position: { x, y },
+            showButton: true,
+          });
+
+          // Also update the regular RSS selection state
+          setRssSelectedText(text);
+
+          // Auto-hide after 5 seconds if not interacted with
+          if (mobileRssSelectionTimeoutRef.current) {
+            clearTimeout(mobileRssSelectionTimeoutRef.current);
+          }
+          mobileRssSelectionTimeoutRef.current = window.setTimeout(() => {
+            setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+          }, 5000);
+        } catch {
+          // Range might be invalid, ignore
+        }
+      });
     };
 
     // Also handle touchend for immediate response on mobile
     const handleTouchEnd = () => {
-      // Small delay to allow selection to be finalized
+      // Small delay to allow selection to be finalized, then use RAF
       setTimeout(handleSelectionChange, 100);
     };
 
@@ -778,6 +787,9 @@ export function QueueScrollPage() {
       document.removeEventListener("touchend", handleTouchEnd);
       if (mobileRssSelectionTimeoutRef.current) {
         clearTimeout(mobileRssSelectionTimeoutRef.current);
+      }
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
     };
   }, [isMobilePWA, renderedItem?.type]);
