@@ -66,15 +66,22 @@ export function TabBar({
     const container = containerRef.current;
     if (!container) return;
 
+    let rafId: number | null = null;
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        setIsNarrow(width < 300);
-      }
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        for (const entry of entries) {
+          const width = entry.contentRect.width;
+          setIsNarrow(width < 300);
+        }
+      });
     });
 
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // Close context menu on click outside

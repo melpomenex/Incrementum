@@ -52,10 +52,17 @@ export function VirtualList<T>({
 
     updateHeight();
 
-    const resizeObserver = new ResizeObserver(updateHeight);
+    let rafId: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateHeight);
+    });
     resizeObserver.observe(container);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // Handle scroll
@@ -143,10 +150,17 @@ export function useVirtualList<T>({
 
     updateHeight();
 
-    const resizeObserver = new ResizeObserver(updateHeight);
+    let rafId: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateHeight);
+    });
     resizeObserver.observe(container);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const totalHeight = items.length * itemHeight;
@@ -221,10 +235,17 @@ export function DynamicVirtualList<T>({
 
     updateHeight();
 
-    const resizeObserver = new ResizeObserver(updateHeight);
+    let rafId: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateHeight);
+    });
     resizeObserver.observe(container);
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   // Get item height (use measured or default)
