@@ -7,7 +7,7 @@ import {
   DocumentsTab,
   AnalyticsTab,
   SettingsTab,
-  RssTab,
+  RSSReader,
 } from "./TabRegistry";
 import { getDashboardStats, type DashboardStats } from "../../api/analytics";
 import {
@@ -105,7 +105,7 @@ export function DashboardTab() {
       tabType: "rss",
       tabTitle: "RSS Feeds",
       tabIcon: "📰",
-      content: RssTab,
+      content: RSSReader,
       closable: true,
     },
     {
