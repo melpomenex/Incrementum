@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTabsStore } from "../../stores";
+import { useDocumentStore } from "../../stores/documentStore";
 import type { TabType } from "../../stores/tabsStore";
 import {
   QueueTab,
@@ -10,6 +11,7 @@ import {
   RSSReader,
 } from "./TabRegistry";
 import { getDashboardStats, type DashboardStats } from "../../api/analytics";
+import { QuickReviewWidget } from "../review/QuickReviewWidget";
 import {
   BookOpen,
   Brain,
@@ -39,6 +41,7 @@ interface QuickAction {
 
 export function DashboardTab() {
   const { addTab, tabs } = useTabsStore();
+  const documents = useDocumentStore((state) => state.documents);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -164,6 +167,24 @@ export function DashboardTab() {
       content: SettingsTab,
       closable: true,
     });
+  };
+
+  const quickReviewCards = useMemo(
+    () =>
+      documents.slice(0, 10).map((doc) => ({
+        id: doc.id,
+        front: doc.title || "Untitled",
+        back: doc.extracted_text?.slice(0, 220) || "No extracted content available.",
+        documentTitle: doc.title || "Untitled",
+      })),
+    [documents]
+  );
+
+  const handleQuickRate = async (
+    _cardId: string,
+    _rating: "again" | "hard" | "good" | "easy"
+  ) => {
+    // Placeholder until dashboard quick-review is wired to review queue ratings.
   };
 
   return (
@@ -365,6 +386,19 @@ export function DashboardTab() {
           <p className="text-xs md:text-sm text-muted-foreground">
             Use the keyboard shortcut <kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+K</kbd> to open the Command Palette for quick navigation.
           </p>
+        </div>
+
+        {/* Quick Review */}
+        <div className="mt-6 md:mt-8">
+          <QuickReviewWidget
+            cards={quickReviewCards}
+            onRate={handleQuickRate}
+            onExpand={() => {
+              const reviewAction = quickActions.find((action) => action.id === "review");
+              if (reviewAction) openTab(reviewAction);
+            }}
+            maxCards={5}
+          />
         </div>
       </div>
     </div>

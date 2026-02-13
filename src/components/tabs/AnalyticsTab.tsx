@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTabsStore } from "../../stores";
 import { useAnalyticsStore } from "../../stores/analyticsStore";
 import { ReviewTab, DocumentsTab } from "./TabRegistry";
@@ -6,6 +6,8 @@ import { StatCard } from "../../components/analytics/StatCard";
 import { StudyStreak } from "../../components/analytics/StudyStreak";
 import { ActivityChart } from "../../components/analytics/ActivityChart";
 import { CategoryBreakdown } from "../../components/analytics/CategoryBreakdown";
+import { DashboardProgressRings } from "../../components/analytics/ProgressRings";
+import { ReviewHeatmap } from "../../components/analytics/ReviewHeatmap";
 import {
   BookOpen,
   Clock,
@@ -40,6 +42,20 @@ export function AnalyticsTab() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const reviewHeatmapData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const day of activityData || []) {
+      if (day?.date) {
+        map[day.date] = day.reviews_count || 0;
+      }
+    }
+    return map;
+  }, [activityData]);
+
+  const weeklyProgress = useMemo(() => {
+    return (activityData || []).slice(-7).reduce((sum, day) => sum + (day.reviews_count || 0), 0);
+  }, [activityData]);
 
   if (isLoading && !dashboardStats) {
     return (
@@ -131,6 +147,18 @@ export function AnalyticsTab() {
         </div>
       )}
 
+      {/* Smart Analytics Overview */}
+      {dashboardStats && (
+        <DashboardProgressRings
+          dailyGoal={Math.max(1, dashboardStats.daily_goal || 20)}
+          dailyProgress={dashboardStats.reviews_today || dashboardStats.cards_reviewed_today || 0}
+          weeklyGoal={Math.max(7, (dashboardStats.daily_goal || 20) * 7)}
+          weeklyProgress={weeklyProgress}
+          streakDays={dashboardStats.study_streak || 0}
+          longestStreak={Math.max(1, dashboardStats.study_streak || 0)}
+        />
+      )}
+
       {/* Memory Stats */}
       {memoryStats && (
         <div className="p-4 bg-card border border-border rounded-lg">
@@ -192,6 +220,11 @@ export function AnalyticsTab() {
       {/* Activity Chart */}
       <div className="p-4 bg-card border border-border rounded-lg">
         <ActivityChart data={activityData} />
+      </div>
+
+      {/* Review Heatmap */}
+      <div className="p-4 bg-card border border-border rounded-lg">
+        <ReviewHeatmap data={reviewHeatmapData} months={12} />
       </div>
 
       {/* Category Breakdown */}

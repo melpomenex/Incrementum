@@ -125,6 +125,7 @@ export const BUILTIN_THEMES = {
   MODERN_DARK: 'modern-dark',
   MATERIAL_YOU: 'material-you',
   SNOW: 'snow',
+  WINDOWS_95: 'windows-95',
   MISTRAL_DARK: 'mistral-dark',
   MISTRAL_LIGHT: 'mistral-light',
   AURORA_LIGHT: 'aurora-light',
