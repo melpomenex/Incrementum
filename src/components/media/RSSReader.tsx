@@ -48,7 +48,7 @@ import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizati
 import { NewsletterDirectory } from "../newsletter/NewsletterDirectory";
 import { NewsletterUrlImporter } from "../newsletter/NewsletterUrlImporter";
 import { RSSScrollMode } from "./RSSScrollMode";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, openExternal } from "../../lib/tauri";
 import { getDeviceInfo } from "../../lib/pwa";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
@@ -315,6 +315,15 @@ export function RSSReader() {
     await markFeedReadAuto(feedId);
     await loadFeeds();
   };
+
+  const handleOpenOriginal = useCallback(async (url?: string) => {
+    if (!url) return;
+    try {
+      await openExternal(url);
+    } catch (error) {
+      console.error("Failed to open original URL:", error);
+    }
+  }, []);
 
   const handleExportOPML = async () => {
     const opml = await exportOpmlAuto();
@@ -877,9 +886,11 @@ export function RSSReader() {
                           </button>
                           <a
                             href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void handleOpenOriginal(item.link);
+                            }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
                             title="Open original"
                           >
@@ -932,8 +943,10 @@ export function RSSReader() {
                     )}
                     <a
                       href={selectedItem.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        void handleOpenOriginal(selectedItem.link);
+                      }}
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
                       title="Open original"
                     >
@@ -949,6 +962,13 @@ export function RSSReader() {
                     </div>
                     <div
                       className="prose prose-sm max-w-none text-foreground dark:prose-invert reading-prose"
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        const link = target.closest("a[href]") as HTMLAnchorElement | null;
+                        if (!link) return;
+                        e.preventDefault();
+                        void handleOpenOriginal(link.href);
+                      }}
                       dangerouslySetInnerHTML={{ __html: selectedItem.content || selectedItem.description || "" }}
                     />
                   </div>

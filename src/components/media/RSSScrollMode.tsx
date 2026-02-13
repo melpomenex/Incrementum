@@ -44,7 +44,7 @@ import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { summarizeContent } from "../../api/ai";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, openExternal } from "../../lib/tauri";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
 
@@ -156,6 +156,15 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const lastScrollTime = useRef(0);
   const scrollCooldown = 500; // ms between scroll actions
   const startTimeRef = useRef(Date.now());
+
+  const handleOpenOriginal = useCallback(async (url?: string) => {
+    if (!url) return;
+    try {
+      await openExternal(url);
+    } catch (error) {
+      console.error("Failed to open original URL:", error);
+    }
+  }, []);
 
   // Summary state
   const [summaryMode, setSummaryMode] = useState<SummaryMode>(() => {
@@ -1136,8 +1145,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               </button>
               <a
                 href={currentItem.item.link}
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleOpenOriginal(currentItem.item.link);
+                }}
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                 title="Open original"
               >
@@ -1237,6 +1248,13 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               <div
                 ref={contentRef}
                 className="flex-1 overflow-y-auto rss-article-content prose prose-lg max-w-none dark:prose-invert"
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const link = target.closest("a[href]") as HTMLAnchorElement | null;
+                  if (!link) return;
+                  e.preventDefault();
+                  void handleOpenOriginal(link.href);
+                }}
                 dangerouslySetInnerHTML={{
                   __html: renderedItem.item.content || renderedItem.item.description || "",
                 }}
@@ -1266,8 +1284,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
                   <a
                     href={renderedItem.item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleOpenOriginal(renderedItem.item.link);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />

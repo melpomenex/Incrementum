@@ -225,14 +225,15 @@ export async function openFolderPicker(options?: {
 
 /**
  * Open URL in external browser
- * Uses Tauri's open command if available, otherwise falls back to window.open
+ * Uses Tauri opener plugin if available, otherwise falls back to window.open
  */
 export async function openExternal(url: string): Promise<void> {
   if (isTauri()) {
     try {
-      await invokeCommand("plugin:shell|open", { path: url });
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
     } catch (error) {
-      console.error("Failed to open URL with Tauri shell, falling back to window.open:", error);
+      console.error("Failed to open URL with Tauri opener, falling back to window.open:", error);
       window.open(url, "_blank");
     }
   } else {

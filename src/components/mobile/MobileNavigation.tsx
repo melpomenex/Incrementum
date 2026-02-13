@@ -31,7 +31,7 @@ import {
   DocumentsTab,
   AnalyticsTab,
   SettingsTab,
-  RssTab,
+  RSSReader,
   NewsletterDirectoryTab,
 } from "../tabs/TabRegistry";
 
@@ -110,9 +110,9 @@ const allNavItems: NavItem[] = [
     label: "RSS",
     icon: Rss,
     tabType: "rss",
-    tabTitle: "RSS",
+    tabTitle: "RSS Feeds",
     tabIcon: "📰",
-    tabContent: RssTab,
+    tabContent: RSSReader,
     closable: true,
     badge: "rss",
   },
