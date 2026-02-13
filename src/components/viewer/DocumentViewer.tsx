@@ -1769,70 +1769,79 @@ export function DocumentViewer({
   useEffect(() => {
     if (!isMobilePWA) return;
 
+    let rafId: number | null = null;
+
     const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      if (!selection) {
-        setMobileSelection(prev => ({ ...prev, showButton: false }));
-        return;
+      // Cancel any pending RAF to avoid multiple updates
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
 
-      const text = selection.toString().trim();
-
-      // Check if selection is within the document content
-      const anchorElement = selection.anchorNode instanceof Element
-        ? selection.anchorNode
-        : selection.anchorNode?.parentElement;
-      const focusElement = selection.focusNode instanceof Element
-        ? selection.focusNode
-        : selection.focusNode?.parentElement;
-
-      // Only handle selections within document content
-      const isInDocumentContent = anchorElement?.closest("[data-document-content='true']") ||
-        focusElement?.closest("[data-document-content='true']") ||
-        anchorElement?.closest(".prose") ||
-        focusElement?.closest(".prose") ||
-        anchorElement?.closest(".textLayer") ||
-        focusElement?.closest(".textLayer");
-
-      if (!text || text.length === 0 || !isInDocumentContent) {
-        setMobileSelection(prev => ({ ...prev, showButton: false }));
-        return;
-      }
-
-      // Get selection position for button placement
-      try {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-
-        // Position the button centered above the selection
-        const x = rect.left + rect.width / 2;
-        const y = rect.top - 60; // 60px above selection
-
-        setMobileSelection({
-          text,
-          position: { x, y },
-          showButton: true,
-        });
-
-        // Update the selected text state for the extract dialog
-        setSelectedText(text);
-        lastSelectionRef.current = text;
-
-        // Auto-hide after 5 seconds if not interacted with
-        if (mobileSelectionTimeoutRef.current) {
-          clearTimeout(mobileSelectionTimeoutRef.current);
-        }
-        mobileSelectionTimeoutRef.current = window.setTimeout(() => {
+      rafId = requestAnimationFrame(() => {
+        const selection = window.getSelection();
+        if (!selection) {
           setMobileSelection(prev => ({ ...prev, showButton: false }));
-        }, 5000);
-      } catch {
-        // Range might be invalid, ignore
-      }
+          return;
+        }
+
+        const text = selection.toString().trim();
+
+        // Check if selection is within the document content
+        const anchorElement = selection.anchorNode instanceof Element
+          ? selection.anchorNode
+          : selection.anchorNode?.parentElement;
+        const focusElement = selection.focusNode instanceof Element
+          ? selection.focusNode
+          : selection.focusNode?.parentElement;
+
+        // Only handle selections within document content
+        const isInDocumentContent = anchorElement?.closest("[data-document-content='true']") ||
+          focusElement?.closest("[data-document-content='true']") ||
+          anchorElement?.closest(".prose") ||
+          focusElement?.closest(".prose") ||
+          anchorElement?.closest(".textLayer") ||
+          focusElement?.closest(".textLayer");
+
+        if (!text || text.length === 0 || !isInDocumentContent) {
+          setMobileSelection(prev => ({ ...prev, showButton: false }));
+          return;
+        }
+
+        // Get selection position for button placement
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+
+          // Position the button centered above the selection
+          const x = rect.left + rect.width / 2;
+          const y = rect.top - 60; // 60px above selection
+
+          setMobileSelection({
+            text,
+            position: { x, y },
+            showButton: true,
+          });
+
+          // Update the selected text state for the extract dialog
+          setSelectedText(text);
+          lastSelectionRef.current = text;
+
+          // Auto-hide after 5 seconds if not interacted with
+          if (mobileSelectionTimeoutRef.current) {
+            clearTimeout(mobileSelectionTimeoutRef.current);
+          }
+          mobileSelectionTimeoutRef.current = window.setTimeout(() => {
+            setMobileSelection(prev => ({ ...prev, showButton: false }));
+          }, 5000);
+        } catch {
+          // Range might be invalid, ignore
+        }
+      });
     };
 
     // Also handle touchend for immediate response on mobile
     const handleTouchEnd = () => {
-      // Small delay to allow selection to be finalized
+      // Small delay to allow selection to be finalized, then use RAF
       setTimeout(handleSelectionChange, 100);
     };
 
@@ -1844,6 +1853,9 @@ export function DocumentViewer({
       document.removeEventListener("touchend", handleTouchEnd);
       if (mobileSelectionTimeoutRef.current) {
         clearTimeout(mobileSelectionTimeoutRef.current);
+      }
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
     };
   }, [isMobilePWA, setSelectedText]);

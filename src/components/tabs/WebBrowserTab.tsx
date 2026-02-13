@@ -878,14 +878,21 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     };
   }, [currentUrl, refreshToken, updateWebviewBounds]);
 
-  // Resize observer
+  // Resize observer with RAF to avoid loop errors
   useEffect(() => {
     if (!webviewContainerRef.current) return;
+    let rafId: number | null = null;
     const observer = new ResizeObserver(() => {
-      void updateWebviewBounds();
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        void updateWebviewBounds();
+      });
     });
     observer.observe(webviewContainerRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [updateWebviewBounds]);
 
   // Poll for selection data from webview bridge
