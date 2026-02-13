@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Plus } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -475,6 +475,15 @@ export function DocumentViewer({
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
+
+  // Mobile PWA text selection state
+  const [mobileSelection, setMobileSelection] = useState<{
+    text: string;
+    position: { x: number; y: number };
+    showButton: boolean;
+  }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
+  const mobileSelectionTimeoutRef = useRef<number | null>(null);
+  const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
 
   const MAX_SELECTION_CHARS = 10000;
   const updateSelection = useCallback((rawText: string | null | undefined, context?: PdfSelectionContext | null) => {
@@ -1756,6 +1765,89 @@ export function DocumentViewer({
     };
   }, [updateSelection]);
 
+  // Mobile PWA: Handle text selection via selectionchange event
+  useEffect(() => {
+    if (!isMobilePWA) return;
+
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (!selection) {
+        setMobileSelection(prev => ({ ...prev, showButton: false }));
+        return;
+      }
+
+      const text = selection.toString().trim();
+
+      // Check if selection is within the document content
+      const anchorElement = selection.anchorNode instanceof Element
+        ? selection.anchorNode
+        : selection.anchorNode?.parentElement;
+      const focusElement = selection.focusNode instanceof Element
+        ? selection.focusNode
+        : selection.focusNode?.parentElement;
+
+      // Only handle selections within document content
+      const isInDocumentContent = anchorElement?.closest("[data-document-content='true']") ||
+        focusElement?.closest("[data-document-content='true']") ||
+        anchorElement?.closest(".prose") ||
+        focusElement?.closest(".prose") ||
+        anchorElement?.closest(".textLayer") ||
+        focusElement?.closest(".textLayer");
+
+      if (!text || text.length === 0 || !isInDocumentContent) {
+        setMobileSelection(prev => ({ ...prev, showButton: false }));
+        return;
+      }
+
+      // Get selection position for button placement
+      try {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        // Position the button centered above the selection
+        const x = rect.left + rect.width / 2;
+        const y = rect.top - 60; // 60px above selection
+
+        setMobileSelection({
+          text,
+          position: { x, y },
+          showButton: true,
+        });
+
+        // Update the selected text state for the extract dialog
+        setSelectedText(text);
+        lastSelectionRef.current = text;
+
+        // Auto-hide after 5 seconds if not interacted with
+        if (mobileSelectionTimeoutRef.current) {
+          clearTimeout(mobileSelectionTimeoutRef.current);
+        }
+        mobileSelectionTimeoutRef.current = window.setTimeout(() => {
+          setMobileSelection(prev => ({ ...prev, showButton: false }));
+        }, 5000);
+      } catch {
+        // Range might be invalid, ignore
+      }
+    };
+
+    // Also handle touchend for immediate response on mobile
+    const handleTouchEnd = () => {
+      // Small delay to allow selection to be finalized
+      setTimeout(handleSelectionChange, 100);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("touchend", handleTouchEnd);
+      if (mobileSelectionTimeoutRef.current) {
+        clearTimeout(mobileSelectionTimeoutRef.current);
+      }
+    };
+  }, [isMobilePWA, setSelectedText]);
+
   // Clear text selection when clicking outside the document content
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1950,6 +2042,19 @@ export function DocumentViewer({
       setSelectedText(selectionText);
     }
     setIsExtractDialogOpen(true);
+  };
+
+  // Mobile PWA: Open extract dialog from mobile selection
+  const handleMobileExtract = () => {
+    if (mobileSelection.text) {
+      setSelectedText(mobileSelection.text);
+      lastSelectionRef.current = mobileSelection.text;
+      setIsExtractDialogOpen(true);
+      setMobileSelection(prev => ({ ...prev, showButton: false }));
+      if (mobileSelectionTimeoutRef.current) {
+        clearTimeout(mobileSelectionTimeoutRef.current);
+      }
+    }
   };
 
   // Handle search
@@ -2686,6 +2791,7 @@ export function DocumentViewer({
 
       {/* Content Area */}
       <div 
+        data-document-content="true"
         className={cn(
           "flex-1 bg-muted/30 relative min-h-0",
           // Avoid nested scrolling for PDFs: the PDF viewer owns the scroll container and
@@ -3011,6 +3117,30 @@ export function DocumentViewer({
             <span>Create Extract</span>
             <span className="text-xs opacity-75 ml-1">({selectedText.length})</span>
           </button>
+        </div>
+      )}
+
+      {/* Mobile PWA: Lightbulb button that appears near text selection */}
+      {isMobilePWA && mobileSelection.showButton && viewMode === "document" && (
+        <div
+          className="fixed z-[80] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+          style={{
+            left: `${mobileSelection.position.x}px`,
+            top: `${Math.max(60, mobileSelection.position.y)}px`,
+            transform: "translateX(-50%)",
+          }}
+          data-extract-button="true"
+        >
+          <button
+            onClick={handleMobileExtract}
+            className="flex items-center justify-center w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-xl hover:opacity-90 hover:scale-110 active:scale-95 transition-all"
+            title="Create extract from selection"
+            aria-label={`Create extract from selected text (${mobileSelection.text.length} characters)`}
+          >
+            <Lightbulb className="w-6 h-6" aria-hidden="true" />
+          </button>
+          {/* Small arrow pointing down to the selection */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-primary" />
         </div>
       )}
 

@@ -30,7 +30,7 @@ import type { QueueItem } from "../types";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../components/common/ItemDetailsPopover";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../components/assistant/AssistantPanel";
 import { useToast } from "../components/common/Toast";
-import { getDeviceInfo } from "../lib/pwa";
+import { getDeviceInfo, isPWA } from "../lib/pwa";
 import { RSSQueueSettingsModal } from "../components/settings/RSSQueueSettings";
 import { createDocument, updateDocumentContent, dismissDocument } from "../api/documents";
 import { trimToTokenWindow } from "../utils/tokenizer";
@@ -196,6 +196,15 @@ export function QueueScrollPage() {
   const startTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const rssContentRef = useRef<HTMLDivElement>(null);
+
+  // Mobile PWA text selection state for RSS items
+  const [mobileRssSelection, setMobileRssSelection] = useState<{
+    text: string;
+    position: { x: number; y: number };
+    showButton: boolean;
+  }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
+  const mobileRssSelectionTimeoutRef = useRef<number | null>(null);
+  const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
 
   // Load session state on mount
   useEffect(() => {
@@ -690,7 +699,88 @@ export function QueueScrollPage() {
 
   useEffect(() => {
     setRssSelectedText("");
+    setMobileRssSelection({ text: "", position: { x: 0, y: 0 }, showButton: false });
   }, [renderedItem?.id]);
+
+  // Mobile PWA: Handle text selection for RSS content
+  useEffect(() => {
+    if (!isMobilePWA) return;
+    if (renderedItem?.type !== "rss") return;
+
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (!selection) {
+        setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+        return;
+      }
+
+      const text = selection.toString().trim();
+
+      // Check if selection is within the RSS content
+      const anchorElement = selection.anchorNode instanceof Element
+        ? selection.anchorNode
+        : selection.anchorNode?.parentElement;
+      const focusElement = selection.focusNode instanceof Element
+        ? selection.focusNode
+        : selection.focusNode?.parentElement;
+
+      const container = rssContentRef.current;
+      const isInRssContent = container &&
+        ((anchorElement && container.contains(anchorElement)) ||
+         (focusElement && container.contains(focusElement)));
+
+      if (!text || text.length === 0 || !isInRssContent) {
+        setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+        return;
+      }
+
+      // Get selection position for button placement
+      try {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        // Position the button centered above the selection
+        const x = rect.left + rect.width / 2;
+        const y = rect.top - 60; // 60px above selection
+
+        setMobileRssSelection({
+          text,
+          position: { x, y },
+          showButton: true,
+        });
+
+        // Also update the regular RSS selection state
+        setRssSelectedText(text);
+
+        // Auto-hide after 5 seconds if not interacted with
+        if (mobileRssSelectionTimeoutRef.current) {
+          clearTimeout(mobileRssSelectionTimeoutRef.current);
+        }
+        mobileRssSelectionTimeoutRef.current = window.setTimeout(() => {
+          setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+        }, 5000);
+      } catch {
+        // Range might be invalid, ignore
+      }
+    };
+
+    // Also handle touchend for immediate response on mobile
+    const handleTouchEnd = () => {
+      // Small delay to allow selection to be finalized
+      setTimeout(handleSelectionChange, 100);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("touchend", handleTouchEnd);
+      if (mobileRssSelectionTimeoutRef.current) {
+        clearTimeout(mobileRssSelectionTimeoutRef.current);
+      }
+    };
+  }, [isMobilePWA, renderedItem?.type]);
 
   const detailsTarget = useMemo<ItemDetailsTarget | null>(() => {
     if (!currentItem) return null;
@@ -1468,6 +1558,23 @@ export function QueueScrollPage() {
     }
   }, [renderedItem, rssSelectedText, documents, addDocument, updateDocument, toast]);
 
+  // Mobile PWA: Handle extract creation from mobile RSS selection
+  const handleMobileRssExtract = useCallback(async () => {
+    if (!mobileRssSelection.text) return;
+    
+    // Set the RSS selected text state temporarily
+    setRssSelectedText(mobileRssSelection.text);
+    
+    // Hide the mobile button
+    setMobileRssSelection(prev => ({ ...prev, showButton: false }));
+    if (mobileRssSelectionTimeoutRef.current) {
+      clearTimeout(mobileRssSelectionTimeoutRef.current);
+    }
+    
+    // Call the regular handler
+    await handleCreateRssExtract();
+  }, [mobileRssSelection.text, handleCreateRssExtract]);
+
   // Handle exit
   const handleExit = () => {
     if (activeTabId) {
@@ -1758,6 +1865,30 @@ export function QueueScrollPage() {
             <span className="font-medium hidden sm:inline">Create Extract</span>
             <span className="font-medium sm:hidden">Extract</span>
           </button>
+        </div>
+      )}
+
+      {/* Mobile PWA: Lightbulb button for RSS text selection */}
+      {isMobilePWA && renderedItem?.type === "rss" && mobileRssSelection.showButton && (
+        <div
+          className="fixed z-[80] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+          style={{
+            left: `${mobileRssSelection.position.x}px`,
+            top: `${Math.max(60, mobileRssSelection.position.y)}px`,
+            transform: "translateX(-50%)",
+          }}
+          data-extract-button="true"
+        >
+          <button
+            onClick={handleMobileRssExtract}
+            className="flex items-center justify-center w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-xl hover:opacity-90 hover:scale-110 active:scale-95 transition-all"
+            title="Create extract from selection"
+            aria-label={`Create extract from selected text (${mobileRssSelection.text.length} characters)`}
+          >
+            <Lightbulb className="w-6 h-6" aria-hidden="true" />
+          </button>
+          {/* Small arrow pointing down to the selection */}
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-primary" />
         </div>
       )}
 
