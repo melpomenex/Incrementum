@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Plus, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -3070,8 +3070,8 @@ export function DocumentViewer({
           </div>
         )}
 
-        {/* Hover Rating Controls - for quick document rating */}
-        {viewMode === "document" && !disableHoverRating && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && (
+        {/* Hover Rating Controls - for quick document rating (non-PDF docs) */}
+        {viewMode === "document" && !disableHoverRating && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && (
           <HoverRatingControls
             context="document"
             documentId={documentId}
@@ -3082,6 +3082,63 @@ export function DocumentViewer({
           />
         )}
       </div>
+
+      {/* Side Rating Controls for PDFs */}
+      {viewMode === "document" && docType === "pdf" && hasDocumentHistory && !embedded && (
+        <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+          <button
+            type="button"
+            onClick={() => handleRating(1)}
+            className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg"
+            title="Again - Forgot completely (1)"
+            aria-label="Rate Again"
+          >
+            <AlertCircle className="w-6 h-6 text-white" />
+            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Again (1)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRating(2)}
+            className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg"
+            title="Hard - Difficult recall (2)"
+            aria-label="Rate Hard"
+          >
+            <Star className="w-6 h-6 text-white" />
+            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Hard (2)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRating(3)}
+            className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg"
+            title="Good - Normal recall (3)"
+            aria-label="Rate Good"
+          >
+            <CheckCircle className="w-6 h-6 text-white" />
+            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Good (3)
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleRating(4)}
+            className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg"
+            title="Easy - Perfect recall (4)"
+            aria-label="Rate Easy"
+          >
+            <Sparkles className="w-6 h-6 text-white" />
+            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Easy (4)
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Floating Rating Bubbles for Audiobooks */}
       {viewMode === "document" && docType === "audio" && hasDocumentHistory && !embedded && (
