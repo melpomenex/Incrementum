@@ -27,6 +27,7 @@ import * as documentsApi from "../../api/documents";
 import { updateDocumentProgressAuto } from "../../api/documents";
 import { getDocumentPosition } from "../../api/position";
 import { rateDocument } from "../../api/algorithm";
+import { getBrowserFile } from "../../lib/browser-file-store";
 import type { ReviewRating } from "../../api/review";
 import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
 import { ocrPdfFile } from "../../api/ocrCommands";
@@ -770,10 +771,10 @@ export function DocumentViewer({
       needsFileData,
     });
 
-    if (mediaSrcRef.current) {
+    if (mediaSrcRef.current?.startsWith("blob:")) {
       URL.revokeObjectURL(mediaSrcRef.current);
-      mediaSrcRef.current = null;
     }
+    mediaSrcRef.current = null;
     setMediaSrc(null);
 
     if (needsFileData) {
@@ -801,22 +802,31 @@ export function DocumentViewer({
         console.log(`[DocumentViewer] Loading ${inferredType} file:`, doc.filePath);
         setMediaError(null);
         const filePath = doc.filePath;
-
-        // Try convertFileSrc first - this streams the file instead of loading into memory
-        // This is more efficient and avoids WebKit/GStreamer crashes on Linux
         let mediaUrl: string | null = null;
 
-        try {
-          const assetUrl = await convertFileSrc(filePath, "asset");
-          console.log(`[DocumentViewer] Trying convertFileSrc URL:`, assetUrl);
-          mediaUrl = assetUrl;
-        } catch (convertError) {
-          console.warn(`[DocumentViewer] convertFileSrc failed, falling back to blob URL:`, convertError);
+        // Browser/PWA: use in-memory file object URL directly when available.
+        // This avoids costly base64 decode for large local media files.
+        if (!isTauri() && filePath.startsWith("browser-file://")) {
+          const browserFile = getBrowserFile(filePath);
+          if (browserFile) {
+            mediaUrl = URL.createObjectURL(browserFile);
+            console.log(`[DocumentViewer] Using browser file object URL for media:`, filePath);
+          }
         }
 
-        // If convertFileSrc didn't work or file is small, fall back to blob URL
-        // (blob URLs can crash WebKit/GStreamer with large video files)
-        if (!mediaUrl) {
+        // Tauri: prefer streamed asset URL and avoid blob fallback to prevent freezes.
+        if (!mediaUrl && isTauri()) {
+          try {
+            mediaUrl = await convertFileSrc(filePath);
+            console.log(`[DocumentViewer] Using Tauri convertFileSrc URL:`, mediaUrl);
+          } catch (convertError) {
+            console.error(`[DocumentViewer] convertFileSrc failed for media:`, convertError);
+            throw new Error("Failed to open media via Tauri asset protocol.");
+          }
+        }
+
+        // Web/PWA fallback: read and create blob URL from backend file payload.
+        if (!mediaUrl && !isTauri()) {
           console.log(`[DocumentViewer] Using backend read for:`, filePath);
           const base64Data = await documentsApi.readDocumentFile(filePath);
           console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
@@ -833,6 +843,10 @@ export function DocumentViewer({
             : getVideoMimeType(filePath);
           console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
           mediaUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+        }
+
+        if (!mediaUrl) {
+          throw new Error("Could not resolve a playable media source.");
         }
 
         mediaSrcRef.current = mediaUrl;

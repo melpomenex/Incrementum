@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Tab } from "../../../stores";
 import { TabContextMenu } from "./TabContextMenu";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface TabBarProps {
   tabs: Tab[];
@@ -247,12 +248,12 @@ export function TabBar({
           onClick={scrollLeft}
           className={`
             hover:bg-muted transition-colors border-r border-border 
-            flex items-center justify-center flex-shrink-0
+            flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground
             ${isNarrow ? "min-w-[24px] w-6 p-0.5 min-h-[28px]" : "min-w-[36px] md:min-w-[44px] p-1 md:p-2 min-h-[36px] md:min-h-[44px]"}
           `}
           aria-label="Scroll tabs left"
         >
-          <span className={isNarrow ? "text-[10px]" : ""}>◀</span>
+          <ChevronLeft className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
         </button>
 
         {/* Tab scroll container */}
@@ -321,7 +322,7 @@ export function TabBar({
                 )}
 
                 {/* Tab icon - always show */}
-                <span className={isNarrow ? "text-xs" : "text-xs md:text-sm flex-shrink-0"}>
+                <span className={isNarrow ? "w-3 h-3" : "w-4 h-4 flex-shrink-0 flex items-center justify-center"}>
                   {tab.icon}
                 </span>
 
@@ -351,13 +352,13 @@ export function TabBar({
                       opacity-100 md:opacity-0 md:group-hover:opacity-100
                       transition-opacity
                       ${isNarrow 
-                        ? "ml-0 w-4 h-4 text-[10px]" 
-                        : "ml-0.5 md:ml-1 w-6 h-6 md:w-5 md:h-5 text-xs md:text-sm"
+                        ? "ml-0 w-4 h-4" 
+                        : "ml-0.5 md:ml-1 w-5 h-5"
                       }
                     `}
                     aria-label={`Close ${tab.title}`}
                   >
-                    ×
+                    <X className={isNarrow ? "w-3 h-3" : "w-3.5 h-3.5"} />
                   </button>
                 )}
               </div>
@@ -409,12 +410,12 @@ export function TabBar({
           onClick={scrollRight}
           className={`
             hover:bg-muted transition-colors border-l border-border 
-            flex items-center justify-center flex-shrink-0
+            flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground
             ${isNarrow ? "min-w-[24px] w-6 p-0.5 min-h-[28px]" : "min-w-[36px] md:min-w-[44px] p-1 md:p-2 min-h-[36px] md:min-h-[44px]"}
           `}
           aria-label="Scroll tabs right"
         >
-          <span className={isNarrow ? "text-[10px]" : ""}>▶</span>
+          <ChevronRight className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
         </button>
       </div>
 

@@ -696,7 +696,9 @@ export function LocalVideoPlayer({
   // Set up video frame callback for smoother updates
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || typeof video.requestVideoFrameCallback !== 'function') {
+    // WebKit in Tauri can become unstable with per-frame callbacks during media playback.
+    // Fall back to native `timeupdate` events in desktop mode.
+    if (isTauri() || !video || typeof video.requestVideoFrameCallback !== 'function') {
       return;
     }
 

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Loader2,
   TrendingUp,
+  Library,
 } from "lucide-react";
 
 export function AnalyticsTab() {
@@ -239,7 +240,7 @@ export function AnalyticsTab() {
           <button
             onClick={() => addTab({
               title: "Review",
-              icon: "🎴",
+              icon: <Brain className="w-4 h-4" />,
               type: "review",
               content: ReviewTab,
               closable: true,
@@ -257,7 +258,7 @@ export function AnalyticsTab() {
           <button
             onClick={() => addTab({
               title: "Documents",
-              icon: "📄",
+              icon: <Library className="w-4 h-4" />,
               type: "documents",
               content: DocumentsTab,
               closable: true,
