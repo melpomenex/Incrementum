@@ -3084,8 +3084,8 @@ export function DocumentViewer({
           </div>
         )}
 
-        {/* Hover Rating Controls - for quick document rating (non-PDF docs) */}
-        {viewMode === "document" && !disableHoverRating && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && (
+        {/* Hover Rating Controls - for quick document rating (non-PDF docs, only when in queue) */}
+        {viewMode === "document" && !disableHoverRating && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && queueNav.totalDocuments > 0 && (
           <HoverRatingControls
             context="document"
             documentId={documentId}
