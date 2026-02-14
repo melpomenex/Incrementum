@@ -25,6 +25,9 @@ import {
   Search,
   Filter,
   X,
+  FileText,
+  MessageSquare,
+  Brain,
 } from "lucide-react";
 
 type ViewMode = "graph" | "sphere";
@@ -212,7 +215,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Document:
         addTab({
           title: node.label,
-          icon: "📄",
+          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -222,7 +225,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Extract:
         addTab({
           title: node.label.substring(0, 30),
-          icon: "💬",
+          icon: <MessageSquare className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -235,7 +238,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Flashcard:
         addTab({
           title: "Review",
-          icon: "🧠",
+          icon: <Brain className="w-4 h-4" />,
           type: "review",
           content: ReviewTab,
           closable: true,

@@ -35,6 +35,12 @@ import {
   Camera,
   Settings,
   Command,
+  FileText,
+  ListTodo,
+  Newspaper,
+  Globe,
+  Monitor,
+  MessageSquare,
 } from "lucide-react";
 
 export type ToolbarPosition = "top" | "left" | "right";
@@ -110,7 +116,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (imported.length > 0) {
       addTab({
         title: imported[0].title,
-        icon: "📄",
+        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -131,7 +137,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
         // Open the imported document
         addTab({
           title: doc.title,
-          icon: "📄",
+          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -198,7 +204,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleStartReview = () => {
     addTab({
       title: "Review",
-      icon: "🎴",
+      icon: <Brain className="w-4 h-4" />,
       type: "review",
       content: ReviewTab,
       closable: true,
@@ -219,7 +225,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleRss = () => {
     addTab({
       title: "RSS Feeds",
-      icon: "📰",
+      icon: <Newspaper className="w-4 h-4" />,
       type: "rss",
       content: RSSReader,
       closable: true,
@@ -230,7 +236,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleDashboard = () => {
     addTab({
       title: "Dashboard",
-      icon: "📊",
+      icon: <LayoutDashboard className="w-4 h-4" />,
       type: "dashboard",
       content: DashboardTab,
       closable: false,
@@ -240,7 +246,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleContinueReading = () => {
     addTab({
       title: "Continue Reading",
-      icon: "📚",
+      icon: <BookMarked className="w-4 h-4" />,
       type: "continue-reading",
       content: ContinueReadingTab,
       closable: true,
@@ -254,7 +260,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleKnowledgeGraph = () => {
     addTab({
       title: "Knowledge Network",
-      icon: "🕸️",
+      icon: <Network className="w-4 h-4" />,
       type: "knowledge-network",
       content: KnowledgeGraphPage,
       closable: true,
@@ -275,7 +281,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleKnowledgeSphere = () => {
     addTab({
       title: "Knowledge Sphere",
-      icon: "🌐",
+      icon: <Orbit className="w-4 h-4" />,
       type: "knowledge-sphere",
       content: KnowledgeSpherePage,
       closable: true,
@@ -296,7 +302,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleWebBrowser = () => {
     addTab({
       title: "Web Browser",
-      icon: "🌐",
+      icon: <Monitor className="w-4 h-4" />,
       type: "web-browser",
       content: WebBrowserTab,
       closable: true,
@@ -317,7 +323,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleDocQA = () => {
     addTab({
       title: "Document Q&A",
-      icon: "🤖",
+      icon: <MessageSquare className="w-4 h-4" />,
       type: "doc-qa",
       content: DocumentQATab,
       closable: true,
@@ -350,7 +356,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleSettings = () => {
     addTab({
       title: "Settings",
-      icon: "⚙️",
+      icon: <Settings className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
       closable: true,
@@ -376,7 +382,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.itemType === "document") {
       addTab({
         title: item.documentTitle,
-        icon: "📄",
+        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -388,7 +394,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.itemType === "extract") {
       addTab({
         title: item.documentTitle,
-        icon: "📄",
+        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -400,7 +406,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.itemType === "learning-item") {
       addTab({
         title: "Review",
-        icon: "🎴",
+        icon: <Brain className="w-4 h-4" />,
         type: "review",
         content: ReviewTab,
         closable: true,

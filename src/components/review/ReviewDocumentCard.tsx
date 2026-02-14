@@ -55,7 +55,7 @@ export function ReviewDocumentCard({ item }: ReviewDocumentCardProps) {
             onClick={() =>
               addTab({
                 title: item.documentTitle || "Document",
-                icon: "📄",
+                icon: <FileText className="w-4 h-4 text-muted-foreground" />,
                 type: "document-viewer",
                 content: DocumentViewer,
                 closable: true,

@@ -4,6 +4,7 @@ import { DocumentViewer } from "../components/tabs/TabRegistry";
 import type { QueueItem } from "../types/queue";
 import { ReviewTab } from "../components/tabs/TabRegistry";
 import { QueueScrollPage } from "./QueueScrollPage";
+import { Brain, FileText, Layers } from "lucide-react";
 
 export function QueuePage() {
   const { addTab } = useTabsStore();
@@ -14,7 +15,7 @@ export function QueuePage() {
     }
     addTab({
       title: "Review",
-      icon: "🎴",
+      icon: <Brain className="w-4 h-4" />,
       type: "review",
       content: ReviewTab,
       closable: true,
@@ -24,7 +25,7 @@ export function QueuePage() {
   const handleOpenDocument = (item: QueueItem) => {
     addTab({
       title: item.documentTitle,
-      icon: "📄",
+      icon: <FileText className="w-4 h-4 text-muted-foreground" />,
       type: "document-viewer",
       content: DocumentViewer,
       closable: true,
@@ -35,7 +36,7 @@ export function QueuePage() {
   const handleOpenScrollMode = () => {
     addTab({
       title: "Scroll Mode",
-      icon: "📱",
+      icon: <Layers className="w-4 h-4" />,
       type: "queue-scroll",
       content: QueueScrollPage,
       closable: true,

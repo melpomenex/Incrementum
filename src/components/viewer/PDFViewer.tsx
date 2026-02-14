@@ -84,7 +84,7 @@ export function PDFViewer({
   const textLayerContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textLayerRootsRef = useRef<(HTMLDivElement | null)[]>([]);
   const textLayerBuildersRef = useRef<(TextLayerBuilder | null)[]>([]);
-  const pageViewportRefs = useRef<(pdfjsLib.PDFPageViewport | null)[]>([]);
+  const pageViewportRefs = useRef<(import("pdfjs-dist").PageViewport | null)[]>([]);
   const pageScaleRefs = useRef<(number | null)[]>([]);
   const renderTasksRef = useRef<(any | null)[]>([]);  // Track PDF.js render tasks to cancel
   const renderIdRef = useRef(0);
@@ -780,11 +780,16 @@ export function PDFViewer({
   useEffect(() => {
     if (!onSelectionChange) return;
     let rafId: number | null = null;
+    let isProcessingSelection = false;
 
     const handleSelectionChange = () => {
+      if (isProcessingSelection) return;
       if (rafId !== null) return;
+      
       rafId = requestAnimationFrame(() => {
         rafId = null;
+        isProcessingSelection = true;
+        
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
           if (lastSelectionWasPdfRef.current) {
@@ -792,33 +797,82 @@ export function PDFViewer({
             clearSelectionHighlights();
             onSelectionChange("", null);
           }
+          isProcessingSelection = false;
+          return;
+        }
+
+        // Check if selection is within our PDF text layers
+        const range = selection.getRangeAt(0);
+        let isInPdf = false;
+        
+        for (let i = 0; i < pageContainerRefs.current.length; i++) {
+          const pageEl = pageContainerRefs.current[i];
+          const textLayer = textLayerRootsRef.current[i];
+          if (!pageEl || !textLayer) continue;
+          
+          // Check if selection intersects with this page's text layer
+          try {
+            if (textLayer.contains(range.commonAncestorContainer) ||
+                pageEl.contains(range.commonAncestorContainer)) {
+              isInPdf = true;
+              break;
+            }
+          } catch {
+            // Ignore errors from detached nodes
+          }
+        }
+        
+        if (!isInPdf) {
+          isProcessingSelection = false;
           return;
         }
 
         const context = buildPdfSelectionContext();
-        if (!context) return;
+        if (!context) {
+          isProcessingSelection = false;
+          return;
+        }
 
         const text = selection.toString().trim();
+        if (!text) {
+          isProcessingSelection = false;
+          return;
+        }
+        
         lastSelectionWasPdfRef.current = true;
         
         // Update visual highlights
         updateSelectionHighlights();
         
         onSelectionChange(text, context);
+        isProcessingSelection = false;
       });
     };
 
-    // Also clear highlights on mouse down (start of new selection)
-    const handleMouseDown = () => {
-      clearSelectionHighlights();
+    // Handle mouse up to capture selection end
+    const handleMouseUp = () => {
+      // Small delay to let selection finalize
+      setTimeout(handleSelectionChange, 50);
+    };
+
+    // Clear highlights on mouse down (start of new selection)
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only clear if clicking within the PDF viewer
+      const target = e.target as Node;
+      const scrollContainer = scrollContainerRef.current;
+      if (scrollContainer && scrollContainer.contains(target)) {
+        clearSelectionHighlights();
+      }
     };
 
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mouseup", handleMouseUp);
     
     return () => {
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mouseup", handleMouseUp);
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
@@ -888,10 +942,15 @@ export function PDFViewer({
     }
 
     // Render PDF page to canvas
+    // Use device pixel ratio for high-DPI displays
+    if (outputScale !== 1) {
+      context.scale(outputScale, outputScale);
+    }
+    
     const renderContext = {
+      canvas: canvas,
       canvasContext: context,
       viewport: viewport,
-      transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined,
     };
 
     const renderTask = page.render(renderContext);
@@ -924,6 +983,9 @@ export function PDFViewer({
           // Layer is created by TextLayerBuilder and passed to onAppend
           layer.style.width = `${viewport.width}px`;
           layer.style.height = `${viewport.height}px`;
+          // Ensure proper text selection styles
+          layer.style.cursor = 'text';
+          layer.style.userSelect = 'text';
           textLayerContainer.appendChild(layer);
           textLayerRootsRef.current[pageIndex] = layer;
         },
@@ -931,9 +993,15 @@ export function PDFViewer({
 
       textLayerBuildersRef.current[pageIndex] = textLayerBuilder;
       await textLayerBuilder.render({ viewport });
+      
+      // Apply any search highlights
       applyTextLayerHighlights(pageIndex);
+      
+      // Ensure the text layer is properly positioned above the canvas
+      textLayerContainer.style.zIndex = '10';
     } catch (err) {
       console.warn("Text layer rendering failed:", err);
+      // Don't fail the entire page render if text layer fails
     }
 
     recomputePageOffsets();
@@ -1260,13 +1328,35 @@ export function PDFViewer({
 
   // Pan/drag handlers for zoomed content
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only enable drag when zoomed in and not clicking on links
-    if (scale > 1 || zoomMode === "custom") {
+    // Only enable drag when:
+    // 1. Zoomed in significantly (scale > 1.2) or in custom zoom mode
+    // 2. Not clicking on the text layer (to allow text selection)
+    // 3. Middle mouse button or holding space (for pan mode)
+    const isMiddleButton = e.button === 1;
+    const isZoomedIn = scale > 1.2 || zoomMode === "custom";
+    
+    if (isZoomedIn || isMiddleButton) {
       const targetNode = e.target as Node;
-      if (textLayerRootsRef.current.some((layer) => layer?.contains(targetNode))) return;
+      
+      // Don't drag if clicking on text layer (allow text selection)
+      const isClickingText = textLayerRootsRef.current.some((layer) => 
+        layer && (layer === targetNode || layer.contains(targetNode))
+      );
+      
+      if (isClickingText) {
+        // Allow text selection to proceed
+        return;
+      }
+      
+      // Start dragging
       setIsDragging(true);
       const sp = scrollPositionRef.current;
       setDragStart({ x: e.clientX - sp.x, y: e.clientY - sp.y });
+      
+      // Prevent default to avoid text selection during drag
+      if (isMiddleButton) {
+        e.preventDefault();
+      }
     }
   };
 

@@ -142,9 +142,35 @@ export function ImportPreview({
     );
   }
 
-  // No data yet
+  // No data yet - show import option anyway for URLs
   if (!data) {
-    return null;
+    return (
+      <div className="px-4 py-6">
+        <div className="flex items-center gap-3">
+          <Globe className="w-5 h-5 text-muted-foreground" />
+          <div className="flex-1">
+            <div className="text-sm text-foreground truncate">{url}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Preview unavailable, but you can still import
+            </div>
+          </div>
+          <button
+            onClick={() => onImport({ tags: [], collectionId: undefined })}
+            disabled={isImporting}
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isImporting ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Importing...
+              </span>
+            ) : (
+              "Import"
+            )}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Render specific preview based on type
@@ -422,6 +448,9 @@ function YouTubeImportPreview({
   onOpenExisting,
   ...optionsProps
 }: YouTubeImportPreviewProps) {
+  // Handle partial metadata (fallback case)
+  const hasPartialData = data.title === "YouTube Video" || data.channel === "Unknown Channel";
+  
   return (
     <div className="px-4 py-3">
       {/* Duplicate warning */}
@@ -448,13 +477,27 @@ function YouTubeImportPreview({
         </div>
       )}
 
+      {/* Partial data warning */}
+      {hasPartialData && (
+        <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          <div className="text-xs text-blue-700 dark:text-blue-300">
+            Limited preview available. Full details will be fetched after import.
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4">
         {/* Thumbnail */}
         <div className="flex-shrink-0 w-32 h-20 rounded overflow-hidden bg-muted">
           <img
             src={data.thumbnail}
-            alt={data.title}
+            alt={data.title || "YouTube Video"}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback to default thumbnail on error
+              (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${data.id}/hqdefault.jpg`;
+            }}
           />
         </div>
 
@@ -467,12 +510,12 @@ function YouTubeImportPreview({
             </span>
           </div>
 
-          <h3 className="text-sm font-medium text-foreground line-clamp-2">
-            {data.title}
+          <h3 className={`text-sm font-medium text-foreground line-clamp-2 ${!data.title || data.title === "YouTube Video" ? "italic text-muted-foreground" : ""}`}>
+            {data.title || "YouTube Video"}
           </h3>
 
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-            <span>{data.channel}</span>
+            <span>{data.channel || "Unknown Channel"}</span>
             {data.duration > 0 && (
               <>
                 <span>•</span>
@@ -481,7 +524,7 @@ function YouTubeImportPreview({
             )}
           </div>
 
-          {data.description && (
+          {data.description && data.description !== data.title && (
             <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
               {data.description}
             </p>

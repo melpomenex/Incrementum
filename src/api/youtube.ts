@@ -183,69 +183,100 @@ export function getYouTubeThumbnail(videoId: string, quality: "default" | "mediu
 
 /**
  * Fetch YouTube video metadata
- * Uses no-oembed YouTube endpoint (no API key required)
+ * Uses multiple fallback methods: oEmbed, Tauri backend, and basic extraction
  */
 export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVideo | null> {
-  try {
-    // Get embed page which has metadata in og tags
-    const response = await fetch(`https://www.youtube.com/embed/${videoId}?hl=en`);
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const html = await response.text();
-
-    // Extract metadata from og tags and yt initial data
-    const title = extractMetaTag(html, "og:title") || "";
-    const description = extractMetaTag(html, "og:description") || "";
-    const thumbnail = extractMetaTag(html, "og:image") || getYouTubeThumbnail(videoId);
-    const channel = extractMetaTag(html, "og:site_name") || "";
-
-    // Try to get more data from noembed
+  // Method 1: Try Tauri backend first if available (most reliable)
+  if (isTauri()) {
     try {
-      const noembedResponse = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
-      if (noembedResponse.ok) {
-        const data = await noembedResponse.json();
-        return {
-          id: videoId,
-          title: data.title || title,
-          description: data.html || description,
-          channel: data.author_name || channel,
-          channelId: "",
-          duration: 0, // noembed doesn't provide duration
-          viewCount: 0,
-          uploadDate: "",
-          thumbnail: data.thumbnail_url || thumbnail,
-          publishDate: "",
-          tags: [],
-          category: "",
-          liveContent: false,
-        };
+      const { invokeCommand } = await import("../lib/tauri");
+      const result = await invokeCommand<YouTubeVideo | null>("fetch_youtube_video_info", { videoId });
+      if (result) {
+        return result;
       }
-    } catch {
-      // Fallback to basic data
+    } catch (error) {
+      console.log("[YouTube] Tauri backend fetch failed, trying fallbacks:", error);
     }
-
-    return {
-      id: videoId,
-      title,
-      description,
-      channel,
-      channelId: "",
-      duration: 0,
-      viewCount: 0,
-      uploadDate: "",
-      thumbnail,
-      publishDate: "",
-      tags: [],
-      category: "",
-      liveContent: false,
-    };
-  } catch (error) {
-    console.error("Failed to fetch YouTube video info:", error);
-    return null;
   }
+
+  // Method 2: Try YouTube oEmbed API (CORS-friendly)
+  try {
+    const oembedResponse = await fetch(
+      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+      { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      }
+    );
+    
+    if (oembedResponse.ok) {
+      const data = await oembedResponse.json();
+      return {
+        id: videoId,
+        title: data.title || "YouTube Video",
+        description: data.description || data.title || "",
+        channel: data.author_name || "Unknown Channel",
+        channelId: "",
+        duration: 0,
+        viewCount: 0,
+        uploadDate: "",
+        thumbnail: data.thumbnail_url || getYouTubeThumbnail(videoId),
+        publishDate: "",
+        tags: [],
+        category: "",
+        liveContent: false,
+      };
+    }
+  } catch (error) {
+    console.log("[YouTube] oEmbed fetch failed:", error);
+  }
+
+  // Method 3: Try noembed.com as fallback
+  try {
+    const noembedResponse = await fetch(
+      `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (noembedResponse.ok) {
+      const data = await noembedResponse.json();
+      return {
+        id: videoId,
+        title: data.title || "YouTube Video",
+        description: data.description || "",
+        channel: data.author_name || "Unknown Channel",
+        channelId: "",
+        duration: 0,
+        viewCount: 0,
+        uploadDate: "",
+        thumbnail: data.thumbnail_url || getYouTubeThumbnail(videoId),
+        publishDate: "",
+        tags: [],
+        category: "",
+        liveContent: false,
+      };
+    }
+  } catch (error) {
+    console.log("[YouTube] noembed fetch failed:", error);
+  }
+
+  // Method 4: Last resort - return basic info with known thumbnail URL
+  // This allows import even when APIs fail
+  console.log("[YouTube] All API methods failed, using basic fallback");
+  return {
+    id: videoId,
+    title: "YouTube Video", // Will be updated after import
+    description: "",
+    channel: "Unknown Channel",
+    channelId: "",
+    duration: 0,
+    viewCount: 0,
+    uploadDate: "",
+    thumbnail: getYouTubeThumbnail(videoId, "high"),
+    publishDate: "",
+    tags: [],
+    category: "",
+    liveContent: false,
+  };
 }
 
 /**
