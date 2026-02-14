@@ -16,6 +16,8 @@
   overflow: hidden;
   pointer-events: auto;
   z-index: 10;
+  /* Ensure text layer is above canvas but doesn't block all interactions */
+  mix-blend-mode: normal;
 }
 
 /* The text layer div created by PDF.js TextLayerBuilder */
@@ -35,6 +37,8 @@
   forced-color-adjust: none;
   pointer-events: auto;
   z-index: 1;
+  /* Ensure proper text selection behavior */
+  cursor: text;
 }
 
 /* Text spans in the layer - transparent color but selectable */
@@ -51,6 +55,8 @@
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
+  /* Improve text selection reliability */
+  touch-action: none;
 }
 
 /* BR elements */

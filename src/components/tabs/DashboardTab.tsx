@@ -162,7 +162,7 @@ export function DashboardTab() {
 
     addTab({
       title: "Settings",
-      icon: "⚙️",
+      icon: <Settings className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
       closable: true,

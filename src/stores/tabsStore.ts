@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { generateId } from "../utils/id";
 
 export type TabType =
@@ -22,7 +22,7 @@ export type TabType =
 export interface Tab {
   id: string;
   title: string;
-  icon: string;
+  icon: ReactNode;
   type: TabType;
   content: ComponentType;
   closable: boolean;

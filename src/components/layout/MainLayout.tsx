@@ -11,6 +11,15 @@ import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, Settings
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
+import {
+  LayoutDashboard,
+  Library,
+  ListTodo,
+  Brain,
+  BarChart3,
+  Settings,
+  Monitor,
+} from "lucide-react";
 
 export function MainLayout() {
   const tabs = useTabsStore((state) => state.tabs);
@@ -77,7 +86,7 @@ export function MainLayout() {
         // Add Dashboard tab (non-closable)
         addTab({
           title: "Dashboard",
-          icon: "📊",
+          icon: <LayoutDashboard className="w-4 h-4" />,
           type: "dashboard",
           content: DashboardTab,
           closable: false,
@@ -86,7 +95,7 @@ export function MainLayout() {
         // Add Queue tab (closable)
         addTab({
           title: "Queue",
-          icon: "📚",
+          icon: <ListTodo className="w-4 h-4" />,
           type: "queue",
           content: QueueTab,
           closable: true,
@@ -128,7 +137,7 @@ export function MainLayout() {
 
     addTab({
       title: "Web Browser",
-      icon: "🌐",
+      icon: <Monitor className="w-4 h-4" />,
       type: "web-browser",
       content: WebBrowserTab,
       closable: true,

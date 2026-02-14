@@ -26,7 +26,13 @@ import {
   BarChart3,
   Settings,
   Home,
-  Zap
+  Zap,
+  LayoutDashboard,
+  Library,
+  ListTodo,
+  Brain,
+  FileText,
+  Youtube,
 } from "lucide-react";
 import type { Document } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
@@ -418,11 +424,11 @@ export function CommandCenter() {
         id: "nav-dashboard",
         label: "Go to Dashboard",
         description: "Navigate to the dashboard",
-        icon: <Home className="w-4 h-4" />,
+        icon: <LayoutDashboard className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Dashboard",
-          icon: "📊",
+          icon: <LayoutDashboard className="w-4 h-4" />,
           type: "dashboard",
           content: DashboardTab,
           closable: false,
@@ -433,11 +439,11 @@ export function CommandCenter() {
         id: "nav-documents",
         label: "Go to Documents",
         description: "View all documents",
-        icon: <BookOpen className="w-4 h-4" />,
+        icon: <Library className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Documents",
-          icon: "📂",
+          icon: <Library className="w-4 h-4" />,
           type: "documents",
           content: DocumentsTab,
           closable: true,
@@ -448,11 +454,11 @@ export function CommandCenter() {
         id: "nav-queue",
         label: "Go to Queue",
         description: "View reading queue",
-        icon: <Layers className="w-4 h-4" />,
+        icon: <ListTodo className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Queue",
-          icon: "📚",
+          icon: <ListTodo className="w-4 h-4" />,
           type: "queue",
           content: QueueTab,
           closable: true,
@@ -467,7 +473,7 @@ export function CommandCenter() {
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Statistics",
-          icon: "📈",
+          icon: <BarChart3 className="w-4 h-4" />,
           type: "analytics",
           content: AnalyticsTab,
           closable: true,
@@ -482,7 +488,7 @@ export function CommandCenter() {
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Settings",
-          icon: "⚙️",
+          icon: <Settings className="w-4 h-4" />,
           type: "settings",
           content: SettingsTab,
           closable: true,
@@ -493,11 +499,11 @@ export function CommandCenter() {
         id: "nav-review",
         label: "Start Review",
         description: "Start a review session",
-        icon: <Zap className="w-4 h-4" />,
+        icon: <Brain className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => addTab({
           title: "Review",
-          icon: "🧠",
+          icon: <Brain className="w-4 h-4" />,
           type: "review",
           content: ReviewTab,
           closable: true,
@@ -776,7 +782,10 @@ export function CommandCenter() {
     if (doc) {
       addTab({
         title: doc.title,
-        icon: doc.fileType === "pdf" ? "📕" : doc.fileType === "epub" ? "📖" : doc.fileType === "youtube" ? "📺" : "📄",
+        icon: doc.fileType === "pdf" ? <FileText className="w-4 h-4 text-red-500" /> 
+          : doc.fileType === "epub" ? <BookOpen className="w-4 h-4 text-blue-500" /> 
+          : doc.fileType === "youtube" ? <Youtube className="w-4 h-4 text-red-600" /> 
+          : <FileText className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -794,7 +803,10 @@ export function CommandCenter() {
         if (freshDoc) {
           addTab({
             title: freshDoc.title,
-            icon: freshDoc.fileType === "pdf" ? "📕" : freshDoc.fileType === "epub" ? "📖" : freshDoc.fileType === "youtube" ? "📺" : "📄",
+            icon: freshDoc.fileType === "pdf" ? <FileText className="w-4 h-4 text-red-500" /> 
+              : freshDoc.fileType === "epub" ? <BookOpen className="w-4 h-4 text-blue-500" /> 
+              : freshDoc.fileType === "youtube" ? <Youtube className="w-4 h-4 text-red-600" /> 
+              : <FileText className="w-4 h-4 text-muted-foreground" />,
             type: "document-viewer",
             content: DocumentViewer,
             closable: true,
