@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-15
+
+### Added
+- Document Minimap with scroll tracking and section highlights
+- Inline extraction directly within DocumentViewer
+- Focus Theme for distraction-free reading
+- Zen Mode review interface with FSRS Inspector
+- Modernized tab icons
+- Markdown drag and drop support with image bundling
+- Windows 95 theme
+- Markdown bundle import with image path resolution
+
+### Fixed
+- Prevent ResizeObserver loop crash from minimap scroll updates
+- Resolve circular dependency in FocusTheme
+- Hide rating buttons popover when not in queue
+- Fix URL import and PDF selection issues
+- Improve extracts on mobile/PWA
+- Fix rating popup when viewing PDFs
+
 ## [1.8.0] - 2026-02-12
 
 ### Added
