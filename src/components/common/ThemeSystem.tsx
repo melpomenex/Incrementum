@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { FOCUS_THEME, FOCUS_COMPACT_THEME } from "./FocusTheme";
 
 /**
  * Theme mode
@@ -336,6 +337,8 @@ export const BUILTIN_THEMES: Theme[] = [
       xl: "0 20px 25px -5px rgb(0 0 0 / 0.08)",
     },
   },
+  FOCUS_THEME,
+  FOCUS_COMPACT_THEME,
 ];
 
 /**
