@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft, Sparkles } from "lucide-react";
 import { useReviewStore, type ReviewDocumentItem, type ReviewSessionItem } from "../../stores/reviewStore";
 import { ReviewCard } from "./ReviewCard";
 import { ReviewDocumentCard } from "./ReviewDocumentCard";
@@ -14,6 +14,8 @@ import { ReviewCardSkeleton } from "../common/Skeleton";
 import { FSRSExplanationModal, useFSRSExplanation } from "../onboarding/FSRSExplanationModal";
 import { useSwipeGesture, getSwipeIndicatorStyle, SWIPE_RATINGS } from "../../hooks/useSwipeGesture";
 import { BreakReminderModal, useBreakReminder } from "./BreakReminderModal";
+import { ZenReviewMode } from "./ZenReviewMode";
+import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
 
 interface ReviewSessionProps {
   onExit: () => void;
@@ -42,6 +44,12 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   } = useReviewStore();
   const [isQueueListOpen, setIsQueueListOpen] = useState(false);
   const queueListRef = useRef<HTMLDivElement | null>(null);
+  
+  // Zen mode state
+  const [isZenMode, setIsZenMode] = useState(false);
+  
+  // FSRS Inspector
+  const { isOpen: isInspectorOpen, setIsOpen: setIsInspectorOpen } = useFSRSInspector();
 
   // FSRS explanation modal for first-time reviewers
   const { shouldShow: showFSRSExplanation, markShown: markFSRSShown } = useFSRSExplanation();
@@ -230,6 +238,13 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   const maxMinutes = Math.max(1, Math.round((estimatedSecondsRemaining / 60) * 1.15));
   const isCurrentDocument = isDocumentItem(currentCard);
 
+  // Render Zen Mode
+  if (isZenMode && !isLoading && queue.length > 0 && currentCard) {
+    return (
+      <ZenReviewMode onExit={() => setIsZenMode(false)} />
+    );
+  }
+
   return (
     <div className="h-full flex flex-col p-4 md:p-6 pb-20 md:pb-6">
       {/* Header */}
@@ -249,8 +264,34 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           </div>
         </div>
 
-        {/* Queue Navigation */}
-        {queue.length > 0 && (
+        {/* Mode Toggles & Queue Navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsZenMode(!isZenMode)}
+            className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              isZenMode 
+                ? "bg-primary/10 text-primary border border-primary/30" 
+                : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+            title={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode (minimal UI)"}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Zen
+          </button>
+          
+          <button
+            onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+            className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              isInspectorOpen 
+                ? "bg-primary/10 text-primary border border-primary/30" 
+                : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+            title="Toggle FSRS Inspector (Cmd+I)"
+          >
+            <span className="font-mono text-[10px]">FSRS</span>
+          </button>
+
+          {queue.length > 0 && (
           <div className="relative">
             <QueueNavigationControls
               currentDocumentIndex={currentIndex}
@@ -302,6 +343,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             )}
           </div>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 flex-1">
@@ -430,6 +472,13 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         onClose={dismissBreakReminder}
         onContinue={continueAfterBreakReminder}
         sessionMinutes={breakSessionMinutes}
+      />
+
+      {/* FSRS Inspector Panel */}
+      <FSRSInspector 
+        card={currentCard as any}
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
       />
     </div>
   );
