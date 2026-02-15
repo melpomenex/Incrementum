@@ -117,10 +117,7 @@ export function useInlineExtraction({
       clearSelection();
     } catch (error) {
       console.error("Extract failed:", error);
-      toast.show({
-        message: "Failed to create extract",
-        type: "error",
-      });
+      toast.error("Failed to create extract");
     } finally {
       pendingRef.current.delete(extractId);
     }
@@ -151,10 +148,7 @@ export function useInlineExtraction({
       clearSelection();
     } catch (error) {
       console.error("Cloze creation failed:", error);
-      toast.show({
-        message: "Failed to create cloze",
-        type: "error",
-      });
+      toast.error("Failed to create cloze");
     } finally {
       pendingRef.current.delete(clozeId);
     }

@@ -335,6 +335,15 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     }
   }, [openFilePickerAndImport, onOpenDocument]);
 
+  useEffect(() => {
+    const handleImportShortcut = () => {
+      void handleImport();
+    };
+
+    window.addEventListener("import-document", handleImportShortcut as EventListener);
+    return () => window.removeEventListener("import-document", handleImportShortcut as EventListener);
+  }, [handleImport]);
+
   // Handle files from drag and drop upload component
   const handleDragDropFiles = useCallback(
     async (filePaths: string[]) => {

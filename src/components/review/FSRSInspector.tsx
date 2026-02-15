@@ -11,7 +11,7 @@
  * - Raw memory state data
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { X, Activity, Brain, Clock, Database, TrendingDown } from "lucide-react";
 import { cn } from "../../utils";
 import type { LearningItem } from "../../api/review";
@@ -157,24 +157,6 @@ function ParameterRow({
 export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showRaw, setShowRaw] = useState(false);
-  
-  // Handle Cmd+I / Ctrl+I
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        } else {
-          // Open via custom event
-          window.dispatchEvent(new CustomEvent("fsrs-inspector-toggle"));
-        }
-      }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
   
   if (!isOpen || !card) return null;
   
@@ -340,12 +322,6 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
 // Hook to manage inspector state
 export function useFSRSInspector() {
   const [isOpen, setIsOpen] = useState(false);
-  
-  useEffect(() => {
-    const handleToggle = () => setIsOpen((prev) => !prev);
-    window.addEventListener("fsrs-inspector-toggle", handleToggle);
-    return () => window.removeEventListener("fsrs-inspector-toggle", handleToggle);
-  }, []);
-  
+
   return { isOpen, setIsOpen };
 }

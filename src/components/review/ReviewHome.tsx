@@ -169,6 +169,10 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
               </button>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            In-session tools: <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+I</kbd> FSRS Inspector,{" "}
+            <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+Shift+Z</kbd> Zen Mode.
+          </p>
 
           <div className="flex flex-wrap gap-2">
             <button

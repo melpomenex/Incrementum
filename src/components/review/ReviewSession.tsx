@@ -16,6 +16,8 @@ import { useSwipeGesture, getSwipeIndicatorStyle, SWIPE_RATINGS } from "../../ho
 import { BreakReminderModal, useBreakReminder } from "./BreakReminderModal";
 import { ZenReviewMode } from "./ZenReviewMode";
 import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
+import { useToast } from "../common/Toast";
+import { bulkDeleteItems, bulkSuspendItems } from "../../api/queue";
 
 interface ReviewSessionProps {
   onExit: () => void;
@@ -50,6 +52,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   
   // FSRS Inspector
   const { isOpen: isInspectorOpen, setIsOpen: setIsInspectorOpen } = useFSRSInspector();
+  const toast = useToast();
 
   // FSRS explanation modal for first-time reviewers
   const { shouldShow: showFSRSExplanation, markShown: markFSRSShown } = useFSRSExplanation();
@@ -109,6 +112,34 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     }
   };
 
+  const handleDeleteCurrent = async () => {
+    if (!currentCard || isDocumentItem(currentCard)) {
+      toast.info("Delete is only available for learning cards.");
+      return;
+    }
+    try {
+      await bulkDeleteItems([currentCard.id]);
+      toast.success("Card deleted");
+      await loadQueue();
+    } catch (error) {
+      toast.error("Failed to delete card", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleSuspendCurrent = async () => {
+    if (!currentCard || isDocumentItem(currentCard)) {
+      toast.info("Suspend is only available for learning cards.");
+      return;
+    }
+    try {
+      await bulkSuspendItems([currentCard.id]);
+      toast.success("Card suspended");
+      await loadQueue();
+    } catch (error) {
+      toast.error("Failed to suspend card", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
   useEffect(() => {
     if (!isQueueListOpen) return;
 
@@ -140,11 +171,54 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+      const mod = e.metaKey || e.ctrlKey;
+      const lowerKey = e.key.toLowerCase();
+
+      if (mod && lowerKey === "i") {
+        e.preventDefault();
+        setIsInspectorOpen((prev) => !prev);
+        return;
+      }
+      if (mod && e.shiftKey && lowerKey === "z") {
+        e.preventDefault();
+        setIsZenMode((prev) => !prev);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onExit();
+        return;
+      }
 
       // Space to show answer for learning items
       if (e.key === " " && !isAnswerShown && currentCard && !isDocumentItem(currentCard)) {
         e.preventDefault();
         showAnswer();
+      }
+
+      // Ctrl/Cmd + Enter to show answer
+      if (mod && e.key === "Enter" && !isAnswerShown && currentCard && !isDocumentItem(currentCard)) {
+        e.preventDefault();
+        showAnswer();
+        return;
+      }
+
+      // Ctrl/Cmd + 1/2/3/4 to rate without showing answer first
+      if (mod && currentCard && !isSubmitting && ["1", "2", "3", "4"].includes(e.key)) {
+        e.preventDefault();
+        handleRating(Number(e.key) as ReviewRating);
+        return;
+      }
+
+      // Review actions that are currently placeholders in the session UI.
+      if (mod && (lowerKey === "e" || lowerKey === "d" || lowerKey === "s" || lowerKey === "h")) {
+        e.preventDefault();
+        if (lowerKey === "e") toast.info("Edit card is not available yet.");
+        if (lowerKey === "d") void handleDeleteCurrent();
+        if (lowerKey === "s") void handleSuspendCurrent();
+        if (lowerKey === "h") toast.info("Card history is not available yet.");
+        return;
       }
 
       // Number keys for rating (only when answer is shown)
@@ -158,7 +232,18 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isAnswerShown, currentCard, isSubmitting, showAnswer, submitRating, nextCard]);
+  }, [
+    isAnswerShown,
+    currentCard,
+    isSubmitting,
+    showAnswer,
+    submitRating,
+    nextCard,
+    onExit,
+    toast,
+    handleDeleteCurrent,
+    handleSuspendCurrent,
+  ]);
 
   if (isLoading) {
     return (

@@ -75,6 +75,20 @@ function applyThemeToDOM(theme: Theme): void {
   const isDark = theme.variant === 'dark';
   root.classList.toggle('dark', isDark);
   root.style.colorScheme = isDark ? 'dark' : 'light';
+
+  // Apply per-theme custom CSS (if provided)
+  const customStyleId = 'incrementum-theme-custom-css';
+  let customStyle = document.getElementById(customStyleId) as HTMLStyleElement | null;
+  if (theme.customCSS && theme.customCSS.trim().length > 0) {
+    if (!customStyle) {
+      customStyle = document.createElement('style');
+      customStyle.id = customStyleId;
+      document.head.appendChild(customStyle);
+    }
+    customStyle.textContent = theme.customCSS;
+  } else if (customStyle) {
+    customStyle.remove();
+  }
 }
 
 /**
