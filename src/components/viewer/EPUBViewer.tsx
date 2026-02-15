@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react
 import type { PdfSelectionContext } from "../../types/selection";
 import ePub from "epubjs";
 import { cn } from "../../utils";
-import { useThemeStore } from "../common/ThemeSystem";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getDeviceInfo } from "../../lib/pwa";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
@@ -18,6 +18,7 @@ interface EPUBViewerProps {
   onContextTextChange?: (text: string) => void;
   initialCfi?: string;
   highlightQuery?: string;
+  onProgressChange?: (progressPercent: number) => void;
 }
 
 export function EPUBViewer({
@@ -29,6 +30,7 @@ export function EPUBViewer({
   onContextTextChange,
   initialCfi,
   highlightQuery,
+  onProgressChange,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +50,7 @@ export function EPUBViewer({
   const activeSearchHighlightsRef = useRef<string[]>([]);
 
   // Get current theme colors
-  const theme = useThemeStore((state) => state.theme);
+  const { theme } = useTheme();
   const themeRef = useRef(theme);
   const { settings, updateSettings } = useSettingsStore();
   const deviceInfo = getDeviceInfo();
@@ -139,7 +141,7 @@ export function EPUBViewer({
   }, [settings.documents, updateSettings]);
 
   const applyContentOverrides = useCallback((contents: any) => {
-    const textColor = themeRef.current.colors.foreground;
+    const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
     const bgColor = themeRef.current.colors.background;
     const fontFamily = fontFamilyMap[fontFamilyRef.current] || fontFamilyMap.serif;
     const contentPadding = isMobile ? "1.25rem 1rem 4.5rem" : "2rem 3rem";
@@ -256,7 +258,7 @@ export function EPUBViewer({
   const applyRenditionTheme = useCallback(() => {
     if (!rendition) return;
 
-    const textColor = themeRef.current.colors.foreground;
+    const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
     const fontFamily = fontFamilyMap[fontFamilyRef.current] || fontFamilyMap.serif;
     rendition.themes.default({
       body: {
@@ -580,7 +582,9 @@ export function EPUBViewer({
             try {
               const percent = epubBook.locations.percentageFromCfi(location.start.cfi);
               if (typeof percent === "number" && !Number.isNaN(percent)) {
-                setProgressPercent(Math.round(percent * 100));
+                const rounded = Math.round(percent * 100);
+                setProgressPercent(rounded);
+                onProgressChange?.(rounded);
               }
             } catch {
               // Ignore progress calculation errors

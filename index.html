@@ -41,11 +41,32 @@
   <script>
     (function() {
       var errorDiv = document.getElementById('error-display');
+      function isBenignResizeObserverMessage(message) {
+        if (!message) return false;
+        return message.includes("ResizeObserver loop limit exceeded") ||
+          message.includes("ResizeObserver loop completed with undelivered notifications");
+      }
       window.addEventListener('error', function(e) {
+        if (isBenignResizeObserverMessage(e.message || "")) {
+          e.preventDefault && e.preventDefault();
+          return;
+        }
         errorDiv.style.display = 'block';
         errorDiv.textContent += 'Error: ' + e.message + '\n' + (e.error && e.error.stack ? e.error.stack : '') + '\n\n';
       });
       window.addEventListener('unhandledrejection', function(e) {
+        var reasonText = "";
+        if (typeof e.reason === "string") {
+          reasonText = e.reason;
+        } else if (e.reason && typeof e.reason.message === "string") {
+          reasonText = e.reason.message;
+        } else {
+          reasonText = String(e.reason || "");
+        }
+        if (isBenignResizeObserverMessage(reasonText)) {
+          e.preventDefault && e.preventDefault();
+          return;
+        }
         errorDiv.style.display = 'block';
         errorDiv.textContent += 'Promise rejection: ' + e.reason + '\n' + (e.reason && e.reason.stack ? e.reason.stack : '') + '\n\n';
       });

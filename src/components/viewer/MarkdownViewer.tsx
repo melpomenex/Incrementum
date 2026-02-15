@@ -109,6 +109,7 @@ export function MarkdownViewer({
   return (
     <div
       ref={containerRef}
+      data-document-scroll-container
       className="markdown-viewer prose prose-sm max-w-none dark:prose-invert reading-prose overflow-y-auto overflow-x-hidden h-full"
       onScroll={handleScroll}
     >
