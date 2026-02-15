@@ -24,7 +24,7 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.89.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -90,7 +90,7 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.89.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -205,7 +205,7 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.89.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -375,7 +375,7 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.89.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
