@@ -2010,6 +2010,125 @@ export const glassTheme: Theme = {
   `,
 };
 
+// Focus Theme (distraction-free reading)
+export const focusTheme: Theme = {
+  id: 'focus',
+  name: 'Focus',
+  variant: 'dark',
+  description: 'Low-contrast interface with high readability for deep work.',
+  colors: {
+    background: '#0d1117',
+    onBackground: '#c9d1d9',
+    surface: '#161b22',
+    onSurface: '#c9d1d9',
+    surfaceVariant: '#1c2128',
+    primary: '#4a5568',
+    onPrimary: '#f8fafc',
+    primaryContainer: '#2d3748',
+    onPrimaryContainer: '#e2e8f0',
+    secondary: '#2d3748',
+    onSecondary: '#cbd5e1',
+    outline: '#30363d',
+    outlineVariant: '#21262d',
+    error: '#f85149',
+    onError: '#ffffff',
+    errorContainer: '#7f1d1d',
+    onErrorContainer: '#fee2e2',
+    success: '#238636',
+    warning: '#9e6a03',
+    toolbar: '#11161d',
+    sidebar: '#11161d',
+    card: '#161b22',
+    input: '#21262d',
+    border: '#30363d',
+    text: '#c9d1d9',
+    textSecondary: '#8b949e',
+    link: '#58a6ff',
+  },
+  typography: {
+    fontFamily: "Charter, 'Iowan Old Style', 'Source Serif 4', Georgia, serif",
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.3,
+      normal: 1.6,
+      relaxed: 1.8,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '2px',
+    md: '4px',
+    lg: '6px',
+    xl: '8px',
+    '2xl': '10px',
+    full: '9999px',
+  },
+  shadows: {
+    sm: 'none',
+    md: '0 2px 8px rgba(0,0,0,0.2)',
+    lg: '0 4px 12px rgba(0,0,0,0.3)',
+    xl: '0 8px 24px rgba(0,0,0,0.4)',
+  },
+  customCSS: `
+    :root[data-theme-id="focus"] * {
+      animation-duration: 80ms !important;
+    }
+    :root[data-theme-id="focus"] .glass-panel-light,
+    :root[data-theme-id="focus"] .glass-panel-heavy,
+    :root[data-theme-id="focus"] .glass-card-enhanced {
+      backdrop-filter: none !important;
+      box-shadow: none !important;
+    }
+  `,
+};
+
+export const focusCompactTheme: Theme = {
+  ...focusTheme,
+  id: 'focus-compact',
+  name: 'Focus (Compact)',
+  typography: {
+    ...focusTheme.typography,
+    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: {
+      xs: '0.7rem',
+      sm: '0.8rem',
+      md: '0.9rem',
+      lg: '1rem',
+      xl: '1.1rem',
+      '2xl': '1.25rem',
+      '3xl': '1.5rem',
+    },
+    lineHeight: {
+      tight: 1.2,
+      normal: 1.4,
+      relaxed: 1.55,
+    },
+  },
+};
+
 // Export all built-in themes
 export const builtInThemes: Theme[] = [
   modernDarkTheme,
@@ -2035,4 +2154,6 @@ export const builtInThemes: Theme[] = [
   highContrastDarkTheme,
   lemonSliceTheme,
   glassTheme,
+  focusTheme,
+  focusCompactTheme,
 ];

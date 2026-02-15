@@ -111,6 +111,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [sessionCustomization, setSessionCustomization] = useState<SessionCustomization>(DEFAULT_CUSTOMIZATION);
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const searchRef = useRef<HTMLInputElement>(null);
+  const lastSelectedLearningIdRef = useRef<string | null>(null);
   const toast = useToast();
   
   // Session stats for smart queue
@@ -311,13 +312,41 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   }, [selectedItem, visibleItems]);
 
   useEffect(() => {
+    const handleStartReviewShortcut = () => {
+      const selectedLearningId =
+        selectedItem?.itemType === "learning-item"
+          ? (selectedItem.learningItemId ?? selectedItem.id)
+          : undefined;
+      onStartReview?.(selectedLearningId);
+    };
+
+    window.addEventListener("start-review-session", handleStartReviewShortcut as EventListener);
+    return () =>
+      window.removeEventListener("start-review-session", handleStartReviewShortcut as EventListener);
+  }, [onStartReview, selectedItem?.id, selectedItem?.learningItemId]);
+
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
         searchRef.current?.focus();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        if (allSelected) {
+          clearSelection();
+        } else {
+          selectAll();
+        }
+        return;
+      }
+      if (event.key === "Delete" && selectedIds.size > 0) {
+        event.preventDefault();
+        void bulkDelete();
         return;
       }
       if (event.key.toLowerCase() === "i") {
@@ -344,7 +373,41 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onOpenDocument, onStartReview, selectedId, selectedItem, visibleItems]);
+  }, [
+    onOpenDocument,
+    onStartReview,
+    selectedId,
+    selectedItem,
+    visibleItems,
+    selectedIds.size,
+    allSelected,
+    clearSelection,
+    selectAll,
+    bulkDelete,
+  ]);
+
+  const handleLearningItemSelection = (itemId: string, checked: boolean, shiftKey: boolean) => {
+    if (!shiftKey || !lastSelectedLearningIdRef.current) {
+      setSelected(itemId, checked);
+      lastSelectedLearningIdRef.current = itemId;
+      return;
+    }
+
+    const currentIndex = selectableItems.findIndex((item) => item.id === itemId);
+    const previousIndex = selectableItems.findIndex((item) => item.id === lastSelectedLearningIdRef.current);
+    if (currentIndex === -1 || previousIndex === -1) {
+      setSelected(itemId, checked);
+      lastSelectedLearningIdRef.current = itemId;
+      return;
+    }
+
+    const start = Math.min(currentIndex, previousIndex);
+    const end = Math.max(currentIndex, previousIndex);
+    for (let i = start; i <= end; i += 1) {
+      setSelected(selectableItems[i].id, checked);
+    }
+    lastSelectedLearningIdRef.current = itemId;
+  };
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -707,7 +770,19 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                         }`}
                     >
                       <div
-                        onClick={() => setSelectedId(item.id)}
+                        onClick={(event) => {
+                          setSelectedId(item.id);
+                          if (item.itemType !== "learning-item") return;
+
+                          const isModifierMulti = event.metaKey || event.ctrlKey;
+                          if (event.shiftKey || isModifierMulti) {
+                            handleLearningItemSelection(
+                              item.id,
+                              !selectedIds.has(item.id),
+                              event.shiftKey
+                            );
+                          }
+                        }}
                         onDoubleClick={(event) => {
                           event.stopPropagation();
                           if (item.itemType === "learning-item") {
@@ -725,7 +800,11 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                               checked={selectedIds.has(item.id)}
                               onChange={(event) => {
                                 event.stopPropagation();
-                                setSelected(item.id, !selectedIds.has(item.id));
+                                handleLearningItemSelection(
+                                  item.id,
+                                  !selectedIds.has(item.id),
+                                  !!event.nativeEvent.shiftKey
+                                );
                               }}
                             />
                           )}

@@ -200,6 +200,8 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
     'cartographer',
     'high-contrast-light',
     'high-contrast-dark',
+    'focus',
+    'focus-compact',
   ];
   const builtinThemeIdSet = new Set(builtinThemeIds);
   const builtinThemes = themes.filter((t) => builtinThemeIdSet.has(t.id));

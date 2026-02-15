@@ -144,6 +144,8 @@ export const BUILTIN_THEMES = {
   HIGH_CONTRAST_LIGHT: 'high-contrast-light',
   HIGH_CONTRAST_DARK: 'high-contrast-dark',
   LEMON_SLICE: 'lemon-slice',
+  FOCUS: 'focus',
+  FOCUS_COMPACT: 'focus-compact',
 } as const;
 
 export type BuiltInThemeId = typeof BUILTIN_THEMES[keyof typeof BUILTIN_THEMES];

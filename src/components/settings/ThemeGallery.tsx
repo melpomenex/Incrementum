@@ -218,6 +218,8 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
     "cartographer",
     "high-contrast-light",
     "high-contrast-dark",
+    "focus",
+    "focus-compact",
   ];
   const builtinOrder = new Map(allThemeIds.map((id, index) => [id, index]));
   const themeSort = (a: Theme, b: Theme) => {

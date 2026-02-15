@@ -27,6 +27,7 @@ import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
 import * as documentsApi from "../../api/documents";
+import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { updateDocumentProgressAuto } from "../../api/documents";
 import { getDocumentPosition } from "../../api/position";
 import { rateDocument } from "../../api/algorithm";
@@ -259,7 +260,7 @@ export function DocumentViewer({
 
   const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const scrollProgressRef = useRef(0); // 0-1 for minimap - use ref to avoid re-renders
+  const [minimapPosition, setMinimapPosition] = useState(0); // 0-1
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<{
     pages: Array<{ pageNumber: number; text: string }>;
@@ -683,13 +684,8 @@ export function DocumentViewer({
         return;
       }
 
-      // Update scroll progress for minimap (0-1) - use ref to avoid re-renders
-      scrollProgressRef.current = state.scrollPercent / 100;
-      // Manually update minimap position via DOM to avoid React re-render
-      const minimapIndicator = document.querySelector("[data-minimap-indicator]") as HTMLElement;
-      if (minimapIndicator) {
-        minimapIndicator.style.top = `${scrollProgressRef.current * 100}%`;
-      }
+      // Update minimap scroll indicator
+      setMinimapPosition(Math.max(0, Math.min(1, state.scrollPercent / 100)));
 
       lastScrollStateRef.current = state;
       onScrollPositionChange?.({
@@ -826,15 +822,11 @@ export function DocumentViewer({
   const handleInlineExtract = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
     try {
       await createExtract({
-        documentId: options.documentId,
+        document_id: options.documentId,
         content: options.text,
-        context: options.context,
-        title: options.text.slice(0, 100),
+        note: options.context,
       });
-      toast.show({
-        message: "Extract created",
-        type: "success",
-      });
+      toast.success("Extract created");
       // Refresh extracts for minimap
       loadExtracts(options.documentId);
     } catch (error) {
@@ -845,17 +837,14 @@ export function DocumentViewer({
 
   const handleInlineCloze = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
     try {
-      await createExtract({
-        documentId: options.documentId,
+      const extract = await createExtract({
+        document_id: options.documentId,
         content: options.text,
-        context: options.context,
-        title: options.text.slice(0, 100),
-        type: "cloze",
+        note: options.context,
+        tags: ["cloze"],
       });
-      toast.show({
-        message: "Cloze created",
-        type: "success",
-      });
+      await generateLearningItemsFromExtract(extract.id);
+      toast.success("Cloze created");
       loadExtracts(options.documentId);
     } catch (error) {
       console.error("Failed to create cloze:", error);
@@ -2027,6 +2016,8 @@ export function DocumentViewer({
         (e.target as HTMLElement).tagName === "TEXTAREA") {
         return;
       }
+      const mod = e.ctrlKey || e.metaKey;
+      const lowerKey = e.key.toLowerCase();
 
       // F11 for fullscreen toggle
       if (e.key === "F11") {
@@ -2038,6 +2029,37 @@ export function DocumentViewer({
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
         setShowSearch(!showSearch);
+      }
+
+      // Ctrl/Cmd + E for create extract from current selection
+      if (mod && lowerKey === "e") {
+        e.preventDefault();
+        openExtractDialog();
+        return;
+      }
+
+      // Ctrl/Cmd + H for highlight selection (mapped to extract dialog with highlight color)
+      if (mod && lowerKey === "h") {
+        e.preventDefault();
+        openExtractDialog();
+        return;
+      }
+
+      // Ctrl/Cmd + + / - / 0 zoom controls
+      if (mod && (e.key === "+" || (e.key === "=" && e.shiftKey) || e.key === "=")) {
+        e.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      if (mod && e.key === "-") {
+        e.preventDefault();
+        handleZoomOut();
+        return;
+      }
+      if (mod && e.key === "0") {
+        e.preventDefault();
+        handleResetZoom();
+        return;
       }
 
       // Arrow keys for navigation when in document mode
@@ -2557,7 +2579,7 @@ export function DocumentViewer({
     if (!win) return;
 
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k" || e.key.toLowerCase() === "p")) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("command-palette-open"));
       }
@@ -3013,6 +3035,16 @@ export function DocumentViewer({
             onContextTextChange={onPdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
             initialCfi={initialJump?.kind === "epub" ? initialJump.cfi : undefined}
+            onProgressChange={(percent) => {
+              handleScrollPositionChange({
+                pageNumber: 1,
+                scrollTop: 0,
+                scrollLeft: 0,
+                scrollHeight: 0,
+                clientHeight: 0,
+                scrollPercent: percent,
+              });
+            }}
           />
         ) : docType === "audio" ? (
           mediaSrc ? (
@@ -3220,13 +3252,25 @@ export function DocumentViewer({
           <div className="absolute right-2 top-1/2 -translate-y-1/2 z-30 opacity-50 hover:opacity-100 transition-opacity">
             <DocumentMinimap
               segments={minimapSegments}
-              currentPosition={0}
+              currentPosition={minimapPosition}
               totalHeight={300}
               onSegmentClick={(position) => {
-                // Navigate to position in document
-                const container = document.querySelector("[data-document-scroll-container]") as HTMLElement;
+                // Navigate to position in document.
+                if (docType === "html") {
+                  const frame = iframeRef.current;
+                  const win = frame?.contentWindow;
+                  const doc = frame?.contentDocument;
+                  if (win && doc) {
+                    const el = doc.scrollingElement || doc.documentElement || doc.body;
+                    const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
+                    win.scrollTo(0, position * maxScroll);
+                  }
+                  return;
+                }
+
+                const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
                 if (container) {
-                  const targetScroll = position * (container.scrollHeight - container.clientHeight);
+                  const targetScroll = position * Math.max(0, container.scrollHeight - container.clientHeight);
                   container.scrollTo({ top: targetScroll, behavior: "smooth" });
                 }
               }}

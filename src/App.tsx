@@ -39,9 +39,56 @@ const ONBOARDING_COMPLETE_KEY = 'incrementum_onboarding_complete';
 const TUTORIAL_COMPLETE_KEY = 'incrementum_tutorial_complete';
 
 type OnboardingStep = 'welcome' | 'tutorial' | 'signup' | null;
+type AppPage =
+  | "continue-reading"
+  | "dashboard"
+  | "documents"
+  | "queue"
+  | "queue-scroll"
+  | "analytics"
+  | "knowledge-graph"
+  | "settings";
+
+function normalizePathToPage(path?: string): AppPage | null {
+  if (!path) return null;
+  switch (path) {
+    case "/":
+    case "/dashboard":
+      return "dashboard";
+    case "/continue-reading":
+      return "continue-reading";
+    case "/documents":
+      return "documents";
+    case "/queue":
+      return "queue";
+    case "/queue-scroll":
+      return "queue-scroll";
+    case "/analytics":
+      return "analytics";
+    case "/knowledge-graph":
+      return "knowledge-graph";
+    case "/settings":
+      return "settings";
+    default:
+      return null;
+  }
+}
+
+function isAppPage(page: string): page is AppPage {
+  return [
+    "continue-reading",
+    "dashboard",
+    "documents",
+    "queue",
+    "queue-scroll",
+    "analytics",
+    "knowledge-graph",
+    "settings",
+  ].includes(page);
+}
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const [activeTab, setActiveTab] = useState("review");
   const loadAll = useAnalyticsStore((state) => state.loadAll);
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
@@ -63,6 +110,11 @@ function App() {
   // Keyboard shortcuts help state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const toast = useToast();
+  const handlePageChange = useCallback((page: string) => {
+    if (isAppPage(page)) {
+      setCurrentPage(page);
+    }
+  }, []);
 
   const handleLogin = async (email: string, password: string) => {
     await syncClient.login(email, password);
@@ -126,14 +178,67 @@ function App() {
   // Keyboard shortcut to show help
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      if (isTyping) {
+        return;
+      }
+
+      if (mod) {
+        const key = e.key.toLowerCase();
+        if (key === "k" || key === "p") {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("command-palette-open"));
+          return;
+        }
+        if (key === ",") {
+          e.preventDefault();
+          setCurrentPage("settings");
+          return;
+        }
+        if (key === "d") {
+          e.preventDefault();
+          setCurrentPage("dashboard");
+          return;
+        }
+        if (key === "q") {
+          e.preventDefault();
+          setCurrentPage("queue");
+          return;
+        }
+        if (key === "r") {
+          e.preventDefault();
+          setCurrentPage("queue");
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("start-review-session"));
+          }, 0);
+          return;
+        }
+        if (key === "o" || key === "n") {
+          e.preventDefault();
+          setCurrentPage("documents");
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("import-document"));
+          }, 0);
+          return;
+        }
+        if (e.key === "/") {
+          e.preventDefault();
+          setShowShortcutsHelp(true);
+          return;
+        }
+      }
+
       // Show shortcuts help on '?' key (but not when typing in inputs)
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        ) {
+        if (isTyping) {
           return;
         }
         e.preventDefault();
@@ -143,6 +248,28 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      const next = normalizePathToPage(customEvent.detail);
+      if (next) {
+        setCurrentPage(next);
+      }
+    };
+    const handleNavigateToSettings = () => setCurrentPage("settings");
+    const handleShowShortcuts = () => setShowShortcutsHelp(true);
+
+    window.addEventListener("navigate", handleNavigate as EventListener);
+    window.addEventListener("navigate-to-settings", handleNavigateToSettings as EventListener);
+    window.addEventListener("show-shortcuts-help", handleShowShortcuts as EventListener);
+
+    return () => {
+      window.removeEventListener("navigate", handleNavigate as EventListener);
+      window.removeEventListener("navigate-to-settings", handleNavigateToSettings as EventListener);
+      window.removeEventListener("show-shortcuts-help", handleShowShortcuts as EventListener);
+    };
   }, []);
 
   // Developer helper: expose functions to window for debugging
@@ -252,7 +379,7 @@ function App() {
         {/* Show app behind the onboarding overlay */}
         <NewMainLayout
           activeItem={currentPage}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           isAuthenticated={isAuthenticated}
           user={user}
           onLoginClick={() => setShowLoginModal(true)}
@@ -273,7 +400,7 @@ function App() {
         />
         <NewMainLayout
           activeItem={currentPage}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           isAuthenticated={isAuthenticated}
           user={user}
           onLoginClick={() => setShowLoginModal(true)}
@@ -294,7 +421,7 @@ function App() {
         />
         <NewMainLayout
           activeItem={currentPage}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           isAuthenticated={isAuthenticated}
           user={user}
           onLoginClick={() => setShowLoginModal(true)}
@@ -311,7 +438,7 @@ function App() {
       <CommandCenter />
       <NewMainLayout
         activeItem={currentPage}
-        onPageChange={setCurrentPage}
+        onPageChange={handlePageChange}
         isAuthenticated={isAuthenticated}
         user={user}
         onLoginClick={() => setShowLoginModal(true)}
