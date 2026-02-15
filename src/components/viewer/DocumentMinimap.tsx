@@ -24,7 +24,7 @@ export interface MinimapSegment {
 
 interface DocumentMinimapProps {
   segments: MinimapSegment[];
-  currentPosition: number; // 0-1 percentage
+  currentPosition?: number; // 0-1 percentage (initial only, updates via DOM)
   totalHeight?: number;
   className?: string;
   onSegmentClick?: (position: number) => void;
@@ -165,11 +165,12 @@ export function DocumentMinimap({
         }}
       />
 
-      {/* Current position indicator */}
+      {/* Current position indicator - data attribute for external DOM updates */}
       <div
+        data-minimap-indicator
         className="absolute w-full h-0.5 bg-primary rounded-full pointer-events-none"
         style={{
-          top: `${currentPosition * 100}%`,
+          top: `${(currentPosition || 0) * 100}%`,
         }}
       />
     </div>
