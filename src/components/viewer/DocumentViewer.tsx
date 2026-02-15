@@ -17,9 +17,12 @@ import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import type { PdfSelectionContext } from "../../types/selection";
 import type { Extract } from "../../api/extracts";
+import { createExtract } from "../../api/extracts";
 import { QueueNavigationControls } from "../queue/QueueNavigationControls";
 import { HoverRatingControls } from "../review/HoverRatingControls";
 import { PriorityControl } from "./PriorityControl";
+import { DocumentMinimap, type MinimapSegment } from "./DocumentMinimap";
+import { useInlineExtraction, flashAnimationStyles } from "../../hooks/useInlineExtraction";
 import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
@@ -47,6 +50,7 @@ import {
 import type { ViewState } from "../../types/readerPosition";
 import { saveDocumentPosition, pagePosition, scrollPosition, cfiPosition, timePosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
+import { useExtractStore } from "../../stores/extractStore";
 
 // Helper to format seconds as MM:SS or HH:MM:SS
 function formatTime(seconds: number): string {
@@ -225,6 +229,21 @@ export function DocumentViewer({
     onVideoContextChange?.(videoContext);
   }, [videoContext, onVideoContextChange]);
 
+  // Inject flash animation styles for inline extraction
+  useEffect(() => {
+    const styleId = "inline-extraction-styles";
+    if (document.getElementById(styleId)) return;
+    
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = flashAnimationStyles;
+    document.head.appendChild(style);
+    
+    return () => {
+      style.remove();
+    };
+  }, []);
+
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [markdownWidthCh, setMarkdownWidthCh] = useState<number>(() => {
@@ -240,6 +259,7 @@ export function DocumentViewer({
 
   const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0); // 0-1 for minimap
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<{
     pages: Array<{ pageNumber: number; text: string }>;
@@ -486,6 +506,48 @@ export function DocumentViewer({
   const mobileSelectionTimeoutRef = useRef<number | null>(null);
   const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
 
+  // Extract store for minimap
+  const { extracts, loadExtracts } = useExtractStore();
+  
+  // Load extracts for minimap
+  useEffect(() => {
+    if (currentDocument?.id) {
+      loadExtracts(currentDocument.id);
+    }
+  }, [currentDocument?.id, loadExtracts]);
+  
+  // Build minimap segments from extracts
+  const minimapSegments: MinimapSegment[] = useMemo(() => {
+    const segments: MinimapSegment[] = [];
+    
+    // Add segments for each extract
+    for (const extract of extracts) {
+      if (extract.documentId === currentDocument?.id) {
+        // Calculate position from page number or scroll percentage
+        let position = 0;
+        if (extract.pageNumber && currentDocument?.totalPages) {
+          position = extract.pageNumber / currentDocument.totalPages;
+        } else if (extract.position) {
+          position = extract.position;
+        } else if (extract.scrollPercent) {
+          position = extract.scrollPercent / 100;
+        }
+        
+        if (position > 0) {
+          segments.push({
+            start: Math.max(0, position - 0.01),
+            end: Math.min(1, position + 0.01),
+            type: "extracted",
+            id: extract.id,
+            label: extract.title || "Extract",
+          });
+        }
+      }
+    }
+    
+    return segments;
+  }, [extracts, currentDocument?.id, currentDocument?.totalPages]);
+
   const MAX_SELECTION_CHARS = 10000;
   const updateSelection = useCallback((rawText: string | null | undefined, context?: PdfSelectionContext | null) => {
     const text = rawText?.trim() ?? "";
@@ -621,6 +683,9 @@ export function DocumentViewer({
         return;
       }
 
+      // Update scroll progress for minimap (0-1)
+      setScrollProgress(state.scrollPercent / 100);
+
       lastScrollStateRef.current = state;
       onScrollPositionChange?.({
         pageNumber: state.pageNumber,
@@ -751,6 +816,55 @@ export function DocumentViewer({
 
   // Queue navigation
   const queueNav = useQueueNavigation();
+
+  // Inline extraction handlers
+  const handleInlineExtract = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
+    try {
+      await createExtract({
+        documentId: options.documentId,
+        content: options.text,
+        context: options.context,
+        title: options.text.slice(0, 100),
+      });
+      toast.show({
+        message: "Extract created",
+        type: "success",
+      });
+      // Refresh extracts for minimap
+      loadExtracts(options.documentId);
+    } catch (error) {
+      console.error("Failed to create extract:", error);
+      throw error;
+    }
+  }, [toast, loadExtracts]);
+
+  const handleInlineCloze = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
+    try {
+      await createExtract({
+        documentId: options.documentId,
+        content: options.text,
+        context: options.context,
+        title: options.text.slice(0, 100),
+        type: "cloze",
+      });
+      toast.show({
+        message: "Cloze created",
+        type: "success",
+      });
+      loadExtracts(options.documentId);
+    } catch (error) {
+      console.error("Failed to create cloze:", error);
+      throw error;
+    }
+  }, [toast, loadExtracts]);
+
+  // Setup inline extraction keyboard shortcuts
+  useInlineExtraction({
+    documentId,
+    onExtract: handleInlineExtract,
+    onCloze: handleInlineCloze,
+    enabled: viewMode === "document",
+  });
 
   const loadDocumentData = useCallback(async (doc: typeof currentDocument) => {
     if (!doc) return;
@@ -3094,6 +3208,25 @@ export function DocumentViewer({
             disableBackdropBlur={docType === "epub"}
             compactMode={docType === "epub" && isPWA()}
           />
+        )}
+
+        {/* Document Minimap - VS Code style */}
+        {viewMode === "document" && (docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html") && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 z-30 opacity-50 hover:opacity-100 transition-opacity">
+            <DocumentMinimap
+              segments={minimapSegments}
+              currentPosition={scrollProgress}
+              totalHeight={300}
+              onSegmentClick={(position) => {
+                // Navigate to position in document
+                const container = document.querySelector("[data-document-scroll-container]") as HTMLElement;
+                if (container) {
+                  const targetScroll = position * (container.scrollHeight - container.clientHeight);
+                  container.scrollTo({ top: targetScroll, behavior: "smooth" });
+                }
+              }}
+            />
+          </div>
         )}
       </div>
 
