@@ -259,7 +259,7 @@ export function DocumentViewer({
 
   const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0); // 0-1 for minimap
+  const scrollProgressRef = useRef(0); // 0-1 for minimap - use ref to avoid re-renders
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<{
     pages: Array<{ pageNumber: number; text: string }>;
@@ -683,8 +683,13 @@ export function DocumentViewer({
         return;
       }
 
-      // Update scroll progress for minimap (0-1)
-      setScrollProgress(state.scrollPercent / 100);
+      // Update scroll progress for minimap (0-1) - use ref to avoid re-renders
+      scrollProgressRef.current = state.scrollPercent / 100;
+      // Manually update minimap position via DOM to avoid React re-render
+      const minimapIndicator = document.querySelector("[data-minimap-indicator]") as HTMLElement;
+      if (minimapIndicator) {
+        minimapIndicator.style.top = `${scrollProgressRef.current * 100}%`;
+      }
 
       lastScrollStateRef.current = state;
       onScrollPositionChange?.({
@@ -3215,7 +3220,7 @@ export function DocumentViewer({
           <div className="absolute right-2 top-1/2 -translate-y-1/2 z-30 opacity-50 hover:opacity-100 transition-opacity">
             <DocumentMinimap
               segments={minimapSegments}
-              currentPosition={scrollProgress}
+              currentPosition={0}
               totalHeight={300}
               onSegmentClick={(position) => {
                 // Navigate to position in document
