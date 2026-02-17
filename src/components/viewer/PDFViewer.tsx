@@ -193,8 +193,21 @@ export function PDFViewer({
       setError(null);
 
       try {
-        const loadingTask = pdfjsLib.getDocument({ data: fileData.slice(), verbosity: 0 });
-        const pdfDoc = await loadingTask.promise;
+        const loadDocument = async () => {
+          const baseOptions = { data: fileData.slice(), verbosity: 0 };
+          try {
+            const loadingTask = pdfjsLib.getDocument(baseOptions);
+            return await loadingTask.promise;
+          } catch (workerError) {
+            // Some packaged runtimes fail to initialize the PDF worker.
+            // Retry without a worker so PDFs still render.
+            console.warn("[PDFViewer] Worker load failed, retrying with disableWorker=true:", workerError);
+            const fallbackTask = pdfjsLib.getDocument({ ...baseOptions, disableWorker: true } as any);
+            return await fallbackTask.promise;
+          }
+        };
+
+        const pdfDoc = await loadDocument();
 
         if (!mounted) return;
 

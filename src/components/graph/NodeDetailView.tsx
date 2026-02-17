@@ -3,7 +3,7 @@
  * Beautiful panel showing detailed information about selected graph nodes
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   X,
   ExternalLink,
@@ -31,6 +31,12 @@ export interface NodeDetailViewProps {
   onClose: () => void;
   onNavigate?: (nodeId: string) => void;
   onEdit?: (nodeId: string) => void;
+  onSaveDetails?: (nodeId: string, updates: {
+    label?: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+  }) => Promise<void> | void;
   onDelete?: (nodeId: string) => void;
 }
 
@@ -97,14 +103,33 @@ export function NodeDetailView({
   onClose,
   onNavigate,
   onEdit,
+  onSaveDetails,
   onDelete,
 }: NodeDetailViewProps) {
   const [activeTab, setActiveTab] = useState<"connections" | "metadata">("connections");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showActions, setShowActions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState(node.label);
+  const [editDescription, setEditDescription] = useState(node.description || "");
+  const [editCategory, setEditCategory] = useState(node.category || "");
+  const [editTags, setEditTags] = useState((node.tags || []).join(", "));
 
   const config = NODE_CONFIG[node.type];
   const Icon = config.icon;
+  const canInlineEdit = node.type === GraphNodeType.Document || node.type === GraphNodeType.Extract;
+
+  useEffect(() => {
+    setIsEditing(false);
+    setIsSaving(false);
+    setSaveError(null);
+    setEditLabel(node.label);
+    setEditDescription(node.description || "");
+    setEditCategory(node.category || "");
+    setEditTags((node.tags || []).join(", "));
+  }, [node.id, node.label, node.description, node.category, node.tags]);
 
   // Group connections by type
   const groupedConnections = useMemo(() => {
@@ -141,6 +166,38 @@ export function NodeDetailView({
     (sum, group) => sum + group.nodes.length,
     0
   );
+
+  const handleEditClick = () => {
+    if (canInlineEdit && onSaveDetails) {
+      setActiveTab("metadata");
+      setIsEditing(true);
+      setSaveError(null);
+      return;
+    }
+    onEdit?.(node.id);
+  };
+
+  const handleSave = async () => {
+    if (!onSaveDetails) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onSaveDetails(node.id, {
+        label: editLabel.trim(),
+        description: editDescription.trim(),
+        category: editCategory.trim() || undefined,
+        tags: editTags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      });
+      setIsEditing(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to save changes");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="fixed right-0 top-0 bottom-0 w-96 bg-card/98 backdrop-blur-xl border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
@@ -218,7 +275,7 @@ export function NodeDetailView({
             {onEdit && (
               <button
                 onClick={() => {
-                  onEdit(node.id);
+                  handleEditClick();
                   setShowActions(false);
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
@@ -362,6 +419,73 @@ export function NodeDetailView({
           </div>
         ) : (
           <div className="p-4 space-y-4">
+            {isEditing && (
+              <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Edit details</div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Title</label>
+                  <input
+                    value={editLabel}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">
+                    {node.type === GraphNodeType.Extract ? "Content" : "Description"}
+                  </label>
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm resize-y"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Category</label>
+                  <input
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Tags (comma-separated)</label>
+                  <input
+                    value={editTags}
+                    onChange={(e) => setEditTags(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm"
+                  />
+                </div>
+                {saveError && (
+                  <div className="text-xs text-destructive">{saveError}</div>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
+                  >
+                    {isSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setSaveError(null);
+                      setEditLabel(node.label);
+                      setEditDescription(node.description || "");
+                      setEditCategory(node.category || "");
+                      setEditTags((node.tags || []).join(", "));
+                    }}
+                    disabled={isSaving}
+                    className="px-3 py-2 rounded-lg border border-border text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Category */}
             {node.category && (
               <div className="bg-muted/50 rounded-xl p-4">
@@ -445,7 +569,7 @@ export function NodeDetailView({
           )}
           {onEdit && (
             <button
-              onClick={() => onEdit(node.id)}
+              onClick={handleEditClick}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl font-medium hover:bg-muted transition-colors"
             >
               <Edit3 className="w-4 h-4" />

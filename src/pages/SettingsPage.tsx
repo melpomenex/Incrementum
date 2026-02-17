@@ -303,7 +303,7 @@ function AboutSettings() {
         <div className="text-5xl mb-4">📚</div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Incrementum</h2>
         <p className="text-sm text-foreground-secondary mb-4">
-          Version 1.0.0
+          Version 1.10.1
         </p>
         <p className="text-sm text-foreground mb-6 max-w-md">
           Incrementum is your companion for incremental reading and spaced
