@@ -75,6 +75,7 @@ export function RSSReader() {
   const [preferences, setPreferences] = useState<RssUserPreference | null>(null);
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
   const [lastAutoRefresh, setLastAutoRefresh] = useState<Date | null>(null);
+  const [syncFeedback, setSyncFeedback] = useState<"idle" | "syncing" | "success" | "error">("idle");
   const [scrollMode, setScrollMode] = useState(false);
   const [mobileView, setMobileView] = useState<"feeds" | "items" | "reader">("items");
 
@@ -83,6 +84,18 @@ export function RSSReader() {
 
   // Reference to the auto-refresh interval
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const syncFeedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const scheduleSyncFeedbackReset = useCallback((delayMs = 3500) => {
+    if (syncFeedbackTimeoutRef.current) {
+      clearTimeout(syncFeedbackTimeoutRef.current);
+      syncFeedbackTimeoutRef.current = null;
+    }
+    syncFeedbackTimeoutRef.current = setTimeout(() => {
+      setSyncFeedback("idle");
+      syncFeedbackTimeoutRef.current = null;
+    }, delayMs);
+  }, []);
 
   // Apply preferences when saved
   const handleSavePreferences = async (newPreferences: RSSUserPreferenceUpdate) => {
@@ -167,14 +180,18 @@ export function RSSReader() {
   };
 
   // Refresh all feeds (for auto-refresh and manual refresh all)
-  const refreshAllFeeds = useCallback(async () => {
+  const refreshAllFeeds = useCallback(async (source: "auto" | "manual" = "manual") => {
     if (isAutoRefreshing) return; // Prevent concurrent refreshes
 
     setIsAutoRefreshing(true);
+    if (source === "manual") {
+      setSyncFeedback("syncing");
+    }
     console.log("[RSS Auto-Refresh] Starting periodic refresh...");
 
     try {
       const currentFeeds = await getSubscribedFeedsAuto();
+      let hadFeedErrors = false;
 
       for (const feed of currentFeeds) {
         try {
@@ -203,6 +220,7 @@ export function RSSReader() {
           }
         } catch (error) {
           console.warn(`[RSS Auto-Refresh] Failed to refresh feed ${feed.title}:`, error);
+          hadFeedErrors = true;
           // Continue with other feeds even if one fails
         }
       }
@@ -210,19 +228,27 @@ export function RSSReader() {
       // Reload feeds after updating
       await loadFeeds();
       setLastAutoRefresh(new Date());
+      if (source === "manual") {
+        setSyncFeedback(hadFeedErrors ? "error" : "success");
+        scheduleSyncFeedbackReset(hadFeedErrors ? 5000 : 3500);
+      }
       console.log("[RSS Auto-Refresh] Completed periodic refresh");
     } catch (error) {
       console.error("[RSS Auto-Refresh] Failed to refresh feeds:", error);
+      if (source === "manual") {
+        setSyncFeedback("error");
+        scheduleSyncFeedbackReset(5000);
+      }
     } finally {
       setIsAutoRefreshing(false);
     }
-  }, [isAutoRefreshing]);
+  }, [isAutoRefreshing, scheduleSyncFeedbackReset]);
 
   // Set up periodic auto-refresh
   useEffect(() => {
     // Start the auto-refresh interval
     autoRefreshIntervalRef.current = setInterval(() => {
-      refreshAllFeeds();
+      refreshAllFeeds("auto");
     }, DEFAULT_REFRESH_INTERVAL_MS);
 
     console.log(`[RSS Auto-Refresh] Set up periodic refresh every ${DEFAULT_REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
@@ -233,6 +259,10 @@ export function RSSReader() {
         clearInterval(autoRefreshIntervalRef.current);
         autoRefreshIntervalRef.current = null;
         console.log("[RSS Auto-Refresh] Cleared periodic refresh interval");
+      }
+      if (syncFeedbackTimeoutRef.current) {
+        clearTimeout(syncFeedbackTimeoutRef.current);
+        syncFeedbackTimeoutRef.current = null;
       }
     };
   }, [refreshAllFeeds]);
@@ -495,12 +525,32 @@ export function RSSReader() {
                 <Plus className="w-4 h-4" />
               </button>
               <button
-                onClick={refreshAllFeeds}
+                onClick={() => refreshAllFeeds("manual")}
                 disabled={isAutoRefreshing}
-                className="p-2 text-green-600 dark:text-green-400 hover:bg-green-500/10 rounded-lg mobile-density-tap disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Sync all feeds"
+                className={`p-2 rounded-lg mobile-density-tap disabled:opacity-50 disabled:cursor-not-allowed ${
+                  syncFeedback === "error"
+                    ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    : syncFeedback === "success"
+                      ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                      : "text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                }`}
+                title={
+                  syncFeedback === "error"
+                    ? "Sync completed with errors"
+                    : syncFeedback === "success"
+                      ? "Sync complete"
+                      : "Sync all feeds"
+                }
               >
-                <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'animate-spin' : ''}`} />
+                {isAutoRefreshing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : syncFeedback === "success" ? (
+                  <CheckCircle2 className="w-4 h-4" />
+                ) : syncFeedback === "error" ? (
+                  <X className="w-4 h-4" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
               </button>
               <button
                 onClick={() => setScrollMode(true)}
@@ -588,12 +638,32 @@ export function RSSReader() {
                   <Scroll className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={refreshAllFeeds}
+                  onClick={() => refreshAllFeeds("manual")}
                   disabled={isAutoRefreshing}
-                  className="p-2 text-green-600 dark:text-green-400 hover:bg-green-500/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Sync all feeds"
+                  className={`p-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    syncFeedback === "error"
+                      ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                      : syncFeedback === "success"
+                        ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                        : "text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                  }`}
+                  title={
+                    syncFeedback === "error"
+                      ? "Sync completed with errors"
+                      : syncFeedback === "success"
+                        ? "Sync complete"
+                        : "Sync all feeds"
+                  }
                 >
-                  <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'animate-spin' : ''}`} />
+                  {isAutoRefreshing ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : syncFeedback === "success" ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : syncFeedback === "error" ? (
+                    <X className="w-4 h-4" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
                 </button>
                 <div className="relative group">
                   <button
@@ -628,6 +698,19 @@ export function RSSReader() {
                 </div>
               </div>
             </div>
+
+            {(syncFeedback !== "idle" || lastAutoRefresh) && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                {isAutoRefreshing || syncFeedback === "syncing"
+                  ? "Syncing feeds..."
+                  : syncFeedback === "success"
+                    ? "Sync complete"
+                    : syncFeedback === "error"
+                      ? "Sync finished with some errors"
+                      : "Idle"}{" "}
+                {lastAutoRefresh ? `· Last sync ${lastAutoRefresh.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
+              </div>
+            )}
 
             {/* View mode tabs */}
             <div className="grid grid-cols-3 gap-1">
