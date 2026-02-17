@@ -1,6 +1,6 @@
 [package]
 name = "incrementum-tauri"
-version = "1.9.2"
+version = "1.10.0"
 description = "Incrementum - Incremental Reading and Spaced Repetition"
 authors = ["Incrementum Team"]
 edition = "2021"
