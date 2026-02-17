@@ -29,18 +29,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Ensure Android mobile scaffold exists
-        run: |
-          if [ ! -d "src-tauri/gen/android" ]; then
-            echo "::notice::Android scaffold missing. Initializing via 'npm run tauri -- android init --ci'."
-            npm run tauri -- android init --ci
-          fi
-
-          if [ ! -d "src-tauri/gen/android" ]; then
-            echo "::error::Android scaffold is still missing after init."
-            exit 1
-          fi
-
       - name: Set up Java (Temurin 17)
         uses: actions/setup-java@v4
         with:
@@ -75,6 +63,18 @@ jobs:
 
       - name: Install Tauri mobile CLI helper
         run: npm install --no-save @tauri-apps/cli@^2
+
+      - name: Ensure Android mobile scaffold exists
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            echo "::notice::Android scaffold missing. Initializing via 'npm run tauri -- android init --ci'."
+            npm run tauri -- android init --ci
+          fi
+
+          if [ ! -d "src-tauri/gen/android" ]; then
+            echo "::error::Android scaffold is still missing after init."
+            exit 1
+          fi
 
       - name: Build Android app bundle
         run: |
@@ -118,18 +118,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Ensure iOS mobile scaffold exists
-        run: |
-          if [ ! -d "src-tauri/gen/apple" ]; then
-            echo "::notice::iOS scaffold missing. Initializing via 'npm run tauri -- ios init --ci'."
-            npm run tauri -- ios init --ci
-          fi
-
-          if [ ! -d "src-tauri/gen/apple" ]; then
-            echo "::error::iOS scaffold is still missing after init."
-            exit 1
-          fi
-
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -155,6 +143,18 @@ jobs:
 
       - name: Install Tauri mobile CLI helper
         run: npm install --no-save @tauri-apps/cli@^2
+
+      - name: Ensure iOS mobile scaffold exists
+        run: |
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            echo "::notice::iOS scaffold missing. Initializing via 'npm run tauri -- ios init --ci'."
+            npm run tauri -- ios init --ci
+          fi
+
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            echo "::error::iOS scaffold is still missing after init."
+            exit 1
+          fi
 
       - name: Decide iOS build mode (signed vs simulator)
         id: ios_mode
