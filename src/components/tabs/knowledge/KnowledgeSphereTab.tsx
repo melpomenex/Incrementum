@@ -159,7 +159,7 @@ export function KnowledgeSphereTab() {
 
       {/* 3D Sphere */}
       <div className="flex-1 relative">
-        <ObsidianSphere nodes={nodes} edges={edges} />
+        <ObsidianSphere nodes={nodes} edges={edges} showHeader={false} />
 
         {/* Quick stats overlay */}
         <div className="absolute bottom-6 left-6 bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg p-4">
