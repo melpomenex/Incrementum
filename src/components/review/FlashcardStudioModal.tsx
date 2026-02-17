@@ -136,6 +136,34 @@ interface ContextSelection {
   searchResults: Array<{ start: number; end: number; preview: string }>;
 }
 
+const DEFAULT_CONTEXT_SELECTION: ContextSelection = {
+  mode: "full",
+  chapters: [],
+  pageRange: null,
+  excerpt: "",
+  searchQuery: "",
+  searchResults: [],
+};
+
+function normalizeContextSelection(value: unknown): ContextSelection {
+  const raw = (value && typeof value === "object" ? value : {}) as Partial<ContextSelection>;
+  const mode: ContextMode =
+    raw.mode === "full" || raw.mode === "chapters" || raw.mode === "pages" || raw.mode === "excerpt" || raw.mode === "search"
+      ? raw.mode
+      : DEFAULT_CONTEXT_SELECTION.mode;
+  return {
+    mode,
+    chapters: Array.isArray(raw.chapters) ? raw.chapters : [],
+    pageRange:
+      raw.pageRange && typeof raw.pageRange.start === "number" && typeof raw.pageRange.end === "number"
+        ? raw.pageRange
+        : null,
+    excerpt: typeof raw.excerpt === "string" ? raw.excerpt : "",
+    searchQuery: typeof raw.searchQuery === "string" ? raw.searchQuery : "",
+    searchResults: Array.isArray(raw.searchResults) ? raw.searchResults : [],
+  };
+}
+
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -739,6 +767,7 @@ function ContextControlPanel({
     if (!document?.content) return [];
     return getChapterTitles(document.content);
   }, [document]);
+  const selectedChapters = Array.isArray(selection.chapters) ? selection.chapters : [];
   
   const estimatedTokens = useMemo(() => {
     let text = "";
@@ -749,8 +778,8 @@ function ContextControlPanel({
         text = document.content;
         break;
       case "chapters":
-        text = selection.chapters
-          .map((num) => buildChapterQAContext(document.title, document.content, num, Math.floor(maxTokens / selection.chapters.length)))
+        text = selectedChapters
+          .map((num) => buildChapterQAContext(document.title, document.content, num, Math.floor(maxTokens / Math.max(1, selectedChapters.length))))
           .join("\n\n");
         break;
       case "excerpt":
@@ -808,7 +837,7 @@ function ContextControlPanel({
             <div className="text-sm font-medium text-foreground">Context Control</div>
             <div className="text-xs text-muted-foreground">
               {selection.mode === "full" && "Using full document"}
-              {selection.mode === "chapters" && `${selection.chapters.length} chapter(s) selected`}
+              {selection.mode === "chapters" && `${selectedChapters.length} chapter(s) selected`}
               {selection.mode === "pages" && "Page range selected"}
               {selection.mode === "excerpt" && "Custom excerpt"}
               {selection.mode === "search" && "Search results"}
@@ -859,11 +888,11 @@ function ContextControlPanel({
                   >
                     <input
                       type="checkbox"
-                      checked={selection.chapters.includes(chapter.number)}
+                      checked={selectedChapters.includes(chapter.number)}
                       onChange={() => {
-                        const newChapters = selection.chapters.includes(chapter.number)
-                          ? selection.chapters.filter((c) => c !== chapter.number)
-                          : [...selection.chapters, chapter.number];
+                        const newChapters = selectedChapters.includes(chapter.number)
+                          ? selectedChapters.filter((c) => c !== chapter.number)
+                          : [...selectedChapters, chapter.number];
                         onChange({ ...selection, chapters: newChapters });
                       }}
                       className="rounded"
@@ -1376,14 +1405,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [isTagInputVisible, setIsTagInputVisible] = useState(false);
-  const [contextSelection, setContextSelection] = useState<ContextSelection>({
-    mode: "full",
-    chapters: [],
-    pageRange: null,
-    excerpt: "",
-    searchQuery: "",
-    searchResults: [],
-  });
+  const [contextSelection, setContextSelection] = useState<ContextSelection>(DEFAULT_CONTEXT_SELECTION);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1421,7 +1443,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         if (typeof parsed?.selectedDocumentId === "string") setSelectedDocumentId(parsed.selectedDocumentId);
         if (typeof parsed?.selectedDeckId === "string") setSelectedDeckId(parsed.selectedDeckId);
         else if (activeDeckId) setSelectedDeckId(activeDeckId);
-        if (parsed?.contextSelection) setContextSelection(parsed.contextSelection);
+        if (parsed?.contextSelection) setContextSelection(normalizeContextSelection(parsed.contextSelection));
       } catch (error) {
         console.warn("Failed to restore state", error);
         setSelectedDeckId(activeDeckId ?? null);
@@ -1557,17 +1579,18 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   // Build context content based on selection
   const contextContent = useMemo(() => {
     if (!selectedDocument?.content) return undefined;
+    const selectedChapters = Array.isArray(contextSelection.chapters) ? contextSelection.chapters : [];
     
     switch (contextSelection.mode) {
       case "full":
         return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
       
       case "chapters":
-        if (contextSelection.chapters.length === 0) {
+        if (selectedChapters.length === 0) {
           return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
         }
-        const perChapterTokens = Math.floor(maxTokens / contextSelection.chapters.length);
-        return contextSelection.chapters
+        const perChapterTokens = Math.floor(maxTokens / selectedChapters.length);
+        return selectedChapters
           .map((num) => buildChapterQAContext(selectedDocument.title, selectedDocument.content, num, perChapterTokens))
           .join("\n\n---\n\n");
       
@@ -1633,10 +1656,11 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       // Add context-specific system messages
       if (selectedDocument?.title) {
         let contextDesc = `Use the document titled "${selectedDocument.title}"`;
+        const selectedChapters = Array.isArray(contextSelection.chapters) ? contextSelection.chapters : [];
         
-        if (contextSelection.mode === "chapters" && contextSelection.chapters.length > 0) {
+        if (contextSelection.mode === "chapters" && selectedChapters.length > 0) {
           const chapters = getChapterTitles(selectedDocument.content || "");
-          const chapterNames = contextSelection.chapters
+          const chapterNames = selectedChapters
             .map((num) => chapters.find((c) => c.number === num)?.title || `Chapter ${num}`)
             .join(", ");
           contextDesc += `, focusing on: ${chapterNames}`;
@@ -1930,12 +1954,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
               // Reset context selection when document changes
               if (id !== selectedDocumentId) {
                 setContextSelection({
-                  mode: "full",
-                  chapters: [],
-                  pageRange: null,
-                  excerpt: "",
-                  searchQuery: "",
-                  searchResults: [],
+                  ...DEFAULT_CONTEXT_SELECTION,
                 });
               }
             }}
