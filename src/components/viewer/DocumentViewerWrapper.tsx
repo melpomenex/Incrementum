@@ -77,9 +77,12 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
     let isActive = true;
     const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
 
-    // If video context is available, use that
-    if (videoContext?.transcript) {
-      const videoText = `Video: ${videoContext.title || videoContext.videoId}\nDuration: ${formatDuration(videoContext.duration || 0)}\n\nTRANSCRIPT:\n${videoContext.transcript}`;
+    // If video context is available, use it even when transcript is missing.
+    if (videoContext?.videoId) {
+      const transcriptText = videoContext.transcript?.trim();
+      const videoText = transcriptText
+        ? `Video: ${videoContext.title || videoContext.videoId}\nDuration: ${formatDuration(videoContext.duration || 0)}\n\nTRANSCRIPT:\n${transcriptText}`
+        : `Video: ${videoContext.title || videoContext.videoId}\nDuration: ${formatDuration(videoContext.duration || 0)}\n\nTranscript: unavailable.`;
       
       trimToTokenWindow(videoText, maxTokens, aiModel, selection)
         .then((trimmed) => {
@@ -99,7 +102,7 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
     }
 
     // Otherwise use regular document content
-    const baseContent = pdfContextText ?? currentDocument?.content ?? documentContent;
+    const baseContent = pdfContextText ?? currentDocument?.content ?? documentContent ?? selection;
 
     if (!baseContent) {
       setAssistantContent(undefined);

@@ -225,6 +225,11 @@ export function DocumentViewer({
     duration?: number;
   } | null>(null);
 
+  // Clear transient video context when switching documents.
+  useEffect(() => {
+    setVideoContext(null);
+  }, [documentId]);
+
   // Notify parent of video context changes
   useEffect(() => {
     onVideoContextChange?.(videoContext);

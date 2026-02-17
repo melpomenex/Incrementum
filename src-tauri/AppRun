@@ -14,12 +14,14 @@ export WEBKIT_DISABLE_HARDWARE_ACCELERATION=1
 # Disable sandbox if needed for compatibility
 export WEBKIT_FORCE_SANDBOX=0
 
-# Use software rendering for media playback
-export GST_PLUGIN_SYSTEM_PATH_1_0=""
-export GST_PLUGIN_SCANNER_1_0=""
+# Keep system GStreamer plugin discovery enabled.
+# Clearing plugin paths breaks media playback (e.g. "autoaudiosink not found").
+unset GST_PLUGIN_SYSTEM_PATH_1_0
+unset GST_PLUGIN_SCANNER_1_0
 
-# Force use of PulseAudio for audio output
-export AUDIOSINK=pulsesink
+# Prefer automatic audio sink selection so PipeWire/Pulse/ALSA can all work.
+export GST_AUDIOSINK="${GST_AUDIOSINK:-autoaudiosink}"
+export AUDIOSINK="${AUDIOSINK:-autoaudiosink}"
 
 # Get the directory where this script is located
 APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
