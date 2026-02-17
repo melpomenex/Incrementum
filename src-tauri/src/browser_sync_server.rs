@@ -63,10 +63,11 @@ pub struct ServerStatus {
 
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BrowserSyncConfig {
     pub host: String,
     pub port: u16,
-    #[serde(default)]
+    #[serde(default, alias = "auto_start")]
     pub auto_start: bool,
 }
 
@@ -430,11 +431,25 @@ async fn handle_extension_request(
         return error_response(StatusCode::BAD_REQUEST, "Missing required field: url");
     }
 
-    // Route to appropriate handler based on type field
-    let result = match payload.r#type.as_str() {
+    // Route to appropriate handler based on type field.
+    // Browser extension "page"/link saves should be treated as HTML, not "other",
+    // so they remain directly viewable in-app.
+    let request_type = payload.r#type.trim().to_ascii_lowercase();
+    let result = match request_type.as_str() {
         "extract" => handle_extract_request(&state, &payload).await,
         "video" => handle_import_request(&state, &payload, FileType::Youtube).await,
-        _ => handle_import_request(&state, &payload, FileType::Other).await,
+        "page" | "link" | "" => {
+            let file_type = if is_youtube_url(&payload.url) {
+                FileType::Youtube
+            } else {
+                FileType::Html
+            };
+            handle_import_request(&state, &payload, file_type).await
+        }
+        _ => {
+            let file_type = infer_extension_file_type(&payload);
+            handle_import_request(&state, &payload, file_type).await
+        }
     };
 
     match result {
@@ -444,6 +459,21 @@ async fn handle_extension_request(
             error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
         }
     }
+}
+
+fn is_youtube_url(url: &str) -> bool {
+    let lowered = url.to_ascii_lowercase();
+    lowered.contains("youtube.com") || lowered.contains("youtu.be")
+}
+
+fn infer_extension_file_type(payload: &ExtensionRequest) -> FileType {
+    if is_youtube_url(&payload.url) {
+        return FileType::Youtube;
+    }
+    if payload.url.to_ascii_lowercase().ends_with(".pdf") {
+        return FileType::Pdf;
+    }
+    FileType::Html
 }
 
 /// Handle general document import request (page or video)
@@ -557,12 +587,13 @@ async fn handle_extract_request(
     let document_id = if let Ok(Some(doc)) = state.repo.find_document_by_url(&payload.url).await {
         doc.id
     } else {
+        let inferred_file_type = infer_extension_file_type(payload);
         // Create a minimal document for this URL
         let document = Document {
             id: uuid::Uuid::new_v4().to_string(),
             title: payload.title.clone(),
             file_path: payload.url.clone(),
-            file_type: FileType::Other,
+            file_type: inferred_file_type,
             content: None,
             content_hash: None,
             total_pages: None,

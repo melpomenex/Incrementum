@@ -10,10 +10,13 @@ import { ObsidianSphere } from "../components/graph/ObsidianSphere";
 import { GraphFilterControls, applyGraphFilters, extractGraphMetadata, calculateGraphStatistics } from "../components/graph/GraphFilters";
 import { NodeDetailView } from "../components/graph/NodeDetailView";
 import { GraphNodeType, type GraphNode, type GraphEdge, type GraphData, LayoutAlgorithm } from "../components/graph/KnowledgeGraph";
+import { getDocument, updateDocument } from "../api/documents";
+import { updateExtract } from "../api/extracts";
 import { useCollectionStore } from "../stores/collectionStore";
 import { useTabsStore } from "../stores/tabsStore";
 import { useReviewStore } from "../stores/reviewStore";
 import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
+import { useToast } from "../components/common/Toast";
 import {
   Network,
   Download,
@@ -40,6 +43,7 @@ export function KnowledgeGraphPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const { addTab } = useTabsStore();
+  const toast = useToast();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
   const documentAssignments = useCollectionStore((state) => state.documentAssignments);
 
@@ -52,11 +56,7 @@ export function KnowledgeGraphPage() {
   const [layout, setLayout] = useState(LayoutAlgorithm.Force);
 
   // Load graph data
-  useEffect(() => {
-    loadGraphData();
-  }, [activeCollectionId, documentAssignments]);
-
-  const loadGraphData = async () => {
+  const loadGraphData = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -152,7 +152,11 @@ export function KnowledgeGraphPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeCollectionId, documentAssignments]);
+
+  useEffect(() => {
+    loadGraphData();
+  }, [loadGraphData]);
 
   // Apply filters
   const filteredData = useMemo(() => {
@@ -247,6 +251,96 @@ export function KnowledgeGraphPage() {
         break;
     }
   }, [addTab]);
+
+  const handleNodeEditFallback = useCallback((nodeId: string) => {
+    const node = graphData.nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    switch (node.type) {
+      case GraphNodeType.Document:
+        addTab({
+          title: node.label,
+          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+          type: "document-viewer",
+          content: DocumentViewer,
+          closable: true,
+          data: { documentId: node.id.replace("doc-", "") },
+        });
+        toast.info("Opened document", "Use document view/actions to edit this item.");
+        break;
+      case GraphNodeType.Extract:
+        addTab({
+          title: node.label.substring(0, 30),
+          icon: <MessageSquare className="w-4 h-4 text-muted-foreground" />,
+          type: "document-viewer",
+          content: DocumentViewer,
+          closable: true,
+          data: {
+            documentId: String(node.metadata?.documentId || "").replace("doc-", ""),
+            initialViewMode: "extracts",
+          },
+        });
+        toast.info("Opened extracts", "Edit this extract from the document extracts panel.");
+        break;
+      case GraphNodeType.Flashcard:
+        addTab({
+          title: "Review",
+          icon: <Brain className="w-4 h-4" />,
+          type: "review",
+          content: ReviewTab,
+          closable: true,
+        });
+        void useReviewStore.getState().startReviewAtItem(node.id.replace("card-", ""));
+        toast.info("Opened review item", "Edit in review/card workflow.");
+        break;
+      default:
+        break;
+    }
+  }, [addTab, graphData.nodes, toast]);
+
+  const handleSaveNodeDetails = useCallback(async (
+    nodeId: string,
+    updates: {
+      label?: string;
+      description?: string;
+      category?: string;
+      tags?: string[];
+    }
+  ) => {
+    const node = graphData.nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    if (node.type === GraphNodeType.Document) {
+      const documentId = node.id.replace("doc-", "");
+      const doc = await getDocument(documentId);
+      if (!doc) throw new Error("Document not found");
+
+      await updateDocument(documentId, {
+        ...doc,
+        title: updates.label || doc.title,
+        category: updates.category,
+        tags: updates.tags ?? doc.tags,
+      });
+      await loadGraphData();
+      toast.success("Document updated");
+      return;
+    }
+
+    if (node.type === GraphNodeType.Extract) {
+      const extractId = node.id.replace("extract-", "");
+      await updateExtract({
+        id: extractId,
+        content: updates.description,
+        category: updates.category,
+        tags: updates.tags,
+      });
+      await loadGraphData();
+      toast.success("Extract updated");
+      return;
+    }
+
+    handleNodeEditFallback(nodeId);
+  }, [graphData.nodes, toast, handleNodeEditFallback, loadGraphData]);
 
   const exportGraph = async () => {
     try {
@@ -435,9 +529,8 @@ export function KnowledgeGraphPage() {
               setSelectedNode(nodeId);
             }
           }}
-          onEdit={(nodeId) => {
-            console.log("Edit node:", nodeId);
-          }}
+          onEdit={handleNodeEditFallback}
+          onSaveDetails={handleSaveNodeDetails}
         />
       )}
     </div>
