@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-02-17
+
+### Added
+- Assistant conversation persistence in the Assistant window:
+  - Messages and unsent input are now restored after reloading or switching documents
+  - Conversation storage is scoped by context (document, web page, video, general)
+
+### Changed
+- Release metadata alignment for desktop builds:
+  - Updated app version to `1.9.2` across Tauri and package manifests so Settings shows the correct version
+
+### Fixed
+- Prevent duplicate context system messages when restoring persisted assistant conversations
+- Correct release/version drift that previously caused builds to report/tag the wrong app version
+
+## [1.9.1] - 2026-02-16
+
+### Changed
+- Prepared release pipeline alignment for the 1.9.x line
+
+### Fixed
+- Addressed packaging/version inconsistencies that caused 1.9.1 release metadata to remain on the prior 1.8.1 version in some artifacts
+
 ## [1.9.0] - 2026-02-15
 
 ### Added
