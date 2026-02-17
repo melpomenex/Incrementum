@@ -72,6 +72,15 @@ function ensureWhisperSource() {
   }
 }
 
+function commandExists(cmd) {
+  try {
+    execSync(`command -v ${cmd}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
   const targetTriple = getTargetTriple();
   console.log(`Downloading sidecars for target: ${targetTriple}`);
@@ -111,6 +120,21 @@ async function main() {
   const ext = platform === 'win32' ? '.exe' : '';
   const ffmpegName = `ffmpeg-${targetTriple}${ext}`;
   const whisperName = `whisper-${targetTriple}${ext}`;
+  const ffmpegPath = path.join(BIN_DIR, ffmpegName);
+  const whisperPath = path.join(BIN_DIR, whisperName);
+
+  // If both sidecars are already present (as in release/source builds), skip download/build.
+  if (fs.existsSync(ffmpegPath) && fs.existsSync(whisperPath)) {
+    console.log(`Sidecars already exist for ${targetTriple}, skipping download/build.`);
+    try {
+      fs.chmodSync(ffmpegPath, 0o755);
+      fs.chmodSync(whisperPath, 0o755);
+    } catch {
+      // ignore (e.g., Windows)
+    }
+    console.log('Sidecars ready:', fs.readdirSync(BIN_DIR));
+    return;
+  }
 
   if (platform === 'linux') {
     // Linux FFmpeg
@@ -146,15 +170,35 @@ async function main() {
 
   } else if (platform === 'darwin') {
     // Mac FFmpeg
-    console.log('Downloading FFmpeg (Mac)...');
-    execSync('curl -L https://evermeet.cx/ffmpeg/getrelease/zip -o ffmpeg.zip');
-    execSync('unzip -o ffmpeg.zip');
-    fs.copyFileSync('ffmpeg', path.join(BIN_DIR, ffmpegName));
-    fs.unlinkSync('ffmpeg.zip');
-    fs.unlinkSync('ffmpeg');
+    if (!fs.existsSync(ffmpegPath)) {
+      console.log('Downloading FFmpeg (Mac)...');
+      let ffmpegInstalled = false;
+
+      try {
+        execSync('curl -fL --retry 3 --retry-delay 2 https://evermeet.cx/ffmpeg/getrelease/zip -o ffmpeg.zip', { stdio: 'inherit' });
+        // Validate archive before unzip (prevents HTML/error pages being treated as zip files)
+        execSync('unzip -t ffmpeg.zip', { stdio: 'inherit' });
+        execSync('unzip -o ffmpeg.zip', { stdio: 'inherit' });
+        fs.copyFileSync('ffmpeg', ffmpegPath);
+        ffmpegInstalled = true;
+      } catch (e) {
+        console.warn('Primary FFmpeg download failed; trying system ffmpeg fallback...');
+      } finally {
+        try { fs.unlinkSync('ffmpeg.zip'); } catch {}
+        try { fs.unlinkSync('ffmpeg'); } catch {}
+      }
+
+      if (!ffmpegInstalled) {
+        if (!commandExists('ffmpeg')) {
+          throw new Error('Failed to download FFmpeg for macOS and no system ffmpeg found in PATH.');
+        }
+        const systemFfmpegPath = execSync('command -v ffmpeg').toString().trim();
+        fs.copyFileSync(systemFfmpegPath, ffmpegPath);
+      }
+    }
 
     // Mac Whisper (Build from source using CMake)
-    if (!fs.existsSync(path.join(BIN_DIR, whisperName))) {
+    if (!fs.existsSync(whisperPath)) {
         console.log('Building Whisper.cpp from source...');
         ensureWhisperSource();
         
@@ -170,7 +214,7 @@ async function main() {
         
         execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release ${cudaFlag}`);
         execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
-        fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', path.join(BIN_DIR, whisperName));
+        fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', whisperPath);
         // execSync('rm -rf whisper.cpp');
     }
 
@@ -214,8 +258,8 @@ async function main() {
 
   // Make executable
   try {
-    fs.chmodSync(path.join(BIN_DIR, ffmpegName), 0o755);
-    fs.chmodSync(path.join(BIN_DIR, whisperName), 0o755);
+    fs.chmodSync(ffmpegPath, 0o755);
+    fs.chmodSync(whisperPath, 0o755);
   } catch (e) {
     // Windows might fail chmod, ignore
   }
