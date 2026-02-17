@@ -62,6 +62,7 @@ export function NewMainLayout({
   // Sidebar state for mobile responsiveness
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isReaderFocusMode, setIsReaderFocusMode] = useState(false);
 
   // Apply theme
   useEffect(() => {
@@ -92,6 +93,18 @@ export function NewMainLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    const handleReaderFocusMode = (event: Event) => {
+      const customEvent = event as CustomEvent<{ active?: boolean }>;
+      setIsReaderFocusMode(!!customEvent.detail?.active);
+    };
+
+    window.addEventListener("incrementum-reader-focus-mode-change", handleReaderFocusMode as EventListener);
+    return () => {
+      window.removeEventListener("incrementum-reader-focus-mode-change", handleReaderFocusMode as EventListener);
+    };
+  }, []);
+
   // Close mobile sidebar when page changes
   const handlePageChange = useCallback((page: string) => {
     onPageChange(page);
@@ -104,19 +117,21 @@ export function NewMainLayout({
       <Toast />
 
       {/* Top Header Bar */}
-      <TopHeaderBar
-        isAuthenticated={isAuthenticated}
-        user={user}
-        onLoginClick={onLoginClick}
-        onLogout={onLogout}
-        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        isSidebarOpen={isSidebarOpen}
-      />
+      {!isReaderFocusMode && (
+        <TopHeaderBar
+          isAuthenticated={isAuthenticated}
+          user={user}
+          onLoginClick={onLoginClick}
+          onLogout={onLogout}
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile Sidebar Overlay */}
-        {isSidebarOpen && (
+        {!isReaderFocusMode && isSidebarOpen && (
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden animate-glass-fade-in"
             onClick={() => setIsSidebarOpen(false)}
@@ -124,15 +139,17 @@ export function NewMainLayout({
         )}
 
         {/* Left Sidebar */}
-        <LeftSidebar
-          activeItem={activeItem}
-          setActiveItem={handlePageChange}
-          stats={dashboardStats}
-          isOpen={isSidebarOpen}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          onClose={() => setIsSidebarOpen(false)}
-        />
+        {!isReaderFocusMode && (
+          <LeftSidebar
+            activeItem={activeItem}
+            setActiveItem={handlePageChange}
+            stats={dashboardStats}
+            isOpen={isSidebarOpen}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        )}
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto main-content">

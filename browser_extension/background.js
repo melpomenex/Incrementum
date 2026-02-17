@@ -118,7 +118,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     case 'save-link':
       if (info.linkUrl) {
-        await saveLink(info.linkUrl, tab?.id);
+        await saveLink(info.linkUrl, tab?.id, info.linkText);
       }
       break;
 
@@ -435,7 +435,7 @@ async function sendToIncrementum(data) {
   }
 }
 // Save link by opening a tab, extracting content, and saving
-async function saveLink(url, sourceTabId) {
+async function saveLink(url, sourceTabId, linkText) {
   try {
     console.log('[DEBUG] saveLink called for URL:', url);
 
@@ -473,8 +473,10 @@ async function saveLink(url, sourceTabId) {
       console.log('[DEBUG] Could not get content from content script:', error.message);
     }
 
-    // Get the page title
-    const title = tab.title || 'Link saved from context menu';
+    // Prefer the clicked link text as user-visible name, then loaded tab title.
+    const title = (typeof linkText === 'string' && linkText.trim())
+      ? linkText.trim()
+      : (tab.title || 'Link saved from context menu');
 
     // Close the tab
     await chrome.tabs.remove(tab.id);
@@ -484,7 +486,8 @@ async function saveLink(url, sourceTabId) {
     const result = await sendToIncrementum({
       url,
       title,
-      text: pageContent
+      text: pageContent,
+      type: 'page'
     });
     await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
     return result;
@@ -494,7 +497,8 @@ async function saveLink(url, sourceTabId) {
     const result = await sendToIncrementum({
       url,
       title: 'Link saved from context menu',
-      text: ''
+      text: '',
+      type: 'page'
     });
     await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
     return result;
@@ -718,4 +722,3 @@ async function checkAIStatus() {
 }
 
 console.log('Incrementum background script loaded');
-

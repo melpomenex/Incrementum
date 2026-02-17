@@ -42,7 +42,7 @@ export async function exportConversationToObsidian(
     messages,
     title,
     config,
-    contextInfo,
+    context_info: contextInfo,
   });
 }
 
@@ -60,7 +60,7 @@ export async function exportAssistantMessageToObsidian(
     message,
     title,
     config,
-    contextInfo,
+    context_info: contextInfo,
   });
 }
 
@@ -158,7 +158,7 @@ export async function exportToObsidian(
   documentId: string,
   config: ObsidianConfig
 ): Promise<string> {
-  return await invokeCommand<string>("export_to_obsidian", { documentId, config });
+  return await invokeCommand<string>("export_to_obsidian", { document_id: documentId, config });
 }
 
 /**
@@ -168,7 +168,7 @@ export async function exportExtractToObsidian(
   extractId: string,
   config: ObsidianConfig
 ): Promise<string> {
-  return await invokeCommand<string>("export_extract_to_obsidian", { extractId, config });
+  return await invokeCommand<string>("export_extract_to_obsidian", { extract_id: extractId, config });
 }
 
 /**
@@ -179,7 +179,7 @@ export async function exportFlashcardsToObsidian(
   config: ObsidianConfig,
   format: "basic" | "flashcard" | "dataview" = "flashcard"
 ): Promise<string> {
-  return await invokeCommand<string>("export_flashcards_to_obsidian", { cardIds, config, format });
+  return await invokeCommand<string>("export_flashcards_to_obsidian", { card_ids: cardIds, config, format });
 }
 
 /**
@@ -188,7 +188,7 @@ export async function exportFlashcardsToObsidian(
 export async function importFromObsidian(
   filePath: string
 ): Promise<{ documentId: string; extractIds: string[] }> {
-  return await invokeCommand("import_from_obsidian", { filePath });
+  return await invokeCommand("import_from_obsidian", { file_path: filePath });
 }
 
 /**
@@ -370,7 +370,7 @@ export async function syncFlashcardToAnki(
   flashcardId: string,
   config: AnkiConfig
 ): Promise<number> {
-  return await invokeCommand<number>("sync_flashcard_to_anki", { flashcardId, config });
+  return await invokeCommand<number>("sync_flashcard_to_anki", { flashcard_id: flashcardId, config });
 }
 
 /**
@@ -380,7 +380,7 @@ export async function syncFlashcardsToAnki(
   flashcardIds: string[],
   config: AnkiConfig
 ): Promise<{ added: number; failed: number }> {
-  return await invokeCommand("sync_flashcards_to_anki", { flashcardIds, config });
+  return await invokeCommand("sync_flashcards_to_anki", { flashcard_ids: flashcardIds, config });
 }
 
 /**
