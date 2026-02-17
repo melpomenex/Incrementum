@@ -1,0 +1,221 @@
+name: Mobile Build Incrementum
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "lts/*"
+  RUST_TOOLCHAIN: "1.89.0"
+
+jobs:
+  android-build:
+    name: Android build (Tauri)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify Android mobile scaffold exists
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            echo "::error::Android scaffold missing at src-tauri/gen/android. Run 'npm run tauri -- android init' and commit generated files."
+            exit 1
+          fi
+
+      - name: Set up Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Set up Node.js and npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Install Tauri mobile CLI helper
+        run: npm install --no-save @tauri-apps/cli@^2
+
+      - name: Build Android app bundle
+        run: |
+          mkdir -p artifacts/mobile-logs
+          npm run tauri -- android build --ci 2>&1 | tee artifacts/mobile-logs/android-build.log
+
+      - name: Collect Android output summary
+        if: always()
+        run: |
+          mkdir -p artifacts/mobile-logs
+          {
+            echo "=== Android outputs under src-tauri/gen/android/app/build/outputs ==="
+            find src-tauri/gen/android/app/build/outputs -type f 2>/dev/null | head -200
+            echo
+            echo "=== Android-related target outputs under src-tauri/target ==="
+            find src-tauri/target -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | head -200
+          } | tee artifacts/mobile-logs/android-outputs.txt
+
+      - name: Upload Android artifacts and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incrementum-android
+          path: |
+            src-tauri/gen/android/app/build/outputs/**
+            src-tauri/target/**/*.apk
+            src-tauri/target/**/*.aab
+            artifacts/mobile-logs/android-build.log
+            artifacts/mobile-logs/android-outputs.txt
+          if-no-files-found: warn
+
+  ios-build:
+    name: iOS build validation (Tauri)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify iOS mobile scaffold exists
+        run: |
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            echo "::error::iOS scaffold missing at src-tauri/gen/apple. Run 'npm run tauri -- ios init' on macOS and commit generated files."
+            exit 1
+          fi
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Set up Node.js and npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Install Tauri mobile CLI helper
+        run: npm install --no-save @tauri-apps/cli@^2
+
+      - name: Decide iOS build mode (signed vs simulator)
+        id: ios_mode
+        env:
+          IOS_CERT_BASE64: ${{ secrets.IOS_CERT_BASE64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          IOS_SIGNING_IDENTITY: ${{ secrets.IOS_SIGNING_IDENTITY }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          missing=0
+          for v in IOS_CERT_BASE64 IOS_CERT_PASSWORD IOS_PROFILE_BASE64 IOS_SIGNING_IDENTITY IOS_TEAM_ID; do
+            if [ -z "${!v}" ]; then
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "mode=signed" >> "$GITHUB_OUTPUT"
+            echo "All signing prerequisites detected. Running signed iOS build validation."
+          else
+            echo "mode=simulator" >> "$GITHUB_OUTPUT"
+            echo "::warning::One or more iOS signing prerequisites are missing. Running simulator build validation instead."
+            echo "Missing one or more of IOS_CERT_BASE64, IOS_CERT_PASSWORD, IOS_PROFILE_BASE64, IOS_SIGNING_IDENTITY, IOS_TEAM_ID."
+          fi
+
+      - name: Build iOS app (signed)
+        if: steps.ios_mode.outputs.mode == 'signed'
+        run: |
+          mkdir -p artifacts/mobile-logs
+          npm run tauri -- ios build --ci 2>&1 | tee artifacts/mobile-logs/ios-build.log
+
+      - name: Build iOS app (simulator fallback)
+        if: steps.ios_mode.outputs.mode == 'simulator'
+        run: |
+          mkdir -p artifacts/mobile-logs
+          npm run tauri -- ios build --ci --simulator 2>&1 | tee artifacts/mobile-logs/ios-build.log
+
+      - name: Collect iOS output summary
+        if: always()
+        run: |
+          mkdir -p artifacts/mobile-logs
+          {
+            echo "=== iOS outputs under src-tauri/gen/apple ==="
+            find src-tauri/gen/apple -type f \( -name "*.ipa" -o -name "*.app" -o -name "*.dSYM" \) 2>/dev/null | head -200
+            echo
+            echo "=== iOS-related target outputs under src-tauri/target ==="
+            find src-tauri/target -type f \( -name "*.app" -o -name "*.ipa" -o -name "*.dSYM" \) 2>/dev/null | head -200
+          } | tee artifacts/mobile-logs/ios-outputs.txt
+
+      - name: Upload iOS artifacts and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incrementum-ios
+          path: |
+            src-tauri/gen/apple/**/build/**/*
+            src-tauri/target/**/*.app
+            src-tauri/target/**/*.ipa
+            src-tauri/target/**/*.dSYM
+            artifacts/mobile-logs/ios-build.log
+            artifacts/mobile-logs/ios-outputs.txt
+          if-no-files-found: warn
+
+# Mobile CI prerequisites (for signed iOS builds):
+# - IOS_CERT_BASE64: Base64-encoded signing certificate (.p12)
+# - IOS_CERT_PASSWORD: Password for certificate
+# - IOS_PROFILE_BASE64: Base64-encoded provisioning profile (.mobileprovision)
+# - IOS_SIGNING_IDENTITY: Signing identity name
+# - IOS_TEAM_ID: Apple Developer team ID
+#
+# Expected uploaded artifacts:
+# - Android: Gradle outputs (APK/AAB when produced) plus android-build.log and android-outputs.txt
+# - iOS: Xcode/Tauri outputs (.ipa/.app/.dSYM when produced) plus ios-build.log and ios-outputs.txt
