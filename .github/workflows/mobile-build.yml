@@ -29,10 +29,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Verify Android mobile scaffold exists
+      - name: Ensure Android mobile scaffold exists
         run: |
           if [ ! -d "src-tauri/gen/android" ]; then
-            echo "::error::Android scaffold missing at src-tauri/gen/android. Run 'npm run tauri -- android init' and commit generated files."
+            echo "::notice::Android scaffold missing. Initializing via 'npm run tauri -- android init --ci'."
+            npm run tauri -- android init --ci
+          fi
+
+          if [ ! -d "src-tauri/gen/android" ]; then
+            echo "::error::Android scaffold is still missing after init."
             exit 1
           fi
 
@@ -113,10 +118,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Verify iOS mobile scaffold exists
+      - name: Ensure iOS mobile scaffold exists
         run: |
           if [ ! -d "src-tauri/gen/apple" ]; then
-            echo "::error::iOS scaffold missing at src-tauri/gen/apple. Run 'npm run tauri -- ios init' on macOS and commit generated files."
+            echo "::notice::iOS scaffold missing. Initializing via 'npm run tauri -- ios init --ci'."
+            npm run tauri -- ios init --ci
+          fi
+
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            echo "::error::iOS scaffold is still missing after init."
             exit 1
           fi
 
