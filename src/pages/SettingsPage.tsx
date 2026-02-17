@@ -7,8 +7,9 @@ import { SyncSettings } from "../components/settings/SyncSettings";
 import { IntegrationSettings } from "../components/settings/IntegrationSettings";
 import { AudioTranscriptionSettings } from "../components/settings/AudioTranscriptionSettings";
 import { SmartQueuesSettings } from "../components/settings/SmartQueuesSettings";
+import { TTSSettings } from "../components/settings/TTSSettings";
 
-type SettingsTab = "profile" | "general" | "ai" | "sync" | "integrations" | "audio-transcription" | "smart-queues" | "about";
+type SettingsTab = "profile" | "general" | "ai" | "sync" | "integrations" | "audio-transcription" | "tts" | "smart-queues" | "about";
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -28,6 +29,7 @@ export function SettingsPage() {
             { id: "sync" as const, label: "Sync", icon: "☁️" },
             { id: "integrations" as const, label: "Integrations", icon: "🔗" },
             { id: "audio-transcription" as const, label: "Audio Transcription", icon: "🎤" },
+            { id: "tts" as const, label: "Text To Speech", icon: "🗣️" },
             { id: "smart-queues" as const, label: "Smart Queues", icon: "🧠" },
             { id: "about" as const, label: "About", icon: "ℹ️" },
           ].map((tab) => (
@@ -60,6 +62,7 @@ export function SettingsPage() {
         {activeTab === "sync" && <SyncSettings />}
         {activeTab === "integrations" && <IntegrationSettings />}
         {activeTab === "audio-transcription" && <AudioTranscriptionTab />}
+        {activeTab === "tts" && <TTSTab />}
         {activeTab === "smart-queues" && <SmartQueuesTab />}
         {activeTab === "about" && <AboutSettings />}
       </div>
@@ -340,6 +343,14 @@ function AboutSettings() {
 
 function AudioTranscriptionTab() {
   return <AudioTranscriptionSettings />;
+}
+
+function TTSTab() {
+  return (
+    <div className="p-6 max-w-4xl">
+      <TTSSettings />
+    </div>
+  );
 }
 
 function SmartQueuesTab() {

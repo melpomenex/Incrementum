@@ -160,6 +160,50 @@ export interface AudioTranscriptionSettings {
   groq: GroqTranscriptionSettings;
 }
 
+export type TTSRequestMode = 'direct' | 'proxy';
+
+export interface TTSPreset {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+  temperature: number;
+  topP: number;
+  topK: number;
+  repetitionPenalty: number;
+  maxNewTokens: number;
+  readonly: boolean;
+}
+
+export interface TTSVoiceProfile {
+  id: string;
+  provider: 'fal' | 'groq';
+  name: string;
+  kind: 'builtin' | 'cloned';
+  voice?: string;
+  speakerEmbeddingUrl?: string;
+  referenceText?: string;
+  createdAt: string;
+}
+
+export interface TTSSettings {
+  schemaVersion: number;
+  enabled: boolean;
+  provider: 'fal' | 'groq';
+  requestMode: TTSRequestMode;
+  apiKey: string;
+  proxyUrl: string;
+  modelId: string;
+  cloneModelId: string;
+  groqModelId: string;
+  groqResponseFormat: 'wav' | 'mp3';
+  language: string;
+  defaultVoiceId: string;
+  defaultPresetId: string;
+  voiceProfiles: TTSVoiceProfile[];
+  presets: TTSPreset[];
+}
+
 // Integration Settings
 export interface IntegrationSettings {
   obsidian: {
@@ -269,6 +313,7 @@ export interface Settings {
   api: APISettings;
   qa: QASettings;
   audioTranscription: AudioTranscriptionSettings;
+  tts: TTSSettings;
   integrations: IntegrationSettings;
   mcpServers: MCPServerSettings;
   obsidianIntegration: ObsidianIntegrationSettings;
