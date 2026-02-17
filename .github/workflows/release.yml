@@ -65,6 +65,25 @@ jobs:
             const version = context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
+      - name: Validate tag matches app versions
+        shell: bash
+        run: |
+          TAG_RAW="${{ steps.get_version.outputs.VERSION }}"
+          TAG_VERSION="${TAG_RAW#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+
+          echo "Tag: ${TAG_RAW}"
+          echo "Expected semantic version: ${TAG_VERSION}"
+          echo "package.json: ${PACKAGE_VERSION}"
+          echo "tauri.conf.json: ${TAURI_VERSION}"
+          echo "Cargo.toml: ${CARGO_VERSION}"
+
+          test "${PACKAGE_VERSION}" = "${TAG_VERSION}"
+          test "${TAURI_VERSION}" = "${TAG_VERSION}"
+          test "${CARGO_VERSION}" = "${TAG_VERSION}"
+
       - name: Install create-dmg (macOS only)
         if: runner.os == 'macOS'
         run: brew install create-dmg
@@ -185,6 +204,25 @@ jobs:
             const version = context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
+      - name: Validate tag matches app versions
+        shell: bash
+        run: |
+          TAG_RAW="${{ steps.get_version.outputs.VERSION }}"
+          TAG_VERSION="${TAG_RAW#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+
+          echo "Tag: ${TAG_RAW}"
+          echo "Expected semantic version: ${TAG_VERSION}"
+          echo "package.json: ${PACKAGE_VERSION}"
+          echo "tauri.conf.json: ${TAURI_VERSION}"
+          echo "Cargo.toml: ${CARGO_VERSION}"
+
+          test "${PACKAGE_VERSION}" = "${TAG_VERSION}"
+          test "${TAURI_VERSION}" = "${TAG_VERSION}"
+          test "${CARGO_VERSION}" = "${TAG_VERSION}"
+
       - name: Build frontend
         run: npm run build
 
@@ -234,6 +272,25 @@ jobs:
           script: |
             const version = context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
+
+      - name: Validate tag matches app versions
+        shell: bash
+        run: |
+          TAG_RAW="${{ steps.get_version.outputs.VERSION }}"
+          TAG_VERSION="${TAG_RAW#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+
+          echo "Tag: ${TAG_RAW}"
+          echo "Expected semantic version: ${TAG_VERSION}"
+          echo "package.json: ${PACKAGE_VERSION}"
+          echo "tauri.conf.json: ${TAURI_VERSION}"
+          echo "Cargo.toml: ${CARGO_VERSION}"
+
+          test "${PACKAGE_VERSION}" = "${TAG_VERSION}"
+          test "${TAURI_VERSION}" = "${TAG_VERSION}"
+          test "${CARGO_VERSION}" = "${TAG_VERSION}"
 
       - name: Build frontend
         run: npm run build

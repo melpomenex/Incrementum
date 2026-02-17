@@ -75,6 +75,72 @@ interface AssistantPanelProps {
 
 const ASSISTANT_POSITION_KEY = "assistant-panel-position";
 const ASSISTANT_WIDTH_KEY = "assistant-panel-width";
+const ASSISTANT_CONVERSATIONS_KEY = "assistant-panel-conversations-v1";
+const MAX_STORED_MESSAGES = 200;
+
+interface StoredConversation {
+  messages: Message[];
+  input: string;
+  updatedAt: number;
+}
+
+type StoredConversationMap = Record<string, StoredConversation>;
+
+const isValidMessage = (value: unknown): value is Message => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Message>;
+  return (
+    typeof candidate.id === "string" &&
+    (candidate.role === "user" || candidate.role === "assistant" || candidate.role === "system") &&
+    typeof candidate.content === "string" &&
+    typeof candidate.timestamp === "number"
+  );
+};
+
+const getConversationKey = (ctx?: AssistantContext): string => {
+  if (!ctx) return "general";
+  if (ctx.type === "document") return `document:${ctx.documentId || "unknown"}`;
+  if (ctx.type === "video") {
+    return `video:${ctx.documentId || ctx.metadata?.videoId || ctx.metadata?.title || "unknown"}`;
+  }
+  if (ctx.type === "web") return `web:${ctx.url || ctx.metadata?.title || "unknown"}`;
+  return "general";
+};
+
+const readStoredConversations = (): StoredConversationMap => {
+  try {
+    const raw = localStorage.getItem(ASSISTANT_CONVERSATIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    const normalized: StoredConversationMap = {};
+    Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
+      if (!value || typeof value !== "object") return;
+      const candidate = value as Partial<StoredConversation>;
+      const messages = Array.isArray(candidate.messages)
+        ? candidate.messages.filter(isValidMessage).slice(-MAX_STORED_MESSAGES)
+        : [];
+      normalized[key] = {
+        messages,
+        input: typeof candidate.input === "string" ? candidate.input : "",
+        updatedAt: typeof candidate.updatedAt === "number" ? candidate.updatedAt : Date.now(),
+      };
+    });
+    return normalized;
+  } catch (error) {
+    console.warn("Failed to parse stored assistant conversations:", error);
+    return {};
+  }
+};
+
+const writeStoredConversations = (conversations: StoredConversationMap) => {
+  try {
+    localStorage.setItem(ASSISTANT_CONVERSATIONS_KEY, JSON.stringify(conversations));
+  } catch (error) {
+    console.warn("Failed to persist assistant conversation:", error);
+  }
+};
 
 export function AssistantPanel({
   context,
@@ -130,6 +196,7 @@ export function AssistantPanel({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastContextSignatureRef = useRef<string | null>(null);
+  const activeConversationKeyRef = useRef<string>("general");
 
   const providers = [
     { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
@@ -154,6 +221,26 @@ export function AssistantPanel({
   useEffect(() => {
     onInputHoverChange?.(isInputFocused || isInputHovered);
   }, [isInputFocused, isInputHovered, onInputHoverChange]);
+
+  useEffect(() => {
+    const conversationKey = getConversationKey(context);
+    activeConversationKeyRef.current = conversationKey;
+    const stored = readStoredConversations()[conversationKey];
+    setMessages(stored?.messages ?? []);
+    setInput(stored?.input ?? "");
+    lastContextSignatureRef.current = null;
+  }, [context?.type, context?.documentId, context?.url, context?.metadata?.videoId, context?.metadata?.title]);
+
+  useEffect(() => {
+    const key = activeConversationKeyRef.current;
+    const conversations = readStoredConversations();
+    conversations[key] = {
+      messages: messages.slice(-MAX_STORED_MESSAGES),
+      input,
+      updatedAt: Date.now(),
+    };
+    writeStoredConversations(conversations);
+  }, [messages, input]);
 
   useEffect(() => {
     localStorage.setItem("assistant-llm-provider", selectedProvider);
@@ -196,7 +283,16 @@ export function AssistantPanel({
         content: getContextMessage(context),
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, contextMessage]);
+      setMessages((prev) => {
+        if (
+          prev.length > 0 &&
+          prev[prev.length - 1].role === "system" &&
+          prev[prev.length - 1].content === contextMessage.content
+        ) {
+          return prev;
+        }
+        return [...prev, contextMessage];
+      });
     }
   }, [context]);
 
