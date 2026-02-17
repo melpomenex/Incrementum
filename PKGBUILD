@@ -1,6 +1,6 @@
 # Maintainer: Incrementum Developers
 pkgname=incrementum
-pkgver=1.2.8
+pkgver=1.9.2
 pkgrel=1
 pkgdesc="Incrementum - Spaced repetition and incremental reading for effective learning"
 arch=('x86_64')

@@ -114,6 +114,38 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate tag matches app versions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const tag = context.ref.replace("refs/tags/", "");
+            const expected = tag.replace(/^v/, "");
+            const packageVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+            const tauriVersion = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version;
+            const cargoToml = fs.readFileSync("src-tauri/Cargo.toml", "utf8");
+            const cargoVersion = (cargoToml.match(/^version = "([^"]+)"/m) || [])[1];
+
+            core.info(`Tag: ${tag}`);
+            core.info(`Expected semantic version: ${expected}`);
+            core.info(`package.json: ${packageVersion}`);
+            core.info(`tauri.conf.json: ${tauriVersion}`);
+            core.info(`Cargo.toml: ${cargoVersion}`);
+
+            if (!cargoVersion) {
+              core.setFailed("Could not read version from src-tauri/Cargo.toml");
+            }
+
+            const mismatches = [
+              packageVersion === expected ? null : `package.json is ${packageVersion}`,
+              tauriVersion === expected ? null : `tauri.conf.json is ${tauriVersion}`,
+              cargoVersion === expected ? null : `Cargo.toml is ${cargoVersion}`,
+            ].filter(Boolean);
+
+            if (mismatches.length > 0) {
+              core.setFailed(`Tag/version mismatch for ${tag}. Expected ${expected}; ${mismatches.join(", ")}.`);
+            }
+
       - name: Build frontend
         run: npm run build
 
@@ -224,6 +256,38 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate tag matches app versions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const tag = context.ref.replace("refs/tags/", "");
+            const expected = tag.replace(/^v/, "");
+            const packageVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+            const tauriVersion = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version;
+            const cargoToml = fs.readFileSync("src-tauri/Cargo.toml", "utf8");
+            const cargoVersion = (cargoToml.match(/^version = "([^"]+)"/m) || [])[1];
+
+            core.info(`Tag: ${tag}`);
+            core.info(`Expected semantic version: ${expected}`);
+            core.info(`package.json: ${packageVersion}`);
+            core.info(`tauri.conf.json: ${tauriVersion}`);
+            core.info(`Cargo.toml: ${cargoVersion}`);
+
+            if (!cargoVersion) {
+              core.setFailed("Could not read version from src-tauri/Cargo.toml");
+            }
+
+            const mismatches = [
+              packageVersion === expected ? null : `package.json is ${packageVersion}`,
+              tauriVersion === expected ? null : `tauri.conf.json is ${tauriVersion}`,
+              cargoVersion === expected ? null : `Cargo.toml is ${cargoVersion}`,
+            ].filter(Boolean);
+
+            if (mismatches.length > 0) {
+              core.setFailed(`Tag/version mismatch for ${tag}. Expected ${expected}; ${mismatches.join(", ")}.`);
+            }
+
       - name: Build frontend
         run: npm run build
 
@@ -285,6 +349,38 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Validate tag matches app versions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const tag = context.ref.replace("refs/tags/", "");
+            const expected = tag.replace(/^v/, "");
+            const packageVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+            const tauriVersion = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version;
+            const cargoToml = fs.readFileSync("src-tauri/Cargo.toml", "utf8");
+            const cargoVersion = (cargoToml.match(/^version = "([^"]+)"/m) || [])[1];
+
+            core.info(`Tag: ${tag}`);
+            core.info(`Expected semantic version: ${expected}`);
+            core.info(`package.json: ${packageVersion}`);
+            core.info(`tauri.conf.json: ${tauriVersion}`);
+            core.info(`Cargo.toml: ${cargoVersion}`);
+
+            if (!cargoVersion) {
+              core.setFailed("Could not read version from src-tauri/Cargo.toml");
+            }
+
+            const mismatches = [
+              packageVersion === expected ? null : `package.json is ${packageVersion}`,
+              tauriVersion === expected ? null : `tauri.conf.json is ${tauriVersion}`,
+              cargoVersion === expected ? null : `Cargo.toml is ${cargoVersion}`,
+            ].filter(Boolean);
+
+            if (mismatches.length > 0) {
+              core.setFailed(`Tag/version mismatch for ${tag}. Expected ${expected}; ${mismatches.join(", ")}.`);
+            }
 
       - name: Build frontend
         run: npm run build
