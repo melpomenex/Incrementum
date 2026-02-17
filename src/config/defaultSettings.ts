@@ -4,6 +4,7 @@
  */
 
 import { Settings } from '../types/settings';
+import { createDefaultTTSSettings } from '../utils/ttsSettings';
 
 export const defaultSettings: Settings = {
   general: {
@@ -148,6 +149,8 @@ export const defaultSettings: Settings = {
       },
     },
   },
+
+  tts: createDefaultTTSSettings(),
 
   integrations: {
     obsidian: {

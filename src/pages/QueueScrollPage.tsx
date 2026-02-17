@@ -35,11 +35,20 @@ import { RSSQueueSettingsModal } from "../components/settings/RSSQueueSettings";
 import { createDocument, updateDocumentContent, dismissDocument } from "../api/documents";
 import { trimToTokenWindow } from "../utils/tokenizer";
 import { fetchYouTubeTranscript } from "../api/youtube";
+import { ReaderTTSControls } from "../components/common/ReaderTTSControls";
 
 const buildTranscriptText = (segments: Array<{ text: string }>): string =>
   segments
     .map((segment) => segment.text)
     .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const stripHtmlToText = (html: string): string =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -1142,24 +1151,74 @@ export function QueueScrollPage() {
     }
   }, [isFullscreen]);
 
-  // Keyboard navigation - use modifier keys to avoid conflict with document scrolling
+  // Keyboard navigation for TikTok-style scroll mode:
+  // Up/Down navigates queue items, Left/Right scrolls item content vertically.
   useEffect(() => {
+    const getScrollableContentElement = (): HTMLElement | null => {
+      if (!containerRef.current) return null;
+
+      // Prefer transcript panel when present (YouTube items).
+      const transcriptEl = containerRef.current.querySelector('[data-transcript-scroll="true"]') as HTMLElement | null;
+      if (transcriptEl) {
+        return transcriptEl;
+      }
+
+      // RSS item container (outer overflow wrapper around the reading surface).
+      const rssScrollable = rssContentRef.current?.parentElement as HTMLElement | null;
+      if (rssScrollable && rssScrollable.scrollHeight > rssScrollable.clientHeight + 4) {
+        return rssScrollable;
+      }
+
+      // Document viewer's explicit scroll container (PDF and some other viewers).
+      const docScrollContainer = containerRef.current.querySelector('[data-document-scroll-container]') as HTMLElement | null;
+      if (docScrollContainer) {
+        return docScrollContainer;
+      }
+
+      // Fallback: document content host.
+      const docContentHost = containerRef.current.querySelector('[data-document-content="true"]') as HTMLElement | null;
+      if (docContentHost && docContentHost.scrollHeight > docContentHost.clientHeight + 4) {
+        return docContentHost;
+      }
+
+      return null;
+    };
+
+    const scrollContentVertically = (direction: "up" | "down") => {
+      const scrollable = getScrollableContentElement();
+      if (!scrollable) return;
+
+      const delta = direction === "down" ? 180 : -180;
+      scrollable.scrollBy({ top: delta, behavior: "smooth" });
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in input
-      if ((e.target as HTMLElement).tagName === "INPUT" ||
-        (e.target as HTMLElement).tagName === "TEXTAREA") {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (target?.closest(".assistant-panel")) {
         return;
       }
 
-      // Navigation requires Alt key to avoid conflict with document scrolling
-      const altKey = e.altKey;
-
-      if (altKey && (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ")) {
+      if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
         goToNext();
-      } else if (altKey && (e.key === "ArrowUp" || e.key === "PageUp")) {
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
         e.preventDefault();
         goToPrevious();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        scrollContentVertically("down");
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        scrollContentVertically("up");
       } else if (e.key === "F11") {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -1676,7 +1735,7 @@ export function QueueScrollPage() {
         )}
         <div
           className={cn(
-            "h-full flex-1 min-w-0 transition-opacity duration-300",
+            "h-full flex-1 min-w-0 transition-opacity duration-300 relative",
             isTransitioning ? "opacity-0" : "opacity-100"
           )}
         >
@@ -1775,6 +1834,16 @@ export function QueueScrollPage() {
             <div className="h-full flex items-center justify-center">
               <div className="text-muted-foreground">Loading...</div>
             </div>
+          )}
+
+          {renderedItem?.type === "rss" && (
+            <ReaderTTSControls
+              text={stripHtmlToText(renderedItem.rssItem?.content || renderedItem.rssItem?.description || "")}
+              className={cn(
+                "absolute z-40 bottom-3 left-3 right-3",
+                !isMobile && "left-1/2 right-auto -translate-x-1/2"
+              )}
+            />
           )}
         </div>
         {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (

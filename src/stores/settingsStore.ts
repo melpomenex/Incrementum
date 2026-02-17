@@ -1,5 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import {
+  createDefaultTTSSettings,
+  sanitizeTTSSettings,
+  type TTSSettings,
+} from "../utils/ttsSettings";
 
 /**
  * FSRS Algorithm Parameters
@@ -243,6 +248,7 @@ interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
   mode: 'normal' | 'filtered' | 'intelligent';
+  useFsrsScheduling: boolean;
 }
 
 /**
@@ -299,6 +305,7 @@ export interface Settings {
   privacy: PrivacySettings;
   audioTranscription: AudioTranscriptionSettings;
   smartQueue: SmartQueueSettings;
+  tts: TTSSettings;
   scrollQueue: ScrollQueueSettings;
   rssQueue: RSSQueueSettings;
   youtube: YouTubeSettings;
@@ -457,7 +464,9 @@ export const defaultSettings: Settings = {
     autoRefresh: false,
     refreshInterval: 60,
     mode: 'normal',
+    useFsrsScheduling: true,
   },
+  tts: createDefaultTTSSettings(),
   scrollQueue: {
     flashcardPercentage: 30, // 30% of queue should be flashcards by default
     extractsCountAsFlashcards: true, // Extracts count towards the flashcard percentage
@@ -525,7 +534,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "incrementum-settings",
-      version: 1,
+      version: 2,
       onRehydrateStorage: () => (state, error) => {
         if (error || !state) return;
         const persisted = state.settings || defaultSettings;
@@ -568,8 +577,20 @@ export const useSettingsStore = create<SettingsState>()(
           importExport: { ...defaultSettings.importExport, ...persisted.importExport },
           notifications: { ...defaultSettings.notifications, ...persisted.notifications },
           privacy: { ...defaultSettings.privacy, ...persisted.privacy },
-          audioTranscription: { ...defaultSettings.audioTranscription, ...persisted.audioTranscription },
+          audioTranscription: {
+            ...defaultSettings.audioTranscription,
+            ...persisted.audioTranscription,
+            groq: {
+              ...defaultSettings.audioTranscription.groq,
+              ...persisted.audioTranscription?.groq,
+              usage: {
+                ...defaultSettings.audioTranscription.groq.usage,
+                ...persisted.audioTranscription?.groq?.usage,
+              },
+            },
+          },
           smartQueue: { ...defaultSettings.smartQueue, ...persisted.smartQueue },
+          tts: sanitizeTTSSettings(persisted.tts),
           scrollQueue: { ...defaultSettings.scrollQueue, ...persisted.scrollQueue },
           rssQueue: { ...defaultSettings.rssQueue, ...persisted.rssQueue },
           youtube: { ...defaultSettings.youtube, ...persisted.youtube },

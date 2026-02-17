@@ -1,9 +1,11 @@
 /**
  * Text-to-Speech Hook
- * Uses Web Speech API to read text aloud
+ * Supports Fal.ai generation with local fallback to Web Speech API.
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { generateSpeech } from "../api/tts";
+import { useSettingsStore } from "../stores/settingsStore";
 
 interface UseTTSOptions {
   rate?: number;
@@ -12,17 +14,28 @@ interface UseTTSOptions {
   lang?: string;
 }
 
+interface SpeakOverrides {
+  voiceId?: string;
+  presetId?: string;
+}
+
 interface UseTTSReturn {
-  speak: (text: string) => void;
+  speak: (text: string, overrides?: SpeakOverrides) => Promise<void>;
   stop: () => void;
   pause: () => void;
   resume: () => void;
   isSpeaking: boolean;
   isPaused: boolean;
+  isGenerating: boolean;
+  lastError: string | null;
   isSupported: boolean;
   voices: SpeechSynthesisVoice[];
   selectedVoice: SpeechSynthesisVoice | null;
   setSelectedVoice: (voice: SpeechSynthesisVoice | null) => void;
+}
+
+function cleanText(text: string): string {
+  return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
@@ -33,24 +46,57 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     lang = "en-US",
   } = options;
 
+  const settings = useSettingsStore((state) => state.settings);
+
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Check if TTS is supported
-  const isSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const hasSpeechSynthesis = typeof window !== "undefined" && "speechSynthesis" in window;
+  const hasAudioPlayback = typeof window !== "undefined" && typeof Audio !== "undefined";
+  const isSupported = hasSpeechSynthesis || hasAudioPlayback;
 
-  // Load available voices
+  const ttsSettings = settings.tts;
+  const directKey =
+    ttsSettings?.provider === "groq"
+      ? (ttsSettings.apiKey?.trim() || settings.audioTranscription?.groq?.apiKey?.trim() || "")
+      : (ttsSettings?.apiKey?.trim() || "");
+  const providerConfigured =
+    ttsSettings?.enabled &&
+    (ttsSettings.requestMode === "proxy"
+      ? Boolean(ttsSettings.proxyUrl?.trim())
+      : Boolean(directKey));
+
+  const stop = useCallback(() => {
+    if (hasSpeechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+
+    setIsGenerating(false);
+    setIsSpeaking(false);
+    setIsPaused(false);
+  }, [hasSpeechSynthesis]);
+
+  // Load available system voices for fallback mode.
   useEffect(() => {
-    if (!isSupported) return;
+    if (!hasSpeechSynthesis) return;
 
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       setVoices(availableVoices);
 
-      // Select default voice for the language
       const defaultVoice = availableVoices.find(
         (voice) => voice.lang.startsWith(lang.split("-")[0])
       );
@@ -60,85 +106,156 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     };
 
     loadVoices();
-
-    // Chrome loads voices asynchronously
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, [isSupported, lang, selectedVoice]);
+  }, [hasSpeechSynthesis, lang, selectedVoice]);
 
-  // Update speaking state
-  useEffect(() => {
+  const speakWithWebSpeech = useCallback((text: string) => {
+    if (!hasSpeechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = volume;
+    utterance.lang = lang;
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.onstart = () => {
+      setLastError(null);
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+    utterance.onerror = () => {
+      setLastError("Web Speech API failed to read this text.");
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [hasSpeechSynthesis, rate, pitch, volume, lang, selectedVoice]);
+
+  const speakWithFal = useCallback(async (text: string, overrides?: SpeakOverrides) => {
+    if (!hasAudioPlayback) {
+      throw new Error("Audio playback is not supported on this platform.");
+    }
+
+    setIsGenerating(true);
+    setLastError(null);
+
+    const result = await generateSpeech(settings, {
+      text,
+      voiceId: overrides?.voiceId,
+      presetId: overrides?.presetId,
+    });
+
+    const audio = new Audio(result.audioUrl);
+    audio.playbackRate = rate;
+    audioRef.current = audio;
+
+    audio.onplay = () => {
+      setIsGenerating(false);
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+    audio.onpause = () => {
+      if (audio.ended) return;
+      setIsPaused(true);
+      setIsSpeaking(false);
+    };
+    audio.onended = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setIsGenerating(false);
+    };
+    audio.onerror = () => {
+      setIsGenerating(false);
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setLastError("Failed to play generated audio.");
+    };
+
+    await audio.play();
+  }, [settings, hasAudioPlayback, rate]);
+
+  const speak = useCallback(async (text: string, overrides?: SpeakOverrides) => {
     if (!isSupported) return;
 
-    const checkSpeaking = setInterval(() => {
-      setIsSpeaking(window.speechSynthesis.speaking);
-      setIsPaused(window.speechSynthesis.paused);
-    }, 100);
+    stop();
+    const normalizedText = cleanText(text);
+    if (!normalizedText) return;
 
-    return () => clearInterval(checkSpeaking);
-  }, [isSupported]);
-
-  const speak = useCallback(
-    (text: string) => {
-      if (!isSupported) return;
-
-      // Stop any ongoing speech
-      window.speechSynthesis.cancel();
-
-      // Clean the text (remove HTML tags)
-      const cleanText = text.replace(/<[^>]*>/g, "").trim();
-      if (!cleanText) return;
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = rate;
-      utterance.pitch = pitch;
-      utterance.volume = volume;
-      utterance.lang = lang;
-
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
+    try {
+      if (providerConfigured) {
+        await speakWithFal(normalizedText, overrides);
+        return;
       }
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      speakWithWebSpeech(normalizedText);
+    } catch (error) {
+      setIsGenerating(false);
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setLastError(error instanceof Error ? error.message : "TTS generation failed.");
 
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-    },
-    [isSupported, rate, pitch, volume, lang, selectedVoice]
-  );
-
-  const stop = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-    setIsPaused(false);
-  }, [isSupported]);
+      if (hasSpeechSynthesis) {
+        speakWithWebSpeech(normalizedText);
+      }
+    }
+  }, [isSupported, stop, providerConfigured, speakWithFal, speakWithWebSpeech, hasSpeechSynthesis]);
 
   const pause = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.pause();
-    setIsPaused(true);
-  }, [isSupported]);
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+      setIsPaused(true);
+      setIsSpeaking(false);
+      return;
+    }
+
+    if (hasSpeechSynthesis && window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
+  }, [hasSpeechSynthesis]);
 
   const resume = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.resume();
-    setIsPaused(false);
-  }, [isSupported]);
+    if (audioRef.current && audioRef.current.paused) {
+      audioRef.current
+        .play()
+        .then(() => {
+          setIsPaused(false);
+          setIsSpeaking(true);
+        })
+        .catch((error) => {
+          setLastError(error instanceof Error ? error.message : "Failed to resume playback.");
+        });
+      return;
+    }
 
-  // Cleanup on unmount
+    if (hasSpeechSynthesis && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+      setIsSpeaking(true);
+    }
+  }, [hasSpeechSynthesis]);
+
   useEffect(() => {
     return () => {
-      if (isSupported) {
-        window.speechSynthesis.cancel();
-      }
+      stop();
     };
-  }, [isSupported]);
+  }, [stop]);
 
   return {
     speak,
@@ -147,6 +264,8 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     resume,
     isSpeaking,
     isPaused,
+    isGenerating,
+    lastError,
     isSupported,
     voices,
     selectedVoice,

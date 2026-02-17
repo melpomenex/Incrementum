@@ -33,6 +33,9 @@ import {
   Brain,
   FileText,
   Youtube,
+  Palette,
+  Sun,
+  Moon,
 } from "lucide-react";
 import type { Document } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
@@ -42,6 +45,7 @@ import type { StudyDeckState } from "../../stores/studyDeckStore";
 import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
 import * as documentsApi from "../../api/documents";
+import { useTheme } from "../../contexts/ThemeContext";
 
 type SearchHitLocation =
   | { kind: "pdf"; pageNumber: number }
@@ -193,6 +197,7 @@ export function CommandCenter() {
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
   const htmlTextCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const epubSearchCacheRef = useRef<Map<string, Map<string, SearchHit[]>>>(new Map());
+  const { theme, themes, setTheme } = useTheme();
 
   useEffect(() => {
     if (!documentsLoading && documents.length === 0) {
@@ -512,7 +517,98 @@ export function CommandCenter() {
       },
     ];
 
-    const allCommands = [...getDefaultCommands(), ...navigationCommands];
+    const cycleTheme = (direction: 1 | -1) => {
+      if (!themes.length) return;
+      const currentIndex = themes.findIndex((item) => item.id === theme.id);
+      const startIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex = (startIndex + direction + themes.length) % themes.length;
+      setTheme(themes[nextIndex].id);
+    };
+
+    const switchThemeVariant = (variant: "light" | "dark") => {
+      if (!themes.length) return;
+      const variantThemes = themes.filter((item) => item.variant === variant);
+      if (variantThemes.length === 0) return;
+      const activeVariantIndex = variantThemes.findIndex((item) => item.id === theme.id);
+      const next = variantThemes[(activeVariantIndex + 1 + variantThemes.length) % variantThemes.length];
+      setTheme(next.id);
+    };
+
+    const themeCommands: Command[] = [
+      {
+        id: "theme-toggle-variant",
+        label: "Toggle Theme Variant",
+        description: `Switch between light and dark themes (current: ${theme.variant})`,
+        icon: <Palette className="w-4 h-4" />,
+        category: CommandCategory.Settings,
+        action: () => {
+          const targetVariant = theme.variant === "dark" ? "light" : "dark";
+          switchThemeVariant(targetVariant);
+        },
+        keywords: ["theme", "appearance", "dark", "light", "mode", "toggle"],
+      },
+      {
+        id: "theme-set-light",
+        label: "Switch to Light Theme",
+        description: "Apply a light variant theme",
+        icon: <Sun className="w-4 h-4" />,
+        category: CommandCategory.Settings,
+        action: () => switchThemeVariant("light"),
+        keywords: ["theme", "appearance", "light", "day"],
+      },
+      {
+        id: "theme-set-dark",
+        label: "Switch to Dark Theme",
+        description: "Apply a dark variant theme",
+        icon: <Moon className="w-4 h-4" />,
+        category: CommandCategory.Settings,
+        action: () => switchThemeVariant("dark"),
+        keywords: ["theme", "appearance", "dark", "night"],
+      },
+      {
+        id: "theme-next",
+        label: "Next Theme",
+        description: `Cycle to the next theme (current: ${theme.name})`,
+        icon: <Palette className="w-4 h-4" />,
+        category: CommandCategory.Settings,
+        action: () => cycleTheme(1),
+        keywords: ["theme", "appearance", "next", "cycle"],
+      },
+      {
+        id: "theme-previous",
+        label: "Previous Theme",
+        description: `Cycle to the previous theme (current: ${theme.name})`,
+        icon: <Palette className="w-4 h-4" />,
+        category: CommandCategory.Settings,
+        action: () => cycleTheme(-1),
+        keywords: ["theme", "appearance", "previous", "cycle"],
+      },
+    ];
+
+    const themeSwitchCommands: Command[] = themes.map((item) => ({
+      id: `theme-switch-${item.id}`,
+      label: `Switch Theme: ${item.name}`,
+      description: `Apply ${item.variant} theme "${item.name}"`,
+      icon: <Palette className="w-4 h-4" />,
+      category: CommandCategory.Settings,
+      action: () => setTheme(item.id),
+      keywords: [
+        "theme",
+        "appearance",
+        "switch",
+        "set",
+        item.name.toLowerCase(),
+        item.id.toLowerCase(),
+        item.variant.toLowerCase(),
+      ],
+    }));
+
+    const allCommands = [
+      ...getDefaultCommands(),
+      ...navigationCommands,
+      ...themeCommands,
+      ...themeSwitchCommands,
+    ];
 
     const matchedCommands = allCommands.filter((cmd) => {
       const label = cmd.label.toLowerCase();
@@ -759,7 +855,7 @@ export function CommandCenter() {
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
-  }, [documents, extracts, addTab, activeDeck, shouldFilterByDeck]);
+  }, [documents, extracts, addTab, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === SearchResultType.Command) {
