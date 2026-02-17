@@ -78,6 +78,7 @@ jobs:
 
       - name: Build Android app bundle
         run: |
+          set -o pipefail
           mkdir -p artifacts/mobile-logs
           npm run tauri -- android build --ci 2>&1 | tee artifacts/mobile-logs/android-build.log
 
@@ -184,14 +185,16 @@ jobs:
       - name: Build iOS app (signed)
         if: steps.ios_mode.outputs.mode == 'signed'
         run: |
+          set -o pipefail
           mkdir -p artifacts/mobile-logs
           npm run tauri -- ios build --ci 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Build iOS app (simulator fallback)
         if: steps.ios_mode.outputs.mode == 'simulator'
         run: |
+          set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci --simulator 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci -- --simulator 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Collect iOS output summary
         if: always()
