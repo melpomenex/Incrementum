@@ -55,7 +55,9 @@
         "linux": {
           "deb": {
             "depends": [
-              "ffmpeg"
+              "ffmpeg",
+              "gstreamer1.0-plugins-base",
+              "gstreamer1.0-plugins-good"
             ]
           },
           "appimage": {

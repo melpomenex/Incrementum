@@ -12,8 +12,9 @@ export WEBKIT_DISABLE_HARDWARE_ACCELERATION=1
 export LIBGL_ALWAYS_SOFTWARE=1
 
 # GStreamer audio settings
-export AUDIOSINK=pulsesink
-export GST_AUDIOSINK=pulsesink
+# Use auto selection for broader compatibility (PipeWire/Pulse/ALSA).
+export GST_AUDIOSINK="${GST_AUDIOSINK:-autoaudiosink}"
+export AUDIOSINK="${AUDIOSINK:-autoaudiosink}"
 
 # Disable Wayland specific features that may cause issues
 export GDK_BACKEND=x11
