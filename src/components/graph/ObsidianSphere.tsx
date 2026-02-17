@@ -22,6 +22,7 @@ export interface ObsidianSphereProps {
   edges?: GraphEdge[];
   onNodeClick?: (node: GraphNode) => void;
   onNodeHover?: (node: GraphNode | null) => void;
+  showHeader?: boolean;
 }
 
 interface SphereNode extends GraphNode {
@@ -70,6 +71,7 @@ export function ObsidianSphere({
   edges = [],
   onNodeClick,
   onNodeHover,
+  showHeader = true,
 }: ObsidianSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -493,15 +495,19 @@ export function ObsidianSphere({
 
       {/* Top bar */}
       <div className="absolute top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
-        <div className="pointer-events-auto">
-          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Knowledge Sphere
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {nodes.length} nodes orbiting your knowledge universe
-          </p>
-        </div>
+        {showHeader ? (
+          <div className="pointer-events-auto">
+            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Knowledge Sphere
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {nodes.length} nodes orbiting your knowledge universe
+            </p>
+          </div>
+        ) : (
+          <div />
+        )}
 
         <button
           onClick={() => setShowInfo(!showInfo)}
