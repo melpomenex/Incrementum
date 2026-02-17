@@ -321,6 +321,7 @@ export function YouTubeViewer({
 
         if (!transcriptData || !Array.isArray(transcriptData)) {
           setTranscript([]);
+          onTranscriptLoadRef.current?.([]);
           return;
         }
 
@@ -356,6 +357,7 @@ export function YouTubeViewer({
       const errorMsg = error instanceof Error ? error.message : String(error);
       setTranscriptError(errorMsg);
       setTranscript([]);
+      onTranscriptLoadRef.current?.([]);
     } finally {
       setIsLoadingTranscript(false);
     }

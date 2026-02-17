@@ -522,13 +522,30 @@ export function EPUBViewer({
                 const spine = await epubBook.loaded.spine;
                 let combined = "";
 
-                for (const item of spine.items) {
+                // EPUB.js shape varies across versions/bundles:
+                // - spine.items
+                // - spine.spineItems
+                // - spine as an array
+                const spineItems = Array.isArray(spine)
+                  ? spine
+                  : Array.isArray((spine as any)?.items)
+                    ? (spine as any).items
+                    : Array.isArray((spine as any)?.spineItems)
+                      ? (spine as any).spineItems
+                      : [];
+
+                for (const item of spineItems) {
                   if (!mounted || combined.length >= maxChars) break;
                   try {
+                    let loadedSection: any = null;
                     if (item.load) {
-                      await item.load(epubBook.load.bind(epubBook));
+                      loadedSection = await item.load(epubBook.load.bind(epubBook));
                     }
-                    const text = item.document?.body?.textContent?.trim();
+
+                    const text = item.document?.body?.textContent?.trim()
+                      || loadedSection?.document?.body?.textContent?.trim()
+                      || loadedSection?.contents?.textContent?.trim();
+
                     if (text) {
                       combined += (combined ? "\n\n" : "") + text;
                     }
@@ -544,7 +561,25 @@ export function EPUBViewer({
                 }
 
                 if (mounted) {
-                  onContextTextChange(combined.slice(0, maxChars));
+                  // Fallback: use currently rendered chapter text if full spine extraction failed.
+                  if (!combined.trim()) {
+                    try {
+                      const renderedText = rendition
+                        ?.getContents?.()
+                        ?.map((content: any) => content?.document?.body?.textContent?.trim())
+                        ?.filter(Boolean)
+                        ?.join("\n\n");
+                      if (renderedText) {
+                        combined = renderedText;
+                      }
+                    } catch {
+                      // ignore fallback extraction errors
+                    }
+                  }
+
+                  if (combined.trim()) {
+                    onContextTextChange(combined.slice(0, maxChars));
+                  }
                 }
               } catch (err) {
                 console.warn("EPUBViewer: Failed to extract context text:", err);

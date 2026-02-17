@@ -847,6 +847,7 @@ export function LocalVideoPlayer({
     <audio
       ref={videoRef}
       src={src}
+      preload="none"
       className="sr-only"
       onLoadedMetadata={() => {
         console.log('[LocalVideoPlayer] Audio onLoadedMetadata fired:', {
@@ -920,7 +921,7 @@ export function LocalVideoPlayer({
     <video
       ref={videoRef}
       src={src}
-      preload="metadata"
+      preload="none"
       playsInline
       className="w-full max-h-full bg-black cursor-pointer"
       onLoadedMetadata={() => {

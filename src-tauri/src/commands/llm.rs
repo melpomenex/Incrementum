@@ -1055,37 +1055,86 @@ async fn fetch_openrouter_models(
         return Err(format!("OpenRouter models API error ({}): {}", status, error_text));
     }
 
-    #[derive(Debug, Deserialize)]
-    struct OpenRouterModelsResponse {
-        data: Vec<OpenRouterModelResponse>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct OpenRouterModelResponse {
-        id: String,
-        name: Option<String>,
-        context_length: Option<usize>,
-        pricing: Option<ModelPricing>,
-    }
-
-    let models_response: OpenRouterModelsResponse = response
+    // OpenRouter's models payload can contain mixed types (numbers/strings/null).
+    // Parse defensively from raw JSON to avoid hard-failing on type drift.
+    let payload: serde_json::Value = response
         .json()
         .await
         .map_err(|e| format!("Failed to parse OpenRouter models response: {}", e))?;
 
+    let data = payload
+        .get("data")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "Failed to parse OpenRouter models response: missing `data` array".to_string())?;
+
+    let parse_f64 = |value: Option<&serde_json::Value>| -> Option<f64> {
+        let value = value?;
+        if let Some(n) = value.as_f64() {
+            return Some(n);
+        }
+        if let Some(s) = value.as_str() {
+            return s.trim().parse::<f64>().ok();
+        }
+        None
+    };
+
+    let parse_usize = |value: Option<&serde_json::Value>| -> Option<usize> {
+        let value = value?;
+        if let Some(n) = value.as_u64() {
+            return usize::try_from(n).ok();
+        }
+        if let Some(s) = value.as_str() {
+            return s.trim().parse::<usize>().ok();
+        }
+        None
+    };
+
     // Convert to ModelInfo and sort by ID
-    let mut models: Vec<ModelInfo> = models_response
-        .data
-        .into_iter()
-        .map(|m| ModelInfo {
-            id: m.id.clone(),
-            name: m.name.unwrap_or_else(|| m.id.clone()),
-            context_length: m.context_length,
-            pricing: m.pricing,
+    let mut models: Vec<ModelInfo> = data
+        .iter()
+        .filter_map(|entry| {
+            let obj = entry.as_object()?;
+            let id = obj.get("id")?.as_str()?.trim().to_string();
+            if id.is_empty() {
+                return None;
+            }
+
+            let name = obj
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| id.clone());
+
+            let context_length = parse_usize(obj.get("context_length"));
+
+            let pricing = obj
+                .get("pricing")
+                .and_then(|v| v.as_object())
+                .map(|pricing_obj| ModelPricing {
+                    prompt: parse_f64(pricing_obj.get("prompt")),
+                    completion: parse_f64(pricing_obj.get("completion")),
+                    request: parse_f64(pricing_obj.get("request")),
+                    image: parse_f64(pricing_obj.get("image")),
+                    web_search: parse_f64(pricing_obj.get("web_search")),
+                    cache_read: parse_f64(pricing_obj.get("cache_read")),
+                    cache_write: parse_f64(pricing_obj.get("cache_write")),
+                });
+
+            Some(ModelInfo {
+                id,
+                name,
+                context_length,
+                pricing,
+            })
         })
         .collect();
 
     models.sort_by(|a, b| a.id.cmp(&b.id));
+
+    if models.is_empty() {
+        return Err("OpenRouter models response did not contain any usable model entries".to_string());
+    }
 
     Ok(models)
 }
