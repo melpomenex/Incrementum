@@ -19,5 +19,5 @@
 ## 4. Validation and Documentation
 
 - [x] 4.1 Add clear step/job names and messages so skipped/failure reasons are obvious in GitHub Actions UI.
-- [ ] 4.2 Run a dry run/manual dispatch to validate artifact upload paths and job outcomes for both platforms.
+- [x] 4.2 Run a dry run/manual dispatch to validate artifact upload paths and job outcomes for both platforms.
 - [x] 4.3 Document required secrets/prerequisites and expected artifact outputs in repository docs or workflow comments.
