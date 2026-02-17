@@ -37,6 +37,7 @@ import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoEx
 import { ocrPdfFile } from "../../api/ocrCommands";
 import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
+import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl, updateUrlHash } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import {
@@ -52,6 +53,9 @@ import type { ViewState } from "../../types/readerPosition";
 import { saveDocumentPosition, pagePosition, scrollPosition, cfiPosition, timePosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
 import { useExtractStore } from "../../stores/extractStore";
+
+const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
+const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
 
 // Helper to format seconds as MM:SS or HH:MM:SS
 function formatTime(seconds: number): string {
@@ -267,6 +271,7 @@ export function DocumentViewer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [minimapPosition, setMinimapPosition] = useState(0); // 0-1
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
+  const [readerContextText, setReaderContextText] = useState<string>("");
   const [ocrResult, setOcrResult] = useState<{
     pages: Array<{ pageNumber: number; text: string }>;
     combinedText: string;
@@ -332,6 +337,28 @@ export function DocumentViewer({
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // In browser/PWA, entering document fullscreen should collapse app chrome and keep only
+  // the reading surface (plus assistant panel where available in parent layouts).
+  useEffect(() => {
+    if (isTauri() || embedded) return;
+
+    document.body.classList.toggle(READER_FOCUS_CLASS, isFullscreen);
+    window.dispatchEvent(
+      new CustomEvent(READER_FOCUS_EVENT, {
+        detail: { active: isFullscreen },
+      })
+    );
+
+    return () => {
+      document.body.classList.remove(READER_FOCUS_CLASS);
+      window.dispatchEvent(
+        new CustomEvent(READER_FOCUS_EVENT, {
+          detail: { active: false },
+        })
+      );
+    };
+  }, [embedded, isFullscreen]);
 
   const resolvePreferredViewStateKey = useCallback(
     (docId?: string | null) =>
@@ -2189,16 +2216,37 @@ export function DocumentViewer({
 
   const handlePdfContextTextChange = useCallback(
     (text: string) => {
-      if (!onPdfContextTextChange) return;
       const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
-      if (preferOcr && ocrContextText) {
-        onPdfContextTextChange(ocrContextText);
-        return;
-      }
-      onPdfContextTextChange(text);
+      const contextForReader = preferOcr && ocrContextText ? ocrContextText : text;
+      setReaderContextText(contextForReader);
+      if (!onPdfContextTextChange) return;
+      onPdfContextTextChange(contextForReader);
     },
     [onPdfContextTextChange, ocrContextText, settings.documents.ocr.autoOCR, settings.documents.ocr.autoExtractOnLoad]
   );
+
+  useEffect(() => {
+    if (docType === "pdf" || docType === "epub") return;
+    if (docType === "markdown") {
+      const content = currentDocument?.content || "";
+      setReaderContextText(content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+      return;
+    }
+    if (docType === "html") {
+      const html = htmlContent || "";
+      setReaderContextText(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+      return;
+    }
+    setReaderContextText("");
+  }, [docType, currentDocument?.content, htmlContent]);
+
+  useEffect(() => {
+    if (docType !== "pdf") return;
+    const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
+    if (preferOcr && ocrContextText) {
+      setReaderContextText(ocrContextText);
+    }
+  }, [docType, ocrContextText, settings.documents.ocr.autoOCR, settings.documents.ocr.autoExtractOnLoad]);
 
   // Handle extract creation
   const handleExtractCreated = (extract: Extract) => {
@@ -2239,20 +2287,42 @@ export function DocumentViewer({
     try {
       // PWA/Browser environment - use standard Fullscreen API
       if (!isTauri()) {
+        const docWithWebkit = document as Document & {
+          webkitExitFullscreen?: () => Promise<void> | void;
+          msExitFullscreen?: () => Promise<void> | void;
+        };
+        const elWithWebkit = document.documentElement as HTMLElement & {
+          webkitRequestFullscreen?: () => Promise<void> | void;
+          msRequestFullscreen?: () => Promise<void> | void;
+        };
+        const hasNativeFullscreen =
+          typeof document.documentElement.requestFullscreen === "function" ||
+          typeof elWithWebkit.webkitRequestFullscreen === "function" ||
+          typeof elWithWebkit.msRequestFullscreen === "function";
+
+        // Some PWA contexts (notably iOS) don't support the Fullscreen API.
+        // Fall back to an in-app reader focus mode that still hides chrome.
+        if (!hasNativeFullscreen) {
+          setIsFullscreen((prev) => !prev);
+          return;
+        }
+
         if (isFullscreen) {
           if (document.exitFullscreen) {
             await document.exitFullscreen();
-          } else if ((document as any).webkitExitFullscreen) {
-            await (document as any).webkitExitFullscreen();
+          } else if (docWithWebkit.webkitExitFullscreen) {
+            await docWithWebkit.webkitExitFullscreen();
+          } else if (docWithWebkit.msExitFullscreen) {
+            await docWithWebkit.msExitFullscreen();
           }
         } else {
           const docEl = document.documentElement;
           if (docEl.requestFullscreen) {
             await docEl.requestFullscreen();
-          } else if ((docEl as any).webkitRequestFullscreen) {
-            await (docEl as any).webkitRequestFullscreen();
-          } else if ((docEl as any).msRequestFullscreen) {
-            await (docEl as any).msRequestFullscreen();
+          } else if (elWithWebkit.webkitRequestFullscreen) {
+            await elWithWebkit.webkitRequestFullscreen();
+          } else if (elWithWebkit.msRequestFullscreen) {
+            await elWithWebkit.msRequestFullscreen();
           }
         }
         return;
@@ -2269,6 +2339,10 @@ export function DocumentViewer({
       }
     } catch (error) {
       console.error("Failed to toggle fullscreen:", error);
+      // Browser fallback when Fullscreen API fails at runtime.
+      if (!isTauri()) {
+        setIsFullscreen((prev) => !prev);
+      }
     }
   };
 
@@ -2615,7 +2689,7 @@ export function DocumentViewer({
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      {!embedded && (
+      {!embedded && !isFullscreen && (
       <div className="flex items-center justify-between p-4 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           <button
@@ -3037,7 +3111,7 @@ export function DocumentViewer({
             documentId={currentDocument.id}
             onLoad={(toc) => handleDocumentLoad(0, toc)}
             onSelectionChange={updateSelection}
-            onContextTextChange={onPdfContextTextChange}
+            onContextTextChange={handlePdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
             initialCfi={initialJump?.kind === "epub" ? initialJump.cfi : undefined}
             onProgressChange={(percent) => {
@@ -3281,6 +3355,16 @@ export function DocumentViewer({
               }}
             />
           </div>
+        )}
+
+        {viewMode === "document" && (docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html") && (
+          <ReaderTTSControls
+            text={readerContextText}
+            className={cn(
+              "absolute z-40",
+              embedded ? "bottom-3 left-3 right-3" : "bottom-4 left-1/2 -translate-x-1/2"
+            )}
+          />
         )}
       </div>
 

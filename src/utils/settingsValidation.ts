@@ -137,6 +137,7 @@ export const QASettingsSchema = z.object({
 
 // Audio Transcription Settings Schema
 export const AudioTranscriptionSettingsSchema = z.object({
+  provider: z.enum(['local', 'groq']).default('local'),
   autoTranscription: z.boolean().default(false),
   autoTranscribeLocalVideos: z.boolean().default(true),
   preferredModelId: z.string().default('distil-small.en'),
@@ -145,6 +146,67 @@ export const AudioTranscriptionSettingsSchema = z.object({
   speakerDiarization: z.boolean().default(false),
   confidenceScores: z.boolean().default(false),
   confidenceThreshold: z.number().min(0).max(1).default(0.5),
+  groq: z.object({
+    apiKey: z.string().default(''),
+    model: z.enum(['whisper-large-v3', 'whisper-large-v3-turbo']).default('whisper-large-v3-turbo'),
+    useFreeTier: z.boolean().default(true),
+    usage: z.object({
+      lastResetDate: z.string().default(''),
+      audioSecondsProcessed: z.number().min(0).default(0),
+      requestsMade: z.number().min(0).default(0),
+    }).default({
+      lastResetDate: '',
+      audioSecondsProcessed: 0,
+      requestsMade: 0,
+    }),
+  }).default({
+    apiKey: '',
+    model: 'whisper-large-v3-turbo',
+    useFreeTier: true,
+    usage: {
+      lastResetDate: '',
+      audioSecondsProcessed: 0,
+      requestsMade: 0,
+    },
+  }),
+});
+
+export const TTSSettingsSchema = z.object({
+  schemaVersion: z.number().int().default(2),
+  enabled: z.boolean().default(false),
+  provider: z.enum(['fal', 'groq']).default('fal'),
+  requestMode: z.enum(['direct', 'proxy']).default('direct'),
+  apiKey: z.string().default(''),
+  proxyUrl: z.string().default(''),
+  modelId: z.string().default('fal-ai/qwen-3-tts/text-to-speech/1.7b'),
+  cloneModelId: z.string().default('fal-ai/qwen-3-tts/clone-voice/1.7b'),
+  groqModelId: z.string().default('playai-tts'),
+  groqResponseFormat: z.enum(['wav', 'mp3']).default('mp3'),
+  language: z.string().default('Auto'),
+  defaultVoiceId: z.string().default('fal-builtin-Vivian'),
+  defaultPresetId: z.string().default('balanced-default'),
+  voiceProfiles: z.array(z.object({
+    id: z.string(),
+    provider: z.enum(['fal', 'groq']).default('fal'),
+    name: z.string(),
+    kind: z.enum(['builtin', 'cloned']),
+    voice: z.string().optional(),
+    speakerEmbeddingUrl: z.string().optional(),
+    referenceText: z.string().optional(),
+    createdAt: z.string(),
+  })).default([]),
+  presets: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    prompt: z.string(),
+    temperature: z.number().min(0.1).max(2),
+    topP: z.number().min(0.1).max(1),
+    topK: z.number().int().min(1).max(200),
+    repetitionPenalty: z.number().min(0.9).max(2),
+    maxNewTokens: z.number().int().min(20).max(1000),
+    readonly: z.boolean(),
+  })).default([]),
 });
 
 // Integration Settings Schema
@@ -255,6 +317,7 @@ export const SettingsSchema = z.object({
   api: APISettingsSchema,
   qa: QASettingsSchema,
   audioTranscription: AudioTranscriptionSettingsSchema,
+  tts: TTSSettingsSchema,
   integrations: IntegrationSettingsSchema,
   mcpServers: MCPServerSettingsSchema,
   obsidianIntegration: ObsidianIntegrationSettingsSchema,
