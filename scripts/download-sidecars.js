@@ -81,6 +81,21 @@ function commandExists(cmd) {
   }
 }
 
+// Helper to recursively find and copy shared libraries
+function findAndCopyLibs(dir, destDir, ext) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      findAndCopyLibs(fullPath, destDir, ext);
+    } else if (entry.name.endsWith(ext)) {
+      console.log(`Copying shared library: ${entry.name}`);
+      fs.copyFileSync(fullPath, path.join(destDir, entry.name));
+    }
+  }
+}
+
 async function main() {
   const targetTriple = getTargetTriple();
   console.log(`Downloading sidecars for target: ${targetTriple}`);
@@ -162,9 +177,27 @@ async function main() {
             console.log('No NVIDIA GPU detected or nvcc not found, building for CPU...');
         }
         
-        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release ${cudaFlag}`);
+        // Build with static linking to avoid shared library issues
+        // -DBUILD_SHARED_LIBS=OFF creates a standalone binary
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ${cudaFlag}`);
         execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
         fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', path.join(BIN_DIR, whisperName));
+        
+        // Also copy any .so files if they exist (fallback for systems that need them)
+        // Search recursively in build directory for shared libraries
+        findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.so');
+        findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.so.1');
+        
+        // Try to use patchelf to set RPATH to look for libs in the same directory
+        // This allows the binary to find libwhisper.so.1 without LD_LIBRARY_PATH
+        try {
+            const whisperBinPath = path.join(BIN_DIR, whisperName);
+            console.log('Attempting to set RPATH for whisper binary...');
+            execSync(`patchelf --set-rpath '$ORIGIN' ${whisperBinPath}`, { stdio: 'ignore' });
+            console.log('RPATH set successfully.');
+        } catch (e) {
+            console.log('Note: patchelf not available, binary may need LD_LIBRARY_PATH set');
+        }
         // execSync('rm -rf whisper.cpp');
     }
 
@@ -202,19 +235,26 @@ async function main() {
         console.log('Building Whisper.cpp from source...');
         ensureWhisperSource();
         
-        // Check for CUDA
-        let cudaFlag = '';
-        try {
-            execSync('command -v nvcc');
-            console.log('NVIDIA GPU detected (nvcc found), enabling CUDA support...');
-            cudaFlag = '-DGGML_CUDA=1';
-        } catch (e) {
-            console.log('No NVIDIA GPU detected or nvcc not found, building for CPU...');
+        const isAppleSilicon = process.arch === 'arm64';
+        let gpuFlags = '';
+        
+        if (isAppleSilicon) {
+            // Apple Silicon - use Metal Performance Shaders
+            console.log('Apple Silicon detected, enabling Metal GPU support...');
+            gpuFlags = '-DGGML_METAL=1 -DGGML_METAL_EMBED_LIBRARY=ON';
+        } else {
+            // Intel Mac - check for AMD GPU (limited support)
+            console.log('Intel Mac detected, building for CPU...');
         }
         
-        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release ${cudaFlag}`);
+        // Build with static linking to avoid shared library issues
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ${gpuFlags}`);
         execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
         fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', whisperPath);
+        
+        // Also copy any .dylib files if they exist (macOS shared libraries)
+        // Search recursively in build directory for shared libraries
+        findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.dylib');
         // execSync('rm -rf whisper.cpp');
     }
 
@@ -241,7 +281,8 @@ async function main() {
       console.log('Building Whisper.cpp from source...');
       ensureWhisperSource();
 
-      execSync('cd whisper.cpp && cmake -B build');
+      // Build with static linking
+      execSync('cd whisper.cpp && cmake -B build -DBUILD_SHARED_LIBS=OFF');
       execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
 
       const candidates = [
@@ -253,6 +294,10 @@ async function main() {
         throw new Error('Failed to locate whisper-cli.exe after build');
       }
       fs.copyFileSync(binaryPath, path.join(BIN_DIR, whisperName));
+      
+      // Also copy any .dll files if they exist (Windows shared libraries)
+      // Search recursively in build directory for shared libraries
+      findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.dll');
     }
   }
 
@@ -265,6 +310,26 @@ async function main() {
   }
 
   console.log('Sidecars ready:', fs.readdirSync(BIN_DIR));
+  
+  // GPU Support Summary
+  console.log('\n=== GPU Acceleration Status ===');
+  if (platform === 'darwin') {
+    if (process.arch === 'arm64') {
+      console.log('✅ Metal GPU: ENABLED (Apple Silicon)');
+    } else {
+      console.log('⚠️  GPU: Not available (Intel Mac - CPU only)');
+    }
+  } else if (platform === 'linux') {
+    try {
+      execSync('command -v nvcc', { stdio: 'ignore' });
+      console.log('✅ CUDA GPU: ENABLED (NVIDIA)');
+    } catch (e) {
+      console.log('⚠️  GPU: Not detected - Using CPU (Install NVIDIA drivers for CUDA support)');
+    }
+  } else if (platform === 'win32') {
+    console.log('⚠️  GPU: Windows builds are CPU-only (GPU support pending)');
+  }
+  console.log('================================\n');
 }
 
 main().catch(err => {

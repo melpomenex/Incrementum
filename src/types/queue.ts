@@ -1,9 +1,20 @@
+// Document file types that support transcription
+export type DocumentFileType = 
+  | 'pdf'
+  | 'epub'
+  | 'markdown'
+  | 'html'
+  | 'youtube'
+  | 'video'
+  | 'audio'
+  | 'audiobook';
+
 // Queue and review types
 export interface QueueItem {
   id: string;
   documentId: string;
   documentTitle: string;
-  documentFileType?: string;
+  documentFileType?: DocumentFileType;
   extractId?: string;
   learningItemId?: string;
   question?: string;

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.2] - 2026-02-18
+
+### Added
+- New reusable transcription UI module (`TranscriptionButton`, queue actions, provider-key dialog, and shared service hook) for local video workflows
+- GPU capability guidance in Audio Transcription settings, including platform-specific acceleration notes
+
+### Changed
+- Refactored video transcript generation flow to use the shared transcription queue service and centralized error/status handling
+- Updated sidecar download/build pipeline to improve Whisper portability:
+  - Build with static-linking flags across Linux/macOS/Windows paths
+  - Copy discovered platform shared libraries (`.so`, `.dylib`, `.dll`) into sidecar bin output when present
+  - Auto-configure Linux Whisper binary RPATH via `patchelf` when available
+  - Enable Metal acceleration on Apple Silicon builds and keep CPU fallback on unsupported targets
+
+### Fixed
+- Improved local Whisper runtime failure messaging with explicit guidance when shared-library dependencies are missing
+- Updated bundled Linux Whisper binary used by the desktop app
+
 ## [1.9.2] - 2026-02-17
 
 ### Added

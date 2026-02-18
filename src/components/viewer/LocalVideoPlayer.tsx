@@ -30,13 +30,13 @@ import {
 import { getVideoTranscript } from '../../api/video-extracts';
 import { TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
 import {
-  enqueueVideoTranscription,
   getVideoTranscriptionStatus,
   setVideoPlaybackActive,
   subscribeVideoTranscriptionStatus,
+  getTranscriptionError,
 } from "../../lib/videoTranscriptionQueue";
-import { useSettingsStore } from "../../stores/settingsStore";
 import { isTauri } from "../../lib/tauri";
+import { TranscriptionButton } from "../transcription";
 
 interface LocalVideoPlayerProps {
   src: string; // Local file URL or blob URL
@@ -58,8 +58,6 @@ export function LocalVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
-  const { settings } = useSettingsStore();
-  const audioSettings = settings.audioTranscription;
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -756,37 +754,10 @@ export function LocalVideoPlayer({
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const handleGenerateTranscript = async () => {
-    if (!documentId) return;
-    if (!isTauri()) {
-      toast.error("Desktop app required", "Local video transcription only works in the Tauri app.");
-      return;
-    }
-    if (!documentFilePath) {
-      toast.error("Missing file path", "This video does not have a local file path.");
-      return;
-    }
-    if (audioSettings.provider === 'local' && !audioSettings.preferredModelId) {
-      toast.error("Model required", "Select a Whisper model in Settings → Audio Transcription.");
-      return;
-    }
-
-    try {
-      await enqueueVideoTranscription({
-        documentId,
-        filePath: documentFilePath,
-        provider: audioSettings.provider,
-        modelId: audioSettings.preferredModelId,
-        language: audioSettings.language || "en",
-      });
-      const message = isPlaying
-        ? "Transcription will start when playback is idle."
-        : "Your video will be transcribed in the background.";
-      toast.success("Transcription queued", message);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start transcription";
-      toast.error("Transcription failed", message);
-    }
+  const handleTranscriptComplete = () => {
+    // Refresh transcript when transcription completes
+    loadTranscript();
+    toast.success("Transcription Complete", "Your transcript is now available.");
   };
 
   const waveformBars = useMemo(() => {
@@ -1003,6 +974,7 @@ export function LocalVideoPlayer({
   const autoNeedsModel = transcriptionStatus === "needs-model";
   const autoNeedsApiKey = transcriptionStatus === "needs-api-key";
   const autoFileTooLarge = transcriptionStatus === "file-too-large";
+  const transcriptionError = autoFailed && documentId ? getTranscriptionError(documentId) : null;
 
   return (
     <div
@@ -1366,45 +1338,28 @@ export function LocalVideoPlayer({
                         Transcribing in the background…
                       </div>
                     )}
-                    {isTauri() && autoNeedsModel && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
-                        <p className="font-medium">Model required for transcription</p>
-                        <p className="mt-1 text-amber-800/90">
-                          Download a model in Settings → Audio Transcription to enable transcription.
-                        </p>
-                      </div>
-                    )}
-                    {autoNeedsApiKey && (
-                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-xs text-orange-900">
-                        <p className="font-medium">Groq API key required</p>
-                        <p className="mt-1 text-orange-800/90">
-                          Add your Groq API key in Settings → Audio Transcription to use cloud transcription.
-                        </p>
-                      </div>
-                    )}
-                    {autoFileTooLarge && (
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
-                        <p className="font-medium">File too large</p>
-                        <p className="mt-1 text-blue-800/90">
-                          {isTauri() 
-                            ? "This video exceeds Groq's 25MB free tier limit. Switch to Local Whisper in settings."
-                            : "This video is too large to transcribe in the web app. Please use the desktop app for large files."}
-                        </p>
-                      </div>
-                    )}
-                    {autoFailed && (
+                    {autoFailed && !autoNeedsApiKey && !autoNeedsModel && (
                       <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-                        Background transcription failed. You can try again manually.
+                        <p className="font-medium">Transcription failed</p>
+                        {transcriptionError && (
+                          <p className="mt-1 opacity-90">{transcriptionError}</p>
+                        )}
+                        <p className="mt-1">Click the button below to try again.</p>
                       </div>
                     )}
-                    <p className="text-sm">No transcript available for this video.</p>
-                    <button
-                      onClick={handleGenerateTranscript}
-                      disabled={autoInProgress || !documentId}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-                    >
-                      Generate Transcript
-                    </button>
+                    <p className="text-sm">No transcript available for this {mediaType === "audio" ? "audio" : "video"}.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Generate an AI transcript to read along and create extracts.
+                    </p>
+                    {documentId && (
+                      <TranscriptionButton
+                        documentId={documentId}
+                        documentTitle={title}
+                        filePath={documentFilePath ?? undefined}
+                        onComplete={handleTranscriptComplete}
+                        showStatus
+                      />
+                    )}
                   </div>
                 </div>
               ) : (
