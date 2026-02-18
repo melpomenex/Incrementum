@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link2 } from "lucide-react";
+import { Link2, Mic, CheckCircle2 } from "lucide-react";
 import { useDocumentStore } from "../stores";
 import { EnhancedFilePicker } from "../components/documents/EnhancedFilePicker";
 import type { ImportSource } from "../components/documents/EnhancedFilePicker";
+import { TranscriptionButton } from "../components/transcription";
+import { isTranscribableFileType } from "../components/transcription/TranscriptionQueueActions";
+import type { Document } from "../types/document";
 
 export function Documents() {
   const navigate = useNavigate();
@@ -205,64 +208,11 @@ export function Documents() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {documents.map((doc) => (
-            <div
+            <DocumentCard
               key={doc.id}
+              doc={doc}
               onClick={() => navigate(`/documents/${doc.id}`)}
-              className="p-4 bg-card border border-border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-semibold text-foreground line-clamp-2">
-                  {doc.title}
-                </h3>
-                <span className="text-xl">
-                  {doc.fileType === "pdf" && "📕"}
-                  {doc.fileType === "epub" && "📖"}
-                  {doc.fileType === "markdown" && "📝"}
-                  {doc.fileType === "html" && "🌐"}
-                  {doc.fileType === "youtube" && "📺"}
-                </span>
-              </div>
-
-              {doc.category && (
-                <div className="mb-2">
-                  <span className="inline-block px-2 py-1 text-xs bg-muted text-muted-foreground rounded">
-                    {doc.category}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  {doc.extractCount} extracts
-                </span>
-                <span>
-                  {doc.learningItemCount} cards
-                </span>
-              </div>
-
-              {doc.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {doc.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {doc.tags.length > 3 && (
-                    <span className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded">
-                      +{doc.tags.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                <span>Added {new Date(doc.dateAdded).toLocaleDateString()}</span>
-                {doc.isFavorite && <span>⭐</span>}
-              </div>
-            </div>
+            />
           ))}
         </div>
       )}
@@ -276,5 +226,125 @@ export function Documents() {
       />
     )}
   </>
+  );
+}
+
+/**
+ * Document Card Component
+ * 
+ * Displays a document with optional transcription action
+ */
+function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) {
+  const [showTranscription, setShowTranscription] = useState(false);
+  
+  const isTranscribable = isTranscribableFileType(doc.fileType as any);
+  
+  const getFileTypeIcon = (fileType?: string) => {
+    switch (fileType) {
+      case "pdf": return "📕";
+      case "epub": return "📖";
+      case "markdown": return "📝";
+      case "html": return "🌐";
+      case "youtube": return "📺";
+      case "video": return "🎬";
+      case "audio": return "🎵";
+      case "audiobook": return "🎧";
+      default: return "📄";
+    }
+  };
+
+  return (
+    <div className="p-4 bg-card border border-border rounded-lg hover:shadow-md transition-shadow">
+      {/* Clickable area */}
+      <div 
+        onClick={onClick}
+        className="cursor-pointer"
+      >
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-semibold text-foreground line-clamp-2">
+            {doc.title}
+          </h3>
+          <span className="text-xl">{getFileTypeIcon(doc.fileType)}</span>
+        </div>
+
+        {doc.category && (
+          <div className="mb-2">
+            <span className="inline-block px-2 py-1 text-xs bg-muted text-muted-foreground rounded">
+              {doc.category}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>{doc.extractCount} extracts</span>
+          <span>{doc.learningItemCount} cards</span>
+        </div>
+
+        {doc.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {doc.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
+              >
+                {tag}
+              </span>
+            ))}
+            {doc.tags.length > 3 && (
+              <span className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded">
+                +{doc.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Transcription Action (separate from click area) */}
+      {isTranscribable && (
+        <div className="mt-3 pt-3 border-t border-border">
+          {!showTranscription ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTranscription(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+            >
+              <Mic className="w-4 h-4" />
+              <span>Transcribe</span>
+            </button>
+          ) : (
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-2"
+            >
+              <TranscriptionButton
+                documentId={doc.id}
+                documentTitle={doc.title}
+                size="sm"
+                variant="outline"
+                showStatus
+              />
+              <button
+                onClick={() => setShowTranscription(false)}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+                title="Hide"
+              >
+                <span className="text-xs">✕</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div 
+        onClick={onClick}
+        className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground cursor-pointer"
+      >
+        <span>Added {new Date(doc.dateAdded).toLocaleDateString()}</span>
+        {doc.isFavorite && <span>⭐</span>}
+      </div>
+    </div>
   );
 }

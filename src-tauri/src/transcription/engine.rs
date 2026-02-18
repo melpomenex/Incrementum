@@ -160,7 +160,11 @@ impl TranscriptionEngine {
             let stderr_clean = stderr_buf.trim();
             let stdout_clean = stdout_buf.trim();
             let msg = if !stderr_clean.is_empty() {
-                format!("Whisper transcription failed: {}", stderr_clean)
+                if stderr_clean.contains("libwhisper.so") || stderr_clean.contains("Shared library") {
+                    format!("Whisper binary missing dependencies. Please run: ./fix-whisper.sh\nDetails: {}", stderr_clean)
+                } else {
+                    format!("Whisper transcription failed: {}", stderr_clean)
+                }
             } else if !stdout_clean.is_empty() {
                 format!("Whisper transcription failed (stdout): {}", stdout_clean)
             } else {

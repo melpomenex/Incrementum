@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download } from "lucide-react";
+import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download, FileAudio, FileVideo } from "lucide-react";
 import { useQueueStore } from "../stores";
 import { QueueStatsDisplay } from "../components/queue/QueueStats";
 import { BulkActionBar } from "../components/queue/BulkActionBar";
@@ -9,6 +9,7 @@ import { ExportQueueDialog } from "../components/queue/ExportQueueDialog";
 import { DynamicVirtualList } from "../components/common/VirtualList";
 import type { QueueItem } from "../types/queue";
 import { updateDocumentPriority } from "../api/documents";
+import { TranscriptionQueueActions, TranscriptionQueueIndicator, isTranscribableFileType } from "../components/transcription/TranscriptionQueueActions";
 
 export function Queue() {
   const navigate = useNavigate();
@@ -84,7 +85,16 @@ export function Queue() {
     await bulkDelete();
   };
 
-  const getItemIcon = (itemType: QueueItem["itemType"]) => {
+  const getItemIcon = (itemType: QueueItem["itemType"], fileType?: string) => {
+    // Use specific icons for video/audio content
+    if (isTranscribableFileType(fileType as QueueItem["documentFileType"])) {
+      if (fileType === 'audio' || fileType === 'audiobook') {
+        return "🎵";
+      }
+      if (fileType === 'video' || fileType === 'youtube') {
+        return "🎬";
+      }
+    }
     switch (itemType) {
       case "document":
         return "📄";
@@ -346,7 +356,7 @@ export function Queue() {
                   </button>
 
                   {/* Icon */}
-                  <div className="text-2xl flex-shrink-0">{getItemIcon(item.itemType)}</div>
+                  <div className="text-2xl flex-shrink-0">{getItemIcon(item.itemType, item.documentFileType)}</div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
@@ -377,6 +387,11 @@ export function Queue() {
                               {formatDate(item.dueDate)}
                             </span>
                           )}
+                          {/* Transcription status indicator */}
+                          <TranscriptionQueueIndicator 
+                            documentId={item.documentId}
+                            fileType={item.documentFileType}
+                          />
                         </div>
 
                         {/* Progress bar */}
@@ -401,7 +416,18 @@ export function Queue() {
                   </div>
 
                   {item.itemType === "document" && (
-                    <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+                    <div className="mt-3 space-y-3">
+                      {/* Transcription actions for video/audio */}
+                      {isTranscribableFileType(item.documentFileType) && (
+                        <TranscriptionQueueActions
+                          documentId={item.documentId}
+                          documentTitle={item.documentTitle}
+                          fileType={item.documentFileType}
+                          compact
+                        />
+                      )}
+                      
+                      <div className="rounded-md border border-border bg-muted/30 p-3">
                       <div className="flex flex-wrap items-center gap-4">
                         <div>
                           <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -476,6 +502,7 @@ export function Queue() {
                           />
                         </div>
                       </div>
+                    </div>
                     </div>
                   )}
 

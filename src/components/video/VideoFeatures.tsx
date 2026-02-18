@@ -24,12 +24,13 @@ import { invokeCommand } from '../../lib/tauri';
 import { useDocumentStore } from '../../stores/documentStore';
 import { getDocument } from '../../api/documents';
 import { getVideoTranscript } from '../../api/video-extracts';
-import { enqueueVideoTranscription, getVideoTranscriptionStatus, subscribeVideoTranscriptionStatus } from '../../lib/videoTranscriptionQueue';
+import { getVideoTranscriptionStatus, subscribeVideoTranscriptionStatus, getTranscriptionError } from '../../lib/videoTranscriptionQueue';
 import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useToast } from '../common/Toast';
 import { isTauri } from '../../lib/tauri';
 import { isGroqConfigured } from '../../api/groqTranscription';
+import { TranscriptionButton } from '../transcription';
 
 interface VideoBookmark {
   id: string;
@@ -466,8 +467,6 @@ interface TranscriptViewProps {
 function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSeek }: TranscriptViewProps) {
   const [transcript, setTranscript] = useState<VideoTranscriptSegment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
   const [autoStatus, setAutoStatus] = useState<ReturnType<typeof getVideoTranscriptionStatus>>(null);
   const { settings, updateSettings } = useSettingsStore();
   const audioSettings = settings.audioTranscription;
@@ -543,43 +542,9 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
     return unsubscribe;
   }, [documentId, loadTranscript]);
 
-  const handleGenerateTranscript = async () => {
-    if (selectedProvider === 'local' && !isTauri()) {
-      toast.error("Desktop app required", "Local video transcription only works in the Tauri app.");
-      return;
-    }
-    if (!filePath) {
-      toast.error("Missing file path", "This video does not have a local file path.");
-      return;
-    }
-    if (selectedProvider === 'local' && !selectedModel) {
-      toast.error("Model required", "Select a Whisper model in Settings → Audio Transcription.");
-      return;
-    }
-    if (selectedProvider === 'groq' && !isGroqConfigured()) {
-      toast.error("Groq API key required", "Add your Groq API key in Settings → Audio Transcription.");
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationError(null);
-    try {
-      await enqueueVideoTranscription({
-        documentId,
-        filePath,
-        documentTitle,
-        provider: selectedProvider,
-        modelId: selectedProvider === 'local' ? selectedModel : undefined,
-        language,
-      });
-      toast.success("Transcription queued", "Your video will be transcribed in the background.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to generate transcript";
-      setGenerationError(message);
-      toast.error("Transcription failed", message);
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleTranscriptComplete = () => {
+    loadTranscript();
+    toast.success("Transcription Complete", "Your transcript is now available.");
   };
 
   if (loading) {
@@ -595,6 +560,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
   const autoNeedsModel = autoStatus === "needs-model";
   const autoNeedsApiKey = autoStatus === "needs-api-key";
   const autoFileTooLarge = autoStatus === "file-too-large";
+  const transcriptionError = autoFailed ? getTranscriptionError(documentId) : null;
 
   if (transcript.length === 0) {
     return (
@@ -734,43 +700,31 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
               </label>
             </div>
 
-            <button
-              onClick={handleGenerateTranscript}
-              disabled={isGenerating || autoInProgress || !filePath}
-              className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Transcribing…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate Transcript
-                </>
-              )}
-            </button>
+            <TranscriptionButton
+              documentId={documentId}
+              documentTitle={documentTitle}
+              filePath={filePath}
+              onComplete={handleTranscriptComplete}
+              showStatus
+            />
 
             <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
               <Info className="mt-0.5 h-4 w-4 text-primary" />
               <div>
                 <p className="text-xs">
-                  Models are managed in <span className="font-medium text-foreground">Settings → Audio Transcription</span>.
+                  Full transcription settings are available in <span className="font-medium text-foreground">Settings → Audio Transcription</span>.
                   {documentTitle ? ` This transcript will be saved to “${documentTitle}”.` : " Transcript is saved to this video."}
                 </p>
               </div>
             </div>
 
-            {generationError && (
+            {autoFailed && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-                {generationError}
-              </div>
-            )}
-
-            {autoFailed && !generationError && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-                Background transcription failed. You can try again manually.
+                <p className="font-medium">Transcription failed</p>
+                {transcriptionError && (
+                  <p className="mt-1 opacity-90">{transcriptionError}</p>
+                )}
+                <p className="mt-1">You can try again by clicking the button above.</p>
               </div>
             )}
           </div>

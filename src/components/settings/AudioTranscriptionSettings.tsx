@@ -405,6 +405,29 @@ export function AudioTranscriptionSettings() {
                 <span>AVX/AVX2 support required</span>
               </div>
             </div>
+            
+            {/* GPU Support Info */}
+            <div className="pt-3 border-t border-border">
+              <p className="text-xs font-medium text-foreground mb-2">GPU Acceleration</p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span><strong>Apple Silicon (M1/M2/M3):</strong> Metal GPU acceleration enabled automatically</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span><strong>Linux + NVIDIA:</strong> CUDA acceleration enabled if drivers installed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  <span><strong>Windows:</strong> CPU only (GPU support coming soon)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                  <span><strong>Intel Mac:</strong> CPU only (no Metal on Intel)</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

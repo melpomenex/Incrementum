@@ -50,6 +50,7 @@ type StatusListener = (status: VideoTranscriptionStatus) => void;
 
 const queue: VideoTranscriptionJob[] = [];
 const statusByDocument = new Map<string, VideoTranscriptionStatus>();
+const errorByDocument = new Map<string, string>(); // Store error messages
 const listenersByDocument = new Map<string, Set<StatusListener>>();
 const activePlaybackDocuments = new Set<string>();
 const documentTitles = new Map<string, string>(); // Store titles for notifications
@@ -225,6 +226,10 @@ async function processNext() {
     showCompletionToast(job.documentId, job.provider, true);
   } catch (error) {
     console.error("Transcription failed:", error);
+    // Capture the error message for display
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    errorByDocument.set(job.documentId, errorMessage);
+    
     // Only set to failed if not already set to a specific error state
     const currentStatus = statusByDocument.get(job.documentId);
     if (currentStatus === "processing") {
@@ -274,6 +279,9 @@ export async function enqueueVideoTranscription(request: VideoTranscriptionReque
   }
   
   const settings = useSettingsStore.getState().settings.audioTranscription;
+  
+  // Clear any previous error for this document
+  errorByDocument.delete(request.documentId);
   
   // Store document title for notifications
   if (request.documentTitle) {
@@ -338,13 +346,21 @@ export function subscribeVideoTranscriptionStatus(
 }
 
 /**
+ * Get the last error message for a document's transcription
+ */
+export function getTranscriptionError(documentId: string): string | null {
+  return errorByDocument.get(documentId) ?? null;
+}
+
+/**
  * Retry a failed transcription job
  */
 export async function retryVideoTranscription(documentId: string) {
   const currentStatus = statusByDocument.get(documentId);
   if (currentStatus === 'failed' || currentStatus === 'needs-api-key' || currentStatus === 'file-too-large') {
-    // Clear the status to allow retry
+    // Clear the status and error to allow retry
     statusByDocument.delete(documentId);
+    errorByDocument.delete(documentId);
   }
 }
 
