@@ -214,7 +214,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci --target aarch64-apple-ios-sim --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci --target aarch64-sim --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Collect iOS output summary
         if: always()
