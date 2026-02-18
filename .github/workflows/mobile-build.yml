@@ -76,11 +76,21 @@ jobs:
             exit 1
           fi
 
+      - name: Create mobile CI Tauri config override
+        run: |
+          cat > src-tauri/tauri.mobile-ci.conf.json <<'JSON'
+          {
+            "bundle": {
+              "externalBin": []
+            }
+          }
+          JSON
+
       - name: Build Android app bundle
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- android build --ci 2>&1 | tee artifacts/mobile-logs/android-build.log
+          npm run tauri -- android build --ci --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Collect Android output summary
         if: always()
@@ -157,6 +167,16 @@ jobs:
             exit 1
           fi
 
+      - name: Create mobile CI Tauri config override
+        run: |
+          cat > src-tauri/tauri.mobile-ci.conf.json <<'JSON'
+          {
+            "bundle": {
+              "externalBin": []
+            }
+          }
+          JSON
+
       - name: Decide iOS build mode (signed vs simulator)
         id: ios_mode
         env:
@@ -187,14 +207,14 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Build iOS app (simulator fallback)
         if: steps.ios_mode.outputs.mode == 'simulator'
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci --simulator 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci --target aarch64-apple-ios-sim --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Collect iOS output summary
         if: always()
