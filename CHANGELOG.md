@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.3] - 2026-02-19
+
+### Added
+- Duration-aware long-form scheduling safety cap for videos/articles on positive ratings (`Good`/`Easy`):
+  - `<25%` coverage of estimated content duration: cap next interval to `1 day`
+  - `<50%` coverage: cap to `2 days`
+  - `<75%` coverage: cap to `4 days`
+  - Scheduler reason now appends a `Duration-aware cap` transparency note when applied
+- User-facing documentation for long-form safety caps in:
+  - `docs/USER_HANDBOOK.md`
+  - `docs/FEATURES_IMPLEMENTED.md`
+- Lightweight LaTeX expression rendering in markdown content paths:
+  - Display delimiters: `$$...$$`, `\[...\]`
+  - Inline delimiters: `$...$`, `\(...\)`
+  - Inline/fenced code protections so code blocks are not math-rendered
+- Math presentation styles for rendered expressions (`.math-expression`, fraction/sqrt formatting)
+- OpenSpec change package for these updates:
+  - `add-latex-rendering-and-duration-aware-scheduling`
+
+### Changed
+- Improved PDF loading strategy in Tauri/WebKitGTK environments:
+  - Added source fallback behavior (`fileUrl`/`fileData`) and safer worker handling
+  - Added large-document page virtualization windowing and spacer-based layout for better performance
+- Improved EPUB loading flexibility with URL-or-buffer source support
+- Document viewer loading flow now separates PDF/EPUB source handling more explicitly (including Tauri-specific paths)
+- RSS Scroll Mode enhancements for filtered navigation:
+  - Added favorites-only projection and index synchronization against visible items
+
+### Fixed
+- Restored ability to open external links via shell capability (`shell:allow-open`)
+- Removed aggressive webview force-close behavior in tab content switching path to reduce tab-switch instability
+
 ## [1.10.2] - 2026-02-18
 
 ### Added

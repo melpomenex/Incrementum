@@ -3,6 +3,8 @@
  * Supports: headers, lists, tables, code blocks, blockquotes, links, bold, italic, etc.
  */
 
+import { latexToHTML } from "./mathOcr";
+
 export interface RenderMarkdownOptions {
   /** Document ID for resolving bundle images */
   docId?: string;
@@ -77,8 +79,32 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
     return `@@CODEBLOCK_${index}@@`;
   });
 
+  const renderDisplayLatex = (value: string) =>
+    value
+      // \[ ... \]
+      .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression) => {
+        const rendered = latexToHTML(expression.trim());
+        return `<div class="math-expression-block">${rendered}</div>`;
+      })
+      // $$ ... $$
+      .replace(/\$\$([\s\S]*?)\$\$/g, (_match, expression) => {
+        const rendered = latexToHTML(expression.trim());
+        return `<div class="math-expression-block">${rendered}</div>`;
+      });
+
   const formatInline = (value: string) => {
     let formatted = value;
+
+    // Protect inline code so math parsing does not rewrite code snippets.
+    const inlineCodeSegments: string[] = [];
+    formatted = formatted.replace(/`([^`]+)`/g, (_match, code) => {
+      const index = inlineCodeSegments.length;
+      inlineCodeSegments.push(
+        `<code class="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">${code}</code>`
+      );
+      return `@@INLINECODE_${index}@@`;
+    });
+
     // Images - with path resolution for bundle images
     formatted = formatted.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/g,
@@ -87,8 +113,22 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
         return `<img class="max-w-full h-auto my-2 rounded border border-border" src="${resolvedPath}" alt="${alt}" onerror="this.style.display='none'" />`;
       }
     );
-    // Inline code
-    formatted = formatted.replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">$1</code>');
+
+    // Inline LaTeX: \( ... \)
+    formatted = formatted.replace(/\\\((.+?)\\\)/g, (_match, expression) => {
+      return latexToHTML(expression.trim());
+    });
+
+    // Inline LaTeX: $...$ (conservative to reduce false positives like currency)
+    formatted = formatted.replace(/(^|[^\\])\$([^\$\n]+?)\$/g, (match, prefix, expression) => {
+      const expr = expression.trim();
+      const likelyMath = /\\[a-zA-Z]+|[=^_{}]|[+\-*/<>]|[α-ωΑ-Ω∫∑∏√∞±×÷≈≠≤≥]/.test(expr);
+      if (!likelyMath) {
+        return match;
+      }
+      return `${prefix}${latexToHTML(expr)}`;
+    });
+
     // Links
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid" href="$2" target="_blank" rel="noreferrer">$1</a>');
     // Bold
@@ -97,10 +137,17 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
     formatted = formatted.replace(/\b_(.+?)_\b/g, "<em>$1</em>");
     // Italic (asterisk)
     formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+    // Restore protected inline code
+    inlineCodeSegments.forEach((codeHtml, index) => {
+      formatted = formatted.replace(`@@INLINECODE_${index}@@`, codeHtml);
+    });
+
     return formatted;
   };
 
-  const lines = withPlaceholders.split(/\r?\n/);
+  const withDisplayMath = renderDisplayLatex(withPlaceholders);
+  const lines = withDisplayMath.split(/\r?\n/);
   let html = "";
   let listType: "ul" | "ol" | null = null;
   let blockquoteLines: string[] = [];

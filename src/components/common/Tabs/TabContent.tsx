@@ -1,8 +1,5 @@
-import { Suspense, lazy, ComponentType, useEffect, createContext, useContext } from "react";
-import { Webview } from "@tauri-apps/api/webview";
-import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
-import { useTabsStore, type Tab } from "../../../stores";
-import { isTauri } from "../../../lib/tauri";
+import { Suspense, createContext, useContext } from "react";
+import { type Tab } from "../../../stores";
 
 interface TabContentProps {
   tabs: Tab[];
@@ -53,43 +50,6 @@ function EmptyState() {
 
 export function TabContent({ tabs, activeTabId, paneId }: TabContentProps) {
   const activeTab = tabs.find((t) => t.id === activeTabId);
-
-  useEffect(() => {
-    // When NOT on the web-browser tab, forcefully hide and close any webview
-    if (activeTab?.type !== "web-browser" && isTauri()) {
-      const hideWebview = async () => {
-        try {
-          const webviews = await Webview.getAll();
-          for (const webview of webviews) {
-            if (webview.label === "web-browser") {
-              console.log("Hiding web-browser webview due to tab switch");
-              try {
-                await webview.setPosition(new LogicalPosition(-10000, -10000));
-                await webview.setSize(new LogicalSize(1, 1));
-              } catch (e) {
-                console.warn("Failed to reposition webview:", e);
-              }
-              try {
-                await webview.hide();
-              } catch (e) {
-                console.warn("Failed to hide webview:", e);
-              }
-              try {
-                await webview.close();
-                console.log("Closed web-browser webview");
-              } catch (e) {
-                console.warn("Failed to close webview:", e);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("Failed to get webviews:", e);
-        }
-      };
-
-      void hideWebview();
-    }
-  }, [activeTab?.type]);
 
   if (!activeTab) {
     return <EmptyState />;

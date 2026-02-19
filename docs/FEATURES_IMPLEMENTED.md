@@ -65,6 +65,7 @@ Complete list of Incrementum features and their implementation status.
 |---------|--------|-------------|
 | Review Queue | ✅ Implemented | Daily due cards with filtering |
 | Preview Intervals | ✅ Implemented | See next review date before rating |
+| Long-Form Duration Safety Cap | ✅ Implemented | Coverage-aware interval caps for long videos/articles on Good/Easy ratings |
 | Keyboard Shortcuts | ✅ Implemented | Space to reveal, 1-4 to rate |
 | Session Statistics | ✅ Implemented | Track cards reviewed, time spent |
 | Session Limits | ✅ Implemented | Time and card count limits |

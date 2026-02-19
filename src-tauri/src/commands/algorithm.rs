@@ -11,10 +11,92 @@ use crate::algorithms::{
 use crate::commands::review::RepositoryExt;
 use crate::error::Result;
 use crate::database::Repository;
-use crate::models::ReviewRating;
+use crate::models::{Document, FileType, ReviewRating};
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use chrono::Utc;
+use chrono::{Duration, Utc};
+
+const LONG_CONTENT_THRESHOLD_SECONDS: f64 = 20.0 * 60.0; // 20 minutes
+
+fn estimate_expected_duration_seconds(document: &Document) -> Option<f64> {
+    match document.file_type {
+        FileType::Youtube | FileType::Video => {
+            // For imported YouTube/video docs we reuse the existing duration-like field.
+            let duration_seconds = document.total_pages.unwrap_or(0);
+            if duration_seconds > 0 {
+                Some(duration_seconds as f64)
+            } else {
+                None
+            }
+        }
+        FileType::Html | FileType::Markdown | FileType::Epub | FileType::Pdf => {
+            let word_count = document
+                .metadata
+                .as_ref()
+                .and_then(|m| m.word_count)
+                .or_else(|| {
+                    document
+                        .content
+                        .as_ref()
+                        .map(|content| content.split_whitespace().count() as i32)
+                })
+                .unwrap_or(0);
+
+            if word_count <= 0 {
+                return None;
+            }
+
+            // Reading-time heuristic: ~200 words/minute.
+            Some((word_count as f64 / 200.0) * 60.0)
+        }
+        _ => None,
+    }
+}
+
+fn duration_aware_interval_cap_days(
+    document: &Document,
+    rating: ReviewRating,
+    time_taken_seconds: Option<i32>,
+    current_interval_days: i64,
+) -> Option<(i64, String)> {
+    if !matches!(rating, ReviewRating::Good | ReviewRating::Easy) {
+        return None;
+    }
+
+    let observed_seconds = time_taken_seconds.unwrap_or(0);
+    if observed_seconds <= 0 {
+        return None;
+    }
+
+    let expected_seconds = estimate_expected_duration_seconds(document)?;
+    if expected_seconds < LONG_CONTENT_THRESHOLD_SECONDS {
+        return None;
+    }
+
+    let coverage_ratio = (observed_seconds as f64 / expected_seconds).clamp(0.0, 1.0);
+
+    let cap_days = if coverage_ratio < 0.25 {
+        1
+    } else if coverage_ratio < 0.50 {
+        2
+    } else if coverage_ratio < 0.75 {
+        4
+    } else {
+        return None;
+    };
+
+    if current_interval_days <= cap_days {
+        return None;
+    }
+
+    let reason = format!(
+        "Duration-aware cap: {:.0}% coverage on long-form content (capped to {}d)",
+        coverage_ratio * 100.0,
+        cap_days
+    );
+
+    Some((cap_days, reason))
+}
 
 /// SM-2 calculation parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,12 +214,24 @@ pub async fn rate_document(
     let current_interval_days = document.stability.map(|s| s as i64);
 
     // Schedule the document using the incremental scheduler
-    let result = scheduler.schedule_item(
+    let mut result = scheduler.schedule_item(
         review_rating,
         current_interval_days,
         consecutive_good_count,
         consecutive_hard_count,
     );
+
+    if let Some((cap_days, reason)) = duration_aware_interval_cap_days(
+        &document,
+        review_rating,
+        request.time_taken,
+        result.interval_days,
+    ) {
+        result.interval_days = cap_days;
+        result.next_review = Utc::now() + Duration::days(cap_days);
+        result.stability = cap_days as f64;
+        result.scheduling_reason = format!("{}; {}", result.scheduling_reason, reason);
+    }
 
     // Update the document with new scheduling data
     let new_reps = document.reps.unwrap_or(0) + 1;
@@ -198,13 +292,25 @@ pub async fn rate_document_engaging(
     let review_count = document.reps.unwrap_or(0);
 
     // Schedule using engaging FSRS-6
-    let result = scheduler.schedule_item(
+    let mut result = scheduler.schedule_item(
         review_rating,
         current_stability,
         current_difficulty,
         elapsed_days,
         review_count,
     )?;
+
+    if let Some((cap_days, reason)) = duration_aware_interval_cap_days(
+        &document,
+        review_rating,
+        request.time_taken,
+        result.interval_days,
+    ) {
+        result.interval_days = cap_days;
+        result.next_review = Utc::now() + Duration::days(cap_days);
+        result.stability = cap_days as f64;
+        result.scheduling_reason = format!("{}; {}", result.scheduling_reason, reason);
+    }
 
     // Update the document with new scheduling data
     let new_reps = review_count + 1;
