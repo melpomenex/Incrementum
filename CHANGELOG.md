@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Restored ability to open external links via shell capability (`shell:allow-open`)
 - Removed aggressive webview force-close behavior in tab content switching path to reduce tab-switch instability
+- Aligned `src-tauri/Cargo.toml` version with `1.10.3` to satisfy tag/version validation in CI release workflows
+- Mobile CI now also triggers on `v*` tag pushes so release tags run desktop and mobile validation together
 
 ## [1.10.2] - 2026-02-18
 
