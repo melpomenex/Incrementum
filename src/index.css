@@ -580,4 +580,42 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+
+  /* Lightweight LaTeX preview styles used by markdown rendering */
+  .math-expression {
+    display: inline-block;
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 1.05em;
+    line-height: 1.4;
+  }
+
+  .math-expression-block {
+    display: flex;
+    justify-content: center;
+    margin: 0.75rem 0;
+    text-align: center;
+  }
+
+  .math-expression .fraction {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    margin: 0 0.15em;
+  }
+
+  .math-expression .fraction .numerator {
+    border-bottom: 1px solid currentColor;
+    padding: 0 0.2em;
+  }
+
+  .math-expression .fraction .denominator {
+    padding: 0 0.2em;
+  }
+
+  .math-expression .sqrt .radicand {
+    border-top: 1px solid currentColor;
+    margin-left: 0.1em;
+    padding: 0 0.15em;
+  }
 }

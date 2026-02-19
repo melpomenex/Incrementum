@@ -214,6 +214,8 @@ export function DocumentViewer({
   const [scale, setScale] = useState(1.0);
   const [zoomMode, setZoomMode] = useState<"custom" | "fit-width" | "fit-page">("fit-width");
   const [fileData, setFileData] = useState<Uint8Array | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [epubUrl, setEpubUrl] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const mediaSrcRef = useRef<string | null>(null);
@@ -916,22 +918,43 @@ export function DocumentViewer({
     }
     mediaSrcRef.current = null;
     setMediaSrc(null);
+    setPdfUrl(null);
+    setEpubUrl(null);
 
     if (needsFileData) {
       setFileData(null);
       try {
-        // Read file through Tauri backend instead of fetch
-        const base64Data = await documentsApi.readDocumentFile(doc.filePath);
+        // For PDFs in Tauri, load file data directly via backend command.
+        // The convertFileSrc URL approach causes WebKit errors on Linux (WebKitGTK).
+        if (inferredType === "pdf" && isTauri()) {
+          // Load PDF data directly via backend to avoid WebKit asset protocol issues
+          const base64Data = await documentsApi.readDocumentFile(doc.filePath);
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          console.log("[DocumentViewer] PDF data loaded via backend, size:", bytes.byteLength);
+          setFileData(bytes);
+        } else if (inferredType === "epub" && isTauri()) {
+          // EPUBs can use URL-based loading as they handle it differently
+          const url = await convertFileSrc(doc.filePath);
+          setEpubUrl(url);
+          console.log("[DocumentViewer] Using Tauri asset URL for EPUB:", url);
+        } else {
+          // Web/PWA: Read file through backend when byte buffer is required
+          const base64Data = await documentsApi.readDocumentFile(doc.filePath);
 
-        // Convert base64 to bytes for viewer consumption
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+          // Convert base64 to bytes for viewer consumption
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          console.log("[DocumentViewer] File data loaded successfully, size:", bytes.byteLength);
+          setFileData(bytes);
         }
-
-        console.log("[DocumentViewer] File data loaded successfully, size:", bytes.byteLength);
-        setFileData(bytes);
       } catch (error) {
         console.error(`Failed to load ${inferredType}:`, error);
       } finally {
@@ -1030,31 +1053,34 @@ export function DocumentViewer({
       setIsLoading(false);
     }
 
-    // Auto-extract content if enabled
-    if (isAutoExtractEnabled() && doc.filePath) {
-      try {
-        console.log("[DocumentViewer] Auto-extracting content...");
-        const extractionResult = await autoExtractWithCache(
-          doc.id,
-          doc.filePath,
-          inferredType
-        );
+    // Auto-extract should never block document open. Keep PDF opens lightweight and
+    // defer extraction to explicit actions (OCR toggle) to avoid UI lock-ups.
+    if (isAutoExtractEnabled() && doc.filePath && inferredType !== "pdf") {
+      void (async () => {
+        try {
+          console.log("[DocumentViewer] Auto-extracting content...");
+          const extractionResult = await autoExtractWithCache(
+            doc.id,
+            doc.filePath,
+            inferredType
+          );
 
-        // Store extraction result for use in the UI
-        if (extractionResult.text || extractionResult.keyPhrases.length > 0) {
-          console.log("[DocumentViewer] Extraction result:", {
-            textLength: extractionResult.text.length,
-            keyPhrases: extractionResult.keyPhrases.length,
-            mathExpressions: extractionResult.mathExpressions.length,
-            ocrUsed: extractionResult.ocrUsed,
-          });
+          // Store extraction result for use in the UI
+          if (extractionResult.text || extractionResult.keyPhrases.length > 0) {
+            console.log("[DocumentViewer] Extraction result:", {
+              textLength: extractionResult.text.length,
+              keyPhrases: extractionResult.keyPhrases.length,
+              mathExpressions: extractionResult.mathExpressions.length,
+              ocrUsed: extractionResult.ocrUsed,
+            });
+          }
+          if (extractionResult.ocrUsed && extractionResult.text) {
+            setOcrContextText(extractionResult.text);
+          }
+        } catch (error) {
+          console.error("[DocumentViewer] Auto-extract failed:", error);
         }
-        if (extractionResult.ocrUsed && extractionResult.text) {
-          setOcrContextText(extractionResult.text);
-        }
-      } catch (error) {
-        console.error("[DocumentViewer] Auto-extract failed:", error);
-      }
+      })();
     }
   }, []);
 
@@ -3070,7 +3096,7 @@ export function DocumentViewer({
           <div className="p-6 bg-background h-full overflow-auto">
             <LearningCardsList documentId={currentDocument.id} />
           </div>
-        ) : docType === "pdf" && fileData ? (
+        ) : docType === "pdf" && (fileData || pdfUrl) ? (
           pdfViewMode === "ocr-html" && ocrResult ? (
             <div className="reading-surface min-h-[500px]">
               <h1 className="reading-title">{currentDocument.title}</h1>
@@ -3082,6 +3108,7 @@ export function DocumentViewer({
           <PDFViewer
             documentId={currentDocument.id}
             fileData={fileData}
+            fileUrl={pdfUrl}
             pageNumber={pageNumber}
             scale={scale}
             zoomMode={zoomMode}
@@ -3104,9 +3131,10 @@ export function DocumentViewer({
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
           />
           )
-        ) : docType === "epub" && fileData ? (
+        ) : docType === "epub" && (fileData || epubUrl) ? (
           <EPUBViewer
             fileData={fileData}
+            fileUrl={epubUrl}
             fileName={currentDocument.title}
             documentId={currentDocument.id}
             onLoad={(toc) => handleDocumentLoad(0, toc)}
@@ -3305,9 +3333,9 @@ export function DocumentViewer({
                 Document type '{docType}' preview is coming soon
                 {docType !== "epub" && currentDocument.filePath?.endsWith(".epub") && " (fileType was empty, inferred from extension)"}
               </p>
-              {docType === "epub" && !fileData && (
+              {docType === "epub" && !fileData && !epubUrl && (
                 <p className="text-sm text-orange-500 mt-2">
-                  EPUB detected but fileData not loaded. Check console for errors.
+                  EPUB detected but source not loaded. Check console for errors.
                 </p>
               )}
             </div>
