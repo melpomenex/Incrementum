@@ -606,6 +606,14 @@ Export your data for analysis:
 - Cap longest intervals (365 days default)
 - Prevents cards from being scheduled too far out
 
+**Long-Form Safety Cap (Videos/Articles):**
+- For long videos/articles, positive ratings (`Good`/`Easy`) are coverage-aware.
+- If you spend less than **25%** of estimated content time, next interval is capped at **1 day**.
+- If you spend less than **50%**, next interval is capped at **2 days**.
+- If you spend less than **75%**, next interval is capped at **4 days**.
+- This prevents long-form content from being scheduled too far out after partial progress.
+- When applied, the scheduler reason includes a **Duration-aware cap** note for transparency.
+
 ### Review Settings
 
 #### Session Limits

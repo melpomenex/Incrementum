@@ -33,6 +33,7 @@
     "core:webview:allow-webview-show",
     "core:webview:allow-get-all-webviews",
     "opener:default",
+    "shell:allow-open",
     "dialog:default",
     "notification:default",
     "notification:allow-is-permission-granted",

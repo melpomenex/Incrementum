@@ -10,7 +10,8 @@ import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 
 interface EPUBViewerProps {
-  fileData: Uint8Array;
+  fileData?: Uint8Array | null;
+  fileUrl?: string | null;
   fileName: string;
   documentId?: string;
   onLoad?: (toc: any[]) => void;
@@ -23,6 +24,7 @@ interface EPUBViewerProps {
 
 export function EPUBViewer({
   fileData,
+  fileUrl,
   fileName,
   documentId,
   onLoad,
@@ -381,10 +383,18 @@ export function EPUBViewer({
       setError(null);
 
       try {
-        console.log("EPUBViewer: Loading EPUB, fileData length:", fileData.byteLength);
+        if (!fileUrl && !fileData) {
+          throw new Error("No EPUB source available.");
+        }
+        if (fileUrl) {
+          console.log("EPUBViewer: Loading EPUB from URL:", fileUrl);
+        } else {
+          console.log("EPUBViewer: Loading EPUB, fileData length:", fileData!.byteLength);
+        }
 
-        // Create book from a fresh buffer to avoid detached ArrayBuffer issues
-        const epubBook = ePub(fileData.slice().buffer);
+        // Prefer URL source in Tauri to avoid heavy base64 decode on the renderer thread.
+        // Fall back to in-memory bytes when URL is unavailable.
+        const epubBook = fileUrl ? ePub(fileUrl) : ePub(fileData!.slice().buffer);
         bookInstance = epubBook;
         setBook(epubBook);
 
@@ -713,9 +723,9 @@ export function EPUBViewer({
       }
     };
     // Note: onLoad is intentionally excluded from deps - it's a callback that
-    // shouldn't trigger reloading the EPUB, only fileData changes should
+    // shouldn't trigger reloading the EPUB source.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileData, documentId, initialCfi, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
+  }, [fileData, fileUrl, documentId, initialCfi, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
 
   // Re-apply styles when settings or theme change
   useEffect(() => {

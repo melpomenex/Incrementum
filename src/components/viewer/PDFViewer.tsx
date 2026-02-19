@@ -8,16 +8,27 @@ import type { PdfRect, PdfSelectionContext, ViewportRect } from "../../types/sel
 import type { DocumentPosition } from "../../types/position";
 import { saveDocumentPosition, getDocumentPosition, pagePosition, scrollPosition as createScrollPosition } from "../../api/position";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
+import { isTauri } from "../../lib/tauri";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
 
-// Set default worker for web/PWA
-// In Tauri, this will be overridden in useEffect before PDF loading
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
-).toString();
+// Configure PDF.js worker based on environment
+// WebKitGTK on Linux has issues with web workers from blob/module URLs.
+// For Tauri, we don't set a worker source - instead we use disableWorker: true
+// in getDocument options (see loadDocument function below).
+if (!isTauri()) {
+  // For web/PWA, use standard worker configuration
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+  } catch {
+    // If URL construction fails, PDF.js will fall back to its default behavior
+    console.warn("[PDFViewer] Could not construct worker URL, using default");
+  }
+}
 
 // Suppress verbose PDF.js warnings (Unicode mismatch, unknown glyph name, etc.)
 // Only show errors, not warnings or info messages
@@ -25,7 +36,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 interface PDFViewerProps {
   documentId: string;
-  fileData: Uint8Array;
+  fileData?: Uint8Array | null;
+  fileUrl?: string | null;
   pageNumber: number;
   scale: number;
   zoomMode?: ZoomMode;
@@ -55,10 +67,14 @@ interface PDFViewerProps {
 }
 
 type ZoomMode = "custom" | "fit-width" | "fit-page";
+const VIRTUALIZATION_THRESHOLD_PAGES = 80;
+const VIRTUAL_WINDOW_PAGES = 10;
+const PAGE_GAP_PX = 24;
 
 export function PDFViewer({
   documentId,
   fileData,
+  fileUrl,
   pageNumber,
   scale,
   zoomMode: externalZoomMode,
@@ -194,17 +210,53 @@ export function PDFViewer({
 
       try {
         const loadDocument = async () => {
-          const baseOptions = { data: fileData.slice(), verbosity: 0 };
-          try {
-            const loadingTask = pdfjsLib.getDocument(baseOptions);
-            return await loadingTask.promise;
-          } catch (workerError) {
-            // Some packaged runtimes fail to initialize the PDF worker.
-            // Retry without a worker so PDFs still render.
-            console.warn("[PDFViewer] Worker load failed, retrying with disableWorker=true:", workerError);
-            const fallbackTask = pdfjsLib.getDocument({ ...baseOptions, disableWorker: true } as any);
-            return await fallbackTask.promise;
+          const sources: Array<Record<string, unknown>> = [];
+
+          // Tauri on Linux (WebKitGTK) has issues with web workers from module URLs.
+          // Disable the worker entirely for Tauri to avoid freezes.
+          const shouldDisableWorker = isTauri();
+
+          if (fileUrl) {
+            // Tauri custom asset protocol can fail with range/stream loading in Linux WebView.
+            // Force a simpler fetch path first.
+            sources.push({
+              url: fileUrl,
+              verbosity: 0,
+              disableRange: true,
+              disableStream: true,
+              disableAutoFetch: true,
+              disableWorker: shouldDisableWorker,
+            });
           }
+          if (fileData) {
+            sources.push({
+              data: fileData.slice(),
+              verbosity: 0,
+              disableWorker: shouldDisableWorker,
+            });
+          }
+          if (sources.length === 0) {
+            throw new Error("No PDF source available.");
+          }
+
+          let lastError: unknown = null;
+          for (const source of sources) {
+            try {
+              const loadingTask = pdfjsLib.getDocument(source as any);
+              return await loadingTask.promise;
+            } catch (workerError) {
+              // Some packaged runtimes fail to initialize the PDF worker.
+              // Retry without a worker so PDFs still render.
+              try {
+                console.warn("[PDFViewer] Worker/source load failed, retrying with disableWorker=true:", workerError);
+                const fallbackTask = pdfjsLib.getDocument({ ...(source as any), disableWorker: true } as any);
+                return await fallbackTask.promise;
+              } catch (fallbackError) {
+                lastError = fallbackError;
+              }
+            }
+          }
+          throw lastError ?? new Error("Failed to load PDF from all sources.");
         };
 
         const pdfDoc = await loadDocument();
@@ -255,9 +307,9 @@ export function PDFViewer({
       mounted = false;
     };
     // Note: onLoad is intentionally excluded from deps - it's a callback that
-    // shouldn't trigger reloading the PDF, only fileData changes should
+    // shouldn't trigger reloading the PDF source.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileData]);
+  }, [fileData, fileUrl]);
 
   // Update rendered page window around the current page.
   useEffect(() => {
@@ -1397,19 +1449,45 @@ export function PDFViewer({
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const pageOffsetsRef = useRef<number[]>([]);
   const offsetsUpdateRafRef = useRef<number | null>(null);
+  const shouldVirtualize = numPages > VIRTUALIZATION_THRESHOLD_PAGES;
+  const virtualStartPage = shouldVirtualize ? Math.max(1, pageNumber - VIRTUAL_WINDOW_PAGES) : 1;
+  const virtualEndPage = shouldVirtualize ? Math.min(numPages, pageNumber + VIRTUAL_WINDOW_PAGES) : numPages;
+  const currentScaleEstimate = pageScaleRefs.current[Math.max(0, pageNumber - 1)] ?? scale;
+  const estimatedPageHeight = Math.max(400, (fallbackPageSize?.height ?? 1100) * currentScaleEstimate);
+  const estimatedPageStride = estimatedPageHeight + PAGE_GAP_PX;
+  const topSpacerHeight = shouldVirtualize ? (virtualStartPage - 1) * estimatedPageStride : 0;
+  const bottomSpacerHeight = shouldVirtualize ? (numPages - virtualEndPage) * estimatedPageStride : 0;
 
   const recomputePageOffsets = useCallback(() => {
     if (offsetsUpdateRafRef.current !== null) return;
     offsetsUpdateRafRef.current = requestAnimationFrame(() => {
       offsetsUpdateRafRef.current = null;
       const offsets: number[] = new Array(numPages).fill(0);
+      let runningOffset = 0;
       for (let i = 0; i < numPages; i += 1) {
         const el = pageContainerRefs.current[i];
-        offsets[i] = el ? el.offsetTop : (i > 0 ? offsets[i - 1] : 0);
+        if (el) {
+          runningOffset = el.offsetTop;
+          offsets[i] = runningOffset;
+        } else if (i > 0) {
+          runningOffset = offsets[i - 1] + estimatedPageStride;
+          offsets[i] = runningOffset;
+        }
       }
       pageOffsetsRef.current = offsets;
     });
-  }, [numPages]);
+  }, [estimatedPageStride, numPages]);
+
+  useEffect(() => {
+    if (!shouldVirtualize) return;
+    for (let i = 0; i < numPages; i += 1) {
+      if (i < virtualStartPage - 1 || i > virtualEndPage - 1) {
+        pageContainerRefs.current[i] = null;
+        canvasRefs.current[i] = null;
+        textLayerContainerRefs.current[i] = null;
+      }
+    }
+  }, [numPages, shouldVirtualize, virtualEndPage, virtualStartPage]);
 
   useEffect(() => {
     if (numPages <= 0) return;
@@ -1677,9 +1755,17 @@ export function PDFViewer({
                 <div className="text-muted-foreground">Loading PDF...</div>
               </div>
             ) : (
-              <div className="mx-auto flex flex-col items-center gap-6">
-                {Array.from({ length: numPages }, (_, index) => {
-                  const pageNum = index + 1;
+              <div className="mx-auto flex flex-col items-center gap-6 w-full">
+                {shouldVirtualize && topSpacerHeight > 0 && (
+                  <div
+                    aria-hidden="true"
+                    style={{ height: `${Math.max(0, Math.round(topSpacerHeight))}px` }}
+                    className="w-full"
+                  />
+                )}
+                {Array.from({ length: Math.max(0, virtualEndPage - virtualStartPage + 1) }, (_, offset) => {
+                  const pageNum = virtualStartPage + offset;
+                  const index = pageNum - 1;
                   return (
                     <div
                       key={index}
@@ -1714,6 +1800,13 @@ export function PDFViewer({
                     </div>
                   );
                 })}
+                {shouldVirtualize && bottomSpacerHeight > 0 && (
+                  <div
+                    aria-hidden="true"
+                    style={{ height: `${Math.max(0, Math.round(bottomSpacerHeight))}px` }}
+                    className="w-full"
+                  />
+                )}
               </div>
             )}
           </div>
