@@ -177,13 +177,19 @@ function TopHeaderBar({
   onMenuClick,
   isSidebarOpen,
 }: TopHeaderBarProps) {
+  const topSafeInset = "env(safe-area-inset-top, 0px)";
+
   const handleOpenSettings = () => {
     window.dispatchEvent(new CustomEvent('navigate-to-settings'));
   };
 
   return (
     <header
-      className="h-12 glass-panel-light flex items-center justify-between px-3 flex-shrink-0 tauri-drag-region relative z-50"
+      className="glass-panel-light flex items-center justify-between px-3 flex-shrink-0 tauri-drag-region relative z-50"
+      style={{
+        height: `calc(3rem + ${topSafeInset})`,
+        paddingTop: topSafeInset,
+      }}
       data-tauri-drag-region
     >
       {/* Left side - navigation icons */}
@@ -291,6 +297,7 @@ interface LeftSidebarProps {
 
 function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, onToggleCollapse, onClose }: LeftSidebarProps) {
   const sidebarWidth = isCollapsed ? "w-16" : "w-64";
+  const mobileSidebarTop = "calc(3rem + env(safe-area-inset-top, 0px))";
 
   return (
     <>
@@ -380,9 +387,10 @@ function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, on
 
       {/* Mobile Sidebar (Slide-in) */}
       <aside
-        className={`fixed top-12 left-0 bottom-0 w-64 sidebar-section z-50 lg:hidden transform transition-transform duration-300 ease-out ${
+        className={`fixed left-0 bottom-0 w-64 sidebar-section z-50 lg:hidden transform transition-transform duration-300 ease-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{ top: mobileSidebarTop }}
       >
         {/* Sidebar Items */}
         <div className="flex-1 overflow-y-auto">
