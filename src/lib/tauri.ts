@@ -142,15 +142,27 @@ export async function openFilePicker(options?: {
   filters?: Array<{ name: string; extensions: string[] }>;
 }): Promise<string[] | null> {
   if (isTauri()) {
-    await loadTauriDialogAPI();
-    if (!tauriDialogOpen) {
-      throw new Error("Failed to load Tauri dialog API");
-    }
-    const selected = await tauriDialogOpen({
+    const dialogOptions = {
       title: options?.title ?? "Select Files",
       multiple: options?.multiple ?? false,
       filters: options?.filters,
-    });
+    };
+
+    let selected: string | string[] | null = null;
+    try {
+      await loadTauriDialogAPI();
+      if (!tauriDialogOpen) {
+        throw new Error("Failed to load Tauri dialog API");
+      }
+      selected = await tauriDialogOpen(dialogOptions);
+    } catch (error) {
+      // Some desktop builds can fail to load the JS plugin module chunk.
+      // Fall back to invoking the dialog plugin command directly.
+      console.warn("[Tauri] Dialog plugin import failed, using invoke fallback:", error);
+      selected = await invokeCommand<string | string[] | null>("plugin:dialog|open", {
+        options: dialogOptions,
+      });
+    }
 
     if (selected === null) return null;
     return Array.isArray(selected) ? selected : [selected];
@@ -209,14 +221,23 @@ export async function openFolderPicker(options?: {
   title?: string;
 }): Promise<string | null> {
   if (isTauri()) {
-    await loadTauriDialogAPI();
-    if (!tauriDialogOpen) {
-      throw new Error("Failed to load Tauri dialog API");
-    }
-    return await tauriDialogOpen({
+    const dialogOptions = {
       title: options?.title ?? "Select Folder",
       directory: true,
-    }) as Promise<string | null>;
+    };
+
+    try {
+      await loadTauriDialogAPI();
+      if (!tauriDialogOpen) {
+        throw new Error("Failed to load Tauri dialog API");
+      }
+      return await tauriDialogOpen(dialogOptions) as Promise<string | null>;
+    } catch (error) {
+      console.warn("[Tauri] Folder dialog plugin import failed, using invoke fallback:", error);
+      return await invokeCommand<string | null>("plugin:dialog|open", {
+        options: dialogOptions,
+      });
+    }
   } else {
     console.warn("[Browser Mock] Folder picker not available in browser.");
     return Promise.resolve(null);

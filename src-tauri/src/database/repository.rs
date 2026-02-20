@@ -1,6 +1,6 @@
 //! Repository pattern for database operations
 
-use sqlx::{Pool, Sqlite, Row};
+use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
 use crate::error::Result;
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract};
@@ -58,6 +58,18 @@ impl Repository {
         match (stability, difficulty) {
             (Some(s), Some(d)) => Some(crate::models::MemoryState { stability: s, difficulty: d }),
             _ => None,
+        }
+    }
+
+    // Helper to decode possibly-corrupt UTF-8 text columns without panicking.
+    fn decode_optional_text(row: &SqliteRow, column: &str) -> Option<String> {
+        match row.try_get::<Option<String>, _>(column) {
+            Ok(value) => value,
+            Err(_) => match row.try_get::<Option<Vec<u8>>, _>(column) {
+                Ok(Some(bytes)) => Some(String::from_utf8_lossy(&bytes).into_owned()),
+                Ok(None) => None,
+                Err(_) => None,
+            },
         }
     }
 
@@ -133,7 +145,7 @@ impl Repository {
                     title: row.get("title"),
                     file_path: row.get("file_path"),
                     file_type: Self::parse_file_type(&file_type),
-                    content: row.get("content"),
+                    content: Self::decode_optional_text(&row, "content"),
                     content_hash: row.get("content_hash"),
                     total_pages: row.get("total_pages"),
                     current_page: row.get("current_page"),
@@ -194,7 +206,7 @@ impl Repository {
                     title: row.get("title"),
                     file_path: row.get("file_path"),
                     file_type: Self::parse_file_type(&file_type),
-                    content: row.get("content"),
+                    content: Self::decode_optional_text(&row, "content"),
                     content_hash: row.get("content_hash"),
                     total_pages: row.get("total_pages"),
                     current_page: row.get("current_page"),
@@ -254,7 +266,7 @@ impl Repository {
                 title: row.get("title"),
                 file_path: row.get("file_path"),
                 file_type: Self::parse_file_type(&file_type),
-                content: row.get("content"),
+                content: Self::decode_optional_text(&row, "content"),
                 content_hash: row.get("content_hash"),
                 total_pages: row.get("total_pages"),
                 current_page: row.get("current_page"),

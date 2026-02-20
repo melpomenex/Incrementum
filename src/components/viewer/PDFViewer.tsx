@@ -13,26 +13,77 @@ import { isTauri } from "../../lib/tauri";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
 
-// Configure PDF.js worker based on environment
-// WebKitGTK on Linux has issues with web workers from blob/module URLs.
-// For Tauri, we don't set a worker source - instead we use disableWorker: true
-// in getDocument options (see loadDocument function below).
-if (!isTauri()) {
-  // For web/PWA, use standard worker configuration
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
-  } catch {
-    // If URL construction fails, PDF.js will fall back to its default behavior
-    console.warn("[PDFViewer] Could not construct worker URL, using default");
-  }
+// Configure PDF.js worker across environments. Keep this best-effort so
+// load fallback logic can still render if worker init fails at runtime.
+try {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+} catch {
+  // If URL construction fails, PDF.js will fall back to its default behavior
+  console.warn("[PDFViewer] Could not construct worker URL, using default");
 }
 
 // Suppress verbose PDF.js warnings (Unicode mismatch, unknown glyph name, etc.)
 // Only show errors, not warnings or info messages
 (pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
+
+// Suppress noisy glyph-name warnings in console (especially in Tauri/WebKitGTK)
+// These warnings are harmless and can flood the console with thousands of messages
+// Use Object.defineProperty to override readonly console methods in strict mode
+const _glyphWarningPattern = /unknown glyph name ['"].+['"] for font /i;
+const _shouldSuppressGlyphWarning = (args: unknown[]): boolean => {
+  if (args.length === 0) return false;
+  return args.some((arg) => typeof arg === "string" && _glyphWarningPattern.test(arg));
+};
+
+// Store originals before overriding
+const _originalConsoleWarn = console.warn;
+const _originalConsoleError = console.error;
+
+// Override console.warn using defineProperty to handle readonly properties
+try {
+  Object.defineProperty(console, 'warn', {
+    value: (...args: unknown[]) => {
+      if (_shouldSuppressGlyphWarning(args)) return;
+      _originalConsoleWarn.apply(console, args);
+    },
+    writable: true,
+    configurable: true
+  });
+} catch {
+  // If defineProperty fails, try direct assignment
+  try {
+    (console as any).warn = (...args: unknown[]) => {
+      if (_shouldSuppressGlyphWarning(args)) return;
+      _originalConsoleWarn.apply(console, args);
+    };
+  } catch {
+    // Silently fail if console can't be overridden
+  }
+}
+
+// Override console.error using defineProperty
+try {
+  Object.defineProperty(console, 'error', {
+    value: (...args: unknown[]) => {
+      if (_shouldSuppressGlyphWarning(args)) return;
+      _originalConsoleError.apply(console, args);
+    },
+    writable: true,
+    configurable: true
+  });
+} catch {
+  try {
+    (console as any).error = (...args: unknown[]) => {
+      if (_shouldSuppressGlyphWarning(args)) return;
+      _originalConsoleError.apply(console, args);
+    };
+  } catch {
+    // Silently fail if console can't be overridden
+  }
+}
 
 interface PDFViewerProps {
   documentId: string;
@@ -135,6 +186,7 @@ export function PDFViewer({
   const [renderedPageRange, setRenderedPageRange] = useState<{ start: number; end: number }>({ start: 1, end: 1 });
   const renderedPageRangeRef = useRef({ start: 1, end: 1 });
   const pendingNavRef = useRef<{ pageNumber: number; destArray: any[] | null } | null>(null);
+  const isTauriRuntime = isTauri();
 
   // Position persistence refs
   const docIdRef = useRef<string>("");
@@ -212,9 +264,9 @@ export function PDFViewer({
         const loadDocument = async () => {
           const sources: Array<Record<string, unknown>> = [];
 
-          // Tauri on Linux (WebKitGTK) has issues with web workers from module URLs.
-          // Disable the worker entirely for Tauri to avoid freezes.
-          const shouldDisableWorker = isTauri();
+          // In WebKitGTK/Tauri, embedded fonts in some PDFs can trigger excessive glyph parsing.
+          // Use path-based font rendering for better stability, but keep worker enabled first.
+          const shouldDisableFontFace = isTauriRuntime;
 
           if (fileUrl) {
             // Tauri custom asset protocol can fail with range/stream loading in Linux WebView.
@@ -225,14 +277,14 @@ export function PDFViewer({
               disableRange: true,
               disableStream: true,
               disableAutoFetch: true,
-              disableWorker: shouldDisableWorker,
+              disableFontFace: shouldDisableFontFace,
             });
           }
           if (fileData) {
             sources.push({
               data: fileData.slice(),
               verbosity: 0,
-              disableWorker: shouldDisableWorker,
+              disableFontFace: shouldDisableFontFace,
             });
           }
           if (sources.length === 0) {
@@ -309,7 +361,8 @@ export function PDFViewer({
     // Note: onLoad is intentionally excluded from deps - it's a callback that
     // shouldn't trigger reloading the PDF source.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileData, fileUrl]);
+  }, [fileData, fileUrl, isTauriRuntime]);
+
 
   // Update rendered page window around the current page.
   useEffect(() => {
