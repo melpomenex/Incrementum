@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.4] - 2026-02-20
+
+### Fixed
+- Resolved Linux PDF freeze regression by restoring worker-first PDF loading in Tauri with safe fallback behavior.
+- Prevented runtime panics when reading malformed non-UTF8 `content` values from SQLite rows by adding tolerant decoding fallbacks.
+- Fixed Windows desktop import dialog failures (`Tauri dialog API not available`) by adding a direct invoke fallback for dialog open operations.
+- Updated desktop app version metadata to `1.10.4` across manifests for release workflow validation.
+
 ## [1.10.3] - 2026-02-19
 
 ### Added
