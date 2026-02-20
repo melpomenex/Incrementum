@@ -150,12 +150,24 @@ pub async fn setup_ytdlp() -> Result<String, String> {
     let install_path = get_ytdlp_install_path()?;
     
     // Determine download URL based on platform
-    #[cfg(target_os = "windows")]
-    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
-    #[cfg(target_os = "macos")]
-    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos";
-    #[cfg(target_os = "linux")]
-    let download_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
+    let download_url = {
+        #[cfg(target_os = "windows")]
+        {
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+        }
+        #[cfg(target_os = "macos")]
+        {
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+        }
+        #[cfg(target_os = "linux")]
+        {
+            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            return Err("Automatic yt-dlp setup is not supported on this platform".to_string());
+        }
+    };
     
     // Download the binary
     let response = reqwest::get(download_url)
