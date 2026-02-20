@@ -173,12 +173,26 @@ pub async fn get_runtime_status(
 pub async fn download_ollama_installer(app_handle: AppHandle) -> Result<String> {
     let (installers_dir, _) = runtime_dirs(&app_handle)?;
 
-    #[cfg(target_os = "windows")]
-    let (url, filename) = ("https://ollama.com/download/OllamaSetup.exe", "OllamaSetup.exe");
-    #[cfg(target_os = "macos")]
-    let (url, filename) = ("https://ollama.com/download/Ollama.dmg", "Ollama.dmg");
-    #[cfg(target_os = "linux")]
-    let (url, filename) = ("https://ollama.com/install.sh", "ollama-install.sh");
+    let (url, filename) = {
+        #[cfg(target_os = "windows")]
+        {
+            ("https://ollama.com/download/OllamaSetup.exe", "OllamaSetup.exe")
+        }
+        #[cfg(target_os = "macos")]
+        {
+            ("https://ollama.com/download/Ollama.dmg", "Ollama.dmg")
+        }
+        #[cfg(target_os = "linux")]
+        {
+            ("https://ollama.com/install.sh", "ollama-install.sh")
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            return Err(IncrementumError::Internal(
+                "Automatic Ollama installer download is not supported on this platform".to_string(),
+            ));
+        }
+    };
 
     let dest_path = installers_dir.join(filename);
     let temp_path = dest_path.with_extension("download");

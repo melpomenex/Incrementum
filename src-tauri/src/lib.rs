@@ -181,18 +181,24 @@ pub fn run() {
         Ok(())
     })();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Temporarily disabled - may cause Windows crash on startup
         // TODO: Re-enable with proper Windows notification handling
         //.plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build())
-        .menu(|app| {
+        .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
+
+    #[cfg(desktop)]
+    {
+        builder = builder.menu(|app| {
             use tauri::menu::Menu;
             Menu::new(app)
-        })
+        });
+    }
+
+    builder
         .setup(|app| {
             let app_handle = app.handle().clone();
             install_panic_hook(app_handle.clone());
