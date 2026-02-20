@@ -5,7 +5,7 @@ use crate::database::Repository;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use sqlx::Row;
+use sqlx::{sqlite::SqliteRow, Row};
 
 /// RSS feed model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,6 +88,17 @@ pub struct RssUserPreferenceUpdate {
     pub show_feed_icon: Option<bool>,
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,
+}
+
+fn decode_optional_text(row: &SqliteRow, column: &str) -> Option<String> {
+    match row.try_get::<Option<String>, _>(column) {
+        Ok(value) => value,
+        Err(_) => match row.try_get::<Option<Vec<u8>>, _>(column) {
+            Ok(Some(bytes)) => Some(String::from_utf8_lossy(&bytes).into_owned()),
+            Ok(None) => None,
+            Err(_) => None,
+        },
+    }
 }
 
 /// Create a new RSS feed subscription
@@ -409,7 +420,7 @@ pub async fn create_rss_article(
         title: row.get("title"),
         author: row.get("author"),
         published_date: row.get("published_date"),
-        content: row.get("content"),
+        content: decode_optional_text(&row, "content"),
         summary: row.get("summary"),
         image_url: row.get("image_url"),
         is_queued: row.get("is_queued"),
@@ -446,7 +457,7 @@ pub async fn get_rss_articles(
             title: row.get("title"),
             author: row.get("author"),
             published_date: row.get("published_date"),
-            content: row.get("content"),
+            content: decode_optional_text(&row, "content"),
             summary: row.get("summary"),
             image_url: row.get("image_url"),
             is_queued: row.get("is_queued"),
@@ -1073,7 +1084,7 @@ pub async fn get_rss_articles_http(
             title: row.get("title"),
             author: row.get("author"),
             published_date: row.get("published_date"),
-            content: row.get("content"),
+            content: decode_optional_text(&row, "content"),
             summary: row.get("summary"),
             image_url: row.get("image_url"),
             is_queued: row.get("is_queued"),
