@@ -44,7 +44,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -78,21 +78,11 @@ jobs:
             exit 1
           fi
 
-      - name: Create mobile CI Tauri config override
-        run: |
-          cat > src-tauri/tauri.mobile-ci.conf.json <<'JSON'
-          {
-            "bundle": {
-              "externalBin": []
-            }
-          }
-          JSON
-
-      - name: Build Android app bundle
+      - name: Build Android APK (arm64)
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- android build --ci --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/android-build.log
+          npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Collect Android output summary
         if: always()
@@ -169,16 +159,6 @@ jobs:
             exit 1
           fi
 
-      - name: Create mobile CI Tauri config override
-        run: |
-          cat > src-tauri/tauri.mobile-ci.conf.json <<'JSON'
-          {
-            "bundle": {
-              "externalBin": []
-            }
-          }
-          JSON
-
       - name: Decide iOS build mode (signed vs simulator)
         id: ios_mode
         env:
@@ -209,14 +189,14 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Build iOS app (simulator fallback)
         if: steps.ios_mode.outputs.mode == 'simulator'
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          npm run tauri -- ios build --ci --target aarch64-sim --config src-tauri/tauri.mobile-ci.conf.json 2>&1 | tee artifacts/mobile-logs/ios-build.log
+          npm run tauri -- ios build --ci --target aarch64-sim 2>&1 | tee artifacts/mobile-logs/ios-build.log
 
       - name: Collect iOS output summary
         if: always()

@@ -462,6 +462,14 @@ incrementum-tauri/
 | `npm run tauri:build:linux` | Build for Linux |
 | `npm run tauri:build:macos` | Build for macOS |
 | `npm run tauri:build:windows` | Build for Windows |
+| `npm run tauri:android:init` | Initialize Android project scaffolding |
+| `npm run tauri:android:build` | Build Android ARM64 APK |
+| `npm run tauri:android:dev` | Run Android dev build on ARM64 |
+| `npm run tauri:ios:init` | Initialize iOS project scaffolding (macOS) |
+| `npm run tauri:ios:build:sim` | Build iOS simulator app (Apple Silicon) |
+| `npm run tauri:ios:dev:sim` | Run iOS simulator dev build (Apple Silicon) |
+
+Mobile note: desktop sidecar binaries (like `whisper`) are disabled on Android/iOS builds via `src-tauri/tauri.android.conf.json` and `src-tauri/tauri.ios.conf.json`.
 
 ---
 
