@@ -31,6 +31,8 @@
     "tauri:ios:build:sim": "tauri ios build --ci --target aarch64-sim",
     "server:dev": "cd server && npm run dev",
     "server:build": "cd server && npm run build",
+    "release:downloads": "bash scripts/release-downloads.sh",
+    "release:downloads:graph": "bash scripts/release-downloads.sh --graph",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "test": "vitest",

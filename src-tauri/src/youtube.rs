@@ -146,27 +146,18 @@ fn ytdlp_command() -> Result<Command, String> {
 }
 
 /// Auto-setup yt-dlp by downloading it
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 pub async fn setup_ytdlp() -> Result<String, String> {
     let install_path = get_ytdlp_install_path()?;
     
     // Determine download URL based on platform
     let download_url = {
         #[cfg(target_os = "windows")]
-        {
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-        }
+        { "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" }
         #[cfg(target_os = "macos")]
-        {
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
-        }
+        { "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos" }
         #[cfg(target_os = "linux")]
-        {
-            "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
-        }
-        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-        {
-            return Err("Automatic yt-dlp setup is not supported on this platform".to_string());
-        }
+        { "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" }
     };
     
     // Download the binary
@@ -202,6 +193,12 @@ pub async fn setup_ytdlp() -> Result<String, String> {
     let version = get_ytdlp_version_from_path(&install_path)?;
     
     Ok(version)
+}
+
+/// Stub for unsupported platforms
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+pub async fn setup_ytdlp() -> Result<String, String> {
+    Err("Automatic yt-dlp setup is not supported on this platform".to_string())
 }
 
 /// Get yt-dlp version from a specific path

@@ -170,28 +170,17 @@ pub async fn get_runtime_status(
     })
 }
 
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 pub async fn download_ollama_installer(app_handle: AppHandle) -> Result<String> {
     let (installers_dir, _) = runtime_dirs(&app_handle)?;
 
-    let (url, filename) = {
+    let (url, filename): (&str, &str) = {
         #[cfg(target_os = "windows")]
-        {
-            ("https://ollama.com/download/OllamaSetup.exe", "OllamaSetup.exe")
-        }
+        { ("https://ollama.com/download/OllamaSetup.exe", "OllamaSetup.exe") }
         #[cfg(target_os = "macos")]
-        {
-            ("https://ollama.com/download/Ollama.dmg", "Ollama.dmg")
-        }
+        { ("https://ollama.com/download/Ollama.dmg", "Ollama.dmg") }
         #[cfg(target_os = "linux")]
-        {
-            ("https://ollama.com/install.sh", "ollama-install.sh")
-        }
-        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-        {
-            return Err(IncrementumError::Internal(
-                "Automatic Ollama installer download is not supported on this platform".to_string(),
-            ));
-        }
+        { ("https://ollama.com/install.sh", "ollama-install.sh") }
     };
 
     let dest_path = installers_dir.join(filename);
@@ -254,6 +243,14 @@ pub async fn download_ollama_installer(app_handle: AppHandle) -> Result<String> 
     );
 
     Ok(dest_path.to_string_lossy().to_string())
+}
+
+/// Stub for unsupported platforms
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+pub async fn download_ollama_installer(_app_handle: AppHandle) -> Result<String> {
+    Err(IncrementumError::Internal(
+        "Automatic Ollama installer download is not supported on this platform".to_string(),
+    ))
 }
 
 pub async fn open_installer(path: String) -> Result<()> {
