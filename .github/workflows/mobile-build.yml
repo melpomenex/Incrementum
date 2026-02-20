@@ -2,6 +2,7 @@ name: Mobile Build Incrementum
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   pull_request:
     branches: [main]
