@@ -5,20 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-- GitHub release download tracking utility script (`scripts/release-downloads.sh`) with latest, tag-specific, all-release, and graph modes
-- Package scripts for release download reporting:
-  - `release:downloads`
-  - `release:downloads:graph`
-- `ideas.md` with product/UI improvement ideas
-
-### Fixed
-- Android/unsupported-platform Rust compilation errors in Tauri commands by splitting platform-specific implementations with conditional compilation:
-  - `setup_ytdlp` now compiles full implementation only on `windows`/`macos`/`linux` and provides an unsupported-platform stub elsewhere
-  - `download_ollama_installer` now follows the same platform-specific/stub pattern to avoid type-resolution errors on unsupported targets
-
 ## [1.10.3] - 2026-02-19
 
 ### Added
