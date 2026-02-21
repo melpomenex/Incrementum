@@ -72,7 +72,7 @@ jobs:
           TAG_VERSION="${TAG_RAW#v}"
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
 
           echo "Tag: ${TAG_RAW}"
           echo "Expected semantic version: ${TAG_VERSION}"
@@ -211,7 +211,7 @@ jobs:
           TAG_VERSION="${TAG_RAW#v}"
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
 
           echo "Tag: ${TAG_RAW}"
           echo "Expected semantic version: ${TAG_VERSION}"
@@ -280,7 +280,7 @@ jobs:
           TAG_VERSION="${TAG_RAW#v}"
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | cut -d'\"' -f2)"
+          CARGO_VERSION="$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
 
           echo "Tag: ${TAG_RAW}"
           echo "Expected semantic version: ${TAG_VERSION}"
