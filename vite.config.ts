@@ -62,8 +62,6 @@ export default defineConfig(async ({ mode }) => {
         : {
           protocol: "ws",
           host: host || "127.0.0.1",
-          port: 15174,
-          clientPort: 15174,
         },
       // In Tauri, disable the websocket server entirely to stop client WS attempts.
       ws: isTauriBuild ? false : undefined,

@@ -30,6 +30,7 @@ EOF
   fi
 
   # Start Vite as a direct child of this script so the sandbox allows the bind.
+  export INCREMENTUM_TAURI=1
   npm run dev -- --host 127.0.0.1 --port 15173 --strictPort &
   vite_pid=$!
   trap 'kill "$vite_pid" 2>/dev/null || true' EXIT

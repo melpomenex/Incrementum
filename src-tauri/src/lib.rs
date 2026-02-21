@@ -188,7 +188,12 @@ pub fn run() {
         // Temporarily disabled - may cause Windows crash on startup
         // TODO: Re-enable with proper Windows notification handling
         //.plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
+        ;
+
+    #[cfg(not(debug_assertions))]
+    {
+        builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
+    }
 
     #[cfg(desktop)]
     {
