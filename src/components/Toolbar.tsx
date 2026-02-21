@@ -17,6 +17,7 @@ import { KnowledgeGraphPage } from "../pages/KnowledgeGraphPage";
 import { KnowledgeSpherePage } from "../pages/KnowledgeSpherePage";
 import { useQueueStore } from "../stores/queueStore";
 import { useReviewStore } from "../stores/reviewStore";
+import { useToast } from "./common/Toast";
 import type { QueueItem } from "../types/queue";
 
 import {
@@ -105,6 +106,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
   const queueFilterMode = useQueueStore((state) => state.queueFilterMode);
+  const toast = useToast();
 
   const isVertical = position === "left" || position === "right";
 
@@ -150,52 +152,62 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   // Read Next button
   const handleReadNext = async () => {
-    const { loadQueue, loadDueDocumentsOnly, loadDueQueueItems } = useQueueStore.getState();
-    switch (queueFilterMode) {
-      case "due-today":
-        await loadDueDocumentsOnly();
-        break;
-      case "due-all":
-        await loadDueQueueItems();
-        break;
-      case "all-items":
-      case "new-only":
-      default:
-        await loadQueue();
-        break;
+    try {
+      const { loadQueue, loadDueDocumentsOnly, loadDueQueueItems } = useQueueStore.getState();
+      switch (queueFilterMode) {
+        case "due-today":
+          await loadDueDocumentsOnly();
+          break;
+        case "due-all":
+          await loadDueQueueItems();
+          break;
+        case "all-items":
+        case "new-only":
+        default:
+          await loadQueue();
+          break;
+      }
+      const { filteredItems, items } = useQueueStore.getState();
+      const queueItems = filteredItems.length > 0 ? filteredItems : items;
+      const nextItem = queueItems[0];
+      if (!nextItem) {
+        toast.info("No items ready", "No queue item is available right now.");
+        return;
+      }
+      await openQueueItem(nextItem);
+    } catch (error) {
+      toast.error("Read Next failed", error instanceof Error ? error.message : "Could not open the next item.");
     }
-    const { filteredItems } = useQueueStore.getState();
-    const nextItem = filteredItems[0];
-    if (!nextItem) {
-      console.log("No due items to read.");
-      return;
-    }
-    void openQueueItem(nextItem);
   };
 
   // Random Item button
   const handleRandomItem = async () => {
-    const { loadQueue, loadDueDocumentsOnly, loadDueQueueItems } = useQueueStore.getState();
-    switch (queueFilterMode) {
-      case "due-today":
-        await loadDueDocumentsOnly();
-        break;
-      case "due-all":
-        await loadDueQueueItems();
-        break;
-      case "all-items":
-      case "new-only":
-      default:
-        await loadQueue();
-        break;
+    try {
+      const { loadQueue, loadDueDocumentsOnly, loadDueQueueItems } = useQueueStore.getState();
+      switch (queueFilterMode) {
+        case "due-today":
+          await loadDueDocumentsOnly();
+          break;
+        case "due-all":
+          await loadDueQueueItems();
+          break;
+        case "all-items":
+        case "new-only":
+        default:
+          await loadQueue();
+          break;
+      }
+      const { filteredItems, items } = useQueueStore.getState();
+      const queueItems = filteredItems.length > 0 ? filteredItems : items;
+      if (queueItems.length === 0) {
+        toast.info("No items ready", "No queue item is available right now.");
+        return;
+      }
+      const randomItem = queueItems[Math.floor(Math.random() * queueItems.length)];
+      await openQueueItem(randomItem);
+    } catch (error) {
+      toast.error("Random Item failed", error instanceof Error ? error.message : "Could not open a random item.");
     }
-    const { filteredItems } = useQueueStore.getState();
-    if (filteredItems.length === 0) {
-      console.log("No items available for random selection.");
-      return;
-    }
-    const randomItem = filteredItems[Math.floor(Math.random() * filteredItems.length)];
-    void openQueueItem(randomItem);
   };
 
   // Start Review button
@@ -413,7 +425,22 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       if (item.learningItemId || item.id) {
         await startReviewAtItem(item.learningItemId || item.id);
       }
+      return;
     }
+
+    if (item.documentId) {
+      addTab({
+        title: item.documentTitle,
+        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+        type: "document-viewer",
+        content: DocumentViewer,
+        closable: true,
+        data: { documentId: item.documentId },
+      });
+      return;
+    }
+
+    console.warn("Unsupported queue item type for toolbar open:", item.itemType, item);
   };
 
   const buttons: ToolbarButton[] = [
