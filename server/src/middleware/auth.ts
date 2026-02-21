@@ -28,7 +28,7 @@ export function authMiddleware(
         const payload = jwt.verify(token, secret) as { userId: string };
         req.userId = payload.userId;
         next();
-    } catch (error) {
+    } catch {
         throw createError('Invalid token', 401, 'INVALID_TOKEN');
     }
 }
@@ -56,7 +56,7 @@ export function optionalAuthMiddleware(
     try {
         const payload = jwt.verify(token, secret) as { userId: string };
         req.userId = payload.userId;
-    } catch (error) {
+    } catch {
         // Invalid token - continue as unauthenticated
     }
     next();

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useTabsStore, SplitDirection, normalizePane } from "../../../stores";
+import { useTabsStore, normalizePane } from "../../../stores";
 import { SplitPaneContainer } from "./SplitPaneContainer";
 
 /**

@@ -4,7 +4,7 @@
  * Displays reading progress on document thumbnails and cards.
  */
 
-import { formatProgress, getProgressGroup, type ProgressGroup } from '../../types/position';
+import { getProgressGroup, type ProgressGroup } from '../../types/position';
 
 interface PositionIndicatorProps {
   progress: number; // 0 to 100

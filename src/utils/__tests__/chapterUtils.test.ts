@@ -8,7 +8,6 @@ import {
   getChapterTitles,
   hasChapters,
   formatChapterList,
-  type Chapter,
 } from '../chapterUtils';
 
 describe('Chapter Utils - detectChapterReference', () => {

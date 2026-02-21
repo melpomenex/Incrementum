@@ -7,35 +7,23 @@ import {
   Search,
   Grid,
   List,
-  Plus,
   FolderPlus,
   Trash2,
-  Edit,
   Play,
   Star,
-  Clock,
-  TrendingUp,
   Download,
   Upload,
 } from "lucide-react";
 import {
   MediaItem,
   MediaType,
-  MediaPlaylist,
   getAllMediaItems,
   getRecentlyAdded,
   getRecentlyPlayed,
   getMostPlayed,
-  searchMediaItems,
-  filterByType,
   recordPlayback,
   deleteMediaItem,
   updateMediaItem,
-  getMediaPlaylists,
-  createPlaylist,
-  deletePlaylist,
-  addToPlaylist,
-  formatFileSize,
   formatDuration,
   getLibraryStats,
   exportLibraryData,
@@ -54,15 +42,12 @@ export function MediaLibrary() {
   const [sortBy, setSortBy] = useState<SortBy>("dateAdded");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [section, setSection] = useState<ViewSection>("library");
-  const [playlists, setPlaylists] = useState<MediaPlaylist[]>([]);
   const [stats, setStats] = useState(getLibraryStats());
 
   // Load items
   useEffect(() => {
     loadItems();
-    loadPlaylists();
     setStats(getLibraryStats());
   }, []);
 
@@ -113,13 +98,8 @@ export function MediaLibrary() {
     setItems(getAllMediaItems());
   };
 
-  const loadPlaylists = () => {
-    setPlaylists(getMediaPlaylists());
-  };
-
   const handlePlayItem = (item: MediaItem) => {
     recordPlayback(item.id, 0);
-    setSelectedItem(item);
     // In real implementation, would open in media player
   };
 
@@ -158,7 +138,6 @@ export function MediaLibrary() {
           const data = event.target?.result as string;
           if (importLibraryData(data)) {
             loadItems();
-            loadPlaylists();
             alert("Library imported successfully!");
           } else {
             alert("Failed to import library");
@@ -168,19 +147,6 @@ export function MediaLibrary() {
       }
     };
     input.click();
-  };
-
-  const getMediaIcon = (type: MediaType) => {
-    switch (type) {
-      case "video":
-        return Film;
-      case "audio":
-        return Music;
-      case "podcast":
-        return Rss;
-      case "youtube":
-        return Youtube;
-    }
   };
 
   return (

@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.10.6",
+  "version": "1.10.7",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -35,6 +35,8 @@
     "release:downloads:graph": "bash scripts/release-downloads.sh --graph",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
+    "lint": "eslint . --cache --cache-location .eslintcache",
+    "lint:fix": "npm run lint -- --fix",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

@@ -22,32 +22,6 @@ export interface ChapterReference {
   raw: string;
 }
 
-// Patterns for detecting chapter references in user queries
-const CHAPTER_REFERENCE_PATTERNS = [
-  // "chapter 9", "chapter nine", "ch. 9", "ch 9"
-  /(?:chapter|ch\.?|chap\.?)\s*(\d+|[\w-]+)/i,
-  // "summarize chapter 3", "explain chapter 5"
-  /(?:summarize|explain|describe|what is in|tell me about)\s+(?:chapter|ch\.?|chap\.?)\s*(\d+|[\w-]+)/i,
-  // "section 2", "part 1"
-  /(?:section|part)\s*(\d+|[\w-]+)/i,
-  // "appendix A", "appendix 1"
-  /appendix\s*([A-Z]|\d+)/i,
-];
-
-// Patterns for extracting chapters from document content
-const CHAPTER_EXTRACTION_PATTERNS = [
-  // "Chapter 1: Title" or "Chapter 1 - Title" or "Chapter 1. Title"
-  /^(?:chapter|ch\.?|chap\.?)\s*(\d+|[IVX]+)\s*[:.\-]?\s*(.+?)?$/gim,
-  // "CHAPTER ONE" - word numbers
-  /^(?:chapter|ch\.?|chap\.?)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*[:.\-]?\s*(.+?)?$/gim,
-  // "1. Title" or "1 Title" at line start (for numbered chapters)
-  /^Chapter\s+(\d+)\s*[:.\-]?\s*(.+?)?$/gim,
-  // Markdown headers: "# Chapter 1" or "## 1. Title"
-  /^#{1,3}\s*(?:chapter\s*)?(\d+|[IVX]+)[:.\-]?\s*(.+?)?$/gim,
-  // EPUB-style: "Chapter 1" without explicit markers
-  /^(?:chapter|ch\.?)\s*(\d+)\s*$/gim,
-];
-
 /**
  * Detect if a user query references a specific chapter
  */
@@ -208,7 +182,7 @@ function parseChapterHeader(line: string): { number: number; title?: string } | 
   const trimmed = line.trim();
   
   // Pattern: "Chapter 1: Title" or "Chapter 1 - Title"
-  const match1 = trimmed.match(/^(?:chapter|ch\.?|chap\.?)\s*(\d+|[IVX]+)\s*[:.\-]?\s*(.+)?$/i);
+  const match1 = trimmed.match(/^(?:chapter|ch\.?|chap\.?)\s*(\d+|[IVX]+)\s*[.:-]?\s*(.+)?$/i);
   if (match1) {
     return {
       number: parseChapterNumber(match1[1]),
@@ -217,7 +191,7 @@ function parseChapterHeader(line: string): { number: number; title?: string } | 
   }
   
   // Pattern: "CHAPTER ONE" - word numbers
-  const match2 = trimmed.match(/^(?:chapter|ch\.?|chap\.?)\s+(one|two|three|four|five|six|seven|eight|nine|ten)\s*[:.\-]?\s*(.+)?$/i);
+  const match2 = trimmed.match(/^(?:chapter|ch\.?|chap\.?)\s+(one|two|three|four|five|six|seven|eight|nine|ten)\s*[.:-]?\s*(.+)?$/i);
   if (match2) {
     return {
       number: parseChapterNumber(match2[1]),
@@ -226,7 +200,7 @@ function parseChapterHeader(line: string): { number: number; title?: string } | 
   }
   
   // Pattern: Markdown header "# Chapter 1" or "## 1. Title"
-  const match3 = trimmed.match(/^#{1,3}\s*(?:chapter\s*)?(\d+|[IVX]+)[:.\-]?\s*(.+)?$/i);
+  const match3 = trimmed.match(/^#{1,3}\s*(?:chapter\s*)?(\d+|[IVX]+)[.:-]?\s*(.+)?$/i);
   if (match3) {
     return {
       number: parseChapterNumber(match3[1]),
@@ -235,7 +209,7 @@ function parseChapterHeader(line: string): { number: number; title?: string } | 
   }
   
   // Pattern: "1. Title" at start of line (only if it looks like a chapter)
-  const match4 = trimmed.match(/^(\d+)[:.\-]\s+(.+)$/);
+  const match4 = trimmed.match(/^(\d+)[.:-]\s+(.+)$/);
   if (match4 && looksLikeChapterTitle(match4[2])) {
     return {
       number: parseInt(match4[1], 10),
@@ -271,7 +245,7 @@ function extractChaptersByPattern(content: string): Chapter[] {
   const chapters: Chapter[] = [];
   
   // Use the main chapter regex to find all chapter positions
-  const chapterRegex = /^(?:chapter|ch\.?|chap\.?)\s*(\d+|[IVX]+)[:.\-]?\s*(.+?)?$/gim;
+  const chapterRegex = /^(?:chapter|ch\.?|chap\.?)\s*(\d+|[IVX]+)[.:-]?\s*(.+?)?$/gim;
   
   let match;
   let lastIndex = 0;

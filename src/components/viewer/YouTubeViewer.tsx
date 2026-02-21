@@ -26,8 +26,7 @@ import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
 import { 
   fetchSponsorBlockSegments, 
   SponsorBlockSegment, 
-  getCategoryDisplayName,
-  getCategoryColor
+  getCategoryDisplayName
 } from "../../api/sponsorblock";
 
 interface YouTubeViewerProps {
@@ -95,7 +94,6 @@ export function YouTubeViewer({
   const [resolvedTitle, setResolvedTitle] = useState<string | undefined>(title);
   const titleFetchRef = useRef<string | null>(null);
   const [showInlinePlayer, setShowInlinePlayer] = useState(false);
-  const [playerReloadKey, setPlayerReloadKey] = useState(0);
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
@@ -625,7 +623,7 @@ export function YouTubeViewer({
           playerRef.current.seekTo(activeExtractStartTime, true);
           playerRef.current.playVideo?.();
         }
-      } catch (e) {
+      } catch {
         // Ignore errors from player (e.g. if it's not ready)
       }
     }, 1000); // Increased from 500ms to 1000ms to reduce cross-origin calls

@@ -14,10 +14,9 @@ import {
 } from "../api/ocrCommands";
 import { isTauri } from "../lib/tauri";
 import { useSettingsStore } from "../stores/settingsStore";
-import { detectMathContent, extractMathFromText, extractMathWithNougat } from "./mathOcr";
+import { detectMathContent, extractMathFromText } from "./mathOcr";
 import {
   extractKeyPhrasesFrontend,
-  extractKeywords,
   getTextStatistics,
   extractSummary,
 } from "./keyPhraseExtraction";

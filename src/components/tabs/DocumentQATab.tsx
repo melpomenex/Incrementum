@@ -14,7 +14,7 @@ import {
   Trash2,
   BookOpen,
 } from "lucide-react";
-import { callIncrementumMCPTool, getIncrementumMCPTools, type MCPTool } from "../../api/mcp";
+import { callIncrementumMCPTool, getIncrementumMCPTools } from "../../api/mcp";
 import { renderMarkdown } from "../../utils/markdown";
 import { detectChapterReference, buildChapterQAContext, getChapterTitles, type ChapterReference } from "../../utils/chapterUtils";
 
@@ -37,7 +37,6 @@ export function DocumentQATab() {
     messages,
     isProcessing,
     addMessage,
-    setMessages,
     clearMessages,
     setIsProcessing,
     updateToolCall,
@@ -50,7 +49,7 @@ export function DocumentQATab() {
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionCursorIndex, setMentionCursorIndex] = useState(0);
-  const [providerError, setProviderError] = useState<string | null>(null);
+  const [, setProviderError] = useState<string | null>(null);
   const [detectedChapter, setDetectedChapter] = useState<{ number: number; title?: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,8 +76,6 @@ export function DocumentQATab() {
   // Parse mentions from input text
   const parseMentions = useCallback((text: string): { text: string; mentions: DocumentMention[] } => {
     const newMentions: DocumentMention[] = [];
-    let lastIndex = 0;
-    let cleanedText = text;
 
     let match: RegExpExecArray | null;
     while ((match = MENTION_REGEX.exec(text)) !== null) {

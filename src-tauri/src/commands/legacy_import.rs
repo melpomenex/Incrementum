@@ -487,6 +487,10 @@ fn parse_document_row(row: &sqlx::sqlite::SqliteRow) -> Result<Document> {
     let file_type: String = row.try_get("file_type")?;
     let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
     let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+    let image_asset_ids_json: String = row
+        .try_get("image_asset_ids")
+        .unwrap_or_else(|_| "[]".to_string());
+    let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
     let metadata_json: Option<String> = row.try_get("metadata").ok();
     let metadata = metadata_json
         .as_ref()
@@ -588,6 +592,10 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
     let state_str: String = row.try_get("state")?;
     let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
     let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+    let image_asset_ids_json: String = row
+        .try_get("image_asset_ids")
+        .unwrap_or_else(|_| "[]".to_string());
+    let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
 
     let stability: Option<f64> = row.try_get("memory_state_stability").ok();
     let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -617,6 +625,7 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
         state: parse_item_state(&state_str),
         is_suspended: row.try_get::<i64, _>("is_suspended").unwrap_or(0) != 0,
         tags,
+        image_asset_ids,
         memory_state,
     })
 }

@@ -2,7 +2,6 @@ import { getTranscriptionProfiles } from "../api/transcription";
 import { generateVideoTranscript, getVideoTranscript, setVideoTranscript } from "../api/video-extracts";
 import { 
   transcribeWithGroq, 
-  convertGroqToInternalFormat,
   isGroqConfigured,
   GroqTranscriptionError,
 } from "../api/groqTranscription";
@@ -119,7 +118,6 @@ async function processWithGroq(job: VideoTranscriptionJob): Promise<void> {
     throw new Error("Groq API key not configured");
   }
   
-  const settings = useSettingsStore.getState().settings.audioTranscription;
   const language = job.language !== 'auto' ? job.language : undefined;
   
   try {

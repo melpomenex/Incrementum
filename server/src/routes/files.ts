@@ -186,7 +186,7 @@ filesRouter.delete('/:id', async (req: AuthRequest, res, next) => {
             // Delete from disk
             try {
                 await fs.unlink(file.storage_path);
-            } catch (e) {
+            } catch {
                 console.warn('File already deleted from disk:', file.storage_path);
             }
 

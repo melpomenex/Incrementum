@@ -14,8 +14,6 @@ import {
   convertGroqToInternalFormat,
   isGroqConfigured,
   GroqTranscriptionError,
-  isFileSizeValid,
-  type GroqTranscriptionOptions 
 } from "./groqTranscription";
 import type { Document } from "../types/document";
 
@@ -342,38 +340,6 @@ export async function searchAudiobookMetadata(
 }
 
 /**
- * Get file as Blob from Tauri file system
- */
-async function getAudioFileBlob(filePath: string): Promise<Blob | null> {
-  if (!isTauri()) return null;
-  
-  try {
-    const { invokeCommand } = await import("../lib/tauri");
-    const bytes = await invokeCommand<number[]>("read_file_bytes", { filePath });
-    if (!bytes) return null;
-    
-    const ext = filePath.split('.').pop()?.toLowerCase() || '';
-    const mimeTypes: Record<string, string> = {
-      'mp3': 'audio/mpeg',
-      'm4b': 'audio/mp4',
-      'm4a': 'audio/mp4',
-      'aac': 'audio/aac',
-      'ogg': 'audio/ogg',
-      'opus': 'audio/opus',
-      'wav': 'audio/wav',
-      'flac': 'audio/flac',
-      'wma': 'audio/x-ms-wma',
-    };
-    
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
-    return new Blob([new Uint8Array(bytes)], { type: mimeType });
-  } catch (error) {
-    console.error("Failed to read audio file:", error);
-    return null;
-  }
-}
-
-/**
  * Generate transcript using local Whisper
  */
 async function generateTranscriptWithLocalWhisper(
@@ -577,8 +543,8 @@ export async function importTranscriptFromFile(
 
 // Search for existing transcript online
 export async function searchExistingTranscript(
-  title: string,
-  author?: string
+  _title: string,
+  _author?: string
 ): Promise<AudiobookTranscript | null> {
   // This could search various transcript repositories
   // For now, return null - would need to integrate with specific APIs

@@ -10,10 +10,8 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
-  MoreVertical,
   ChevronDown,
   ChevronRight,
-  Filter,
   Download,
 } from "lucide-react";
 import {

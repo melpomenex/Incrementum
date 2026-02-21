@@ -20,6 +20,7 @@ pub async fn get_due_items(
 pub async fn create_learning_item(
     item_type: String,
     question: String,
+    image_asset_ids: Option<Vec<String>>,
     repo: State<'_, Repository>,
 ) -> Result<LearningItem> {
     let item_type = match item_type.as_str() {
@@ -29,7 +30,8 @@ pub async fn create_learning_item(
         _ => ItemType::Basic,
     };
 
-    let item = LearningItem::new(item_type, question);
+    let mut item = LearningItem::new(item_type, question);
+    item.image_asset_ids = image_asset_ids.unwrap_or_default();
     let created = repo.create_learning_item(&item).await?;
     Ok(created)
 }

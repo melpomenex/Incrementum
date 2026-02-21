@@ -138,15 +138,6 @@ const allNavItems: NavItem[] = [
   },
 ];
 
-// Additional actions for the more menu (not navigation items)
-interface MoreAction {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  onClick: () => void;
-  condition?: () => boolean;
-}
-
 interface MobileNavigationProps {
   dueCount?: number;
   unreadCount?: number;

@@ -208,19 +208,6 @@ export function SettingsPage() {
     }
   }, [isMobile]);
 
-  // Filter tabs based on search
-  const filteredTabs = useMemo(() => {
-    if (!searchQuery.trim()) return SETTINGS_TABS;
-    
-    const query = searchQuery.toLowerCase();
-    return SETTINGS_TABS.filter((tab) => {
-      const matchesLabel = tab.label.toLowerCase().includes(query);
-      const matchesKeywords = tab.keywords.some((k) => k.toLowerCase().includes(query));
-      const matchesDescription = tab.description.toLowerCase().includes(query);
-      return matchesLabel || matchesKeywords || matchesDescription;
-    });
-  }, [searchQuery]);
-
   // Group filtered results by relevance for search display
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
@@ -831,7 +818,7 @@ function AISettings({ onChange }: { onChange: () => void }) {
   return <AIProviderSettings onChange={onChange} />;
 }
 
-function SyncSettings({ onChange }: { onChange: () => void }) {
+function SyncSettings({ onChange: _onChange }: { onChange: () => void }) {
   return <SyncSettingsOriginal />;
 }
 
@@ -839,7 +826,7 @@ function ImportExportSettings({ onChange }: { onChange: () => void }) {
   return <ImportExportSettingsComponent onChange={onChange} />;
 }
 
-function PrivacySettings({ onChange }: { onChange: () => void }) {
+function PrivacySettings({ onChange: _onChange }: { onChange: () => void }) {
   return (
     <div className="text-center py-12 text-muted-foreground">
       <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />

@@ -5,7 +5,6 @@ import {
   getTranscript,
   ModelProfile,
   TranscriptSegment,
-  TranscriptResponse
 } from "../api/transcription";
 import { isTauri } from "../lib/tauri";
 
@@ -25,7 +24,7 @@ interface TranscriptionState {
   setTranscriptionProgress: (progress: number) => void;
 }
 
-export const useTranscriptionStore = create<TranscriptionState>((set, get) => ({
+export const useTranscriptionStore = create<TranscriptionState>((set) => ({
   profiles: [],
   downloadProgress: {},
   transcriptionProgress: 0,

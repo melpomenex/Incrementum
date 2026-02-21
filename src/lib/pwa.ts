@@ -5,23 +5,37 @@
  * and PWA-specific functionality.
  */
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+type DocumentWithFullscreen = Document & {
+  webkitFullscreenElement?: Element | null;
+  msFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+  msExitFullscreen?: () => Promise<void> | void;
+};
+type HTMLElementWithFullscreen = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+  msRequestFullscreen?: () => Promise<void> | void;
+};
+type WindowWithMSStream = Window & { MSStream?: unknown };
+
 /**
  * Check if running in PWA mode (installed as app)
  */
 export function isPWA(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches ||
          window.matchMedia('(display-mode: fullscreen)').matches ||
-         (window.navigator as any).standalone === true;
+         (window.navigator as NavigatorWithStandalone).standalone === true;
 }
 
 /**
  * Check if currently in fullscreen mode
  */
 export function isFullscreen(): boolean {
+  const doc = document as DocumentWithFullscreen;
   return !!(
     document.fullscreenElement ||
-    (document as any).webkitFullscreenElement ||
-    (document as any).msFullscreenElement
+    doc.webkitFullscreenElement ||
+    doc.msFullscreenElement
   );
 }
 
@@ -30,7 +44,8 @@ export function isFullscreen(): boolean {
  * Returns true if successful, false if not supported or failed
  */
 export async function enterFullscreen(): Promise<boolean> {
-  const doc = document as any;
+  const doc = document as DocumentWithFullscreen;
+  const el = doc.documentElement as HTMLElementWithFullscreen;
   
   // Check if already fullscreen
   if (isFullscreen()) return true;
@@ -46,9 +61,9 @@ export async function enterFullscreen(): Promise<boolean> {
   }
   
   // Try webkit prefix (iOS Safari)
-  if (doc.documentElement.webkitRequestFullscreen) {
+  if (el.webkitRequestFullscreen) {
     try {
-      await doc.documentElement.webkitRequestFullscreen();
+      await el.webkitRequestFullscreen();
       return true;
     } catch (error) {
       console.warn('[PWA] Failed to enter webkit fullscreen:', error);
@@ -56,9 +71,9 @@ export async function enterFullscreen(): Promise<boolean> {
   }
   
   // Try ms prefix (IE/Edge legacy)
-  if (doc.documentElement.msRequestFullscreen) {
+  if (el.msRequestFullscreen) {
     try {
-      await doc.documentElement.msRequestFullscreen();
+      await el.msRequestFullscreen();
       return true;
     } catch (error) {
       console.warn('[PWA] Failed to enter MS fullscreen:', error);
@@ -72,7 +87,7 @@ export async function enterFullscreen(): Promise<boolean> {
  * Exit fullscreen mode
  */
 export async function exitFullscreen(): Promise<boolean> {
-  const doc = document as any;
+  const doc = document as DocumentWithFullscreen;
   
   if (!isFullscreen()) return true;
   
@@ -121,11 +136,12 @@ export async function toggleFullscreen(): Promise<boolean> {
  * Check if fullscreen API is supported
  */
 export function isFullscreenSupported(): boolean {
-  const doc = document as any;
+  const doc = document as DocumentWithFullscreen;
+  const el = doc.documentElement as HTMLElementWithFullscreen;
   return !!(
     document.documentElement.requestFullscreen ||
-    doc.documentElement.webkitRequestFullscreen ||
-    doc.documentElement.msRequestFullscreen
+    el.webkitRequestFullscreen ||
+    el.msRequestFullscreen
   );
 }
 
@@ -266,7 +282,7 @@ export function listenNetworkChanges(callback: (online: boolean) => void): () =>
 export function showAddToHomeScreenPrompt(): void {
   // Detect iOS Safari standalone mode
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-               !(window as any).MSStream;
+               !(window as WindowWithMSStream).MSStream;
 
   if (isIOS && !isPWA()) {
     // Show iOS specific instructions
@@ -344,7 +360,7 @@ export function initializePWA(): void {
  */
 export function usePWAStatus() {
   const [online, setOnline] = useState(navigator.onLine);
-  const [pwa, setPwa] = useState(isPWA());
+  const pwa = isPWA();
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);

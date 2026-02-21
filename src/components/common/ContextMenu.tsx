@@ -208,18 +208,20 @@ export function ContextMenu({
       );
 
       switch (e.key) {
-        case "ArrowDown":
+        case "ArrowDown": {
           e.preventDefault();
           const nextIndex = (currentIndex + 1) % focusableItems.length;
           focusableItems[nextIndex]?.focus();
           break;
+        }
 
-        case "ArrowUp":
+        case "ArrowUp": {
           e.preventDefault();
           const prevIndex =
             (currentIndex - 1 + focusableItems.length) % focusableItems.length;
           focusableItems[prevIndex]?.focus();
           break;
+        }
 
         case "Enter":
         case " ":

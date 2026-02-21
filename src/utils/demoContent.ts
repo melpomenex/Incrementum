@@ -3,8 +3,6 @@
  * Provides sample documents and flashcards for new users to explore Incrementum
  */
 
-import { v4 as uuidv4 } from "uuid";
-
 const DEMO_CONTENT_KEY = "incrementum_demo_content_imported";
 
 export interface DemoDocument {

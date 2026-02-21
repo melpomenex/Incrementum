@@ -8,8 +8,8 @@
  * - Full-screen reading mode
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Maximize2, Minimize2, ChevronLeft, ChevronRight, MoreVertical, BookOpen } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { X, Maximize2, Minimize2, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { getDeviceInfo, type DeviceInfo } from "../../lib/pwa";
 
 interface MobileReadingWrapperProps {
@@ -23,7 +23,7 @@ interface MobileReadingWrapperProps {
 }
 
 export function MobileReadingWrapper({
-  documentId,
+  documentId: _documentId,
   documentTitle,
   children,
   currentPage = 1,

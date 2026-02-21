@@ -10,7 +10,6 @@ import {
   Volume2,
   VolumeX,
   Maximize,
-  Clock,
   SkipBack,
   SkipForward,
   X,
@@ -71,7 +70,6 @@ export function LocalVideoPlayer({
     const saved = localStorage.getItem(key);
     return saved ? parseFloat(saved) : 1;
   });
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
 
   // Transcript panel state
@@ -111,7 +109,6 @@ export function LocalVideoPlayer({
   const [activeExtractEndTime, setActiveExtractEndTime] = useState<number | null>(null);
 
   // Position tracking
-  const [positionLoaded, setPositionLoaded] = useState(false);
   const [startTime, setStartTime] = useState(0);
   const [documentFilePath, setDocumentFilePath] = useState<string | null>(null);
   const startTimeRef = useRef(0);
@@ -270,7 +267,6 @@ export function LocalVideoPlayer({
   const loadSavedPosition = useCallback(async () => {
     if (!documentId) {
       console.log('[LocalVideoPlayer] No documentId, skipping position load');
-      setPositionLoaded(true);
       return;
     }
 
@@ -308,8 +304,6 @@ export function LocalVideoPlayer({
       }
     } catch (error) {
       console.error('[LocalVideoPlayer] Failed to load position:', error);
-    } finally {
-      setPositionLoaded(true);
     }
   }, [documentId, mediaType, src]);
 
@@ -460,7 +454,6 @@ export function LocalVideoPlayer({
         }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run on unmount, use refs for values
 
   // Handle keyboard shortcuts
@@ -633,10 +626,8 @@ export function LocalVideoPlayer({
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullscreen(false);
     }
   };
 
@@ -732,23 +723,10 @@ export function LocalVideoPlayer({
     };
   }, [activeExtractStartTime, activeExtractEndTime, attemptPlay]);
 
-  const handleCreateExtract = () => {
-    setShowCreateExtract(false);
-    // The VideoExtractsList will refresh automatically
-    toast.success('Extract created successfully');
-  };
-
-  const handleExtractCreated = (extract: any) => {
+  const handleExtractCreated = (_extract: any) => {
     setShowCreateExtract(false);
     // Refresh the video features to show the new extract
     // This will be handled by the VideoExtractsList component
-  };
-
-  // Get transcript text for the current time range (simplified version)
-  const getCurrentTimeTranscript = () => {
-    // In a real implementation, this would get the transcript segment
-    // for the current time range from the video transcript
-    return '';
   };
 
   // Calculate progress percentage
@@ -973,7 +951,6 @@ export function LocalVideoPlayer({
   const autoFailed = transcriptionStatus === "failed";
   const autoNeedsModel = transcriptionStatus === "needs-model";
   const autoNeedsApiKey = transcriptionStatus === "needs-api-key";
-  const autoFileTooLarge = transcriptionStatus === "file-too-large";
   const transcriptionError = autoFailed && documentId ? getTranscriptionError(documentId) : null;
 
   return (
@@ -1456,7 +1433,7 @@ export function LocalVideoPlayer({
 }
 
 // Scroll hint component that shows briefly when video loads
-function ScrollHint({ isPlaying }: { isPlaying: boolean }) {
+function ScrollHint({ isPlaying: _isPlaying }: { isPlaying: boolean }) {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
   

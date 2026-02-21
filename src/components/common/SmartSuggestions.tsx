@@ -7,13 +7,10 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Sparkles,
   Zap,
-  ChevronRight,
   X,
   BookOpen,
-  Layers,
   Target,
   ArrowRight,
-  CheckCircle,
   Loader2,
 } from "lucide-react";
 import { getExtracts, type Extract } from "../../api/extracts";

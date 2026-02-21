@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link2, Mic, CheckCircle2 } from "lucide-react";
+import { Link2, Mic } from "lucide-react";
 import { useDocumentStore } from "../stores";
 import { EnhancedFilePicker } from "../components/documents/EnhancedFilePicker";
 import type { ImportSource } from "../components/documents/EnhancedFilePicker";
@@ -13,7 +13,7 @@ export function Documents() {
   const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromUrl, importFromArxiv } = useDocumentStore();
   const [isDragging, setIsDragging] = useState(false);
   const [showImportPicker, setShowImportPicker] = useState(false);
-  const [initialImportSource, setInitialImportSource] = useState<'local' | 'url' | 'arxiv'>('local');
+  const [, setInitialImportSource] = useState<'local' | 'url' | 'arxiv'>('local');
 
   useEffect(() => {
     loadDocuments();

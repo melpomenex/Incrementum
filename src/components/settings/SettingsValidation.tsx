@@ -43,7 +43,7 @@ interface ValidationStore {
  */
 export const useValidationStore = create<ValidationStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       issues: [],
 
       addIssue: (issue) => {
@@ -359,7 +359,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
  * Settings validation panel component
  */
 export function SettingsValidationPanel() {
-  const { issues, clearIssues } = useValidationStore();
+  const { issues } = useValidationStore();
 
   const errors = issues.filter((i) => i.severity === ValidationSeverity.Error);
   const warnings = issues.filter((i) => i.severity === ValidationSeverity.Warning);

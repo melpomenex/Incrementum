@@ -194,7 +194,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
                       </div>
 
                       {/* Commands */}
-                      {cmds.map((cmd, index) => {
+                      {cmds.map((cmd) => {
                         const globalIndex = commands.indexOf(cmd);
                         const isSelected = globalIndex === selectedIndex;
 
@@ -275,22 +275,7 @@ export interface CommandPaletteProviderProps {
 
 export function CommandPaletteProvider({ children }: CommandPaletteProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [commands, setCommands] = useState<Command[]>([]);
-
-  // Register commands
-  const registerCommands = (cmds: Command[]) => {
-    setCommands(cmds);
-  };
-
-  // Add a single command
-  const addCommand = (cmd: Command) => {
-    setCommands((prev) => [...prev, cmd]);
-  };
-
-  // Remove a command
-  const removeCommand = (id: string) => {
-    setCommands((prev) => prev.filter((c) => c.id !== id));
-  };
+  const [commands] = useState<Command[]>([]);
 
   // Handle global keyboard shortcut
   useEffect(() => {

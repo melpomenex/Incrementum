@@ -51,7 +51,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       try {
         const status = await invokeCommand<string>("get_demo_content_status");
         setDemoContentStatus(status);
-      } catch (error) {
+      } catch {
         setDemoContentStatus("Unable to load demo content status");
       }
     };

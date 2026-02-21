@@ -20,22 +20,6 @@ interface UseAITagSuggestionsReturn {
   clearSuggestions: () => void;
 }
 
-// Common tag categories for learning content
-const TOPIC_TAGS = [
-  "programming", "science", "mathematics", "history", "philosophy",
-  "psychology", "economics", "literature", "art", "music",
-  "technology", "business", "health", "language", "politics",
-];
-
-const TYPE_TAGS = [
-  "tutorial", "research", "reference", "guide", "textbook",
-  "article", "documentation", "case-study", "lecture", "notes",
-];
-
-const DIFFICULTY_TAGS = [
-  "beginner", "intermediate", "advanced", "expert",
-];
-
 export function useAITagSuggestions(): UseAITagSuggestionsReturn {
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);

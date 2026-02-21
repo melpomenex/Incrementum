@@ -10,7 +10,7 @@
  * - One-click subscribe
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Link2,
   Search,
@@ -21,11 +21,8 @@ import {
   ExternalLink,
   X,
   Sparkles,
-  Globe,
   Clock,
   FileText,
-  User,
-  Zap,
   Newspaper,
 } from "lucide-react";
 import {

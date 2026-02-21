@@ -125,7 +125,7 @@ export function generateShareUrl(baseUrl: string, documentId: string, state: Doc
  */
 export function generateYouTubeShareUrl(videoId: string, time?: number): string {
   const state: DocumentState = time !== undefined ? { time } : {};
-  const fragment = encodeDocumentState(state);
+  encodeDocumentState(state);
 
   // YouTube URLs format
   const baseUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -312,7 +312,7 @@ export async function copyShareLink(url: string): Promise<boolean> {
       document.execCommand('copy');
       document.body.removeChild(textArea);
       return true;
-    } catch (fallbackError) {
+    } catch {
       document.body.removeChild(textArea);
       return false;
     }

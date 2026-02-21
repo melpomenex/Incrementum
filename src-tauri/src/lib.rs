@@ -348,6 +348,11 @@ pub fn run() {
             commands::get_learning_item,
             commands::get_learning_items_by_extract,
             commands::get_all_learning_items,
+            // Image registry commands
+            commands::ingest_image_asset,
+            commands::list_image_assets,
+            commands::get_image_asset,
+            commands::delete_image_asset,
             // Category commands
             commands::get_categories,
             commands::create_category,

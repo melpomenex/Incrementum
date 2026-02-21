@@ -18,7 +18,7 @@ export enum DockPosition {
 /**
  * Dock widget state
  */
-export interface DockWidget {
+export interface DockWidgetState {
   id: string;
   title: string;
   content: ReactNode;
@@ -40,8 +40,8 @@ export interface DockWidget {
 /**
  * Dock layout configuration
  */
-export interface DockLayout {
-  widgets: DockWidget[];
+export interface DockLayoutState {
+  widgets: DockWidgetState[];
   activeWidget?: string;
 }
 
@@ -57,7 +57,7 @@ export function DockWidget({
   onMove,
   onToggleCollapse,
 }: {
-  widget: DockWidget;
+  widget: DockWidgetState;
   isActive: boolean;
   onFocus: () => void;
   onClose?: () => void;
@@ -233,14 +233,14 @@ export function DockLayout({
   onUpdate,
   children,
 }: {
-  layout: DockLayout;
-  onUpdate?: (layout: DockLayout) => void;
+  layout: DockLayoutState;
+  onUpdate?: (layout: DockLayoutState) => void;
   children?: ReactNode;
 }) {
   const [activeWidget, setActiveWidget] = useState(layout.activeWidget);
 
   const updateWidget = useCallback(
-    (id: string, updates: Partial<DockWidget>) => {
+    (id: string, updates: Partial<DockWidgetState>) => {
       if (!onUpdate) return;
       const widgets = layout.widgets.map((w) => (w.id === id ? { ...w, ...updates } : w));
       onUpdate({ widgets, activeWidget });
@@ -387,14 +387,14 @@ export function DockLayout({
 /**
  * Hook to manage dock layout
  */
-export function useDockLayout(initialLayout?: DockLayout) {
-  const [layout, setLayout] = useState<DockLayout>(
+export function useDockLayout(initialLayout?: DockLayoutState) {
+  const [layout, setLayout] = useState<DockLayoutState>(
     initialLayout || {
       widgets: [],
     }
   );
 
-  const addWidget = useCallback((widget: Omit<DockWidget, "id">) => {
+  const addWidget = useCallback((widget: Omit<DockWidgetState, "id">) => {
     const id = `dock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setLayout((prev) => ({
       ...prev,
@@ -411,7 +411,7 @@ export function useDockLayout(initialLayout?: DockLayout) {
     }));
   }, []);
 
-  const updateWidget = useCallback((id: string, updates: Partial<DockWidget>) => {
+  const updateWidget = useCallback((id: string, updates: Partial<DockWidgetState>) => {
     setLayout((prev) => ({
       ...prev,
       widgets: prev.widgets.map((w) => (w.id === id ? { ...w, ...updates } : w)),

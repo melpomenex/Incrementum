@@ -24,7 +24,6 @@ import {
   requestNotificationPermission,
   checkNotificationPermission,
   scheduleNotification,
-  cancelAllNotifications,
   type NotificationPermission,
 } from "../../utils/notificationService";
 

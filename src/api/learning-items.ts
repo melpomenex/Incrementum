@@ -21,6 +21,7 @@ export interface LearningItem {
   state: "New" | "Learning" | "Review" | "Relearning";
   is_suspended: boolean;
   tags: string[];
+  image_asset_ids?: string[];
   memory_state?: {
     stability: number;
     difficulty: number;
@@ -31,6 +32,7 @@ export interface CreateLearningItemInput {
   item_type: string;
   question: string;
   answer?: string;
+  image_asset_ids?: string[];
 }
 
 /**
@@ -68,6 +70,7 @@ export async function createLearningItem(input: CreateLearningItemInput): Promis
   return await invokeCommand<LearningItem>("create_learning_item", {
     itemType: input.item_type,
     question: input.question,
+    imageAssetIds: input.image_asset_ids,
   });
 }
 

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Folder, Check, Plus, X } from 'lucide-react';
+import { Folder, Check, Plus } from 'lucide-react';
 import {
   getCollections,
   addDocumentToCollection,

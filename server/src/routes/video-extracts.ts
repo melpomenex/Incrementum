@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { getPool } from '../db/connection.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { createError } from '../middleware/errorHandler.js';
 import { Card, createEmptyCard, fsrs, generatorParameters, Rating } from 'ts-fsrs';
 
 export const videoExtractsRouter = Router();

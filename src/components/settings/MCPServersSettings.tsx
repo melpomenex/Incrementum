@@ -29,7 +29,7 @@ export function MCPServersSettings({
   servers,
   onAddServer,
   onRemoveServer,
-  onUpdateServer,
+  onUpdateServer: _onUpdateServer,
   onTestServer,
   maxServers = MAX_SERVERS_DEFAULT,
 }: MCPServersSettingsProps) {
@@ -69,7 +69,7 @@ export function MCPServersSettings({
     try {
       const success = await onTestServer(server);
       setTestResults({ ...testResults, [server.id]: success });
-    } catch (error) {
+    } catch {
       setTestResults({ ...testResults, [server.id]: false });
     } finally {
       setTestingServer(null);

@@ -596,6 +596,7 @@ impl MCPToolRegistry {
         let text = args["text"].as_str().ok_or("text is required")?;
         let document_id = args["document_id"].as_str();
         let tags = args["tags"].as_array();
+        let image_asset_ids = args["image_asset_ids"].as_array();
 
         let mut item = LearningItem::new(ItemType::Cloze, text.to_string());
         item.document_id = document_id.map(|s| s.to_string());
@@ -604,6 +605,12 @@ impl MCPToolRegistry {
             item.tags = tags
                 .iter()
                 .filter_map(|tag| tag.as_str().map(|value| value.to_string()))
+                .collect();
+        }
+        if let Some(image_asset_ids) = image_asset_ids {
+            item.image_asset_ids = image_asset_ids
+                .iter()
+                .filter_map(|value| value.as_str().map(|s| s.to_string()))
                 .collect();
         }
 
@@ -638,6 +645,7 @@ impl MCPToolRegistry {
         let answer = args["answer"].as_str().ok_or("answer is required")?;
         let document_id = args["document_id"].as_str();
         let tags = args["tags"].as_array();
+        let image_asset_ids = args["image_asset_ids"].as_array();
 
         let mut item = LearningItem::new(ItemType::Qa, question.to_string());
         item.document_id = document_id.map(|s| s.to_string());
@@ -646,6 +654,12 @@ impl MCPToolRegistry {
             item.tags = tags
                 .iter()
                 .filter_map(|tag| tag.as_str().map(|value| value.to_string()))
+                .collect();
+        }
+        if let Some(image_asset_ids) = image_asset_ids {
+            item.image_asset_ids = image_asset_ids
+                .iter()
+                .filter_map(|value| value.as_str().map(|s| s.to_string()))
                 .collect();
         }
 
@@ -1147,6 +1161,7 @@ impl MCPToolRegistry {
     async fn execute_batch_create_cards(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
         let cards = args["cards"].as_array().ok_or("cards array is required")?;
         let document_id = args["document_id"].as_str();
+        let image_asset_ids = args["image_asset_ids"].as_array();
         let mut results = vec![];
 
         for card in cards {
@@ -1164,6 +1179,12 @@ impl MCPToolRegistry {
                 let mut item = LearningItem::new(item_type, question.to_string());
                 item.answer = answer.map(|a| a.to_string());
                 item.document_id = document_id.map(|id| id.to_string());
+                if let Some(image_asset_ids) = image_asset_ids {
+                    item.image_asset_ids = image_asset_ids
+                        .iter()
+                        .filter_map(|value| value.as_str().map(|s| s.to_string()))
+                        .collect();
+                }
 
                 match self.repository.create_learning_item(&item).await {
                     Ok(created) => {

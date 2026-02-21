@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Search, X, Clock, Star, Filter, SlidersHorizontal, Link2 } from "lucide-react";
+import { Search, X, Clock, Star, SlidersHorizontal, Link2 } from "lucide-react";
 import { useURLDetector, URLType } from "../../hooks/useURLDetector";
 import { useURLMetadata, useURLImport, useDuplicateCheck } from "../../hooks/useURLMetadata";
 import { ImportPreview, type ImportOptions } from "../import/ImportPreview";
@@ -152,7 +152,7 @@ export function GlobalSearch({
     urlDetection.url,
     { debounceMs: 500, enabled: urlDetection.isURL }
   );
-  const { importURL, isImporting, error: importError } = useURLImport();
+  const { importURL, isImporting } = useURLImport();
   const duplicateCheck = useDuplicateCheck(urlDetection.type, urlDetection.url);
   const toast = useToast();
   const [importOptions, setImportOptions] = useState<ImportOptions>({ tags: [], collectionId: undefined });

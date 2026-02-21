@@ -11,7 +11,9 @@ describe("cn", () => {
   });
 
   it("should handle conditional classes", () => {
-    expect(cn("foo", true && "bar", false && "baz")).toBe("foo bar");
+    const includeBar = true;
+    const includeBaz = false;
+    expect(cn("foo", includeBar && "bar", includeBaz && "baz")).toBe("foo bar");
   });
 
   it("should handle undefined and null values", () => {

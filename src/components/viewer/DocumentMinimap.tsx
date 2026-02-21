@@ -181,7 +181,7 @@ export function DocumentMinimap({
 export function useDocumentMinimap(
   documentId: string,
   extracts: Array<{ id: string; position?: number; createdAt: string }>,
-  totalPages?: number
+  _totalPages?: number
 ) {
   const segments = useMemo(() => {
     const segs: MinimapSegment[] = [];

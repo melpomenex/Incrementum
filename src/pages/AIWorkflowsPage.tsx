@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { invokeCommand as invoke } from "../lib/tauri";
-import { useExtractStore } from "../stores/extractStore";
 import {
   Sparkles,
   FileText,
-  MessageSquare,
   BookOpen,
   Lightbulb,
   HelpCircle,
   Wand2,
   Send,
   Loader2,
-  Check,
 } from "lucide-react";
 
 type WorkflowType =

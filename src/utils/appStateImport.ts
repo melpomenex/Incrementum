@@ -7,11 +7,10 @@
  */
 
 import { useSettingsStore } from "../stores/settingsStore";
-import { useCollectionStore, type Collection } from "../stores/collectionStore";
+import { useCollectionStore } from "../stores/collectionStore";
 import { useUIStore } from "../stores/uiStore";
-import { useTabsStore } from "../stores/tabsStore";
 import { useDocumentStore } from "../stores/documentStore";
-import type { Document, Extract, LearningItem } from "../types/document";
+import type { Document } from "../types/document";
 import { isTauri } from "../lib/tauri";
 import { storeBrowserFile } from "../lib/browser-file-store";
 import type { AppStateExport, ExportMetadata } from "./appStateExport";
@@ -121,7 +120,7 @@ export async function readExportFile(file: File): Promise<AppStateExport> {
   try {
     const data = JSON.parse(text) as AppStateExport;
     return data;
-  } catch (error) {
+  } catch {
     throw new Error("Failed to parse export file: invalid JSON");
   }
 }
@@ -234,7 +233,7 @@ export async function importAppState(
         const newCollection = createCollection(collection.name);
         collectionIdMap[collection.id] = newCollection.id;
         result.stats.collectionsImported++;
-      } catch (error) {
+      } catch {
         result.warnings.push(`Failed to import collection "${collection.name}"`);
       }
     }
@@ -298,7 +297,7 @@ export async function importAppState(
             total: fileEntries.length,
           });
         }
-      } catch (error) {
+      } catch {
         result.warnings.push(`Failed to restore file for document ${docId}: ${fileData.name}`);
       }
     }
@@ -317,7 +316,6 @@ export async function importAppState(
     });
 
     const { documents } = useDocumentStore.getState();
-    const existingPaths = new Set(documents.map((d) => d.filePath));
     const { assignDocument } = useCollectionStore.getState();
 
     for (let i = 0; i < exportData.documents.length; i++) {
@@ -550,7 +548,7 @@ export async function importAppState(
         dockPanelCollapsed: exportData.uiState.dockPanelCollapsed,
         theme: exportData.uiState.theme,
       });
-    } catch (error) {
+    } catch {
       result.warnings.push("Failed to restore UI state");
     }
   }
@@ -558,7 +556,7 @@ export async function importAppState(
   // Refresh document store
   try {
     await useDocumentStore.getState().loadDocuments();
-  } catch (error) {
+  } catch {
     result.warnings.push("Failed to refresh document list after import");
   }
 

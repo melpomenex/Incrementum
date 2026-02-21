@@ -120,7 +120,11 @@ export function useKeyboardNavigation(
           case "enter":
             if (!e.metaKey && !e.ctrlKey && !e.altKey) {
               // Don't prevent default for Enter - let it work normally
-              onOpen?.() || onSelect?.();
+              if (onOpen) {
+                onOpen();
+              } else {
+                onSelect?.();
+              }
               return;
             }
             break;
@@ -191,7 +195,6 @@ export function useKeyboardNavigation(
           break;
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       onMoveUp,
       onMoveDown,

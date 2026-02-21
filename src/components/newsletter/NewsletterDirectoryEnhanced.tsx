@@ -19,9 +19,7 @@ import {
   Grid3x3,
   List,
   User,
-  Globe,
   BookOpen,
-  Zap,
   Heart,
   Briefcase,
   TrendingUp,
@@ -38,9 +36,7 @@ import {
   Loader2,
   Clock,
   FileText,
-  Filter,
   ArrowUpRight,
-  Star,
 } from "lucide-react";
 import {
   newsletterDirectory,
@@ -50,7 +46,7 @@ import {
   getNewslettersByCategory,
   searchNewsletters,
 } from "../../data/newsletterDirectory";
-import { subscribeToFeedAuto, type Feed, discoverNewsletterFeedUrl, fetchFeed } from "../../api/rss";
+import { subscribeToFeedAuto, type Feed, fetchFeed } from "../../api/rss";
 import { NewsletterUrlImporter } from "./NewsletterUrlImporter";
 
 // Platform icons mapping
@@ -132,7 +128,7 @@ function NewsletterPreviewModal({
         setLoading(true);
         const fetched = await fetchFeed(newsletter.feedUrl);
         setFeed(fetched);
-      } catch (err) {
+      } catch {
         setError("Failed to load preview");
       } finally {
         setLoading(false);
@@ -570,7 +566,6 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
                   }
                 >
                   {filteredNewsletters.map((newsletter) => {
-                    const Icon = categoryIcons[newsletter.category];
                     const subscribed = isSubscribed(newsletter.id);
                     const loading = isLoading(newsletter.id);
                     const platform = PLATFORM_BADGES[newsletter.platform];

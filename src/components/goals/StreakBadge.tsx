@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Flame, TrendingUp } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { getReadingStreak, type ReadingStreak } from '../../api/readingGoals';
 import { formatStreakDays, getStreakMilestone, getStreakColor } from '../../types/readingGoal';
 

@@ -308,9 +308,10 @@ export function applyOperatorFilters(
         case "phrase":
           return content.includes(op.value.toLowerCase());
 
-        case "wildcard":
+        case "wildcard": {
           const regex = new RegExp(`^${op.value}$`, "i");
           return regex.test(content);
+        }
 
         default:
           return true;

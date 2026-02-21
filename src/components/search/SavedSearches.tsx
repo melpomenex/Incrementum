@@ -40,7 +40,7 @@ const MAX_HISTORY_ITEMS = 50;
  */
 export const useSearchStore = create<SearchStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       history: [],
       saved: [],
 

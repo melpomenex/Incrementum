@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Scissors,
   Play,
@@ -27,7 +27,7 @@ interface ClipExtractorProps {
 }
 
 export function ClipExtractor({
-  src,
+  src: _src,
   duration,
   currentTime,
   onSeek,
@@ -39,8 +39,6 @@ export function ClipExtractor({
   const [previewClipId, setPreviewClipId] = useState<string | null>(null);
   const [newClipStart, setNewClipStart] = useState<number | null>(null);
   const [isSettingStart, setIsSettingStart] = useState(true);
-  const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement>(null);
-
   // Format time
   const formatTime = (time: number) => {
     const hours = Math.floor(time / 3600);
