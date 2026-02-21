@@ -9,11 +9,15 @@ use crate::database::Repository;
 
 /// Check if demo content should be imported
 pub async fn should_import_demo_content(repo: &Repository) -> Result<bool> {
-    // Check if there are any existing learning items
-    let items = repo.get_all_learning_items().await?;
+    // Keep startup probe minimal: we only need to know if any rows exist.
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM learning_items WHERE is_suspended = false"
+    )
+    .fetch_one(repo.pool())
+    .await?;
 
-    // Only import demo content if database is empty
-    Ok(items.is_empty())
+    // Only import demo content if database has no active learning items.
+    Ok(count == 0)
 }
 
 /// Get the demo content directory path
