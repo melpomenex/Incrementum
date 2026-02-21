@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import https from 'https';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -29,33 +28,6 @@ function getTargetTriple() {
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
-async function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    const request = https.get(url, (response) => {
-      // Handle redirects
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        downloadFile(response.headers.location, dest).then(resolve).catch(reject);
-        return;
-      }
-
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
-        return;
-      }
-
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close(() => resolve());
-      });
-    });
-
-    request.on('error', (err) => {
-      fs.unlink(dest, () => reject(err));
-    });
-  });
-}
-
 function ensureWhisperSource() {
   if (fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
     return;
@@ -63,7 +35,7 @@ function ensureWhisperSource() {
 
   try {
     execSync('git submodule update --init --recursive whisper.cpp');
-  } catch (e) {
+  } catch {
     // ignore and fallback to clone
   }
 
@@ -173,7 +145,7 @@ async function main() {
             execSync('command -v nvcc');
             console.log('NVIDIA GPU detected (nvcc found), enabling CUDA support...');
             cudaFlag = '-DGGML_CUDA=1';
-        } catch (e) {
+        } catch {
             console.log('No NVIDIA GPU detected or nvcc not found, building for CPU...');
         }
         
@@ -195,7 +167,7 @@ async function main() {
             console.log('Attempting to set RPATH for whisper binary...');
             execSync(`patchelf --set-rpath '$ORIGIN' ${whisperBinPath}`, { stdio: 'ignore' });
             console.log('RPATH set successfully.');
-        } catch (e) {
+        } catch {
             console.log('Note: patchelf not available, binary may need LD_LIBRARY_PATH set');
         }
         // execSync('rm -rf whisper.cpp');
@@ -214,11 +186,11 @@ async function main() {
         execSync('unzip -o ffmpeg.zip', { stdio: 'inherit' });
         fs.copyFileSync('ffmpeg', ffmpegPath);
         ffmpegInstalled = true;
-      } catch (e) {
+      } catch {
         console.warn('Primary FFmpeg download failed; trying system ffmpeg fallback...');
       } finally {
-        try { fs.unlinkSync('ffmpeg.zip'); } catch {}
-        try { fs.unlinkSync('ffmpeg'); } catch {}
+        try { fs.unlinkSync('ffmpeg.zip'); } catch { /* best-effort cleanup */ }
+        try { fs.unlinkSync('ffmpeg'); } catch { /* best-effort cleanup */ }
       }
 
       if (!ffmpegInstalled) {
@@ -305,7 +277,7 @@ async function main() {
   try {
     fs.chmodSync(ffmpegPath, 0o755);
     fs.chmodSync(whisperPath, 0o755);
-  } catch (e) {
+  } catch {
     // Windows might fail chmod, ignore
   }
 
@@ -323,7 +295,7 @@ async function main() {
     try {
       execSync('command -v nvcc', { stdio: 'ignore' });
       console.log('✅ CUDA GPU: ENABLED (NVIDIA)');
-    } catch (e) {
+    } catch {
       console.log('⚠️  GPU: Not detected - Using CPU (Install NVIDIA drivers for CUDA support)');
     }
   } else if (platform === 'win32') {

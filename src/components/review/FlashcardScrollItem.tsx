@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
+import { Eye, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
+import { getImageAssetById } from "../../api/image-registry";
 import { cn } from "../../utils";
 
 interface FlashcardScrollItemProps {
@@ -14,6 +15,7 @@ interface FlashcardScrollItemProps {
  */
 export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollItemProps) {
     const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
+    const [imageUrls, setImageUrls] = useState<string[]>([]);
 
     // Keyboard shortcuts: Space to reveal, 1-4 to rate
     useEffect(() => {
@@ -51,6 +53,27 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isAnswerRevealed, onRate]);
+
+    useEffect(() => {
+        let isCancelled = false;
+        const ids = learningItem.image_asset_ids || [];
+
+        if (ids.length === 0) {
+            setImageUrls([]);
+            return;
+        }
+
+        const load = async () => {
+            const results = await Promise.all(ids.map((id) => getImageAssetById(id)));
+            if (isCancelled) return;
+            setImageUrls(results.filter((item): item is NonNullable<typeof item> => Boolean(item)).map((item) => item.data_url));
+        };
+
+        void load();
+        return () => {
+            isCancelled = true;
+        };
+    }, [learningItem.id, learningItem.image_asset_ids]);
 
     // Render cloze text with blanks or revealed answers
     const renderClozeText = () => {
@@ -166,6 +189,18 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                     <div className="text-xs uppercase tracking-wide text-muted-foreground mb-4">
                         Question
                     </div>
+                    {imageUrls.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                            {imageUrls.map((url, index) => (
+                                <img
+                                    key={`${learningItem.id}-img-${index}`}
+                                    src={url}
+                                    alt={`Flashcard visual ${index + 1}`}
+                                    className="w-full max-h-64 object-contain rounded-lg border border-border bg-muted/20"
+                                />
+                            ))}
+                        </div>
+                    )}
                     <div className="text-2xl leading-relaxed text-foreground">
                         {renderQuestionContent()}
                     </div>

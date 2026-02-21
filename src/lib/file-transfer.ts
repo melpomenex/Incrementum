@@ -5,9 +5,8 @@
  * The server acts as a pure relay - it does not store files.
  */
 
-import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { FileManifest, FileManifestEntry, getDeviceId } from "./file-manifest";
+import { FileManifest, getDeviceId } from "./file-manifest";
 
 // =============================================================================
 // Types
@@ -67,9 +66,6 @@ type FileTransferListener = (event: FileTransferEvent) => void;
 // =============================================================================
 // FileTransferManager Class
 // =============================================================================
-
-const MAX_RETRIES = 3;
-const CHUNK_TIMEOUT_MS = 30000; // 30 seconds per chunk
 
 /**
  * Manages file transfers between devices via WebSocket
@@ -247,7 +243,7 @@ export class FileTransferManager {
   }
 
   private handleFileComplete(msg: { type: "file-complete"; fileId: string; requestId: string }): void {
-    const { fileId, requestId } = msg;
+    const { requestId } = msg;
     const transfer = this.inboundTransfers.get(requestId);
     if (transfer && transfer.receivedChunks.size === transfer.totalChunks) {
       this.assembleAndComplete(transfer);

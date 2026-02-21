@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { Download, FileText, Image, Table, Calendar } from "lucide-react";
+import { Download, FileText, Image, Table } from "lucide-react";
 
 /**
  * Export format
@@ -291,7 +291,7 @@ export function exportStatisticsToExcel(
  */
 export function exportStatisticsToPDF(
   data: StatisticsData,
-  filename?: string
+  _filename = "statistics-report.pdf"
 ): void {
   // Create a print-friendly HTML document
   const printWindow = window.open("", "_blank");

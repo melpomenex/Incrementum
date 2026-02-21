@@ -20,7 +20,6 @@
 import { invokeCommand } from '../lib/tauri';
 import { isTauri } from '../lib/tauri';
 import { useSettingsStore } from '../stores/settingsStore';
-import type { GroqTranscriptionSettings } from '../types/settings';
 
 const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
 

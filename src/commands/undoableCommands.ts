@@ -10,7 +10,6 @@ import { LearningItem } from "../types/learning-item";
 import {
   OperationType,
   UndoableCommandBase,
-  createCommandId,
 } from "../stores/undoRedoStore";
 
 /**
@@ -312,7 +311,7 @@ export class CreateExtractCommand extends UndoableCommandBase {
   ) {
     super(
       OperationType.CreateExtract,
-      `Create extract: ${this.extract.title.slice(0, 20)}...`
+      `Create extract: ${extract.title.slice(0, 20)}...`
     );
   }
 

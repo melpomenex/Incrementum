@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { Document, Extract } from "../types";
 import * as documentsApi from "../api/documents";
-import { isTauri } from "../lib/tauri";
 import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 

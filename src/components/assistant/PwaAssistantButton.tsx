@@ -91,7 +91,7 @@ export function PwaAssistantButton({
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastUsedProviderLabel, setLastUsedProviderLabel] = useState<string>("");
-  const [isExtractingContent, setIsExtractingContent] = useState(false);
+  const [_isExtractingContent, setIsExtractingContent] = useState(false);
 
   const recognitionRef = useRef<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);

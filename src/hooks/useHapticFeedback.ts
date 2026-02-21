@@ -3,7 +3,7 @@
  * Provides audio and visual feedback for user actions
  */
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 
 /**

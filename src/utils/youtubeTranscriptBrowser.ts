@@ -29,37 +29,7 @@ const CORS_PROXIES: string[] = [
 // Flag to disable CORS proxy fallback (recommended for production)
 const DISABLE_CORS_PROXY = true;
 
-// Third-party transcript APIs as last resort
-const TRANSCRIPT_APIS = [
-  // Returns JSON transcript directly
-  { url: 'https://yt.lemnoslife.com/videos?part=snippet&id=', extract: (data: any) => null }, // Not a transcript API, placeholder
-];
-
 // NOTE: youtube-transcript-ts library removed due to bundling issues in browser builds.
-
-/**
- * Check if running on Vercel or production domain
- */
-function isVercel(): boolean {
-  if (typeof window === 'undefined') return false;
-
-  const hostname = window.location.hostname;
-  return (
-    hostname.includes('vercel.app') ||
-    hostname.includes('readsync.org') ||
-    hostname.includes('incrementum')
-  );
-}
-
-/**
- * Get API base URL
- */
-function getApiBaseUrl(): string {
-  if (typeof window === 'undefined') return '';
-
-  // Use relative URL for same-origin requests
-  return '';
-}
 
 /**
  * Extract video ID from YouTube URL
@@ -93,7 +63,7 @@ async function fetchWithCorsProxy(url: string): Promise<Response> {
       },
     });
     if (response.ok) return response;
-  } catch (e) {
+  } catch {
     // Expected to fail due to CORS
   }
 

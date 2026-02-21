@@ -14,13 +14,11 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
-  Mic, 
   Loader2, 
   CheckCircle2, 
   AlertCircle, 
   Sparkles,
   FileAudio,
-  RefreshCw,
   Key
 } from 'lucide-react';
 import { cn } from '../../utils';

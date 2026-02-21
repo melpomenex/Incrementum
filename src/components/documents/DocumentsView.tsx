@@ -175,8 +175,8 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [showAudiobookImport, setShowAudiobookImport] = useState(false);
   const [showMarkdownBundlePreview, setShowMarkdownBundlePreview] = useState(false);
   const [detectedBundle, setDetectedBundle] = useState<MarkdownBundle | null>(null);
-  const [bundleFiles, setBundleFiles] = useState<File[]>([]);
-  const { importBundle, isImporting: isBundleImporting } = useMarkdownBundleImport();
+  const [, setBundleFiles] = useState<File[]>([]);
+  const { importBundle } = useMarkdownBundleImport();
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeLoading, setYoutubeLoading] = useState(false);
@@ -1571,16 +1571,17 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
           case 'cfi':
             positionText = `EPUB location saved`;
             break;
-          case 'time':
+          case 'time': {
             const minutes = Math.floor(position.seconds / 60);
             const seconds = Math.floor(position.seconds % 60);
             positionText = `Video: ${minutes}:${seconds.toString().padStart(2, '0')}`;
             break;
+          }
           default:
             positionText = "Position saved";
         }
       }
-    } catch (e) {
+    } catch {
       // Failed to parse position, fall back to legacy fields
     }
   }

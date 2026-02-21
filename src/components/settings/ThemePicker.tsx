@@ -99,12 +99,9 @@ interface ThemePickerProps {
 }
 
 export function ThemePicker({ onClose }: ThemePickerProps) {
-  const { theme, themes, setTheme, exportTheme, importTheme, addCustomTheme, removeCustomTheme } =
+  const { theme, themes, setTheme, exportTheme, importTheme, removeCustomTheme } =
     useTheme();
 
-  const [showCustomize, setShowCustomize] = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [previewTheme, setPreviewTheme] = useState<ThemeId | null>(null);
 

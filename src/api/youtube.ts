@@ -279,24 +279,6 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
   };
 }
 
-/**
- * Extract meta tag from HTML
- */
-function extractMetaTag(html: string, property: string): string | null {
-  // Try both property and name attributes
-  const patterns = [
-    new RegExp(`<meta property="${property}" content="([^"]+)"`, "i"),
-    new RegExp(`<meta name="${property}" content="([^"]+)"`, "i"),
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) return match[1];
-  }
-
-  return null;
-}
-
 // Cache the API instance for reuse
 let transcriptApi: any = null;
 
@@ -384,7 +366,7 @@ export async function isTranscriptAvailable(videoId: string): Promise<boolean> {
  * Note: Full YouTube search requires API key
  * This is a placeholder for future implementation
  */
-export async function searchYouTube(query: string): Promise<YouTubeSearchResult[]> {
+export async function searchYouTube(_query: string): Promise<YouTubeSearchResult[]> {
   console.warn(
     "YouTube search requires API key or backend service. " +
     "This will be available in the Tauri backend."
@@ -396,7 +378,7 @@ export async function searchYouTube(query: string): Promise<YouTubeSearchResult[
 /**
  * Fetch YouTube playlist info
  */
-export async function fetchYouTubePlaylist(playlistId: string): Promise<YouTubePlaylist | null> {
+export async function fetchYouTubePlaylist(_playlistId: string): Promise<YouTubePlaylist | null> {
   console.warn(
     "YouTube playlist fetching requires backend processing (yt-dlp). " +
     "This will be available in the Tauri backend."
@@ -408,7 +390,7 @@ export async function fetchYouTubePlaylist(playlistId: string): Promise<YouTubeP
 /**
  * Fetch YouTube channel info
  */
-export async function fetchYouTubeChannel(channelId: string): Promise<YouTubeChannel | null> {
+export async function fetchYouTubeChannel(_channelId: string): Promise<YouTubeChannel | null> {
   console.warn(
     "YouTube channel info requires API key. " +
     "This will be available in the Tauri backend."

@@ -23,7 +23,7 @@ export function PullToRefresh({
   disabled = false,
   threshold = 80,
   pullMax = 120,
-  refreshDuration = 2000,
+  refreshDuration: _refreshDuration = 2000,
   children,
   className = "",
 }: PullToRefreshProps) {
@@ -108,7 +108,7 @@ export function PullToRefresh({
         setPullDistance(0);
         setRefreshSuccess(false);
       }, 500);
-    } catch (error) {
+    } catch {
       setRefreshError(true);
       setTimeout(() => {
         setRefreshing(false);

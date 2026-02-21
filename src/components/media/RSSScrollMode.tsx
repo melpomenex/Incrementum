@@ -30,14 +30,12 @@ import {
 import {
   Feed,
   FeedItem,
-  getSubscribedFeeds,
   getSubscribedFeedsAuto,
   markItemReadAuto,
   toggleItemFavoriteAuto,
   formatFeedDate,
 } from "../../api/rss";
 import { cn } from "../../utils";
-import { createExtract } from "../../api/extracts";
 import { createDocument, updateDocumentContent } from "../../api/documents";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
@@ -140,7 +138,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const { documents, addDocument, updateDocument } = useDocumentStore();
   const { settings } = useSettingsStore();
   const toast = useToast();
-  const [feeds, setFeeds] = useState<Feed[]>([]);
   const [scrollItems, setScrollItems] = useState<RSSScrollItem[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -205,7 +202,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const saved = localStorage.getItem("rss-assistant-position");
     return (saved as AssistantPosition) || "right";
   });
-  const [isAssistantVisible, setIsAssistantVisible] = useState(() => {
+  const [isAssistantVisible] = useState(() => {
     const saved = localStorage.getItem("rss-assistant-visible");
     return saved !== "false";
   });
@@ -239,7 +236,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   useEffect(() => {
     const loadFeeds = async () => {
       const loadedFeeds = await getSubscribedFeedsAuto();
-      setFeeds(loadedFeeds);
 
       // Get all unread items from all feeds
       let allItems: RSSScrollItem[] = [];
@@ -697,7 +693,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       currentY = e.touches[0].clientY;
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = () => {
       // If text is actively selected, don't interpret gesture as navigation/swipe action.
       if (hasActiveSelectionInContent()) {
         return;
@@ -1024,11 +1020,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       setIsSummarizing(false);
     }
   }, [visibleScrollItems, renderedIndex, isSummarizing, toast]);
-
-  // Toggle assistant visibility
-  const toggleAssistant = useCallback(() => {
-    setIsAssistantVisible(prev => !prev);
-  }, []);
 
   // Close summary
   const closeSummary = useCallback(() => {

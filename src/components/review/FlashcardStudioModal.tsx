@@ -30,7 +30,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock,
   Copy,
   Edit2,
   FileText,
@@ -40,8 +39,6 @@ import {
   Lightbulb,
   Loader2,
   MessageSquare,
-  MoreHorizontal,
-  Plus,
   Save,
   Search,
   Send,
@@ -63,13 +60,13 @@ import {
   ScrollText,
   DollarSign,
   BarChart3,
-  Eye,
-  EyeOff,
-  ChevronUp,
   Type,
+  ImagePlus,
+  ClipboardPaste,
 } from "lucide-react";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
 import { callIncrementumMCPTool } from "../../api/mcp";
+import { deleteImageAsset, ingestImageBlob, ingestImageFile, listImageAssets, type ImageAsset } from "../../api/image-registry";
 import { renderMarkdown } from "../../utils/markdown";
 import { useDocumentStore, useLLMProvidersStore, useSettingsStore, useStudyDeckStore } from "../../stores";
 import { useToast } from "../common/Toast";
@@ -289,7 +286,7 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
     s = s.replace(/^\s*json\s*\n/i, "");
 
     // Common mistake: returning `"cards": [...]` instead of `{ "cards": [...] }`
-    if (/^\s*\"cards\"\s*:/.test(s)) s = `{${s}}`;
+    if (/^\s*"cards"\s*:/.test(s)) s = `{${s}}`;
 
     // Allow trailing commas (JSON5-ish) by stripping them.
     s = s.replace(/,\s*([}\]])/g, "$1");
@@ -384,7 +381,7 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
   };
 
   const extractCardsArrayFromLooseKey = (text: string): string | null => {
-    const m = /\"cards\"\s*:\s*\[/i.exec(text);
+    const m = /"cards"\s*:\s*\[/i.exec(text);
     if (!m || m.index === undefined) return null;
     const bracketIndex = text.indexOf("[", m.index);
     if (bracketIndex < 0) return null;
@@ -395,7 +392,7 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
 
   const cardsFromParsedList = (list: unknown[], sourceId: string): DraftCard[] => {
     const cards: DraftCard[] = [];
-    list.forEach((entry: unknown, index: number) => {
+    list.forEach((entry: unknown) => {
       const e = entry as { type?: string; question?: string; answer?: string; text?: string };
       let type = normalizeCardType(e?.type);
 
@@ -1406,12 +1403,16 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [isTagInputVisible, setIsTagInputVisible] = useState(false);
   const [contextSelection, setContextSelection] = useState<ContextSelection>(DEFAULT_CONTEXT_SELECTION);
+  const [imageAssets, setImageAssets] = useState<ImageAsset[]>([]);
+  const [selectedImageAssetIds, setSelectedImageAssetIds] = useState<string[]>([]);
+  const [isImageImporting, setIsImageImporting] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftCardsContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize provider
   useEffect(() => {
@@ -1428,6 +1429,21 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       void loadDocuments();
     }
   }, [isOpen, documents.length, loadDocuments]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadImageAssets = async () => {
+      try {
+        const assets = await listImageAssets();
+        setImageAssets(assets);
+      } catch (error) {
+        console.error("Failed to load image registry assets", error);
+      }
+    };
+
+    void loadImageAssets();
+  }, [isOpen]);
 
   // Load saved state
   useEffect(() => {
@@ -1585,7 +1601,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       case "full":
         return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
       
-      case "chapters":
+      case "chapters": {
         if (selectedChapters.length === 0) {
           return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
         }
@@ -1593,6 +1609,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         return selectedChapters
           .map((num) => buildChapterQAContext(selectedDocument.title, selectedDocument.content, num, perChapterTokens))
           .join("\n\n---\n\n");
+      }
       
       case "excerpt":
         return contextSelection.excerpt || selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
@@ -1752,6 +1769,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
           const baseArgs: Record<string, unknown> = {};
           if (selectedDocument?.id) baseArgs.document_id = selectedDocument.id;
           if (deckTags.length > 0) baseArgs.tags = [...deckTags, ...card.tags];
+          if (selectedImageAssetIds.length > 0) baseArgs.image_asset_ids = selectedImageAssetIds;
 
           if (card.type === "qa") {
             await callIncrementumMCPTool("create_qa_card", {
@@ -1784,6 +1802,109 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       toast.success("Cards saved!", `${savedCount} card${savedCount === 1 ? "" : "s"} added to your collection.`);
     }
     setIsSaving(false);
+  };
+
+  const handleImportImageClick = () => {
+    imageFileInputRef.current?.click();
+  };
+
+  const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImageImporting(true);
+    try {
+      const imported = await Promise.all(Array.from(files).map((file) => ingestImageFile(file)));
+      setImageAssets((prev) => {
+        const merged = [...imported, ...prev];
+        const dedup = new Map(merged.map((asset) => [asset.id, asset]));
+        return Array.from(dedup.values());
+      });
+      const importedIds = imported.map((asset) => asset.id);
+      setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
+      toast.success("Images imported", `${imported.length} image${imported.length === 1 ? "" : "s"} added to registry.`);
+    } catch (error) {
+      toast.error("Image import failed", error instanceof Error ? error.message : "Unable to import image.");
+    } finally {
+      setIsImageImporting(false);
+      event.target.value = "";
+    }
+  };
+
+  const handlePasteImage = async () => {
+    setIsImageImporting(true);
+    try {
+      if (!navigator.clipboard?.read) {
+        throw new Error("Clipboard image read is not available in this environment.");
+      }
+      const clipboardItems = await navigator.clipboard.read();
+      const imageBlobPromises: Promise<Blob>[] = [];
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (imageType) {
+          imageBlobPromises.push(item.getType(imageType));
+        }
+      }
+
+      if (imageBlobPromises.length === 0) {
+        throw new Error("Clipboard does not contain an image.");
+      }
+
+      const blobs = await Promise.all(imageBlobPromises);
+      const imported = await Promise.all(
+        blobs.map((blob, index) => ingestImageBlob(blob, `clipboard-image-${Date.now()}-${index}.png`))
+      );
+
+      setImageAssets((prev) => {
+        const merged = [...imported, ...prev];
+        const dedup = new Map(merged.map((asset) => [asset.id, asset]));
+        return Array.from(dedup.values());
+      });
+      const importedIds = imported.map((asset) => asset.id);
+      setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
+      toast.success("Image pasted", `${imported.length} image${imported.length === 1 ? "" : "s"} added from clipboard.`);
+    } catch (error) {
+      toast.error("Paste failed", error instanceof Error ? error.message : "Unable to paste clipboard image.");
+    } finally {
+      setIsImageImporting(false);
+    }
+  };
+
+  const toggleSelectedImageAsset = (assetId: string) => {
+    setSelectedImageAssetIds((prev) =>
+      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
+    );
+  };
+
+  const handleDeleteSelectedImages = async () => {
+    if (selectedImageAssetIds.length === 0) return;
+    setIsImageImporting(true);
+    try {
+      const results = await Promise.all(selectedImageAssetIds.map((id) => deleteImageAsset(id)));
+      const deletedIds = selectedImageAssetIds.filter((_, index) => results[index]?.deleted);
+      const blockedReasons = results
+        .filter((result) => !result.deleted && result.reason)
+        .map((result) => result.reason)
+        .filter((reason, index, arr) => reason && arr.indexOf(reason) === index);
+
+      if (deletedIds.length > 0) {
+        setImageAssets((prev) => prev.filter((asset) => !deletedIds.includes(asset.id)));
+      }
+
+      if (blockedReasons.length > 0) {
+        toast.warning("Some images could not be deleted", blockedReasons.join(" "));
+      }
+      if (deletedIds.length > 0) {
+        toast.success("Images deleted", `${deletedIds.length} image${deletedIds.length === 1 ? "" : "s"} removed from registry.`);
+      }
+
+      setSelectedImageAssetIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+    } catch (error) {
+      toast.error("Delete failed", error instanceof Error ? error.message : "Unable to delete selected images.");
+    } finally {
+      setIsImageImporting(false);
+    }
   };
 
   const handleTemplateSelect = (template: QuickTemplate) => {
@@ -1849,15 +1970,6 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       }
     }
   };
-
-  // Calculate input tokens for cost estimator
-  const inputTokens = useMemo(() => {
-    let total = estimateTokens(input);
-    if (contextContent) {
-      total += estimateTokens(contextContent);
-    }
-    return total;
-  }, [input, contextContent]);
 
   if (!isOpen) return null;
 
@@ -1970,6 +2082,68 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Tag className="w-3.5 h-3.5" />
               <span className="max-w-[200px] truncate">{deckTags.join(", ")}</span>
+            </div>
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <input
+              ref={imageFileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageFileChange}
+            />
+            <button
+              type="button"
+              onClick={handleImportImageClick}
+              disabled={isImageImporting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
+            >
+              <ImagePlus className="w-3.5 h-3.5" />
+              Import image
+            </button>
+            <button
+              type="button"
+              onClick={handlePasteImage}
+              disabled={isImageImporting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              Paste image
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteSelectedImages}
+              disabled={isImageImporting || selectedImageAssetIds.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-60"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete selected
+            </button>
+          </div>
+          {imageAssets.length > 0 && (
+            <div className="basis-full mt-2 flex items-center gap-2 overflow-x-auto pb-1">
+              {imageAssets.slice(0, 16).map((asset) => {
+                const selected = selectedImageAssetIds.includes(asset.id);
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => toggleSelectedImageAsset(asset.id)}
+                    className={cn(
+                      "relative h-12 w-12 overflow-hidden rounded-md border transition-all",
+                      selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
+                    )}
+                    title={asset.file_name || asset.id}
+                  >
+                    <img src={asset.data_url} alt={asset.file_name || "Registry image"} className="h-full w-full object-cover" />
+                  </button>
+                );
+              })}
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {selectedImageAssetIds.length} selected
+              </span>
             </div>
           )}
         </div>

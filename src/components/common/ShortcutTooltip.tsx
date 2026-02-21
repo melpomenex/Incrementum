@@ -184,13 +184,6 @@ export function ShortcutTooltip({
     right: "left-full top-1/2 -translate-y-1/2 ml-2",
   };
 
-  const arrowClasses = {
-    top: "top-full left-1/2 -translate-x-1/2 border-t-border",
-    bottom: "bottom-full left-1/2 -translate-x-1/2 border-b-border",
-    left: "left-full top-1/2 -translate-y-1/2 border-l-border",
-    right: "right-full top-1/2 -translate-y-1/2 border-r-border",
-  };
-
   const handleMouseEnter = () => {
     const id = setTimeout(() => setIsVisible(true), delay);
     setTimeoutId(id);

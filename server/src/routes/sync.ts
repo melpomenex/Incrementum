@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { getPool } from '../db/connection.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { createError } from '../middleware/errorHandler.js';
 
 export const syncRouter = Router();
 

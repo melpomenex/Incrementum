@@ -5,7 +5,7 @@
  * through Tauri's invoke mechanism.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   initOCR,
   ocrImageFile,

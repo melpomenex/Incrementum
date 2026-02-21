@@ -41,7 +41,6 @@ export function SyncStatusIndicator({
   });
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<number>(0);
-  const [autoSync, setAutoSync] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && provider) {

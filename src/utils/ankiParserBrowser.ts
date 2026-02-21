@@ -79,7 +79,7 @@ export async function parseAnkiPackage(file: File | Uint8Array): Promise<AnkiDec
 /**
  * Parse Anki SQLite database
  */
-function parseAnkiDatabase(db: Database, zip: JSZip): AnkiDeck[] {
+function parseAnkiDatabase(db: Database, _zip: JSZip): AnkiDeck[] {
   // Get models (note types)
   const models: Map<number, { name: string; fields: string[] }> = new Map();
   const normalizeModelFields = (raw: unknown): Array<{ name?: string }> => {
@@ -217,7 +217,7 @@ function parseAnkiDatabase(db: Database, zip: JSZip): AnkiDeck[] {
       if (d.name) {
         // Get cards for this deck (in Anki, cards have a did field pointing to deck id)
         const deckId = parseInt(id);
-        const deckCards = cards.filter(card => {
+        const deckCards = cards.filter(_card => {
           // We need to check if card belongs to this deck
           // This is a simplification - in reality, we'd need to query the card's did
           return true; // For now, include all cards

@@ -56,7 +56,7 @@ function sliderToRating(slider: number): number {
 export function PriorityControl({
   documentId,
   prioritySlider = 50,
-  priorityRating = 3,
+  priorityRating: _priorityRating = 3,
   onPriorityChange,
   className,
   variant = "compact",

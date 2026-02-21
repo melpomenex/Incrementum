@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   Copy,
-  FileText,
   ExternalLink,
   FolderOpen,
-  X,
   Check,
   AlertCircle,
   Download,
@@ -127,15 +125,6 @@ export function ShareMessageDialog({
       markdown = generateConversationMarkdown(messagesToExport, customTitle, contextInfo);
     }
 
-    const success = await copyToClipboard(markdown);
-    if (success) {
-      setCopiedToClipboard(true);
-      setTimeout(() => setCopiedToClipboard(false), 2000);
-    }
-  };
-
-  const handleCopySingleMessage = async (message: ConversationMessage) => {
-    const markdown = generateSingleMessageMarkdown(message, customTitle, contextInfo);
     const success = await copyToClipboard(markdown);
     if (success) {
       setCopiedToClipboard(true);

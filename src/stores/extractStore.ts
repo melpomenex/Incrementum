@@ -10,7 +10,7 @@ interface ExtractState {
   deleteExtract: (id: string) => Promise<void>;
 }
 
-export const useExtractStore = create<ExtractState>((set, get) => ({
+export const useExtractStore = create<ExtractState>((set) => ({
   extracts: [],
   isLoading: false,
   loadExtracts: async (documentId) => {

@@ -108,6 +108,7 @@ export interface LearningItem {
   state: "new" | "learning" | "review" | "relearning";
   isSuspended: boolean;
   tags: string[];
+  imageAssetIds?: string[];
 }
 
 export interface Category {

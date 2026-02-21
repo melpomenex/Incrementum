@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Compass, Layers, Plus, RefreshCw, Sparkles, Tag, Zap } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
@@ -7,6 +7,7 @@ import { getDueItems, type LearningItem } from "../../api/review";
 import { filterByDeck, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
 import type { StudyDeck } from "../../types/study-decks";
 import { FlashcardStudioModal } from "./FlashcardStudioModal";
+import { ReviewDecksModal } from "./ReviewDecksModal";
 import { ReviewPreviewModal } from "./ReviewPreviewModal";
 
 interface ReviewHomeProps {
@@ -48,8 +49,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const [newDeckTags, setNewDeckTags] = useState("");
   const [isFlashcardStudioOpen, setIsFlashcardStudioOpen] = useState(false);
   const [isReviewPreviewOpen, setIsReviewPreviewOpen] = useState(false);
-
-  const deckSectionRef = useRef<HTMLDivElement | null>(null);
+  const [isDecksModalOpen, setIsDecksModalOpen] = useState(false);
 
   const activeDeck = useMemo(
     () => (decks || []).find((deck) => deck.id === activeDeckId) ?? null,
@@ -139,7 +139,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => deckSectionRef.current?.scrollIntoView({ behavior: "smooth" })}
+                onClick={() => setIsDecksModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
                 <Layers className="h-4 w-4" />
@@ -251,7 +251,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
           </div>
         </div>
 
-        <div ref={deckSectionRef} className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -415,6 +415,14 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
         reviewCards={reviewCount}
         estimatedMinutes={Math.ceil(estimatedSeconds / 60)}
         deckName={activeDeck?.name}
+      />
+      <ReviewDecksModal
+        isOpen={isDecksModalOpen}
+        onClose={() => setIsDecksModalOpen(false)}
+        decks={decks}
+        deckStats={deckStats}
+        activeDeckId={activeDeckId}
+        onSelectDeck={setActiveDeckId}
       />
     </div>
   );

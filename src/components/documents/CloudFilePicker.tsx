@@ -14,12 +14,10 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Check,
   AlertCircle,
   Grid3x3,
   List,
   Search,
-  Filter,
   Cloud,
 } from "lucide-react";
 import type { CloudProviderType, FileInfo } from "@/types/cloud";
@@ -215,7 +213,7 @@ export function CloudFilePicker({
     const paths = [{ name: "Home", path: "/" }];
     let accum = "";
 
-    parts.forEach((part, index) => {
+    parts.forEach((part) => {
       accum += "/" + part;
       paths.push({ name: part, path: accum });
     });

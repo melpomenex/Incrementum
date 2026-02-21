@@ -5,10 +5,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Tag, FolderOpen, AlertCircle, Loader2 } from 'lucide-react';
+import { X, FileText, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { fetchUrlContent, type FetchedUrlContent } from '../../api/documents';
 import { ImportDialogSkeleton } from '../common/Skeleton';
-import type { Document } from '../../types/document';
 
 interface ImportDialogProps {
   url: string;
@@ -356,29 +355,4 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
       </div>
     </div>
   );
-}
-
-/**
- * detectSourceType and helper functions
- */
-
-function detectSourceType(url: string, content: FetchedUrlContent): 'article' | 'blog' | 'paper' | 'video' | 'other' {
-  const hostname = new URL(url).hostname.toLowerCase();
-
-  if (hostname.includes('medium.com')) return 'blog';
-  if (hostname.includes('notion.site')) return 'article';
-  if (hostname.includes('arxiv.org')) return 'paper';
-  if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) return 'video';
-
-  return 'other';
-}
-
-function detectContentType(content: FetchedUrlContent): string {
-  if (content.html?.includes('<article>') || content.html?.includes('blog-post')) {
-    return 'Article';
-  }
-  if (content.html?.includes('abstract') || content.html?.includes('paper')) {
-    return 'Research Paper';
-  }
-  return 'Web Page';
 }

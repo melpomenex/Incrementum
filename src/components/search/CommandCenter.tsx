@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { GlobalSearch, SearchResult, SearchQuery, SearchResultType } from "./GlobalSearch";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useTabsStore } from "../../stores/tabsStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useUIStore } from "../../stores/uiStore";
 import { useExtractStore } from "../../stores/extractStore";
-import { matchesDeckTags } from "../../utils/studyDecks";
 import { calculateRelevanceScore, extractSearchTerms, fuzzyMatch, highlightSearchTerms } from "./SearchUtils";
 import { extractDocumentText, getDocuments as fetchDocuments } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
@@ -20,13 +19,9 @@ import {
 } from "../../components/tabs/TabRegistry";
 import { Command, CommandCategory, getDefaultCommands } from "../common/CommandPalette";
 import {
-  Plus,
   BookOpen,
-  Layers,
   BarChart3,
   Settings,
-  Home,
-  Zap,
   LayoutDashboard,
   Library,
   ListTodo,
@@ -255,10 +250,6 @@ export function CommandCenter() {
   const activeDeck = useMemo(
     () => decks.find((item) => item.id === activeDeckId) ?? null,
     [decks, activeDeckId]
-  );
-  const activeDeckTags = useMemo(
-    () => activeDeck?.tagFilters ?? [],
-    [activeDeck]
   );
   const shouldFilterByDeck = false;
 
@@ -662,7 +653,6 @@ export function CommandCenter() {
         let transcriptMatch = false;
         if (allowContentSearch && doc.fileType === "youtube" && groupedDocs.size < maxResults) {
           const cached = transcriptCacheRef.current.get(doc.id);
-          let transcriptText: string | null = cached?.text ?? null;
           let transcriptLower: string | null = cached?.lower ?? null;
           if (!cached && !transcriptFetchInFlightRef.current.has(doc.id) && transcriptFetches < maxTranscriptFetches) {
             transcriptFetchInFlightRef.current.add(doc.id);
@@ -676,7 +666,6 @@ export function CommandCenter() {
                   if (text) {
                     const entry = { text, lower: text.toLowerCase() };
                     transcriptCacheRef.current.set(doc.id, entry);
-                    transcriptText = entry.text;
                     transcriptLower = entry.lower;
                   }
 
@@ -719,7 +708,7 @@ export function CommandCenter() {
           for (const t of searchTerms) {
             if (hits.length >= 6) break;
             const occ = findAllOccurrences(contentLower, t, 6 - hits.length);
-            occ.forEach((index, i) => {
+            occ.forEach((index) => {
               if (doc.fileType === "pdf") {
                 const pageNum = buildPdfPageFromIndex(doc, index, Math.max(1, contentLower.length));
                 hits.push({

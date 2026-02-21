@@ -15,7 +15,7 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { useQueueStore, type QueueFilterMode } from "../../stores/queueStore";
+import { useQueueStore } from "../../stores/queueStore";
 import type { QueueItem } from "../../types/queue";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../common/ItemDetailsPopover";
 import {
@@ -30,7 +30,6 @@ import {
   getReadingImpact,
   getStatusLabel,
   getTimeEstimateRange,
-  isScheduledItem,
   type SessionCustomizationOptions,
 } from "../../utils/reviewUx";
 import {

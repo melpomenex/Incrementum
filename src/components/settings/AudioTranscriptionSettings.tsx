@@ -140,7 +140,6 @@ export function AudioTranscriptionSettings() {
   }, [profiles, audioSettings.preferredModelId]);
 
   const rateLimitStatus = getRateLimitStatus();
-  const groqModel = audioSettings.groq.model;
 
   return (
     <div className="p-6 max-w-3xl space-y-8">

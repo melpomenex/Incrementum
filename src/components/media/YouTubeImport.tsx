@@ -11,15 +11,12 @@ import {
   Clock,
   Eye,
   ExternalLink,
-  FileText,
   Settings,
   X,
 } from "lucide-react";
 import {
-  extractYouTubeID,
   isYouTubeURL,
   getYouTubeURLType,
-  getYouTubeThumbnail,
   getYouTubeWatchURL,
 } from "../../api/youtube";
 import { invokeCommand, isTauri } from "../../lib/tauri";

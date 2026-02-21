@@ -18,7 +18,7 @@ export function TranscriptPanel({
   onSeek,
   isTranscribing,
 }: TranscriptPanelProps) {
-  const { activeSegments, loadTranscript, currentStatus } = useTranscriptionStore();
+  const { activeSegments, loadTranscript } = useTranscriptionStore();
   const [autoScroll, setAutoScroll] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);

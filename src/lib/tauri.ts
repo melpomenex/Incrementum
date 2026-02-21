@@ -172,7 +172,7 @@ export async function openFilePicker(options?: {
   }
 }
 
-import { storeBrowserFile, getBrowserFile } from './browser-file-store';
+import { storeBrowserFile } from './browser-file-store';
 
 /**
  * Open file picker using HTML5 File API

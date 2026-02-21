@@ -3,7 +3,7 @@
 use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
 use crate::error::Result;
-use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract};
+use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset};
 
 #[derive(Clone)]
 pub struct Repository {
@@ -946,6 +946,7 @@ impl Repository {
         let item_type_str = format!("{:?}", item.item_type).to_lowercase();
         let state_str = format!("{:?}", item.state).to_lowercase();
         let tags_json = serde_json::to_string(&item.tags)?;
+        let image_asset_ids_json = serde_json::to_string(&item.image_asset_ids)?;
 
         let (stability, difficulty) = item.memory_state.as_ref()
             .map(|s| (Some(s.stability), Some(s.difficulty)))
@@ -958,8 +959,8 @@ impl Repository {
                 answer, cloze_text, difficulty, interval,
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
-                is_suspended, tags, memory_state_stability, memory_state_difficulty
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
+                is_suspended, tags, image_asset_ids, memory_state_stability, memory_state_difficulty
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
             "#,
         )
         .bind(&item.id)
@@ -981,6 +982,7 @@ impl Repository {
         .bind(&state_str)
         .bind(item.is_suspended)
         .bind(&tags_json)
+        .bind(&image_asset_ids_json)
         .bind(stability)
         .bind(difficulty)
         .execute(&self.pool)
@@ -1001,6 +1003,8 @@ impl Repository {
             let state_str: String = row.try_get("state")?;
             let tags_json: String = row.try_get("tags")?;
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
+            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1027,6 +1031,7 @@ impl Repository {
                 state: Self::parse_item_state(&state_str),
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
+                image_asset_ids,
                 memory_state,
             });
         }
@@ -1046,6 +1051,8 @@ impl Repository {
             let state_str: String = row.try_get("state")?;
             let tags_json: String = row.try_get("tags")?;
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
+            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1072,6 +1079,7 @@ impl Repository {
                 state: Self::parse_item_state(&state_str),
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
+                image_asset_ids,
                 memory_state,
             });
         }
@@ -1091,6 +1099,8 @@ impl Repository {
             let state_str: String = row.try_get("state")?;
             let tags_json: String = row.try_get("tags")?;
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
+            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1117,6 +1127,7 @@ impl Repository {
                 state: Self::parse_item_state(&state_str),
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
+                image_asset_ids,
                 memory_state,
             });
         }
@@ -1171,6 +1182,8 @@ impl Repository {
             let state_str: String = row.try_get("state")?;
             let tags_json: String = row.try_get("tags")?;
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
+            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1197,11 +1210,153 @@ impl Repository {
                 state: Self::parse_item_state(&state_str),
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
+                image_asset_ids,
                 memory_state,
             });
         }
 
         Ok(items)
+    }
+
+    pub async fn create_or_get_image_asset(
+        &self,
+        mime_type: &str,
+        file_name: Option<&str>,
+        content: &[u8],
+        sha256: &str,
+        width: Option<i32>,
+        height: Option<i32>,
+    ) -> Result<ImageAsset> {
+        if let Some(existing) = self.get_image_asset_by_sha256(sha256).await? {
+            return Ok(existing);
+        }
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now();
+        let byte_size = i64::try_from(content.len()).unwrap_or(i64::MAX);
+
+        sqlx::query(
+            r#"
+            INSERT INTO image_assets (
+                id, mime_type, file_name, content, byte_size, sha256, width, height, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "#,
+        )
+        .bind(&id)
+        .bind(mime_type)
+        .bind(file_name)
+        .bind(content)
+        .bind(byte_size)
+        .bind(sha256)
+        .bind(width)
+        .bind(height)
+        .bind(now)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(ImageAsset {
+            id,
+            mime_type: mime_type.to_string(),
+            file_name: file_name.map(|s| s.to_string()),
+            content: content.to_vec(),
+            byte_size,
+            sha256: sha256.to_string(),
+            width,
+            height,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+
+    pub async fn get_image_asset(&self, id: &str) -> Result<Option<ImageAsset>> {
+        let row = sqlx::query("SELECT * FROM image_assets WHERE id = ?1")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(row.map(|r| ImageAsset {
+            id: r.try_get("id").unwrap_or_default(),
+            mime_type: r.try_get("mime_type").unwrap_or_else(|_| "image/png".to_string()),
+            file_name: r.try_get("file_name").ok(),
+            content: r.try_get("content").unwrap_or_default(),
+            byte_size: r.try_get("byte_size").unwrap_or_default(),
+            sha256: r.try_get("sha256").unwrap_or_default(),
+            width: r.try_get("width").ok(),
+            height: r.try_get("height").ok(),
+            created_at: r.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: r.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+        }))
+    }
+
+    pub async fn list_image_assets(&self) -> Result<Vec<ImageAsset>> {
+        let rows = sqlx::query("SELECT * FROM image_assets ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| ImageAsset {
+                id: r.try_get("id").unwrap_or_default(),
+                mime_type: r.try_get("mime_type").unwrap_or_else(|_| "image/png".to_string()),
+                file_name: r.try_get("file_name").ok(),
+                content: r.try_get("content").unwrap_or_default(),
+                byte_size: r.try_get("byte_size").unwrap_or_default(),
+                sha256: r.try_get("sha256").unwrap_or_default(),
+                width: r.try_get("width").ok(),
+                height: r.try_get("height").ok(),
+                created_at: r.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+                updated_at: r.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+            })
+            .collect())
+    }
+
+    pub async fn delete_image_asset_if_unreferenced(&self, id: &str) -> Result<bool> {
+        let count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*) as count
+            FROM learning_items li
+            WHERE EXISTS (
+                SELECT 1
+                FROM json_each(COALESCE(li.image_asset_ids, '[]'))
+                WHERE json_each.value = ?1
+            )
+            "#,
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        if count > 0 {
+            return Ok(false);
+        }
+
+        let result = sqlx::query("DELETE FROM image_assets WHERE id = ?1")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn get_image_asset_by_sha256(&self, sha256: &str) -> Result<Option<ImageAsset>> {
+        let row = sqlx::query("SELECT * FROM image_assets WHERE sha256 = ?1 LIMIT 1")
+            .bind(sha256)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(row.map(|r| ImageAsset {
+            id: r.try_get("id").unwrap_or_default(),
+            mime_type: r.try_get("mime_type").unwrap_or_else(|_| "image/png".to_string()),
+            file_name: r.try_get("file_name").ok(),
+            content: r.try_get("content").unwrap_or_default(),
+            byte_size: r.try_get("byte_size").unwrap_or_default(),
+            sha256: r.try_get("sha256").unwrap_or_default(),
+            width: r.try_get("width").ok(),
+            height: r.try_get("height").ok(),
+            created_at: r.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: r.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+        }))
     }
 
     // Review session operations
@@ -2661,4 +2816,66 @@ struct StudyStatsRow {
     new_cards: i32,
     learning_cards: i32,
     review_cards: i32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::connection::Database;
+    use crate::models::{ItemType, LearningItem};
+    use sha2::{Digest, Sha256};
+    use std::path::PathBuf;
+
+    async fn setup_repo() -> Repository {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate");
+        Repository::new(db.pool().clone())
+    }
+
+    fn sha_hex(bytes: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        format!("{:x}", hasher.finalize())
+    }
+
+    #[tokio::test]
+    async fn image_assets_are_deduplicated_by_sha256() {
+        let repo = setup_repo().await;
+        let bytes = vec![1_u8, 2, 3, 4, 5];
+        let sha = sha_hex(&bytes);
+
+        let first = repo
+            .create_or_get_image_asset("image/png", Some("a.png"), &bytes, &sha, Some(100), Some(100))
+            .await
+            .expect("first");
+        let second = repo
+            .create_or_get_image_asset("image/png", Some("b.png"), &bytes, &sha, Some(100), Some(100))
+            .await
+            .expect("second");
+
+        assert_eq!(first.id, second.id);
+    }
+
+    #[tokio::test]
+    async fn delete_image_asset_is_blocked_when_referenced() {
+        let repo = setup_repo().await;
+        let bytes = vec![9_u8, 8, 7, 6];
+        let sha = sha_hex(&bytes);
+        let asset = repo
+            .create_or_get_image_asset("image/png", Some("asset.png"), &bytes, &sha, Some(10), Some(10))
+            .await
+            .expect("asset");
+
+        let mut item = LearningItem::new(ItemType::Flashcard, "Question".to_string());
+        item.answer = Some("Answer".to_string());
+        item.image_asset_ids = vec![asset.id.clone()];
+        repo.create_learning_item(&item).await.expect("learning item");
+
+        let deleted = repo
+            .delete_image_asset_if_unreferenced(&asset.id)
+            .await
+            .expect("delete");
+        assert!(!deleted);
+    }
+
 }

@@ -215,7 +215,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
     isSubmitting,
     error,
     currentIndex,
-    previewIntervals,
+    previewIntervals: _previewIntervals,
     showAnswer,
     submitRating,
     nextCard,

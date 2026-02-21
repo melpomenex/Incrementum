@@ -148,7 +148,6 @@ export interface TabsState {
 }
 
 const STORAGE_KEY = "incrementum-tabs";
-const STORAGE_KEY_LAYOUT = "incrementum-layout";
 
 // Helper to find a pane by ID recursively
 function findPaneByIdRecursive(pane: Pane, paneId: string): Pane | null {

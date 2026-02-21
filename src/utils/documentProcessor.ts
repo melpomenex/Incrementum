@@ -120,8 +120,6 @@ async function segmentDocument(
   minLength: number,
   maxLength: number
 ): Promise<DocumentSegment[]> {
-  const segments: DocumentSegment[] = [];
-
   switch (strategy) {
     case "paragraph":
       return segmentByParagraph(content, minLength, maxLength);
@@ -199,12 +197,11 @@ function segmentByParagraph(
 function segmentByChapter(
   content: string,
   minLength: number,
-  maxLength: number
+  _maxLength: number
 ): DocumentSegment[] {
   const segments: DocumentSegment[] = [];
   const chapterRegex = /^(chapter|part|section)\s+\d+/gim;
 
-  let startIndex = 0;
   let match;
   let lastIndex = 0;
   let segmentIndex = 0;
@@ -249,12 +246,11 @@ function segmentByChapter(
 function segmentBySection(
   content: string,
   minLength: number,
-  maxLength: number
+  _maxLength: number
 ): DocumentSegment[] {
   const segments: DocumentSegment[] = [];
   const headingRegex = /^#{1,3}\s+.+$/gm;
 
-  let startIndex = 0;
   let match;
   let lastIndex = 0;
   let segmentIndex = 0;
@@ -311,7 +307,7 @@ async function segmentBySemantic(
  */
 async function extractMetadata(
   content: string,
-  fileType: string
+  _fileType: string
 ): Promise<DocumentMetadata> {
   const metadata: DocumentMetadata = {};
 

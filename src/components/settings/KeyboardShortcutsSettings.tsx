@@ -4,11 +4,8 @@
 
 import { useState } from "react";
 import {
-  KeyboardShortcutsHelp,
   formatKeyCombo,
   useShortcutStore,
-  DEFAULT_SHORTCUTS,
-  ShortcutCategory,
 } from "../common/KeyboardShortcuts";
 import { useVimiumEnabled } from "../common/VimiumNavigation";
 import { SettingsSection, SettingsRow } from "./SettingsPage";

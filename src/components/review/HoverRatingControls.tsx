@@ -35,7 +35,7 @@ const RATING_SHORTCUTS: Record<ReviewRating, string> = {
 
 export function HoverRatingControls({
   itemId,
-  documentId,
+  documentId: _documentId,
   onRatingSubmitted,
   disabled = false,
   forceVisible = false,

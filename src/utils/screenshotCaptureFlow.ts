@@ -8,10 +8,6 @@ import {
   ScreenInfo,
 } from "./screenshotCapture";
 
-// Type definitions for lazy loading
-type WebviewWindowType = import("@tauri-apps/api/webviewWindow").WebviewWindow;
-type ListenFn = typeof import("@tauri-apps/api/event").listen;
-
 export type ScreenshotSelectionMode = "region" | "screen" | "app";
 
 export interface ScreenshotSelection {

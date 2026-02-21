@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   Circle,
   Tags,
-  Calendar,
   SlidersHorizontal,
   Eye,
   EyeOff,

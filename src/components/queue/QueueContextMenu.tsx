@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MoreVertical, Pause, Play, Trash2, Calendar } from "lucide-react";
+import { MoreVertical, Play, Trash2, Calendar } from "lucide-react";
 import type { QueueItem } from "../../types/queue";
 
 interface QueueContextMenuProps {

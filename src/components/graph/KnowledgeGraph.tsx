@@ -91,14 +91,14 @@ export function KnowledgeGraph({
   layout = LayoutAlgorithm.Force,
   onNodeClick,
   onNodeDoubleClick,
-  onEdgeClick,
+  onEdgeClick: _onEdgeClick,
   selectedNode,
   highlightedNodes = [],
   minZoom = 0.1,
   maxZoom = 5,
   enablePhysics = true,
   showLabels = true,
-  edgeThreshold = 0,
+  edgeThreshold: _edgeThreshold = 0,
 }: KnowledgeGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,8 +149,6 @@ export function KnowledgeGraph({
       }
 
       // Initialize velocities if not exist
-      const velocities: Record<string, { vx: number; vy: number }> = {};
-
       // Apply forces
       nodes.forEach((node) => {
         let fx = 0;
@@ -478,7 +476,7 @@ export function KnowledgeGraph({
     setTransform({ x: newX, y: newY, k: newK });
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (hoveredNode && onNodeClick) {
       const node = laidOutNodes.find((n) => n.id === hoveredNode);
       if (node) {
@@ -487,7 +485,7 @@ export function KnowledgeGraph({
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleDoubleClick = () => {
     if (hoveredNode && onNodeDoubleClick) {
       const node = laidOutNodes.find((n) => n.id === hoveredNode);
       if (node) {
@@ -578,7 +576,7 @@ function applyLayout(nodes: GraphNode[], algorithm: LayoutAlgorithm): GraphNode[
   const result = [...nodes];
 
   switch (algorithm) {
-    case LayoutAlgorithm.Circular:
+    case LayoutAlgorithm.Circular: {
       const centerX = 400;
       const centerY = 300;
       const radius = Math.min(centerX, centerY) * 0.8;
@@ -589,8 +587,9 @@ function applyLayout(nodes: GraphNode[], algorithm: LayoutAlgorithm): GraphNode[
         node.y = centerY + Math.sin(i * angleStep) * radius;
       });
       break;
+    }
 
-    case LayoutAlgorithm.Hierarchical:
+    case LayoutAlgorithm.Hierarchical: {
       const levels: Record<string, GraphNode[]> = {};
       result.forEach((node) => {
         const level = node.metadata?.level as number || 0;
@@ -608,8 +607,9 @@ function applyLayout(nodes: GraphNode[], algorithm: LayoutAlgorithm): GraphNode[
         y += 100;
       });
       break;
+    }
 
-    case LayoutAlgorithm.Grid:
+    case LayoutAlgorithm.Grid: {
       const gridSize = Math.ceil(Math.sqrt(result.length));
       const cellWidth = 800 / gridSize;
       const cellHeight = 600 / gridSize;
@@ -621,6 +621,7 @@ function applyLayout(nodes: GraphNode[], algorithm: LayoutAlgorithm): GraphNode[
         node.y = row * cellHeight + cellHeight / 2;
       });
       break;
+    }
 
     case LayoutAlgorithm.Random:
       result.forEach((node) => {

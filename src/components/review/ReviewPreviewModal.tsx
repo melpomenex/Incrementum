@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import {
-  Zap,
   Clock,
   Layers,
   Target,

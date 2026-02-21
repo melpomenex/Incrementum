@@ -3,8 +3,6 @@
  * Handles both local server (localhost:8766) and cloud API (readsync.org)
  */
 
-import * as db from './database.js';
-
 const LOCAL_SERVER_URL = 'http://127.0.0.1:8766';
 const CLOUD_API_BASE = import.meta.env.VITE_API_URL || 'https://readsync.org/api';
 
@@ -34,21 +32,12 @@ const CONNECTION_MODE_KEY = 'incrementum_connection_mode';
 
 // Storage keys for auth
 const TOKEN_KEY = 'incrementum_auth_token';
-const USER_KEY = 'incrementum_user';
 
 /**
  * Get stored auth token
  */
 function getAuthToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
-}
-
-/**
- * Get stored user
- */
-function getUser(): { id: string; email: string; subscriptionTier: string } | null {
-  const user = localStorage.getItem(USER_KEY);
-  return user ? JSON.parse(user) : null;
 }
 
 /**

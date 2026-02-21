@@ -1,0 +1,190 @@
+import { useEffect, useMemo, useState } from "react";
+import { Check, Layers, Search, X } from "lucide-react";
+import type { StudyDeck } from "../../types/study-decks";
+
+interface ReviewDecksModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  decks: StudyDeck[];
+  deckStats: Array<{
+    deck: StudyDeck;
+    count: number;
+  }>;
+  activeDeckId: string | null;
+  onSelectDeck: (deckId: string | null) => void;
+}
+
+export function ReviewDecksModal({
+  isOpen,
+  onClose,
+  decks,
+  deckStats,
+  activeDeckId,
+  onSelectDeck,
+}: ReviewDecksModalProps) {
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuery("");
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  const totalDueCount = useMemo(
+    () => deckStats.reduce((sum, item) => sum + item.count, 0),
+    [deckStats]
+  );
+
+  const filteredDeckStats = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return deckStats;
+
+    return deckStats.filter(({ deck }) => {
+      if (deck.name.toLowerCase().includes(normalized)) return true;
+      return deck.tagFilters.some((tag) => tag.toLowerCase().includes(normalized));
+    });
+  }, [deckStats, query]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div
+        className="absolute inset-0"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="relative w-full max-w-3xl rounded-2xl border border-border bg-card shadow-2xl animate-glass-scale-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-decks-modal-title"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+          <div>
+            <h2 id="review-decks-modal-title" className="text-2xl font-bold text-foreground">
+              Saved Decks
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {decks.length} {decks.length === 1 ? "deck" : "decks"} available for review.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close decks modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="relative mb-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search decks or tags"
+              autoFocus
+              className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            <button
+              onClick={() => {
+                onSelectDeck(null);
+                onClose();
+              }}
+              className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                activeDeckId === null
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-background hover:bg-muted/70"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <span className="font-semibold text-foreground">All Decks</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>{totalDueCount} due</span>
+                  {activeDeckId === null && <Check className="h-4 w-4 text-primary" />}
+                </div>
+              </div>
+            </button>
+
+            {filteredDeckStats.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No matching decks found.
+              </div>
+            )}
+
+            {filteredDeckStats.map(({ deck, count }) => {
+              const isActive = activeDeckId === deck.id;
+              return (
+                <button
+                  key={deck.id}
+                  onClick={() => {
+                    onSelectDeck(deck.id);
+                    onClose();
+                  }}
+                  className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                    isActive
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-background hover:bg-muted/70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-foreground">{deck.name}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{count} due</span>
+                      {isActive && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {deck.tagFilters.length > 0 ? (
+                      deck.tagFilters.map((tag) => (
+                        <span
+                          key={`${deck.id}-${tag}`}
+                          className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No tag filters</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

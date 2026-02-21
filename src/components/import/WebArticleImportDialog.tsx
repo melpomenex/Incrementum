@@ -15,7 +15,6 @@ import {
   AlertCircle,
   FileText,
   Clock,
-  Tag,
   ExternalLink,
   BookOpen,
   Sparkles,
@@ -63,7 +62,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
   const [tags, setTags] = useState<string[]>(["article", "web"]);
   const [newTag, setNewTag] = useState("");
   const [importSuccess, setImportSuccess] = useState(false);
-  const [importedDoc, setImportedDoc] = useState<Document | null>(null);
+  const [, setImportedDoc] = useState<Document | null>(null);
   const [previewMode, setPreviewMode] = useState<'rendered' | 'text'>('rendered');
   const [showCorsWarning, setShowCorsWarning] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);

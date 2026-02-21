@@ -10,7 +10,7 @@
  */
 
 import { ReactNode, useRef, useEffect } from "react";
-import { useSwipeGestures, type SwipeGestureOptions } from "../../hooks/useSwipeGestures";
+import { useSwipeGestures } from "../../hooks/useSwipeGestures";
 import { cn } from "../../utils";
 
 export interface SwipeAction {
@@ -31,13 +31,6 @@ interface SwipeableItemProps {
   threshold?: number;
   className?: string;
 }
-
-const DEFAULT_ACTION: SwipeAction = {
-  icon: null,
-  label: "",
-  color: "#6366f1",
-  bgColor: "rgba(99, 102, 241, 0.1)",
-};
 
 export function SwipeableItem({
   children,

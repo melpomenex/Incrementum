@@ -3,12 +3,9 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  Settings as SettingsIcon,
   Lock,
   Clock,
-  AlertTriangle,
   Check,
-  X,
   FileText,
   History,
   Shield,
@@ -18,21 +15,17 @@ import {
 } from "lucide-react";
 import {
   syncNow,
-  getSyncStatus,
   getSyncLog,
   getSyncConfig,
   saveSyncConfig,
   enableSync,
   disableSync,
-  isSyncEnabled,
   formatSyncStatus,
   getSyncStatusColor,
   formatLastSync,
   getNextSyncTime,
   SyncStatus,
   SyncConfig,
-  SyncConflict,
-  ConflictResolution,
   SyncResult,
   SyncLogEntry,
 } from "../../api/sync";
@@ -151,7 +144,7 @@ export function SyncSettings() {
       if (result.status === SyncStatus.Conflict) {
         setViewMode("conflicts");
       }
-    } catch (error) {
+    } catch {
       setStatus(SyncStatus.Failed);
     } finally {
       setIsSyncing(false);

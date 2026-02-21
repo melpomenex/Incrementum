@@ -55,6 +55,7 @@ pub struct LearningItem {
     pub state: ItemState,
     pub is_suspended: bool,
     pub tags: Vec<String>,
+    pub image_asset_ids: Vec<String>,
     /// FSRS Memory State (stability and difficulty)
     pub memory_state: Option<MemoryState>,
 }
@@ -99,6 +100,7 @@ impl LearningItem {
             state: ItemState::New,
             is_suspended: false,
             tags: Vec::new(),
+            image_asset_ids: Vec::new(),
             memory_state: None,
         }
     }

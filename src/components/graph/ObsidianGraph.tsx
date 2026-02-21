@@ -5,14 +5,13 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
-import { GraphNodeType, type GraphNode, type GraphEdge, type GraphData } from "./KnowledgeGraph";
+import { GraphNodeType, type GraphNode, type GraphData } from "./KnowledgeGraph";
 import {
   FileText,
   Quote,
   BrainCircuit,
   Tag,
   Folder,
-  ExternalLink,
   X,
   ZoomIn,
   ZoomOut,
@@ -91,7 +90,6 @@ export function ObsidianGraph({
 }: ObsidianGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number | undefined>(undefined);
   const { theme } = useTheme();
 
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
@@ -436,14 +434,14 @@ export function ObsidianGraph({
     setTransform({ x: newX, y: newY, k: newK });
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (hoveredNode && onNodeClick) {
       const node = simulationNodes.find((n) => n.id === hoveredNode);
       if (node) onNodeClick(node);
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleDoubleClick = () => {
     if (hoveredNode && onNodeDoubleClick) {
       const node = simulationNodes.find((n) => n.id === hoveredNode);
       if (node) onNodeDoubleClick(node);

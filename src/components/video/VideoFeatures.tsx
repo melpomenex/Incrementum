@@ -5,12 +5,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Bookmark,
   Bookmark as BookmarkIcon,
   List,
   Plus,
   Trash2,
-  ChevronRight,
   FileText,
   Clock,
   Hash,
@@ -29,7 +27,6 @@ import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useToast } from '../common/Toast';
 import { isTauri } from '../../lib/tauri';
-import { isGroqConfigured } from '../../api/groqTranscription';
 import { TranscriptionButton } from '../transcription';
 
 interface VideoBookmark {
@@ -70,7 +67,7 @@ export function VideoFeatures({
   documentTitle,
   filePath,
   currentTime,
-  duration,
+  duration: _duration,
   onSeek,
   className = '',
 }: VideoFeaturesProps) {
@@ -96,18 +93,20 @@ export function VideoFeatures({
     setLoading(true);
     try {
       switch (tab) {
-        case 'bookmarks':
+        case 'bookmarks': {
           const bookmarksData = await invokeCommand<VideoBookmark[]>('get_video_bookmarks', {
             documentId,
           });
           setBookmarks(bookmarksData);
           break;
-        case 'chapters':
+        }
+        case 'chapters': {
           const chaptersData = await invokeCommand<VideoChapter[]>('get_video_chapters', {
             documentId,
           });
           setChapters(chaptersData);
           break;
+        }
         case 'transcript':
           // Transcript is loaded directly in TranscriptView component
           break;
@@ -261,9 +260,7 @@ export function VideoFeatures({
             {activeTab === 'bookmarks' && (
               <BookmarksView
                 bookmarks={bookmarks}
-                currentTime={currentTime}
                 onSeek={onSeek}
-                onAdd={addBookmark}
                 onRemove={removeBookmark}
               />
             )}
@@ -272,7 +269,6 @@ export function VideoFeatures({
               <ChaptersView
                 chapters={chapters}
                 currentTime={currentTime}
-                duration={duration}
                 onSeek={onSeek}
                 errorMessage={errorMessage}
               />
@@ -320,13 +316,11 @@ export function VideoFeatures({
 // Bookmarks View Component
 interface BookmarksViewProps {
   bookmarks: VideoBookmark[];
-  currentTime: number;
   onSeek: (time: number) => void;
-  onAdd: (title?: string) => void;
   onRemove: (id: string) => void;
 }
 
-function BookmarksView({ bookmarks, currentTime, onSeek, onAdd, onRemove }: BookmarksViewProps) {
+function BookmarksView({ bookmarks, onSeek, onRemove }: BookmarksViewProps) {
   if (bookmarks.length === 0) {
     return (
       <div className="text-center py-8">
@@ -376,12 +370,11 @@ function BookmarksView({ bookmarks, currentTime, onSeek, onAdd, onRemove }: Book
 interface ChaptersViewProps {
   chapters: VideoChapter[];
   currentTime: number;
-  duration: number;
   onSeek: (time: number) => void;
   errorMessage?: string | null;
 }
 
-function ChaptersView({ chapters, currentTime, duration, onSeek, errorMessage }: ChaptersViewProps) {
+function ChaptersView({ chapters, currentTime, onSeek, errorMessage }: ChaptersViewProps) {
   if (errorMessage) {
     return (
       <div className="text-center py-8">

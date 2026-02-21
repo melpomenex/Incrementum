@@ -3,7 +3,7 @@
  * Enhanced with stack limit, progress bar, and better animations
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { create } from "zustand";
 import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
@@ -20,7 +20,7 @@ export enum ToastType {
 /**
  * Toast notification
  */
-export interface Toast {
+export interface ToastData {
   id: string;
   type: ToastType;
   title: string;
@@ -37,8 +37,8 @@ export interface Toast {
  * Toast store
  */
 interface ToastStore {
-  toasts: Toast[];
-  addToast: (toast: Omit<Toast, "id" | "progress">) => string;
+  toasts: ToastData[];
+  addToast: (toast: Omit<ToastData, "id" | "progress">) => string;
   removeToast: (id: string) => void;
   clearAll: () => void;
   updateProgress: (id: string, progress: number) => void;
@@ -53,7 +53,7 @@ export const useToastStore = create<ToastStore>((set, get) => ({
   toasts: [],
   addToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newToast: Toast = { ...toast, id, progress: 100 };
+    const newToast: ToastData = { ...toast, id, progress: 100 };
 
     set((state) => {
       // Remove oldest toast if we're at the limit
@@ -139,7 +139,7 @@ const ToastStyles = {
 /**
  * Individual toast item with animation and progress bar
  */
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+function ToastItem({ toast, onRemove }: { toast: ToastData; onRemove: (id: string) => void }) {
   const [isExiting, setIsExiting] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const Icon = ToastIcons[toast.type];

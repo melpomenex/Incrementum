@@ -43,7 +43,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import "./styles/mobile.css";
@@ -53,9 +53,6 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { initializePWA } from "./lib/pwa";
 import { isTauri } from "./lib/tauri";
 import { initLocalStorageSync } from "./lib/localStorageSync";
-
-// Mobile PWA Components
-import { MobileLayoutWrapper } from "./components/mobile/MobileLayoutWrapper";
 
 // Layout
 import { MainLayout } from "./components/layout/MainLayout";

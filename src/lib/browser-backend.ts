@@ -10,24 +10,18 @@ import { parseAnkiPackage, convertAnkiToLearningItems } from '../utils/ankiParse
 import {
     getDemoContentStatus,
     importDemoContentManually,
-    checkAndImportDemoContent as checkAndImportDemoContentInternal,
 } from '../lib/demoContent';
 import * as pdfjsLib from 'pdfjs-dist';
 import ePub from 'epubjs';
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from 'ts-fsrs';
 import { useSettingsStore } from '../stores/settingsStore';
 import { v4 as uuidv4 } from 'uuid';
-import { getPositionProgress } from '../types/position';
+import { getPositionProgress, type DocumentPosition } from '../types/position';
 import {
     fetchYouTubeTranscript,
-    checkTranscriptAvailable,
-    getAvailableLanguages,
 } from '../utils/youtubeTranscriptBrowser';
 import {
-    getQueueSession,
-    wasItemViewed,
     getRecentlyViewedIds,
-    type QueueSession,
 } from './queueSession';
 import {
     fetchPlaylistInfo,
@@ -44,7 +38,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 // Suppress verbose PDF.js warnings (Unicode mismatch, unknown glyph name, etc.)
 // Only show errors, not warnings or info messages
-(pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
+(pdfjsLib as unknown as { GlobalWorkerOptions: { verbosity: number } }).GlobalWorkerOptions.verbosity = 0;
 
 type CommandHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
@@ -70,7 +64,7 @@ async function extractEpubText(data: ArrayBuffer): Promise<string> {
         const book = ePub(data);
         await book.ready;
 
-        const spine = book.spine as any;
+        const spine = book.spine as { items?: Array<{ href: string }>; spineItems?: Array<{ href: string }> };
         const textParts: string[] = [];
 
         // Get all spine items (chapters)
@@ -128,7 +122,7 @@ async function extractPdfText(data: ArrayBuffer): Promise<string> {
                 const page = await pdfDoc.getPage(pageNum);
                 const textContent = await page.getTextContent();
                 const pageText = textContent.items
-                    .map((item: any) => ('str' in item ? item.str : ''))
+                    .map((item: { str?: string }) => ('str' in item ? item.str : ''))
                     .join(' ')
                     .replace(/\s+/g, ' ')
                     .trim();
@@ -148,7 +142,7 @@ async function extractPdfText(data: ArrayBuffer): Promise<string> {
 }
 
 // Helper to convert snake_case DB objects to camelCase frontend objects
-function toCamelCase(obj: any): any {
+function toCamelCase(obj: unknown): unknown {
     if (obj === undefined || obj === null) {
         return obj;
     }
@@ -158,43 +152,11 @@ function toCamelCase(obj: any): any {
         // Handle both plain objects and IndexedDB result objects
         return Object.keys(obj).reduce((result, key) => {
             const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-            result[camelKey] = toCamelCase(obj[key]);
+            result[camelKey] = toCamelCase((obj as Record<string, unknown>)[key]);
             return result;
-        }, {} as any);
+        }, {} as Record<string, unknown>);
     }
     return obj;
-}
-
-/**
- * Get DocumentPosition from a document object
- * Tries positionJson first, then falls back to legacy position fields
- */
-function getPositionFromDocument(doc: db.Document): DocumentPosition | null {
-    if (!doc) return null;
-    
-    // Try position_json first (new unified storage)
-    if (doc.position_json) {
-        try {
-            return JSON.parse(doc.position_json) as DocumentPosition;
-        } catch (error) {
-            console.warn('[Browser] Failed to parse position_json:', error);
-        }
-    }
-    
-    // Fall back to legacy position fields
-    if (doc.current_page && doc.current_page > 1) {
-        return { type: 'page', page: doc.current_page };
-    }
-    
-    if (doc.current_scroll_percent && doc.current_scroll_percent > 0) {
-        return { type: 'scroll', percent: doc.current_scroll_percent };
-    }
-    
-    if (doc.current_cfi) {
-        return { type: 'cfi', cfi: doc.current_cfi };
-    }
-    
-    return null;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -400,9 +362,9 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     update_document: async (args) => {
         const id = args.id as string;
-        const updates = args.updates as any;
+        const updates = args.updates as Record<string, unknown>;
         // Convert camelCase updates back to snake_case for DB
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
         for (const key in updates) {
             const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
             dbUpdates[snakeKey] = updates[key];
@@ -416,7 +378,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const currentPage = args.current_page as number | null | undefined;
         const scrollPercent = args.current_scroll_percent as number | null | undefined;
         const currentCfi = args.current_cfi as string | null | undefined;
-        const currentViewState = args.current_view_state as string | null | undefined;
 
         const updates: Partial<db.Document> = {
             current_page: currentPage,
@@ -467,7 +428,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             updates.progress_percent = progress ?? existingDoc?.progress_percent ?? 0;
         }
 
-        const cleaned: any = {};
+        const cleaned: Record<string, unknown> = {};
         Object.entries(updates).forEach(([key, value]) => {
             if (value !== undefined) {
                 cleaned[key] = value === null ? undefined : value;
@@ -494,13 +455,14 @@ const commandHandlers: Record<string, CommandHandler> = {
         const id = (args.document_id ?? args.documentId) as string;
         const position = args.position as unknown;
         if (!id || !position) return null;
-        let progress = getPositionProgress(position as any);
+        const positionObj = position as DocumentPosition;
+        let progress = getPositionProgress(positionObj);
 
         // For page-based positions, calculate progress if we have total pages
-        if (progress === null && (position as any).type === 'page') {
+        if (progress === null && positionObj.type === 'page') {
             const doc = await db.getDocument(id);
             if (doc?.total_pages) {
-                progress = ((position as any).page / doc.total_pages) * 100;
+                progress = (positionObj.page / doc.total_pages) * 100;
             }
         }
 
@@ -654,7 +616,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                     fileName = stored.filename;
                     fileType = fileName.split('.').pop()?.toLowerCase() || fileType;
                 }
-                sourceFile = new File([stored.blob], stored.filename, { type: stored.content_type || (stored.blob as any).type || '' });
+                sourceFile = new File([stored.blob], stored.filename, { type: stored.content_type || stored.blob.type || '' });
             }
         }
 
@@ -726,7 +688,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             console.log('[Browser] yjs-file not cached; downloading:', yjsInfo);
             const blob = await downloadRoomFile(yjsInfo.room, yjsInfo.id);
             const filename = yjsInfo.filename || 'document';
-            const contentType = (blob as any).type || 'application/octet-stream';
+            const contentType = blob.type || 'application/octet-stream';
             const file = new File([blob], filename, { type: contentType });
             await db.storeFile(file, filePath);
             return await blobToBase64DataUrlPayload(file);
@@ -965,7 +927,6 @@ const commandHandlers: Record<string, CommandHandler> = {
     get_due_documents_only: async () => {
         const docs = (await db.getDocuments()).filter((doc) => !doc.is_archived);
         const now = new Date().toISOString();
-        const session = getQueueSession();
         
         // Smart filtering:
         // 1. Include items that are due (next_reading_date <= now)
@@ -1683,8 +1644,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         };
     },
 
-    import_playlist_video: async (args) => {
-        const videoId = args.playlistVideoId as string;
+    import_playlist_video: async () => {
         // In browser mode, this is handled during subscribe_to_playlist
         // Return a mock document
         throw new Error('Individual video import not supported in browser mode. Please import the entire playlist.');
@@ -1884,13 +1844,11 @@ const commandHandlers: Record<string, CommandHandler> = {
     },
 
     // PDF to HTML conversion (not available in browser mode)
-    convert_pdf_to_html: async (args) => {
-        const filePath = args.file_path as string;
+    convert_pdf_to_html: async () => {
         throw new Error('PDF to HTML conversion requires the desktop app (Tauri). This feature is not available in web browser mode.');
     },
 
-    convert_document_pdf_to_html: async (args) => {
-        const id = args.id as string;
+    convert_document_pdf_to_html: async () => {
         throw new Error('PDF to HTML conversion requires the desktop app (Tauri). This feature is not available in web browser mode.');
     },
 
@@ -2417,7 +2375,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         return [];
     },
 
-    sync_now: async (args) => {
+    sync_now: async () => {
         // In browser mode, sync is handled via Yjs WebSocket provider
         // This is a stub to prevent errors
         console.warn('[Browser] sync_now called - browser uses Yjs WebSocket sync, not cloud sync');

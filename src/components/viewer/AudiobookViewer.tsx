@@ -25,12 +25,7 @@ import {
   Clock,
   Moon,
   X,
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
   FileText,
-  Scissors,
-  Quote,
   Headphones,
   Maximize2,
   Minimize2,
@@ -43,7 +38,6 @@ import {
   AudiobookMetadata,
   AudiobookChapter,
   AudiobookTranscript,
-  TranscriptSegment,
   formatDuration,
   extractAudioCoverArt,
   searchAudiobookCover,
@@ -547,7 +541,6 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         void saveDocumentPosition(docId, timePosition(globalRounded, totalDurationSecondsRef.current));
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps: refs carry the latest values
   
   const skip = (seconds: number) => {
@@ -713,9 +706,6 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   
   // Current chapter
   const currentChapter = getCurrentChapter();
-  const currentChapterIndex = currentChapter 
-    ? chapters.findIndex(c => c.id === currentChapter.id)
-    : -1;
 
   useEffect(() => {
     if (!showTranscript) return;
@@ -862,7 +852,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
             )}
             
             <div className="flex-1 overflow-y-auto">
-              {showChapters && chapters.map((chapter, idx) => (
+              {showChapters && chapters.map((chapter) => (
                 <button
                   key={chapter.id}
                   onClick={() => goToChapter(chapter)}

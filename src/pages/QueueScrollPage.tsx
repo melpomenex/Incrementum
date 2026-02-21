@@ -26,7 +26,6 @@ import {
   toggleItemFavoriteAuto,
 } from "../api/rss";
 import { cn } from "../utils";
-import type { QueueItem } from "../types";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../components/common/ItemDetailsPopover";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../components/assistant/AssistantPanel";
 import { useToast } from "../components/common/Toast";
@@ -116,7 +115,7 @@ const SESSION_KEYS = {
 export function QueueScrollPage() {
   const { filteredItems: allQueueItems, loadQueue } = useQueueStore();
   const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore();
-  const { tabs, rootPane, closeTab, updateTab } = useTabsStore();
+  const { rootPane, closeTab, updateTab } = useTabsStore();
   const { settings, updateSettingsCategory } = useSettingsStore();
   
   // Get active tab ID from the first tab pane
@@ -355,7 +354,6 @@ export function QueueScrollPage() {
       }
     };
     loadAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
 
   // Apply smart start position once items are loaded

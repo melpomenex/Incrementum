@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Circle,
   TrendingUp,
-  Calendar,
 } from 'lucide-react';
 import {
   getActiveReadingGoal,

@@ -164,8 +164,8 @@ export function useURLMetadata(
     try {
       let data: YouTubeVideo | Feed | WebPageMetadata | null = null;
 
-      switch (urlType) {
-        case URLType.YouTube:
+        switch (urlType) {
+        case URLType.YouTube: {
           // Extract video ID and fetch metadata
           const videoIdMatch = url.match(
             /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
@@ -177,6 +177,7 @@ export function useURLMetadata(
             }
           }
           break;
+        }
 
         case URLType.RSSFeed:
           // Fetch RSS feed metadata
@@ -204,7 +205,7 @@ export function useURLMetadata(
             if (typeof window !== "undefined" && "__TAURI__" in window) {
               try {
                 data = await invokeCommand<any>("fetch_web_page_preview", { url });
-              } catch (tauriError) {
+              } catch {
                 throw new Error("Failed to fetch page preview");
               }
             } else {
@@ -281,7 +282,7 @@ export function useURLImport() {
       let result;
 
       switch (urlType) {
-        case URLType.YouTube:
+        case URLType.YouTube: {
           // Import YouTube video as document
           const videoIdMatch = url.match(
             /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
@@ -294,8 +295,9 @@ export function useURLImport() {
             });
           }
           break;
+        }
 
-        case URLType.RSSFeed:
+        case URLType.RSSFeed: {
           // Subscribe to RSS feed
           const feed = await fetchFeed(url);
           if (feed) {
@@ -305,6 +307,7 @@ export function useURLImport() {
             });
           }
           break;
+        }
 
         case URLType.WebPage:
           // Import web page as article

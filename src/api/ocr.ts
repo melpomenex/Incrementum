@@ -119,8 +119,6 @@ export async function performOCR(
 
   const {
     language = OCRLanguage.English,
-    oem = OCRMode.Default,
-    psm = PageSegMode.Auto,
   } = options;
 
   const langStr = Array.isArray(language) ? language.join("+") : language;

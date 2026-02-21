@@ -13,7 +13,6 @@ import { useState, useCallback, useRef } from "react";
 import { 
   Download, 
   Upload, 
-  FileArchive, 
   Settings, 
   BookOpen, 
   Layers, 
@@ -25,17 +24,13 @@ import {
   ChevronDown,
   ChevronUp,
   HardDrive,
-  Calendar,
   Tag,
   FileText,
 } from "lucide-react";
-import { cn } from "../../utils";
-import { isTauri } from "../../lib/tauri";
 import type { ExportProgress } from "../../utils/appStateExport";
-import { exportAppState, downloadExport, generateExportFilename, estimateExportSize } from "../../utils/appStateExport";
+import { exportAppState, downloadExport, estimateExportSize } from "../../utils/appStateExport";
 import type { ImportProgress, ImportResult, ImportOptions } from "../../utils/appStateImport";
 import { importAppState, readExportFile, validateExportFile, previewExport } from "../../utils/appStateImport";
-import type { AppStateExport } from "../../utils/appStateExport";
 import { useDocumentStore } from "../../stores/documentStore";
 
 type DialogMode = "menu" | "export" | "import" | "exporting" | "importing" | "success" | "error";

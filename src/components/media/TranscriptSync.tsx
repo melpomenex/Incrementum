@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Clock, Search, Copy, Download, Play, CornerDownLeft } from "lucide-react";
 
 /**
@@ -49,7 +49,7 @@ export function TranscriptSync({
   className = "flex-1 min-h-0",
   highlightQuery,
   highlightedSegmentId,
-  groupParagraphs = true,
+  groupParagraphs: _groupParagraphs = true,
 }: TranscriptSyncProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredSegments, setFilteredSegments] = useState<TranscriptSegment[]>(segments || []);
@@ -143,37 +143,6 @@ export function TranscriptSync({
       }
     };
   }, []);
-
-  // Group segments into paragraphs for better readability
-  const groupedSegments = useMemo(() => {
-    if (!groupParagraphs || segments.length === 0) return segments.map((seg, i) => ({ ...seg, groupIndex: i }));
-    
-    const groups: (TranscriptSegment & { groupIndex: number; isParagraphStart?: boolean })[] = [];
-    let currentGroup: TranscriptSegment | null = null;
-    let groupIndex = 0;
-    
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const prevSeg = segments[i - 1];
-      
-      // Start a new paragraph if:
-      // 1. This is the first segment
-      // 2. There's a gap of more than 2 seconds
-      // 3. The text ends with punctuation (sentence break)
-      const isNewParagraph = !prevSeg || 
-        (seg.start - prevSeg.end > 2) ||
-        /[.!?]\s*$/.test(prevSeg.text);
-      
-      if (isNewParagraph) {
-        groupIndex++;
-        currentGroup = seg;
-      }
-      
-      groups.push({ ...seg, groupIndex, isParagraphStart: isNewParagraph });
-    }
-    
-    return groups;
-  }, [segments, groupParagraphs]);
 
   // Copy transcript text
   const handleCopy = () => {
@@ -273,7 +242,7 @@ export function TranscriptSync({
             )}
           </div>
         ) : (
-          filteredSegments.map((segment, index) => {
+          filteredSegments.map((segment) => {
             const segmentIndex = (segments || []).indexOf(segment);
             const isActive = segmentIndex === activeIndex;
             const effectiveHighlightQuery = (highlightQuery && highlightQuery.trim()) ? highlightQuery : searchQuery;
