@@ -12,7 +12,6 @@ import {
   Link2,
   Hash,
   Folder,
-  Clock,
   Share2,
   MoreHorizontal,
   ChevronRight,

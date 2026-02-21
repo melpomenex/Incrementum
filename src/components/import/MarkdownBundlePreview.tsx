@@ -12,12 +12,11 @@ import {
   Image as ImageIcon,
   Clock,
   Tag,
-  User,
   Loader2,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
-import type { MarkdownBundle, MarkdownMetadata } from '../../utils/markdownBundleImport';
+import type { MarkdownBundle } from '../../utils/markdownBundleImport';
 import { cn } from '../../utils';
 
 interface MarkdownBundlePreviewProps {
@@ -81,11 +80,11 @@ export function MarkdownBundlePreview({
       setTimeout(() => {
         onClose();
       }, 1500);
-    } catch (error) {
+    } catch {
       setState({
         loading: false,
         success: false,
-        error: error instanceof Error ? error.message : 'Import failed',
+        error: 'Import failed',
       });
     }
   };

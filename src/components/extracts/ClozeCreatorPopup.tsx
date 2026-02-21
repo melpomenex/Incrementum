@@ -12,7 +12,7 @@ interface ClozeCreatorPopupProps {
     onCancel: () => void;
 }
 
-export function ClozeCreatorPopup({ extractId, selectedText, selectionRange, onCreated, onCancel }: ClozeCreatorPopupProps) {
+export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _selectionRange, onCreated, onCancel }: ClozeCreatorPopupProps) {
     // Pre-fill with selected text wrapped in cloze deletion syntax [1...]
     // Wait, backend expects cloze_text (full text with clozes) and cloze_ranges.
     // BUT the API creates ranges.
@@ -75,10 +75,6 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange, onC
             // Parse {{...}} ranges
             const ranges: [number, number][] = [];
             let cleanText = "";
-            let currentIndex = 0;
-            let regex = /\{\{(.*?)\}\}/g;
-            let match;
-            let lastIndex = 0;
 
             // We need to construct the clean text (without {{}}) and track where the content was
             // This is a bit complex.

@@ -3,8 +3,6 @@
  * Based on the libgen npm package API but using fetch for browser compatibility
  */
 
-import { isTauri } from "../lib/tauri";
-
 export interface LibGenBook {
   id: string;
   title: string;
@@ -103,8 +101,6 @@ export async function searchLibGen(options: SearchOptions): Promise<LibGenBook[]
   const closestPage = offset ? Math.floor(offset / 25) + 1 : 1;
 
   // Build search URL
-  const searchUrl = `${mirror}/search.php?&req=${encodeURIComponent(query)}&view=detailed&column=${searchIn}&sort=${sortBy}&sortmode=${sortmode}&page=${closestPage}`;
-
   let allIds: string[] = [];
   let currentPage = closestPage;
 

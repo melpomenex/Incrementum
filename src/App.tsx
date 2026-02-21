@@ -10,7 +10,6 @@ import { SignupPrompt } from "./components/onboarding/SignupPrompt";
 import { InteractiveTutorial } from "./components/onboarding/InteractiveTutorial";
 import { KeyboardShortcutsHelp } from "./components/common/KeyboardShortcutsHelp";
 import { hasImportedDemoContent, markDemoContentImported } from "./utils/demoContent";
-import { Breadcrumb } from "./components/common/Breadcrumb";
 import { useToast } from "./components/common/Toast";
 import { initializeNotifications } from "./utils/notificationService";
 import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
@@ -18,20 +17,16 @@ import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
 // PWA Components
 import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
 import { QuickReviewWidget, InlineQuickReview, FloatingReviewButton } from "./components/review/QuickReviewWidget";
-import { ShortcutTooltip, ShortcutButton } from "./components/common/ShortcutTooltip";
+import { ShortcutTooltip } from "./components/common/ShortcutTooltip";
 
 // Page components
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { QueuePage } from "./pages/QueuePage";
 import { QueueScrollPage } from "./pages/QueueScrollPage";
-import { ReviewPage } from "./pages/ReviewPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ContinueReadingPage } from "./pages/ContinueReadingPage";
-import { AIWorkflowsPage } from "./pages/AIWorkflowsPage";
-import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
-import { SearchPage } from "./pages/SearchPage";
 import { CommandCenter } from "./components/search/CommandCenter";
 
 // Storage keys
@@ -48,6 +43,24 @@ type AppPage =
   | "analytics"
   | "knowledge-graph"
   | "settings";
+
+interface ActivityDataPoint {
+  date: string;
+  reviews_count: number;
+  time_spent_minutes: number;
+}
+
+type DevHelpers = {
+  resetOnboarding: () => void;
+  showTutorial: () => void;
+  showSignupPrompt: () => void;
+  completeOnboarding: () => void;
+  getAuthState: () => {
+    isAuthenticated: boolean;
+    user: ReturnType<typeof syncClient.getUser>;
+    hasToken: boolean;
+  };
+};
 
 function normalizePathToPage(path?: string): AppPage | null {
   if (!path) return null;
@@ -89,7 +102,6 @@ function isAppPage(page: string): page is AppPage {
 
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
-  const [activeTab, setActiveTab] = useState("review");
   const loadAll = useAnalyticsStore((state) => state.loadAll);
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
 
@@ -115,22 +127,6 @@ function App() {
       setCurrentPage(page);
     }
   }, []);
-
-  const handleLogin = async (email: string, password: string) => {
-    await syncClient.login(email, password);
-    setIsAuthenticated(true);
-    setUser(syncClient.getUser());
-    // Migrate any local demo data to the account
-    await syncClient.migrateDemoDataToAccount();
-  };
-
-  const handleRegister = async (email: string, password: string) => {
-    await syncClient.register(email, password);
-    setIsAuthenticated(true);
-    setUser(syncClient.getUser());
-    // Migrate any local demo data to the account
-    await syncClient.migrateDemoDataToAccount();
-  };
 
   const handleLogout = () => {
     syncClient.logout();
@@ -275,7 +271,7 @@ function App() {
   // Developer helper: expose functions to window for debugging
   useEffect(() => {
     if (import.meta.env.DEV) {
-      (window as any).__incrementumDev = {
+      (window as Window & { __incrementumDev?: DevHelpers }).__incrementumDev = {
         resetOnboarding: () => {
           localStorage.removeItem(ONBOARDING_COMPLETE_KEY);
           localStorage.removeItem(TUTORIAL_COMPLETE_KEY);
@@ -320,10 +316,6 @@ function App() {
   const handleTutorialSkip = () => {
     localStorage.setItem(TUTORIAL_COMPLETE_KEY, 'skipped');
     setOnboardingStep('signup');
-  };
-
-  const handleSkipOnboarding = () => {
-    setOnboardingStep(null);
   };
 
   const handleImportDemoContent = async () => {
@@ -478,7 +470,7 @@ interface DashboardPageProps {
 function DashboardPage({ onNavigate }: DashboardPageProps) {
   const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
   const documents = useDocumentStore((state) => state.documents);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityDataPoint[]>([]);
   const [activeTab, setActiveTab] = useState("review");
 
   useEffect(() => {
@@ -487,7 +479,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   const loadRecentActivity = async () => {
     try {
-      const activity = await invokeCommand<any[]>("get_activity_data", { days: 7 });
+      const activity = await invokeCommand<ActivityDataPoint[]>("get_activity_data", { days: 7 });
       if (activity && Array.isArray(activity)) {
         setRecentActivity(activity.slice(-5).reverse());
       } else {

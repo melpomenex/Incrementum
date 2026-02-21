@@ -55,7 +55,7 @@ export function AISettings({ onChange }: { onChange: () => void }) {
     }
   };
 
-  const handleTestMCPServer = async (server: { id: string; name: string; endpoint: string; transport: "stdio" | "sse" }) => {
+  const handleTestMCPServer = async (_server: { id: string; name: string; endpoint: string; transport: "stdio" | "sse" }) => {
     // TODO: Implement actual MCP server connection test
     // For now, just return true
     return true;

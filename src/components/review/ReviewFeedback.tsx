@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Trophy, Star, Zap, Flame, PartyPopper, X } from "lucide-react";
+import { Trophy, Star, Flame, PartyPopper, X } from "lucide-react";
 
 interface ReviewFeedbackProps {
   type: "streak" | "milestone" | "complete" | "mastered" | null;

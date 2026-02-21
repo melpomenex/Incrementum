@@ -237,11 +237,7 @@ function formatDuration(seconds: number): string {
  */
 import { WebBrowserTab as BaseWebBrowserTab } from "../tabs/WebBrowserTab";
 
-interface WebBrowserWithAssistantProps {
-  // Add any props if needed
-}
-
-export function WebBrowserTab(_props: WebBrowserWithAssistantProps) {
+export function WebBrowserTab() {
   return (
     <BaseWebBrowserTab />
   );

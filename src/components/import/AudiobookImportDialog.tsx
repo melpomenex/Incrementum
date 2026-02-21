@@ -6,7 +6,7 @@
  * batch/directory import.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BookAudio,
   Upload,
@@ -23,9 +23,6 @@ import {
   ImageIcon,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Pause,
-  SkipBack,
   SkipForward,
   List,
   Bookmark,
@@ -33,12 +30,8 @@ import {
   Languages,
   Volume2,
   FolderOpen,
-  Folder,
-  Check,
   AlertTriangle,
-  File,
   Layers,
-  Link,
 } from "lucide-react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
@@ -55,7 +48,6 @@ import {
   generateTranscript,
   importTranscriptFromFile,
   formatDuration,
-  formatFileSize,
   AUDIOBOOK_FORMATS,
   scanDirectoryForAudiobooks,
   BatchImportResult,
@@ -98,7 +90,6 @@ export function AudiobookImportDialog({
   
   // Single file state
   const [filePath, setFilePath] = useState<string>("");
-  const [fileSize, setFileSize] = useState<number>(0);
   const [metadata, setMetadata] = useState<Partial<AudiobookMetadata>>({});
   const [coverOptions, setCoverOptions] = useState<string[]>([]);
   const [selectedCover, setSelectedCover] = useState<string>("");
@@ -107,9 +98,6 @@ export function AudiobookImportDialog({
   
   // Batch import state
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
-  const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
-  const [batchSearchQueries, setBatchSearchQueries] = useState<Record<string, string>>({});
-  const [batchSearchResults, setBatchSearchResults] = useState<Record<string, Partial<AudiobookMetadata>[]>>({});
   
   // Common state
   const [isLoading, setIsLoading] = useState(false);
@@ -126,9 +114,8 @@ export function AudiobookImportDialog({
   
   // Audio preview state
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [previewTime, setPreviewTime] = useState(0);
-  const [previewDuration, setPreviewDuration] = useState(0);
+  const [, setIsPlaying] = useState(false);
+  const [, setPreviewDuration] = useState(0);
 
   const { importFromFiles, loadDocuments } = useDocumentStore();
   const { success: showSuccess, error: showError, info: showInfo } = useToast();
@@ -139,16 +126,12 @@ export function AudiobookImportDialog({
       setImportMode("single");
       setCurrentStep("select");
       setFilePath("");
-      setFileSize(0);
       setMetadata({});
       setCoverOptions([]);
       setSelectedCover("");
       setChapters([]);
       setTranscript(null);
       setBatchItems([]);
-      setCurrentBatchIndex(0);
-      setBatchSearchQueries({});
-      setBatchSearchResults({});
       setMultiPartBook(null);
       setSelectedFiles([]);
       setError(null);
@@ -156,7 +139,6 @@ export function AudiobookImportDialog({
       setSearchResults([]);
       setImportProgress({ current: 0, total: 0 });
       setIsPlaying(false);
-      setPreviewTime(0);
       setPreviewDuration(0);
     }
   }, [isOpen]);
@@ -233,7 +215,7 @@ export function AudiobookImportDialog({
       
       // Single file
       await loadSingleFile(files[0]);
-    } catch (err) {
+    } catch {
       showError("File selection failed", "Could not open file picker");
     }
   };
@@ -359,11 +341,7 @@ export function AudiobookImportDialog({
         ));
         
         // Store search results
-        if (metaResults.length > 0) {
-          setBatchSearchResults(prev => ({ ...prev, [item.id]: metaResults }));
-        }
-        
-      } catch (err) {
+      } catch {
         setBatchItems(prev => prev.map(b => 
           b.id === item.id ? {
             ...b,
@@ -414,7 +392,7 @@ export function AudiobookImportDialog({
       }
       
       setCurrentStep("metadata");
-    } catch (err) {
+    } catch {
       setError("Failed to parse audiobook metadata");
     } finally {
       setIsLoading(false);
@@ -437,7 +415,7 @@ export function AudiobookImportDialog({
       if (covers.length > 0 && !selectedCover) {
         setSelectedCover(covers[0]);
       }
-    } catch (err) {
+    } catch {
       showError("Search failed", "Could not fetch metadata");
     } finally {
       setIsLoading(false);
@@ -597,9 +575,6 @@ export function AudiobookImportDialog({
         const imported = await importFromFiles([selectedFiles[0]]);
         if (imported.length === 0) throw new Error("Failed to import audiobook");
         doc = imported[0];
-        
-        // Store additional file paths for the player
-        const additionalParts = selectedFiles.slice(1);
         
         // Create chapters from parts
         const partChapters: AudiobookChapter[] = multiPartBook.parts.map((part, idx) => ({
@@ -784,44 +759,14 @@ export function AudiobookImportDialog({
     setIsLoading(false);
   };
 
-  // Audio preview handlers
-  const togglePreview = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setPreviewTime(audioRef.current.currentTime);
-    }
+    if (!audioRef.current) return;
   };
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setPreviewDuration(audioRef.current.duration);
     }
-  };
-
-  const skipPreview = (seconds: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(
-        0,
-        Math.min(previewDuration, audioRef.current.currentTime + seconds)
-      );
-    }
-  };
-
-  // Update batch item metadata
-  const updateBatchItem = (itemId: string, updates: Partial<BatchItem>) => {
-    setBatchItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, ...updates } : item
-    ));
   };
 
   if (!isOpen) return null;

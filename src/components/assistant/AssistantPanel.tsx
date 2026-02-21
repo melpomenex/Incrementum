@@ -8,7 +8,6 @@ import {
   Code,
   FileText,
   Settings,
-  X,
   Loader2,
   PanelLeftClose,
   PanelRightClose,
@@ -144,7 +143,7 @@ const writeStoredConversations = (conversations: StoredConversationMap) => {
 
 export function AssistantPanel({
   context,
-  onToolCall,
+  onToolCall: _onToolCall,
   className = "",
   onInputHoverChange,
   onWidthChange,

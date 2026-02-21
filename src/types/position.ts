@@ -77,7 +77,7 @@ export function formatPosition(position: DocumentPosition): string {
       return `${position.percent.toFixed(1)}%`;
     case 'cfi':
       return `CFI: ${position.cfi.substring(0, 20)}...`;
-    case 'time':
+    case 'time': {
       if (position.total_duration) {
         const formatTime = (s: number) => {
           const mins = Math.floor(s / 60);
@@ -89,6 +89,7 @@ export function formatPosition(position: DocumentPosition): string {
       const mins = Math.floor(position.seconds / 60);
       const secs = position.seconds % 60;
       return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
   }
 }
 

@@ -36,9 +36,7 @@ import {
   Settings,
   Command,
   FileText,
-  ListTodo,
   Newspaper,
-  Globe,
   Monitor,
   MessageSquare,
 } from "lucide-react";
@@ -61,7 +59,7 @@ interface ToolbarButtonProps {
   orientation?: "horizontal" | "vertical";
 }
 
-function ToolbarButton({ button, orientation = "horizontal" }: ToolbarButtonProps) {
+function ToolbarButtonItem({ button, orientation = "horizontal" }: ToolbarButtonProps) {
   const Icon = button.icon;
 
   const handleAuxClick = (e: React.MouseEvent) => {
@@ -570,7 +568,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
                 {buttons
                   .filter((b) => b.group === group)
                   .map((button) => (
-                    <ToolbarButton 
+                    <ToolbarButtonItem 
                       key={button.id} 
                       button={button} 
                       orientation="vertical"
@@ -599,7 +597,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
             {buttons
               .filter((b) => b.group === group)
               .map((button) => (
-                <ToolbarButton key={button.id} button={button} />
+                <ToolbarButtonItem key={button.id} button={button} />
               ))}
 
             {/* Add separator between groups (except after last group) */}

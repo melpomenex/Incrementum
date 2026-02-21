@@ -6,26 +6,17 @@
 import { useState, useEffect } from 'react';
 import {
   Folder,
-  FolderOpen,
-  Star,
   Plus,
-  Edit2,
-  Trash2,
-  GripVertical,
-  ChevronRight,
   BookOpen,
 } from 'lucide-react';
 import {
   getCollections,
   type Collection,
   PRESET_COLLECTIONS,
-  getPresetCollectionName,
   getPresetCollectionIcon,
-  getPresetCollectionColor,
   isPresetCollection,
 } from '../../api/collections';
 import { useDocumentStore } from '../../stores/documentStore';
-import { useCollectionStore } from '../../stores/collectionStore';
 
 interface CollectionsPanelProps {
   className?: string;
@@ -40,9 +31,7 @@ export function CollectionsPanel({
 }: CollectionsPanelProps) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const documents = useDocumentStore((state) => state.documents);
-  const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
 
   useEffect(() => {
     loadCollections();
@@ -60,18 +49,6 @@ export function CollectionsPanel({
     }
   };
 
-  const toggleExpand = (id: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
   const getDocumentCount = (collection: Collection): number => {
     // For preset collections, calculate count from documents
     if (isPresetCollection(collection.id)) {
@@ -87,10 +64,12 @@ export function CollectionsPanel({
           case PRESET_COLLECTIONS.FAVORITES:
             return doc.isFavorite;
           case PRESET_COLLECTIONS.RECENT:
-            const daysSinceAdded = Math.floor(
-              (Date.now() - new Date(doc.dateAdded).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            return daysSinceAdded <= 7;
+            {
+              const daysSinceAdded = Math.floor(
+                (Date.now() - new Date(doc.dateAdded).getTime()) / (1000 * 60 * 60 * 24)
+              );
+              return daysSinceAdded <= 7;
+            }
           default:
             return false;
         }
@@ -155,9 +134,6 @@ export function CollectionsPanel({
           const icon = isPreset
             ? getPresetCollectionIcon(collection.id)
             : collection.icon || '📁';
-          const color = isPreset
-            ? getPresetCollectionColor(collection.id)
-            : collection.color || '#6b7280';
 
           return (
             <div key={collection.id}>

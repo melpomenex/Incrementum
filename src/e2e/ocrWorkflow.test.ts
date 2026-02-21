@@ -4,8 +4,8 @@
  * These tests verify complete user workflows from end to end.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useDocumentStore } from "../stores/documentStore";
 import * as documentsApi from "../api/documents";

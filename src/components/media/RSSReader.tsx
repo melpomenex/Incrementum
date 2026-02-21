@@ -36,7 +36,6 @@ import {
   searchFeedItems,
   getFeedFolders,
   importOpmlAuto,
-  exportOPML,
   exportOpmlAuto,
   syncFeedToTauri,
   formatFeedDate,
@@ -1125,7 +1124,7 @@ export function RSSReader() {
               </button>
             </div>
             <NewsletterUrlImporter
-              onSuccess={(feed) => {
+              onSuccess={(_feed) => {
                 loadFeeds();
                 setShowUrlImport(false);
               }}
@@ -1156,7 +1155,7 @@ export function RSSReader() {
             <X className="w-5 h-5" />
           </button>
           <NewsletterDirectory
-            onSubscribe={(feed) => {
+            onSubscribe={(_feed) => {
               // Refresh feeds after subscription
               loadFeeds();
             }}

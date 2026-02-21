@@ -2,7 +2,7 @@
  * User Menu Dropdown - Shown when user is authenticated
  */
 
-import { User, Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 
 interface UserMenuProps {
   user: { id: string; email: string; subscriptionTier?: string } | null;

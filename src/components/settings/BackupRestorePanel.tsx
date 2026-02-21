@@ -16,7 +16,6 @@ import {
   Calendar,
   Database,
   FileText,
-  Settings as SettingsIcon,
   Shield,
 } from "lucide-react";
 import type {
@@ -25,7 +24,6 @@ import type {
   BackupOptions,
   RestoreResult,
   RestoreConflict,
-  ConflictResolution,
 } from "@/types/cloud";
 
 interface BackupRestorePanelProps {

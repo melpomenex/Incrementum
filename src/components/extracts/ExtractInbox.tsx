@@ -15,7 +15,6 @@ import {
     Zap,
     ChevronDown,
     ChevronUp,
-    ExternalLink,
     Trash2,
     Eye,
 } from "lucide-react";
@@ -43,7 +42,7 @@ interface AIAnalysis {
 export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
     const [extracts, setExtracts] = useState<Extract[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedId] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<Record<string, AIAnalysis>>({});
 
@@ -92,7 +91,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                     loading: false,
                 },
             }));
-        } catch (error) {
+        } catch {
             setAiAnalysis((prev) => ({
                 ...prev,
                 [id]: {

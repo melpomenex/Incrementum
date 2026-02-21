@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { invokeCommand } from "../lib/tauri";
 import { ObsidianGraph } from "../components/graph/ObsidianGraph";
 import { ObsidianSphere } from "../components/graph/ObsidianSphere";
-import { GraphFilterControls, applyGraphFilters, extractGraphMetadata, calculateGraphStatistics } from "../components/graph/GraphFilters";
+import { GraphFilterControls, applyGraphFilters, extractGraphMetadata } from "../components/graph/GraphFilters";
 import { NodeDetailView } from "../components/graph/NodeDetailView";
 import { GraphNodeType, type GraphNode, type GraphEdge, type GraphData, LayoutAlgorithm } from "../components/graph/KnowledgeGraph";
 import { getDocument, updateDocument } from "../api/documents";
@@ -20,11 +20,9 @@ import { useToast } from "../components/common/Toast";
 import {
   Network,
   Download,
-  Share2,
   Sparkles,
   GitBranch,
   Grid3x3,
-  Maximize2,
   Search,
   Filter,
   X,
@@ -169,10 +167,6 @@ export function KnowledgeGraphPage() {
   }, [graphData]);
 
   // Calculate statistics
-  const stats = useMemo(() => {
-    return calculateGraphStatistics(graphData.nodes, graphData.edges);
-  }, [graphData]);
-
   // Node counts by type
   const nodeCounts = useMemo(() => {
     const counts: Record<GraphNodeType, number> = {

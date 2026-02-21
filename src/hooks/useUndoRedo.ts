@@ -3,7 +3,7 @@
  * Provides undo/redo functionality for components
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useUndoRedoStore } from "../stores/undoRedoStore";
 import { useToast } from "../components/common/Toast";
 import { useKeyboardShortcuts, ShortcutGroup } from "./useKeyboardShortcuts";
@@ -142,12 +142,8 @@ export function withUndo<T extends (...args: any[]) => Promise<any>>(
     const command = commandFactory(...args);
     const { execute } = useUndoRedoStore.getState();
 
-    try {
-      await command.execute();
-      await execute(command);
-      return await operation(...args);
-    } catch (err) {
-      throw err;
-    }
+    await command.execute();
+    await execute(command);
+    return await operation(...args);
   }) as T;
 }

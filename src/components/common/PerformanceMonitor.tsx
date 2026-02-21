@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Activity, Clock, Zap, Trash2 } from "lucide-react";
-import { performanceMonitor, usePerformance } from "../../utils/performance";
+import { usePerformance } from "../../utils/performance";
 
 interface MetricRowProps {
   name: string;

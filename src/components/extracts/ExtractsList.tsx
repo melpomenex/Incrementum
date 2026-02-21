@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye } from "lucide-react";
 import { getExtracts, type Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
-import { bulkDeleteExtracts, bulkGenerateCards } from "../../api/extract-bulk";
+import { bulkGenerateCards } from "../../api/extract-bulk";
 import { useUndoableOperations } from "../../api/undoable";
 import { cn } from "../../utils";
 import { EditExtractDialog } from "./EditExtractDialog";
@@ -501,7 +501,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                   extractId={extract.id}
                   extractTitle={extract.content.slice(0, 100)}
                   initialCount={generatedCounts[extract.id]}
-                  renderTrigger={({ onClick, isOpen, count }) => (
+                  renderTrigger={({ onClick, isOpen: _isOpen, count }) => (
                     <button
                       onClick={onClick}
                       className={cn(

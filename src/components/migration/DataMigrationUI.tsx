@@ -2,7 +2,7 @@
  * Data Migration UI Component
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Database,
   Upload,
@@ -15,15 +15,11 @@ import {
   FileText,
 } from "lucide-react";
 import {
-  readCPPDatabase,
   getCPPDatabaseInfo,
   validateCPPDatabase,
   migrateCPPData,
   createMigrationBackup,
   rollbackMigration,
-  getMigrationStatus,
-  clearMigrationFlag,
-  CPPMigrationData,
 } from "../../api/migration";
 
 /**

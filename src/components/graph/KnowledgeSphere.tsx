@@ -53,7 +53,7 @@ export function KnowledgeSphere({
   nodeSize = 8,
   edgeOpacity = 0.3,
   showLabels = true,
-  connectionDistance = 150,
+  connectionDistance: _connectionDistance = 150,
 }: KnowledgeSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -385,7 +385,7 @@ export function KnowledgeSphere({
     setZoom((prev) => Math.max(0.1, Math.min(5, prev * zoomFactor)));
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (hoveredNode && onNodeClick) {
       const node = nodes.find((n) => n.id === hoveredNode);
       if (node) {

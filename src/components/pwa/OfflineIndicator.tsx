@@ -6,10 +6,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Cloud,
-  CloudOff,
   CloudDownload,
   CloudCheck,
-  Wifi,
   WifiOff,
   Download,
   Check,

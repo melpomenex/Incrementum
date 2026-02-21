@@ -19,7 +19,6 @@ export default defineConfig(async ({ mode }) => {
       process.env.TAURI_FAMILY
   );
   const isPWA = mode === "pwa" || (!isTauriBuild && isProd);
-  const disableOptimizeDeps = false;
 
   const plugins = [
     react({ fastRefresh: !isTauriBuild }),

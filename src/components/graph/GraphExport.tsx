@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from "react";
 import { Download, Image, FileText, Network } from "lucide-react";
-import { GraphData, GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
+import { GraphData } from "./KnowledgeGraph";
 
 /**
  * Export format
@@ -156,7 +156,7 @@ export function exportGraphToSVG(
  */
 export function exportGraphToJSON(
   data: GraphData,
-  options: GraphExportOptions = { format: GraphExportFormat.JSON }
+  _options: GraphExportOptions = { format: GraphExportFormat.JSON }
 ): void {
   const exportData = {
     version: "1.0",
@@ -177,7 +177,7 @@ export function exportGraphToJSON(
  */
 export function exportGraphToGEXF(
   data: GraphData,
-  options: GraphExportOptions = { format: GraphExportFormat.GEXF }
+  _options: GraphExportOptions = { format: GraphExportFormat.GEXF }
 ): void {
   let gexf = `<?xml version="1.0" encoding="UTF-8"?>
 <gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">
@@ -189,7 +189,7 @@ export function exportGraphToGEXF(
     <nodes>
 `;
 
-  data.nodes.forEach((node, index) => {
+  data.nodes.forEach((node) => {
     gexf += `      <node id="${node.id}" label="${node.label}">
         <attvalues>
           <attvalue for="0" value="${node.type}"/>
@@ -224,7 +224,7 @@ export function exportGraphToGEXF(
  */
 export function exportGraphToGraphML(
   data: GraphData,
-  options: GraphExportOptions = { format: GraphExportFormat.GraphML }
+  _options: GraphExportOptions = { format: GraphExportFormat.GraphML }
 ): void {
   let graphml = `<?xml version="1.0" encoding="UTF-8"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns"
@@ -266,7 +266,7 @@ export function exportGraphToGraphML(
  */
 export function exportGraphToCSV(
   data: GraphData,
-  options: GraphExportOptions = { format: GraphExportFormat.CSV }
+  _options: GraphExportOptions = { format: GraphExportFormat.CSV }
 ): void {
   // Nodes CSV
   let nodesCsv = "id,label,type,category,description,x,y\n";
@@ -299,7 +299,7 @@ ${edgesCsv}`;
  */
 export function exportGraphToDOT(
   data: GraphData,
-  options: GraphExportOptions = { format: GraphExportFormat.DOT }
+  _options: GraphExportOptions = { format: GraphExportFormat.DOT }
 ): void {
   let dot = "digraph KnowledgeGraph {\n";
   dot += "  node [shape=circle];\n";

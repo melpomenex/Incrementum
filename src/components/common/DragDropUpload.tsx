@@ -558,7 +558,6 @@ export function DragDropUpload({
 
   const pendingCount = uploadQueue.filter((f) => f.status === "pending" || f.status === "uploading").length;
   const successCount = uploadQueue.filter((f) => f.status === "success").length;
-  const errorCount = uploadQueue.filter((f) => f.status === "error").length;
 
   // Debug: log drag state changes
   useEffect(() => {

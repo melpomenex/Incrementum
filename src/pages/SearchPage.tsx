@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { invokeCommand } from "../lib/tauri";
 import {
   Search as SearchIcon,
@@ -56,7 +56,7 @@ export function SearchPage() {
       });
 
       setResults(searchResults);
-    } catch (error) {
+    } catch {
       // Backend search might not be implemented, use client-side fallback
       await clientSideSearch();
     } finally {

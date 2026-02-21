@@ -120,7 +120,7 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
     });
 
     // Inline LaTeX: $...$ (conservative to reduce false positives like currency)
-    formatted = formatted.replace(/(^|[^\\])\$([^\$\n]+?)\$/g, (match, prefix, expression) => {
+    formatted = formatted.replace(/(^|[^\\])\$([^$\n]+?)\$/g, (match, prefix, expression) => {
       const expr = expression.trim();
       const likelyMath = /\\[a-zA-Z]+|[=^_{}]|[+\-*/<>]|[α-ωΑ-Ω∫∑∏√∞±×÷≈≠≤≥]/.test(expr);
       if (!likelyMath) {

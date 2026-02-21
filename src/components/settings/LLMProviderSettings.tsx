@@ -95,7 +95,6 @@ export function LLMProviderSettings({
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [dynamicModels, setDynamicModels] = useState<Record<string, ModelInfo[]>>({});
   const [refreshingModels, setRefreshingModels] = useState(false);
-  const [showPricing, setShowPricing] = useState<Record<string, boolean>>({});
 
   const handleAddProvider = () => {
     if (!newProviderName.trim() || !newProviderApiKey.trim()) {
@@ -140,7 +139,7 @@ export function LLMProviderSettings({
     try {
       const success = await onTestConnection(provider);
       setTestResults({ ...testResults, [providerId]: success });
-    } catch (error) {
+    } catch {
       setTestResults({ ...testResults, [providerId]: false });
     } finally {
       setTestingConnection(null);

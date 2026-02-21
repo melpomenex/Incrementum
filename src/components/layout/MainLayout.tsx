@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTabsStore, createTabPane, normalizePane } from "../../stores";
+import { useTabsStore, normalizePane } from "../../stores";
 import { useDocumentStore } from "../../stores";
 import { useSettingsStore } from "../../stores";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
@@ -13,11 +13,7 @@ import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import {
   LayoutDashboard,
-  Library,
   ListTodo,
-  Brain,
-  BarChart3,
-  Settings,
   Monitor,
 } from "lucide-react";
 

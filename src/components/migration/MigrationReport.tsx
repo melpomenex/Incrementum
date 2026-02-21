@@ -3,7 +3,7 @@
  * Generate detailed reports after data migration
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Download, FileText, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 
 /**

@@ -8,8 +8,6 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  Settings,
-  Download,
   Camera,
 } from "lucide-react";
 

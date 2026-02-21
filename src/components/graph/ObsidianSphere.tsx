@@ -109,7 +109,6 @@ export function ObsidianSphere({
 
     return nodes.map((node, i) => {
       const y = 1 - (i / (nodes.length - 1 || 1)) * 2;
-      const r = Math.sqrt(1 - y * y);
       const theta = phi * i;
 
       return {
@@ -448,7 +447,7 @@ export function ObsidianSphere({
     setZoom((z) => Math.max(0.3, Math.min(3, z * factor)));
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (hoveredNode) {
       const node = sphereNodes.find((n) => n.id === hoveredNode);
       if (node) {

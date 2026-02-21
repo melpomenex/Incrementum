@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download, FileAudio, FileVideo } from "lucide-react";
+import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download } from "lucide-react";
 import { useQueueStore } from "../stores";
 import { QueueStatsDisplay } from "../components/queue/QueueStats";
 import { BulkActionBar } from "../components/queue/BulkActionBar";

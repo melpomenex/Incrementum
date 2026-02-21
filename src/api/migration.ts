@@ -191,7 +191,7 @@ export type MigrationProgressCallback = (progress: {
  */
 export async function migrateCPPData(
   dbPath: string,
-  onProgress?: MigrationProgressCallback
+  _onProgress?: MigrationProgressCallback
 ): Promise<{
   success: boolean;
   imported: {

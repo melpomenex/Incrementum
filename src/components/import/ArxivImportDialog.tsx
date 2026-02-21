@@ -16,12 +16,8 @@ import {
   Loader2,
   BookOpen,
   X,
-  Filter,
-  ChevronDown,
-  ChevronUp,
   Calendar,
   User,
-  Tag,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -60,7 +56,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
   const [error, setError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [savedPapers, setSavedPapers] = useState(getSavedPapers());
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [, setShowCategoryDropdown] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
   const { importFromArxiv, loadDocuments } = useDocumentStore();

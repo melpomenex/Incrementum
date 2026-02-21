@@ -121,7 +121,7 @@ export function EPUBViewer({
         console.log("EPUBViewer: Found local saved position:", localCfi);
         return localCfi;
       }
-    } catch (error) {
+    } catch {
       // API failed - use localStorage as fallback
       console.warn("EPUBViewer: Failed to load position from backend, using localStorage");
       if (localCfi) {
@@ -457,7 +457,7 @@ export function EPUBViewer({
 
           // Register hooks BEFORE displaying content
           // Try multiple hook types to ensure styles are applied
-          rendition.hooks.render.register((contents: any) => {
+          rendition.hooks.render.register((_contents: any) => {
             console.log("EPUBViewer: Render hook fired");
             // This fires when each section is rendered
           });
@@ -724,7 +724,6 @@ export function EPUBViewer({
     };
     // Note: onLoad is intentionally excluded from deps - it's a callback that
     // shouldn't trigger reloading the EPUB source.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileData, fileUrl, documentId, initialCfi, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
 
   // Re-apply styles when settings or theme change

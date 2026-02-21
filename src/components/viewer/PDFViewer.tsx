@@ -360,7 +360,6 @@ export function PDFViewer({
     };
     // Note: onLoad is intentionally excluded from deps - it's a callback that
     // shouldn't trigger reloading the PDF source.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileData, fileUrl, isTauriRuntime]);
 
 
@@ -581,7 +580,6 @@ export function PDFViewer({
     // Any zoom change invalidates previous renders (especially fit-width/page).
     renderedPagesRef.current.clear();
     recomputePageOffsets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, zoomMode, numPages, pdf]);
 
   useEffect(() => {
@@ -623,7 +621,6 @@ export function PDFViewer({
       mounted = false;
     };
     // Note: onPagesRendered is intentionally excluded from deps (callback identity).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdf, numPages, renderedPageRange, scale, zoomMode, renderPass]);
 
   // Sync renderedPageRangeRef when state changes
@@ -677,7 +674,6 @@ export function PDFViewer({
     }
     // Note: onTextWindowChange is intentionally excluded from deps - callbacks
     // shouldn't trigger effect re-runs, only data changes should
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdf, pageNumber, contextPageWindow]);
 
   // ResizeObserver to handle container resize (e.g., when assistant panel is resized)
@@ -1053,7 +1049,7 @@ export function PDFViewer({
     if (previousTask) {
       try {
         previousTask.cancel();
-      } catch (e) {
+      } catch {
         // Ignore cancel errors
       }
       renderTasksRef.current[pageIndex] = null;
@@ -1300,8 +1296,6 @@ export function PDFViewer({
           }
         } else if (typeof restoreState.scrollTop === "number") {
           targetScrollTop = restoreState.scrollTop;
-        } else if (typeof restoreState.scrollPercent === "number" && maxScroll > 0) {
-          targetScrollTop = (restoreState.scrollPercent / 100) * maxScroll;
         }
         targetScrollLeft = scrollLeft;
       }

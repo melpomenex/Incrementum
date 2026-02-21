@@ -446,7 +446,7 @@ function saveFeeds(feeds: Feed[]): void {
         localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
         console.log("[RSS] Saved with 50 items limit.");
         return;
-      } catch (e2) {
+      } catch {
         // Strategy 2: Remove content from read items (keep description)
         console.warn("[RSS] Still too large. Removing content from read items...");
         prunedFeeds = prunedFeeds.map(feed => ({
@@ -458,7 +458,7 @@ function saveFeeds(feeds: Feed[]): void {
           localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
           console.log("[RSS] Saved with read items content removed.");
           return;
-        } catch (e3) {
+        } catch {
            // Strategy 3: Remove content from ALL items (keep description only)
            console.warn("[RSS] Still too large. Removing content from all items...");
            prunedFeeds = prunedFeeds.map(feed => ({

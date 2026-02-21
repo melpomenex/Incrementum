@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   SkipForward,
   Eye,
-  EyeOff,
-  Info,
   ThumbsUp,
   ThumbsDown,
   Settings,
@@ -13,7 +11,6 @@ import {
   fetchSponsorBlockSegments,
   extractVideoID,
   getCurrentSegment,
-  shouldSkipTime,
   getNextSegmentTime,
   getCategoryDisplayName,
   getCategoryColor,
@@ -201,7 +198,7 @@ export function SponsorBlockIntegration({
 
             {/* Segments List */}
             <div className="max-h-48 overflow-y-auto">
-              {segments.map((segment, index) => {
+              {segments.map((segment) => {
                 const [start, end] = segment.segment;
                 const isActive = currentSegment?.UUID === segment.UUID;
                 const duration = end - start;

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Loader2, X, Eye, EyeOff, AlertCircle, Star, CheckCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Sparkles, Loader2, X, Eye } from "lucide-react";
 import { getLearningItemsByExtract, getItemTypeName, type LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
 
@@ -150,8 +150,6 @@ export function GeneratedCardsPopover({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const targetKey = useMemo(() => `extract:${extractId}`, [extractId]);
 
   useEffect(() => {
     if (!isOpen) return;

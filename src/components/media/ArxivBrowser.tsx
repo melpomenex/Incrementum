@@ -6,7 +6,6 @@ import {
   Download,
   Bookmark,
   BookmarkCheck,
-  Filter,
   Loader2,
   BookOpen,
 } from "lucide-react";

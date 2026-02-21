@@ -53,12 +53,6 @@ export function useSwipeGestures(
   const elementRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Calculate velocity
-  const getVelocity = (dx: number, dy: number, dt: number) => {
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return dt > 0 ? distance / dt : 0;
-  };
-
   // Determine if swipe is horizontal or vertical based on primary direction
   const getSwipeDirection = useCallback((dx: number, dy: number) => {
     return Math.abs(dx) > Math.abs(dy)
@@ -124,7 +118,7 @@ export function useSwipeGestures(
 
   // Handle touch move
   const handleTouchMove = useCallback(
-    (e: TouchEvent) => {
+    () => {
       if (!state.isDragging || disabled) return;
 
       const touch = e.touches[0];
@@ -159,7 +153,7 @@ export function useSwipeGestures(
 
   // Handle touch end
   const handleTouchEnd = useCallback(
-    (e: TouchEvent) => {
+    () => {
       if (!state.isDragging || disabled) return;
 
       const endTime = Date.now();

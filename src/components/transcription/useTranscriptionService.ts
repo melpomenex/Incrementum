@@ -16,10 +16,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   transcribeWithGroq, 
-  convertGroqToInternalFormat,
   isGroqConfigured,
   GroqTranscriptionError,
-  type GroqTranscriptionOptions,
   GROQ_FREE_TIER,
 } from '../../api/groqTranscription';
 import { 
@@ -31,8 +29,7 @@ import {
 } from '../../lib/videoTranscriptionQueue';
 import { setVideoTranscript, getVideoTranscript } from '../../api/video-extracts';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { isTauri, invokeCommand } from '../../lib/tauri';
-import { useToastStore, ToastType } from '../common/Toast';
+import { isTauri } from '../../lib/tauri';
 
 export type TranscriptionStatus = 
   | 'none'
@@ -90,18 +87,6 @@ export interface TranscriptionProgress {
  */
 function needsChunking(file: File): boolean {
   return file.size > GROQ_FREE_TIER.MAX_FILE_SIZE_MB * 1024 * 1024;
-}
-
-/**
- * Split a file into chunks for upload
- */
-async function* fileChunkGenerator(file: File, chunkSize: number): AsyncGenerator<Blob> {
-  let offset = 0;
-  while (offset < file.size) {
-    const chunk = file.slice(offset, offset + chunkSize);
-    yield chunk;
-    offset += chunkSize;
-  }
 }
 
 /**

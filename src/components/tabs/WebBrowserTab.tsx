@@ -31,11 +31,10 @@ import {
   Clock,
   Trash2,
   Eye,
-  MoreHorizontal,
 } from "lucide-react";
-import { invokeCommand, isTauri } from "../../lib/tauri";
-import { createExtract, type CreateExtractInput, type Extract } from "../../api/extracts";
-import { createLearningItem, type CreateLearningItemInput } from "../../api/learning-items";
+import { isTauri } from "../../lib/tauri";
+import { createExtract, type CreateExtractInput } from "../../api/extracts";
+import { createLearningItem } from "../../api/learning-items";
 import { createDocument } from "../../api/documents";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
 import { useToast } from "../common/Toast";
@@ -179,7 +178,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
                         const text = await navigator.clipboard.readText();
                         setContent(text);
                         toast.success("Pasted from clipboard");
-                      } catch (error) {
+                      } catch {
                         toast.error("Could not access clipboard. Please paste manually.");
                       } finally {
                         setIsPasting(false);
@@ -345,11 +344,6 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
   );
 }
 
-// Helper to detect if we're on Linux
-function isLinux(): boolean {
-  return navigator.platform.includes("Linux") || navigator.userAgent.includes("Linux");
-}
-
 export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
   const toast = useToast();
   const [url, setUrl] = useState("");
@@ -367,7 +361,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
   const [showAssistant, setShowAssistant] = useState(false);
   const [iframeStatus, setIframeStatus] = useState<"idle" | "loading" | "loaded" | "blocked">("idle");
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const iframeTimeoutRef = useRef<number | null>(null);
   const webviewRef = useRef<WebviewType | null>(null);
   const webviewContainerRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
@@ -541,7 +534,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         try {
           const iframeSelection = iframe.contentWindow.getSelection()?.toString();
           selectedText = iframeSelection?.trim() || "";
-        } catch (e) {
+        } catch {
           // Cross-origin restriction - can't access iframe content
           console.log("Cross-origin iframe - using fallback method");
         }
@@ -912,7 +905,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             timestamp: Date.now(),
           });
         }
-      } catch (error) {
+      } catch {
         // Silent fail - polling is best-effort
       }
     }, 500); // Poll every 500ms

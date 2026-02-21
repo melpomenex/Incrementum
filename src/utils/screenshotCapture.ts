@@ -3,7 +3,6 @@
  */
 
 import { invokeCommand } from "../lib/tauri";
-import { v4 as uuidv4 } from "uuid";
 
 export interface ScreenInfo {
   index: number;

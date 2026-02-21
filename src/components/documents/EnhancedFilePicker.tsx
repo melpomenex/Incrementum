@@ -9,7 +9,6 @@ import {
   Upload,
   Link,
   Download,
-  Image,
   Book,
   Camera,
   X,

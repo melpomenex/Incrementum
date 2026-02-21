@@ -6,13 +6,12 @@ import {
   TrendingDown,
   Calendar,
   BarChart3,
-  PieChart,
   Activity,
   Download,
 } from "lucide-react";
 
 export function AnalyticsPage() {
-  const { dashboardStats, memoryStats, activityData, categoryStats, loadAll } =
+  const { dashboardStats, activityData, categoryStats, loadAll } =
     useAnalyticsStore();
   const [timeRange, setTimeRange] = useState<string>("7d");
 

@@ -18,7 +18,6 @@ import {
 import {
   subscribeOfflineQueue,
   getOfflineQueueStats,
-  getConnectionMode,
   setConnectionMode,
   processOfflineQueue,
   clearOfflineQueue,

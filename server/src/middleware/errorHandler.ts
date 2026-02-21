@@ -9,7 +9,7 @@ export function errorHandler(
     err: AppError,
     req: Request,
     res: Response,
-    next: NextFunction
+    _next: NextFunction
 ): void {
     console.error('Error:', err);
 

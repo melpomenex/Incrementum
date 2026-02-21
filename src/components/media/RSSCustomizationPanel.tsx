@@ -8,9 +8,8 @@
  * - Sorting preferences
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  Settings,
   X,
   Filter,
   Eye,
@@ -78,7 +77,7 @@ export interface RSSUserPreference {
 type TabType = "filters" | "display" | "layout" | "sorting";
 
 export function RSSCustomizationPanel({
-  feedId,
+  feedId: _feedId,
   isOpen,
   onClose,
   onSave,

@@ -20,7 +20,7 @@ interface MobileDocumentWrapperProps {
 
 export function MobileDocumentWrapper({
   documentId,
-  documentTitle,
+  documentTitle: _documentTitle,
   children,
   onRefresh,
 }: MobileDocumentWrapperProps) {

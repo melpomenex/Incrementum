@@ -14,23 +14,20 @@ import {
   Play,
   Smartphone,
   Search,
-  Filter,
   ChevronDown,
   Clock,
   BookOpen,
   Brain,
-  MoreVertical,
   X,
   SlidersHorizontal,
   Archive,
   Calendar,
-  Undo,
 } from "lucide-react";
-import { useQueueStore, type QueueFilterMode } from "../../stores/queueStore";
+import { useQueueStore } from "../../stores/queueStore";
 import type { QueueItem } from "../../types/queue";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
-import { SwipeableItem, SwipeActions } from "./SwipeableItem";
+import { SwipeableItem } from "./SwipeableItem";
 import { bulkSuspendItems, bulkUnsuspendItems, postponeItem } from "../../api/queue";
 
 interface MobileQueueViewProps {
@@ -51,7 +48,6 @@ export function MobileQueueView({
     isLoading,
     loadQueue,
     loadDueDocumentsOnly,
-    queueFilterMode,
     setQueueFilterMode,
   } = useQueueStore(
     useShallow((state) => ({
@@ -59,7 +55,6 @@ export function MobileQueueView({
       isLoading: state.isLoading,
       loadQueue: state.loadQueue,
       loadDueDocumentsOnly: state.loadDueDocumentsOnly,
-      queueFilterMode: state.queueFilterMode,
       setQueueFilterMode: state.setQueueFilterMode,
     }))
   );

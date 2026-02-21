@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Plus, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -29,7 +29,6 @@ import { cn } from "../../utils";
 import * as documentsApi from "../../api/documents";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { updateDocumentProgressAuto } from "../../api/documents";
-import { getDocumentPosition } from "../../api/position";
 import { rateDocument } from "../../api/algorithm";
 import { getBrowserFile } from "../../lib/browser-file-store";
 import type { ReviewRating } from "../../api/review";
@@ -38,7 +37,7 @@ import { ocrPdfFile } from "../../api/ocrCommands";
 import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
-import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl, updateUrlHash } from "../../lib/shareLink";
+import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import {
   flushAllViewStateWrites,
@@ -50,7 +49,7 @@ import {
   setViewState,
 } from "../../lib/readerPosition";
 import type { ViewState } from "../../types/readerPosition";
-import { saveDocumentPosition, pagePosition, scrollPosition, cfiPosition, timePosition } from "../../api/position";
+import { saveDocumentPosition, pagePosition, scrollPosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
 import { useExtractStore } from "../../stores/extractStore";
 
@@ -221,7 +220,7 @@ export function DocumentViewer({
   const mediaSrcRef = useRef<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pagesRendered, setPagesRendered] = useState(false);
+  const [, setPagesRendered] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode ?? "document");
   const [videoContext, setVideoContext] = useState<{
     videoId: string;
@@ -479,7 +478,7 @@ export function DocumentViewer({
   const enablePdfUrlSync = false;
 
   // URL hash state synchronization for PDF back/forward navigation
-  const { pushState: pushUrlState, getInitialState: getUrlInitialState } = usePdfUrlState(
+  const { pushState: pushUrlState } = usePdfUrlState(
     {
       pageNumber,
       scale,

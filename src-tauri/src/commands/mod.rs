@@ -33,6 +33,7 @@ pub mod youtube_playlist;
 pub mod audiobook;
 pub mod semantic_search;
 pub mod focus_timer;
+pub mod image_registry;
 
 // Re-export error types for use in commands
 pub use crate::error::Result;
@@ -66,6 +67,7 @@ pub use youtube_playlist::*;
 pub use audiobook::*;
 pub use semantic_search::*;
 pub use focus_timer::*;
+pub use image_registry::*;
 
 // Cloud commands
 pub use cloud::oauth::*;

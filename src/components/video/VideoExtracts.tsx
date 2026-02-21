@@ -8,7 +8,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Scissors,
-  Plus,
   X,
   Play,
   Clock,
@@ -18,13 +17,10 @@ import {
   Calendar,
   CheckCircle2,
   AlertTriangle,
-  Lightbulb,
   BookOpen,
-  Layers,
 } from 'lucide-react';
 import {
   createVideoExtract,
-  updateVideoExtract,
   deleteVideoExtract,
   rateVideoExtract,
   getVideoExtracts,
@@ -33,8 +29,6 @@ import {
   formatSeconds,
   formatTimeRange,
   getTranscriptPreview,
-  exceedsRecommendedDuration,
-  exceedsMaximumDuration,
   getRatingLabel,
   getRatingColor,
 } from '../../api/video-extracts';

@@ -12,7 +12,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { X, Rss, Settings2, Percent, ListFilter, EyeOff, Eye, ArrowUpDown } from "lucide-react";
 import { cn } from "../../utils";
 import { defaultSettings, useSettingsStore, type RSSQueueSettings } from "../../stores/settingsStore";
-import { getSubscribedFeeds, type Feed } from "../../api/rss";
+import { getSubscribedFeeds } from "../../api/rss";
 import { useToast } from "../common/Toast";
 
 interface RSSQueueSettingsProps {

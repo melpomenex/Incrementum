@@ -1,9 +1,6 @@
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 // Dynamic imports used instead of static imports to prevent PWA crash
-type EmitFn = typeof import("@tauri-apps/api/event").emit;
-type GetCurrentWindowFn = typeof import("@tauri-apps/api/window").getCurrentWindow;
-
 type CaptureMode = "region" | "screen" | "app";
 
 type DragState = {

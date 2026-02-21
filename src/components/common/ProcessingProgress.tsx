@@ -26,16 +26,10 @@ export function ProcessingProgress({
   onComplete,
   onClose,
 }: ProcessingProgressProps) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
     // Find the first processing step
-    const processingIndex = steps.findIndex((s) => s.status === "processing");
-    if (processingIndex !== -1) {
-      setCurrentStepIndex(processingIndex);
-    }
-
     // Check if all steps are complete
     const allComplete = steps.every((s) => s.status === "completed" || s.status === "error");
     if (allComplete && !isComplete) {
@@ -112,7 +106,7 @@ export function ProcessingProgress({
 
         {/* Steps List */}
         <div className="space-y-2">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <div
               key={step.id}
               className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${

@@ -82,7 +82,7 @@ export async function getDemoBookFiles(): Promise<string[]> {
 
     const index = await response.json();
     return index.bookFiles || [];
-  } catch (error) {
+  } catch {
     return [];
   }
 }

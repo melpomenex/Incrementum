@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.7] - 2026-02-21
+
+### Added
+- Review deck browsing in Review View via a dedicated decks modal, including deck-level preview flow improvements.
+- Image registry plumbing across Tauri + web API paths for richer media handling in review/content workflows.
+- OpenSpec change package for image-registry work: `openspec/changes/add-image-registry/`.
+
+### Changed
+- Completed project linting setup migration to flat ESLint config (`eslint.config.js`) and normalized lint scripts/workflow.
+- Broad frontend/backend cleanup pass across review, viewer, import, graph, RSS, queue, settings, sync, and assistant modules.
+- Improved browser/PWA/Tauri compatibility and type-safety hardening in shared runtime utilities.
+
+### Fixed
+- Fixed multiple review UX edge cases in scroll/preview/feedback/rating flows.
+- Fixed numerous document/media handling issues across PDF/EPUB/video/transcript and import pipelines.
+- Resolved large sets of lint defects and removed stale suppressions; lint now runs clean with current configured rules.
+- Updated release/version metadata to `1.10.7` across package and Tauri manifests.
+
 ## [1.10.4] - 2026-02-20
 
 ### Fixed

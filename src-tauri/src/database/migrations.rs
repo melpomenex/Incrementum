@@ -1187,6 +1187,29 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_documents_is_dismissed ON documents(is_dismissed);
         "#,
     ),
+    // Migration 033: Add image registry and flashcard image references
+    Migration::new(
+        "033_add_image_registry",
+        r#"
+        CREATE TABLE IF NOT EXISTS image_assets (
+            id TEXT PRIMARY KEY,
+            mime_type TEXT NOT NULL,
+            file_name TEXT,
+            content BLOB NOT NULL,
+            byte_size INTEGER NOT NULL,
+            sha256 TEXT NOT NULL UNIQUE,
+            width INTEGER,
+            height INTEGER,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_image_assets_created_at ON image_assets(created_at);
+        CREATE INDEX IF NOT EXISTS idx_image_assets_sha256 ON image_assets(sha256);
+
+        ALTER TABLE learning_items ADD COLUMN image_asset_ids TEXT NOT NULL DEFAULT '[]';
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path
