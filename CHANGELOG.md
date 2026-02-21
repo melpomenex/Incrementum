@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.9] - 2026-02-21
+
+### Fixed
+- Restored `Read Next` and `Random Item` toolbar actions so they reliably open queue items again.
+- Added fallback queue selection logic so toolbar actions still work when active filters temporarily produce an empty `filteredItems` list.
+- Added user-facing toast feedback for empty queue states and action failures, replacing silent no-op behavior.
+- Added safe fallback opening for unhandled queue item variants with a `documentId` (for example, interspersed playlist queue items).
+
 ## [1.10.8] - 2026-02-21
 
 ### Fixed
