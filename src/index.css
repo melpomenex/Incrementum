@@ -232,6 +232,23 @@
 }
 
 @layer utilities {
+  .app-shell {
+    min-height: 100vh;
+  }
+
+  @supports (min-height: 100dvh) {
+    .app-shell {
+      min-height: 100dvh;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .app-shell {
+      padding-top: env(safe-area-inset-top, 0px);
+      min-height: calc(100dvh - env(safe-area-inset-top, 0px));
+    }
+  }
+
   @keyframes tab-enter {
     from {
       opacity: 0;
