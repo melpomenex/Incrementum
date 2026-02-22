@@ -355,7 +355,7 @@ export function MainLayout() {
     // Toolbar on the left
     if (toolbarPosition === "left") {
       return (
-        <div className="flex h-screen w-full overflow-hidden bg-background">
+        <div className="app-shell flex w-full overflow-hidden bg-background">
           {/* Toolbar - Left side - Hidden on mobile */}
           <div className="flex-shrink-0 hidden md:block h-full">
             <Toolbar position="left" />
@@ -375,7 +375,7 @@ export function MainLayout() {
     // Toolbar on the right
     if (toolbarPosition === "right") {
       return (
-        <div className="flex h-screen w-full overflow-hidden bg-background">
+        <div className="app-shell flex w-full overflow-hidden bg-background">
           {/* Tabbed Interface - takes remaining space */}
           <div className="flex-1 min-w-0" data-vimium-scroll>
             <Tabs />
@@ -394,7 +394,7 @@ export function MainLayout() {
 
     // Default: Toolbar on top
     return (
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
+      <div className="app-shell flex flex-col w-full overflow-hidden bg-background">
         {/* Toolbar - Fixed at top - Hidden on mobile */}
         <div className="flex-shrink-0 hidden md:block">
           <Toolbar position="top" />

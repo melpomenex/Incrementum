@@ -112,7 +112,7 @@ export function NewMainLayout({
   }, [onPageChange]);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-cream">
+    <div className="app-shell flex flex-col w-full bg-cream">
       {/* Toast Notifications */}
       <Toast />
 
