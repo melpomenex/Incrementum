@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: mobile-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,11 +79,127 @@ jobs:
             exit 1
           fi
 
+      - name: Allow localhost cleartext traffic on Android
+        run: |
+          set -euo pipefail
+          MANIFEST="src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+          XML_DIR="src-tauri/gen/android/app/src/main/res/xml"
+          NETSEC="$XML_DIR/network_security_config.xml"
+
+          if [ ! -f "$MANIFEST" ]; then
+            echo "::error::AndroidManifest.xml not found at $MANIFEST"
+            exit 1
+          fi
+
+          mkdir -p "$XML_DIR"
+          cat > "$NETSEC" <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+            <domain-config cleartextTrafficPermitted="true">
+              <domain includeSubdomains="false">localhost</domain>
+            </domain-config>
+            <domain-config cleartextTrafficPermitted="true">
+              <domain includeSubdomains="false">127.0.0.1</domain>
+            </domain-config>
+          </network-security-config>
+          EOF
+
+          if ! grep -q 'android:usesCleartextTraffic=' "$MANIFEST"; then
+            sed -i 's#<application #<application android:usesCleartextTraffic="true" android:networkSecurityConfig="@xml/network_security_config" #' "$MANIFEST"
+          else
+            sed -i 's#android:usesCleartextTraffic="[^"]*"#android:usesCleartextTraffic="true"#g' "$MANIFEST"
+            if ! grep -q 'android:networkSecurityConfig=' "$MANIFEST"; then
+              sed -i 's#<application #<application android:networkSecurityConfig="@xml/network_security_config" #' "$MANIFEST"
+            fi
+          fi
+
+          echo "Patched Android manifest for localhost cleartext:"
+          rg -n "usesCleartextTraffic|networkSecurityConfig|<application" "$MANIFEST"
+
+      - name: Decide Android signing mode (signed vs unsigned)
+        id: android_mode
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!v}" ]; then
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "mode=provided-keystore" >> "$GITHUB_OUTPUT"
+            echo "All Android signing prerequisites detected. Producing signed APK with provided keystore."
+          else
+            echo "mode=self-signed" >> "$GITHUB_OUTPUT"
+            echo "::warning::Android signing secrets missing. Generating ephemeral self-signed keystore for APK signing."
+          fi
+
       - name: Build Android APK (arm64)
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
           npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
+
+      - name: Sign Android APK (release)
+        if: steps.android_mode.outputs.mode == 'provided-keystore' || steps.android_mode.outputs.mode == 'self-signed'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/android-signing
+          if [ "${{ steps.android_mode.outputs.mode }}" = "provided-keystore" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > artifacts/android-signing/release.keystore
+            KS_PASS="$ANDROID_KEYSTORE_PASSWORD"
+            KEY_ALIAS="$ANDROID_KEY_ALIAS"
+            KEY_PASS="$ANDROID_KEY_PASSWORD"
+          else
+            KS_PASS="incrementum-ci"
+            KEY_ALIAS="incrementum-ci"
+            KEY_PASS="incrementum-ci"
+            keytool -genkeypair \
+              -v \
+              -keystore artifacts/android-signing/release.keystore \
+              -storepass "$KS_PASS" \
+              -alias "$KEY_ALIAS" \
+              -keypass "$KEY_PASS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Incrementum CI, OU=Mobile, O=Incrementum, L=NA, S=NA, C=US"
+          fi
+
+          APK_TO_SIGN="$(find src-tauri/gen/android -type f -name '*release-unsigned.apk' | head -1 || true)"
+          if [ -z "$APK_TO_SIGN" ]; then
+            APK_TO_SIGN="$(find src-tauri/gen/android -type f -name '*release*.apk' ! -name '*signed*' ! -name '*aligned*' | head -1 || true)"
+          fi
+          if [ -z "$APK_TO_SIGN" ]; then
+            echo "::error::No release APK found to sign."
+            exit 1
+          fi
+
+          BUILD_TOOLS_DIR="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          if [ -z "$BUILD_TOOLS_DIR" ]; then
+            echo "::error::Android build-tools not found."
+            exit 1
+          fi
+
+          "${BUILD_TOOLS_DIR}/zipalign" -p -f 4 "$APK_TO_SIGN" artifacts/android-signing/app-release-aligned.apk
+          "${BUILD_TOOLS_DIR}/apksigner" sign \
+            --ks artifacts/android-signing/release.keystore \
+            --ks-pass "pass:${KS_PASS}" \
+            --ks-key-alias "${KEY_ALIAS}" \
+            --key-pass "pass:${KEY_PASS}" \
+            --out artifacts/android-signing/incrementum-android-arm64-signed.apk \
+            artifacts/android-signing/app-release-aligned.apk
+          "${BUILD_TOOLS_DIR}/apksigner" verify --verbose artifacts/android-signing/incrementum-android-arm64-signed.apk
 
       - name: Collect Android output summary
         if: always()
@@ -95,6 +211,9 @@ jobs:
             echo
             echo "=== Android-related target outputs under src-tauri/target ==="
             find src-tauri/target -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | head -200
+            echo
+            echo "=== Android signed outputs ==="
+            find artifacts/android-signing -type f 2>/dev/null | head -200
           } | tee artifacts/mobile-logs/android-outputs.txt
 
       - name: Upload Android artifacts and logs
@@ -106,16 +225,24 @@ jobs:
             src-tauri/gen/android/app/build/outputs/**
             src-tauri/target/**/*.apk
             src-tauri/target/**/*.aab
+            artifacts/android-signing/*.apk
             artifacts/mobile-logs/android-build.log
             artifacts/mobile-logs/android-outputs.txt
           if-no-files-found: warn
+
+      - name: Upload Android signed artifact to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/android-signing/incrementum-android-arm64-signed.apk
 
   ios-build:
     name: iOS build validation (Tauri)
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -181,9 +308,42 @@ jobs:
             echo "All signing prerequisites detected. Running signed iOS build validation."
           else
             echo "mode=simulator" >> "$GITHUB_OUTPUT"
-            echo "::warning::One or more iOS signing prerequisites are missing. Running simulator build validation instead."
-            echo "Missing one or more of IOS_CERT_BASE64, IOS_CERT_PASSWORD, IOS_PROFILE_BASE64, IOS_SIGNING_IDENTITY, IOS_TEAM_ID."
+            echo "::warning::iOS signing prerequisites are missing. Running simulator build validation instead."
+            echo "Physical iPhone install requires Apple signing credentials (IOS_CERT_BASE64, IOS_CERT_PASSWORD, IOS_PROFILE_BASE64, IOS_SIGNING_IDENTITY, IOS_TEAM_ID)."
           fi
+
+      - name: Import iOS signing certificate and provisioning profile
+        if: steps.ios_mode.outputs.mode == 'signed'
+        env:
+          IOS_CERT_BASE64: ${{ secrets.IOS_CERT_BASE64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          IOS_SIGNING_IDENTITY: ${{ secrets.IOS_SIGNING_IDENTITY }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          CERT_PATH="$RUNNER_TEMP/ios_signing_cert.p12"
+          PROFILE_PATH="$RUNNER_TEMP/ios_profile.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+
+          echo "$IOS_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_UUID="$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "APPLE_SIGNING_IDENTITY=$IOS_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "APPLE_TEAM_ID=$IOS_TEAM_ID" >> "$GITHUB_ENV"
 
       - name: Build iOS app (signed)
         if: steps.ios_mode.outputs.mode == 'signed'
@@ -225,12 +385,24 @@ jobs:
             artifacts/mobile-logs/ios-outputs.txt
           if-no-files-found: warn
 
+      - name: Upload iOS signed artifact to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') && steps.ios_mode.outputs.mode == 'signed'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/gen/apple/**/build/**/*.ipa
+            src-tauri/target/**/*.ipa
+
 # Mobile CI prerequisites (for signed iOS builds):
 # - IOS_CERT_BASE64: Base64-encoded signing certificate (.p12)
 # - IOS_CERT_PASSWORD: Password for certificate
 # - IOS_PROFILE_BASE64: Base64-encoded provisioning profile (.mobileprovision)
 # - IOS_SIGNING_IDENTITY: Signing identity name
 # - IOS_TEAM_ID: Apple Developer team ID
+# - ANDROID_KEYSTORE_BASE64: Base64-encoded Android keystore
+# - ANDROID_KEYSTORE_PASSWORD: Android keystore password
+# - ANDROID_KEY_ALIAS: Android key alias
+# - ANDROID_KEY_PASSWORD: Android key password
 #
 # Expected uploaded artifacts:
 # - Android: Gradle outputs (APK/AAB when produced) plus android-build.log and android-outputs.txt
