@@ -511,6 +511,47 @@ Mobile note: desktop sidecar binaries (like `whisper`) are disabled on Android/i
 
 ---
 
+## YouTube + WebSocket Debugging (Tauri v2)
+
+### What changed
+- YouTube doc rendering now validates and normalizes IDs via `src/utils/youtubeEmbed.ts`.
+- The viewer uses YouTube privacy embed host (`youtube-nocookie`) with JS API enabled and explicit iframe allow attributes.
+- Tauri CSP is split into:
+  - Prod: `src-tauri/tauri.conf.json` -> `app.security.csp`
+  - Dev: `src-tauri/tauri.conf.json` -> `app.security.devCsp`
+- Linux webview user agent override is in `src-tauri/tauri.linux.conf.json`.
+- Yjs websocket diagnostics were improved in `src/lib/yjsSync.ts`.
+
+### How to test YouTube docType
+1. Import/open a YouTube document with filePath `https://www.youtube.com/watch?v=n04A6phTTVc`.
+2. Confirm the viewer resolves the ID and embeds `https://www.youtube-nocookie.com/embed/n04A6phTTVc`.
+3. Click play if autoplay is blocked by platform policy.
+
+### How to inspect the exact failing request
+1. Enable debug instrumentation in dev:
+  - env: `VITE_DEBUG_NETWORK=1 npm run tauri:dev`
+  - or in console: `localStorage.setItem("incrementum.debug.network", "1"); location.reload();`
+2. Reproduce playback.
+3. Check console logs:
+  - `[NetworkDebug][fetch]` / `[NetworkDebug][xhr]`: URL, status, request headers, response snippet (first ~200 chars)
+  - `[YouTubeViewer] iframe src`: actual embed URL used
+  - `[NetworkDebug][resource-error]`: failed script/img/iframe resource URLs
+
+### How to interpret CSP violations
+- In debug mode, CSP violations are logged as `[NetworkDebug][csp]` with:
+  - `violatedDirective`
+  - `blockedURI`
+  - `effectiveDirective`
+- If websocket sync fails, verify:
+  - `connect-src` includes `wss://sync.readsync.org`
+  - Yjs logs show close/error details in `src/lib/yjsSync.ts`
+  - If CSP allows it but handshake is still rejected, the issue is server/proxy-side (upgrade/subprotocol/auth).
+
+### Where CSP is configured
+- `src-tauri/tauri.conf.json`:
+  - `app.security.csp` (production)
+  - `app.security.devCsp` (development)
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.

@@ -17,6 +17,13 @@ const CORRUPTION_FLAG_KEY = "incrementum-yjs-corruption-detected";
 
 let instance: YjsSyncState | null = null;
 
+function isSyncDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false;
+  if (import.meta.env.VITE_DEBUG_NETWORK === "1") return true;
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("incrementum.debug.network") === "1";
+}
+
 function generateRoomId(): string {
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     const bytes = new Uint8Array(16);
@@ -184,13 +191,30 @@ export async function getYjsSync(): Promise<YjsSyncState> {
     connect: true,
   });
 
+  if (isSyncDebugEnabled()) {
+    console.info("[YjsSync] Initializing provider", { url, room });
+  }
+
   // Handle WebSocket errors gracefully
   provider.on("status", (event: { status: string }) => {
-    console.log("[YjsSync] WebSocket status:", event.status);
+    const ws = (provider as any).ws as WebSocket | undefined;
+    const socketUrl = ws?.url;
+    console.log("[YjsSync] WebSocket status:", {
+      status: event.status,
+      url: socketUrl ?? url,
+      readyState: ws?.readyState,
+    });
   });
 
   provider.on("connection-error", (error: Error) => {
     console.warn("[YjsSync] WebSocket connection error:", error?.message || error);
+  });
+
+  provider.on("connection-close", (event: CloseEvent | { code?: number; reason?: string }) => {
+    console.warn("[YjsSync] WebSocket closed:", {
+      code: (event as any)?.code,
+      reason: (event as any)?.reason,
+    });
   });
 
   instance = {
