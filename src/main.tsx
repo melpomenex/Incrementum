@@ -53,6 +53,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { initializePWA } from "./lib/pwa";
 import { isTauri } from "./lib/tauri";
 import { initLocalStorageSync } from "./lib/localStorageSync";
+import { installNetworkDebugInstrumentation, isNetworkDebugEnabled } from "./debug/networkDebug";
 
 // Layout
 import { MainLayout } from "./components/layout/MainLayout";
@@ -142,6 +143,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 console.log('[main.tsx] Starting Incrementum app...');
+if (isNetworkDebugEnabled()) {
+  installNetworkDebugInstrumentation();
+}
 
 // Initialize PWA (works in both Tauri and Web)
 initializePWA();

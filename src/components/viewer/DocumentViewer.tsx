@@ -52,6 +52,7 @@ import type { ViewState } from "../../types/readerPosition";
 import { saveDocumentPosition, pagePosition, scrollPosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
 import { useExtractStore } from "../../stores/extractStore";
+import { extractYouTubeVideoId } from "../../utils/youtubeEmbed";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -128,33 +129,6 @@ function getUnifiedPositionForDocument(
     default:
       return scrollPosition(state.scrollPercent);
   }
-}
-
-/**
- * Extract YouTube video ID from various URL formats
- */
-function extractYouTubeId(urlOrId: string): string {
-  if (!urlOrId) return "";
-
-  // If it's already just an ID (11 chars), return as is
-  if (/^[a-zA-Z0-9_-]{11}$/.test(urlOrId)) {
-    return urlOrId;
-  }
-
-  // Extract from various URL formats
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = urlOrId.match(pattern);
-    if (match) return match[1];
-  }
-
-  return urlOrId; // Return as-is if no pattern matches
 }
 
 interface DocumentViewerProps {
@@ -3293,7 +3267,7 @@ export function DocumentViewer({
         ) : docType === "youtube" ? (
           <div className="h-full">
             <YouTubeViewer
-              videoId={extractYouTubeId(currentDocument.filePath)}
+              videoId={extractYouTubeVideoId(currentDocument.filePath) ?? ""}
               documentId={currentDocument.id}
               title={currentDocument.title}
               onLoad={handleYouTubeLoad}
@@ -3308,7 +3282,7 @@ export function DocumentViewer({
                 const transcriptText = segments.map(s => `[${formatTime(s.start)}] ${s.text}`).join("\n");
                 setVideoContext(prev => ({
                   ...prev,
-                  videoId: extractYouTubeId(currentDocument.filePath),
+                  videoId: extractYouTubeVideoId(currentDocument.filePath) ?? "",
                   title: currentDocument.title,
                   transcript: transcriptText,
                 }));

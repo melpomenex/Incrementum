@@ -28,6 +28,8 @@ import {
   SponsorBlockSegment, 
   getCategoryDisplayName
 } from "../../api/sponsorblock";
+import { buildYouTubeNoCookieEmbedUrl, extractYouTubeVideoId } from "../../utils/youtubeEmbed";
+import { isNetworkDebugEnabled } from "../../debug/networkDebug";
 
 interface YouTubeViewerProps {
   videoId: string;
@@ -100,6 +102,8 @@ export function YouTubeViewer({
   const [playerError, setPlayerError] = useState<{ code: number; message: string } | null>(null);
   const [inlinePlaybackLikelyUnsupported, setInlinePlaybackLikelyUnsupported] = useState(false);
   const [forceInlinePlayback, setForceInlinePlayback] = useState(false);
+  const [normalizedVideoId, setNormalizedVideoId] = useState(() => extractYouTubeVideoId(videoId) ?? "");
+  const networkDebugEnabled = useMemo(() => isNetworkDebugEnabled(), []);
 
   // SponsorBlock state
   const [segments, setSegments] = useState<SponsorBlockSegment[]>([]);
@@ -144,6 +148,7 @@ export function YouTubeViewer({
 
   // Reset player ready state when videoId changes
   useEffect(() => {
+    setNormalizedVideoId(extractYouTubeVideoId(videoId) ?? "");
     playerReadyRef.current = false;
     initialSeekAppliedRef.current = false;
     userInteractedRef.current = false;
@@ -153,6 +158,18 @@ export function YouTubeViewer({
     setPlayerError(null);
   }, [videoId]);
 
+  useEffect(() => {
+    if (!networkDebugEnabled) return;
+    const onMessageError = (event: MessageEvent) => {
+      console.error("[YouTubeViewer][postMessage][error]", {
+        origin: event.origin,
+        data: event.data,
+      });
+    };
+    window.addEventListener("messageerror", onMessageError);
+    return () => window.removeEventListener("messageerror", onMessageError);
+  }, [networkDebugEnabled]);
+
   // If the viewer is reused across document switches, ensure we start in "thumbnail" mode
   // so the user reliably sees the Resume button/badge for the current document.
   useEffect(() => {
@@ -160,6 +177,11 @@ export function YouTubeViewer({
     setForceInlinePlayback(false);
     setPlayerError(null);
   }, [documentId, videoId]);
+
+  useEffect(() => {
+    if (normalizedVideoId) return;
+    setShowInlinePlayer(false);
+  }, [normalizedVideoId]);
 
   // Preflight: WebKitGTK builds often lack H.264/MP4 codecs, causing YouTube to show
   // "Your browser can't play this video." Provide a clear fallback message.
@@ -289,20 +311,20 @@ export function YouTubeViewer({
   }, [isResizingVideoFeatures]);
   // Load SponsorBlock segments
   useEffect(() => {
-    if (!videoId) return;
+    if (!normalizedVideoId) return;
     
     const loadSegments = async () => {
-      const fetchedSegments = await fetchSponsorBlockSegments(videoId);
-      console.log(`[SponsorBlock] Loaded ${fetchedSegments.length} segments for ${videoId}`);
+      const fetchedSegments = await fetchSponsorBlockSegments(normalizedVideoId);
+      console.log(`[SponsorBlock] Loaded ${fetchedSegments.length} segments for ${normalizedVideoId}`);
       setSegments(fetchedSegments);
     };
     
     loadSegments();
-  }, [videoId]);
+  }, [normalizedVideoId]);
 
   // Load transcript from backend
   const loadTranscript = useCallback(async () => {
-    if (!videoId) return;
+    if (!normalizedVideoId) return;
 
     setIsLoadingTranscript(true);
     setTranscriptError(null);
@@ -314,7 +336,7 @@ export function YouTubeViewer({
         // Use Tauri backend for desktop app
         const transcriptData = await invoke<Array<{ text: string; start: number; duration: number }> | null>(
           "get_youtube_transcript_by_id",
-          { videoId, documentId }
+          { videoId: normalizedVideoId, documentId }
         );
 
         if (!transcriptData || !Array.isArray(transcriptData)) {
@@ -333,7 +355,7 @@ export function YouTubeViewer({
       } else {
         // Use web API for browser app
         console.log('[YouTubeViewer] Fetching transcript via web API...');
-        const result = await fetchYouTubeTranscript(videoId);
+        const result = await fetchYouTubeTranscript(normalizedVideoId);
 
         segments = result.segments.map((seg, i) => ({
           id: `seg-${i}`,
@@ -359,7 +381,7 @@ export function YouTubeViewer({
     } finally {
       setIsLoadingTranscript(false);
     }
-  }, [videoId, documentId, onLoad]);
+  }, [normalizedVideoId, documentId, onLoad]);
 
   // Handle videoId changes for transcript
   useEffect(() => {
@@ -368,16 +390,16 @@ export function YouTubeViewer({
 
   // Resolve YouTube title
   useEffect(() => {
-    if (!videoId || !documentId) return;
+    if (!normalizedVideoId || !documentId) return;
     const currentTitle = (titleRef.current || "").trim();
     const looksLikeUrl = currentTitle.startsWith("http") || currentTitle.startsWith("YouTube:");
     if (!looksLikeUrl) return;
-    if (titleFetchRef.current === videoId) return;
+    if (titleFetchRef.current === normalizedVideoId) return;
 
-    titleFetchRef.current = videoId;
+    titleFetchRef.current = normalizedVideoId;
     (async () => {
       try {
-        const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+        const response = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${normalizedVideoId}`);
         if (!response.ok) return;
         const data = await response.json();
         if (!data?.title) return;
@@ -387,7 +409,7 @@ export function YouTubeViewer({
         console.warn("Failed to resolve YouTube title:", error);
       }
     })();
-  }, [documentId, videoId]);
+  }, [documentId, normalizedVideoId]);
 
   // Parse URL fragment to get initial timestamp
   useEffect(() => {
@@ -663,7 +685,7 @@ export function YouTubeViewer({
     }
 
     toast.success("Seeking", `Starting at ${formatTime(time)}`);
-  }, [videoId, resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer]);
+  }, [resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer]);
 
   // Format time for display
   const formatTime = (seconds: number) => {
@@ -674,7 +696,7 @@ export function YouTubeViewer({
 
   // Share video with current timestamp
   const handleShare = async () => {
-    const shareUrl = generateYouTubeShareUrl(videoId, currentTime);
+    const shareUrl = generateYouTubeShareUrl(normalizedVideoId, currentTime);
     const success = await copyShareLink(shareUrl);
     if (success) {
       toast.success("Link copied!", "The timestamped video link has been copied to your clipboard.");
@@ -684,6 +706,10 @@ export function YouTubeViewer({
   };
 
   const handlePlayVideo = () => {
+    if (!normalizedVideoId) {
+      toast.error("Invalid YouTube URL", "Could not determine a valid video ID.");
+      return;
+    }
     setShowInlinePlayer(true);
   };
 
@@ -727,6 +753,25 @@ export function YouTubeViewer({
   const onPlayerReady = (event: any) => {
     playerRef.current = event.target;
     playerReadyRef.current = true;
+    try {
+      const iframe = event?.target?.getIframe?.() as HTMLIFrameElement | undefined;
+      if (iframe) {
+        iframe.setAttribute(
+          "allow",
+          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        );
+        iframe.setAttribute("allowfullscreen", "true");
+        iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+        if (networkDebugEnabled) {
+          console.info("[YouTubeViewer] iframe src:", iframe.src);
+          console.info("[YouTubeViewer] expected embed:", buildYouTubeNoCookieEmbedUrl(normalizedVideoId, startTime));
+        }
+      }
+    } catch (error) {
+      if (networkDebugEnabled) {
+        console.warn("[YouTubeViewer] Failed to inspect iframe element:", error);
+      }
+    }
     void (async () => {
       try {
         const playerDuration = await event.target.getDuration();
@@ -796,13 +841,16 @@ export function YouTubeViewer({
   const displayTitle = resolvedTitle || title || "YouTube Video";
 
   const youtubeOpts: YouTubeProps['opts'] = {
+    host: "https://www.youtube-nocookie.com",
     height: '100%',
     width: '100%',
     playerVars: {
       autoplay: 1,
       start: Math.floor(startTime),
+      enablejsapi: 1,
       modestbranding: 1,
       rel: 0,
+      playsinline: 1,
       origin: window.location.origin,
     },
   };
@@ -823,6 +871,11 @@ export function YouTubeViewer({
 
   return (
     <div className={`flex h-full bg-background ${transcriptLayout === 'side' && showTranscript ? 'flex-row' : 'flex-col'}`}>
+      {!normalizedVideoId && (
+        <div className="p-3 text-sm bg-destructive/10 border-b border-destructive/30 text-destructive">
+          Invalid YouTube URL/ID: <code>{videoId}</code>
+        </div>
+      )}
       {/* Video Player Container */}
       <div
         ref={containerRef}
@@ -833,8 +886,8 @@ export function YouTubeViewer({
         {showInlinePlayer ? (
           <div className="absolute inset-0 w-full h-full">
             <YouTube
-              key={videoId}
-              videoId={videoId}
+              key={normalizedVideoId}
+              videoId={normalizedVideoId}
               opts={youtubeOpts}
               onReady={onPlayerReady}
               onStateChange={onPlayerStateChange}
@@ -861,7 +914,7 @@ export function YouTubeViewer({
                       )}
                       <div className="mt-4 flex flex-col sm:flex-row gap-2">
                         <a
-                          href={getYouTubeWatchURL(videoId)}
+                          href={getYouTubeWatchURL(normalizedVideoId)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors font-medium border border-gray-700"
@@ -895,11 +948,11 @@ export function YouTubeViewer({
                 onClick={handlePlayVideo}
               >
                 <img
-                  src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+                  src={`https://img.youtube.com/vi/${normalizedVideoId}/maxresdefault.jpg`}
                   alt={displayTitle}
                   className="w-full aspect-video object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                    (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${normalizedVideoId}/hqdefault.jpg`;
                   }}
                 />
                 {/* Play button overlay */}
@@ -952,7 +1005,7 @@ export function YouTubeViewer({
                 </button>
 
                 <a
-                  href={getYouTubeWatchURL(videoId)}
+                  href={getYouTubeWatchURL(normalizedVideoId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-medium border border-gray-700"
