@@ -114,7 +114,7 @@ jobs:
           fi
 
           echo "Patched Android manifest for localhost cleartext:"
-          rg -n "usesCleartextTraffic|networkSecurityConfig|<application" "$MANIFEST"
+          grep -nE "usesCleartextTraffic|networkSecurityConfig|<application" "$MANIFEST" || true
 
       - name: Decide Android signing mode (signed vs unsigned)
         id: android_mode
