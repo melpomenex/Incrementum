@@ -49,7 +49,9 @@ export function ContinueReadingTab() {
         setLoading(true);
         setError(null);
         const docs = await getDocumentsWithProgress(50);
-        setDocuments(docs.filter((d) => d.progress > 0));
+        // Show all non-archived documents that are not completed
+        // Include documents with no progress (not started) so users can start reading anything
+        setDocuments(docs.filter((d) => d.progress < 100));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load documents");
         console.error("Failed to load continue reading:", err);
@@ -68,14 +70,14 @@ export function ContinueReadingTab() {
     }, {} as Record<ProgressGroup, DocumentWithProgress[]>);
 
     return Object.entries(grouped)
-      .filter(([group]) => group !== "not-started" && group !== "completed")
+      .filter(([group]) => group !== "completed")
       .map(([group, docs]) => ({
         group: group as ProgressGroup,
         info: PROGRESS_GROUPS[group as ProgressGroup],
         documents: docs.sort((a, b) => b.date_modified - a.date_modified),
       }))
       .sort((a, b) => {
-        const priority = { "just-started": 0, halfway: 1, "almost-done": 2 } as const;
+        const priority = { "not-started": 0, "just-started": 1, halfway: 2, "almost-done": 3 } as const;
         return priority[a.group] - priority[b.group];
       });
   }, [documents]);
@@ -127,8 +129,8 @@ export function ContinueReadingTab() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <div className="text-6xl mb-4">📚</div>
-        <div className="text-lg font-medium text-foreground">No documents in progress</div>
-        <div className="text-sm mt-2">Start reading a document to see it here</div>
+        <div className="text-lg font-medium text-foreground">No items available</div>
+        <div className="text-sm mt-2">Add documents or notes to see them here</div>
       </div>
     );
   }

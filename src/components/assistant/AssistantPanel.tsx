@@ -827,7 +827,7 @@ ${toolDescriptions}
 
   if (isCollapsed) {
     return (
-      <div className={`flex flex-col h-full min-h-0 bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}>
+      <div className={`flex flex-col h-full min-h-0 overflow-hidden bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}>
         <button
           onClick={() => setIsCollapsed(false)}
           className="p-2 hover:bg-muted transition-colors"
@@ -852,7 +852,7 @@ ${toolDescriptions}
 
   return (
     <div
-      className={`flex flex-col h-full min-h-0 bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}
+      className={`flex flex-col h-full min-h-0 overflow-hidden bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}
       style={{ width: isCollapsed ? "auto" : width }}
     >
       {/* Header */}
@@ -933,7 +933,7 @@ ${toolDescriptions}
       {/* Messages */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-3 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4"
       >
         {messages.length === 0 ? (
           <div className="text-center text-muted-foreground text-sm py-8">
@@ -1047,7 +1047,7 @@ ${toolDescriptions}
       </div>
 
       {/* Input Area */}
-      <div className="p-3 border-t border-border">
+      <div className="sticky bottom-0 z-10 flex-shrink-0 p-3 border-t border-border bg-card">
         <div className="flex flex-col gap-2">
           {/* Available Tools Hint */}
           <div className="text-xs text-muted-foreground flex items-center gap-1">

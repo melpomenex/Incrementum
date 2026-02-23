@@ -16,6 +16,16 @@ const mockStore = vi.hoisted(() => ({
       progress: 20,
     },
     {
+      id: "item-3",
+      documentId: "doc-3",
+      documentTitle: "Second Reading Item",
+      itemType: "document",
+      priority: 6,
+      estimatedTime: 7,
+      tags: ["Math"],
+      progress: 10,
+    },
+    {
       id: "item-2",
       documentId: "doc-2",
       documentTitle: "Review Item",
@@ -85,5 +95,20 @@ describe("ReviewQueueView", () => {
     render(<ReviewQueueView onOpenScrollMode={onOpenScrollMode} />);
     fireEvent.click(screen.getByText("Start Optimal Session"));
     expect(onOpenScrollMode).toHaveBeenCalledTimes(1);
+  });
+
+  it("supports manual browse keyboard navigation and activation", () => {
+    const onOpenDocument = vi.fn();
+    render(<ReviewQueueView onOpenDocument={onOpenDocument} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Manual Browse" }));
+    const list = screen.getByLabelText("Queue items list");
+    fireEvent.keyDown(list, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("button", { name: "Open Selected" }));
+
+    expect(onOpenDocument).toHaveBeenCalledTimes(1);
+    expect(onOpenDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "item-3", documentId: "doc-3" })
+    );
   });
 });

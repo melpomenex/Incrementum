@@ -343,6 +343,7 @@ impl PositionService {
     // =========================================================================
 
     /// Get documents with reading progress (for Continue Reading page)
+    /// Returns all non-archived, non-completed documents sorted by most recently modified
     pub async fn get_documents_with_progress(
         &self,
         limit: Option<u32>,
@@ -352,7 +353,7 @@ impl PositionService {
             r#"
             SELECT id, COALESCE(progress_percent, 0) as progress, title, date_modified
             FROM documents
-            WHERE progress_percent > 0 AND is_archived = 0
+            WHERE is_archived = 0 AND (progress_percent IS NULL OR progress_percent < 100)
             ORDER BY date_modified DESC
             LIMIT ?1
             "#,
