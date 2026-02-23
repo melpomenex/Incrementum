@@ -290,6 +290,13 @@ interface YouTubeSettings {
 }
 
 /**
+ * Feature Flags
+ */
+interface FeatureFlags {
+  notebooklmEnabled: boolean;
+}
+
+/**
  * Main Settings Interface
  */
 export interface Settings {
@@ -309,6 +316,7 @@ export interface Settings {
   scrollQueue: ScrollQueueSettings;
   rssQueue: RSSQueueSettings;
   youtube: YouTubeSettings;
+  features: FeatureFlags;
 }
 
 /**
@@ -485,6 +493,9 @@ export const defaultSettings: Settings = {
     apiKey: undefined,
     enabled: false,
   },
+  features: {
+    notebooklmEnabled: false,
+  },
 };
 
 /**
@@ -594,6 +605,7 @@ export const useSettingsStore = create<SettingsState>()(
           scrollQueue: { ...defaultSettings.scrollQueue, ...persisted.scrollQueue },
           rssQueue: { ...defaultSettings.rssQueue, ...persisted.rssQueue },
           youtube: { ...defaultSettings.youtube, ...persisted.youtube },
+          features: { ...defaultSettings.features, ...persisted.features },
         };
 
         if (!Array.isArray(merged.learning.lapseSteps)) {

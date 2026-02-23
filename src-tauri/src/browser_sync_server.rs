@@ -33,6 +33,7 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -636,6 +637,10 @@ async fn handle_extract_request(
         created.id
     };
 
+    let selection_context = build_extension_selection_context(payload);
+    let notes = build_extension_extract_notes(payload);
+    let memory_state = extract_memory_state_from_fsrs(payload.fsrs_data.as_ref());
+
     // Create extract with rich HTML content for visual fidelity
     let extract = Extract {
         id: uuid::Uuid::new_v4().to_string(),
@@ -645,16 +650,16 @@ async fn handle_extract_request(
         source_url: Some(payload.url.clone()),
         page_title: Some(payload.title.clone()),
         page_number: None,
-        selection_context: None,
+        selection_context,
         highlight_color: None,
-        notes: payload.context.clone(), // Store context in notes
+        notes,
         progressive_disclosure_level: 0,
         max_disclosure_level: 3,
         date_created: chrono::Utc::now(),
         date_modified: chrono::Utc::now(),
         tags: payload.tags.clone().unwrap_or_default(),
         category: None,
-        memory_state: None,
+        memory_state,
         next_review_date: None,
         last_review_date: None,
         review_count: 0,
@@ -672,6 +677,106 @@ async fn handle_extract_request(
         document_id: Some(document_id),
         extract_id: Some(created.id),
         error: None,
+    })
+}
+
+fn build_extension_selection_context(payload: &ExtensionRequest) -> Option<serde_json::Value> {
+    let mut map = serde_json::Map::new();
+
+    if let Some(context) = payload.context.as_ref() {
+        map.insert("context".to_string(), json!(context));
+    }
+    if let Some(analysis) = payload.analysis.as_ref() {
+        map.insert("analysis".to_string(), analysis.clone());
+    }
+    if let Some(fsrs_data) = payload.fsrs_data.as_ref() {
+        map.insert("fsrs_data".to_string(), fsrs_data.clone());
+    }
+
+    if map.is_empty() {
+        None
+    } else {
+        map.insert("source".to_string(), json!("browser_extension"));
+        map.insert("saved_at".to_string(), json!(chrono::Utc::now().to_rfc3339()));
+        Some(serde_json::Value::Object(map))
+    }
+}
+
+fn build_extension_extract_notes(payload: &ExtensionRequest) -> Option<String> {
+    let mut sections: Vec<String> = Vec::new();
+
+    if let Some(context) = payload.context.as_ref() {
+        let trimmed = context.trim();
+        if !trimmed.is_empty() {
+            sections.push(format!("Context:\n{}", trimmed));
+        }
+    }
+
+    if let Some(analysis) = payload.analysis.as_ref() {
+        if let Some(summary) = analysis.get("summary").and_then(|v| v.as_str()) {
+            let trimmed = summary.trim();
+            if !trimmed.is_empty() {
+                sections.push(format!("Summary:\n{}", trimmed));
+            }
+        }
+
+        if let Some(responses) = analysis.get("responses") {
+            let rendered = render_analysis_block(responses);
+            if !rendered.is_empty() {
+                sections.push(format!("Responses:\n{}", rendered));
+            }
+        }
+
+        if let Some(threads) = analysis.get("threads") {
+            let rendered = render_analysis_block(threads);
+            if !rendered.is_empty() {
+                sections.push(format!("Threads:\n{}", rendered));
+            }
+        }
+    }
+
+    if sections.is_empty() {
+        None
+    } else {
+        Some(sections.join("\n\n"))
+    }
+}
+
+fn render_analysis_block(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.trim().to_string(),
+        serde_json::Value::Array(items) => {
+            let lines: Vec<String> = items
+                .iter()
+                .filter_map(|item| match item {
+                    serde_json::Value::String(s) => {
+                        let trimmed = s.trim();
+                        if trimmed.is_empty() {
+                            None
+                        } else {
+                            Some(format!("- {}", trimmed))
+                        }
+                    }
+                    other => serde_json::to_string_pretty(other)
+                        .ok()
+                        .map(|s| format!("- {}", s)),
+                })
+                .collect();
+            lines.join("\n")
+        }
+        other => serde_json::to_string_pretty(other).unwrap_or_default(),
+    }
+}
+
+fn extract_memory_state_from_fsrs(
+    fsrs_data: Option<&serde_json::Value>,
+) -> Option<crate::models::MemoryState> {
+    let fsrs = fsrs_data?;
+    let stability = fsrs.get("initial_stability").and_then(|v| v.as_f64())?;
+    let difficulty = fsrs.get("initial_difficulty").and_then(|v| v.as_f64())?;
+    Some(crate::models::MemoryState {
+        stability,
+        difficulty,
     })
 }
 

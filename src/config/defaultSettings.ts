@@ -176,6 +176,13 @@ tags: [incrementum]
       apiToken: '',
       useToken: false,
     },
+    notebooklm: {
+      enabled: false,
+      provider: 'mock',
+      activeNotebookId: '',
+      defaultDeckName: 'NotebookLM Imports',
+      dedupeOnImport: true,
+    },
   },
 
   mcpServers: {

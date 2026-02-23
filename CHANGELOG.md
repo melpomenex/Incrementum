@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-02-23
+
+### Added
+- NotebookLM integration workspace in Integrations with notebook management, source workflows, chat/research, and artifact generation surfaces.
+- NotebookLM chat extraction flow to save assistant responses (including selected text) directly into Incrementum extracts with thread/context metadata.
+- Saved-state affordances in NotebookLM chat (toast feedback + already-saved indicator) for extraction actions.
+- In-app NotebookLM media artifact preview behavior for audio/video with loading states while generation is in progress.
+- NotebookLM CLI sidecar/runtime bundling checks for desktop targets, with mobile-target bypass behavior and stricter sidecar presence validation.
+- New NotebookLM rollout/integration docs:
+  - `docs/notebooklm-integration.md`
+  - `docs/notebooklm-document-qa-rollout.md`
+
+### Changed
+- Implemented CLI provider artifact generation in backend (`src-tauri/src/notebooklm.rs`) so audio/video/report/mind-map/data-table/flashcards/quiz flows produce usable payloads.
+- Updated NotebookLM artifact handling to recover/parse structured payloads more robustly and avoid false “legacy format” messaging when recoverable content exists.
+- NotebookLM browser sync persistence now stores richer extract metadata (selection context, analysis context, FSRS memory state mapping).
+- NotebookLM-extracted document typing now prefers previewable markdown paths and upgrades legacy `other` notebook documents automatically.
+
+### Fixed
+- Fixed `CLI provider scaffold pending` failures in NotebookLM artifact generation by replacing scaffold behavior with real CLI command execution + download/parsing paths.
+- Fixed NotebookLM audio/video preview UX to show player-ready media (or explicit generation progress) instead of forcing export-first flows.
+- Fixed NotebookLM extract preview regression where notebook-backed extracts were saved as non-previewable `other` document types.
+- Fixed NotebookLM markdown viewer empty-state regression by mirroring saved NotebookLM chat extracts into document markdown content.
+
 ## [1.10.9] - 2026-02-21
 
 ### Fixed

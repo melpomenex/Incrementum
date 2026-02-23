@@ -1,8 +1,23 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useDocumentStore, useLLMProvidersStore, useSettingsStore, useDocumentQAStore, type QAMessage, type QAToolCall } from "../../stores";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
 import { getDocument, extractDocumentText } from "../../api/documents";
 import { getExtracts } from "../../api/extracts";
+import { callIncrementumMCPTool, getIncrementumMCPTools } from "../../api/mcp";
+import { getIntegrationSettings, notebooklmGetSettings } from "../../api/integrations";
+import {
+  buildClozeFromSelection,
+  buildQaFromSelection,
+  createArtifactDraft,
+  createSelectionRange,
+  loadOrCreateResearchSession,
+  orchestrateNotebooklmResearch,
+  saveResearchDraft,
+  upsertArtifactDraft,
+  type DocumentResearchSession,
+  type NotebookLMResearchError,
+  type ResearchArtifactDraft,
+} from "../../features/documentQa/notebooklmResearch";
 import {
   MessageSquare,
   Send,
@@ -13,8 +28,13 @@ import {
   Sparkles,
   Trash2,
   BookOpen,
+  FlaskConical,
+  ToggleLeft,
+  ToggleRight,
+  Wand2,
+  Save,
+  AlertCircle,
 } from "lucide-react";
-import { callIncrementumMCPTool, getIncrementumMCPTools } from "../../api/mcp";
 import { renderMarkdown } from "../../utils/markdown";
 import { detectChapterReference, buildChapterQAContext, getChapterTitles, type ChapterReference } from "../../utils/chapterUtils";
 
@@ -51,19 +71,49 @@ export function DocumentQATab() {
   const [mentionCursorIndex, setMentionCursorIndex] = useState(0);
   const [, setProviderError] = useState<string | null>(null);
   const [detectedChapter, setDetectedChapter] = useState<{ number: number; title?: string } | null>(null);
+  const [notebookResearchEnabled, setNotebookResearchEnabled] = useState(false);
+  const [researchQuery, setResearchQuery] = useState("");
+  const [researchStatus, setResearchStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const [researchSession, setResearchSession] = useState<DocumentResearchSession | null>(null);
+  const [activeNotebookId, setActiveNotebookId] = useState<string | undefined>(undefined);
+  const [researchDraft, setResearchDraft] = useState("");
+  const [selectedRange, setSelectedRange] = useState<{ start: number; end: number; text: string } | null>(null);
+  const [artifactDraft, setArtifactDraft] = useState<ResearchArtifactDraft | null>(null);
+  const [isSavingArtifact, setIsSavingArtifact] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [researchDocumentId, setResearchDocumentId] = useState<string>("");
+  const showLegacyNotebookResearch = false;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const researchEditorRef = useRef<HTMLTextAreaElement>(null);
   const mentionPopupRef = useRef<HTMLDivElement>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
 
   const { documents } = useDocumentStore();
   const getEnabledProviders = useLLMProvidersStore((state) => state.getEnabledProviders);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
+  const notebookFeatureEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
+  const analyticsEnabled = useSettingsStore((state) => state.settings.privacy.analyticsEnabled);
+
+  const brainstormingPrompts = useMemo(() => [
+    "Summarize the key concepts from this document and explain them simply.",
+    "Compare and contrast the two most important ideas in this document.",
+    "Create a timeline of the most important events or arguments.",
+    "List high-yield concepts that are likely to become exam questions.",
+    "Brainstorm counterpoints or alternative interpretations for the main claims.",
+  ], []);
 
   // Filter documents for mention autocomplete
   const filteredDocuments = documents.filter((doc) =>
     doc.title.toLowerCase().includes(mentionQuery.toLowerCase())
   );
+  const activeResearchDocumentId = useMemo(() => {
+    if (researchDocumentId) return researchDocumentId;
+    if (mentions.length > 0) return mentions[0].id;
+    return documents[0]?.id ?? "";
+  }, [researchDocumentId, mentions, documents]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,6 +122,54 @@ export function DocumentQATab() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    setNotebookResearchEnabled(notebookFeatureEnabled);
+  }, [notebookFeatureEnabled]);
+
+  useEffect(() => {
+    const integrationSettings = getIntegrationSettings();
+    if (integrationSettings.notebooklm?.activeNotebookId) {
+      setActiveNotebookId(integrationSettings.notebooklm.activeNotebookId || undefined);
+    }
+    if (documents.length > 0 && !researchDocumentId) {
+      setResearchDocumentId(documents[0].id);
+    }
+
+    void notebooklmGetSettings()
+      .then((settings) => {
+        if (settings.activeNotebookId) {
+          setActiveNotebookId(settings.activeNotebookId || undefined);
+        }
+      })
+      .catch(() => {
+        // Keep local fallback settings when NotebookLM settings are unavailable.
+      });
+  }, [documents, researchDocumentId]);
+
+  useEffect(() => {
+    if (!activeResearchDocumentId) return;
+    const session = loadOrCreateResearchSession(activeResearchDocumentId, activeNotebookId);
+    setResearchSession(session);
+    setResearchDraft(session.draftText);
+  }, [activeResearchDocumentId, activeNotebookId]);
+
+  useEffect(() => {
+    if (!researchSession) return;
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+    autosaveTimerRef.current = window.setTimeout(() => {
+      const updated = saveResearchDraft(researchSession, researchDraft);
+      setResearchSession(updated);
+    }, 600);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [researchDraft, researchSession]);
 
   // Parse mentions from input text
   const parseMentions = useCallback((text: string): { text: string; mentions: DocumentMention[] } => {
@@ -392,6 +490,128 @@ export function DocumentQATab() {
     }
   };
 
+  const trackNotebookEvent = useCallback((event: string, payload: Record<string, unknown> = {}) => {
+    if (!analyticsEnabled) return;
+    const detail = {
+      event,
+      payload,
+      ts: Date.now(),
+    };
+    window.dispatchEvent(new CustomEvent("incrementum:analytics", { detail }));
+  }, [analyticsEnabled]);
+
+  const handleResearchSelection = () => {
+    if (!researchEditorRef.current) return;
+    const editor = researchEditorRef.current;
+    const range = createSelectionRange(researchDraft, editor.selectionStart, editor.selectionEnd);
+    setSelectedRange(range);
+  };
+
+  const handleRunNotebookResearch = async (source: "notebooklm" | "brainstorm" = "notebooklm") => {
+    if (!researchSession || !researchQuery.trim()) return;
+    setResearchStatus("loading");
+    setResearchError(null);
+    setSaveMessage(null);
+
+    try {
+      const { session } = await orchestrateNotebooklmResearch({
+        documentId: researchSession.documentId,
+        notebookId: activeNotebookId,
+        query: researchQuery.trim(),
+        mode: "deep",
+        from: "web",
+        source,
+        session: researchSession,
+        retryCount: 2,
+        timeoutMs: 30000,
+      });
+      setResearchSession(session);
+      setResearchDraft(session.draftText);
+      setResearchStatus("success");
+      trackNotebookEvent("document_qa_notebooklm_research_success", {
+        documentId: researchSession.documentId,
+        source,
+      });
+    } catch (error) {
+      const typed = error as NotebookLMResearchError | Error;
+      const message = typed instanceof Error ? typed.message : "NotebookLM research failed";
+      setResearchError(message);
+      setResearchStatus("error");
+      trackNotebookEvent("document_qa_notebooklm_research_error", {
+        error: message,
+      });
+    }
+  };
+
+  const handleCreateClozeDraft = () => {
+    if (!researchSession || !selectedRange) return;
+    const clozeText = buildClozeFromSelection(researchDraft, selectedRange);
+    const draft = createArtifactDraft(researchSession, "cloze", selectedRange, { clozeText });
+    const updatedSession = upsertArtifactDraft(researchSession, draft);
+    setResearchSession(updatedSession);
+    setArtifactDraft(draft);
+    setSaveMessage(null);
+    trackNotebookEvent("document_qa_cloze_draft_created", { documentId: researchSession.documentId });
+  };
+
+  const handleCreateQaDraft = () => {
+    if (!researchSession || !selectedRange) return;
+    const qa = buildQaFromSelection(selectedRange);
+    const draft = createArtifactDraft(researchSession, "qa", selectedRange, qa);
+    const updatedSession = upsertArtifactDraft(researchSession, draft);
+    setResearchSession(updatedSession);
+    setArtifactDraft(draft);
+    setSaveMessage(null);
+    trackNotebookEvent("document_qa_qa_draft_created", { documentId: researchSession.documentId });
+  };
+
+  const handleSaveArtifactDraft = async () => {
+    if (!artifactDraft || !researchSession) return;
+
+    const documentId = researchSession.documentId;
+    if (!documentId) {
+      setSaveMessage("Select a document before saving a card.");
+      return;
+    }
+
+    setIsSavingArtifact(true);
+    setSaveMessage(null);
+    try {
+      const tags = [
+        "notebooklm",
+        "document-qa",
+        `research-session:${artifactDraft.provenance.sessionId}`,
+      ];
+
+      if (artifactDraft.type === "cloze" && artifactDraft.clozeText) {
+        await callIncrementumMCPTool("create_cloze_card", {
+          text: artifactDraft.clozeText,
+          document_id: documentId,
+          tags,
+        });
+      } else if (artifactDraft.type === "qa" && artifactDraft.question && artifactDraft.answer) {
+        await callIncrementumMCPTool("create_qa_card", {
+          question: artifactDraft.question,
+          answer: artifactDraft.answer,
+          document_id: documentId,
+          tags,
+        });
+      } else {
+        throw new Error("Draft is incomplete. Fill all required fields first.");
+      }
+
+      setSaveMessage("Card saved successfully.");
+      setArtifactDraft(null);
+      trackNotebookEvent("document_qa_artifact_saved", { type: artifactDraft.type, documentId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save artifact";
+      setSaveMessage(message);
+      trackNotebookEvent("document_qa_artifact_save_error", { error: message });
+    } finally {
+      setIsSavingArtifact(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!rawInput.trim() || isProcessing) return;
 
@@ -593,17 +813,166 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
           <MessageSquare className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold text-foreground">Document Q&A</h2>
         </div>
-        {messages.length > 0 && (
-          <button
-            onClick={clearConversation}
-            className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center gap-1"
-            title="Clear conversation"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear Chat
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button
+              onClick={clearConversation}
+              className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center gap-1"
+              title="Clear conversation"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear Chat
+            </button>
+          )}
+        </div>
       </div>
+
+      {notebookResearchEnabled && showLegacyNotebookResearch && (
+        <div className="border-b border-border bg-muted/30 p-4">
+          <div className="max-w-4xl mx-auto space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">NotebookLM Research Workspace</span>
+              <select
+                value={activeResearchDocumentId}
+                onChange={(e) => setResearchDocumentId(e.target.value)}
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              >
+                {documents.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.title}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-muted-foreground">
+                {activeNotebookId ? `Notebook: ${activeNotebookId}` : "No active NotebookLM notebook selected"}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {brainstormingPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => {
+                    setResearchQuery(prompt);
+                    trackNotebookEvent("document_qa_brainstorm_prompt_selected", { prompt });
+                  }}
+                  className="text-xs px-2 py-1 rounded-full border border-border bg-background hover:bg-muted"
+                >
+                  <Wand2 className="w-3 h-3 inline mr-1" />
+                  {prompt.length > 54 ? `${prompt.slice(0, 54)}...` : prompt}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <textarea
+                value={researchQuery}
+                onChange={(e) => setResearchQuery(e.target.value)}
+                placeholder="Ask NotebookLM to research this document context..."
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm resize-y min-h-[72px]"
+              />
+              <button
+                onClick={() => void handleRunNotebookResearch("notebooklm")}
+                disabled={researchStatus === "loading" || !researchQuery.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded disabled:opacity-50 flex items-center gap-2 self-start"
+              >
+                {researchStatus === "loading" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Research
+              </button>
+            </div>
+
+            <div>
+              <textarea
+                ref={researchEditorRef}
+                value={researchDraft}
+                onChange={(e) => setResearchDraft(e.target.value)}
+                onSelect={handleResearchSelection}
+                placeholder="NotebookLM output appears here. Edit inline, select text, then create cloze or Q&A drafts."
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm min-h-[180px] font-mono"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleCreateClozeDraft}
+                  disabled={!selectedRange}
+                  className="px-3 py-1.5 text-xs rounded border border-border bg-background hover:bg-muted disabled:opacity-50"
+                >
+                  Create Cloze Draft
+                </button>
+                <button
+                  onClick={handleCreateQaDraft}
+                  disabled={!selectedRange}
+                  className="px-3 py-1.5 text-xs rounded border border-border bg-background hover:bg-muted disabled:opacity-50"
+                >
+                  Create Q&A Draft
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {selectedRange
+                    ? `Selected ${selectedRange.end - selectedRange.start} chars`
+                    : "Select text to enable card actions"}
+                </span>
+              </div>
+            </div>
+
+            {researchStatus === "error" && researchError && (
+              <div className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded px-2 py-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {researchError}
+              </div>
+            )}
+
+            {artifactDraft && (
+              <div className="p-3 border border-border rounded bg-background space-y-2">
+                <div className="text-sm font-semibold text-foreground">
+                  {artifactDraft.type === "cloze" ? "Cloze Draft Preview" : "Q&A Draft Preview"}
+                </div>
+                {artifactDraft.type === "cloze" ? (
+                  <textarea
+                    value={artifactDraft.clozeText || ""}
+                    onChange={(e) => setArtifactDraft({ ...artifactDraft, clozeText: e.target.value, updatedAt: Date.now() })}
+                    className="w-full px-2 py-1 border border-border rounded text-sm min-h-[90px]"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      value={artifactDraft.question || ""}
+                      onChange={(e) => setArtifactDraft({ ...artifactDraft, question: e.target.value, updatedAt: Date.now() })}
+                      className="w-full px-2 py-1 border border-border rounded text-sm"
+                      placeholder="Question"
+                    />
+                    <textarea
+                      value={artifactDraft.answer || ""}
+                      onChange={(e) => setArtifactDraft({ ...artifactDraft, answer: e.target.value, updatedAt: Date.now() })}
+                      className="w-full px-2 py-1 border border-border rounded text-sm min-h-[80px]"
+                      placeholder="Answer"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => void handleSaveArtifactDraft()}
+                    disabled={isSavingArtifact}
+                    className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isSavingArtifact ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Save Card
+                  </button>
+                  <button
+                    onClick={() => setArtifactDraft(null)}
+                    className="px-3 py-1.5 text-xs rounded border border-border bg-background"
+                  >
+                    Cancel
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    Session {researchSession?.id?.slice(0, 12)}
+                  </span>
+                </div>
+                {saveMessage && <div className="text-xs text-muted-foreground">{saveMessage}</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mention badges and chapter detection in input area */}
       {(mentions.length > 0 || detectedChapter) && (

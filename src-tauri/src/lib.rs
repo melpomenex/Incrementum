@@ -27,6 +27,7 @@ mod demo;
 mod browser_sync_server;
 mod transcription;
 mod utils;
+mod notebooklm;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
@@ -485,6 +486,33 @@ pub fn run() {
             integrations::get_extension_server_status,
             integrations::send_to_extension,
             integrations::process_extension_page,
+            // NotebookLM integration commands
+            notebooklm::notebooklm_get_settings,
+            notebooklm::notebooklm_set_settings,
+            notebooklm::notebooklm_connect,
+            notebooklm::notebooklm_disconnect,
+            notebooklm::notebooklm_health,
+            notebooklm::notebooklm_list_notebooks,
+            notebooklm::notebooklm_create_notebook,
+            notebooklm::notebooklm_select_notebook,
+            notebooklm::notebooklm_list_sources,
+            notebooklm::notebooklm_add_source,
+            notebooklm::notebooklm_refresh_source,
+            notebooklm::notebooklm_ask,
+            notebooklm::notebooklm_research,
+            notebooklm::notebooklm_generate_artifact,
+            notebooklm::notebooklm_get_jobs,
+            notebooklm::notebooklm_get_job,
+            notebooklm::notebooklm_preview_flashcards,
+            notebooklm::notebooklm_preview_quiz_import,
+            notebooklm::notebooklm_sync_flashcards,
+            notebooklm::notebooklm_sync_quiz,
+            notebooklm::notebooklm_sync_preview_items,
+            notebooklm::notebooklm_export_job_artifact,
+            notebooklm::notebooklm_check_cli,
+            notebooklm::notebooklm_cli_login,
+            notebooklm::notebooklm_cli_logout,
+            notebooklm::notebooklm_cli_status,
             // Browser sync server commands (HTTP for extension)
             browser_sync_server::start_browser_sync_server,
             browser_sync_server::stop_browser_sync_server,

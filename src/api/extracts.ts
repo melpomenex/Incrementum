@@ -43,7 +43,7 @@ export interface CreateExtractInput {
   category?: string;
   color?: string;
   page_number?: number;
-  selection_context?: PdfSelectionContext;
+  selection_context?: PdfSelectionContext | Record<string, unknown>;
   max_disclosure_level?: number;
 }
 
