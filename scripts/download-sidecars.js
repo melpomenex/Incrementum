@@ -14,6 +14,13 @@ if (!fs.existsSync(BIN_DIR)) {
 }
 
 function getTargetTriple() {
+  const envTarget = process.env.TARGET_TRIPLE
+    || process.env.TAURI_ENV_TARGET_TRIPLE
+    || process.env.CARGO_BUILD_TARGET;
+  if (envTarget && envTarget.trim()) {
+    return envTarget.trim();
+  }
+
   const platform = process.platform;
   const arch = process.arch;
 
@@ -26,6 +33,15 @@ function getTargetTriple() {
   }
   
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
+}
+
+function isMobileTargetTriple(targetTriple) {
+  return /android|ios/.test(targetTriple);
+}
+
+function sidecarExecutableName(baseName, targetTriple) {
+  const ext = targetTriple.includes('windows') ? '.exe' : '';
+  return `${baseName}-${targetTriple}${ext}`;
 }
 
 function ensureWhisperSource() {
@@ -53,6 +69,81 @@ function commandExists(cmd) {
   }
 }
 
+function ensureNotebookLMSidecar(targetTriple) {
+  if (process.env.SKIP_NOTEBOOKLM_SIDECAR === '1') {
+    console.log('Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)');
+    return;
+  }
+
+  const platform = process.platform;
+  const ext = targetTriple.includes('windows') ? '.exe' : '';
+  const sidecarName = sidecarExecutableName('notebooklm', targetTriple);
+  const sidecarPath = path.join(BIN_DIR, sidecarName);
+  const runtimeDir = path.join(BIN_DIR, 'notebooklm-runtime', targetTriple);
+
+  if (fs.existsSync(sidecarPath)) {
+    console.log(`NotebookLM sidecar already exists: ${sidecarName}`);
+    return;
+  }
+
+  let runtimeBuilt = false;
+  if (commandExists('python3')) {
+    console.log(`Building bundled NotebookLM runtime at ${runtimeDir} ...`);
+    fs.mkdirSync(runtimeDir, { recursive: true });
+
+    const venvPath = path.join(runtimeDir, '.venv');
+    const py = platform === 'win32'
+      ? path.join(venvPath, 'Scripts', 'python.exe')
+      : path.join(venvPath, 'bin', 'python');
+    const notebooklmBin = platform === 'win32'
+      ? path.join(venvPath, 'Scripts', 'notebooklm.exe')
+      : path.join(venvPath, 'bin', 'notebooklm');
+
+    execSync(`python3 -m venv "${venvPath}"`, { stdio: 'inherit' });
+    execSync(`"${py}" -m pip install --upgrade pip`, { stdio: 'inherit' });
+    execSync(`"${py}" -m pip install "notebooklm-py[browser]"`, { stdio: 'inherit' });
+
+    // Install Chromium in a local path so the sidecar is self-contained.
+    execSync(`PLAYWRIGHT_BROWSERS_PATH=0 "${py}" -m playwright install chromium`, { stdio: 'inherit' });
+
+    if (platform === 'win32') {
+      // On Windows, create a shim batch and copy as sidecar target name without extension conflicts.
+      const shimPath = path.join(BIN_DIR, `notebooklm-${targetTriple}.cmd`);
+      fs.writeFileSync(
+        shimPath,
+        `@echo off\r\nset SCRIPT_DIR=%~dp0\r\nset RUNTIME=%SCRIPT_DIR%notebooklm-runtime\\${targetTriple}\\.venv\\Scripts\\notebooklm.exe\r\nif exist "%RUNTIME%" (\r\n  "%RUNTIME%" %*\r\n) else (\r\n  notebooklm %*\r\n)\r\n`
+      );
+      // Keep native CLI binary as the tauri sidecar target when available.
+      if (fs.existsSync(notebooklmBin)) {
+        fs.copyFileSync(notebooklmBin, sidecarPath);
+        runtimeBuilt = true;
+      } else {
+        console.warn('NotebookLM venv binary missing; CLI fallback on PATH will be required.');
+      }
+    } else {
+      fs.writeFileSync(
+        sidecarPath,
+        `#!/usr/bin/env bash\nset -euo pipefail\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nBUNDLED=\"$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm\"\nif [ -x \"$BUNDLED\" ]; then\n  exec \"$BUNDLED\" \"$@\"\nfi\nexec notebooklm \"$@\"\n`
+      );
+      fs.chmodSync(sidecarPath, 0o755);
+      runtimeBuilt = true;
+    }
+  } else {
+    console.warn('python3 not found; falling back to wrapper sidecar when possible.');
+  }
+
+  // On unix-like systems we can always emit a wrapper so bundling still succeeds.
+  if (!runtimeBuilt && !targetTriple.includes('windows')) {
+    fs.writeFileSync(
+      sidecarPath,
+      `#!/usr/bin/env bash\nset -euo pipefail\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nBUNDLED=\"$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm\"\nif [ -x \"$BUNDLED\" ]; then\n  exec \"$BUNDLED\" \"$@\"\nfi\nexec notebooklm \"$@\"\n`
+    );
+    fs.chmodSync(sidecarPath, 0o755);
+  }
+
+  console.log(`NotebookLM sidecar prepared: ${sidecarPath}`);
+}
+
 // Helper to recursively find and copy shared libraries
 function findAndCopyLibs(dir, destDir, ext) {
   if (!fs.existsSync(dir)) return;
@@ -71,6 +162,7 @@ function findAndCopyLibs(dir, destDir, ext) {
 async function main() {
   const targetTriple = getTargetTriple();
   console.log(`Downloading sidecars for target: ${targetTriple}`);
+  const mobileTarget = isMobileTargetTriple(targetTriple);
 
   // FFmpeg URLs (using static builds from a reliable source like mwader/static-ffmpeg or similar)
   // For simplicity/reliability in this script, we'll use a placeholder or a known good release.
@@ -107,15 +199,21 @@ async function main() {
   const ext = platform === 'win32' ? '.exe' : '';
   const ffmpegName = `ffmpeg-${targetTriple}${ext}`;
   const whisperName = `whisper-${targetTriple}${ext}`;
+  const notebooklmName = sidecarExecutableName('notebooklm', targetTriple);
   const ffmpegPath = path.join(BIN_DIR, ffmpegName);
   const whisperPath = path.join(BIN_DIR, whisperName);
+  const notebooklmPath = path.join(BIN_DIR, notebooklmName);
+  const notebooklmRequired = !mobileTarget && process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1';
 
   // If both sidecars are already present (as in release/source builds), skip download/build.
-  if (fs.existsSync(ffmpegPath) && fs.existsSync(whisperPath)) {
+  if (fs.existsSync(ffmpegPath) && fs.existsSync(whisperPath) && (!notebooklmRequired || fs.existsSync(notebooklmPath))) {
     console.log(`Sidecars already exist for ${targetTriple}, skipping download/build.`);
     try {
       fs.chmodSync(ffmpegPath, 0o755);
       fs.chmodSync(whisperPath, 0o755);
+      if (fs.existsSync(notebooklmPath)) {
+        fs.chmodSync(notebooklmPath, 0o755);
+      }
     } catch {
       // ignore (e.g., Windows)
     }
@@ -271,6 +369,19 @@ async function main() {
       // Search recursively in build directory for shared libraries
       findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.dll');
     }
+  }
+
+  // Build bundled notebooklm sidecar/runtime used by NotebookLM integration.
+  if (notebooklmRequired) {
+    ensureNotebookLMSidecar(targetTriple);
+    if (!fs.existsSync(notebooklmPath)) {
+      throw new Error(
+        `NotebookLM sidecar missing for ${targetTriple} (${notebooklmName}). ` +
+        `Ensure python3 is installed to build bundled runtime, or pre-provide ${notebooklmPath}.`
+      );
+    }
+  } else {
+    console.log(`Skipping NotebookLM sidecar requirement for mobile target ${targetTriple}.`);
   }
 
   // Make executable

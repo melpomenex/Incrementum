@@ -224,6 +224,13 @@ export interface IntegrationSettings {
     apiToken: string;
     useToken: boolean;
   };
+  notebooklm: {
+    enabled: boolean;
+    provider: 'mock' | 'cli' | string;
+    activeNotebookId: string;
+    defaultDeckName: string;
+    dedupeOnImport: boolean;
+  };
 }
 
 // MCP Servers Settings

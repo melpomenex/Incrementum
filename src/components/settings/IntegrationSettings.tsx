@@ -16,8 +16,10 @@ import {
   Trash2,
   AlertCircle,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { YouTubePlaylistManager } from "../media/YouTubePlaylistManager";
+import { NotebookLMWorkspace } from "./NotebookLMWorkspace";
 import {
   getIntegrationSettings,
   updateObsidianConfig,
@@ -47,7 +49,13 @@ import {
   type YouTubeCookie,
 } from "../../utils/youtubeCookies";
 
-type IntegrationType = "obsidian" | "anki" | "extension" | "youtube" | "youtube-cookies";
+type IntegrationType =
+  | "obsidian"
+  | "anki"
+  | "extension"
+  | "youtube"
+  | "youtube-cookies"
+  | "notebooklm";
 
 export function IntegrationSettings() {
   const [settings, setSettings] = useState(getIntegrationSettings());
@@ -345,6 +353,17 @@ export function IntegrationSettings() {
         >
           <Globe className="w-4 h-4" />
           Browser Extension
+        </button>
+        <button
+          onClick={() => setActiveTab("notebooklm")}
+          className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+            activeTab === "notebooklm"
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:opacity-90"
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          NotebookLM
         </button>
         <button
           onClick={() => setActiveTab("youtube")}
@@ -777,6 +796,9 @@ export function IntegrationSettings() {
           </div>
         </div>
       )}
+
+      {/* NotebookLM Settings */}
+      {activeTab === "notebooklm" && <NotebookLMWorkspace />}
 
       {/* YouTube Cookies Settings */}
       {activeTab === "youtube-cookies" && (

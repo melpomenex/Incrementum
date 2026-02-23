@@ -12,6 +12,7 @@ import {
   WebBrowserTab,
   RSSReader,
   DocumentQATab,
+  NotebookLMTab,
 } from "./tabs/TabRegistry";
 import { KnowledgeGraphPage } from "../pages/KnowledgeGraphPage";
 import { KnowledgeSpherePage } from "../pages/KnowledgeSpherePage";
@@ -40,6 +41,7 @@ import {
   Newspaper,
   Monitor,
   MessageSquare,
+  Sparkles,
 } from "lucide-react";
 
 export type ToolbarPosition = "top" | "left" | "right";
@@ -350,6 +352,27 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     });
   };
 
+  // NotebookLM button
+  const handleNotebookLM = () => {
+    addTab({
+      title: "NotebookLM",
+      icon: <Sparkles className="w-4 h-4" />,
+      type: "notebooklm",
+      content: NotebookLMTab,
+      closable: true,
+    });
+  };
+
+  const handleNotebookLMBackground = () => {
+    addTabInBackground({
+      title: "NotebookLM",
+      icon: "✨",
+      type: "notebooklm",
+      content: NotebookLMTab,
+      closable: true,
+    });
+  };
+
   // Screenshot button
   const handleScreenshot = () => {
     void captureAndSaveScreenshot()
@@ -546,6 +569,15 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       shortcut: "",
       action: handleDocQA,
       backgroundAction: handleDocQABackground,
+      group: 3,
+    },
+    {
+      id: "notebooklm",
+      icon: Sparkles,
+      label: "NotebookLM",
+      shortcut: "",
+      action: handleNotebookLM,
+      backgroundAction: handleNotebookLMBackground,
       group: 3,
     },
     {

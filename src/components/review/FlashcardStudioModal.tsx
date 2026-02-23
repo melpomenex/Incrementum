@@ -65,8 +65,18 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
+import {
+  notebooklmGenerateArtifact,
+  notebooklmGetSettings,
+  notebooklmListNotebooks,
+  notebooklmPreviewFlashcards,
+  notebooklmSelectNotebook,
+  type NotebookSummary,
+} from "../../api/integrations";
 import { callIncrementumMCPTool } from "../../api/mcp";
 import { deleteImageAsset, ingestImageBlob, ingestImageFile, listImageAssets, type ImageAsset } from "../../api/image-registry";
+import { getVideoTranscript } from "../../api/video-extracts";
+import { extractYouTubeID, fetchYouTubeTranscript } from "../../api/youtube";
 import { renderMarkdown } from "../../utils/markdown";
 import { useDocumentStore, useLLMProvidersStore, useSettingsStore, useStudyDeckStore } from "../../stores";
 import { useToast } from "../common/Toast";
@@ -167,6 +177,7 @@ function normalizeContextSelection(value: unknown): ContextSelection {
 
 const STORAGE_KEY = "flashcard-studio-state-v3";
 const HISTORY_KEY = "flashcard-studio-history";
+const NOTEBOOKLM_PROVIDER_ID = "__notebooklm__";
 
 // Rough token estimation: ~4 chars per token
 const CHARS_PER_TOKEN = 4;
@@ -1385,10 +1396,15 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
   const maxTokens = useSettingsStore((state) => state.settings.ai.maxTokens) || 4000;
   const preferredProviderType = useSettingsStore((state) => state.settings.ai.provider);
+  const notebookLmEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
 
   // State
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [selectedNotebookId, setSelectedNotebookId] = useState<string>("");
+  const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
+  const [isNotebookLoading, setIsNotebookLoading] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [resolvedDocumentContent, setResolvedDocumentContent] = useState<string | undefined>(undefined);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -1417,10 +1433,42 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   // Initialize provider
   useEffect(() => {
     if (!isOpen) return;
-    if (selectedProviderId || enabledProviders.length === 0) return;
-    const preferred = enabledProviders.find((p) => p.provider === preferredProviderType);
-    setSelectedProviderId(preferred?.id ?? enabledProviders[0].id);
-  }, [isOpen, enabledProviders, selectedProviderId, preferredProviderType]);
+    if (selectedProviderId) return;
+    if (enabledProviders.length > 0) {
+      const preferred = enabledProviders.find((p) => p.provider === preferredProviderType);
+      setSelectedProviderId(preferred?.id ?? enabledProviders[0].id);
+      return;
+    }
+    if (notebookLmEnabled) {
+      setSelectedProviderId(NOTEBOOKLM_PROVIDER_ID);
+    }
+  }, [isOpen, enabledProviders, selectedProviderId, preferredProviderType, notebookLmEnabled]);
+
+  useEffect(() => {
+    if (!isOpen || !notebookLmEnabled) return;
+    const loadNotebookState = async () => {
+      setIsNotebookLoading(true);
+      try {
+        const [settings, listed] = await Promise.all([notebooklmGetSettings(), notebooklmListNotebooks()]);
+        setNotebooks(listed);
+        const activeId = settings.activeNotebookId || listed[0]?.id || "";
+        if (activeId) {
+          setSelectedNotebookId(activeId);
+        }
+      } catch (error) {
+        console.error("Failed to load NotebookLM state", error);
+      } finally {
+        setIsNotebookLoading(false);
+      }
+    };
+    void loadNotebookState();
+  }, [isOpen, notebookLmEnabled]);
+
+  useEffect(() => {
+    if (!notebookLmEnabled && selectedProviderId === NOTEBOOKLM_PROVIDER_ID) {
+      setSelectedProviderId(enabledProviders[0]?.id ?? null);
+    }
+  }, [notebookLmEnabled, selectedProviderId, enabledProviders]);
 
   // Load documents
   useEffect(() => {
@@ -1456,6 +1504,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         if (Array.isArray(parsed?.messages)) setMessages(parsed.messages);
         if (Array.isArray(parsed?.draftCards)) setDraftCards(parsed.draftCards);
         if (typeof parsed?.selectedProviderId === "string") setSelectedProviderId(parsed.selectedProviderId);
+        if (typeof parsed?.selectedNotebookId === "string") setSelectedNotebookId(parsed.selectedNotebookId);
         if (typeof parsed?.selectedDocumentId === "string") setSelectedDocumentId(parsed.selectedDocumentId);
         if (typeof parsed?.selectedDeckId === "string") setSelectedDeckId(parsed.selectedDeckId);
         else if (activeDeckId) setSelectedDeckId(activeDeckId);
@@ -1484,6 +1533,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     if (!isOpen) return;
     const payload = {
       selectedProviderId,
+      selectedNotebookId,
       selectedDocumentId,
       selectedDeckId,
       contextSelection,
@@ -1491,7 +1541,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       draftCards: draftCards.slice(0, 100),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [isOpen, selectedProviderId, selectedDocumentId, selectedDeckId, contextSelection, messages, draftCards]);
+  }, [isOpen, selectedProviderId, selectedNotebookId, selectedDocumentId, selectedDeckId, contextSelection, messages, draftCards]);
 
   // Auto-scroll messages within the container only
   useEffect(() => {
@@ -1569,6 +1619,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     if (!selectedProviderId) return null;
     return enabledProviders.find((p) => p.id === selectedProviderId) || null;
   }, [enabledProviders, selectedProviderId]);
+  const isNotebookProviderSelected = selectedProviderId === NOTEBOOKLM_PROVIDER_ID;
 
   // Get pricing for current provider's selected model
   const currentModelPricing = useMemo(() => {
@@ -1581,6 +1632,66 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     if (!selectedDocumentId) return null;
     return documents.find((d) => d.id === selectedDocumentId) || null;
   }, [documents, selectedDocumentId]);
+  const selectedDocumentText = useMemo(() => {
+    if (typeof resolvedDocumentContent === "string" && resolvedDocumentContent.trim().length > 0) {
+      return resolvedDocumentContent;
+    }
+    return selectedDocument?.content;
+  }, [resolvedDocumentContent, selectedDocument?.content]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedDocument) {
+      setResolvedDocumentContent(undefined);
+      return;
+    }
+
+    // If extracted content is already available, prefer it immediately.
+    if (selectedDocument.content?.trim()) {
+      setResolvedDocumentContent(selectedDocument.content);
+      return;
+    }
+
+    let cancelled = false;
+    const resolveMediaTranscript = async () => {
+      try {
+        if (selectedDocument.fileType === "video" || selectedDocument.fileType === "audio") {
+          const transcript = await getVideoTranscript(selectedDocument.id);
+          if (!cancelled) {
+            setResolvedDocumentContent(transcript?.transcript?.trim() || undefined);
+          }
+          return;
+        }
+
+        if (selectedDocument.fileType === "youtube") {
+          const videoId = extractYouTubeID(selectedDocument.filePath);
+          if (!videoId) {
+            if (!cancelled) setResolvedDocumentContent(undefined);
+            return;
+          }
+          const segments = await fetchYouTubeTranscript(videoId);
+          if (!cancelled) {
+            const transcript = segments.map((segment) => segment.text).join(" ").trim();
+            setResolvedDocumentContent(transcript || undefined);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setResolvedDocumentContent(undefined);
+        }
+      } catch (error) {
+        console.warn("Failed to resolve transcript content for flashcard context", error);
+        if (!cancelled) {
+          setResolvedDocumentContent(undefined);
+        }
+      }
+    };
+
+    void resolveMediaTranscript();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, selectedDocument]);
 
   const selectedDeck = useMemo(() => {
     if (!selectedDeckId) return null;
@@ -1594,25 +1705,25 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
 
   // Build context content based on selection
   const contextContent = useMemo(() => {
-    if (!selectedDocument?.content) return undefined;
+    if (!selectedDocumentText) return undefined;
     const selectedChapters = Array.isArray(contextSelection.chapters) ? contextSelection.chapters : [];
     
     switch (contextSelection.mode) {
       case "full":
-        return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+        return selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
       
       case "chapters": {
         if (selectedChapters.length === 0) {
-          return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+          return selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
         }
         const perChapterTokens = Math.floor(maxTokens / selectedChapters.length);
         return selectedChapters
-          .map((num) => buildChapterQAContext(selectedDocument.title, selectedDocument.content, num, perChapterTokens))
+          .map((num) => buildChapterQAContext(selectedDocument.title, selectedDocumentText, num, perChapterTokens))
           .join("\n\n---\n\n");
       }
       
       case "excerpt":
-        return contextSelection.excerpt || selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+        return contextSelection.excerpt || selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
       
       case "pages":
         // Approximate: assume 500 words per page, 4 chars per word
@@ -1620,17 +1731,17 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
           const charsPerPage = 2000;
           const start = (contextSelection.pageRange.start - 1) * charsPerPage;
           const end = contextSelection.pageRange.end * charsPerPage;
-          return selectedDocument.content.slice(start, end);
+          return selectedDocumentText.slice(start, end);
         }
-        return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+        return selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
       
       case "search":
-        return contextSelection.excerpt || selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+        return contextSelection.excerpt || selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
       
       default:
-        return selectedDocument.content.slice(0, maxTokens * CHARS_PER_TOKEN);
+        return selectedDocumentText.slice(0, maxTokens * CHARS_PER_TOKEN);
     }
-  }, [selectedDocument, contextSelection, maxTokens]);
+  }, [selectedDocument, selectedDocumentText, contextSelection, maxTokens]);
 
   const stats = useMemo(() => {
     const selected = draftCards.filter((c) => c.selected);
@@ -1645,8 +1756,12 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const handleSend = async (customPrompt?: string) => {
     const promptText = customPrompt || input;
     if (!promptText.trim() || isSending) return;
-    if (!currentProvider) {
+    if (!isNotebookProviderSelected && !currentProvider) {
       toast.error("No LLM provider configured", "Add or enable a provider in Settings → AI Providers.");
+      return;
+    }
+    if (isNotebookProviderSelected && !selectedNotebookId) {
+      toast.error("No NotebookLM notebook selected", "Choose a NotebookLM notebook in the provider bar.");
       return;
     }
 
@@ -1663,6 +1778,82 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     setViewMode("chat");
 
     try {
+      if (isNotebookProviderSelected) {
+        const notebookTitle = notebooks.find((n) => n.id === selectedNotebookId)?.title || "NotebookLM";
+        const contextBlocks: string[] = [promptText.trim()];
+        if (selectedDocument?.title) {
+          contextBlocks.push(`Document title: ${selectedDocument.title}`);
+        }
+        if (selectedDeck?.name) {
+          contextBlocks.push(`Target deck: ${selectedDeck.name}`);
+        }
+        if (contextContent?.trim()) {
+          contextBlocks.push(`Reference context:\n${contextContent.trim()}`);
+        }
+
+        const job = await notebooklmGenerateArtifact({
+          notebookId: selectedNotebookId,
+          artifactType: "flashcards",
+          instructions: contextBlocks.join("\n\n"),
+        });
+        if (job.status === "failed" || job.status === "expired-auth") {
+          throw new Error(job.error || `NotebookLM job failed with status ${job.status}`);
+        }
+
+        const previewItems = await notebooklmPreviewFlashcards(job.id);
+        const generated = previewItems.map((item, index) => ({
+          id: `notebooklm-${job.id}-${index}-${Date.now()}`,
+          type: "qa" as const,
+          question: item.question,
+          answer: item.answer,
+          selected: true,
+          sourceMessageId: job.id,
+          createdAt: Date.now(),
+          tags: item.tags || [],
+        }));
+        const payloadFallback = job.payload.flashcards.map((card, index) => ({
+          id: `notebooklm-${job.id}-payload-${index}-${Date.now()}`,
+          type: "qa" as const,
+          question: card.question,
+          answer: card.answer,
+          selected: true,
+          sourceMessageId: job.id,
+          createdAt: Date.now(),
+          tags: card.tags || [],
+        }));
+        const cards = generated.length > 0 ? generated : payloadFallback;
+
+        const assistantId = `assistant-${Date.now()}`;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantId,
+            role: "assistant",
+            content:
+              cards.length > 0
+                ? `NotebookLM generated ${cards.length} flashcards from "${notebookTitle}".`
+                : `NotebookLM completed the request for "${notebookTitle}", but no flashcards were returned.`,
+            timestamp: Date.now(),
+            cardsGenerated: cards.length,
+          },
+        ]);
+
+        if (cards.length > 0) {
+          setDraftCards((prev) => [...cards, ...prev]);
+          toast.success(`${cards.length} cards generated`, "Review and save the cards you want to keep.");
+          const historyItem: GenerationHistoryItem = {
+            id: assistantId,
+            prompt: promptText.trim(),
+            timestamp: Date.now(),
+            cardCount: cards.length,
+            documentName: selectedDocument?.title,
+          };
+          setGenerationHistory((prev) => [historyItem, ...prev.slice(0, 19)]);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify([historyItem, ...generationHistory.slice(0, 19)]));
+        }
+        return;
+      }
+
       const history: LLMMessage[] = messages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .slice(-10)
@@ -1676,7 +1867,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         const selectedChapters = Array.isArray(contextSelection.chapters) ? contextSelection.chapters : [];
         
         if (contextSelection.mode === "chapters" && selectedChapters.length > 0) {
-          const chapters = getChapterTitles(selectedDocument.content || "");
+          const chapters = getChapterTitles(selectedDocumentText || "");
           const chapterNames = selectedChapters
             .map((num) => chapters.find((c) => c.number === num)?.title || `Chapter ${num}`)
             .join(", ");
@@ -1971,6 +2162,16 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     }
   };
 
+  const handleNotebookSelect = async (id: string) => {
+    setSelectedNotebookId(id);
+    if (!id) return;
+    try {
+      await notebooklmSelectNotebook(id);
+    } catch (error) {
+      toast.error("Notebook selection failed", error instanceof Error ? error.message : "Unable to select notebook.");
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -2039,6 +2240,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 className="bg-transparent text-xs text-foreground outline-none min-w-[120px]"
               >
                 {enabledProviders.length === 0 && <option value="">No provider</option>}
+                {notebookLmEnabled && <option value={NOTEBOOKLM_PROVIDER_ID}>NotebookLM</option>}
                 {enabledProviders.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -2046,6 +2248,27 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 ))}
               </select>
             </div>
+            {isNotebookProviderSelected && (
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                {isNotebookLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                ) : (
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                <select
+                  value={selectedNotebookId}
+                  onChange={(e) => void handleNotebookSelect(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none min-w-[160px]"
+                >
+                  <option value="">Select notebook</option>
+                  {notebooks.map((notebook) => (
+                    <option key={notebook.id} value={notebook.id}>
+                      {notebook.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button
               onClick={onClose}
@@ -2152,7 +2375,11 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         {selectedDocument && (
           <div className="px-6 py-3 border-b border-border bg-muted/10">
             <ContextControlPanel
-              document={selectedDocument}
+              document={{
+                id: selectedDocument.id,
+                title: selectedDocument.title,
+                content: selectedDocumentText,
+              }}
               selection={contextSelection}
               onChange={setContextSelection}
               maxTokens={maxTokens}
@@ -2257,7 +2484,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                     />
                     <button
                       onClick={() => handleSend()}
-                      disabled={isSending || !input.trim()}
+                      disabled={isSending || !input.trim() || (isNotebookProviderSelected && !selectedNotebookId)}
                       className="absolute right-3 bottom-3 p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                     >
                       {isSending ? (
@@ -2271,7 +2498,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   {/* Cost Estimator */}
                   <div className="mt-3">
                     <CostEstimator 
-                      inputText={input + (contextContent || "")} 
+                      inputText={isNotebookProviderSelected ? input : input + (contextContent || "")} 
                       isVisible={true} 
                       pricing={currentModelPricing}
                     />

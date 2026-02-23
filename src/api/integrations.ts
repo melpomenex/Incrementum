@@ -583,6 +583,320 @@ export async function processExtensionPage(page: SavedPage): Promise<{
 }
 
 // ============================================================================
+// NOTEBOOKLM INTEGRATION
+// ============================================================================
+
+export interface NotebookLMSettings {
+  enabled: boolean;
+  provider: "mock" | "cli" | string;
+  activeNotebookId?: string | null;
+}
+
+export interface NotebookLMAuthState {
+  connected: boolean;
+  lastConnectedAt?: string | null;
+  provider: string;
+  storagePath?: string | null;
+}
+
+export interface NotebookLMHealth {
+  connected: boolean;
+  provider: string;
+  activeNotebookId?: string | null;
+  message: string;
+}
+
+export interface NotebookSummary {
+  id: string;
+  title: string;
+  sourcesCount: number;
+}
+
+export interface SourceSummary {
+  id: string;
+  title: string;
+  kind: string;
+  status: string;
+}
+
+export interface AskResponse {
+  answer: string;
+  sources: string[];
+}
+
+export interface ResearchResponse {
+  status: string;
+  importedSources: number;
+  summary: string;
+}
+
+export interface GenerateArtifactRequest {
+  notebookId?: string;
+  artifactType:
+    | "flashcards"
+    | "quiz"
+    | "report"
+    | "audio"
+    | "video"
+    | "mind-map"
+    | "data-table"
+    | string;
+  instructions?: string;
+  difficulty?: string;
+  quantity?: string;
+  retryCount?: number;
+}
+
+export interface FlashcardPayload {
+  question: string;
+  answer: string;
+  tags: string[];
+}
+
+export interface QuizPayload {
+  question: string;
+  correctAnswer: string;
+  userAnswer?: string;
+  wasCorrect: boolean;
+}
+
+export interface ArtifactSummary {
+  id: string;
+  artifactType: string;
+  title: string;
+  createdAt: string;
+  content?: string;
+}
+
+export interface NotebookLMJob {
+  id: string;
+  notebookId: string;
+  artifactType: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "expired-auth";
+  createdAt: string;
+  updatedAt: string;
+  error?: string;
+  artifact?: ArtifactSummary;
+  canImport?: boolean;
+  payload: {
+    flashcards: FlashcardPayload[];
+    quizItems: QuizPayload[];
+    rawText?: string;
+    /** JSON content for structured artifacts (mind-maps, data-tables) */
+    jsonContent?: unknown;
+    /** URL for media artifacts (audio, video) */
+    mediaUrl?: string;
+  };
+}
+
+export interface ImportPreviewItem {
+  question: string;
+  answer: string;
+  tags: string[];
+  sourceNotebookId: string;
+  sourceArtifactId: string;
+}
+
+export interface SyncResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  itemIds: string[];
+}
+
+export interface ArtifactExportResult {
+  format: string;
+  mimeType: string;
+  fileName: string;
+  content: string;
+}
+
+export async function notebooklmGetSettings(): Promise<NotebookLMSettings> {
+  return await invokeCommand<NotebookLMSettings>("notebooklm_get_settings");
+}
+
+export async function notebooklmSetSettings(
+  updates: Partial<NotebookLMSettings>
+): Promise<NotebookLMSettings> {
+  return await invokeCommand<NotebookLMSettings>("notebooklm_set_settings", {
+    enabled: updates.enabled,
+    provider: updates.provider,
+    activeNotebookId: updates.activeNotebookId,
+  });
+}
+
+export async function notebooklmConnect(params?: {
+  authJson?: string;
+  provider?: "mock" | "cli" | string;
+}): Promise<NotebookLMAuthState> {
+  return await invokeCommand<NotebookLMAuthState>("notebooklm_connect", {
+    authJson: params?.authJson,
+    provider: params?.provider,
+  });
+}
+
+export async function notebooklmDisconnect(): Promise<NotebookLMAuthState> {
+  return await invokeCommand<NotebookLMAuthState>("notebooklm_disconnect");
+}
+
+export async function notebooklmHealth(): Promise<NotebookLMHealth> {
+  return await invokeCommand<NotebookLMHealth>("notebooklm_health");
+}
+
+export async function notebooklmListNotebooks(): Promise<NotebookSummary[]> {
+  return await invokeCommand<NotebookSummary[]>("notebooklm_list_notebooks");
+}
+
+export async function notebooklmCreateNotebook(title: string): Promise<NotebookSummary> {
+  return await invokeCommand<NotebookSummary>("notebooklm_create_notebook", { title });
+}
+
+export async function notebooklmSelectNotebook(notebookId: string): Promise<NotebookLMSettings> {
+  return await invokeCommand<NotebookLMSettings>("notebooklm_select_notebook", { notebookId });
+}
+
+export async function notebooklmListSources(notebookId?: string): Promise<SourceSummary[]> {
+  return await invokeCommand<SourceSummary[]>("notebooklm_list_sources", { notebookId });
+}
+
+export async function notebooklmAddSource(req: {
+  notebookId?: string;
+  kind: "url" | "youtube" | "text" | "file" | string;
+  content: string;
+  title?: string;
+}): Promise<SourceSummary> {
+  return await invokeCommand<SourceSummary>("notebooklm_add_source", { req });
+}
+
+export async function notebooklmRefreshSource(sourceId: string, notebookId?: string): Promise<SourceSummary> {
+  return await invokeCommand<SourceSummary>("notebooklm_refresh_source", { sourceId, notebookId });
+}
+
+export async function notebooklmAsk(question: string, notebookId?: string): Promise<AskResponse> {
+  return await invokeCommand<AskResponse>("notebooklm_ask", { question, notebookId });
+}
+
+export async function notebooklmResearch(params: {
+  query: string;
+  mode?: "fast" | "deep" | string;
+  from?: "web" | "drive" | string;
+  notebookId?: string;
+}): Promise<ResearchResponse> {
+  return await invokeCommand<ResearchResponse>("notebooklm_research", params);
+}
+
+export async function notebooklmGenerateArtifact(req: GenerateArtifactRequest): Promise<NotebookLMJob> {
+  return await invokeCommand<NotebookLMJob>("notebooklm_generate_artifact", { req });
+}
+
+export async function notebooklmGetJobs(limit?: number): Promise<NotebookLMJob[]> {
+  return await invokeCommand<NotebookLMJob[]>("notebooklm_get_jobs", { limit });
+}
+
+export async function notebooklmGetJob(jobId: string): Promise<NotebookLMJob | null> {
+  return await invokeCommand<NotebookLMJob | null>("notebooklm_get_job", { jobId });
+}
+
+export async function notebooklmPreviewFlashcards(jobId: string): Promise<ImportPreviewItem[]> {
+  return await invokeCommand<ImportPreviewItem[]>("notebooklm_preview_flashcards", { jobId });
+}
+
+export async function notebooklmPreviewQuizImport(
+  jobId: string,
+  mode: "all" | "missed-only" = "all"
+): Promise<ImportPreviewItem[]> {
+  return await invokeCommand<ImportPreviewItem[]>("notebooklm_preview_quiz_import", { jobId, mode });
+}
+
+export async function notebooklmSyncFlashcards(params: {
+  jobId: string;
+  deckName?: string;
+  dedupe?: boolean;
+}): Promise<SyncResult> {
+  return await invokeCommand<SyncResult>("notebooklm_sync_flashcards", params);
+}
+
+export async function notebooklmSyncQuiz(params: {
+  jobId: string;
+  mode?: "all" | "missed-only";
+  deckName?: string;
+  dedupe?: boolean;
+}): Promise<SyncResult> {
+  return await invokeCommand<SyncResult>("notebooklm_sync_quiz", params);
+}
+
+export async function notebooklmSyncPreviewItems(params: {
+  previewItems: ImportPreviewItem[];
+  deckName?: string;
+  dedupe?: boolean;
+}): Promise<SyncResult> {
+  return await invokeCommand<SyncResult>("notebooklm_sync_preview_items", params);
+}
+
+export async function notebooklmExportJobArtifact(
+  jobId: string,
+  outputFormat: "json" | "markdown" | "html" = "json"
+): Promise<ArtifactExportResult> {
+  return await invokeCommand<ArtifactExportResult>("notebooklm_export_job_artifact", {
+    jobId,
+    outputFormat,
+  });
+}
+
+// ============================================================================
+// NOTEBOOKLM CLI AUTHENTICATION
+// ============================================================================
+
+export interface CLIStatus {
+  installed: boolean;
+  version?: string;
+  is_authenticated?: boolean;
+  binary_path?: string;
+  error?: string;
+}
+
+export interface CLILoginResult {
+  success: boolean;
+  message: string;
+  output?: string;
+}
+
+export interface CLIAuthStatus {
+  is_authenticated: boolean;
+  status_output?: string;
+  error?: string;
+  is_auth_error?: boolean;
+}
+
+/**
+ * Check if notebooklm CLI is installed and get its status
+ */
+export async function notebooklmCheckCLI(): Promise<CLIStatus> {
+  return await invokeCommand<CLIStatus>("notebooklm_check_cli");
+}
+
+/**
+ * Run notebooklm login command (opens browser)
+ */
+export async function notebooklmCLILogin(): Promise<CLILoginResult> {
+  return await invokeCommand<CLILoginResult>("notebooklm_cli_login");
+}
+
+/**
+ * Run notebooklm logout command
+ */
+export async function notebooklmCLILogout(): Promise<CLILoginResult> {
+  return await invokeCommand<CLILoginResult>("notebooklm_cli_logout");
+}
+
+/**
+ * Get CLI authentication status
+ */
+export async function notebooklmCLIStatus(): Promise<CLIAuthStatus> {
+  return await invokeCommand<CLIAuthStatus>("notebooklm_cli_status");
+}
+
+// ============================================================================
 // CONFIG STORAGE
 // ============================================================================
 
@@ -593,6 +907,13 @@ export interface IntegrationSettings {
   obsidian: ObsidianConfig | null;
   anki: AnkiConfig | null;
   extensionPort: number;
+  notebooklm: {
+    enabled: boolean;
+    provider: "mock" | "cli" | string;
+    activeNotebookId?: string | null;
+    defaultDeckName?: string;
+    dedupeOnImport: boolean;
+  };
 }
 
 /**
@@ -604,6 +925,13 @@ export function getIntegrationSettings(): IntegrationSettings {
     obsidian: null,
     anki: null,
     extensionPort: 8766,
+    notebooklm: {
+      enabled: false,
+      provider: "mock",
+      activeNotebookId: null,
+      defaultDeckName: "NotebookLM Imports",
+      dedupeOnImport: true,
+    },
   };
   return data ? { ...defaults, ...JSON.parse(data) } : defaults;
 }

@@ -21,3 +21,4 @@ export const RSSReader = lazy(() => import("../media/RSSReader").then(m => ({ de
 export const NewsletterDirectoryTab = lazy(() => import("../newsletter/NewsletterDirectory").then(m => ({ default: m.NewsletterDirectory })));
 export const ScreenshotTab = lazy(() => import("./ScreenshotTab").then(m => ({ default: m.ScreenshotTab })));
 export const DocumentQATab = lazy(() => import("./DocumentQATab").then(m => ({ default: m.DocumentQATab })));
+export const NotebookLMTab = lazy(() => import("../../pages/NotebookLMPage").then(m => ({ default: m.NotebookLMPage })));
