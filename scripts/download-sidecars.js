@@ -150,7 +150,7 @@ function ensureNotebookLMSidecar(targetTriple) {
     } else {
       fs.writeFileSync(
         sidecarPath,
-        `#!/usr/bin/env bash\nset -euo pipefail\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nBUNDLED=\"$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm\"\nif [ -x \"$BUNDLED\" ]; then\n  exec \"$BUNDLED\" \"$@\"\nfi\nexec notebooklm \"$@\"\n`
+        `#!/bin/sh\nset -eu\nSCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nBUNDLED="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm"\nif [ -x "$BUNDLED" ]; then\n  exec "$BUNDLED" "$@"\nfi\nexec notebooklm "$@"\n`
       );
       fs.chmodSync(sidecarPath, 0o755);
       runtimeBuilt = true;
@@ -163,7 +163,7 @@ function ensureNotebookLMSidecar(targetTriple) {
   if (!runtimeBuilt && !targetTriple.includes('windows')) {
     fs.writeFileSync(
       sidecarPath,
-      `#!/usr/bin/env bash\nset -euo pipefail\nSCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nBUNDLED=\"$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm\"\nif [ -x \"$BUNDLED\" ]; then\n  exec \"$BUNDLED\" \"$@\"\nfi\nexec notebooklm \"$@\"\n`
+      `#!/bin/sh\nset -eu\nSCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nBUNDLED="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm"\nif [ -x "$BUNDLED" ]; then\n  exec "$BUNDLED" "$@"\nfi\nexec notebooklm "$@"\n`
     );
     fs.chmodSync(sidecarPath, 0o755);
   }
