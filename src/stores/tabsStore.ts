@@ -17,7 +17,8 @@ export type TabType =
   | "rss"
   | "newsletter"
   | "web-browser"
-  | "doc-qa";
+  | "doc-qa"
+  | "notebooklm";
 
 export interface Tab {
   id: string;
