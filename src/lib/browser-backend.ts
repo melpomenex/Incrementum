@@ -473,6 +473,32 @@ const commandHandlers: Record<string, CommandHandler> = {
         return null;
     },
 
+    get_documents_with_progress: async (args) => {
+        const limit = (args.limit as number) || 50;
+        const docs = await db.getDocumentsWithProgress(limit);
+        // Return as tuples: [id, progress, title, date_modified]
+        // Convert date_modified from ISO string to Unix timestamp (seconds)
+        return docs.map((doc) => [
+            doc.id,
+            doc.progress_percent || 0,
+            doc.title,
+            Math.floor(new Date(doc.date_modified).getTime() / 1000),
+        ]);
+    },
+
+    get_document_progress: async (args) => {
+        const id = (args.document_id ?? args.documentId) as string;
+        if (!id) return null;
+        const doc = await db.getDocument(id);
+        return doc?.progress_percent ?? null;
+    },
+
+    get_daily_reading_stats: async (args) => {
+        // Return empty array for now - daily reading stats not fully implemented in browser mode
+        // This is used for reading streak calculations
+        return [];
+    },
+
     update_document_content: async (args) => {
         const id = args.id as string;
         const content = args.content as string;
