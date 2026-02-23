@@ -859,7 +859,8 @@ export function YouTubeViewer({
   const getVideoContainerStyle = () => {
     if (transcriptLayout === 'side' && showTranscript) {
       return {
-        paddingBottom: '60px',
+        // In side mode, use flex to fill available height
+        // No padding-bottom needed as the container uses h-full
         flex: 1,
       };
     }
@@ -870,7 +871,7 @@ export function YouTubeViewer({
   };
 
   return (
-    <div className={`flex h-full bg-background ${transcriptLayout === 'side' && showTranscript ? 'flex-row' : 'flex-col'}`}>
+    <div className={`flex h-full min-h-0 overflow-hidden bg-background ${transcriptLayout === 'side' && showTranscript ? 'flex-row' : 'flex-col'}`}>
       {!normalizedVideoId && (
         <div className="p-3 text-sm bg-destructive/10 border-b border-destructive/30 text-destructive">
           Invalid YouTube URL/ID: <code>{videoId}</code>
@@ -1096,11 +1097,11 @@ export function YouTubeViewer({
 
       {/* Content area with transcript toggle */}
       <div 
-        className="flex flex-col overflow-hidden"
+        className="flex flex-col min-h-0 overflow-hidden"
         style={transcriptLayout === 'side' && showTranscript ? { width: transcriptWidth } : { flex: 1 }}
       >
         {/* Video info and transcript */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {/* Video info header */}
           <div className="p-4 border-b border-border flex-shrink-0">
             <div className="flex items-start justify-between">
@@ -1220,7 +1221,7 @@ export function YouTubeViewer({
                   currentTime={currentTime}
                   onSeek={handleSeek}
                   onSelectionChange={onSelectionChange}
-                  className="h-full"
+                  className="flex-1 min-h-0"
                   highlightQuery={initialTranscriptHighlightQuery}
                   highlightedSegmentId={initialTranscriptSegmentId}
                 />
