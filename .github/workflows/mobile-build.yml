@@ -139,6 +139,40 @@ jobs:
             echo "::warning::Android signing secrets missing. Generating ephemeral self-signed keystore for APK signing."
           fi
 
+      - name: Configure Android C toolchain env for cargo build scripts
+        run: |
+          set -euo pipefail
+          if [ -n "${NDK_HOME:-}" ] && [ -d "${NDK_HOME}" ]; then
+            NDK_ROOT="${NDK_HOME}"
+          else
+            NDK_ROOT="$(find "${ANDROID_HOME}/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          fi
+          if [ -z "${NDK_ROOT:-}" ] || [ ! -d "${NDK_ROOT}" ]; then
+            echo "::error::Android NDK root could not be determined."
+            exit 1
+          fi
+
+          NDK_BIN="${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CC_AARCH64="${NDK_BIN}/aarch64-linux-android24-clang"
+          AR_LLVM="${NDK_BIN}/llvm-ar"
+
+          if [ ! -x "$CC_AARCH64" ]; then
+            echo "::error::Expected Android clang not found: $CC_AARCH64"
+            exit 1
+          fi
+          if [ ! -x "$AR_LLVM" ]; then
+            echo "::error::Expected Android archiver not found: $AR_LLVM"
+            exit 1
+          fi
+
+          {
+            echo "NDK_HOME=$NDK_ROOT"
+            echo "TARGET_CC=$CC_AARCH64"
+            echo "CC_aarch64_linux_android=$CC_AARCH64"
+            echo "TARGET_AR=$AR_LLVM"
+            echo "AR_aarch64_linux_android=$AR_LLVM"
+          } >> "$GITHUB_ENV"
+
       - name: Build Android APK (arm64)
         run: |
           set -o pipefail
