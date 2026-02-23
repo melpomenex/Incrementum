@@ -117,7 +117,7 @@ export function QueueScrollPage() {
   const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore();
   const { rootPane, closeTab, updateTab } = useTabsStore();
   const { settings, updateSettingsCategory } = useSettingsStore();
-  
+
   // Get active tab ID from the first tab pane
   const activeTabId = useMemo(() => {
     const findFirstTabPane = (pane: typeof rootPane): TabPane | null => {
@@ -224,7 +224,7 @@ export function QueueScrollPage() {
         // ignore parse errors
       }
     }
-    
+
     const savedItemsReviewed = sessionStorage.getItem(SESSION_KEYS.ITEMS_REVIEWED);
     if (savedItemsReviewed) {
       setItemsReviewedThisSession(parseInt(savedItemsReviewed, 10) || 0);
@@ -296,10 +296,10 @@ export function QueueScrollPage() {
   // Smart start position calculation
   const calculateSmartStart = useCallback(async (totalItems: number) => {
     if (totalItems === 0) return 0;
-    
+
     const lastPositionStr = sessionStorage.getItem(SESSION_KEYS.LAST_POSITION);
     const lastPosition = lastPositionStr ? parseInt(lastPositionStr, 10) : undefined;
-    
+
     try {
       const response = await getSmartStartPosition({
         total_items: totalItems,
@@ -308,12 +308,12 @@ export function QueueScrollPage() {
         // Use timestamp as seed for reproducible variety
         seed: Date.now(),
       });
-      
+
       setSmartStartInfo({
         isResuming: response.is_resuming,
         reason: response.reason,
       });
-      
+
       // Return both position and whether we should show toast
       return {
         position: response.start_position,
@@ -364,7 +364,7 @@ export function QueueScrollPage() {
         if (startPos > 0) {
           setCurrentIndex(startPos);
           setRenderedIndex(startPos);
-          
+
           // Update tab data
           if (activeTabId) {
             updateTab(activeTabId, {
@@ -375,7 +375,7 @@ export function QueueScrollPage() {
               },
             });
           }
-          
+
           // Only show toast when position is actually applied
           if (shouldShowToast) {
             toast.info("Resuming where you left off", `Position ${lastPosition + 1} of ${scrollItems.length}`);
@@ -388,7 +388,7 @@ export function QueueScrollPage() {
   // Save current position to session storage and tab data
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.LAST_POSITION, String(currentIndex));
-    
+
     if (activeTabId) {
       updateTab(activeTabId, {
         data: {
@@ -413,16 +413,16 @@ export function QueueScrollPage() {
     const maxSameCategory = 3; // Max consecutive items from same category
     const result: ScrollItem[] = [];
     const categoryCounts: Map<string, number> = new Map();
-    
+
     // Sort items by engagement score (higher = more priority)
-    const sorted = [...items].sort((a, b) => 
+    const sorted = [...items].sort((a, b) =>
       (b.engagementScore ?? 0) - (a.engagementScore ?? 0)
     );
 
     for (const item of sorted) {
       const category = item.category ?? "uncategorized";
       const currentCount = categoryCounts.get(category) ?? 0;
-      
+
       if (currentCount < maxSameCategory) {
         result.push(item);
         categoryCounts.set(category, currentCount + 1);
@@ -450,7 +450,7 @@ export function QueueScrollPage() {
             }
           }
         }
-        
+
         if (!inserted) {
           // Add to end anyway - better to show it than lose it
           result.push(item);
@@ -682,7 +682,7 @@ export function QueueScrollPage() {
   const isNewDocument =
     currentDocument
       ? (currentDocument.reps ?? currentDocument.readingCount ?? 0) <= 0
-        && !currentDocument.dateLastReviewed
+      && !currentDocument.dateLastReviewed
       : false;
 
   // Rendered item (actual document being rendered)
@@ -742,7 +742,7 @@ export function QueueScrollPage() {
         const container = rssContentRef.current;
         const isInRssContent = container &&
           ((anchorElement && container.contains(anchorElement)) ||
-           (focusElement && container.contains(focusElement)));
+            (focusElement && container.contains(focusElement)));
 
         if (!text || text.length === 0 || !isInRssContent) {
           setMobileRssSelection(prev => ({ ...prev, showButton: false }));
@@ -1258,20 +1258,20 @@ export function QueueScrollPage() {
 
   // Handle rating (for documents, flashcards, or mark as read for RSS)
   const handleRating = async (rating: number) => {
-    console.log("[QueueScroll] handleRating called:", { 
-      rating, 
-      currentItem: currentItem?.id, 
-      type: currentItem?.type, 
+    console.log("[QueueScroll] handleRating called:", {
+      rating,
+      currentItem: currentItem?.id,
+      type: currentItem?.type,
       isRating,
       documentId: currentItem?.documentId,
-      isNewDocument 
+      isNewDocument
     });
-    
+
     if (!currentItem) {
       console.log("[QueueScroll] handleRating early return: no currentItem");
       return;
     }
-    
+
     if (isRating) {
       console.log("[QueueScroll] handleRating early return: already rating");
       return;
@@ -1289,9 +1289,9 @@ export function QueueScrollPage() {
           console.error("[QueueScroll] Document item has no documentId!");
           throw new Error("Document ID is missing");
         }
-        
+
         console.log(`[QueueScroll] Rating document ${currentItem.documentId} as ${rating} (time: ${timeTaken}s)`);
-        
+
         // Use the engaging FSRS-6 scheduler!
         const result = await rateDocumentEngaging(currentItem.documentId, rating, timeTaken);
         console.log("[QueueScroll] rateDocumentEngaging result:", result);
@@ -1324,10 +1324,10 @@ export function QueueScrollPage() {
         // Mark RSS item as read
         await markItemReadAuto(currentItem.rssFeed.id, currentItem.rssItem.id, true);
         console.log(`Marked RSS item ${currentItem.rssItem.id} as read (time: ${timeTaken}s)`);
-        
+
         // Track items reviewed
         setItemsReviewedThisSession(prev => prev + 1);
-        
+
         // Reload RSS items to update the list
         const rssUnread = await getUnreadItemsAuto();
         const rssItems: ScrollItem[] = rssUnread.map(({ feed, item }) => ({
@@ -1630,16 +1630,16 @@ export function QueueScrollPage() {
   // Mobile PWA: Handle extract creation from mobile RSS selection
   const handleMobileRssExtract = useCallback(async () => {
     if (!mobileRssSelection.text) return;
-    
+
     // Set the RSS selected text state temporarily
     setRssSelectedText(mobileRssSelection.text);
-    
+
     // Hide the mobile button
     setMobileRssSelection(prev => ({ ...prev, showButton: false }));
     if (mobileRssSelectionTimeoutRef.current) {
       clearTimeout(mobileRssSelectionTimeoutRef.current);
     }
-    
+
     // Call the regular handler
     await handleCreateRssExtract();
   }, [mobileRssSelection.text, handleCreateRssExtract]);
@@ -1674,7 +1674,7 @@ export function QueueScrollPage() {
   return (
     <div
       ref={containerRef}
-      className="h-screen max-h-screen h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-background relative"
+      className="h-full w-full overflow-hidden bg-background relative"
     >
       {/* Smart Start Indicator */}
       {smartStartInfo && smartStartInfo.isResuming && (
@@ -1686,7 +1686,7 @@ export function QueueScrollPage() {
       )}
 
       {/* Content Viewer - Document, Flashcard, or RSS Article */}
-      <div 
+      <div
         className="flex h-full min-h-0 w-full overflow-hidden"
         onClick={(e) => {
           // Toggle controls on click/tap if not clicking interactive elements
@@ -1703,18 +1703,17 @@ export function QueueScrollPage() {
                 <button
                   key={provider.id}
                   onClick={() => setSelectedProvider(provider.id as any)}
-                  className={`p-2 rounded-lg transition-all ${
-                    selectedProvider === provider.id
-                      ? "bg-muted ring-2 ring-primary"
-                      : "hover:bg-muted"
-                  }`}
+                  className={`p-2 rounded-lg transition-all ${selectedProvider === provider.id
+                    ? "bg-muted ring-2 ring-primary"
+                    : "hover:bg-muted"
+                    }`}
                   title={provider.name}
                 >
                   <provider.icon className={`w-5 h-5 ${provider.color}`} />
                 </button>
               ))}
             </div>
-            <div className="flex-shrink-0 h-full min-h-0 overflow-hidden z-10">
+            <div className="flex-shrink-0 h-full min-h-0 z-10">
               <AssistantPanel
                 context={assistantContext}
                 className="assistant-panel h-full"
@@ -1846,7 +1845,7 @@ export function QueueScrollPage() {
         </div>
         {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
           <>
-            <div className="flex-shrink-0 h-full min-h-0 overflow-hidden z-10">
+            <div className="flex-shrink-0 h-full min-h-0 z-10">
               <AssistantPanel
                 context={assistantContext}
                 className="assistant-panel h-full"
@@ -1867,11 +1866,10 @@ export function QueueScrollPage() {
                 <button
                   key={provider.id}
                   onClick={() => setSelectedProvider(provider.id as any)}
-                  className={`p-2 rounded-lg transition-all ${
-                    selectedProvider === provider.id
-                      ? "bg-muted ring-2 ring-primary"
-                      : "hover:bg-muted"
-                  }`}
+                  className={`p-2 rounded-lg transition-all ${selectedProvider === provider.id
+                    ? "bg-muted ring-2 ring-primary"
+                    : "hover:bg-muted"
+                    }`}
                   title={provider.name}
                 >
                   <provider.icon className={`w-5 h-5 ${provider.color}`} />
@@ -2226,12 +2224,12 @@ export function QueueScrollPage() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log("[QueueScroll] Mark as Read clicked:", { 
-                      id: currentItem?.id, 
-                      type: currentItem?.type, 
+                    console.log("[QueueScroll] Mark as Read clicked:", {
+                      id: currentItem?.id,
+                      type: currentItem?.type,
                       documentId: currentItem?.documentId,
                       isRating,
-                      isNewDocument 
+                      isNewDocument
                     });
                     if (!isRating && currentItem) {
                       handleRating(3);
@@ -2318,7 +2316,7 @@ export function QueueScrollPage() {
           {currentItem?.type !== "document" && "Scroll to edge to navigate • Alt+Arrows/Space to skip • H to toggle controls • Esc to exit"}
         </div>
       </div>
-      
+
       {/* RSS Queue Settings Modal */}
       <RSSQueueSettingsModal
         isOpen={showRssSettings}
