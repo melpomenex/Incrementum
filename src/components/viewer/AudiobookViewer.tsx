@@ -344,10 +344,34 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         );
         if (segment && segment.id !== activeSegmentId) {
           setActiveSegmentId(segment.id);
-          // Scroll segment into view
+          // Scroll segment into view using container-relative scrolling
+          // to avoid scrolling the entire page and affecting other elements
           const element = window.document.getElementById(`segment-${segment.id}`);
-          if (element && showTranscript) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          const container = transcriptRef.current;
+          if (element && container && showTranscript) {
+            // Calculate the element's position relative to the container
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            
+            // Calculate relative position (accounting for container's scroll position)
+            const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+            const elementHeight = elementRect.height;
+            const containerHeight = containerRect.height;
+            
+            // Calculate target scroll position to center the element
+            const targetScrollTop = relativeTop - (containerHeight / 2) + (elementHeight / 2);
+            
+            // Only scroll if the element is outside the visible area (with some padding)
+            const padding = 50;
+            const isAbove = elementRect.top < containerRect.top + padding;
+            const isBelow = elementRect.bottom > containerRect.bottom - padding;
+            
+            if (isAbove || isBelow) {
+              container.scrollTo({
+                top: targetScrollTop,
+                behavior: "smooth",
+              });
+            }
           }
         }
       }
@@ -1191,7 +1215,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
             
             <div 
               ref={transcriptRef}
-              className="flex-1 overflow-y-auto p-4"
+              className="flex-1 overflow-y-auto overscroll-contain p-4"
               onMouseUp={handleTextSelection}
             >
               {(transcript || activeSegments.length > 0) ? (

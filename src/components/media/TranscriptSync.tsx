@@ -58,6 +58,8 @@ export function TranscriptSync({
   const activeSegmentRef = useRef<HTMLDivElement>(null);
   const highlightedSegmentRef = useRef<HTMLDivElement>(null);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrolledIndexRef = useRef<number>(-1);
+  const scrollThrottleRef = useRef<number>(0);
 
   // Filter segments based on search query
   useEffect(() => {
@@ -81,23 +83,78 @@ export function TranscriptSync({
     );
     if (index !== -1 && index !== activeIndex) {
       setActiveIndex(index);
-
-      // Auto-scroll to active segment
-      if (autoScroll && activeSegmentRef.current && containerRef.current) {
-        activeSegmentRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
     }
   }, [currentTime, segments, activeIndex, autoScroll]);
 
+  // Auto-scroll only after the active segment element ref is updated.
+  // Uses container-relative scrolling to avoid scrolling the entire page.
+  // Throttled to prevent rapid successive scrolls.
+  useEffect(() => {
+    if (!autoScroll || activeIndex < 0) return;
+    if (!activeSegmentRef.current || !containerRef.current) return;
+    
+    // Skip if we just scrolled to this index recently (within 2 seconds)
+    const now = Date.now();
+    if (activeIndex === lastScrolledIndexRef.current && now - scrollThrottleRef.current < 2000) {
+      return;
+    }
+    
+    const container = containerRef.current;
+    const element = activeSegmentRef.current;
+    
+    // Calculate the element's position relative to the container
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    // Calculate relative position (accounting for container's scroll position)
+    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+    const elementHeight = elementRect.height;
+    const containerHeight = containerRect.height;
+    
+    // Calculate target scroll position to center the element
+    const targetScrollTop = relativeTop - (containerHeight / 2) + (elementHeight / 2);
+    
+    // Only scroll if the element is outside the visible area (with some padding)
+    const padding = 80;
+    const isAbove = elementRect.top < containerRect.top + padding;
+    const isBelow = elementRect.bottom > containerRect.bottom - padding;
+    
+    if (isAbove || isBelow) {
+      lastScrolledIndexRef.current = activeIndex;
+      scrollThrottleRef.current = now;
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: "smooth",
+      });
+    }
+  }, [activeIndex, autoScroll]);
+
   // Scroll to an externally highlighted segment (jump navigation)
+  // Uses container-relative scrolling to avoid scrolling the entire page.
   useEffect(() => {
     if (!highlightedSegmentId) return;
     if (!containerRef.current) return;
     if (!highlightedSegmentRef.current) return;
-    highlightedSegmentRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    
+    const container = containerRef.current;
+    const element = highlightedSegmentRef.current;
+    
+    // Calculate the element's position relative to the container
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    // Calculate relative position (accounting for container's scroll position)
+    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+    const elementHeight = elementRect.height;
+    const containerHeight = containerRect.height;
+    
+    // Calculate target scroll position to center the element
+    const targetScrollTop = relativeTop - (containerHeight / 2) + (elementHeight / 2);
+    
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: "smooth",
+    });
   }, [highlightedSegmentId]);
 
   // Format time
@@ -170,7 +227,7 @@ export function TranscriptSync({
   };
 
   return (
-    <div className="flex flex-col h-full bg-card border border-border rounded-lg overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-3">
@@ -225,7 +282,7 @@ export function TranscriptSync({
       {/* Transcript segments */}
       <div
         ref={containerRef}
-        className={`${className} overflow-y-auto p-4 space-y-1`}
+        className={`${className} overflow-y-auto overscroll-contain p-4 space-y-1`}
         data-transcript-scroll="true"
         onMouseUp={handleSelection}
         onKeyUp={handleSelection}
