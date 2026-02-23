@@ -14,6 +14,7 @@
 6. [Queue Management](#queue-management)
 7. [Analytics & Progress Tracking](#analytics--progress-tracking)
 8. [Settings & Customization](#settings--customization)
+   - [NotebookLM Integration](#notebooklm-integration)
 9. [Advanced Features](#advanced-features)
 10. [Tips & Best Practices](#tips--best-practices)
 11. [Troubleshooting](#troubleshooting)
@@ -822,6 +823,49 @@ Incrementum provides a complete backup and restore system to protect your learni
 - Import notes as cards
 - Daily note integration
 - Bidirectional tag sync
+
+#### NotebookLM Integration
+
+Use NotebookLM inside Incrementum to research, generate study artifacts, and save reviewable extracts.
+
+**Setup:**
+1. Settings → Features → enable **NotebookLM**
+2. Settings → Integrations → **NotebookLM**
+3. Click **Connect** and choose provider (`mock` for testing, `cli` for live NotebookLM)
+4. Select or create an active notebook
+
+**What You Can Do:**
+- Ask questions in NotebookLM chat directly from Incrementum
+- Run research prompts (web-assisted notebook research)
+- Generate artifacts:
+  - Flashcards
+  - Quiz
+  - Report / Study Guide
+  - Mind Map
+  - Data Table
+  - Audio Overview
+  - Video Overview
+- Preview artifacts in-app (including audio/video players when media is available)
+- Sync generated flashcards/quiz items into Incrementum review queue
+
+**Save Chat Responses as Extracts:**
+1. Open NotebookLM workspace chat
+2. On any assistant response, click **Save as Extract**
+3. Optional: highlight part of the response first to save only selected text
+4. Incrementum creates a NotebookLM-linked extract with thread/source metadata
+5. Saved responses show an **already saved** indicator to avoid duplicates
+
+**Document Q&A + NotebookLM Workflow:**
+1. Open a document in Incrementum
+2. Use **Document Q&A** with NotebookLM research mode
+3. Edit/refine generated answer text inline
+4. Create extracts from the refined answer
+5. Generate flashcards/cloze/Q&A items from those extracts
+
+**Troubleshooting:**
+- If artifact preview says media is unavailable, wait for NotebookLM generation to finish and reopen the artifact.
+- If using `cli` provider, ensure the NotebookLM sidecar/CLI is available in your build.
+- If you changed providers or auth expired, reconnect in Integrations → NotebookLM.
 
 #### MCP Servers
 
