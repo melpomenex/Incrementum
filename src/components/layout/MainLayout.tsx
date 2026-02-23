@@ -32,10 +32,10 @@ export function MainLayout() {
   const [vimiumEnabled] = useVimiumEnabled();
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
-  
+
   // Get toolbar position from settings
   const toolbarPosition = useSettingsStore((state) => state.settings.interface.toolbarPosition);
-  
+
   // Find the first tab pane and its active tab for keyboard navigation
   useEffect(() => {
     const findFirstTabPane = (pane: typeof rootPane): typeof rootPane | null => {
@@ -48,7 +48,7 @@ export function MainLayout() {
       }
       return null;
     };
-    
+
     const firstPane = findFirstTabPane(rootPane);
     if (firstPane && firstPane.type === "tabs") {
       setActivePaneTabId(firstPane.activeTabId);
@@ -76,7 +76,7 @@ export function MainLayout() {
     if (tabs.length === 0) {
       // Load saved tabs first to check if there's a persisted layout
       loadTabs();
-      
+
       // If still no tabs after loading, create defaults
       if (useTabsStore.getState().tabs.length === 0) {
         // Add Dashboard tab (non-closable)
@@ -362,7 +362,7 @@ export function MainLayout() {
           </div>
 
           {/* Tabbed Interface - takes remaining space */}
-          <div className="flex-1 min-w-0" data-vimium-scroll>
+          <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
             <Tabs />
           </div>
 
@@ -377,7 +377,7 @@ export function MainLayout() {
       return (
         <div className="app-shell flex w-full overflow-hidden bg-background">
           {/* Tabbed Interface - takes remaining space */}
-          <div className="flex-1 min-w-0" data-vimium-scroll>
+          <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
             <Tabs />
           </div>
 
@@ -401,7 +401,7 @@ export function MainLayout() {
         </div>
 
         {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
-        <div className="flex-1 min-h-0" data-vimium-scroll>
+        <div className="flex-1 min-h-0 h-full" data-vimium-scroll>
           <Tabs />
         </div>
 
