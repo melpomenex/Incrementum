@@ -62,11 +62,34 @@ function ensureWhisperSource() {
 
 function commandExists(cmd) {
   try {
-    execSync(`command -v ${cmd}`, { stdio: 'ignore' });
+    if (process.platform === 'win32') {
+      execSync(`where ${cmd}`, { stdio: 'ignore' });
+    } else {
+      execSync(`command -v ${cmd}`, { stdio: 'ignore' });
+    }
     return true;
   } catch {
     return false;
   }
+}
+
+function resolvePythonCommand() {
+  if (process.platform === 'win32') {
+    try {
+      execSync('py -3 --version', { stdio: 'ignore' });
+      return 'py -3';
+    } catch {
+      // keep trying fallbacks
+    }
+  }
+
+  if (commandExists('python3')) {
+    return 'python3';
+  }
+  if (commandExists('python')) {
+    return 'python';
+  }
+  return null;
 }
 
 function ensureNotebookLMSidecar(targetTriple) {
@@ -87,7 +110,8 @@ function ensureNotebookLMSidecar(targetTriple) {
   }
 
   let runtimeBuilt = false;
-  if (commandExists('python3')) {
+  const pythonCmd = resolvePythonCommand();
+  if (pythonCmd) {
     console.log(`Building bundled NotebookLM runtime at ${runtimeDir} ...`);
     fs.mkdirSync(runtimeDir, { recursive: true });
 
@@ -99,12 +123,15 @@ function ensureNotebookLMSidecar(targetTriple) {
       ? path.join(venvPath, 'Scripts', 'notebooklm.exe')
       : path.join(venvPath, 'bin', 'notebooklm');
 
-    execSync(`python3 -m venv "${venvPath}"`, { stdio: 'inherit' });
+    execSync(`${pythonCmd} -m venv "${venvPath}"`, { stdio: 'inherit' });
     execSync(`"${py}" -m pip install --upgrade pip`, { stdio: 'inherit' });
     execSync(`"${py}" -m pip install "notebooklm-py[browser]"`, { stdio: 'inherit' });
 
     // Install Chromium in a local path so the sidecar is self-contained.
-    execSync(`PLAYWRIGHT_BROWSERS_PATH=0 "${py}" -m playwright install chromium`, { stdio: 'inherit' });
+    execSync(`"${py}" -m playwright install chromium`, {
+      stdio: 'inherit',
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: '0' },
+    });
 
     if (platform === 'win32') {
       // On Windows, create a shim batch and copy as sidecar target name without extension conflicts.
@@ -129,7 +156,7 @@ function ensureNotebookLMSidecar(targetTriple) {
       runtimeBuilt = true;
     }
   } else {
-    console.warn('python3 not found; falling back to wrapper sidecar when possible.');
+    console.warn('Python not found; falling back to wrapper sidecar when possible.');
   }
 
   // On unix-like systems we can always emit a wrapper so bundling still succeeds.
@@ -249,7 +276,7 @@ async function main() {
         
         // Build with static linking to avoid shared library issues
         // -DBUILD_SHARED_LIBS=OFF creates a standalone binary
-        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ${cudaFlag}`);
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_BLAS=OFF ${cudaFlag}`);
         execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
         fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', path.join(BIN_DIR, whisperName));
         
@@ -318,7 +345,7 @@ async function main() {
         }
         
         // Build with static linking to avoid shared library issues
-        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ${gpuFlags}`);
+        execSync(`cd whisper.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_BLAS=OFF ${gpuFlags}`);
         execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
         fs.copyFileSync('whisper.cpp/build/bin/whisper-cli', whisperPath);
         
@@ -352,7 +379,7 @@ async function main() {
       ensureWhisperSource();
 
       // Build with static linking
-      execSync('cd whisper.cpp && cmake -B build -DBUILD_SHARED_LIBS=OFF');
+      execSync('cd whisper.cpp && cmake -B build -DBUILD_SHARED_LIBS=OFF -DGGML_BLAS=OFF');
       execSync('cd whisper.cpp && cmake --build build --config Release --parallel');
 
       const candidates = [

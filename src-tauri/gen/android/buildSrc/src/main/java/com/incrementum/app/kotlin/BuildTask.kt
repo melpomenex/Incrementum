@@ -1,8 +1,6 @@
 import java.io.File
-import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 
@@ -16,35 +14,10 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun assemble() {
-        val executable = """npm""";
-        try {
-            runTauriCli(executable)
-        } catch (e: Exception) {
-            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                // Try different Windows-specific extensions
-                val fallbacks = listOf(
-                    "$executable.exe",
-                    "$executable.cmd",
-                    "$executable.bat",
-                )
-                
-                var lastException: Exception = e
-                for (fallback in fallbacks) {
-                    try {
-                        runTauriCli(fallback)
-                        return
-                    } catch (fallbackException: Exception) {
-                        lastException = fallbackException
-                    }
-                }
-                throw lastException
-            } else {
-                throw e;
-            }
-        }
+        buildRustLibrary()
     }
 
-    fun runTauriCli(executable: String) {
+    fun buildRustLibrary() {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
@@ -75,22 +48,22 @@ open class BuildTask : DefaultTask() {
             ?: throw GradleException("NDK_HOME/ANDROID_NDK_HOME must be set")
         val linkerPath = "$ndkHome/toolchains/llvm/prebuilt/linux-x86_64/bin/${clangTriple}24-clang"
 
+        val arPath = "$ndkHome/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+        val cargoTargetEnv = cargoTarget.uppercase().replace('-', '_')
+
         project.exec {
-            workingDir(File(project.projectDir, rootDirRel))
-            executable(executable)
-            args(listOf("run", "--", "tauri", "build", "--no-bundle"))
-            args("--config", """{"build":{"beforeBuildCommand":""}}""")
+            workingDir(File(project.projectDir, "$rootDirRel/src-tauri"))
+            executable("cargo")
+            args("build", "--lib", "--target", cargoTarget)
+            if (release) {
+                args("--release")
+            }
             environment("ANDROID_NDK_HOME", ndkHome)
             environment("NDK_HOME", ndkHome)
-            environment("CARGO_TARGET_${cargoTarget.uppercase().replace('-', '_')}_LINKER", linkerPath)
+            environment("CARGO_TARGET_${cargoTargetEnv}_LINKER", linkerPath)
+            environment("CARGO_TARGET_${cargoTargetEnv}_AR", arPath)
             environment("CC_${cargoTarget}", linkerPath)
-            if (project.logger.isEnabled(LogLevel.DEBUG)) {
-                args("-vv")
-            } else if (project.logger.isEnabled(LogLevel.INFO)) {
-                args("-v")
-            }
-            // Compile the Android shared library directly to avoid android-studio-script panic
-            args("--", "--target", cargoTarget)
+            environment("AR_${cargoTarget}", arPath)
         }.assertNormalExitValue()
 
         val projectRoot = File(project.projectDir, rootDirRel)

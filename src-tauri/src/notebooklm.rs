@@ -3,6 +3,8 @@ use crate::error::AppError;
 use crate::models::{ItemType, LearningItem};
 use async_trait::async_trait;
 use chrono::Utc;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -814,6 +816,19 @@ fn parse_csv_to_json_rows(csv: &str) -> serde_json::Value {
     serde_json::Value::Array(rows)
 }
 
+static NOTEBOOKLM_INLINE_DOLLAR_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\$([^$\n]+)\$").expect("valid notebooklm inline-dollar regex"));
+
+fn normalize_notebooklm_text(input: &str) -> String {
+    // NotebookLM quiz/flashcard outputs sometimes wrap plain terms like $SCAN$.
+    // Strip inline dollar wrappers while preserving inner text.
+    NOTEBOOKLM_INLINE_DOLLAR_RE
+        .replace_all(input, "$1")
+        .replace(r"\$", "$")
+        .trim()
+        .to_string()
+}
+
 #[async_trait]
 impl NotebookLMProvider for CliNotebookLMProvider {
     async fn health(
@@ -1461,8 +1476,12 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                         cards
                             .iter()
                             .map(|c| FlashcardItem {
-                                question: notebook_text(c, &["front", "question", "q", "f"]).unwrap_or_default(),
-                                answer: notebook_text(c, &["back", "answer", "a", "b"]).unwrap_or_default(),
+                                question: normalize_notebooklm_text(
+                                    &notebook_text(c, &["front", "question", "q", "f"]).unwrap_or_default(),
+                                ),
+                                answer: normalize_notebooklm_text(
+                                    &notebook_text(c, &["back", "answer", "a", "b"]).unwrap_or_default(),
+                                ),
                                 tags: vec!["notebooklm".to_string(), "flashcards".to_string()],
                             })
                             .filter(|f| !f.question.trim().is_empty() && !f.answer.trim().is_empty())
@@ -1511,8 +1530,10 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                                     })
                                     .unwrap_or_default();
                                 QuizItem {
-                                    question: notebook_text(q, &["question", "q"]).unwrap_or_default(),
-                                    correct_answer,
+                                    question: normalize_notebooklm_text(
+                                        &notebook_text(q, &["question", "q"]).unwrap_or_default(),
+                                    ),
+                                    correct_answer: normalize_notebooklm_text(&correct_answer),
                                     user_answer: None,
                                     was_correct: false,
                                 }
@@ -1724,7 +1745,10 @@ fn quiz_to_import_items(quiz_items: &[QuizItem], mode: &str) -> Vec<(String, Str
                 .clone()
                 .filter(|a| !a.trim().is_empty())
                 .unwrap_or_else(|| q.correct_answer.clone());
-            (q.question.clone(), answer)
+            (
+                normalize_notebooklm_text(&q.question),
+                normalize_notebooklm_text(&answer),
+            )
         })
         .collect()
 }
@@ -2199,8 +2223,8 @@ pub async fn notebooklm_preview_flashcards(
         .flashcards
         .iter()
         .map(|f| ImportPreviewItem {
-            question: f.question.clone(),
-            answer: f.answer.clone(),
+            question: normalize_notebooklm_text(&f.question),
+            answer: normalize_notebooklm_text(&f.answer),
             tags: f.tags.clone(),
             source_notebook_id: job.notebook_id.clone(),
             source_artifact_id: artifact_id.clone(),
