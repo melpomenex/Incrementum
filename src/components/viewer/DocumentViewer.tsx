@@ -2686,7 +2686,7 @@ export function DocumentViewer({
   });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Toolbar */}
       {!embedded && !isFullscreen && (
       <div className="flex items-center justify-between p-4 bg-card border-b border-border">
@@ -3039,10 +3039,13 @@ export function DocumentViewer({
         data-document-content="true"
         className={cn(
           "flex-1 bg-muted/30 relative min-h-0",
-          // Avoid nested scrolling for PDFs: the PDF viewer owns the scroll container and
-          // restores based on it. If this wrapper also scrolls, restore appears "broken"
-          // because the user is scrolling a different element.
-          viewMode === "document" && docType === "pdf" && !(pdfViewMode === "ocr-html" && ocrResult)
+          // Avoid nested scrolling when a child viewer owns its own internal scroll containers.
+          // PDFs restore against their own scroll element; YouTube has transcript/chat panes.
+          viewMode === "document"
+          && (
+            (docType === "pdf" && !(pdfViewMode === "ocr-html" && ocrResult))
+            || docType === "youtube"
+          )
             ? "overflow-hidden"
             : "overflow-auto"
         )}
@@ -3265,7 +3268,7 @@ export function DocumentViewer({
             />
           </div>
         ) : docType === "youtube" ? (
-          <div className="h-full">
+          <div className="h-full min-h-0 overflow-hidden">
             <YouTubeViewer
               videoId={extractYouTubeVideoId(currentDocument.filePath) ?? ""}
               documentId={currentDocument.id}

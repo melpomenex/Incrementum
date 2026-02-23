@@ -35,8 +35,9 @@ export function ContinueReadingPage() {
       setLoading(true);
       setError(null);
       const docs = await getDocumentsWithProgress(50);
-      // Filter out documents with 0 progress (not started)
-      setDocuments(docs.filter((d) => d.progress > 0));
+      // Show all non-archived documents that are not completed
+      // Include documents with no progress (not started) so users can start reading anything
+      setDocuments(docs.filter((d) => d.progress < 100));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents');
       console.error('Failed to load documents:', err);
@@ -58,15 +59,15 @@ export function ContinueReadingPage() {
 
   // Convert to array and sort by group priority
   const groups: GroupedDocuments[] = Object.entries(groupedDocuments)
-    .filter(([group]) => group !== 'not-started' && group !== 'completed')
+    .filter(([group]) => group !== 'completed')
     .map(([group, docs]) => ({
       group: group as ProgressGroup,
       info: PROGRESS_GROUPS[group as ProgressGroup],
       documents: docs.sort((a, b) => b.date_modified - a.date_modified),
     }))
     .sort((a, b) => {
-      // Sort groups: just-started (0-25%), halfway (25-75%), almost-done (75-99%)
-      const priority = { 'just-started': 0, halfway: 1, 'almost-done': 2 };
+      // Sort groups: not-started, just-started (0-25%), halfway (25-75%), almost-done (75-99%)
+      const priority = { 'not-started': 0, 'just-started': 1, halfway: 2, 'almost-done': 3 };
       return priority[a.group] - priority[b.group];
     });
 
@@ -113,8 +114,8 @@ export function ContinueReadingPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-500">
         <div className="text-6xl mb-4">📚</div>
-        <div className="text-lg font-medium">No documents in progress</div>
-        <div className="text-sm mt-2">Start reading a document to see it here</div>
+        <div className="text-lg font-medium">No items available</div>
+        <div className="text-sm mt-2">Add documents or notes to see them here</div>
       </div>
     );
   }

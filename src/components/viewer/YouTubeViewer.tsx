@@ -100,6 +100,9 @@ export function YouTubeViewer({
   const [isArchiving, setIsArchiving] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
   const [playerError, setPlayerError] = useState<{ code: number; message: string } | null>(null);
+  const [embedHost, setEmbedHost] = useState<"https://www.youtube-nocookie.com" | "https://www.youtube.com">(
+    "https://www.youtube-nocookie.com"
+  );
   const [inlinePlaybackLikelyUnsupported, setInlinePlaybackLikelyUnsupported] = useState(false);
   const [forceInlinePlayback, setForceInlinePlayback] = useState(false);
   const [normalizedVideoId, setNormalizedVideoId] = useState(() => extractYouTubeVideoId(videoId) ?? "");
@@ -176,6 +179,7 @@ export function YouTubeViewer({
     setShowInlinePlayer(false);
     setForceInlinePlayback(false);
     setPlayerError(null);
+    setEmbedHost("https://www.youtube-nocookie.com");
   }, [documentId, videoId]);
 
   useEffect(() => {
@@ -825,6 +829,14 @@ export function YouTubeViewer({
 
   const onPlayerError = (event: any) => {
     const code = typeof event?.data === "number" ? event.data : -1;
+
+    if ((code === 101 || code === 150) && embedHost === "https://www.youtube-nocookie.com") {
+      console.warn("[YouTubeViewer] Embedded playback blocked on youtube-nocookie. Retrying with youtube.com host.");
+      setEmbedHost("https://www.youtube.com");
+      setPlayerError(null);
+      return;
+    }
+
     const message =
       code === 5
         ? "YouTube HTML5 playback failed in the embedded webview."
@@ -841,7 +853,7 @@ export function YouTubeViewer({
   const displayTitle = resolvedTitle || title || "YouTube Video";
 
   const youtubeOpts: YouTubeProps['opts'] = {
-    host: "https://www.youtube-nocookie.com",
+    host: embedHost,
     height: '100%',
     width: '100%',
     playerVars: {
@@ -887,7 +899,7 @@ export function YouTubeViewer({
         {showInlinePlayer ? (
           <div className="absolute inset-0 w-full h-full">
             <YouTube
-              key={normalizedVideoId}
+              key={`${normalizedVideoId}:${embedHost}`}
               videoId={normalizedVideoId}
               opts={youtubeOpts}
               onReady={onPlayerReady}

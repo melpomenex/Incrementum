@@ -299,6 +299,19 @@ export async function getDocuments(): Promise<Document[]> {
     }
 }
 
+export async function getDocumentsWithProgress(limit: number): Promise<Document[]> {
+    try {
+        const docs = await getAll<Document>(STORES.documents);
+        return docs
+            .filter(d => !d._deleted && !d.is_archived && (d.progress_percent === undefined || d.progress_percent < 100))
+            .sort((a, b) => new Date(b.date_modified).getTime() - new Date(a.date_modified).getTime())
+            .slice(0, limit);
+    } catch (error) {
+        console.warn('[IndexedDB] Error getting documents with progress:', error);
+        return [];
+    }
+}
+
 export async function updateDocument(id: string, updates: Partial<Document>): Promise<Document> {
     const existing = await getDocument(id);
     if (!existing) throw new Error(`Document ${id} not found`);

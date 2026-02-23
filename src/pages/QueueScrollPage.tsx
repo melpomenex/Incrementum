@@ -1674,7 +1674,7 @@ export function QueueScrollPage() {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-hidden bg-background relative"
+      className="h-screen max-h-screen h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-background relative"
     >
       {/* Smart Start Indicator */}
       {smartStartInfo && smartStartInfo.isResuming && (
@@ -1687,7 +1687,7 @@ export function QueueScrollPage() {
 
       {/* Content Viewer - Document, Flashcard, or RSS Article */}
       <div 
-        className="flex h-full w-full"
+        className="flex h-full min-h-0 w-full overflow-hidden"
         onClick={(e) => {
           // Toggle controls on click/tap if not clicking interactive elements
           if (isMobile && !(e.target as HTMLElement).closest('button, input, textarea, a, .interactive')) {
@@ -1714,7 +1714,7 @@ export function QueueScrollPage() {
                 </button>
               ))}
             </div>
-            <div className="flex-shrink-0 h-full z-10">
+            <div className="flex-shrink-0 h-full min-h-0 overflow-hidden z-10">
               <AssistantPanel
                 context={assistantContext}
                 className="assistant-panel h-full"
@@ -1733,7 +1733,7 @@ export function QueueScrollPage() {
         )}
         <div
           className={cn(
-            "h-full flex-1 min-w-0 transition-opacity duration-300 relative",
+            "h-full min-h-0 flex-1 min-w-0 overflow-hidden transition-opacity duration-300 relative",
             isTransitioning ? "opacity-0" : "opacity-100"
           )}
         >
@@ -1846,7 +1846,7 @@ export function QueueScrollPage() {
         </div>
         {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
           <>
-            <div className="flex-shrink-0 h-full z-10">
+            <div className="flex-shrink-0 h-full min-h-0 overflow-hidden z-10">
               <AssistantPanel
                 context={assistantContext}
                 className="assistant-panel h-full"

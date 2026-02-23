@@ -118,7 +118,7 @@ export function useSwipeGestures(
 
   // Handle touch move
   const handleTouchMove = useCallback(
-    () => {
+    (e: TouchEvent) => {
       if (!state.isDragging || disabled) return;
 
       const touch = e.touches[0];

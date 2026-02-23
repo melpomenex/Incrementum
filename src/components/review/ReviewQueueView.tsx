@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertTriangle,
@@ -103,6 +103,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [preset, setPreset] = useState<PriorityPreset>("maximize-retention");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isManualBrowseActive, setManualBrowseActive] = useState(false);
   const [isInspectorOpen, setInspectorOpen] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
@@ -110,6 +111,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [sessionCustomization, setSessionCustomization] = useState<SessionCustomization>(DEFAULT_CUSTOMIZATION);
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const searchRef = useRef<HTMLInputElement>(null);
+  const queueListRef = useRef<HTMLDivElement>(null);
+  const selectedIndexRef = useRef(0);
   const lastSelectedLearningIdRef = useRef<string | null>(null);
   const toast = useToast();
   
@@ -220,6 +223,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     () => visibleItems.find((item) => item.id === selectedId) ?? null,
     [visibleItems, selectedId]
   );
+  const selectedBrowseIndex = useMemo(
+    () => visibleItems.findIndex((item) => item.id === selectedId),
+    [visibleItems, selectedId]
+  );
 
   const getDaysUntilDue = (item: QueueItem) => {
     if (!item.dueDate) return 0;
@@ -304,11 +311,66 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     }
   };
 
-  useEffect(() => {
-    if (!selectedItem && visibleItems.length > 0) {
-      setSelectedId(visibleItems[0].id);
+  const moveBrowseSelection = (delta: number) => {
+    if (visibleItems.length === 0) return;
+    const currentIndex = visibleItems.findIndex((item) => item.id === selectedId);
+    const baseIndex = currentIndex === -1 ? selectedIndexRef.current : currentIndex;
+    const nextIndex = Math.min(visibleItems.length - 1, Math.max(0, baseIndex + delta));
+    selectedIndexRef.current = nextIndex;
+    setSelectedId(visibleItems[nextIndex].id);
+  };
+
+  const jumpBrowseSelection = (to: "start" | "end") => {
+    if (visibleItems.length === 0) return;
+    const nextIndex = to === "start" ? 0 : visibleItems.length - 1;
+    selectedIndexRef.current = nextIndex;
+    setSelectedId(visibleItems[nextIndex].id);
+  };
+
+  const activateSelectedItem = () => {
+    if (!selectedItem) return;
+    if (selectedItem.itemType === "learning-item") {
+      onStartReview?.(selectedItem.learningItemId ?? selectedItem.id);
+      return;
     }
-  }, [selectedItem, visibleItems]);
+    onOpenDocument?.(selectedItem);
+  };
+
+  useEffect(() => {
+    if (selectedBrowseIndex >= 0) {
+      selectedIndexRef.current = selectedBrowseIndex;
+    }
+  }, [selectedBrowseIndex]);
+
+  useEffect(() => {
+    if (visibleItems.length === 0) {
+      selectedIndexRef.current = 0;
+      if (selectedId !== null) {
+        setSelectedId(null);
+      }
+      return;
+    }
+
+    if (!selectedId) {
+      const initialIndex = Math.min(selectedIndexRef.current, visibleItems.length - 1);
+      setSelectedId(visibleItems[Math.max(0, initialIndex)].id);
+      return;
+    }
+
+    const currentIndex = visibleItems.findIndex((item) => item.id === selectedId);
+    if (currentIndex === -1) {
+      const fallbackIndex = Math.min(selectedIndexRef.current, visibleItems.length - 1);
+      setSelectedId(visibleItems[Math.max(0, fallbackIndex)].id);
+    }
+  }, [selectedId, visibleItems]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const selectedRow = queueListRef.current?.querySelector<HTMLElement>(`[data-queue-item-id="${selectedId}"]`);
+    if (selectedRow && typeof selectedRow.scrollIntoView === "function") {
+      selectedRow.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedId]);
 
   useEffect(() => {
     const handleStartReviewShortcut = () => {
@@ -353,37 +415,50 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         setInspectorOpen((prev) => !prev);
         return;
       }
-      if (event.key.toLowerCase() === "j" || event.key.toLowerCase() === "k") {
+      if (isManualBrowseActive && event.key === "Escape") {
         event.preventDefault();
-        if (visibleItems.length === 0) return;
-        const currentIndex = visibleItems.findIndex((item) => item.id === selectedId);
-        const delta = event.key.toLowerCase() === "j" ? 1 : -1;
-        const nextIndex = currentIndex === -1 ? 0 : Math.min(visibleItems.length - 1, Math.max(0, currentIndex + delta));
-        setSelectedId(visibleItems[nextIndex].id);
-        return;
-      }
-      if (event.key === "Enter" && selectedItem) {
-        if (selectedItem.itemType === "learning-item") {
-          onStartReview?.(selectedItem.learningItemId ?? selectedItem.id);
-        } else {
-          onOpenDocument?.(selectedItem);
-        }
+        setManualBrowseActive(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [
-    onOpenDocument,
-    onStartReview,
-    selectedId,
-    selectedItem,
-    visibleItems,
     selectedIds.size,
     allSelected,
     clearSelection,
     selectAll,
     bulkDelete,
+    isManualBrowseActive,
   ]);
+
+  const handleQueueListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!isManualBrowseActive) return;
+
+    if (event.key === "ArrowDown" || event.key.toLowerCase() === "j") {
+      event.preventDefault();
+      moveBrowseSelection(1);
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      moveBrowseSelection(-1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      jumpBrowseSelection("start");
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      jumpBrowseSelection("end");
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      activateSelectedItem();
+    }
+  };
 
   const handleLearningItemSelection = (itemId: string, checked: boolean, shiftKey: boolean) => {
     if (!shiftKey || !lastSelectedLearningIdRef.current) {
@@ -518,7 +593,24 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             >
               Customize Session
             </button>
-            <button className="px-4 py-2 bg-background border border-border rounded-md hover:bg-muted/60 text-foreground">
+            <button
+              onClick={() => {
+                setManualBrowseActive((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    if (visibleItems.length > 0 && !selectedId) {
+                      setSelectedId(visibleItems[0].id);
+                    }
+                    queueListRef.current?.focus();
+                  }
+                  return next;
+                });
+              }}
+              aria-pressed={isManualBrowseActive}
+              className={`px-4 py-2 border border-border rounded-md text-foreground transition-colors ${
+                isManualBrowseActive ? "bg-primary/10 border-primary/40" : "bg-background hover:bg-muted/60"
+              }`}
+            >
               Manual Browse
             </button>
           </div>
@@ -744,10 +836,45 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   Session estimate: {visibleItems?.[0] ? formatMinutesRange(getTimeEstimateRange(visibleItems[0])) : 'N/A'} per item
                 </span>
                 <span>•</span>
-                <span>Press J/K to navigate, Enter to open, I to toggle inspector</span>
+                <span>{isManualBrowseActive ? "Use Up/Down or J/K to browse, Enter to open" : "Enable Manual Browse to keyboard-navigate items"}</span>
               </div>
 
-              <div className="space-y-3">
+              {isManualBrowseActive && (
+                <div className="p-3 border border-primary/20 bg-primary/5 rounded-lg flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Browsing {visibleItems.length === 0 ? "0 / 0" : `${Math.max(1, selectedBrowseIndex + 1)} / ${visibleItems.length}`}
+                  </span>
+                  <button
+                    onClick={() => moveBrowseSelection(-1)}
+                    disabled={visibleItems.length === 0 || selectedBrowseIndex <= 0}
+                    className="px-3 py-1.5 bg-background border border-border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => moveBrowseSelection(1)}
+                    disabled={visibleItems.length === 0 || selectedBrowseIndex === -1 || selectedBrowseIndex >= visibleItems.length - 1}
+                    className="px-3 py-1.5 bg-background border border-border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                  <button
+                    onClick={activateSelectedItem}
+                    disabled={!selectedItem}
+                    className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Open Selected
+                  </button>
+                </div>
+              )}
+
+              <div
+                ref={queueListRef}
+                className="space-y-3"
+                tabIndex={isManualBrowseActive ? 0 : -1}
+                onKeyDown={handleQueueListKeyDown}
+                aria-label="Queue items list"
+              >
                 {selectableItems.length > 0 && queueMode === "review" && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <label className="flex items-center gap-2">
@@ -765,6 +892,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   return (
                     <div
                       key={item.id}
+                      data-queue-item-id={item.id}
+                      aria-selected={item.id === selectedId}
                       className={`border rounded-lg bg-card transition-colors ${item.id === selectedId ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
                         }`}
                     >
