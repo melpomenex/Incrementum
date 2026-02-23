@@ -167,9 +167,9 @@ jobs:
 
           {
             echo "NDK_HOME=$NDK_ROOT"
-            echo "TARGET_CC=$CC_AARCH64"
+            echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$CC_AARCH64"
             echo "CC_aarch64_linux_android=$CC_AARCH64"
-            echo "TARGET_AR=$AR_LLVM"
+            echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_AR=$AR_LLVM"
             echo "AR_aarch64_linux_android=$AR_LLVM"
           } >> "$GITHUB_ENV"
 
