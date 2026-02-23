@@ -186,7 +186,7 @@ export function AssistantPanel({
   const effectiveProvider = externalSelectedProvider ?? selectedProvider;
   const [isInputHovered, setIsInputHovered] = useState(false);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
-  
+
   // Share dialog state
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState<Message | null>(null);
@@ -720,6 +720,10 @@ ${toolDescriptions}
       e.preventDefault();
       handleSendMessage();
     }
+    // Trap Tab key so focus stays in the input instead of jumping to transcript/page elements
+    if (e.key === "Tab") {
+      e.preventDefault();
+    }
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -749,18 +753,18 @@ ${toolDescriptions}
       content: message.content,
       timestamp: message.timestamp,
     };
-    
-    const title = context?.metadata?.title || 
-                  (context?.type === "document" ? "Document Discussion" : 
-                   context?.type === "web" ? "Web Page Discussion" : 
-                   "AI Conversation");
-    
+
+    const title = context?.metadata?.title ||
+      (context?.type === "document" ? "Document Discussion" :
+        context?.type === "web" ? "Web Page Discussion" :
+          "AI Conversation");
+
     const markdown = generateSingleMessageMarkdown(
       conversationMessage,
       title,
       context ? getContextMessage(context) : undefined
     );
-    
+
     const success = await copyToClipboard(markdown);
     if (success) {
       setCopiedMessageId(message.id);
@@ -852,7 +856,7 @@ ${toolDescriptions}
 
   return (
     <div
-      className={`flex flex-col h-full min-h-0 overflow-hidden bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}
+      className={`flex flex-col h-full max-h-full min-h-0 overflow-hidden bg-card ${position === "right" ? "border-l" : "border-r"} border-border relative ${className}`}
       style={{ width: isCollapsed ? "auto" : width }}
     >
       {/* Header */}
@@ -879,8 +883,8 @@ ${toolDescriptions}
                 key={provider.id}
                 onClick={() => handleProviderChange(provider.id as any)}
                 className={`p-1.5 rounded transition-colors ${effectiveProvider === provider.id
-                    ? "bg-muted"
-                    : "hover:bg-muted"
+                  ? "bg-muted"
+                  : "hover:bg-muted"
                   }`}
                 title={provider.name}
               >
@@ -931,9 +935,9 @@ ${toolDescriptions}
       )}
 
       {/* Messages */}
-      <div 
+      <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 space-y-4"
       >
         {messages.length === 0 ? (
           <div className="text-center text-muted-foreground text-sm py-8">
@@ -976,10 +980,10 @@ ${toolDescriptions}
               {/* Message Content */}
               <div
                 className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : message.role === "system"
-                      ? "bg-muted text-muted-foreground"
-                      : "bg-muted text-foreground"
+                  ? "bg-primary text-primary-foreground"
+                  : message.role === "system"
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-muted text-foreground"
                   }`}
               >
                 {message.role === "user" ? (
@@ -1023,10 +1027,10 @@ ${toolDescriptions}
                     <div
                       key={idx}
                       className={`text-xs px-2 py-1 rounded flex items-center gap-2 ${tool.status === "success"
-                          ? "bg-green-100 text-green-800"
-                          : tool.status === "error"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-yellow-100 text-yellow-800"
+                        ? "bg-green-100 text-green-800"
+                        : tool.status === "error"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-yellow-100 text-yellow-800"
                         }`}
                     >
                       <Code className="w-3 h-3" />
@@ -1047,7 +1051,7 @@ ${toolDescriptions}
       </div>
 
       {/* Input Area */}
-      <div className="sticky bottom-0 z-10 flex-shrink-0 p-3 border-t border-border bg-card">
+      <div className="flex-shrink-0 p-3 border-t border-border bg-card">
         <div className="flex flex-col gap-2">
           {/* Available Tools Hint */}
           <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1121,10 +1125,10 @@ ${toolDescriptions}
           timestamp: shareMessage.timestamp,
         } : undefined}
         contextInfo={context ? getContextMessage(context) : undefined}
-        documentTitle={context?.metadata?.title || 
-          (context?.type === "document" ? "Document Discussion" : 
-           context?.type === "web" ? "Web Page Discussion" : 
-           "AI Conversation")}
+        documentTitle={context?.metadata?.title ||
+          (context?.type === "document" ? "Document Discussion" :
+            context?.type === "web" ? "Web Page Discussion" :
+              "AI Conversation")}
       />
 
       {/* Resize Handle - positioned based on panel position */}

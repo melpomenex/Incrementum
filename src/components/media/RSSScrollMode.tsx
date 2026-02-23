@@ -207,7 +207,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     return saved !== "false";
   });
   const [assistantContext, setAssistantContext] = useState<AssistantContext | undefined>(undefined);
-  
+
   // Panel resize state
   const [panelWidth, setPanelWidth] = useState(() => {
     const saved = localStorage.getItem("rss-assistant-width");
@@ -334,19 +334,19 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   useEffect(() => {
     // When navigating to a new item and auto-read mode is on, mark it as read
     if (!autoReadMode) return;
-    
+
     const currentItem = visibleScrollItems[currentIndex];
     if (!currentItem) return;
-    
+
     const itemKey = `${currentItem.feed.id}-${currentItem.item.id}`;
     if (readItems.has(itemKey) || currentItem.item.read) return;
     if (currentItem.item.favorite) return; // Don't auto-mark favorites
-    
+
     // Small delay to let user see the article first
     const timer = setTimeout(() => {
       handleMarkRead(currentItem.feed.id, currentItem.item.id);
     }, 2000);
-    
+
     return () => clearTimeout(timer);
   }, [currentIndex, autoReadMode, visibleScrollItems]); // Only trigger on navigation, not on source list changes
 
@@ -512,35 +512,35 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     if (shouldToggleAutoRead) {
       setAutoReadMode(prev => !prev);
     }
-    
+
     try {
       await markItemReadAuto(feedId, itemId, true);
     } catch (error) {
       console.warn("Failed to mark as read:", error);
     }
-    
+
     // Find the item to check if it's favorited
     const itemToRemove = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
-    
+
     // Don't remove if favorited - preserve for later access
     if (itemToRemove?.item.favorite) {
       const itemKey = `${feedId}-${itemId}`;
       setReadItems((prev) => new Set(prev).add(itemKey));
       return;
     }
-    
+
     // Get current index before removal
     const itemVisibleIndex = visibleScrollItems.findIndex(
       (si) => si.feed.id === feedId && si.item.id === itemId
     );
     if (itemVisibleIndex === -1) return;
-    
+
     // Remove item from scroll list
     const newItems = scrollItems.filter(
       (si) => !(si.feed.id === feedId && si.item.id === itemId)
     );
     setScrollItems(newItems);
-    
+
     // Adjust indices after removal (use functional updates to avoid stale closures)
     if (itemVisibleIndex < currentIndex) {
       setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -550,7 +550,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
     // If we removed the current item, stay at same index (next item slides in)
     // No need to change currentIndex since we removed current and next becomes current
-    
+
     // Track in read items set
     const itemKey = `${feedId}-${itemId}`;
     setReadItems((prev) => new Set(prev).add(itemKey));
@@ -965,13 +965,13 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     // Create a temporary element to parse HTML
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
-    
+
     // Get text content
     let text = tmp.textContent || tmp.innerText || '';
-    
+
     // Clean up whitespace
     text = text.replace(/\s+/g, ' ').trim();
-    
+
     return text;
   };
 
@@ -983,7 +983,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const rawContent = currentItem.item.content || currentItem.item.description || "";
     // Convert HTML to clean text
     const content = htmlToText(rawContent);
-    
+
     if (!content.trim()) {
       toast.error("No content to summarize");
       return;
@@ -1001,7 +1001,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
       const excerpt = sentences.slice(0, 3).join(". ") + ".";
       const summary = `## Quick Summary\n\n${excerpt}\n\n---\n\n*Note: AI summarization requires the desktop app for full functionality. This is an extractive preview.*`;
-      
+
       setSummaryText(summary);
       setDisplayedSummary(summary);
       setIsSummarizing(false);
@@ -1036,7 +1036,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   // Panel resize handlers
   const currentWidthRef = useRef(panelWidth);
   currentWidthRef.current = panelWidth; // Keep ref in sync with state
-  
+
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1051,7 +1051,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const delta = assistantPosition === "right" 
+      const delta = assistantPosition === "right"
         ? resizeStartXRef.current - e.clientX  // dragging left increases width
         : e.clientX - resizeStartXRef.current; // dragging right increases width
       const newWidth = Math.max(240, Math.min(600, resizeStartWidthRef.current + delta));
@@ -1386,7 +1386,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
       {/* Inline Terminal Summary Panel */}
       {showSummary && summaryMode === "terminal" && renderedItem && (
-        <div 
+        <div
           className={cn(
             "fixed top-28 bottom-24 z-10 bg-[#1a1a1a] border-2 border-[#ffb000] rounded-lg shadow-2xl overflow-hidden flex flex-col transition-all duration-300",
             assistantPosition === "left" ? "left-4" : "right-4"
@@ -1456,7 +1456,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       {showSummary && summaryMode === "assistant" && isAssistantVisible && (
         <div
           className={cn(
-            "fixed top-28 bottom-24 z-10 bg-card border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col transition-all duration-300",
+            "fixed top-28 bottom-24 z-10 bg-card border border-border rounded-lg shadow-2xl flex flex-col transition-all duration-300",
             assistantPosition === "left" ? "left-4" : "right-4"
           )}
           style={{ width: `${panelWidth}px` }}

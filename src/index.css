@@ -68,6 +68,7 @@
 }
 
 @layer base {
+
   html,
   body {
     color: var(--color-foreground);
@@ -233,19 +234,19 @@
 
 @layer utilities {
   .app-shell {
-    min-height: 100vh;
+    height: 100vh;
   }
 
-  @supports (min-height: 100dvh) {
+  @supports (height: 100dvh) {
     .app-shell {
-      min-height: 100dvh;
+      height: 100dvh;
     }
   }
 
   @media (max-width: 768px) {
     .app-shell {
       padding-top: env(safe-area-inset-top, 0px);
-      min-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      height: calc(100dvh - env(safe-area-inset-top, 0px));
     }
   }
 
@@ -254,6 +255,7 @@
       opacity: 0;
       transform: translateY(8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -270,6 +272,7 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -335,11 +338,9 @@
 
   /* Glass Card */
   .glass-card {
-    background: linear-gradient(
-      135deg,
-      var(--color-glass-200) 0%,
-      var(--color-glass-100) 100%
-    );
+    background: linear-gradient(135deg,
+        var(--color-glass-200) 0%,
+        var(--color-glass-100) 100%);
     backdrop-filter: blur(var(--blur-glass));
     -webkit-backdrop-filter: blur(var(--blur-glass));
     border: 1px solid var(--color-glass-border);
@@ -367,12 +368,10 @@
   /* Glass Divider */
   .glass-divider {
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      var(--color-glass-border) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--color-glass-border) 50%,
+        transparent 100%);
   }
 
   /* Glass Glow Effects */
@@ -384,12 +383,10 @@
     content: "";
     position: absolute;
     inset: -1px;
-    background: linear-gradient(
-      45deg,
-      var(--color-primary-400),
-      transparent,
-      var(--color-primary-300)
-    );
+    background: linear-gradient(45deg,
+        var(--color-primary-400),
+        transparent,
+        var(--color-primary-300));
     border-radius: inherit;
     z-index: -1;
     opacity: 0;
@@ -406,6 +403,7 @@
       opacity: 0;
       backdrop-filter: blur(0px);
     }
+
     to {
       opacity: 1;
       backdrop-filter: blur(var(--blur-glass));
@@ -418,6 +416,7 @@
       transform: scale(0.95);
       backdrop-filter: blur(0px);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -442,11 +441,9 @@
   }
 
   .dark .glass-card {
-    background: linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.30) 0%,
-      rgba(0, 0, 0, 0.20) 100%
-    );
+    background: linear-gradient(135deg,
+        rgba(0, 0, 0, 0.30) 0%,
+        rgba(0, 0, 0, 0.20) 100%);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -470,6 +467,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+
     .animate-tab-enter,
     .slide-in-from-bottom-4,
     .animate-glass-fade-in,
@@ -492,9 +490,20 @@
   }
 
   @keyframes haptic-appear {
-    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+
+    50% {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 0;
+    }
   }
 
   .haptic-pulse-success {
@@ -502,9 +511,17 @@
   }
 
   @keyframes pulse-success {
-    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
   }
 
   .haptic-shake {
@@ -512,9 +529,26 @@
   }
 
   @keyframes shake {
-    0%, 100% { transform: translate(-50%, -50%) translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translate(-50%, -50%) translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translate(-50%, -50%) translateX(5px); }
+
+    0%,
+    100% {
+      transform: translate(-50%, -50%) translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translate(-50%, -50%) translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translate(-50%, -50%) translateX(5px);
+    }
   }
 
   .haptic-bounce {
@@ -522,8 +556,15 @@
   }
 
   @keyframes bounce-haptic {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(1.3); }
+
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+      transform: translate(-50%, -50%) scale(1.3);
+    }
   }
 
   .haptic-confetti {
@@ -535,6 +576,7 @@
       transform: translate(0, 0) rotate(0deg);
       opacity: 1;
     }
+
     100% {
       transform: translate(var(--tx, 0), var(--ty, -100px)) rotate(var(--r, 0deg));
       opacity: 0;
@@ -546,9 +588,20 @@
   }
 
   @keyframes celebration {
-    0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
-    50% { transform: translate(-50%, -50%) scale(1.5) rotate(180deg); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(1) rotate(360deg); opacity: 0; }
+    0% {
+      transform: translate(-50%, -50%) scale(0) rotate(0deg);
+      opacity: 0;
+    }
+
+    50% {
+      transform: translate(-50%, -50%) scale(1.5) rotate(180deg);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translate(-50%, -50%) scale(1) rotate(360deg);
+      opacity: 0;
+    }
   }
 
   .haptic-fire {
@@ -556,9 +609,20 @@
   }
 
   @keyframes fire {
-    0% { transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
-    50% { transform: translate(-50%, -50%) scale(1.5); filter: brightness(1.5); }
-    100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      filter: brightness(1);
+    }
+
+    50% {
+      transform: translate(-50%, -50%) scale(1.5);
+      filter: brightness(1.5);
+    }
+
+    100% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
   }
 
   /* Tutorial Spotlight Highlight */
@@ -579,13 +643,29 @@
   }
 
   @keyframes tutorial-pulse-border {
-    0%, 100% { outline: 2px solid var(--color-primary-400); outline-offset: 4px; }
-    50% { outline: 3px solid var(--color-primary-300); outline-offset: 6px; }
+
+    0%,
+    100% {
+      outline: 2px solid var(--color-primary-400);
+      outline-offset: 4px;
+    }
+
+    50% {
+      outline: 3px solid var(--color-primary-300);
+      outline-offset: 6px;
+    }
   }
 
   @keyframes tutorial-spotlight-glow {
-    0%, 100% { box-shadow: 0 0 10px 2px rgba(56, 189, 248, 0.3); }
-    50% { box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.5); }
+
+    0%,
+    100% {
+      box-shadow: 0 0 10px 2px rgba(56, 189, 248, 0.3);
+    }
+
+    50% {
+      box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.5);
+    }
   }
 
   /* Tutorial backdrop pulse */
@@ -594,8 +674,13 @@
   }
 
   @keyframes backdrop-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   /* Lightweight LaTeX preview styles used by markdown rendering */
