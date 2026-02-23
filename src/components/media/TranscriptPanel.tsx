@@ -23,16 +23,49 @@ export function TranscriptPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
+  const lastScrollTimeRef = useRef<number>(0);
 
   useEffect(() => {
     loadTranscript(bookId, chapterId);
   }, [bookId, chapterId, loadTranscript]);
 
+  // Auto-scroll to active segment using container-relative scrolling
+  // to avoid scrolling the entire page and affecting other elements.
+  // Throttled to prevent rapid successive scrolls.
   useEffect(() => {
-    if (autoScroll && activeSegmentRef.current && scrollRef.current) {
-      activeSegmentRef.current.scrollIntoView({
+    if (!autoScroll || !activeSegmentRef.current || !scrollRef.current) return;
+    
+    // Throttle scrolls to once per 2 seconds
+    const now = Date.now();
+    if (now - lastScrollTimeRef.current < 2000) {
+      return;
+    }
+    
+    const container = scrollRef.current;
+    const element = activeSegmentRef.current;
+    
+    // Calculate the element's position relative to the container
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    
+    // Calculate relative position (accounting for container's scroll position)
+    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+    const elementHeight = elementRect.height;
+    const containerHeight = containerRect.height;
+    
+    // Calculate target scroll position to center the element
+    const targetScrollTop = relativeTop - (containerHeight / 2) + (elementHeight / 2);
+    
+    // Only scroll if the element is outside the visible area (with some padding)
+    const padding = 80;
+    const isAbove = elementRect.top < containerRect.top + padding;
+    const isBelow = elementRect.bottom > containerRect.bottom - padding;
+    
+    if (isAbove || isBelow) {
+      lastScrollTimeRef.current = now;
+      container.scrollTo({
+        top: targetScrollTop,
         behavior: "smooth",
-        block: "center",
       });
     }
   }, [currentTimeMs, autoScroll]);
@@ -77,7 +110,8 @@ export function TranscriptPanel({
       {/* Content */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
+        className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 custom-scrollbar"
+        data-transcript-scroll="true"
       >
         {isTranscribing && (
           <div className="flex items-center justify-center p-4 bg-primary/5 rounded-lg border border-primary/20">
