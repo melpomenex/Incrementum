@@ -271,6 +271,7 @@ function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
 function ensureNotebookLMSidecar(targetTriple) {
   if (process.env.SKIP_NOTEBOOKLM_SIDECAR === '1') {
     console.log('Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)');
+    fs.mkdirSync(path.join(BIN_DIR, 'notebooklm-runtime'), { recursive: true });
     return;
   }
 
