@@ -173,37 +173,38 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
                 <div>
                   <h4 className="font-medium text-red-900 dark:text-red-100">CLI Not Found</h4>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    The NotebookLM CLI is not installed on your system.
+                    Incrementum couldn't find a NotebookLM CLI on PATH.
                   </p>
                 </div>
               </div>
             </div>
-            
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>To install the CLI, run:</p>
-              <code className="block bg-muted p-3 rounded text-xs font-mono">
-                pip install notebooklm
-              </code>
-              <p className="text-xs">
-                Or visit{" "}
-                <a 
-                  href="https://github.com/jaredquekjz/NotebookLM-CLI" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="underline hover:text-foreground"
-                >
-                  the GitHub repository
-                </a>{" "}
-                for installation instructions.
-              </p>
-            </div>
-            
+
+            <button
+              onClick={handleLogin}
+              className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Install + Sign In
+            </button>
+
+            <p className="text-xs text-muted-foreground">
+              Incrementum will prepare a private NotebookLM runtime automatically, then open your browser for Google sign-in.
+            </p>
+
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">Manual install (advanced)</summary>
+              <div className="mt-2 space-y-2">
+                <p>If you prefer system-wide CLI install:</p>
+                <code className="block bg-muted p-2 rounded font-mono">pip install notebooklm</code>
+              </div>
+            </details>
+
             <button
               onClick={checkStatus}
               className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
             >
               <RefreshCw className="h-4 w-4" />
-              Check Again
+              Re-check Status
             </button>
           </div>
         );
