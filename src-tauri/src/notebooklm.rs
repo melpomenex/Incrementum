@@ -647,7 +647,8 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
             .arg("notebooklm.notebooklm_cli")
             .args(args)
             .env("PYTHONPATH", site_packages)
-            .env("PYTHONNOUSERSITE", "1");
+            .env("PYTHONNOUSERSITE", "1")
+            .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
         if let Some(home) = python_home {
             cmd.env("PYTHONHOME", home);
         }
@@ -660,6 +661,7 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
     } else if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
         let mut cmd = Command::new(managed_python);
         cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+        cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
         if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
             cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
         } else {
@@ -675,6 +677,7 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
                 );
                 let mut cmd = Command::new(managed_python);
                 cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+                cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
                 if let Some(playwright_path) = managed_playwright {
                     cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
                 } else {
@@ -944,7 +947,8 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                     tracing::info!("NotebookLM list requires login; returning empty notebook list");
                     return Ok(vec![]);
                 }
-                return Err(e);
+                tracing::warn!("NotebookLM list failed; returning empty list: {}", err);
+                return Ok(vec![]);
             }
         };
         if let Some(json) = result.json() {
