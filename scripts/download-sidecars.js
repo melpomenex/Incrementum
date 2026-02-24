@@ -175,16 +175,24 @@ function copyDynamicLibs(binaryPath, destLibDir) {
   }
 }
 
+function runOptionalCommand(command, env) {
+  try {
+    execSync(command, { stdio: 'inherit', env });
+    return true;
+  } catch (error) {
+    const message = error?.message || String(error);
+    console.warn(`[NotebookLM runtime] Optional command failed: ${command}`);
+    console.warn(message);
+    return false;
+  }
+}
+
 function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
   const { runtimeDir, pythonHome, runtimePy, sitePackages, playwrightDir, manifestPath } = notebookLMRuntimeLayout(targetTriple);
   const buildInfo = getPythonBuildInfo(pythonCmd);
   const pyMajorMinor = `${buildInfo.major}.${buildInfo.minor}`;
   const stdlibDest = path.join(pythonHome, 'lib', `python${pyMajorMinor}`);
   const pyBinDir = process.platform === 'win32' ? pythonHome : path.join(pythonHome, 'bin');
-  const runtimeEnv = {
-    ...process.env,
-    PYTHONHOME: pythonHome,
-  };
 
   fs.rmSync(runtimeDir, { recursive: true, force: true });
   fs.mkdirSync(pyBinDir, { recursive: true });
@@ -233,22 +241,19 @@ function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
     copyDynamicLibs(runtimePy, path.join(pythonHome, 'lib'));
   }
 
-  execSync(`"${runtimePy}" -m ensurepip --upgrade`, {
+  // Install dependencies with host Python to avoid distro-patched ensurepip restrictions
+  // inside the copied private runtime (notably Ubuntu and Homebrew Python on CI).
+  if (!runOptionalCommand(`${pythonCmd} -m pip --version`, process.env)) {
+    runOptionalCommand(`${pythonCmd} -m ensurepip --upgrade`, process.env);
+  }
+  execSync(`${pythonCmd} -m pip install --target "${sitePackages}" "notebooklm-py[browser]"`, {
     stdio: 'inherit',
-    env: runtimeEnv,
+    env: process.env,
   });
-  execSync(`"${runtimePy}" -m pip install --upgrade pip`, {
-    stdio: 'inherit',
-    env: runtimeEnv,
-  });
-  execSync(`"${runtimePy}" -m pip install --target "${sitePackages}" "notebooklm-py[browser]"`, {
-    stdio: 'inherit',
-    env: runtimeEnv,
-  });
-  execSync(`"${runtimePy}" -m playwright install chromium`, {
+  execSync(`${pythonCmd} -m playwright install chromium`, {
     stdio: 'inherit',
     env: {
-      ...runtimeEnv,
+      ...process.env,
       PYTHONPATH: sitePackages,
       PLAYWRIGHT_BROWSERS_PATH: playwrightDir,
     },
