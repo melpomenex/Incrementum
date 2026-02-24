@@ -634,6 +634,16 @@ impl CliCommandResult {
 }
 
 async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Result<CliCommandResult, AppError> {
+    let storage_path = ctx.app_dir.join("storage_state.json");
+    if let Some(parent) = storage_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let mut effective_args = vec![
+        "--storage".to_string(),
+        storage_path.to_string_lossy().to_string(),
+    ];
+    effective_args.extend(args.iter().cloned());
+
     let mut command = if let (Some(runtime_python), Some(site_packages)) = (
         ctx.notebooklm_runtime_python.as_ref(),
         ctx.notebooklm_runtime_site_packages.as_ref(),
@@ -645,7 +655,7 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
         let mut cmd = Command::new(runtime_python);
         cmd.arg("-m")
             .arg("notebooklm.notebooklm_cli")
-            .args(args)
+            .args(&effective_args)
             .env("PYTHONPATH", site_packages)
             .env("PYTHONNOUSERSITE", "1")
             .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
@@ -660,13 +670,11 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
         cmd
     } else if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
         let mut cmd = Command::new(managed_python);
-        cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+        cmd.arg("-m")
+            .arg("notebooklm.notebooklm_cli")
+            .args(&effective_args);
         cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
-        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
-            cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
-        } else {
-            cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-        }
+        cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
         cmd
     } else {
         match ensure_managed_notebooklm_runtime(ctx).await {
@@ -676,7 +684,9 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
                     managed_python.to_string_lossy()
                 );
                 let mut cmd = Command::new(managed_python);
-                cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+                cmd.arg("-m")
+                    .arg("notebooklm.notebooklm_cli")
+                    .args(&effective_args);
                 cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
                 if let Some(playwright_path) = managed_playwright {
                     cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
@@ -693,7 +703,8 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_else(|| "notebooklm".to_string());
                 let mut cmd = Command::new(&executable);
-                cmd.args(args).env("PLAYWRIGHT_BROWSERS_PATH", "0");
+                cmd.args(&effective_args)
+                    .env("PLAYWRIGHT_BROWSERS_PATH", "0");
                 cmd
             }
         }
@@ -910,7 +921,13 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         settings: &NotebookLMSettings,
         ctx: &ProviderContext,
     ) -> Result<NotebookLMHealth, AppError> {
-        if run_notebooklm_command(ctx, &["status".to_string(), "--json".to_string()])
+        if run_first_success(
+            ctx,
+            vec![
+                vec!["status".to_string(), "--json".to_string()],
+                vec!["status".to_string()],
+            ],
+        )
             .await
             .is_ok()
         {
@@ -1723,9 +1740,7 @@ fn resolve_managed_notebooklm_runtime(app_dir: &Path) -> (Option<PathBuf>, Optio
     let base = managed_notebooklm_runtime_base(app_dir);
     let python = managed_notebooklm_runtime_python(&base);
     if python.exists() {
-        let playwright = base.join("playwright");
-        let playwright_opt = if playwright.exists() { Some(playwright) } else { None };
-        return (Some(python), playwright_opt);
+        return (Some(python), None);
     }
     (None, None)
 }
@@ -1792,10 +1807,6 @@ async fn run_command_optional(program: &str, args: &[String], label: &str) {
 async fn ensure_managed_notebooklm_runtime(
     ctx: &ProviderContext,
 ) -> Result<(PathBuf, Option<PathBuf>), AppError> {
-    if let (Some(py), pw) = resolve_managed_notebooklm_runtime(&ctx.app_dir) {
-        return Ok((py, pw));
-    }
-
     let python_cmd = detect_system_python().await.ok_or_else(|| {
         AppError::IntegrationError(
             "NotebookLM runtime is not installed and no system Python was found. Install Python 3 and retry."
@@ -1805,23 +1816,22 @@ async fn ensure_managed_notebooklm_runtime(
 
     let base = managed_notebooklm_runtime_base(&ctx.app_dir);
     let venv_dir = base.join(".venv");
-    let playwright_dir = base.join("playwright");
     fs::create_dir_all(&base)?;
-    fs::create_dir_all(&playwright_dir)?;
-
-    let mut venv_args = python_cmd[1..].to_vec();
-    venv_args.extend([
-        "-m".to_string(),
-        "venv".to_string(),
-        venv_dir.to_string_lossy().to_string(),
-    ]);
-    run_command_required(&python_cmd[0], &venv_args, &[], "Create NotebookLM venv").await?;
 
     let venv_python = managed_notebooklm_runtime_python(&base);
     if !venv_python.exists() {
-        return Err(AppError::IntegrationError(
-            "NotebookLM venv was created but python executable is missing".to_string(),
-        ));
+        let mut venv_args = python_cmd[1..].to_vec();
+        venv_args.extend([
+            "-m".to_string(),
+            "venv".to_string(),
+            venv_dir.to_string_lossy().to_string(),
+        ]);
+        run_command_required(&python_cmd[0], &venv_args, &[], "Create NotebookLM venv").await?;
+        if !venv_python.exists() {
+            return Err(AppError::IntegrationError(
+                "NotebookLM venv was created but python executable is missing".to_string(),
+            ));
+        }
     }
 
     let pip_upgrade = vec![
@@ -1861,15 +1871,12 @@ async fn ensure_managed_notebooklm_runtime(
     run_command_required(
         &venv_python.to_string_lossy(),
         &install_browser,
-        &[(
-            "PLAYWRIGHT_BROWSERS_PATH".to_string(),
-            playwright_dir.to_string_lossy().to_string(),
-        )],
+        &[("PLAYWRIGHT_BROWSERS_PATH".to_string(), "0".to_string())],
         "Install Playwright Chromium",
     )
     .await?;
 
-    Ok((venv_python, Some(playwright_dir)))
+    Ok((venv_python, None))
 }
 
 fn resolve_notebooklm_runtime(
@@ -2717,9 +2724,12 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
         Ok(result) => {
             let version = result.stdout.trim().to_string();
             // Try to check login status
-            let status_result = run_notebooklm_command(
+            let status_result = run_first_success(
                 &ctx,
-                &["status".to_string()],
+                vec![
+                    vec!["status".to_string(), "--json".to_string()],
+                    vec!["status".to_string()],
+                ],
             )
             .await;
             
@@ -2804,9 +2814,12 @@ pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::
     
     tracing::info!("Running notebooklm CLI logout");
     
-    match run_notebooklm_command(
+    match run_first_success(
         &ctx,
-        &["logout".to_string()],
+        vec![
+            vec!["logout".to_string()],
+            vec!["auth".to_string(), "logout".to_string()],
+        ],
     )
     .await {
         Ok(result) => {
@@ -2834,9 +2847,12 @@ pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::
 pub async fn notebooklm_cli_status(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
     let ctx = provider_context(&app, integration_root(&app)?);
     
-    let result = run_notebooklm_command(
+    let result = run_first_success(
         &ctx,
-        &["status".to_string()],
+        vec![
+            vec!["status".to_string(), "--json".to_string()],
+            vec!["status".to_string()],
+        ],
     )
     .await;
     
