@@ -1,8 +1,18 @@
 #!/bin/sh
 set -eu
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-BUNDLED="$SCRIPT_DIR/notebooklm-runtime/x86_64-unknown-linux-gnu/.venv/bin/notebooklm"
-if [ -x "$BUNDLED" ]; then
-  exec "$BUNDLED" "$@"
+RUNTIME_BASE="$SCRIPT_DIR/notebooklm-runtime/x86_64-unknown-linux-gnu"
+RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
+RUNTIME_SITE="$RUNTIME_BASE/site-packages"
+RUNTIME_PLAYWRIGHT="$RUNTIME_BASE/playwright"
+if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
+  export PYTHONHOME="$RUNTIME_BASE/python"
+  export PYTHONPATH="$RUNTIME_SITE"
+  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$RUNTIME_PLAYWRIGHT}"
+  exec "$RUNTIME_PY" -m notebooklm.notebooklm_cli "$@"
+fi
+LEGACY_BUNDLED="$SCRIPT_DIR/notebooklm-runtime/x86_64-unknown-linux-gnu/.venv/bin/notebooklm"
+if [ -x "$LEGACY_BUNDLED" ]; then
+  exec "$LEGACY_BUNDLED" "$@"
 fi
 exec notebooklm "$@"

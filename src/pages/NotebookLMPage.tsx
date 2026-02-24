@@ -57,24 +57,55 @@ export function NotebookLMPage() {
     checkConnection();
   }, []);
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
+      }, ms);
+      promise
+        .then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+  };
+
   const checkConnection = async () => {
     setConnectionState("checking");
     try {
-      const health = await notebooklmHealth();
+      const health = await withTimeout(notebooklmHealth(), 12000, "NotebookLM health check");
       if (health.connected) {
         setConnectionState("connected");
         setConnectionMessage(health.message);
-        const all = await notebooklmListNotebooks();
-        setNotebooks(all);
-        
-        // Select active notebook if available
-        if (health.activeNotebookId) {
-          const active = all.find((n) => n.id === health.activeNotebookId);
-          if (active) {
-            setSelectedNotebook(active);
+
+        try {
+          const all = await withTimeout(
+            notebooklmListNotebooks(),
+            12000,
+            "NotebookLM notebook list"
+          );
+          setNotebooks(all);
+
+          // Select active notebook if available
+          if (health.activeNotebookId) {
+            const active = all.find((n) => n.id === health.activeNotebookId);
+            if (active) {
+              setSelectedNotebook(active);
+            }
+          } else if (all.length > 0) {
+            setSelectedNotebook(all[0]);
           }
-        } else if (all.length > 0) {
-          setSelectedNotebook(all[0]);
+        } catch (listError: any) {
+          setConnectionState("error");
+          setConnectionMessage(
+            listError?.message || "Connected, but failed to load notebooks"
+          );
+          setNotebooks([]);
+          setSelectedNotebook(null);
         }
       } else {
         setConnectionState("disconnected");
