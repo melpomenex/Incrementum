@@ -252,6 +252,7 @@ struct ProviderContext {
     notebooklm_runtime_python: Option<PathBuf>,
     notebooklm_runtime_site_packages: Option<PathBuf>,
     notebooklm_runtime_playwright: Option<PathBuf>,
+    notebooklm_managed_python: Option<PathBuf>,
 }
 
 #[async_trait]
@@ -656,15 +657,43 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
             cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
         }
         cmd
-    } else {
-        let executable = ctx
-            .notebooklm_bin
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| "notebooklm".to_string());
-        let mut cmd = Command::new(&executable);
-        cmd.args(args).env("PLAYWRIGHT_BROWSERS_PATH", "0");
+    } else if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
+        let mut cmd = Command::new(managed_python);
+        cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
+            cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+        } else {
+            cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+        }
         cmd
+    } else {
+        match ensure_managed_notebooklm_runtime(ctx).await {
+            Ok((managed_python, managed_playwright)) => {
+                tracing::info!(
+                    "Installed NotebookLM managed runtime at {}",
+                    managed_python.to_string_lossy()
+                );
+                let mut cmd = Command::new(managed_python);
+                cmd.arg("-m").arg("notebooklm.notebooklm_cli").args(args);
+                if let Some(playwright_path) = managed_playwright {
+                    cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+                } else {
+                    cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+                }
+                cmd
+            }
+            Err(install_err) => {
+                tracing::warn!("Managed NotebookLM runtime install failed: {}", install_err);
+                let executable = ctx
+                    .notebooklm_bin
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "notebooklm".to_string());
+                let mut cmd = Command::new(&executable);
+                cmd.args(args).env("PLAYWRIGHT_BROWSERS_PATH", "0");
+                cmd
+            }
+        }
     };
 
     let command_label = format!(
@@ -1666,6 +1695,171 @@ fn notebooklm_runtime_base_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     candidates
 }
 
+fn managed_notebooklm_runtime_base(app_dir: &Path) -> PathBuf {
+    app_dir.join("runtime").join(current_target_triple())
+}
+
+fn managed_notebooklm_runtime_python(base: &Path) -> PathBuf {
+    if cfg!(target_os = "windows") {
+        base.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        base.join(".venv").join("bin").join("python3")
+    }
+}
+
+fn resolve_managed_notebooklm_runtime(app_dir: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
+    let base = managed_notebooklm_runtime_base(app_dir);
+    let python = managed_notebooklm_runtime_python(&base);
+    if python.exists() {
+        let playwright = base.join("playwright");
+        let playwright_opt = if playwright.exists() { Some(playwright) } else { None };
+        return (Some(python), playwright_opt);
+    }
+    (None, None)
+}
+
+async fn detect_system_python() -> Option<Vec<String>> {
+    let candidates: Vec<Vec<&str>> = if cfg!(target_os = "windows") {
+        vec![vec!["py", "-3"], vec!["python"], vec!["python3"]]
+    } else {
+        vec![vec!["python3"], vec!["python"]]
+    };
+
+    for candidate in candidates {
+        let mut cmd = Command::new(candidate[0]);
+        if candidate.len() > 1 {
+            cmd.args(&candidate[1..]);
+        }
+        let status = cmd.arg("--version").output().await;
+        if let Ok(output) = status {
+            if output.status.success() {
+                return Some(candidate.iter().map(|s| s.to_string()).collect());
+            }
+        }
+    }
+
+    None
+}
+
+async fn run_command_required(
+    program: &str,
+    args: &[String],
+    envs: &[(String, String)],
+    label: &str,
+) -> Result<(), AppError> {
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| AppError::IntegrationError(format!("Failed to execute {label}: {e}")))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let details = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        format!("stdout: {stdout}")
+    } else {
+        "no stdout/stderr output".to_string()
+    };
+    Err(AppError::IntegrationError(format!("{label} failed: {details}")))
+}
+
+async fn run_command_optional(program: &str, args: &[String], label: &str) {
+    if let Err(e) = run_command_required(program, args, &[], label).await {
+        tracing::warn!("Optional command failed: {}", e);
+    }
+}
+
+async fn ensure_managed_notebooklm_runtime(
+    ctx: &ProviderContext,
+) -> Result<(PathBuf, Option<PathBuf>), AppError> {
+    if let (Some(py), pw) = resolve_managed_notebooklm_runtime(&ctx.app_dir) {
+        return Ok((py, pw));
+    }
+
+    let python_cmd = detect_system_python().await.ok_or_else(|| {
+        AppError::IntegrationError(
+            "NotebookLM runtime is not installed and no system Python was found. Install Python 3 and retry."
+                .to_string(),
+        )
+    })?;
+
+    let base = managed_notebooklm_runtime_base(&ctx.app_dir);
+    let venv_dir = base.join(".venv");
+    let playwright_dir = base.join("playwright");
+    fs::create_dir_all(&base)?;
+    fs::create_dir_all(&playwright_dir)?;
+
+    let mut venv_args = python_cmd[1..].to_vec();
+    venv_args.extend([
+        "-m".to_string(),
+        "venv".to_string(),
+        venv_dir.to_string_lossy().to_string(),
+    ]);
+    run_command_required(&python_cmd[0], &venv_args, &[], "Create NotebookLM venv").await?;
+
+    let venv_python = managed_notebooklm_runtime_python(&base);
+    if !venv_python.exists() {
+        return Err(AppError::IntegrationError(
+            "NotebookLM venv was created but python executable is missing".to_string(),
+        ));
+    }
+
+    let pip_upgrade = vec![
+        "-m".to_string(),
+        "pip".to_string(),
+        "install".to_string(),
+        "--upgrade".to_string(),
+        "pip".to_string(),
+    ];
+    run_command_optional(
+        &venv_python.to_string_lossy(),
+        &pip_upgrade,
+        "Upgrade pip in NotebookLM runtime",
+    )
+    .await;
+
+    let install_cli = vec![
+        "-m".to_string(),
+        "pip".to_string(),
+        "install".to_string(),
+        "notebooklm-py[browser]".to_string(),
+    ];
+    run_command_required(
+        &venv_python.to_string_lossy(),
+        &install_cli,
+        &[],
+        "Install notebooklm-py runtime",
+    )
+    .await?;
+
+    let install_browser = vec![
+        "-m".to_string(),
+        "playwright".to_string(),
+        "install".to_string(),
+        "chromium".to_string(),
+    ];
+    run_command_required(
+        &venv_python.to_string_lossy(),
+        &install_browser,
+        &[(
+            "PLAYWRIGHT_BROWSERS_PATH".to_string(),
+            playwright_dir.to_string_lossy().to_string(),
+        )],
+        "Install Playwright Chromium",
+    )
+    .await?;
+
+    Ok((venv_python, Some(playwright_dir)))
+}
+
 fn resolve_notebooklm_runtime(
     app: &tauri::AppHandle,
 ) -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
@@ -1707,12 +1901,15 @@ fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
 fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext {
     let (notebooklm_runtime_python, notebooklm_runtime_site_packages, notebooklm_runtime_playwright) =
         resolve_notebooklm_runtime(app);
+    let (notebooklm_managed_python, managed_playwright) = resolve_managed_notebooklm_runtime(&app_dir);
+    let notebooklm_runtime_playwright = notebooklm_runtime_playwright.or(managed_playwright);
     ProviderContext {
         app_dir,
         notebooklm_bin: resolve_notebooklm_binary(app),
         notebooklm_runtime_python,
         notebooklm_runtime_site_packages,
         notebooklm_runtime_playwright,
+        notebooklm_managed_python,
     }
 }
 
@@ -2524,6 +2721,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
                 "is_authenticated": is_authenticated,
                 "binary_path": ctx
                     .notebooklm_runtime_python
+                    .or(ctx.notebooklm_managed_python)
                     .or(ctx.notebooklm_bin)
                     .map(|p| p.to_string_lossy().to_string()),
             }))
@@ -2574,7 +2772,7 @@ pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::V
             }
             
             Err(AppError::IntegrationError(format!(
-                "Login failed. Make sure bundled NotebookLM runtime (or notebooklm-py) is available. Error: {}",
+                "Login failed. Incrementum could not prepare NotebookLM runtime automatically. Error: {}",
                 err_str
             )))
         }

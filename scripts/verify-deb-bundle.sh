@@ -14,13 +14,8 @@ for deb in "${debs[@]}"; do
   echo "Verifying deb: $deb"
   listing="$(dpkg-deb -c "$deb")"
 
-  if ! grep -Eq '/usr/bin/notebooklm-[^ ]+' <<<"$listing"; then
-    echo "Missing notebooklm sidecar in $deb"
-    exit 1
-  fi
-
-  if ! grep -Eq 'notebooklm-runtime/' <<<"$listing"; then
-    echo "Missing notebooklm-runtime resources in $deb"
+  if ! grep -Eq '/usr/bin/whisper-[^ ]+' <<<"$listing"; then
+    echo "Missing whisper sidecar in $deb"
     exit 1
   fi
 done

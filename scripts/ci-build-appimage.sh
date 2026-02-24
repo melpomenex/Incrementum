@@ -26,18 +26,6 @@ if [[ ! -f "$EXPECTED_APPIMAGE" ]]; then
     exit 1
   fi
 
-  if [[ ! -x "$APPDIR/usr/bin/notebooklm" ]]; then
-    echo "Missing bundled notebooklm launcher in AppDir"
-    exit 1
-  fi
-
-  if [[ ! -d "$APPDIR/usr/bin/notebooklm-runtime" ]]; then
-    echo "Missing bundled notebooklm runtime in AppDir"
-    exit 1
-  fi
-
-  timeout 45s "$APPDIR/usr/bin/notebooklm" --version
-
   mkdir -p "$WORK_DIR"
   if [[ ! -x "$APPIMAGETOOL_BIN" ]]; then
     curl -fsSL -o "$APPIMAGETOOL_APPIMAGE" \
