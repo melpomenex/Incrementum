@@ -1736,10 +1736,45 @@ fn managed_notebooklm_runtime_python(base: &Path) -> PathBuf {
     }
 }
 
+fn managed_runtime_has_notebooklm_package(base: &Path) -> bool {
+    if cfg!(target_os = "windows") {
+        return base
+            .join(".venv")
+            .join("Lib")
+            .join("site-packages")
+            .join("notebooklm")
+            .exists();
+    }
+
+    let lib_dir = base.join(".venv").join("lib");
+    let entries = match fs::read_dir(&lib_dir) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !name.starts_with("python") {
+            continue;
+        }
+        if path.join("site-packages").join("notebooklm").exists() {
+            return true;
+        }
+    }
+
+    false
+}
+
 fn resolve_managed_notebooklm_runtime(app_dir: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
     let base = managed_notebooklm_runtime_base(app_dir);
     let python = managed_notebooklm_runtime_python(&base);
-    if python.exists() {
+    if python.exists() && managed_runtime_has_notebooklm_package(&base) {
         return (Some(python), None);
     }
     (None, None)
