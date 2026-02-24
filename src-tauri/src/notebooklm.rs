@@ -934,11 +934,19 @@ impl NotebookLMProvider for CliNotebookLMProvider {
             ctx,
             vec![
                 vec!["list".to_string(), "--json".to_string()],
-                vec!["notebooks".to_string(), "list".to_string(), "--json".to_string()],
-                vec!["list-notebooks".to_string(), "--json".to_string()],
             ],
-        )
-        .await?;
+        ).await;
+        let result = match result {
+            Ok(r) => r,
+            Err(e) => {
+                let err = e.to_string();
+                if is_auth_error(&err) {
+                    tracing::info!("NotebookLM list requires login; returning empty notebook list");
+                    return Ok(vec![]);
+                }
+                return Err(e);
+            }
+        };
         if let Some(json) = result.json() {
             return Ok(parse_notebook_list(&json));
         }
@@ -2010,7 +2018,13 @@ fn resolve_notebook_id(settings: &NotebookLMSettings, input: &Option<String>) ->
 
 fn is_auth_error(err: &str) -> bool {
     let lower = err.to_lowercase();
-    lower.contains("auth") || lower.contains("401") || lower.contains("403") || lower.contains("session")
+    lower.contains("auth")
+        || lower.contains("401")
+        || lower.contains("403")
+        || lower.contains("session")
+        || lower.contains("not logged in")
+        || lower.contains("login")
+        || lower.contains("unauthorized")
 }
 
 fn should_retry_generation(err: &str, attempts_left: u8) -> bool {
