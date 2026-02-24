@@ -269,9 +269,19 @@ function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
 }
 
 function ensureNotebookLMSidecar(targetTriple) {
+  const bundleRuntime = process.env.NOTEBOOKLM_BUNDLE_RUNTIME === '1';
   if (process.env.SKIP_NOTEBOOKLM_SIDECAR === '1') {
     console.log('Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)');
     fs.mkdirSync(path.join(BIN_DIR, 'notebooklm-runtime'), { recursive: true });
+    return;
+  }
+  if (!bundleRuntime) {
+    console.log('Skipping bundled NotebookLM runtime (set NOTEBOOKLM_BUNDLE_RUNTIME=1 to enable).');
+    fs.mkdirSync(path.join(BIN_DIR, 'notebooklm-runtime'), { recursive: true });
+    const sidecarPath = path.join(BIN_DIR, sidecarExecutableName('notebooklm', targetTriple));
+    if (!targetTriple.includes('windows')) {
+      writeNotebookLMLauncher(sidecarPath, targetTriple);
+    }
     return;
   }
 
@@ -392,7 +402,9 @@ async function main() {
   const ffmpegPath = path.join(BIN_DIR, ffmpegName);
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
-  const notebooklmRequired = !mobileTarget && process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1';
+  const notebooklmRequired = !mobileTarget
+    && process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1'
+    && process.env.NOTEBOOKLM_BUNDLE_RUNTIME === '1';
   const notebooklmPortableReady = hasPortableNotebookLMRuntime(targetTriple) && fs.existsSync(notebooklmPath);
   const notebooklmRuntimeReady = targetTriple.includes('windows')
     ? fs.existsSync(notebooklmPath)
@@ -578,7 +590,7 @@ async function main() {
       );
     }
   } else {
-    console.log(`Skipping NotebookLM sidecar requirement for mobile target ${targetTriple}.`);
+    console.log(`NotebookLM runtime bundling disabled for target ${targetTriple} (lazy first-run install will be used).`);
   }
 
   // Make executable
