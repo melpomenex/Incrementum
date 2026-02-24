@@ -92,6 +92,177 @@ function resolvePythonCommand() {
   return null;
 }
 
+function notebookLMRuntimeLayout(targetTriple) {
+  const runtimeDir = path.join(BIN_DIR, 'notebooklm-runtime', targetTriple);
+  const pythonHome = path.join(runtimeDir, 'python');
+  const runtimePy = process.platform === 'win32'
+    ? path.join(pythonHome, 'python.exe')
+    : path.join(pythonHome, 'bin', 'python3');
+  const sitePackages = path.join(runtimeDir, 'site-packages');
+  const playwrightDir = path.join(runtimeDir, 'playwright');
+  const manifestPath = path.join(runtimeDir, 'runtime-manifest.json');
+  return { runtimeDir, pythonHome, runtimePy, sitePackages, playwrightDir, manifestPath };
+}
+
+function renderNotebookLMLauncherScript(targetTriple) {
+  return (
+    '#!/bin/sh\n' +
+    'set -eu\n' +
+    'SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\n' +
+    `RUNTIME_BASE="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}"\n` +
+    'RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"\n' +
+    'RUNTIME_SITE="$RUNTIME_BASE/site-packages"\n' +
+    'RUNTIME_PLAYWRIGHT="$RUNTIME_BASE/playwright"\n' +
+    'if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then\n' +
+    '  export PYTHONHOME="$RUNTIME_BASE/python"\n' +
+    '  export PYTHONPATH="$RUNTIME_SITE"\n' +
+    '  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$RUNTIME_PLAYWRIGHT}"\n' +
+    '  exec "$RUNTIME_PY" -m notebooklm.notebooklm_cli "$@"\n' +
+    'fi\n' +
+    `LEGACY_BUNDLED="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm"\n` +
+    'if [ -x "$LEGACY_BUNDLED" ]; then\n' +
+    '  exec "$LEGACY_BUNDLED" "$@"\n' +
+    'fi\n' +
+    'exec notebooklm "$@"\n'
+  );
+}
+
+function writeNotebookLMLauncher(sidecarPath, targetTriple) {
+  fs.writeFileSync(sidecarPath, renderNotebookLMLauncherScript(targetTriple));
+  fs.chmodSync(sidecarPath, 0o755);
+}
+
+function hasPortableNotebookLMRuntime(targetTriple) {
+  const { runtimePy, sitePackages, manifestPath } = notebookLMRuntimeLayout(targetTriple);
+  if (!fs.existsSync(runtimePy) || !fs.existsSync(sitePackages) || !fs.existsSync(manifestPath)) {
+    return false;
+  }
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    return manifest.layout === 'portable-python-home-v1';
+  } catch {
+    return false;
+  }
+}
+
+function getPythonBuildInfo(pythonCmd) {
+  const script = 'import json,platform,sys,sysconfig;print(json.dumps({"executable":sys.executable,"version":platform.python_version(),"major":sys.version_info.major,"minor":sys.version_info.minor,"stdlib":sysconfig.get_path("stdlib"),"libdir":sysconfig.get_config_var("LIBDIR"),"ldlibrary":sysconfig.get_config_var("LDLIBRARY")}))';
+  const output = execSync(`${pythonCmd} -c '${script}'`, { encoding: 'utf8' }).trim();
+  return JSON.parse(output);
+}
+
+function copyDynamicLibs(binaryPath, destLibDir) {
+  if (process.platform !== 'linux') {
+    return;
+  }
+  const output = execSync(`ldd "${binaryPath}"`, { encoding: 'utf8' });
+  const libs = new Set();
+  for (const line of output.split('\n')) {
+    const m = line.match(/=>\s+(\/[^ ]+)\s+\(/);
+    if (m && m[1]) {
+      libs.add(m[1]);
+      continue;
+    }
+    const direct = line.match(/^\s*(\/[^ ]+)\s+\(/);
+    if (direct && direct[1]) {
+      libs.add(direct[1]);
+    }
+  }
+  fs.mkdirSync(destLibDir, { recursive: true });
+  for (const lib of libs) {
+    const base = path.basename(lib);
+    fs.copyFileSync(lib, path.join(destLibDir, base));
+  }
+}
+
+function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
+  const { runtimeDir, pythonHome, runtimePy, sitePackages, playwrightDir, manifestPath } = notebookLMRuntimeLayout(targetTriple);
+  const buildInfo = getPythonBuildInfo(pythonCmd);
+  const pyMajorMinor = `${buildInfo.major}.${buildInfo.minor}`;
+  const stdlibDest = path.join(pythonHome, 'lib', `python${pyMajorMinor}`);
+  const pyBinDir = process.platform === 'win32' ? pythonHome : path.join(pythonHome, 'bin');
+  const runtimeEnv = {
+    ...process.env,
+    PYTHONHOME: pythonHome,
+  };
+
+  fs.rmSync(runtimeDir, { recursive: true, force: true });
+  fs.mkdirSync(pyBinDir, { recursive: true });
+  fs.mkdirSync(sitePackages, { recursive: true });
+  fs.mkdirSync(playwrightDir, { recursive: true });
+
+  fs.copyFileSync(buildInfo.executable, runtimePy);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(runtimePy, 0o755);
+    try {
+      fs.symlinkSync('python3', path.join(pyBinDir, 'python'));
+    } catch {
+      // ignore if symlink cannot be created
+    }
+  }
+
+  fs.cpSync(buildInfo.stdlib, stdlibDest, {
+    recursive: true,
+    filter: (source) => {
+      const normalized = source.replace(/\\/g, '/');
+      if (normalized.includes('/test/') || normalized.endsWith('/test')) {
+        return false;
+      }
+      if (normalized.includes('/__pycache__/')) {
+        return false;
+      }
+      return true;
+    },
+  });
+  // Remove distro-managed marker for the bundled private runtime so pip can install packages.
+  const externallyManagedMarker = path.join(stdlibDest, 'EXTERNALLY-MANAGED');
+  if (fs.existsSync(externallyManagedMarker)) {
+    fs.rmSync(externallyManagedMarker, { force: true });
+  }
+
+  if (buildInfo.libdir && buildInfo.ldlibrary) {
+    const libpython = path.join(buildInfo.libdir, buildInfo.ldlibrary);
+    if (fs.existsSync(libpython)) {
+      const libDest = path.join(pythonHome, 'lib');
+      fs.mkdirSync(libDest, { recursive: true });
+      fs.copyFileSync(libpython, path.join(libDest, path.basename(libpython)));
+    }
+  }
+
+  if (process.platform === 'linux') {
+    copyDynamicLibs(runtimePy, path.join(pythonHome, 'lib'));
+  }
+
+  execSync(`"${runtimePy}" -m ensurepip --upgrade`, {
+    stdio: 'inherit',
+    env: runtimeEnv,
+  });
+  execSync(`"${runtimePy}" -m pip install --upgrade pip`, {
+    stdio: 'inherit',
+    env: runtimeEnv,
+  });
+  execSync(`"${runtimePy}" -m pip install --target "${sitePackages}" "notebooklm-py[browser]"`, {
+    stdio: 'inherit',
+    env: runtimeEnv,
+  });
+  execSync(`"${runtimePy}" -m playwright install chromium`, {
+    stdio: 'inherit',
+    env: {
+      ...runtimeEnv,
+      PYTHONPATH: sitePackages,
+      PLAYWRIGHT_BROWSERS_PATH: playwrightDir,
+    },
+  });
+
+  fs.writeFileSync(manifestPath, JSON.stringify({
+    layout: 'portable-python-home-v1',
+    built_with: buildInfo.version,
+    target: targetTriple,
+    python_executable: path.relative(runtimeDir, runtimePy),
+    site_packages: path.relative(runtimeDir, sitePackages),
+  }, null, 2));
+}
+
 function ensureNotebookLMSidecar(targetTriple) {
   if (process.env.SKIP_NOTEBOOKLM_SIDECAR === '1') {
     console.log('Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)');
@@ -102,38 +273,34 @@ function ensureNotebookLMSidecar(targetTriple) {
   const ext = targetTriple.includes('windows') ? '.exe' : '';
   const sidecarName = sidecarExecutableName('notebooklm', targetTriple);
   const sidecarPath = path.join(BIN_DIR, sidecarName);
-  const runtimeDir = path.join(BIN_DIR, 'notebooklm-runtime', targetTriple);
+  const { runtimeDir } = notebookLMRuntimeLayout(targetTriple);
 
-  if (fs.existsSync(sidecarPath)) {
-    console.log(`NotebookLM sidecar already exists: ${sidecarName}`);
-    return;
+  let runtimeBuilt = hasPortableNotebookLMRuntime(targetTriple);
+  if (runtimeBuilt) {
+    console.log(`NotebookLM portable runtime already exists: ${runtimeDir}`);
+  }
+  const pythonCmd = resolvePythonCommand();
+  if (!runtimeBuilt && pythonCmd && platform !== 'win32') {
+    console.log(`Building bundled NotebookLM runtime at ${runtimeDir} ...`);
+    buildPortableNotebookLMRuntime(targetTriple, pythonCmd);
+    runtimeBuilt = true;
+  } else if (!runtimeBuilt && platform !== 'win32') {
+    console.warn('Python not found; falling back to wrapper sidecar when possible.');
   }
 
-  let runtimeBuilt = false;
-  const pythonCmd = resolvePythonCommand();
-  if (pythonCmd) {
-    console.log(`Building bundled NotebookLM runtime at ${runtimeDir} ...`);
-    fs.mkdirSync(runtimeDir, { recursive: true });
-
-    const venvPath = path.join(runtimeDir, '.venv');
-    const py = platform === 'win32'
-      ? path.join(venvPath, 'Scripts', 'python.exe')
-      : path.join(venvPath, 'bin', 'python');
-    const notebooklmBin = platform === 'win32'
-      ? path.join(venvPath, 'Scripts', 'notebooklm.exe')
-      : path.join(venvPath, 'bin', 'notebooklm');
-
-    execSync(`${pythonCmd} -m venv "${venvPath}"`, { stdio: 'inherit' });
-    execSync(`"${py}" -m pip install --upgrade pip`, { stdio: 'inherit' });
-    execSync(`"${py}" -m pip install "notebooklm-py[browser]"`, { stdio: 'inherit' });
-
-    // Install Chromium in a local path so the sidecar is self-contained.
-    execSync(`"${py}" -m playwright install chromium`, {
-      stdio: 'inherit',
-      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: '0' },
-    });
-
-    if (platform === 'win32') {
+  if (platform === 'win32') {
+    if (pythonCmd) {
+      const venvPath = path.join(runtimeDir, '.venv');
+      const py = path.join(venvPath, 'Scripts', 'python.exe');
+      const notebooklmBin = path.join(venvPath, 'Scripts', 'notebooklm.exe');
+      fs.mkdirSync(runtimeDir, { recursive: true });
+      execSync(`${pythonCmd} -m venv "${venvPath}"`, { stdio: 'inherit' });
+      execSync(`"${py}" -m pip install --upgrade pip`, { stdio: 'inherit' });
+      execSync(`"${py}" -m pip install "notebooklm-py[browser]"`, { stdio: 'inherit' });
+      execSync(`"${py}" -m playwright install chromium`, {
+        stdio: 'inherit',
+        env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: '0' },
+      });
       // On Windows, create a shim batch and copy as sidecar target name without extension conflicts.
       const shimPath = path.join(BIN_DIR, `notebooklm-${targetTriple}.cmd`);
       fs.writeFileSync(
@@ -147,25 +314,14 @@ function ensureNotebookLMSidecar(targetTriple) {
       } else {
         console.warn('NotebookLM venv binary missing; CLI fallback on PATH will be required.');
       }
-    } else {
-      fs.writeFileSync(
-        sidecarPath,
-        `#!/bin/sh\nset -eu\nSCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nBUNDLED="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm"\nif [ -x "$BUNDLED" ]; then\n  exec "$BUNDLED" "$@"\nfi\nexec notebooklm "$@"\n`
-      );
-      fs.chmodSync(sidecarPath, 0o755);
-      runtimeBuilt = true;
     }
   } else {
-    console.warn('Python not found; falling back to wrapper sidecar when possible.');
+    writeNotebookLMLauncher(sidecarPath, targetTriple);
   }
 
   // On unix-like systems we can always emit a wrapper so bundling still succeeds.
   if (!runtimeBuilt && !targetTriple.includes('windows')) {
-    fs.writeFileSync(
-      sidecarPath,
-      `#!/bin/sh\nset -eu\nSCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nBUNDLED="$SCRIPT_DIR/notebooklm-runtime/${targetTriple}/.venv/bin/notebooklm"\nif [ -x "$BUNDLED" ]; then\n  exec "$BUNDLED" "$@"\nfi\nexec notebooklm "$@"\n`
-    );
-    fs.chmodSync(sidecarPath, 0o755);
+    writeNotebookLMLauncher(sidecarPath, targetTriple);
   }
 
   console.log(`NotebookLM sidecar prepared: ${sidecarPath}`);
@@ -231,9 +387,17 @@ async function main() {
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
   const notebooklmRequired = !mobileTarget && process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1';
+  const notebooklmPortableReady = hasPortableNotebookLMRuntime(targetTriple) && fs.existsSync(notebooklmPath);
+  const notebooklmRuntimeReady = targetTriple.includes('windows')
+    ? fs.existsSync(notebooklmPath)
+    : notebooklmPortableReady;
 
   // If both sidecars are already present (as in release/source builds), skip download/build.
-  if (fs.existsSync(ffmpegPath) && fs.existsSync(whisperPath) && (!notebooklmRequired || fs.existsSync(notebooklmPath))) {
+  if (
+    fs.existsSync(ffmpegPath)
+    && fs.existsSync(whisperPath)
+    && (!notebooklmRequired || notebooklmRuntimeReady)
+  ) {
     console.log(`Sidecars already exist for ${targetTriple}, skipping download/build.`);
     try {
       fs.chmodSync(ffmpegPath, 0o755);

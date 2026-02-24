@@ -57,6 +57,11 @@ jobs:
           VCPKGRS_DYNAMIC: "0"
           SQLX_OFFLINE: "true"
 
+      - name: Verify Windows bundles include NotebookLM runtime
+        shell: pwsh
+        run: |
+          ./scripts/verify-windows-bundles.ps1
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -189,6 +194,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Linux deb bundle includes NotebookLM runtime
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          chmod +x scripts/verify-deb-bundle.sh
+          scripts/verify-deb-bundle.sh
+
+      - name: Verify Windows bundles include NotebookLM runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/verify-windows-bundles.ps1
+
       - name: List bundle directory (debug)
         run: |
           echo "=== Bundle directory contents ==="
@@ -318,9 +336,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build Tauri AppImage (without custom-protocol)
+      - name: Build Tauri AppImage (with fallback repack)
         run: |
-          npm run tauri -- build --bundles appimage
+          scripts/ci-build-appimage.sh
         env:
           TAURI_BUNDLE_APPIMAGE: "true"
           APPIMAGE_EXTRACT_AND_RUN: "1"

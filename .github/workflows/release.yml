@@ -147,6 +147,12 @@ jobs:
           echo "=== Debug: Listing Windows bundle files ==="
           find src-tauri/target/release/bundle -type f || echo "Bundle dir missing"
 
+      - name: Verify Windows bundles include NotebookLM runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/verify-windows-bundles.ps1
+
       - name: Upload Windows bundles
         if: runner.os == 'Windows'
         uses: softprops/action-gh-release@v2
@@ -226,9 +232,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build Tauri AppImage (without custom-protocol)
+      - name: Build Tauri AppImage (with fallback repack)
         run: |
-          npm run tauri -- build --bundles appimage
+          scripts/ci-build-appimage.sh
         env:
           TAURI_BUNDLE_APPIMAGE: "true"
           APPIMAGE_EXTRACT_AND_RUN: "1"

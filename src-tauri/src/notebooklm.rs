@@ -249,6 +249,9 @@ impl Default for MockState {
 struct ProviderContext {
     app_dir: PathBuf,
     notebooklm_bin: Option<PathBuf>,
+    notebooklm_runtime_python: Option<PathBuf>,
+    notebooklm_runtime_site_packages: Option<PathBuf>,
+    notebooklm_runtime_playwright: Option<PathBuf>,
 }
 
 #[async_trait]
@@ -629,17 +632,58 @@ impl CliCommandResult {
     }
 }
 
-async fn run_notebooklm_command(bin_path: Option<&Path>, args: &[String]) -> Result<CliCommandResult, AppError> {
-    let executable = bin_path
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| "notebooklm".to_string());
+async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Result<CliCommandResult, AppError> {
+    let mut command = if let (Some(runtime_python), Some(site_packages)) = (
+        ctx.notebooklm_runtime_python.as_ref(),
+        ctx.notebooklm_runtime_site_packages.as_ref(),
+    ) {
+        let python_home = runtime_python
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf());
+        let mut cmd = Command::new(runtime_python);
+        cmd.arg("-m")
+            .arg("notebooklm.notebooklm_cli")
+            .args(args)
+            .env("PYTHONPATH", site_packages)
+            .env("PYTHONNOUSERSITE", "1");
+        if let Some(home) = python_home {
+            cmd.env("PYTHONHOME", home);
+        }
+        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
+            cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+        } else {
+            cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+        }
+        cmd
+    } else {
+        let executable = ctx
+            .notebooklm_bin
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "notebooklm".to_string());
+        let mut cmd = Command::new(&executable);
+        cmd.args(args).env("PLAYWRIGHT_BROWSERS_PATH", "0");
+        cmd
+    };
 
-    let output = Command::new(&executable)
-        .args(args)
-        .env("PLAYWRIGHT_BROWSERS_PATH", "0")
+    let command_label = format!(
+        "{} {}",
+        command.as_std().get_program().to_string_lossy(),
+        command
+            .as_std()
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+    .trim()
+    .to_string();
+
+    let output = command
         .output()
         .await
-        .map_err(|e| AppError::IntegrationError(format!("Failed to run notebooklm CLI ({executable}): {e}")))?;
+        .map_err(|e| AppError::IntegrationError(format!("Failed to run notebooklm CLI ({command_label}): {e}")))?;
 
     if !output.status.success() {
         let code = output
@@ -659,10 +703,7 @@ async fn run_notebooklm_command(bin_path: Option<&Path>, args: &[String]) -> Res
         return Err(AppError::IntegrationError(
             format!(
                 "command `{}` failed (exit {}): {}",
-                std::iter::once(executable.as_str())
-                    .chain(args.iter().map(|s| s.as_str()))
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                command_label,
                 code,
                 details
             ),
@@ -674,10 +715,10 @@ async fn run_notebooklm_command(bin_path: Option<&Path>, args: &[String]) -> Res
     })
 }
 
-async fn run_first_success(bin_path: Option<&Path>, candidates: Vec<Vec<String>>) -> Result<CliCommandResult, AppError> {
+async fn run_first_success(ctx: &ProviderContext, candidates: Vec<Vec<String>>) -> Result<CliCommandResult, AppError> {
     let mut errors = vec![];
     for args in candidates {
-        match run_notebooklm_command(bin_path, &args).await {
+        match run_notebooklm_command(ctx, &args).await {
             Ok(result) => return Ok(result),
             Err(err) => errors.push(format!("{} -> {}", args.join(" "), err)),
         }
@@ -707,8 +748,8 @@ fn notebook_usize(v: &serde_json::Value, keys: &[&str]) -> Option<usize> {
     None
 }
 
-async fn cli_use_notebook(bin_path: Option<&Path>, notebook_id: &str) -> Result<(), AppError> {
-    run_notebooklm_command(bin_path, &vec!["use".to_string(), notebook_id.to_string()]).await?;
+async fn cli_use_notebook(ctx: &ProviderContext, notebook_id: &str) -> Result<(), AppError> {
+    run_notebooklm_command(ctx, &vec!["use".to_string(), notebook_id.to_string()]).await?;
     Ok(())
 }
 
@@ -837,17 +878,10 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         settings: &NotebookLMSettings,
         ctx: &ProviderContext,
     ) -> Result<NotebookLMHealth, AppError> {
-        let output = Command::new(
-            ctx.notebooklm_bin
-                .as_ref()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| "notebooklm".to_string()),
-        )
-        .args(["status", "--json"])
-        .output()
-        .await
-        .map_err(|e| AppError::IntegrationError(format!("Failed to run notebooklm CLI: {e}")))?;
-        if output.status.success() {
+        if run_notebooklm_command(ctx, &["status".to_string(), "--json".to_string()])
+            .await
+            .is_ok()
+        {
             Ok(NotebookLMHealth {
                 connected: auth.connected,
                 provider: settings.provider.clone(),
@@ -856,7 +890,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
             })
         } else {
             Err(AppError::IntegrationError(
-                String::from_utf8_lossy(&output.stderr).to_string(),
+                "NotebookLM CLI is not reachable".to_string(),
             ))
         }
     }
@@ -868,7 +902,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         ctx: &ProviderContext,
     ) -> Result<Vec<NotebookSummary>, AppError> {
         let result = run_first_success(
-            ctx.notebooklm_bin.as_deref(),
+            ctx,
             vec![
                 vec!["list".to_string(), "--json".to_string()],
                 vec!["notebooks".to_string(), "list".to_string(), "--json".to_string()],
@@ -889,7 +923,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         ctx: &ProviderContext,
         title: &str,
     ) -> Result<NotebookSummary, AppError> {
-        let result = run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &vec![
+        let result = run_notebooklm_command(ctx, &vec![
             "create".to_string(),
             title.to_string(),
             "--json".to_string(),
@@ -917,7 +951,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         ctx: &ProviderContext,
         notebook_id: &str,
     ) -> Result<Vec<SourceSummary>, AppError> {
-        let result = run_first_success(ctx.notebooklm_bin.as_deref(), vec![
+        let result = run_first_success(ctx, vec![
             vec![
                 "source".to_string(),
                 "list".to_string(),
@@ -994,7 +1028,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
             alt.push(title.clone());
         }
 
-        let result = run_first_success(ctx.notebooklm_bin.as_deref(), vec![base, alt]).await?;
+        let result = run_first_success(ctx, vec![base, alt]).await?;
         let Some(json) = result.json() else {
             return Err(AppError::IntegrationError(
                 "NotebookLM CLI source add returned non-JSON output.".to_string(),
@@ -1018,7 +1052,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         notebook_id: &str,
         source_id: &str,
     ) -> Result<SourceSummary, AppError> {
-        let result = run_first_success(ctx.notebooklm_bin.as_deref(), vec![
+        let result = run_first_success(ctx, vec![
             vec![
                 "source".to_string(),
                 "refresh".to_string(),
@@ -1077,7 +1111,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         ];
 
         // Fallback: set notebook context first, then ask.
-        if cli_use_notebook(ctx.notebooklm_bin.as_deref(), notebook_id).await.is_ok() {
+        if cli_use_notebook(ctx, notebook_id).await.is_ok() {
             attempts.push(vec![
                 "ask".to_string(),
                 question.to_string(),
@@ -1085,7 +1119,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
             ]);
         }
 
-        let result = run_first_success(ctx.notebooklm_bin.as_deref(), attempts).await?;
+        let result = run_first_success(ctx, attempts).await?;
         if let Some(json) = result.json() {
             let answer = notebook_text(&json, &["answer", "response", "text"]).unwrap_or_else(|| result.stdout.clone());
             let sources = json
@@ -1124,7 +1158,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         // 1) source add-research "<query>" --no-wait ...
         // 2) research wait --json --import-all ...
         let start = run_first_success(
-            ctx.notebooklm_bin.as_deref(),
+            ctx,
             vec![
                 vec![
                     "source".to_string(),
@@ -1155,7 +1189,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         .await?;
 
         let wait = run_first_success(
-            ctx.notebooklm_bin.as_deref(),
+            ctx,
             vec![
                 vec![
                     "research".to_string(),
@@ -1318,17 +1352,17 @@ impl NotebookLMProvider for CliNotebookLMProvider {
 
         extra_attempts.push(with_notebook);
         extra_attempts.push(with_notebook_short);
-        if cli_use_notebook(ctx.notebooklm_bin.as_deref(), notebook_id).await.is_ok() {
+        if cli_use_notebook(ctx, notebook_id).await.is_ok() {
             extra_attempts.push(generate_args.clone());
         }
 
-        let generate_result = run_first_success(ctx.notebooklm_bin.as_deref(), extra_attempts).await?;
+        let generate_result = run_first_success(ctx, extra_attempts).await?;
         let generate_json = generate_result.json();
         let mut artifact_id = generate_json.as_ref().and_then(parse_generate_task_id);
 
         if artifact_id.is_none() {
             let list_type = cli_list_filter_for(&artifact_type).to_string();
-            let list_result = run_first_success(ctx.notebooklm_bin.as_deref(), vec![
+            let list_result = run_first_success(ctx, vec![
                 vec![
                     "artifact".to_string(),
                     "list".to_string(),
@@ -1395,7 +1429,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 payload.media_url = Some(output_path.to_string_lossy().to_string());
                 payload.raw_text = Some(format!("{} overview generated via NotebookLM CLI.", artifact_type));
             }
@@ -1412,7 +1446,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 payload.raw_text = Some(fs::read_to_string(&output_path)?);
             }
             "mind-map" => {
@@ -1428,7 +1462,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 let text = fs::read_to_string(&output_path)?;
                 payload.json_content = serde_json::from_str::<serde_json::Value>(&text).ok();
                 payload.raw_text = Some(text);
@@ -1446,7 +1480,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 let csv = fs::read_to_string(&output_path)?;
                 payload.raw_text = Some(csv.clone());
                 payload.json_content = Some(parse_csv_to_json_rows(&csv));
@@ -1466,7 +1500,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 let parsed = serde_json::from_str::<serde_json::Value>(&fs::read_to_string(&output_path)?)
                     .unwrap_or_else(|_| serde_json::json!({}));
                 payload.flashcards = parsed
@@ -1505,7 +1539,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
                 }
                 download.push("--notebook".to_string());
                 download.push(notebook_id.to_string());
-                run_notebooklm_command(ctx.notebooklm_bin.as_deref(), &download).await?;
+                run_notebooklm_command(ctx, &download).await?;
                 let parsed = serde_json::from_str::<serde_json::Value>(&fs::read_to_string(&output_path)?)
                     .unwrap_or_else(|_| serde_json::json!({}));
                 payload.quiz_items = parsed
@@ -1611,6 +1645,53 @@ fn notebooklm_binary_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     candidates
 }
 
+fn notebooklm_runtime_base_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    let mut candidates = vec![];
+    let triple = current_target_triple();
+
+    if let Ok(path) = std::env::var("NOTEBOOKLM_RUNTIME_PATH") {
+        if !path.trim().is_empty() {
+            candidates.push(PathBuf::from(path));
+        }
+    }
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join("notebooklm-runtime").join(triple));
+        candidates.push(resource_dir.join("bin").join("notebooklm-runtime").join(triple));
+    }
+
+    candidates.push(PathBuf::from("src-tauri/bin/notebooklm-runtime").join(triple));
+    candidates.push(PathBuf::from("bin/notebooklm-runtime").join(triple));
+    candidates.push(PathBuf::from("../src-tauri/bin/notebooklm-runtime").join(triple));
+    candidates
+}
+
+fn resolve_notebooklm_runtime(
+    app: &tauri::AppHandle,
+) -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
+    let runtime_python_rel = if cfg!(target_os = "windows") {
+        PathBuf::from("python").join("python.exe")
+    } else {
+        PathBuf::from("python").join("bin").join("python3")
+    };
+
+    for base in notebooklm_runtime_base_candidates(app) {
+        let runtime_python = base.join(&runtime_python_rel);
+        let site_packages = base.join("site-packages");
+        if runtime_python.exists() && site_packages.exists() {
+            let playwright = base.join("playwright");
+            let playwright_opt = if playwright.exists() {
+                Some(playwright)
+            } else {
+                None
+            };
+            return (Some(runtime_python), Some(site_packages), playwright_opt);
+        }
+    }
+
+    (None, None, None)
+}
+
 fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
     for candidate in notebooklm_binary_candidates(app) {
         if candidate == PathBuf::from("notebooklm") || candidate == PathBuf::from("notebooklm.exe") {
@@ -1624,9 +1705,14 @@ fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
 }
 
 fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext {
+    let (notebooklm_runtime_python, notebooklm_runtime_site_packages, notebooklm_runtime_playwright) =
+        resolve_notebooklm_runtime(app);
     ProviderContext {
         app_dir,
         notebooklm_bin: resolve_notebooklm_binary(app),
+        notebooklm_runtime_python,
+        notebooklm_runtime_site_packages,
+        notebooklm_runtime_playwright,
     }
 }
 
@@ -2404,7 +2490,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
     
     // Try to run notebooklm --version or notebooklm version
     let version_result = run_first_success(
-        ctx.notebooklm_bin.as_deref(),
+        &ctx,
         vec![
             vec!["--version".to_string()],
             vec!["version".to_string()],
@@ -2417,7 +2503,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
             let version = result.stdout.trim().to_string();
             // Try to check login status
             let status_result = run_notebooklm_command(
-                ctx.notebooklm_bin.as_deref(),
+                &ctx,
                 &["status".to_string()],
             )
             .await;
@@ -2436,7 +2522,10 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
                 "installed": true,
                 "version": version,
                 "is_authenticated": is_authenticated,
-                "binary_path": ctx.notebooklm_bin.map(|p| p.to_string_lossy().to_string()),
+                "binary_path": ctx
+                    .notebooklm_runtime_python
+                    .or(ctx.notebooklm_bin)
+                    .map(|p| p.to_string_lossy().to_string()),
             }))
         }
         Err(e) => {
@@ -2459,7 +2548,7 @@ pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::V
     
     // Run the login command - this opens a browser
     match run_notebooklm_command(
-        ctx.notebooklm_bin.as_deref(),
+        &ctx,
         &["login".to_string()],
     )
     .await {
@@ -2485,7 +2574,7 @@ pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::V
             }
             
             Err(AppError::IntegrationError(format!(
-                "Login failed. Make sure you have notebooklm-py installed. Error: {}",
+                "Login failed. Make sure bundled NotebookLM runtime (or notebooklm-py) is available. Error: {}",
                 err_str
             )))
         }
@@ -2500,7 +2589,7 @@ pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::
     tracing::info!("Running notebooklm CLI logout");
     
     match run_notebooklm_command(
-        ctx.notebooklm_bin.as_deref(),
+        &ctx,
         &["logout".to_string()],
     )
     .await {
@@ -2530,7 +2619,7 @@ pub async fn notebooklm_cli_status(app: tauri::AppHandle) -> Result<serde_json::
     let ctx = provider_context(&app, integration_root(&app)?);
     
     let result = run_notebooklm_command(
-        ctx.notebooklm_bin.as_deref(),
+        &ctx,
         &["status".to_string()],
     )
     .await;
