@@ -25,26 +25,18 @@ if (Test-Path $tmpRoot) {
 }
 New-Item -ItemType Directory -Path $tmpRoot | Out-Null
 
-function Assert-NotebookLMRuntime {
+function Assert-RequiredSidecars {
   param(
     [Parameter(Mandatory = $true)][string]$RootPath,
     [Parameter(Mandatory = $true)][string]$Label
   )
 
-  $sidecar = Get-ChildItem -Path $RootPath -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "notebooklm-*" -or $_.Name -eq "notebooklm.exe" } |
+  $whisperSidecar = Get-ChildItem -Path $RootPath -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like "whisper-*" -or $_.Name -eq "whisper.exe" } |
     Select-Object -First 1
 
-  if (-not $sidecar) {
-    throw "$Label missing notebooklm sidecar executable under $RootPath"
-  }
-
-  $runtimeDir = Get-ChildItem -Path $RootPath -Recurse -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq "notebooklm-runtime" } |
-    Select-Object -First 1
-
-  if (-not $runtimeDir) {
-    throw "$Label missing notebooklm-runtime directory under $RootPath"
+  if (-not $whisperSidecar) {
+    throw "$Label missing whisper sidecar executable under $RootPath"
   }
 }
 
@@ -56,7 +48,7 @@ foreach ($msi in $msiFiles) {
   if ($p.ExitCode -ne 0) {
     throw "MSI admin extraction failed for $($msi.FullName) with exit code $($p.ExitCode)"
   }
-  Assert-NotebookLMRuntime -RootPath $outDir -Label "MSI $($msi.Name)"
+  Assert-RequiredSidecars -RootPath $outDir -Label "MSI $($msi.Name)"
 }
 
 foreach ($exe in $exeFiles) {
@@ -67,7 +59,7 @@ foreach ($exe in $exeFiles) {
   if ($p.ExitCode -ne 0) {
     throw "NSIS silent install failed for $($exe.FullName) with exit code $($p.ExitCode)"
   }
-  Assert-NotebookLMRuntime -RootPath $outDir -Label "NSIS $($exe.Name)"
+  Assert-RequiredSidecars -RootPath $outDir -Label "NSIS $($exe.Name)"
 }
 
 Write-Host "Windows bundle verification passed."
