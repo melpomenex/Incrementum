@@ -55,17 +55,24 @@ export function TabContent({ tabs, activeTabId, paneId }: TabContentProps) {
     return <EmptyState />;
   }
 
-  const ContentComponent = activeTab.content;
-
   return (
     <div className="h-full w-full overflow-hidden bg-background min-h-0">
       <Suspense fallback={<TabLoader />}>
-        {/* Pass any tab-specific data as props */}
-        <div key={activeTab.id} className="h-full w-full animate-tab-enter">
-          <PaneIdContext.Provider value={paneId}>
-            <ContentComponent {...(activeTab.data || {})} />
-          </PaneIdContext.Provider>
-        </div>
+        {tabs.map((tab) => {
+          const ContentComponent = tab.content;
+          const isActive = tab.id === activeTab.id;
+          return (
+            <div
+              key={tab.id}
+              className={isActive ? "h-full w-full animate-tab-enter" : "hidden h-full w-full"}
+              aria-hidden={!isActive}
+            >
+              <PaneIdContext.Provider value={paneId}>
+                <ContentComponent {...(tab.data || {})} />
+              </PaneIdContext.Provider>
+            </div>
+          );
+        })}
       </Suspense>
     </div>
   );

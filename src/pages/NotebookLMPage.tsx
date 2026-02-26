@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   RefreshCw,
+  ExternalLink,
   X,
 } from "lucide-react";
 import { NotebookLMSidebar } from "../components/notebooklm/NotebookLMSidebar";
@@ -25,6 +26,7 @@ import {
   notebooklmListNotebooks,
   notebooklmCreateNotebook,
   notebooklmSelectNotebook,
+  notebooklmCLILogin,
   notebooklmGetJob,
   type NotebookSummary,
   type ImportPreviewItem,
@@ -39,13 +41,14 @@ export function NotebookLMPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { settings, updateSettingsCategory } = useSettingsStore();
-  
+
   const [connectionState, setConnectionState] = useState<ConnectionState>("checking");
   const [connectionMessage, setConnectionMessage] = useState("");
   const [provider, setProvider] = useState<"mock" | "cli">("cli");
   const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<NotebookSummary | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -153,6 +156,31 @@ export function NotebookLMPage() {
     }
   };
 
+  const handleCLILogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const result = await notebooklmCLILogin();
+      if (result.success) {
+        toast.success(
+          "NotebookLM Login",
+          result.message || "Successfully authenticated with NotebookLM."
+        );
+        // Backend auto-connects on success; refresh the UI state
+        await handleConnect();
+      } else {
+        toast.error("NotebookLM Login", result.message || "Login did not complete.");
+      }
+    } catch (error: any) {
+      toast.error(
+        "NotebookLM Login Failed",
+        error?.message || "Failed to start NotebookLM login flow."
+      );
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+
   const handleSelectNotebook = async (notebook: NotebookSummary) => {
     setSelectedNotebook(notebook);
     try {
@@ -187,7 +215,7 @@ export function NotebookLMPage() {
 
   const handleViewArtifact = async (job: NotebookLMJob) => {
     setViewingArtifact(job);
-    
+
     // Debug logging
     console.log("Viewing artifact:", {
       type: job.artifactType,
@@ -196,14 +224,14 @@ export function NotebookLMPage() {
       hasMediaUrl: !!job.payload?.mediaUrl,
       hasRawText: !!job.payload?.rawText,
     });
-    
+
     // Get the content based on artifact type
     let content: string;
-    
+
     // Check if this is a structured artifact type that needs jsonContent
     const structuredTypes = ["mind-map", "mind_map", "mindmap", "data-table", "data_table", "datatable"];
     const isStructuredArtifact = structuredTypes.includes(job.artifactType.toLowerCase());
-    
+
     if (isStructuredArtifact) {
       // For structured artifacts like mind-maps and data-tables, prefer jsonContent.
       if (job.payload?.jsonContent !== null && job.payload?.jsonContent !== undefined) {
@@ -262,7 +290,7 @@ export function NotebookLMPage() {
         quizItems: job.payload?.quizItems || [],
       }, null, 2);
     }
-    
+
     setArtifactContent(content);
   };
 
@@ -449,6 +477,21 @@ export function NotebookLMPage() {
             <span className="text-sm font-medium text-foreground">{provider}</span>
           </div>
           <div className="flex-1" />
+          {provider === "cli" && (
+            <button
+              onClick={handleCLILogin}
+              disabled={isLoggingIn}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary hover:bg-background rounded-lg transition-colors disabled:opacity-60"
+              title="Open browser login for NotebookLM"
+            >
+              {isLoggingIn ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="w-3.5 h-3.5" />
+              )}
+              {isLoggingIn ? "Starting Login..." : "NotebookLM Login"}
+            </button>
+          )}
           <button
             onClick={checkConnection}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
@@ -502,6 +545,30 @@ export function NotebookLMPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Create a new notebook to get started.
               </p>
+              {provider === "cli" && (
+                <div className="mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    If you are not logged in, sign in to NotebookLM first.
+                  </p>
+                  <button
+                    onClick={handleCLILogin}
+                    disabled={isLoggingIn}
+                    className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted transition-colors inline-flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Starting Login...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        Sign In to NotebookLM
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
               <button
                 onClick={() => {
                   const title = prompt("Enter notebook title:") || "New Notebook";
