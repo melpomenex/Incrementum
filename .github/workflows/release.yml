@@ -266,7 +266,7 @@ jobs:
       - name: Install Arch dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust cargo
+          pacman -S --noconfirm base-devel webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust cargo clang lld
 
       - name: Install frontend dependencies
         run: npm ci
