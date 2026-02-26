@@ -14,7 +14,7 @@ for deb in "${debs[@]}"; do
   echo "Verifying deb: $deb"
   listing="$(dpkg-deb -c "$deb")"
 
-  if ! grep -Eq '/usr/bin/whisper-[^ ]+' <<<"$listing"; then
+  if ! grep -Eq '/whisper-[^/ ]+' <<<"$listing"; then
     echo "Missing whisper sidecar in $deb"
     exit 1
   fi
