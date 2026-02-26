@@ -49,6 +49,11 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: aarch64-linux-android
 
+      - name: Ensure Cargo is on PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          cargo --version
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -292,6 +297,11 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Ensure Cargo is on PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          cargo --version
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2

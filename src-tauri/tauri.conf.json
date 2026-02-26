@@ -39,8 +39,7 @@
         "active": true,
         "targets": "all",
         "externalBin": [
-          "bin/whisper",
-          "bin/notebooklm"
+          "bin/whisper"
         ],
         "icon": [
           "icons/32x32.png",
