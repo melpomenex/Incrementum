@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] - 2026-02-26
+
+### Fixed
+- Flashcard review math rendering now supports raw LaTeX without delimiters in imported card content.
+- Linux `.deb` bundle verification now detects the whisper sidecar regardless of install path inside the package layout.
+- AppImage CI repack flow now extracts and invokes `appimagetool` from the correct location in CI.
+- Arch Linux CI/package build now links SQLite explicitly during Rust linking to avoid `sqlite3_*` unresolved symbol failures.
+- Android mobile CI now ensures `cargo` is discoverable by Gradle/Tauri mobile build tasks.
+
 ## [1.12.0] - 2026-02-26
 
 ### Added

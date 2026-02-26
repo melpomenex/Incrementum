@@ -10,7 +10,7 @@ NOTEBOOKLM_RUNTIME_SRC="src-tauri/bin/notebooklm-runtime"
 NOTEBOOKLM_RUNTIME_DST="$APPDIR/usr/bin/notebooklm-runtime"
 WORK_DIR="/tmp/appimagetool-work"
 APPIMAGETOOL_APPIMAGE="$WORK_DIR/appimagetool.AppImage"
-APPIMAGETOOL_BIN="$WORK_DIR/squashfs-root/usr/bin/appimagetool"
+APPIMAGETOOL_BIN="$WORK_DIR/squashfs-root/AppRun"
 RUNTIME_FILE="$WORK_DIR/runtime-x86_64"
 
 EXPECTED_APPIMAGE="$(node -e 'const c=require("./src-tauri/tauri.conf.json"); console.log(`src-tauri/target/release/bundle/appimage/${c.productName}_${c.version}_amd64.AppImage`)')"
@@ -47,7 +47,10 @@ if [[ ! -x "$APPIMAGETOOL_BIN" ]]; then
   curl -fsSL -o "$APPIMAGETOOL_APPIMAGE" \
     "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
   chmod +x "$APPIMAGETOOL_APPIMAGE"
-  "$APPIMAGETOOL_APPIMAGE" --appimage-extract >/dev/null
+  (
+    cd "$WORK_DIR"
+    APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGETOOL_APPIMAGE" --appimage-extract >/dev/null
+  )
 fi
 
 if [[ ! -f "$RUNTIME_FILE" ]]; then
@@ -68,7 +71,7 @@ fi
 
 rm -f "$ROOT_DIR/Incrementum-x86_64.AppImage"
 rm -f "$EXPECTED_APPIMAGE"
-"$APPIMAGETOOL_BIN" --runtime-file "$RUNTIME_FILE" "$ROOT_DIR/$APPDIR"
+ARCH=x86_64 "$APPIMAGETOOL_BIN" --runtime-file "$RUNTIME_FILE" "$ROOT_DIR/$APPDIR"
 
 if [[ ! -f "$ROOT_DIR/Incrementum-x86_64.AppImage" ]]; then
   echo "appimagetool packaging did not produce Incrementum-x86_64.AppImage"
