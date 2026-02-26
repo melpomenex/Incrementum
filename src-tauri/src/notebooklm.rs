@@ -7,10 +7,14 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use tauri::Manager;
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
+use tokio::time::{sleep, Duration};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -633,83 +637,15 @@ impl CliCommandResult {
     }
 }
 
-async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Result<CliCommandResult, AppError> {
-    let storage_path = ctx.app_dir.join("storage_state.json");
-    if let Some(parent) = storage_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let mut effective_args = vec![
-        "--storage".to_string(),
-        storage_path.to_string_lossy().to_string(),
-    ];
-    effective_args.extend(args.iter().cloned());
+async fn execute_notebooklm_command(command: &mut Command) -> Result<CliCommandResult, AppError> {
+    execute_notebooklm_command_with_input(command, None, 0).await
+}
 
-    let mut command = if let (Some(runtime_python), Some(site_packages)) = (
-        ctx.notebooklm_runtime_python.as_ref(),
-        ctx.notebooklm_runtime_site_packages.as_ref(),
-    ) {
-        let python_home = runtime_python
-            .parent()
-            .and_then(|p| p.parent())
-            .map(|p| p.to_path_buf());
-        let mut cmd = Command::new(runtime_python);
-        cmd.arg("-m")
-            .arg("notebooklm.notebooklm_cli")
-            .args(&effective_args)
-            .env("PYTHONPATH", site_packages)
-            .env("PYTHONNOUSERSITE", "1")
-            .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
-        if let Some(home) = python_home {
-            cmd.env("PYTHONHOME", home);
-        }
-        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
-            cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
-        } else {
-            cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-        }
-        cmd
-    } else if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
-        let mut cmd = Command::new(managed_python);
-        cmd.arg("-m")
-            .arg("notebooklm.notebooklm_cli")
-            .args(&effective_args);
-        cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
-        cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-        cmd
-    } else {
-        match ensure_managed_notebooklm_runtime(ctx).await {
-            Ok((managed_python, managed_playwright)) => {
-                tracing::info!(
-                    "Installed NotebookLM managed runtime at {}",
-                    managed_python.to_string_lossy()
-                );
-                let mut cmd = Command::new(managed_python);
-                cmd.arg("-m")
-                    .arg("notebooklm.notebooklm_cli")
-                    .args(&effective_args);
-                cmd.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
-                if let Some(playwright_path) = managed_playwright {
-                    cmd.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
-                } else {
-                    cmd.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-                }
-                cmd
-            }
-            Err(install_err) => {
-                tracing::warn!("Managed NotebookLM runtime install failed: {}", install_err);
-                let executable = ctx
-                    .notebooklm_bin
-                    .as_ref()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "notebooklm".to_string());
-                let mut cmd = Command::new(&executable);
-                cmd.args(&effective_args)
-                    .env("PLAYWRIGHT_BROWSERS_PATH", "0");
-                cmd
-            }
-        }
-    };
-
+async fn execute_notebooklm_command_with_input(
+    command: &mut Command,
+    stdin_input: Option<&str>,
+    input_delay_ms: u64,
+) -> Result<CliCommandResult, AppError> {
     let command_label = format!(
         "{} {}",
         command.as_std().get_program().to_string_lossy(),
@@ -723,10 +659,32 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
     .trim()
     .to_string();
 
-    let output = command
-        .output()
-        .await
-        .map_err(|e| AppError::IntegrationError(format!("Failed to run notebooklm CLI ({command_label}): {e}")))?;
+    let output = if let Some(input) = stdin_input {
+        command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let mut child = command.spawn().map_err(|e| {
+            AppError::IntegrationError(format!("Failed to run notebooklm CLI ({command_label}): {e}"))
+        })?;
+        if let Some(mut stdin) = child.stdin.take() {
+            if input_delay_ms > 0 {
+                sleep(Duration::from_millis(input_delay_ms)).await;
+            }
+            stdin.write_all(input.as_bytes()).await.map_err(|e| {
+                AppError::IntegrationError(format!(
+                    "Failed writing notebooklm CLI input ({command_label}): {e}"
+                ))
+            })?;
+        }
+        child.wait_with_output().await.map_err(|e| {
+            AppError::IntegrationError(format!("Failed to run notebooklm CLI ({command_label}): {e}"))
+        })?
+    } else {
+        command.output().await.map_err(|e| {
+            AppError::IntegrationError(format!("Failed to run notebooklm CLI ({command_label}): {e}"))
+        })?
+    };
 
     if !output.status.success() {
         let code = output
@@ -758,10 +716,189 @@ async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Resul
     })
 }
 
-async fn run_first_success(ctx: &ProviderContext, candidates: Vec<Vec<String>>) -> Result<CliCommandResult, AppError> {
+fn is_cli_missing_error(err: &AppError) -> bool {
+    let lower = err.to_string().to_lowercase();
+    lower.contains("no such file or directory")
+        || lower.contains("os error 2")
+        || lower.contains("command not found")
+}
+
+async fn run_notebooklm_command_internal(
+    ctx: &ProviderContext,
+    args: &[String],
+    allow_runtime_bootstrap: bool,
+    stdin_input: Option<&str>,
+    input_delay_ms: u64,
+) -> Result<CliCommandResult, AppError> {
+    let storage_path = ctx.app_dir.join("storage_state.json");
+    if let Some(parent) = storage_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let mut effective_args = vec![
+        "--storage".to_string(),
+        storage_path.to_string_lossy().to_string(),
+    ];
+    effective_args.extend(args.iter().cloned());
+    let path_override = augmented_path_env();
+
+    if let (Some(runtime_python), Some(site_packages)) = (
+        ctx.notebooklm_runtime_python.as_ref(),
+        ctx.notebooklm_runtime_site_packages.as_ref(),
+    ) {
+        let python_home = runtime_python
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf());
+        let mut command = Command::new(runtime_python);
+        command
+            .arg("-m")
+            .arg("notebooklm.notebooklm_cli")
+            .args(&effective_args)
+            .env("PYTHONPATH", site_packages)
+            .env("PYTHONNOUSERSITE", "1")
+            .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
+        if let Some(home) = python_home {
+            command.env("PYTHONHOME", home);
+        }
+        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
+            command.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+        } else {
+            command.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+        }
+        if let Some(path) = path_override.clone() {
+            command.env("PATH", path);
+        }
+        return execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await;
+    }
+
+    if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
+        let mut command = Command::new(managed_python);
+        command
+            .arg("-m")
+            .arg("notebooklm.notebooklm_cli")
+            .args(&effective_args)
+            .env("PYTHONWARNINGS", "ignore::DeprecationWarning")
+            .env("PLAYWRIGHT_BROWSERS_PATH", "0");
+        if let Some(path) = path_override.clone() {
+            command.env("PATH", path);
+        }
+        return execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await;
+    }
+
+    let executable = ctx
+        .notebooklm_bin
+        .as_ref()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "notebooklm".to_string());
+    let mut command = Command::new(&executable);
+    command
+        .args(&effective_args)
+        .env("PLAYWRIGHT_BROWSERS_PATH", "0");
+    if let Some(path) = path_override.clone() {
+        command.env("PATH", path);
+    }
+    match execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await {
+        Ok(result) => return Ok(result),
+        Err(err) if !allow_runtime_bootstrap || !is_cli_missing_error(&err) => return Err(err),
+        Err(err) => {
+            tracing::warn!(
+                "NotebookLM CLI command not found; attempting managed runtime bootstrap: {}",
+                err
+            );
+        }
+    }
+
+    let (managed_python, managed_playwright) = ensure_managed_notebooklm_runtime(ctx).await?;
+    tracing::info!(
+        "Installed NotebookLM managed runtime at {}",
+        managed_python.to_string_lossy()
+    );
+    let mut managed_command = Command::new(managed_python);
+    managed_command
+        .arg("-m")
+        .arg("notebooklm.notebooklm_cli")
+        .args(&effective_args)
+        .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
+    if let Some(playwright_path) = managed_playwright {
+        managed_command.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+    } else {
+        managed_command.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+    }
+    if let Some(path) = path_override {
+        managed_command.env("PATH", path);
+    }
+    execute_notebooklm_command_with_input(&mut managed_command, stdin_input, input_delay_ms).await
+}
+
+async fn run_notebooklm_command(ctx: &ProviderContext, args: &[String]) -> Result<CliCommandResult, AppError> {
+    run_notebooklm_command_internal(ctx, args, true, None, 0).await
+}
+
+async fn run_notebooklm_command_with_input(
+    ctx: &ProviderContext,
+    args: &[String],
+    stdin_input: &str,
+    input_delay_ms: u64,
+) -> Result<CliCommandResult, AppError> {
+    run_notebooklm_command_internal(ctx, args, true, Some(stdin_input), input_delay_ms).await
+}
+
+async fn run_notebooklm_command_no_bootstrap(
+    ctx: &ProviderContext,
+    args: &[String],
+) -> Result<CliCommandResult, AppError> {
+    run_notebooklm_command_internal(ctx, args, false, None, 0).await
+}
+
+fn augmented_path_env() -> Option<String> {
+    let mut ordered: Vec<PathBuf> = env::var_os("PATH")
+        .map(|raw| env::split_paths(&raw).collect())
+        .unwrap_or_default();
+
+    if cfg!(target_os = "linux") {
+        if let Ok(home) = env::var("HOME") {
+            ordered.push(PathBuf::from(home).join(".local/bin"));
+        }
+        ordered.push(PathBuf::from("/usr/local/sbin"));
+        ordered.push(PathBuf::from("/usr/local/bin"));
+        ordered.push(PathBuf::from("/usr/sbin"));
+        ordered.push(PathBuf::from("/usr/bin"));
+        ordered.push(PathBuf::from("/sbin"));
+        ordered.push(PathBuf::from("/bin"));
+    }
+
+    let mut deduped = Vec::new();
+    for path in ordered {
+        if path.as_os_str().is_empty() || !path.exists() {
+            continue;
+        }
+        if !deduped.iter().any(|p: &PathBuf| p == &path) {
+            deduped.push(path);
+        }
+    }
+
+    if deduped.is_empty() {
+        return None;
+    }
+
+    env::join_paths(deduped)
+        .ok()
+        .map(|joined| joined.to_string_lossy().to_string())
+}
+
+async fn run_first_success_with_bootstrap(
+    ctx: &ProviderContext,
+    candidates: Vec<Vec<String>>,
+    allow_runtime_bootstrap: bool,
+) -> Result<CliCommandResult, AppError> {
     let mut errors = vec![];
     for args in candidates {
-        match run_notebooklm_command(ctx, &args).await {
+        let result = if allow_runtime_bootstrap {
+            run_notebooklm_command(ctx, &args).await
+        } else {
+            run_notebooklm_command_no_bootstrap(ctx, &args).await
+        };
+        match result {
             Ok(result) => return Ok(result),
             Err(err) => errors.push(format!("{} -> {}", args.join(" "), err)),
         }
@@ -771,6 +908,17 @@ async fn run_first_success(ctx: &ProviderContext, candidates: Vec<Vec<String>>) 
         "All notebooklm CLI command attempts failed:\n{}",
         errors.join("\n")
     )))
+}
+
+async fn run_first_success(ctx: &ProviderContext, candidates: Vec<Vec<String>>) -> Result<CliCommandResult, AppError> {
+    run_first_success_with_bootstrap(ctx, candidates, true).await
+}
+
+async fn run_first_success_no_bootstrap(
+    ctx: &ProviderContext,
+    candidates: Vec<Vec<String>>,
+) -> Result<CliCommandResult, AppError> {
+    run_first_success_with_bootstrap(ctx, candidates, false).await
 }
 
 fn notebook_text(v: &serde_json::Value, keys: &[&str]) -> Option<String> {
@@ -921,7 +1069,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         settings: &NotebookLMSettings,
         ctx: &ProviderContext,
     ) -> Result<NotebookLMHealth, AppError> {
-        if run_first_success(
+        if run_first_success_no_bootstrap(
             ctx,
             vec![
                 vec!["status".to_string(), "--json".to_string()],
@@ -1699,6 +1847,14 @@ fn notebooklm_binary_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     candidates.push(PathBuf::from("bin").join(format!("notebooklm{}", ext)));
     candidates.push(PathBuf::from("../src-tauri/bin").join(format!("notebooklm-{}{}", triple, ext)));
     candidates.push(PathBuf::from("../src-tauri/bin").join(format!("notebooklm{}", ext)));
+    if cfg!(target_os = "linux") {
+        if let Ok(home) = env::var("HOME") {
+            candidates.push(PathBuf::from(home).join(".local/bin").join("notebooklm"));
+        }
+        candidates.push(PathBuf::from("/usr/local/bin/notebooklm"));
+        candidates.push(PathBuf::from("/usr/bin/notebooklm"));
+        candidates.push(PathBuf::from("/bin/notebooklm"));
+    }
     candidates.push(PathBuf::from(format!("notebooklm{}", ext)));
     candidates
 }
@@ -1781,21 +1937,38 @@ fn resolve_managed_notebooklm_runtime(app_dir: &Path) -> (Option<PathBuf>, Optio
 }
 
 async fn detect_system_python() -> Option<Vec<String>> {
-    let candidates: Vec<Vec<&str>> = if cfg!(target_os = "windows") {
-        vec![vec!["py", "-3"], vec!["python"], vec!["python3"]]
+    let path_override = augmented_path_env();
+    let candidates: Vec<Vec<String>> = if cfg!(target_os = "windows") {
+        vec![
+            vec!["py".to_string(), "-3".to_string()],
+            vec!["python".to_string()],
+            vec!["python3".to_string()],
+        ]
     } else {
-        vec![vec!["python3"], vec!["python"]]
+        let mut linux = vec![vec!["python3".to_string()], vec!["python".to_string()]];
+        if let Ok(home) = env::var("HOME") {
+            linux.push(vec![format!("{home}/.local/bin/python3")]);
+            linux.push(vec![format!("{home}/.local/bin/python")]);
+        }
+        linux.push(vec!["/usr/local/bin/python3".to_string()]);
+        linux.push(vec!["/usr/local/bin/python".to_string()]);
+        linux.push(vec!["/usr/bin/python3".to_string()]);
+        linux.push(vec!["/usr/bin/python".to_string()]);
+        linux
     };
 
     for candidate in candidates {
-        let mut cmd = Command::new(candidate[0]);
+        let mut cmd = Command::new(&candidate[0]);
         if candidate.len() > 1 {
             cmd.args(&candidate[1..]);
+        }
+        if let Some(path) = path_override.as_ref() {
+            cmd.env("PATH", path);
         }
         let status = cmd.arg("--version").output().await;
         if let Ok(output) = status {
             if output.status.success() {
-                return Some(candidate.iter().map(|s| s.to_string()).collect());
+                return Some(candidate);
             }
         }
     }
@@ -1811,6 +1984,9 @@ async fn run_command_required(
 ) -> Result<(), AppError> {
     let mut cmd = Command::new(program);
     cmd.args(args);
+    if let Some(path) = augmented_path_env() {
+        cmd.env("PATH", path);
+    }
     for (k, v) in envs {
         cmd.env(k, v);
     }
@@ -2746,7 +2922,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
     let ctx = provider_context(&app, integration_root(&app)?);
     
     // Try to run notebooklm --version or notebooklm version
-    let version_result = run_first_success(
+    let version_result = run_first_success_no_bootstrap(
         &ctx,
         vec![
             vec!["--version".to_string()],
@@ -2759,7 +2935,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
         Ok(result) => {
             let version = result.stdout.trim().to_string();
             // Try to check login status
-            let status_result = run_first_success(
+            let status_result = run_first_success_no_bootstrap(
                 &ctx,
                 vec![
                     vec!["status".to_string(), "--json".to_string()],
@@ -2799,43 +2975,278 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
     }
 }
 
+/// Try to copy system-level auth from ~/.notebooklm/storage_state.json to the app's storage dir.
+/// Returns the path that was copied from if successful.
+fn try_copy_system_auth(app_storage: &Path) -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    let system_storage = home.join(".notebooklm").join("storage_state.json");
+    if !system_storage.exists() {
+        tracing::debug!("No system auth found at {}", system_storage.display());
+        return None;
+    }
+
+    // Read and validate the system auth file
+    let content = fs::read_to_string(&system_storage).ok()?;
+    let parsed: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    // Basic validation: must have cookies array with at least one entry
+    let has_cookies = parsed
+        .get("cookies")
+        .and_then(|c| c.as_array())
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
+
+    if !has_cookies {
+        tracing::debug!("System auth file exists but has no cookies");
+        return None;
+    }
+
+    // Copy to app storage
+    if let Some(parent) = app_storage.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Err(e) = fs::write(app_storage, content.as_bytes()) {
+        tracing::warn!("Failed to copy system auth to app storage: {}", e);
+        return None;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(app_storage, fs::Permissions::from_mode(0o600));
+    }
+
+    tracing::info!(
+        "Copied system auth from {} to {}",
+        system_storage.display(),
+        app_storage.display()
+    );
+    Some(system_storage)
+}
+
 /// Run notebooklm login command
-/// This will open a browser for authentication
+/// Uses a multi-strategy approach:
+///   1. Reuse existing system auth from ~/.notebooklm/storage_state.json (no browser needed)
+///   2. Run system `notebooklm login` from PATH (proper Chromium browser)
+///   3. Fall back to bundled sidecar login (may have GTK issues)
 #[tauri::command]
 pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
-    let ctx = provider_context(&app, integration_root(&app)?);
-    
-    tracing::info!("Starting notebooklm CLI login flow");
-    
-    // Run the login command - this opens a browser
-    match run_notebooklm_command(
+    let root = integration_root(&app)?;
+    let ctx = provider_context(&app, root.clone());
+    let app_storage = root.join("storage_state.json");
+
+    tracing::info!("Starting notebooklm CLI login flow (multi-strategy)");
+
+    // ── Strategy 1: Reuse existing system auth ────────────────────────────
+    if let Some(source_path) = try_copy_system_auth(&app_storage) {
+        tracing::info!("Strategy 1: Found system auth at {}", source_path.display());
+
+        // Verify the copied auth actually works
+        let verify = run_first_success_no_bootstrap(
+            &ctx,
+            vec![vec!["auth".to_string(), "check".to_string(), "--json".to_string()]],
+        )
+        .await;
+
+        let auth_valid = match &verify {
+            Ok(_) => true,
+            Err(verify_err) => {
+                let msg = verify_err.to_string();
+                // auth check might not exist in older CLI versions, so also try list
+                if msg.contains("no such command") || msg.contains("No such command") {
+                    run_first_success_no_bootstrap(
+                        &ctx,
+                        vec![vec!["list".to_string(), "--json".to_string()]],
+                    )
+                    .await
+                    .is_ok()
+                } else {
+                    !is_auth_error(&msg)
+                }
+            }
+        };
+
+        if auth_valid {
+            // Auto-connect after successful auth copy
+            let mut auth_state = load_auth(&root)?;
+            auth_state.connected = true;
+            auth_state.last_connected_at = Some(Utc::now().to_rfc3339());
+            auth_state.provider = "cli".to_string();
+            auth_state.storage_path = Some(app_storage.to_string_lossy().to_string());
+            save_auth(&root, &auth_state)?;
+
+            let mut settings = load_settings(&root)?;
+            settings.enabled = true;
+            settings.provider = "cli".to_string();
+            save_settings(&root, &settings)?;
+
+            tracing::info!("Strategy 1 succeeded: reused system auth");
+            return Ok(serde_json::json!({
+                "success": true,
+                "message": "Logged in using existing system authentication",
+                "strategy": "system_auth_copy",
+                "output": format!("Copied auth from {}", source_path.display()),
+            }));
+        } else {
+            tracing::warn!("Strategy 1: system auth copied but verification failed, continuing to next strategy");
+        }
+    }
+
+    // ── Strategy 2: System CLI login (proper browser) ─────────────────────
+    // Try to find system `notebooklm` on PATH and run login WITHOUT --storage
+    // override, so it uses ~/.notebooklm/ natively and opens a proper Chromium
+    let system_cli_result = {
+        let path_override = augmented_path_env();
+        let mut cmd = Command::new("notebooklm");
+        cmd.arg("login")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        if let Some(path) = path_override {
+            cmd.env("PATH", path);
+        }
+        // Don't set PLAYWRIGHT_BROWSERS_PATH=0 here — let system CLI use its own browser
+        match cmd.spawn() {
+            Ok(mut child) => {
+                // Wait for the user to complete login, then send Enter
+                // The CLI login waits for user input after browser opens
+                if let Some(mut stdin) = child.stdin.take() {
+                    // Wait up to 120s for user to log in, then send Enter
+                    sleep(Duration::from_secs(120)).await;
+                    let _ = stdin.write_all(b"\n").await;
+                }
+                match child.wait_with_output().await {
+                    Ok(output) if output.status.success() => Some(Ok(
+                        String::from_utf8_lossy(&output.stdout).trim().to_string(),
+                    )),
+                    Ok(output) => {
+                        let stderr =
+                            String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        Some(Err(stderr))
+                    }
+                    Err(e) => Some(Err(e.to_string())),
+                }
+            }
+            Err(_) => {
+                tracing::debug!("Strategy 2: system `notebooklm` not found on PATH");
+                None // not found on PATH, skip to strategy 3
+            }
+        }
+    };
+
+    if let Some(cli_result) = system_cli_result {
+        match cli_result {
+            Ok(stdout) => {
+                tracing::info!("Strategy 2: system CLI login completed");
+
+                // Copy the newly-created system auth to our app dir
+                if try_copy_system_auth(&app_storage).is_some() {
+                    // Auto-connect
+                    let mut auth_state = load_auth(&root)?;
+                    auth_state.connected = true;
+                    auth_state.last_connected_at = Some(Utc::now().to_rfc3339());
+                    auth_state.provider = "cli".to_string();
+                    auth_state.storage_path =
+                        Some(app_storage.to_string_lossy().to_string());
+                    save_auth(&root, &auth_state)?;
+
+                    let mut settings = load_settings(&root)?;
+                    settings.enabled = true;
+                    settings.provider = "cli".to_string();
+                    save_settings(&root, &settings)?;
+
+                    return Ok(serde_json::json!({
+                        "success": true,
+                        "message": "Login successful via system browser",
+                        "strategy": "system_cli_login",
+                        "output": stdout,
+                    }));
+                }
+
+                // Even if copy failed, login may have still written to system path
+                return Ok(serde_json::json!({
+                    "success": true,
+                    "message": "Login completed. You may need to reconnect.",
+                    "strategy": "system_cli_login",
+                    "output": stdout,
+                }));
+            }
+            Err(err_str) => {
+                tracing::warn!("Strategy 2: system CLI login failed: {}", err_str);
+                // Fall through to strategy 3
+            }
+        }
+    }
+
+    // ── Strategy 3: Bundled sidecar login (fallback) ──────────────────────
+    tracing::info!("Strategy 3: falling back to bundled sidecar login");
+
+    match run_notebooklm_command_with_input(
         &ctx,
         &["login".to_string()],
+        "\n",
+        120000,
     )
-    .await {
+    .await
+    {
         Ok(result) => {
-            tracing::info!("notebooklm login completed successfully");
+            // Verify authentication
+            let verify = run_first_success_no_bootstrap(
+                &ctx,
+                vec![vec!["list".to_string(), "--json".to_string()]],
+            )
+            .await;
+            if let Err(verify_err) = verify {
+                let verify_msg = verify_err.to_string();
+                if is_auth_error(&verify_msg) {
+                    tracing::warn!(
+                        "Strategy 3: login flow ended but auth verification failed: {}",
+                        verify_msg
+                    );
+                    return Err(AppError::IntegrationError(
+                        "Login did not complete. Please try running 'notebooklm login' in a terminal first, then reconnect."
+                            .to_string(),
+                    ));
+                }
+            }
+
+            // Auto-connect
+            let mut auth_state = load_auth(&root)?;
+            auth_state.connected = true;
+            auth_state.last_connected_at = Some(Utc::now().to_rfc3339());
+            auth_state.provider = "cli".to_string();
+            auth_state.storage_path = Some(app_storage.to_string_lossy().to_string());
+            save_auth(&root, &auth_state)?;
+
+            let mut settings = load_settings(&root)?;
+            settings.enabled = true;
+            settings.provider = "cli".to_string();
+            save_settings(&root, &settings)?;
+
+            tracing::info!("Strategy 3: bundled sidecar login completed successfully");
             Ok(serde_json::json!({
                 "success": true,
                 "message": "Login successful",
+                "strategy": "bundled_sidecar",
                 "output": result.stdout,
             }))
         }
         Err(e) => {
             let err_str = e.to_string();
-            tracing::error!("notebooklm login failed: {}", err_str);
-            
-            // Check for specific errors
-            if err_str.contains("already logged in") || err_str.contains("already authenticated") {
+            tracing::error!("Strategy 3: bundled sidecar login failed: {}", err_str);
+
+            if err_str.contains("already logged in")
+                || err_str.contains("already authenticated")
+            {
                 return Ok(serde_json::json!({
                     "success": true,
                     "message": "Already logged in",
+                    "strategy": "bundled_sidecar",
                     "output": err_str,
                 }));
             }
-            
+
             Err(AppError::IntegrationError(format!(
-                "Login failed. Incrementum could not prepare NotebookLM runtime automatically. Error: {}",
+                "Login failed. Try running 'notebooklm login' in a terminal first, then click Sign In again. Error: {}",
                 err_str
             )))
         }
@@ -2882,7 +3293,7 @@ pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::
 pub async fn notebooklm_cli_status(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
     let ctx = provider_context(&app, integration_root(&app)?);
     
-    let result = run_first_success(
+    let result = run_first_success_no_bootstrap(
         &ctx,
         vec![
             vec!["status".to_string(), "--json".to_string()],

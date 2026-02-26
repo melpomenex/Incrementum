@@ -123,6 +123,16 @@ function renderNotebookLMLauncherScript(targetTriple) {
     'if [ -x "$LEGACY_BUNDLED" ]; then\n' +
     '  exec "$LEGACY_BUNDLED" "$@"\n' +
     'fi\n' +
+    'if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then\n' +
+    '  PATH="$PATH:$HOME/.local/bin"\n' +
+    'fi\n' +
+    'PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"\n' +
+    'export PATH\n' +
+    'for CANDIDATE in "${HOME:-}/.local/bin/notebooklm" /usr/local/bin/notebooklm /usr/bin/notebooklm /bin/notebooklm; do\n' +
+    '  if [ -x "$CANDIDATE" ]; then\n' +
+    '    exec "$CANDIDATE" "$@"\n' +
+    '  fi\n' +
+    'done\n' +
     'exec notebooklm "$@"\n'
   );
 }

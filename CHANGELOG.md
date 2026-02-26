@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-02-26
+
+### Added
+- NotebookLM sidecar/runtime packaging updates for desktop bundles, including external binary configuration and improved sidecar download/build flow.
+- Regression coverage to ensure tab content state is preserved when switching between tabs.
+
+### Changed
+- Expanded NotebookLM backend artifact generation and provider handling to execute real generation flows and return richer artifact payloads.
+- Updated AppImage build script usage in npm scripts to align local and CI packaging behavior.
+
+### Fixed
+- Fixed tab switching behavior that reset in-progress views (for example, Review sessions and nested Settings views) by keeping inactive tab content mounted instead of unmounting on every switch.
+- Fixed NotebookLM integration UX and login/document entry points for better runtime behavior in packaged builds.
+
 ## [1.11.0] - 2026-02-23
 
 ### Added

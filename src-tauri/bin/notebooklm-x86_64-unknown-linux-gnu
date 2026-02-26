@@ -15,4 +15,14 @@ LEGACY_BUNDLED="$SCRIPT_DIR/notebooklm-runtime/x86_64-unknown-linux-gnu/.venv/bi
 if [ -x "$LEGACY_BUNDLED" ]; then
   exec "$LEGACY_BUNDLED" "$@"
 fi
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
+  PATH="$PATH:$HOME/.local/bin"
+fi
+PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
+for CANDIDATE in "${HOME:-}/.local/bin/notebooklm" /usr/local/bin/notebooklm /usr/bin/notebooklm /bin/notebooklm; do
+  if [ -x "$CANDIDATE" ]; then
+    exec "$CANDIDATE" "$@"
+  fi
+done
 exec notebooklm "$@"
