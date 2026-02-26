@@ -51,7 +51,14 @@ jobs:
 
       - name: Ensure Cargo is on PATH
         run: |
+          CARGO_BIN="$(command -v cargo)"
+          if [ -z "$CARGO_BIN" ]; then
+            echo "::error::cargo not found on PATH after rust-toolchain setup."
+            exit 1
+          fi
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
+          sudo ln -sf "$CARGO_BIN" /usr/local/bin/cargo
           cargo --version
 
       - name: Rust cache
