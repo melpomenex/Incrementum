@@ -373,6 +373,11 @@ async function main() {
   console.log(`Downloading sidecars for target: ${targetTriple}`);
   const mobileTarget = isMobileTargetTriple(targetTriple);
 
+  if (mobileTarget) {
+    console.log(`Mobile target detected (${targetTriple}); skipping desktop sidecar provisioning.`);
+    return;
+  }
+
   // FFmpeg URLs (using static builds from a reliable source like mwader/static-ffmpeg or similar)
   // For simplicity/reliability in this script, we'll use a placeholder or a known good release.
   // Note: For a production app, you should host these yourself or use a very stable release.
@@ -412,8 +417,7 @@ async function main() {
   const ffmpegPath = path.join(BIN_DIR, ffmpegName);
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
-  const notebooklmRequired = !mobileTarget
-    && process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1'
+  const notebooklmRequired = process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1'
     && process.env.NOTEBOOKLM_BUNDLE_RUNTIME === '1';
   const notebooklmPortableReady = hasPortableNotebookLMRuntime(targetTriple) && fs.existsSync(notebooklmPath);
   const notebooklmRuntimeReady = targetTriple.includes('windows')
