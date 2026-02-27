@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.6] - 2026-02-27
+
+### Fixed
+- CI sidecar provisioning now always materializes a NotebookLM sidecar launcher when missing, preventing macOS/release bundle failures on missing `bin/notebooklm-<target>`.
+- AppImage CI now bootstraps the bundled NotebookLM portable runtime when source runtime assets are incomplete before runtime injection/verification.
+- Arch release packaging no longer forces `RUSTFLAGS=-Clink-arg=-lsqlite3`, avoiding linker failures (`DSO missing from command line`) in Arch container builds.
+
 ## [1.12.5] - 2026-02-27
 
 ### Fixed
