@@ -43,6 +43,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Run Anki LaTeX compatibility regression tests
+        run: npm run test:run -- src/utils/__tests__/ankiLatex.test.ts src/components/review/__tests__/FlashcardScrollItem.test.tsx
+
       - name: Build frontend
         run: npm run build
 
@@ -128,6 +131,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Run Anki LaTeX compatibility regression tests
+        run: npm run test:run -- src/utils/__tests__/ankiLatex.test.ts src/components/review/__tests__/FlashcardScrollItem.test.tsx
+
       - name: Validate tag matches app versions
         uses: actions/github-script@v7
         with:
@@ -185,6 +191,7 @@ jobs:
           args: --bundles dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTEBOOKLM_BUNDLE_RUNTIME: "1"
 
       - name: Build Tauri application (Linux)
         if: runner.os == 'Linux'
@@ -208,6 +215,13 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/verify-windows-bundles.ps1
+
+      - name: Verify macOS bundles include NotebookLM runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          chmod +x scripts/verify-macos-bundles.sh
+          scripts/verify-macos-bundles.sh
 
       - name: List bundle directory (debug)
         run: |

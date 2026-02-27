@@ -38,6 +38,47 @@ function Assert-RequiredSidecars {
   if (-not $whisperSidecar) {
     throw "$Label missing whisper sidecar executable under $RootPath"
   }
+
+  $notebooklmSidecar = Get-ChildItem -Path $RootPath -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.Name -like "notebooklm-*" -or
+      $_.Name -eq "notebooklm.exe"
+    } |
+    Where-Object { $_.FullName -notmatch "notebooklm-runtime" } |
+    Select-Object -First 1
+
+  if (-not $notebooklmSidecar) {
+    throw "$Label missing notebooklm sidecar executable under $RootPath"
+  }
+
+  $runtimeRoot = Get-ChildItem -Path $RootPath -Recurse -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq "notebooklm-runtime" } |
+    Select-Object -First 1
+
+  if (-not $runtimeRoot) {
+    throw "$Label missing notebooklm runtime directory under $RootPath"
+  }
+
+  $runtimePython = Get-ChildItem -Path $runtimeRoot.FullName -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.Name -eq "python.exe" -or
+      $_.Name -eq "python3"
+    } |
+    Select-Object -First 1
+
+  $runtimeNotebookLmModule = Get-ChildItem -Path $runtimeRoot.FullName -Recurse -Directory -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.Name -eq "notebooklm" -and $_.FullName -match "[\\/]site-packages[\\/]"
+    } |
+    Select-Object -First 1
+
+  if (-not $runtimePython) {
+    throw "$Label missing notebooklm runtime python under $($runtimeRoot.FullName)"
+  }
+
+  if (-not $runtimeNotebookLmModule) {
+    throw "$Label missing notebooklm python module under $($runtimeRoot.FullName)"
+  }
 }
 
 foreach ($msi in $msiFiles) {
