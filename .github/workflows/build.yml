@@ -52,6 +52,7 @@ jobs:
           args: --bundles msi,nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTEBOOKLM_BUNDLE_RUNTIME: "1"
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
           SQLITE3_STATIC: "1"
           VCPKGRS_DYNAMIC: "0"
@@ -169,6 +170,7 @@ jobs:
           args: --bundles msi,nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTEBOOKLM_BUNDLE_RUNTIME: "1"
           # Force bundled SQLite - prevents looking for system sqlite3.lib
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
           SQLITE3_STATIC: "1"
