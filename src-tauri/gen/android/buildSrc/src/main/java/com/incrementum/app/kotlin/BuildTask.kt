@@ -51,9 +51,11 @@ open class BuildTask : DefaultTask() {
         val arPath = "$ndkHome/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
         val cargoTargetEnv = cargoTarget.uppercase().replace('-', '_')
 
+        val cargoExecutable = resolveCargoExecutable()
+
         project.exec {
             workingDir(File(project.projectDir, "$rootDirRel/src-tauri"))
-            executable("cargo")
+            executable(cargoExecutable)
             args("build", "--lib", "--target", cargoTarget)
             if (release) {
                 args("--release")
@@ -81,5 +83,26 @@ open class BuildTask : DefaultTask() {
         builtLib.copyTo(File(jniOutDir, "libincrementum_tauri_lib.so"), overwrite = true)
 
         project.logger.lifecycle("Copied ${builtLib.absolutePath} -> ${jniOutDir.absolutePath}")
+    }
+
+    private fun resolveCargoExecutable(): String {
+        val envCargo = System.getenv("CARGO")
+        if (!envCargo.isNullOrBlank() && File(envCargo).canExecute()) {
+            return envCargo
+        }
+
+        val home = System.getProperty("user.home") ?: ""
+        val candidates = listOf(
+            "$home/.cargo/bin/cargo",
+            "/usr/local/bin/cargo",
+            "/usr/bin/cargo"
+        )
+        for (candidate in candidates) {
+            if (File(candidate).canExecute()) {
+                return candidate
+            }
+        }
+
+        return "cargo"
     }
 }
