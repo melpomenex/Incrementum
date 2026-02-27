@@ -91,6 +91,25 @@ open class BuildTask : DefaultTask() {
             return envCargo
         }
 
+        val rustToolchain = System.getenv("RUST_TOOLCHAIN")
+        if (!rustToolchain.isNullOrBlank()) {
+            val toolcacheCargo = File("/opt/hostedtoolcache/Rust/$rustToolchain/x64/bin/cargo")
+            if (toolcacheCargo.canExecute()) {
+                return toolcacheCargo.absolutePath
+            }
+        }
+
+        val hostedRustRoot = File("/opt/hostedtoolcache/Rust")
+        if (hostedRustRoot.isDirectory) {
+            val candidates = hostedRustRoot.listFiles()?.sortedByDescending { it.name } ?: emptyList()
+            for (dir in candidates) {
+                val toolcacheCargo = File(dir, "x64/bin/cargo")
+                if (toolcacheCargo.canExecute()) {
+                    return toolcacheCargo.absolutePath
+                }
+            }
+        }
+
         val home = System.getProperty("user.home") ?: ""
         val candidates = listOf(
             "$home/.cargo/bin/cargo",
