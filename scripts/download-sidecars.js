@@ -275,6 +275,12 @@ function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
     target: targetTriple,
     python_executable: path.relative(runtimeDir, runtimePy),
     site_packages: path.relative(runtimeDir, sitePackages),
+    playwright_dir: path.relative(runtimeDir, playwrightDir),
+    required_paths: [
+      path.relative(runtimeDir, runtimePy),
+      path.relative(runtimeDir, sitePackages),
+      path.join(path.relative(runtimeDir, sitePackages), 'notebooklm'),
+    ],
   }, null, 2));
 }
 

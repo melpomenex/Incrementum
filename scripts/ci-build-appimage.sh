@@ -36,11 +36,7 @@ echo "Injecting notebooklm runtime into AppDir..."
 mkdir -p "$NOTEBOOKLM_RUNTIME_DST"
 rsync -a --delete "$NOTEBOOKLM_RUNTIME_SRC"/ "$NOTEBOOKLM_RUNTIME_DST"/
 
-if [[ -x "$APPDIR/usr/bin/notebooklm" ]]; then
-  if ! "$APPDIR/usr/bin/notebooklm" --version >/dev/null 2>&1; then
-    echo "Warning: bundled notebooklm wrapper exists but failed health check; continuing AppImage packaging."
-  fi
-fi
+scripts/verify-notebooklm-runtime.sh "$APPDIR/usr/bin"
 
 mkdir -p "$WORK_DIR"
 if [[ ! -x "$APPIMAGETOOL_BIN" ]]; then
