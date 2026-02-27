@@ -253,10 +253,22 @@ impl Default for MockState {
 struct ProviderContext {
     app_dir: PathBuf,
     notebooklm_bin: Option<PathBuf>,
+    notebooklm_runtime_base: Option<PathBuf>,
     notebooklm_runtime_python: Option<PathBuf>,
     notebooklm_runtime_site_packages: Option<PathBuf>,
     notebooklm_runtime_playwright: Option<PathBuf>,
+    notebooklm_runtime_validation_error: Option<String>,
     notebooklm_managed_python: Option<PathBuf>,
+    is_appimage: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct NotebookLMRuntimeManifest {
+    layout: Option<String>,
+    python_executable: Option<String>,
+    site_packages: Option<String>,
+    playwright_dir: Option<String>,
+    required_paths: Option<Vec<String>>,
 }
 
 #[async_trait]
@@ -723,6 +735,22 @@ fn is_cli_missing_error(err: &AppError) -> bool {
         || lower.contains("command not found")
 }
 
+fn apply_notebooklm_command_env(
+    command: &mut Command,
+    path_override: Option<&str>,
+    playwright_path: Option<&Path>,
+) {
+    command.env("PYTHONWARNINGS", "ignore::DeprecationWarning");
+    if let Some(playwright_path) = playwright_path {
+        command.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
+    } else {
+        command.env("PLAYWRIGHT_BROWSERS_PATH", "0");
+    }
+    if let Some(path) = path_override {
+        command.env("PATH", path);
+    }
+}
+
 async fn run_notebooklm_command_internal(
     ctx: &ProviderContext,
     args: &[String],
@@ -730,6 +758,15 @@ async fn run_notebooklm_command_internal(
     stdin_input: Option<&str>,
     input_delay_ms: u64,
 ) -> Result<CliCommandResult, AppError> {
+    if ctx.is_appimage {
+        if let Some(validation_error) = ctx.notebooklm_runtime_validation_error.as_ref() {
+            return Err(AppError::IntegrationError(format!(
+                "Bundled NotebookLM runtime validation failed for AppImage: {}. Rebuild the app with a complete notebooklm-runtime bundle.",
+                validation_error
+            )));
+        }
+    }
+
     let storage_path = ctx.app_dir.join("storage_state.json");
     if let Some(parent) = storage_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -745,6 +782,10 @@ async fn run_notebooklm_command_internal(
         ctx.notebooklm_runtime_python.as_ref(),
         ctx.notebooklm_runtime_site_packages.as_ref(),
     ) {
+        tracing::debug!(
+            runtime_base = ?ctx.notebooklm_runtime_base,
+            "Running NotebookLM command with bundled runtime"
+        );
         let python_home = runtime_python
             .parent()
             .and_then(|p| p.parent())
@@ -755,33 +796,26 @@ async fn run_notebooklm_command_internal(
             .arg("notebooklm.notebooklm_cli")
             .args(&effective_args)
             .env("PYTHONPATH", site_packages)
-            .env("PYTHONNOUSERSITE", "1")
-            .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
+            .env("PYTHONNOUSERSITE", "1");
         if let Some(home) = python_home {
             command.env("PYTHONHOME", home);
         }
-        if let Some(playwright_path) = ctx.notebooklm_runtime_playwright.as_ref() {
-            command.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
-        } else {
-            command.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-        }
-        if let Some(path) = path_override.clone() {
-            command.env("PATH", path);
-        }
+        apply_notebooklm_command_env(
+            &mut command,
+            path_override.as_deref(),
+            ctx.notebooklm_runtime_playwright.as_deref(),
+        );
         return execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await;
     }
 
     if let Some(managed_python) = ctx.notebooklm_managed_python.as_ref() {
+        tracing::debug!("Running NotebookLM command with managed runtime");
         let mut command = Command::new(managed_python);
         command
             .arg("-m")
             .arg("notebooklm.notebooklm_cli")
-            .args(&effective_args)
-            .env("PYTHONWARNINGS", "ignore::DeprecationWarning")
-            .env("PLAYWRIGHT_BROWSERS_PATH", "0");
-        if let Some(path) = path_override.clone() {
-            command.env("PATH", path);
-        }
+            .args(&effective_args);
+        apply_notebooklm_command_env(&mut command, path_override.as_deref(), None);
         return execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await;
     }
 
@@ -791,12 +825,8 @@ async fn run_notebooklm_command_internal(
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "notebooklm".to_string());
     let mut command = Command::new(&executable);
-    command
-        .args(&effective_args)
-        .env("PLAYWRIGHT_BROWSERS_PATH", "0");
-    if let Some(path) = path_override.clone() {
-        command.env("PATH", path);
-    }
+    command.args(&effective_args);
+    apply_notebooklm_command_env(&mut command, path_override.as_deref(), None);
     match execute_notebooklm_command_with_input(&mut command, stdin_input, input_delay_ms).await {
         Ok(result) => return Ok(result),
         Err(err) if !allow_runtime_bootstrap || !is_cli_missing_error(&err) => return Err(err),
@@ -817,16 +847,8 @@ async fn run_notebooklm_command_internal(
     managed_command
         .arg("-m")
         .arg("notebooklm.notebooklm_cli")
-        .args(&effective_args)
-        .env("PYTHONWARNINGS", "ignore::DeprecationWarning");
-    if let Some(playwright_path) = managed_playwright {
-        managed_command.env("PLAYWRIGHT_BROWSERS_PATH", playwright_path);
-    } else {
-        managed_command.env("PLAYWRIGHT_BROWSERS_PATH", "0");
-    }
-    if let Some(path) = path_override {
-        managed_command.env("PATH", path);
-    }
+        .args(&effective_args);
+    apply_notebooklm_command_env(&mut managed_command, path_override.as_deref(), managed_playwright.as_deref());
     execute_notebooklm_command_with_input(&mut managed_command, stdin_input, input_delay_ms).await
 }
 
@@ -1823,6 +1845,13 @@ fn current_target_triple() -> &'static str {
     "unknown-target"
 }
 
+fn is_appimage_context() -> bool {
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
+    std::env::var("APPIMAGE").is_ok() || std::env::var("APPDIR").is_ok()
+}
+
 fn notebooklm_binary_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     let mut candidates = vec![];
     let triple = current_target_triple();
@@ -1859,25 +1888,118 @@ fn notebooklm_binary_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     candidates
 }
 
-fn notebooklm_runtime_base_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
-    let mut candidates = vec![];
+fn notebooklm_runtime_base_candidates(app: &tauri::AppHandle) -> Vec<(PathBuf, bool)> {
+    let mut candidates: Vec<(PathBuf, bool)> = vec![];
     let triple = current_target_triple();
+    let appimage = is_appimage_context();
+    let mut resource_candidates: Vec<(PathBuf, bool)> = vec![];
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        resource_candidates.push((resource_dir.join("notebooklm-runtime").join(triple), true));
+        resource_candidates.push((
+            resource_dir.join("bin").join("notebooklm-runtime").join(triple),
+            true,
+        ));
+    }
+
+    if appimage {
+        candidates.extend(resource_candidates.iter().cloned());
+    }
 
     if let Ok(path) = std::env::var("NOTEBOOKLM_RUNTIME_PATH") {
         if !path.trim().is_empty() {
-            candidates.push(PathBuf::from(path));
+            candidates.push((PathBuf::from(path), false));
         }
     }
 
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        candidates.push(resource_dir.join("notebooklm-runtime").join(triple));
-        candidates.push(resource_dir.join("bin").join("notebooklm-runtime").join(triple));
+    if !appimage {
+        candidates.extend(resource_candidates);
     }
 
-    candidates.push(PathBuf::from("src-tauri/bin/notebooklm-runtime").join(triple));
-    candidates.push(PathBuf::from("bin/notebooklm-runtime").join(triple));
-    candidates.push(PathBuf::from("../src-tauri/bin/notebooklm-runtime").join(triple));
+    candidates.push((PathBuf::from("src-tauri/bin/notebooklm-runtime").join(triple), false));
+    candidates.push((PathBuf::from("bin/notebooklm-runtime").join(triple), false));
+    candidates.push((PathBuf::from("../src-tauri/bin/notebooklm-runtime").join(triple), false));
     candidates
+}
+
+fn parse_runtime_manifest(base: &Path) -> Result<Option<NotebookLMRuntimeManifest>, String> {
+    let manifest_path = base.join("runtime-manifest.json");
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(&manifest_path)
+        .map_err(|e| format!("failed to read manifest {}: {e}", manifest_path.display()))?;
+    let manifest: NotebookLMRuntimeManifest = serde_json::from_str(&raw)
+        .map_err(|e| format!("failed to parse manifest {}: {e}", manifest_path.display()))?;
+    Ok(Some(manifest))
+}
+
+fn validate_bundled_notebooklm_runtime(
+    base: &Path,
+) -> Result<(PathBuf, PathBuf, Option<PathBuf>), String> {
+    let default_python_rel = if cfg!(target_os = "windows") {
+        "python/python.exe"
+    } else {
+        "python/bin/python3"
+    };
+    let manifest = parse_runtime_manifest(base)?;
+    let python_rel = manifest
+        .as_ref()
+        .and_then(|m| m.python_executable.as_deref())
+        .unwrap_or(default_python_rel);
+    let site_packages_rel = manifest
+        .as_ref()
+        .and_then(|m| m.site_packages.as_deref())
+        .unwrap_or("site-packages");
+    let playwright_rel = manifest
+        .as_ref()
+        .and_then(|m| m.playwright_dir.as_deref())
+        .unwrap_or("playwright");
+
+    if let Some(layout) = manifest.as_ref().and_then(|m| m.layout.as_deref()) {
+        if layout != "portable-python-home-v1" {
+            return Err(format!("unsupported runtime layout `{layout}`"));
+        }
+    }
+
+    let runtime_python = base.join(python_rel);
+    let site_packages = base.join(site_packages_rel);
+    let notebooklm_module = site_packages.join("notebooklm");
+    let playwright = base.join(playwright_rel);
+    let playwright_opt = if playwright.exists() {
+        Some(playwright)
+    } else {
+        None
+    };
+
+    let mut missing = Vec::new();
+    if !runtime_python.exists() {
+        missing.push(format!("python executable at {}", runtime_python.display()));
+    }
+    if !site_packages.exists() {
+        missing.push(format!("site-packages at {}", site_packages.display()));
+    }
+    if !notebooklm_module.exists() {
+        missing.push(format!("notebooklm module at {}", notebooklm_module.display()));
+    }
+
+    if let Some(required_paths) = manifest
+        .as_ref()
+        .and_then(|m| m.required_paths.as_ref())
+    {
+        for required in required_paths {
+            let candidate = base.join(required);
+            if !candidate.exists() {
+                missing.push(format!("required path {}", candidate.display()));
+            }
+        }
+    }
+
+    if missing.is_empty() {
+        Ok((runtime_python, site_packages, playwright_opt))
+    } else {
+        Err(format!("missing runtime components: {}", missing.join(", ")))
+    }
 }
 
 fn managed_notebooklm_runtime_base(app_dir: &Path) -> PathBuf {
@@ -2092,28 +2214,62 @@ async fn ensure_managed_notebooklm_runtime(
 
 fn resolve_notebooklm_runtime(
     app: &tauri::AppHandle,
-) -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
-    let runtime_python_rel = if cfg!(target_os = "windows") {
-        PathBuf::from("python").join("python.exe")
-    } else {
-        PathBuf::from("python").join("bin").join("python3")
-    };
+) -> (
+    Option<PathBuf>,
+    Option<PathBuf>,
+    Option<PathBuf>,
+    Option<PathBuf>,
+    Option<String>,
+) {
+    let mut first_error: Option<String> = None;
+    let mut first_packaged_error: Option<String> = None;
 
-    for base in notebooklm_runtime_base_candidates(app) {
-        let runtime_python = base.join(&runtime_python_rel);
-        let site_packages = base.join("site-packages");
-        if runtime_python.exists() && site_packages.exists() {
-            let playwright = base.join("playwright");
-            let playwright_opt = if playwright.exists() {
-                Some(playwright)
-            } else {
-                None
-            };
-            return (Some(runtime_python), Some(site_packages), playwright_opt);
+    for (base, is_packaged_candidate) in notebooklm_runtime_base_candidates(app) {
+        if !base.exists() {
+            continue;
+        }
+
+        match validate_bundled_notebooklm_runtime(&base) {
+            Ok((runtime_python, site_packages, playwright_opt)) => {
+                tracing::info!(
+                    runtime_base = %base.display(),
+                    packaged_candidate = is_packaged_candidate,
+                    "NotebookLM runtime selected"
+                );
+                return (
+                    Some(runtime_python),
+                    Some(site_packages),
+                    playwright_opt,
+                    Some(base),
+                    None,
+                );
+            }
+            Err(reason) => {
+                let details = format!("{} ({})", base.display(), reason);
+                tracing::warn!(
+                    runtime_base = %base.display(),
+                    packaged_candidate = is_packaged_candidate,
+                    "NotebookLM runtime candidate rejected: {}",
+                    reason
+                );
+                if first_error.is_none() {
+                    first_error = Some(details.clone());
+                }
+                if is_packaged_candidate && first_packaged_error.is_none() {
+                    first_packaged_error = Some(details);
+                }
+            }
         }
     }
 
-    (None, None, None)
+    if is_appimage_context() {
+        let err = first_packaged_error
+            .or(first_error)
+            .unwrap_or_else(|| "no bundled runtime candidate found in AppImage resources".to_string());
+        return (None, None, None, None, Some(err));
+    }
+
+    (None, None, None, None, first_error)
 }
 
 fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
@@ -2129,17 +2285,43 @@ fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
 }
 
 fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext {
-    let (notebooklm_runtime_python, notebooklm_runtime_site_packages, notebooklm_runtime_playwright) =
-        resolve_notebooklm_runtime(app);
-    let (notebooklm_managed_python, managed_playwright) = resolve_managed_notebooklm_runtime(&app_dir);
-    let notebooklm_runtime_playwright = notebooklm_runtime_playwright.or(managed_playwright);
-    ProviderContext {
-        app_dir,
-        notebooklm_bin: resolve_notebooklm_binary(app),
+    let (
         notebooklm_runtime_python,
         notebooklm_runtime_site_packages,
         notebooklm_runtime_playwright,
+        notebooklm_runtime_base,
+        notebooklm_runtime_validation_error,
+    ) =
+        resolve_notebooklm_runtime(app);
+    let (notebooklm_managed_python, managed_playwright) = resolve_managed_notebooklm_runtime(&app_dir);
+    let notebooklm_runtime_playwright = notebooklm_runtime_playwright.or(managed_playwright);
+    let notebooklm_bin = resolve_notebooklm_binary(app);
+
+    if let Some(base) = notebooklm_runtime_base.as_ref() {
+        tracing::info!(
+            runtime_base = %base.display(),
+            "NotebookLM provider context initialized with bundled runtime"
+        );
+    } else if let Some(err) = notebooklm_runtime_validation_error.as_ref() {
+        tracing::warn!("NotebookLM bundled runtime unavailable: {}", err);
+    } else if notebooklm_managed_python.is_some() {
+        tracing::info!("NotebookLM provider context initialized with managed runtime");
+    } else if notebooklm_bin.is_some() {
+        tracing::info!("NotebookLM provider context initialized with system CLI runtime");
+    } else {
+        tracing::warn!("NotebookLM provider context initialized without runtime candidates");
+    }
+
+    ProviderContext {
+        app_dir,
+        notebooklm_bin,
+        notebooklm_runtime_base,
+        notebooklm_runtime_python,
+        notebooklm_runtime_site_packages,
+        notebooklm_runtime_playwright,
+        notebooklm_runtime_validation_error,
         notebooklm_managed_python,
+        is_appimage: is_appimage_context(),
     }
 }
 

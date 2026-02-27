@@ -85,6 +85,13 @@ Backend emits tracing events for key lifecycle points:
 
 Review logs to diagnose provider/runtime failures and high-latency flows.
 
+## AppImage Runtime Packaging
+
+For Linux packaged builds, NotebookLM uses a bundled runtime (Python + site-packages + Playwright)
+instead of relying on a host venv. Runtime layout and release validation details are documented in:
+
+- `docs/notebooklm-appimage-runtime.md`
+
 ## Known Stability Constraints
 
 - NotebookLM upstream APIs are unofficial and can break without notice.
