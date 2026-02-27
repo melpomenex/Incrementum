@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Compass, Layers, Plus, RefreshCw, Sparkles, Tag, Zap } from "lucide-react";
+import { BarChart3, Compass, Layers, Plus, RefreshCw, Sparkles, Tag, Upload, Zap } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
@@ -9,6 +9,8 @@ import type { StudyDeck } from "../../types/study-decks";
 import { FlashcardStudioModal } from "./FlashcardStudioModal";
 import { ReviewDecksModal } from "./ReviewDecksModal";
 import { ReviewPreviewModal } from "./ReviewPreviewModal";
+import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { useToast } from "../common/Toast";
 
 interface ReviewHomeProps {
   onStartReview: () => Promise<void>;
@@ -27,6 +29,41 @@ function parseDueDate(value?: string) {
 function formatMinutes(totalSeconds: number) {
   const totalMinutes = Math.max(1, Math.round(totalSeconds / 60));
   return `${totalMinutes} min`;
+}
+
+function inferAnkiDeckNames(imported: unknown[]): string[] {
+  const names = new Set<string>();
+  for (const item of imported) {
+    if (!item || typeof item !== "object") continue;
+    const tagsRaw = (item as { tags?: unknown }).tags;
+    if (!Array.isArray(tagsRaw)) continue;
+    const tags = tagsRaw.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+    if (!tags.some((tag) => tag.toLowerCase() === "anki-import")) continue;
+    const deckName = tags[tags.length - 1]?.trim();
+    if (deckName && deckName.toLowerCase() !== "anki-import") {
+      names.add(deckName);
+    }
+  }
+  return Array.from(names);
+}
+
+function ensureAnkiStudyDecks(deckNames: string[]): string[] {
+  const createdOrMatchedIds: string[] = [];
+  for (const deckName of deckNames) {
+    const state = useStudyDeckStore.getState();
+    const existing = state.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
+    if (existing) {
+      createdOrMatchedIds.push(existing.id);
+      continue;
+    }
+    state.addDeck(deckName, [deckName]);
+    const updatedState = useStudyDeckStore.getState();
+    const created = updatedState.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
+    if (created) {
+      createdOrMatchedIds.push(created.id);
+    }
+  }
+  return createdOrMatchedIds;
 }
 
 export function ReviewHome({ onStartReview }: ReviewHomeProps) {
@@ -50,6 +87,8 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const [isFlashcardStudioOpen, setIsFlashcardStudioOpen] = useState(false);
   const [isReviewPreviewOpen, setIsReviewPreviewOpen] = useState(false);
   const [isDecksModalOpen, setIsDecksModalOpen] = useState(false);
+  const [isAnkiImporting, setIsAnkiImporting] = useState(false);
+  const toast = useToast();
 
   const activeDeck = useMemo(
     () => (decks || []).find((deck) => deck.id === activeDeckId) ?? null,
@@ -126,6 +165,42 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
     updateDeck(deck.id, { tagFilters: nextTags });
   };
 
+  const handleImportAnkiDeck = async () => {
+    if (isAnkiImporting) return;
+    setIsAnkiImporting(true);
+    try {
+      const selected = await openFilePicker({
+        title: "Import Anki Deck",
+        multiple: false,
+        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+      });
+      if (!selected || selected.length === 0) return;
+
+      const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
+        apkgPath: selected[0],
+      });
+
+      const deckNames = inferAnkiDeckNames(imported);
+      const deckIds = ensureAnkiStudyDecks(deckNames);
+      if (deckIds.length > 0) {
+        setActiveDeckId(deckIds[0]);
+      }
+
+      await loadStats();
+      toast.success(
+        "Anki import complete",
+        `Imported ${imported.length} card(s) into ${deckNames.length || 1} deck(s).`
+      );
+    } catch (error) {
+      toast.error(
+        "Anki import failed",
+        error instanceof Error ? error.message : "Unknown import error"
+      );
+    } finally {
+      setIsAnkiImporting(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="flex flex-col gap-6">
@@ -158,6 +233,14 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
               >
                 <Sparkles className="h-4 w-4" />
                 Create Flashcards
+              </button>
+              <button
+                onClick={handleImportAnkiDeck}
+                disabled={isAnkiImporting}
+                className="inline-flex items-center gap-2 rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Upload className="h-4 w-4" />
+                {isAnkiImporting ? "Importing..." : "Import Anki (.apkg)"}
               </button>
               <button
                 onClick={() => setIsReviewPreviewOpen(true)}

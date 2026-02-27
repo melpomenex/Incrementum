@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowLeft, Sparkles, Upload } from "lucide-react";
 import { useReviewStore, type ReviewDocumentItem, type ReviewSessionItem } from "../../stores/reviewStore";
 import { ReviewCard } from "./ReviewCard";
 import { ReviewDocumentCard } from "./ReviewDocumentCard";
@@ -18,9 +18,47 @@ import { ZenReviewMode } from "./ZenReviewMode";
 import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
 import { useToast } from "../common/Toast";
 import { bulkDeleteItems, bulkSuspendItems } from "../../api/queue";
+import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { useStudyDeckStore } from "../../stores/studyDeckStore";
+import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
 
 interface ReviewSessionProps {
   onExit: () => void;
+}
+
+function inferAnkiDeckNames(imported: unknown[]): string[] {
+  const names = new Set<string>();
+  for (const item of imported) {
+    if (!item || typeof item !== "object") continue;
+    const tagsRaw = (item as { tags?: unknown }).tags;
+    if (!Array.isArray(tagsRaw)) continue;
+    const tags = tagsRaw.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+    if (!tags.some((tag) => tag.toLowerCase() === "anki-import")) continue;
+    const deckName = tags[tags.length - 1]?.trim();
+    if (deckName && deckName.toLowerCase() !== "anki-import") {
+      names.add(deckName);
+    }
+  }
+  return Array.from(names);
+}
+
+function ensureAnkiStudyDecks(deckNames: string[]): string[] {
+  const createdOrMatchedIds: string[] = [];
+  for (const deckName of deckNames) {
+    const state = useStudyDeckStore.getState();
+    const existing = state.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
+    if (existing) {
+      createdOrMatchedIds.push(existing.id);
+      continue;
+    }
+    state.addDeck(deckName, [deckName]);
+    const updatedState = useStudyDeckStore.getState();
+    const created = updatedState.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
+    if (created) {
+      createdOrMatchedIds.push(created.id);
+    }
+  }
+  return createdOrMatchedIds;
 }
 
 export function ReviewSession({ onExit }: ReviewSessionProps) {
@@ -39,6 +77,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     streak,
     previewIntervals,
     getEstimatedTimeRemaining,
+    loadQueue,
     showAnswer,
     submitRating,
     nextCard,
@@ -49,6 +88,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   
   // Zen mode state
   const [isZenMode, setIsZenMode] = useState(false);
+  const [isAnkiImporting, setIsAnkiImporting] = useState(false);
   
   // FSRS Inspector
   const { isOpen: isInspectorOpen, setIsOpen: setIsInspectorOpen } = useFSRSInspector();
@@ -137,6 +177,40 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       await loadQueue();
     } catch (error) {
       toast.error("Failed to suspend card", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleImportAnkiDeck = async () => {
+    if (isAnkiImporting) return;
+    setIsAnkiImporting(true);
+    try {
+      const selected = await openFilePicker({
+        title: "Import Anki Deck",
+        multiple: false,
+        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+      });
+      if (!selected || selected.length === 0) return;
+
+      const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
+        apkgPath: selected[0],
+      });
+      const deckNames = inferAnkiDeckNames(imported);
+      const deckIds = ensureAnkiStudyDecks(deckNames);
+      if (deckIds.length > 0) {
+        useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+      }
+      await loadQueue();
+      toast.success(
+        "Anki import complete",
+        `Imported ${imported.length} card(s) into ${deckNames.length || 1} deck(s).`
+      );
+    } catch (error) {
+      toast.error(
+        "Anki import failed",
+        error instanceof Error ? error.message : "Unknown import error"
+      );
+    } finally {
+      setIsAnkiImporting(false);
     }
   };
 
@@ -285,6 +359,15 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             No items are due for review right now. Check back later!
           </p>
           <button
+            onClick={handleImportAnkiDeck}
+            disabled={isAnkiImporting}
+            className="mb-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <Upload className="h-4 w-4" />
+            {isAnkiImporting ? "Importing..." : "Import Anki (.apkg)"}
+          </button>
+          <br />
+          <button
             onClick={onExit}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
@@ -375,6 +458,15 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           >
             <span className="font-mono text-[10px]">FSRS</span>
           </button>
+          <button
+            onClick={handleImportAnkiDeck}
+            disabled={isAnkiImporting}
+            className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Import Anki .apkg deck"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {isAnkiImporting ? "Importing..." : "Import"}
+          </button>
 
           {queue.length > 0 && (
           <div className="relative">
@@ -418,7 +510,11 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                         {"documentTitle" in item ? (
                           item.documentTitle || "Untitled document"
                         ) : (
-                          <span dangerouslySetInnerHTML={{ __html: item.question || item.cloze_text || "Untitled card" }} />
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: renderAnkiHtmlWithLatex(item.question || item.cloze_text || "Untitled card"),
+                            }}
+                          />
                         )}
                       </div>
                     </button>

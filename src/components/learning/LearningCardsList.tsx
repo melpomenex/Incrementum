@@ -3,6 +3,7 @@ import { Brain, Eye, EyeOff, Trash2, Edit, RefreshCw } from "lucide-react";
 import { getLearningItems, type LearningItem, getItemTypeName, getItemStateName } from "../../api/learning-items";
 import { cn } from "../../utils";
 import { DynamicVirtualList } from "../common/VirtualList";
+import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 
 interface LearningCardsListProps {
   documentId: string;
@@ -31,6 +32,12 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
 
     loadCards();
   }, [documentId]);
+
+  useEffect(() => {
+    for (const card of cards) {
+      warmAnkiLatexNormalization([card.question, card.answer, card.cloze_text]);
+    }
+  }, [cards]);
 
   const toggleAnswer = (cardId: string) => {
     setShowAnswers(prev => ({
@@ -146,7 +153,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
               </div>
               <div 
                 className="text-foreground" 
-                dangerouslySetInnerHTML={{ __html: card.question }} 
+                dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(card.question) }} 
               />
             </div>
 
@@ -175,7 +182,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                 {showAnswers[card.id] ? (
                   <div 
                     className="text-foreground p-3 bg-muted rounded-md" 
-                    dangerouslySetInnerHTML={{ __html: card.answer }} 
+                    dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(card.answer) }} 
                   />
                 ) : (
                   <p className="text-muted-foreground italic text-sm">

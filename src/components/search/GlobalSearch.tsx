@@ -58,6 +58,10 @@ export interface SearchResult {
     highlightQuery?: string;
     primaryHit?: SearchHit;
     secondaryHits?: SearchHit[];
+    action?: () => void | Promise<void>;
+    sectionId?: string;
+    targetPath?: string;
+    resultKind?: "section" | "command";
   };
 }
 
