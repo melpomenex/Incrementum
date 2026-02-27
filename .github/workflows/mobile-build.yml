@@ -62,12 +62,15 @@ jobs:
             echo "::error::cargo not found after rust-toolchain setup."
             exit 1
           fi
+          TARGET_CARGO="$HOME/.cargo/bin/cargo"
           mkdir -p "$HOME/.cargo/bin"
-          ln -sf "$CARGO_BIN" "$HOME/.cargo/bin/cargo"
+          if [ "$CARGO_BIN" != "$TARGET_CARGO" ]; then
+            ln -sf "$CARGO_BIN" "$TARGET_CARGO"
+          fi
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
-          ls -l "$HOME/.cargo/bin/cargo"
-          "$CARGO_BIN" --version
+          echo "CARGO=$TARGET_CARGO" >> "$GITHUB_ENV"
+          ls -l "$TARGET_CARGO"
+          "$TARGET_CARGO" --version
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
