@@ -56,10 +56,13 @@ jobs:
             echo "::error::cargo not found on PATH after rust-toolchain setup."
             exit 1
           fi
+          mkdir -p "$HOME/.cargo/bin"
+          ln -sf "$CARGO_BIN" "$HOME/.cargo/bin/cargo"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
           sudo ln -sf "$CARGO_BIN" /usr/local/bin/cargo
           sudo ln -sf "$CARGO_BIN" /usr/bin/cargo
+          ls -l "$HOME/.cargo/bin/cargo" /usr/local/bin/cargo /usr/bin/cargo
           cargo --version
 
       - name: Rust cache

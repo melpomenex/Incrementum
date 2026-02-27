@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.3] - 2026-02-27
+
+### Fixed
+- Android mobile CI now resolves `cargo` deterministically for Gradle Rust build tasks by hardening workflow symlink setup and using explicit cargo path fallbacks in Android `BuildTask.kt`.
+
 ## [1.12.1] - 2026-02-26
 
 ### Fixed
