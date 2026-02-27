@@ -427,6 +427,9 @@ async function main() {
   const notebooklmSkipped = process.env.SKIP_NOTEBOOKLM_SIDECAR === '1';
   const notebooklmRequired = !notebooklmSkipped
     && process.env.NOTEBOOKLM_BUNDLE_RUNTIME === '1';
+  // Windows non-bundled builds can run without a NotebookLM sidecar placeholder.
+  const notebooklmMustExist = !notebooklmSkipped
+    && (!targetTriple.includes('windows') || notebooklmRequired);
   const notebooklmPortableReady = hasPortableNotebookLMRuntime(targetTriple) && notebooklmSidecarPresent;
   const notebooklmRuntimeReady = targetTriple.includes('windows')
     ? notebooklmSidecarPresent
@@ -436,7 +439,7 @@ async function main() {
   if (
     fs.existsSync(ffmpegPath)
     && fs.existsSync(whisperPath)
-    && (notebooklmSkipped || notebooklmSidecarPresent)
+    && (!notebooklmMustExist || notebooklmSidecarPresent)
     && (!notebooklmRequired || notebooklmRuntimeReady)
   ) {
     console.log(`Sidecars already exist for ${targetTriple}, skipping download/build.`);
@@ -604,7 +607,7 @@ async function main() {
   }
 
   // Build bundled notebooklm sidecar/runtime used by NotebookLM integration.
-  if (!notebooklmSkipped && (notebooklmRequired || !fs.existsSync(notebooklmPath))) {
+  if (notebooklmMustExist && (notebooklmRequired || !fs.existsSync(notebooklmPath))) {
     ensureNotebookLMSidecar(targetTriple);
     if (!fs.existsSync(notebooklmPath)) {
       throw new Error(

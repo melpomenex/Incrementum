@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.8] - 2026-02-27
+
+### Fixed
+- Windows CI prebuild no longer hard-requires `notebooklm-<target>.exe` when NotebookLM runtime bundling is disabled, preventing `npm run build` failures in `build (windows-latest)` before Tauri packaging.
+
 ## [1.12.7] - 2026-02-27
 
 ### Fixed
