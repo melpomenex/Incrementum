@@ -132,6 +132,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
+          NOTEBOOKLM_BUNDLE_RUNTIME: ${{ runner.os == 'Windows' && '1' || '0' }}
         with:
           tagName: ${{ steps.get_version.outputs.VERSION }}
           releaseName: 'Incrementum ${{ steps.get_version.outputs.VERSION }}'
