@@ -41,6 +41,7 @@ import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
 import * as documentsApi from "../../api/documents";
 import { useTheme } from "../../contexts/ThemeContext";
+import { findMatchingSections } from "./sectionRegistry";
 
 type SearchHitLocation =
   | { kind: "pdf"; pageNumber: number }
@@ -415,6 +416,62 @@ export function CommandCenter() {
     }
 
     // 1. Search Commands
+    const openDashboard = () => addTab({
+      title: "Dashboard",
+      icon: <LayoutDashboard className="w-4 h-4" />,
+      type: "dashboard",
+      content: DashboardTab,
+      closable: false,
+    });
+
+    const openDocuments = () => addTab({
+      title: "Documents",
+      icon: <Library className="w-4 h-4" />,
+      type: "documents",
+      content: DocumentsTab,
+      closable: true,
+    });
+
+    const openQueue = () => addTab({
+      title: "Queue",
+      icon: <ListTodo className="w-4 h-4" />,
+      type: "queue",
+      content: QueueTab,
+      closable: true,
+    });
+
+    const openAnalytics = () => addTab({
+      title: "Statistics",
+      icon: <BarChart3 className="w-4 h-4" />,
+      type: "analytics",
+      content: AnalyticsTab,
+      closable: true,
+    });
+
+    const openSettings = () => addTab({
+      title: "Settings",
+      icon: <Settings className="w-4 h-4" />,
+      type: "settings",
+      content: SettingsTab,
+      closable: true,
+    });
+
+    const openReview = () => addTab({
+      title: "Review",
+      icon: <Brain className="w-4 h-4" />,
+      type: "review",
+      content: ReviewTab,
+      closable: true,
+    });
+
+    const sectionActions: Record<string, () => void> = {
+      dashboard: openDashboard,
+      documents: openDocuments,
+      queue: openQueue,
+      analytics: openAnalytics,
+      settings: openSettings,
+    };
+
     const navigationCommands: Command[] = [
       {
         id: "nav-dashboard",
@@ -422,13 +479,7 @@ export function CommandCenter() {
         description: "Navigate to the dashboard",
         icon: <LayoutDashboard className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Dashboard",
-          icon: <LayoutDashboard className="w-4 h-4" />,
-          type: "dashboard",
-          content: DashboardTab,
-          closable: false,
-        }),
+        action: openDashboard,
         keywords: ["home", "main"],
       },
       {
@@ -437,13 +488,7 @@ export function CommandCenter() {
         description: "View all documents",
         icon: <Library className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Documents",
-          icon: <Library className="w-4 h-4" />,
-          type: "documents",
-          content: DocumentsTab,
-          closable: true,
-        }),
+        action: openDocuments,
         keywords: ["library", "files"],
       },
       {
@@ -452,13 +497,7 @@ export function CommandCenter() {
         description: "View reading queue",
         icon: <ListTodo className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Queue",
-          icon: <ListTodo className="w-4 h-4" />,
-          type: "queue",
-          content: QueueTab,
-          closable: true,
-        }),
+        action: openQueue,
         keywords: ["list", "reading"],
       },
       {
@@ -467,13 +506,7 @@ export function CommandCenter() {
         description: "View learning statistics",
         icon: <BarChart3 className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Statistics",
-          icon: <BarChart3 className="w-4 h-4" />,
-          type: "analytics",
-          content: AnalyticsTab,
-          closable: true,
-        }),
+        action: openAnalytics,
         keywords: ["stats", "progress"],
       },
       {
@@ -482,13 +515,7 @@ export function CommandCenter() {
         description: "View application settings",
         icon: <Settings className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Settings",
-          icon: <Settings className="w-4 h-4" />,
-          type: "settings",
-          content: SettingsTab,
-          closable: true,
-        }),
+        action: openSettings,
         keywords: ["config", "preferences"],
       },
       {
@@ -497,13 +524,7 @@ export function CommandCenter() {
         description: "Start a review session",
         icon: <Brain className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => addTab({
-          title: "Review",
-          icon: <Brain className="w-4 h-4" />,
-          type: "review",
-          content: ReviewTab,
-          closable: true,
-        }),
+        action: openReview,
         keywords: ["review", "study"],
       },
     ];
@@ -595,8 +616,19 @@ export function CommandCenter() {
     }));
 
     const allCommands = [
-      ...getDefaultCommands(),
-      ...navigationCommands,
+      ...getDefaultCommands().filter((cmd) => ![
+        "go-documents",
+        "go-queue",
+        "go-analytics",
+        "open-settings",
+      ].includes(cmd.id)),
+      ...navigationCommands.filter((cmd) => ![
+        "nav-dashboard",
+        "nav-documents",
+        "nav-queue",
+        "nav-analytics",
+        "nav-settings",
+      ].includes(cmd.id)),
       ...themeCommands,
       ...themeSwitchCommands,
     ];
@@ -612,17 +644,36 @@ export function CommandCenter() {
       return fuzzyMatches(label) || (description ? fuzzyMatches(description) : false);
     });
 
-    matchedCommands.forEach(cmd => {
+    const sectionMatches = findMatchingSections(query.query);
+    sectionMatches.forEach(({ section, score }) => {
+      const sectionAction = sectionActions[section.id];
+      results.push({
+        id: `section-${section.id}`,
+        type: SearchResultType.Command,
+        title: section.label,
+        excerpt: `Open ${section.label}`,
+        score,
+        metadata: {
+          category: "Section",
+          sectionId: section.id,
+          targetPath: section.path,
+          resultKind: "section",
+          action: sectionAction ?? (() => window.dispatchEvent(new CustomEvent("navigate", { detail: section.path }))),
+        },
+      });
+    });
+
+    matchedCommands.forEach((cmd) => {
       results.push({
         id: `cmd-${cmd.id}`,
         type: SearchResultType.Command,
         title: cmd.label,
         excerpt: cmd.description,
-        score: 1,
+        score: 0.8,
         metadata: {
-          // Store the action in a way we can retrieve it
-          action: cmd.action
-        } as any
+          action: cmd.action,
+          resultKind: "command",
+        },
       });
     });
 
@@ -848,16 +899,15 @@ export function CommandCenter() {
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === SearchResultType.Command) {
-      const action = (result.metadata as any)?.action;
+      const action = result.metadata?.action;
       if (typeof action === 'function') {
         action();
       }
     } else if (result.type === SearchResultType.Document || result.type === SearchResultType.Extract) {
       // Open document in tab
       // We need the full document object, find it in store
-      const docId = result.type === SearchResultType.Extract
-        ? (result.metadata as any)?.documentId
-        : result.id;
+      const docId = result.type === SearchResultType.Extract ? result.metadata?.documentId : result.id;
+      if (!docId) return;
       openDocumentInTab(docId);
     }
   }, [documents, addTab]);
