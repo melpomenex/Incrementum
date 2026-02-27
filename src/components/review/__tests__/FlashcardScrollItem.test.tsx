@@ -58,4 +58,36 @@ describe("FlashcardScrollItem", () => {
     render(<FlashcardScrollItem learningItem={baseLearningItem} onRate={() => undefined} />);
     expect(screen.queryByAltText("Flashcard visual 1")).not.toBeInTheDocument();
   });
+
+  it("renders LaTeX in question and answer content", () => {
+    render(
+      <FlashcardScrollItem
+        learningItem={{
+          ...baseLearningItem,
+          question: "[$]x^2[/$]",
+          answer: "[$]\\\\frac{1}{2}[/$]",
+        }}
+        onRate={() => undefined}
+      />
+    );
+
+    expect(document.querySelector(".math-expression")).toBeInTheDocument();
+  });
+
+  it("uses deterministic fallback markers for unsupported latex", () => {
+    render(
+      <FlashcardScrollItem
+        learningItem={{
+          ...baseLearningItem,
+          question: "[$]\\\\unknowncmd{x}[/$]",
+          answer: "A",
+        }}
+        onRate={() => undefined}
+      />
+    );
+
+    const fallback = document.querySelector('[data-latex-fallback="true"]');
+    expect(fallback).toBeInTheDocument();
+    expect(fallback?.textContent).toContain("\\unknowncmd{x}");
+  });
 });

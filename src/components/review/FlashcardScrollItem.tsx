@@ -3,6 +3,7 @@ import { Eye, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
 import { cn } from "../../utils";
+import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 
 interface FlashcardScrollItemProps {
     learningItem: LearningItem;
@@ -75,10 +76,14 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         };
     }, [learningItem.id, learningItem.image_asset_ids]);
 
+    useEffect(() => {
+        warmAnkiLatexNormalization([learningItem.question, learningItem.answer, learningItem.cloze_text]);
+    }, [learningItem.question, learningItem.answer, learningItem.cloze_text]);
+
     // Render cloze text with blanks or revealed answers
     const renderClozeText = () => {
         if (!learningItem.cloze_text || !learningItem.cloze_ranges) {
-            return <span dangerouslySetInnerHTML={{ __html: learningItem.question }} />;
+            return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.question) }} />;
         }
 
         const text = learningItem.cloze_text;
@@ -92,7 +97,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                 parts.push(
                     <span 
                         key={`text-${index}`} 
-                        dangerouslySetInnerHTML={{ __html: text.slice(lastIndex, start) }} 
+                        dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex, start)) }} 
                     />
                 );
             }
@@ -104,7 +109,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                     <span
                         key={`cloze-${index}`}
                         className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded font-semibold"
-                        dangerouslySetInnerHTML={{ __html: clozeContent }}
+                        dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(clozeContent) }}
                     />
                 );
             } else {
@@ -126,7 +131,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
             parts.push(
                 <span 
                     key="text-end" 
-                    dangerouslySetInnerHTML={{ __html: text.slice(lastIndex) }} 
+                    dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex)) }} 
                 />
             );
         }
@@ -143,7 +148,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
             case "Qa":
             case "Basic":
             default:
-                return <span dangerouslySetInnerHTML={{ __html: learningItem.question }} />;
+                return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.question) }} />;
         }
     };
 
@@ -153,7 +158,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         }
         if (!learningItem.answer) return null;
         
-        return <span dangerouslySetInnerHTML={{ __html: learningItem.answer }} />;
+        return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.answer) }} />;
     };
 
     const answerContent = renderAnswerContent();
@@ -201,7 +206,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                             ))}
                         </div>
                     )}
-                    <div className="text-2xl leading-relaxed text-foreground">
+                    <div className="text-2xl leading-relaxed text-foreground [&_img]:my-2 [&_img]:max-h-72 [&_img]:w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_audio]:my-2 [&_audio]:w-full [&_video]:my-2 [&_video]:w-full [&_video]:rounded-lg">
                         {renderQuestionContent()}
                     </div>
                 </div>
@@ -217,7 +222,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                         <div className="text-xs uppercase tracking-wide text-muted-foreground mb-4">
                             Answer
                         </div>
-                        <div className="text-xl leading-relaxed text-green-400">
+                        <div className="text-xl leading-relaxed text-green-400 [&_img]:my-2 [&_img]:max-h-72 [&_img]:w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_audio]:my-2 [&_audio]:w-full [&_video]:my-2 [&_video]:w-full [&_video]:rounded-lg">
                             {answerContent}
                         </div>
                     </div>

@@ -29,11 +29,20 @@ EOF
     fi
   fi
 
+  port=15173
+  started_vite=0
+
   # Start Vite as a direct child of this script so the sandbox allows the bind.
+  # If a dev server is already listening on the expected port, reuse it.
   export INCREMENTUM_TAURI=1
-  npm run dev -- --host 127.0.0.1 --port 15173 --strictPort &
-  vite_pid=$!
-  trap 'kill "$vite_pid" 2>/dev/null || true' EXIT
+  if ss -ltn "( sport = :$port )" | tail -n +2 | grep -q ":$port"; then
+    echo "Reusing existing dev server on 127.0.0.1:$port"
+  else
+    npm run dev -- --host 127.0.0.1 --port "$port" --strictPort &
+    vite_pid=$!
+    started_vite=1
+  fi
+  trap 'if [[ "$started_vite" == "1" ]]; then kill "$vite_pid" 2>/dev/null || true; fi' EXIT
 
   export TAURI_CLI_NO_DEV_SERVER_WAIT=true
   export CARGO_BUILD_JOBS=1

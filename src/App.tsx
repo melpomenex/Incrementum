@@ -104,6 +104,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const loadAll = useAnalyticsStore((state) => state.loadAll);
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
+  const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(syncClient.isAuthenticated());
@@ -123,6 +124,12 @@ function App() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const toast = useToast();
   const handlePageChange = useCallback((page: string) => {
+    if (isAppPage(page)) {
+      setCurrentPage(page);
+    }
+  }, []);
+
+  const handleNavigate = useCallback((page: string) => {
     if (isAppPage(page)) {
       setCurrentPage(page);
     }
@@ -322,7 +329,7 @@ function App() {
     // Mark demo content as imported to prevent showing again
     if (!hasImportedDemoContent()) {
       markDemoContentImported();
-      toast.show("Demo content ready!", "You can find sample documents in your library. Start reviewing to see sample flashcards!");
+      toast.success("Demo content ready!", "You can find sample documents in your library. Start reviewing to see sample flashcards!");
       // Navigate to documents page to show the imported content
       setCurrentPage("documents");
     }
@@ -337,7 +344,7 @@ function App() {
       case "continue-reading":
         return <ContinueReadingPage />;
       case "dashboard":
-        return <DashboardPage onNavigate={setCurrentPage} />;
+        return <DashboardPage onNavigate={handleNavigate} />;
       case "documents":
         return <DocumentsPage />;
       case "queue":
@@ -351,7 +358,7 @@ function App() {
       case "settings":
         return <SettingsPage />;
       default:
-        return <DashboardPage onNavigate={setCurrentPage} />;
+        return <DashboardPage onNavigate={handleNavigate} />;
     }
   };
 
@@ -449,7 +456,7 @@ function App() {
       />
       {/* PWA Components */}
       <PWAInstallPrompt
-        onInstall={() => toast.show("App installed!", "Incrementum is now available offline.")}
+        onInstall={() => toast.success("App installed!", "Incrementum is now available offline.")}
         onDismiss={() => console.log("[PWA] Install prompt dismissed")}
       />
       <UpdateNotification className="fixed top-4 right-4 z-50 max-w-sm" />
@@ -495,7 +502,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const reviewCards = documents.slice(0, 10).map(doc => ({
     id: doc.id,
     front: doc.title || "Untitled",
-    back: doc.extracted_text?.slice(0, 200) || "No content available",
+    back: doc.content?.slice(0, 200) || "No content available",
     documentTitle: doc.title,
   }));
 

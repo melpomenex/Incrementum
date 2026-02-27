@@ -67,6 +67,49 @@ describe("mathOcr", () => {
       expect(html).toContain("&infin;");
     });
 
+    it("should render text commands like mbox", () => {
+      const latex = "y=ux \\mbox{or} x=vy";
+      const html = latexToHTML(latex);
+
+      expect(html).toContain("math-text");
+      expect(html).toContain("or");
+    });
+
+    it("should support simple unbraced super/subscript", () => {
+      const latex = "x^2 + y_1";
+      const html = latexToHTML(latex);
+
+      expect(html).toContain("<sup>2</sup>");
+      expect(html).toContain("<sub>1</sub>");
+    });
+
+    it("should convert common relation and operation commands", () => {
+      const latex = "a \\leq b, c \\neq d, x \\to y, p \\times q";
+      const html = latexToHTML(latex);
+
+      expect(html).toContain("&le;");
+      expect(html).toContain("&ne;");
+      expect(html).toContain("&rarr;");
+      expect(html).toContain("&times;");
+    });
+
+    it("should convert additional greek and calculus commands", () => {
+      const latex = "\\phi + \\rho + \\partial_x f";
+      const html = latexToHTML(latex);
+
+      expect(html).toContain("&phi;");
+      expect(html).toContain("&rho;");
+      expect(html).toContain("&part;");
+    });
+
+    it("should convert proportional and set-membership commands", () => {
+      const latex = "f \\propto g, x \\in A";
+      const html = latexToHTML(latex);
+
+      expect(html).toContain("&prop;");
+      expect(html).toContain("&isin;");
+    });
+
     it("should handle empty LaTeX", () => {
       const html = latexToHTML("");
       expect(html).toContain("math-expression");
