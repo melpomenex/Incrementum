@@ -1,0 +1,13 @@
+{
+  "layout": "portable-python-home-v1",
+  "built_with": "3.14.2",
+  "target": "x86_64-unknown-linux-gnu",
+  "python_executable": "python/bin/python3",
+  "site_packages": "site-packages",
+  "playwright_dir": "playwright",
+  "required_paths": [
+    "python/bin/python3",
+    "site-packages",
+    "site-packages/notebooklm"
+  ]
+}
