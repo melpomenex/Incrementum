@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { TextLayerBuilder } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { List, ChevronLeft, ChevronRight, Maximize, Minimize } from "lucide-react";
@@ -9,6 +9,20 @@ import type { DocumentPosition } from "../../types/position";
 import { saveDocumentPosition, getDocumentPosition, pagePosition, scrollPosition as createScrollPosition } from "../../api/position";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
+import {
+  deriveCurrentPageFromOffsets,
+  isNavigationSettled,
+  isStaleNavigationToken,
+  shouldSuppressProgrammaticScroll,
+  type NavigationMode,
+} from "./pdfNavigationStability";
+import {
+  derivePdfTextSelectionCapability,
+  hasSelectableTextInLayer,
+  selectionAnchorsInTextLayers,
+  selectionIntersectsTextLayers,
+  type PdfTextSelectionCapability,
+} from "./pdfTextSelection";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
@@ -115,12 +129,20 @@ interface PDFViewerProps {
   contextPageWindow?: number;
   onTextWindowChange?: (text: string) => void;
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
+  onTextSelectionCapabilityChange?: (capability: PdfTextSelectionCapability) => void;
 }
 
 type ZoomMode = "custom" | "fit-width" | "fit-page";
 const VIRTUALIZATION_THRESHOLD_PAGES = 80;
 const VIRTUAL_WINDOW_PAGES = 10;
 const PAGE_GAP_PX = 24;
+const ENABLE_PDF_VIRTUALIZATION = false;
+const USER_SCROLL_LOCKOUT_MS = 1200;
+const NAV_SETTLE_THRESHOLD_PX = 40;
+const NAV_SETTLE_STABLE_MS = 180;
+const NAV_SETTLE_TIMEOUT_MS = 1400;
+const PDF_NAV_STABILITY_FLAG_KEY = "incrementum.feature.pdfNavigationStability";
+const PDF_NAV_STABILITY_DEBUG_KEY = "incrementum.debug.pdfNavigationStability";
 
 export function PDFViewer({
   documentId,
@@ -143,6 +165,7 @@ export function PDFViewer({
   contextPageWindow = 2,
   onTextWindowChange,
   onSelectionChange,
+  onTextSelectionCapabilityChange,
 }: PDFViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +189,7 @@ export function PDFViewer({
   const textWindowRef = useRef<{ start: number; end: number }>({ start: 1, end: 1 });
   const skipAutoScrollOnceRef = useRef(false);
   const lastSelectionWasPdfRef = useRef(false);
+  const pageTextSelectionAvailabilityRef = useRef<Map<number, boolean>>(new Map());
   // Track selection highlight elements
   const selectionHighlightsRef = useRef<Map<number, HTMLDivElement[]>>(new Map());
   // Track the last restored page to prevent scroll events from resetting backwards
@@ -182,10 +206,23 @@ export function PDFViewer({
   const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
   const [fallbackPageSize, setFallbackPageSize] = useState<{ width: number; height: number } | null>(null);
   const [renderPass, setRenderPass] = useState(0);
+  const [textSelectionCapability, setTextSelectionCapability] = useState<PdfTextSelectionCapability>(() =>
+    derivePdfTextSelectionCapability(pageTextSelectionAvailabilityRef.current, 0, pageNumber),
+  );
   // Lazy loading: track which pages should be rendered
   const [renderedPageRange, setRenderedPageRange] = useState<{ start: number; end: number }>({ start: 1, end: 1 });
   const renderedPageRangeRef = useRef({ start: 1, end: 1 });
-  const pendingNavRef = useRef<{ pageNumber: number; destArray: any[] | null } | null>(null);
+  const pendingNavRef = useRef<{ token: number; pageNumber: number; destArray: any[] | null } | null>(null);
+  const navModeRef = useRef<NavigationMode>("idle");
+  const userScrollLockoutUntilRef = useRef(0);
+  const navTokenCounterRef = useRef(0);
+  const activeNavTokenRef = useRef<number | null>(null);
+  const latestTocRequestTokenRef = useRef<number | null>(null);
+  const navSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navSettleStableSinceRef = useRef<number | null>(null);
+  const navSettleTargetRef = useRef<{ token: number; targetTop: number; pageNumber: number } | null>(null);
+  const pdfNavStabilityEnabledRef = useRef(true);
+  const pdfNavStabilityDebugRef = useRef(false);
   const isTauriRuntime = isTauri();
 
   // Position persistence refs
@@ -246,12 +283,85 @@ export function PDFViewer({
     }
   }, []);
 
+  const publishTextSelectionCapability = useCallback(
+    (availability: ReadonlyMap<number, boolean>, totalPagesOverride?: number) => {
+      const capability = derivePdfTextSelectionCapability(
+        availability,
+        totalPagesOverride ?? numPages,
+        pageNumber,
+      );
+      setTextSelectionCapability(capability);
+      onTextSelectionCapabilityChange?.(capability);
+    },
+    [numPages, onTextSelectionCapabilityChange, pageNumber],
+  );
+
+  const setPageTextSelectionAvailability = useCallback(
+    (pageNum: number, hasSelectableText: boolean) => {
+      const current = pageTextSelectionAvailabilityRef.current;
+      if (current.get(pageNum) === hasSelectableText) return;
+      const next = new Map(current);
+      next.set(pageNum, hasSelectableText);
+      pageTextSelectionAvailabilityRef.current = next;
+      publishTextSelectionCapability(next);
+    },
+    [publishTextSelectionCapability],
+  );
+
   // Update zoom mode when external prop changes
   useEffect(() => {
     if (externalZoomMode) {
       setZoomMode(externalZoomMode);
     }
   }, [externalZoomMode]);
+
+  useEffect(() => {
+    try {
+      const value = localStorage.getItem(PDF_NAV_STABILITY_FLAG_KEY);
+      if (value === "0" || value === "false") {
+        pdfNavStabilityEnabledRef.current = false;
+      } else if (value === "1" || value === "true") {
+        pdfNavStabilityEnabledRef.current = true;
+      }
+    } catch {
+      pdfNavStabilityEnabledRef.current = true;
+    }
+    try {
+      const debugValue = localStorage.getItem(PDF_NAV_STABILITY_DEBUG_KEY);
+      pdfNavStabilityDebugRef.current = debugValue === "1" || debugValue === "true";
+    } catch {
+      pdfNavStabilityDebugRef.current = false;
+    }
+  }, []);
+
+  const logNav = useCallback((event: string, details?: Record<string, unknown>) => {
+    if (!pdfNavStabilityEnabledRef.current || !pdfNavStabilityDebugRef.current) return;
+    console.debug("[PDFViewer][nav]", event, details ?? {});
+  }, []);
+
+  const setNavigationMode = useCallback((mode: NavigationMode, reason: string) => {
+    if (!pdfNavStabilityEnabledRef.current) return;
+    if (navModeRef.current === mode) return;
+    const previous = navModeRef.current;
+    navModeRef.current = mode;
+    logNav("mode-transition", { from: previous, to: mode, reason });
+  }, [logNav]);
+
+  const markUserScrollOwnership = useCallback((reason: string) => {
+    if (!pdfNavStabilityEnabledRef.current) return;
+    userScrollLockoutUntilRef.current = Date.now() + USER_SCROLL_LOCKOUT_MS;
+    setNavigationMode("user-scroll", reason);
+    logNav("lockout-armed", { until: userScrollLockoutUntilRef.current, reason });
+  }, [logNav, setNavigationMode]);
+
+  const clearNavigationSettleTimeout = useCallback(() => {
+    if (navSettleTimeoutRef.current) {
+      clearTimeout(navSettleTimeoutRef.current);
+      navSettleTimeoutRef.current = null;
+    }
+    navSettleStableSinceRef.current = null;
+    navSettleTargetRef.current = null;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -315,6 +425,14 @@ export function PDFViewer({
 
         if (!mounted) return;
 
+        pageTextSelectionAvailabilityRef.current = new Map();
+        const initialCapability = derivePdfTextSelectionCapability(
+          pageTextSelectionAvailabilityRef.current,
+          pdfDoc.numPages,
+          1,
+        );
+        setTextSelectionCapability(initialCapability);
+        onTextSelectionCapabilityChange?.(initialCapability);
         setPdf(pdfDoc);
         onPdfInfo?.({ fingerprint: (pdfDoc as any).fingerprint ?? null });
         textCacheRef.current.clear();
@@ -360,7 +478,11 @@ export function PDFViewer({
     };
     // Note: onLoad is intentionally excluded from deps - it's a callback that
     // shouldn't trigger reloading the PDF source.
-  }, [fileData, fileUrl, isTauriRuntime]);
+  }, [fileData, fileUrl, isTauriRuntime, onTextSelectionCapabilityChange]);
+
+  useEffect(() => {
+    publishTextSelectionCapability(pageTextSelectionAvailabilityRef.current);
+  }, [numPages, pageNumber, publishTextSelectionCapability]);
 
 
   // Update rendered page window around the current page.
@@ -543,12 +665,34 @@ export function PDFViewer({
         setTimeout(() => {
           const activeContainer = scrollContainerRef.current;
           if (activeContainer) {
+            if (shouldSuppressProgrammaticScroll({
+              enabled: pdfNavStabilityEnabledRef.current,
+              source: "restore",
+              now: Date.now(),
+              lockoutUntil: userScrollLockoutUntilRef.current,
+              activeToken: activeNavTokenRef.current,
+            })) {
+              logNav("initial-restore-suppressed-by-user-lockout", {
+                targetPage,
+                lockoutUntil: userScrollLockoutUntilRef.current,
+              });
+              isRestoringPositionRef.current = false;
+              return;
+            }
+            if (pdfNavStabilityEnabledRef.current) {
+              setNavigationMode("programmatic-nav", "initial-restore");
+            }
             isProgrammaticScrollRef.current = true;
             activeContainer.scrollTop = targetScrollTop;
             console.log("[PDFViewer] Scrolled to position:", { targetPage, targetScrollTop });
 
             setTimeout(() => {
               isProgrammaticScrollRef.current = false;
+              if (pdfNavStabilityEnabledRef.current && activeNavTokenRef.current === null) {
+                if (Date.now() >= userScrollLockoutUntilRef.current) {
+                  setNavigationMode("idle", "initial-restore-complete");
+                }
+              }
               isRestoringPositionRef.current = false;
             }, 300);
           } else {
@@ -562,7 +706,16 @@ export function PDFViewer({
 
     const timeout = setTimeout(restorePosition, 500);
     return () => clearTimeout(timeout);
-  }, [pdf, numPages, pageNumber, onPageChange, loadReadingPosition, restoreState]);
+  }, [
+    loadReadingPosition,
+    logNav,
+    numPages,
+    onPageChange,
+    pageNumber,
+    pdf,
+    restoreState,
+    setNavigationMode,
+  ]);
 
   // Cleanup position save timeout on unmount
   useEffect(() => {
@@ -570,10 +723,11 @@ export function PDFViewer({
       if (positionSaveTimeoutRef.current) {
         clearTimeout(positionSaveTimeoutRef.current);
       }
+      clearNavigationSettleTimeout();
       // Clear selection highlights on unmount
       clearSelectionHighlights();
     };
-  }, [clearSelectionHighlights]);
+  }, [clearNavigationSettleTimeout, clearSelectionHighlights]);
 
   useEffect(() => {
     if (!pdf || numPages <= 0) return;
@@ -732,8 +886,35 @@ export function PDFViewer({
 
             // Restore scroll position after re-render (based on percentage)
             if (container.scrollHeight > 0 && scrollPercent > 0) {
+              if (shouldSuppressProgrammaticScroll({
+                enabled: pdfNavStabilityEnabledRef.current,
+                source: "resize",
+                now: Date.now(),
+                lockoutUntil: userScrollLockoutUntilRef.current,
+                activeToken: activeNavTokenRef.current,
+              })) {
+                logNav("resize-scroll-restore-suppressed", {
+                  scrollPercent,
+                  lockoutUntil: userScrollLockoutUntilRef.current,
+                });
+                return;
+              }
               const newScrollTop = scrollPercent * container.scrollHeight;
+              if (pdfNavStabilityEnabledRef.current) {
+                setNavigationMode("programmatic-nav", "resize-restore");
+              }
               container.scrollTop = newScrollTop;
+              if (pdfNavStabilityEnabledRef.current) {
+                isProgrammaticScrollRef.current = true;
+                window.setTimeout(() => {
+                  if (activeNavTokenRef.current === null) {
+                    isProgrammaticScrollRef.current = false;
+                    if (Date.now() >= userScrollLockoutUntilRef.current) {
+                      setNavigationMode("idle", "resize-restore-complete");
+                    }
+                  }
+                }, 200);
+              }
             }
           }
         }, 100);
@@ -761,24 +942,10 @@ export function PDFViewer({
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
 
-    let intersectsPdfLayer = false;
     const textLayers = textLayerRootsRef.current.filter(Boolean) as HTMLDivElement[];
-    for (let i = 0; i < selection.rangeCount; i += 1) {
-      const range = selection.getRangeAt(i);
-      for (const layer of textLayers) {
-        try {
-          if (range.intersectsNode(layer)) {
-            intersectsPdfLayer = true;
-            break;
-          }
-        } catch {
-          // Ignore range errors for detached nodes
-        }
-      }
-      if (intersectsPdfLayer) break;
-    }
-
-    if (!intersectsPdfLayer) return null;
+    if (textLayers.length === 0) return null;
+    if (!selectionAnchorsInTextLayers(selection, textLayers)) return null;
+    if (!selectionIntersectsTextLayers(selection, textLayers)) return null;
 
     const text = selection.toString().trim();
     if (!text) return null;
@@ -915,40 +1082,40 @@ export function PDFViewer({
           return;
         }
 
-        // Check if selection is within our PDF text layers
-        const range = selection.getRangeAt(0);
-        let isInPdf = false;
-        
-        for (let i = 0; i < pageContainerRefs.current.length; i++) {
-          const pageEl = pageContainerRefs.current[i];
-          const textLayer = textLayerRootsRef.current[i];
-          if (!pageEl || !textLayer) continue;
-          
-          // Check if selection intersects with this page's text layer
-          try {
-            if (textLayer.contains(range.commonAncestorContainer) ||
-                pageEl.contains(range.commonAncestorContainer)) {
-              isInPdf = true;
-              break;
-            }
-          } catch {
-            // Ignore errors from detached nodes
-          }
-        }
-        
+        const textLayers = textLayerRootsRef.current.filter(Boolean) as HTMLDivElement[];
+        const isInPdf =
+          textLayers.length > 0 &&
+          selectionAnchorsInTextLayers(selection, textLayers) &&
+          selectionIntersectsTextLayers(selection, textLayers);
+
         if (!isInPdf) {
+          if (lastSelectionWasPdfRef.current) {
+            lastSelectionWasPdfRef.current = false;
+            clearSelectionHighlights();
+            onSelectionChange("", null);
+          }
           isProcessingSelection = false;
           return;
         }
 
         const context = buildPdfSelectionContext();
         if (!context) {
+          if (lastSelectionWasPdfRef.current) {
+            lastSelectionWasPdfRef.current = false;
+            clearSelectionHighlights();
+            onSelectionChange("", null);
+          }
           isProcessingSelection = false;
           return;
         }
 
         const text = selection.toString().trim();
         if (!text) {
+          if (lastSelectionWasPdfRef.current) {
+            lastSelectionWasPdfRef.current = false;
+            clearSelectionHighlights();
+            onSelectionChange("", null);
+          }
           isProcessingSelection = false;
           return;
         }
@@ -969,13 +1136,22 @@ export function PDFViewer({
       setTimeout(handleSelectionChange, 50);
     };
 
-    // Clear highlights on mouse down (start of new selection)
+    // Clear highlights only when starting interaction away from text.
     const handleMouseDown = (e: MouseEvent) => {
-      // Only clear if clicking within the PDF viewer
       const target = e.target as Node;
       const scrollContainer = scrollContainerRef.current;
-      if (scrollContainer && scrollContainer.contains(target)) {
+      if (!scrollContainer || !scrollContainer.contains(target)) return;
+      const clickedTextLayer = textLayerRootsRef.current.some(
+        (layer) => layer && (layer === target || layer.contains(target)),
+      );
+      if (clickedTextLayer) return;
+      const hasNativeSelection = Boolean(window.getSelection()?.toString().trim());
+      if (!hasNativeSelection) {
         clearSelectionHighlights();
+        if (lastSelectionWasPdfRef.current) {
+          lastSelectionWasPdfRef.current = false;
+          onSelectionChange("", null);
+        }
       }
     };
 
@@ -1107,6 +1283,8 @@ export function PDFViewer({
 
       textLayerBuildersRef.current[pageIndex] = textLayerBuilder;
       await textLayerBuilder.render({ viewport });
+      const hasSelectableText = hasSelectableTextInLayer(textLayerRootsRef.current[pageIndex]);
+      setPageTextSelectionAvailability(pageNum, hasSelectableText);
       
       // Apply any search highlights
       applyTextLayerHighlights(pageIndex);
@@ -1115,12 +1293,80 @@ export function PDFViewer({
       textLayerContainer.style.zIndex = '10';
     } catch (err) {
       console.warn("Text layer rendering failed:", err);
+      setPageTextSelectionAvailability(pageNum, false);
       // Don't fail the entire page render if text layer fails
     }
 
     recomputePageOffsets();
     return true;
   };
+
+  const getCurrentPageFromScrollTop = useCallback((scrollTop: number) => {
+    return deriveCurrentPageFromOffsets(pageOffsetsRef.current, numPages, pageNumber, scrollTop, 24);
+  }, [numPages, pageNumber]);
+
+  const completeProgrammaticNavigation = useCallback((token: number, reason: string) => {
+    if (!pdfNavStabilityEnabledRef.current) {
+      isProgrammaticScrollRef.current = false;
+      return;
+    }
+    if (activeNavTokenRef.current !== token) return;
+    activeNavTokenRef.current = null;
+    isProgrammaticScrollRef.current = false;
+    clearNavigationSettleTimeout();
+    if (Date.now() >= userScrollLockoutUntilRef.current) {
+      setNavigationMode("idle", reason);
+    }
+    logNav("programmatic-nav-complete", { token, reason });
+  }, [clearNavigationSettleTimeout, logNav, setNavigationMode]);
+
+  const startNavigationSettleCheck = useCallback((token: number, targetTop: number, targetPageNumber: number) => {
+    if (!pdfNavStabilityEnabledRef.current) return;
+    clearNavigationSettleTimeout();
+    navSettleTargetRef.current = { token, targetTop, pageNumber: targetPageNumber };
+    const deadline = Date.now() + NAV_SETTLE_TIMEOUT_MS;
+
+    const check = () => {
+      if (activeNavTokenRef.current !== token) return;
+      const container = scrollContainerRef.current;
+      if (!container) {
+        completeProgrammaticNavigation(token, "container-missing");
+        return;
+      }
+
+      const currentTop = container.scrollTop;
+      const currentPageFromOffsets = getCurrentPageFromScrollTop(currentTop);
+      const delta = Math.abs(currentTop - targetTop);
+      const onTargetPage = currentPageFromOffsets === targetPageNumber;
+      const settled = isNavigationSettled(delta, onTargetPage, NAV_SETTLE_THRESHOLD_PX);
+      const now = Date.now();
+
+      if (settled) {
+        if (!navSettleStableSinceRef.current) {
+          navSettleStableSinceRef.current = now;
+        }
+        if (now - navSettleStableSinceRef.current >= NAV_SETTLE_STABLE_MS) {
+          completeProgrammaticNavigation(token, "settled");
+          return;
+        }
+      } else {
+        navSettleStableSinceRef.current = null;
+      }
+
+      if (now >= deadline) {
+        completeProgrammaticNavigation(token, "settle-timeout");
+        return;
+      }
+
+      navSettleTimeoutRef.current = setTimeout(check, 80);
+    };
+
+    navSettleTimeoutRef.current = setTimeout(check, 80);
+  }, [
+    clearNavigationSettleTimeout,
+    completeProgrammaticNavigation,
+    getCurrentPageFromScrollTop,
+  ]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -1164,7 +1410,15 @@ export function PDFViewer({
 
     const pending = pendingNavRef.current;
     if (pending && pending.pageNumber === pageNumber) {
-      pendingNavRef.current = null;
+      if (pdfNavStabilityEnabledRef.current && isStaleNavigationToken(activeNavTokenRef.current, pending.token)) {
+        logNav("stale-pending-nav-ignored", {
+          pendingToken: pending.token,
+          activeToken: activeNavTokenRef.current,
+          pageNumber,
+        });
+        pendingNavRef.current = null;
+        return;
+      }
 
       const pageIndex = pageNumber - 1;
       const viewport = pageViewportRefs.current[pageIndex];
@@ -1208,29 +1462,37 @@ export function PDFViewer({
       targetTop = Math.min(Math.max(0, targetTop), maxScrollTop);
       targetLeft = Math.min(Math.max(0, targetLeft), maxScrollLeft);
 
+      pendingNavRef.current = null;
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "toc-pending-nav");
+        isProgrammaticScrollRef.current = true;
+      }
       isProgrammaticScrollRef.current = true;
-      container.scrollTo({ top: targetTop, left: targetLeft, behavior: "smooth" });
+      container.scrollTo({ top: targetTop, left: targetLeft, behavior: "auto" });
 
-      const timeout = setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 300);
-
-      return () => {
-        clearTimeout(timeout);
-      };
+      if (pdfNavStabilityEnabledRef.current) {
+        startNavigationSettleCheck(pending.token, targetTop, pageNumber);
+      } else {
+        const timeout = setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+        }, 300);
+        return () => {
+          clearTimeout(timeout);
+        };
+      }
+      return;
     }
 
-    isProgrammaticScrollRef.current = true;
-    container.scrollTo({ top: Math.max(0, pageContainer.offsetTop - 16), behavior: "smooth" });
-
-    const timeout = setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 300);
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [pageNumber, numPages, suppressAutoScroll]);
+    // Do not auto-scroll on generic pageNumber prop changes. Programmatic
+    // navigation must go through pendingNavRef to avoid snap-back loops.
+    return;
+  }, [
+    logNav,
+    pageNumber,
+    numPages,
+    suppressAutoScroll,
+    startNavigationSettleCheck,
+  ]);
 
   // Track the last restoreRequestId we've processed to detect new restore attempts
   const lastProcessedRestoreIdRef = useRef<number | null>(null);
@@ -1313,8 +1575,24 @@ export function PDFViewer({
       }
 
       const clamped = Math.min(Math.max(0, targetScrollTop), maxScroll > 0 ? maxScroll : targetScrollTop);
+      if (shouldSuppressProgrammaticScroll({
+        enabled: pdfNavStabilityEnabledRef.current,
+        source: "restore",
+        now: Date.now(),
+        lockoutUntil: userScrollLockoutUntilRef.current,
+        activeToken: activeNavTokenRef.current,
+      })) {
+        logNav("restore-scroll-suppressed-by-user-lockout", {
+          page: clampedPageNumber,
+          lockoutUntil: userScrollLockoutUntilRef.current,
+        });
+        return;
+      }
       restoredPageRef.current = clampedPageNumber;
       restorationWindowRef.current = Date.now() + 2000;
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "restore-request");
+      }
       isProgrammaticScrollRef.current = true;
       activeContainer.scrollTop = clamped;
 
@@ -1326,6 +1604,11 @@ export function PDFViewer({
       if (settleTimeout) clearTimeout(settleTimeout);
       settleTimeout = setTimeout(() => {
         isProgrammaticScrollRef.current = false;
+        if (pdfNavStabilityEnabledRef.current && activeNavTokenRef.current === null) {
+          if (Date.now() >= userScrollLockoutUntilRef.current) {
+            setNavigationMode("idle", "restore-request-complete");
+          }
+        }
       }, 300);
     };
 
@@ -1336,7 +1619,7 @@ export function PDFViewer({
       if (retryTimeout) clearTimeout(retryTimeout);
       if (settleTimeout) clearTimeout(settleTimeout);
     };
-  }, [numPages, restoreRequestId, restoreState]);
+  }, [logNav, numPages, restoreRequestId, restoreState, setNavigationMode]);
 
   // Reset restore tracking when restoreState becomes null (restoration complete/cancelled)
   useEffect(() => {
@@ -1348,13 +1631,29 @@ export function PDFViewer({
 
   const handlePrevPage = () => {
     if (pageNumber > 1) {
-      onPageChange?.(pageNumber - 1);
+      const nextPageNumber = pageNumber - 1;
+      const token = ++navTokenCounterRef.current;
+      activeNavTokenRef.current = token;
+      pendingNavRef.current = { token, pageNumber: nextPageNumber, destArray: null };
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "prev-page");
+        isProgrammaticScrollRef.current = true;
+      }
+      onPageChange?.(nextPageNumber);
     }
   };
 
   const handleNextPage = () => {
     if (pageNumber < numPages) {
-      onPageChange?.(pageNumber + 1);
+      const nextPageNumber = pageNumber + 1;
+      const token = ++navTokenCounterRef.current;
+      activeNavTokenRef.current = token;
+      pendingNavRef.current = { token, pageNumber: nextPageNumber, destArray: null };
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "next-page");
+        isProgrammaticScrollRef.current = true;
+      }
+      onPageChange?.(nextPageNumber);
     }
   };
 
@@ -1397,14 +1696,33 @@ export function PDFViewer({
   }, [pdf, numPages]);
 
   const handleTocClick = useCallback(async (dest: any) => {
+    const requestToken = ++navTokenCounterRef.current;
+    latestTocRequestTokenRef.current = requestToken;
     const resolved = await resolveOutlineDest(dest);
-    if (!resolved) return;
+    if (!resolved) {
+      if (pdfNavStabilityEnabledRef.current && latestTocRequestTokenRef.current !== requestToken) {
+        logNav("stale-toc-resolve-ignored", { requestToken, reason: "no-resolved-destination" });
+      }
+      return;
+    }
+    if (pdfNavStabilityEnabledRef.current && latestTocRequestTokenRef.current !== requestToken) {
+      logNav("stale-toc-resolve-ignored", {
+        requestToken,
+        latestToken: latestTocRequestTokenRef.current,
+      });
+      return;
+    }
 
     const nextPageNumber = resolved.pageIndex + 1;
-    pendingNavRef.current = { pageNumber: nextPageNumber, destArray: resolved.destArray };
+    activeNavTokenRef.current = requestToken;
+    pendingNavRef.current = { token: requestToken, pageNumber: nextPageNumber, destArray: resolved.destArray };
+    if (pdfNavStabilityEnabledRef.current) {
+      setNavigationMode("programmatic-nav", "toc-click");
+      isProgrammaticScrollRef.current = true;
+    }
     setShowTOC(false);
     onPageChange?.(nextPageNumber);
-  }, [onPageChange, resolveOutlineDest]);
+  }, [logNav, onPageChange, resolveOutlineDest, setNavigationMode]);
 
   const handleZoomModeChange = (mode: ZoomMode) => {
     setZoomMode(mode);
@@ -1492,11 +1810,24 @@ export function PDFViewer({
     setIsDragging(false);
   };
 
+  const selectionStatusLabel = useMemo(() => {
+    if (textSelectionCapability.analyzedPages === 0) {
+      return "Detecting selectable text...";
+    }
+    if (!textSelectionCapability.hasSelectableText) {
+      return "No selectable text layer detected";
+    }
+    if (textSelectionCapability.currentPageHasSelectableText === false) {
+      return "This page has no selectable text";
+    }
+    return "Text selection available";
+  }, [textSelectionCapability]);
+
   // Track which pages have been rendered
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const pageOffsetsRef = useRef<number[]>([]);
   const offsetsUpdateRafRef = useRef<number | null>(null);
-  const shouldVirtualize = numPages > VIRTUALIZATION_THRESHOLD_PAGES;
+  const shouldVirtualize = ENABLE_PDF_VIRTUALIZATION && numPages > VIRTUALIZATION_THRESHOLD_PAGES;
   const virtualStartPage = shouldVirtualize ? Math.max(1, pageNumber - VIRTUAL_WINDOW_PAGES) : 1;
   const virtualEndPage = shouldVirtualize ? Math.min(numPages, pageNumber + VIRTUAL_WINDOW_PAGES) : numPages;
   const currentScaleEstimate = pageScaleRefs.current[Math.max(0, pageNumber - 1)] ?? scale;
@@ -1554,6 +1885,7 @@ export function PDFViewer({
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
       if (isProgrammaticScrollRef.current) return;
+      markUserScrollOwnership("user-scroll");
 
       // User scrolled. If we're still trying to restore, don't snap them back later.
       if (restoreState && restoreRequestId !== undefined) {
@@ -1565,25 +1897,7 @@ export function PDFViewer({
       }
 
       const scrollTop = container.scrollTop;
-      const offsets = pageOffsetsRef.current;
-      const target = scrollTop + 24;
-      let currentPage = pageNumber;
-      if (offsets.length === numPages && numPages > 0) {
-        // Binary search last offset <= target.
-        let lo = 0;
-        let hi = offsets.length - 1;
-        let ans = 0;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          if (offsets[mid] <= target) {
-            ans = mid;
-            lo = mid + 1;
-          } else {
-            hi = mid - 1;
-          }
-        }
-        currentPage = ans + 1;
-      }
+      const currentPage = getCurrentPageFromScrollTop(scrollTop);
 
       if (currentPage !== pageNumber && !suppressAutoScroll) {
         // Check if we're in a restoration protection window
@@ -1863,7 +2177,7 @@ export function PDFViewer({
             <div className="flex items-center justify-center gap-4 p-3 border-t border-border bg-card text-xs text-muted-foreground">
               <span>Use arrow keys to navigate</span>
               <span>•</span>
-              <span>Text selection enabled</span>
+              <span>{selectionStatusLabel}</span>
               <span>•</span>
               <button
                 onClick={() => setShowTOC(!showTOC)}

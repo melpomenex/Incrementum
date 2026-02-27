@@ -338,7 +338,7 @@ export const defaultSettings: Settings = {
     showStats: true,
     compactMode: false,
     animationsEnabled: true,
-    toolbarPosition: "top",
+    toolbarPosition: "left",
     splitViewSpawn: { button: 1, modifier: "none" },
   },
   learning: {

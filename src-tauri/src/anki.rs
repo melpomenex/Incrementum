@@ -5,9 +5,16 @@
 //! - media (JSON file mapping filenames to content)
 //! - Actual media files
 
+use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek, Write};
 use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use base64::{engine::general_purpose, Engine as _};
+use image::GenericImageView;
+use regex::Regex;
+use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 use rusqlite::Connection;
 use serde_json::Value;
@@ -52,6 +59,13 @@ pub struct AnkiDeck {
     pub cards: Vec<AnkiCard>,
 }
 
+#[derive(Debug, Clone)]
+struct AnkiMediaFile {
+    file_name: String,
+    mime_type: String,
+    bytes: Arc<Vec<u8>>,
+}
+
 /// Parse an .apkg file and extract deck data
 pub async fn parse_apkg(apkg_path: &str) -> Result<Vec<AnkiDeck>> {
     let file = File::open(apkg_path)
@@ -82,6 +96,73 @@ fn parse_apkg_from_archive<R: Read + Seek>(
     best_decks.ok_or_else(|| {
         IncrementumError::NotFound("No valid collection.anki2 or collection.anki21 found in archive".to_string())
     })
+}
+
+fn parse_apkg_with_media_from_archive<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+) -> Result<(Vec<AnkiDeck>, HashMap<String, AnkiMediaFile>)> {
+    let decks = parse_apkg_from_archive(archive)?;
+    let media = extract_media_map_from_archive(archive);
+    Ok((decks, media))
+}
+
+fn extract_media_map_from_archive<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+) -> HashMap<String, AnkiMediaFile> {
+    let mut media_map = HashMap::new();
+    let mut media_manifest = String::new();
+
+    let mut media_file = match archive.by_name("media") {
+        Ok(file) => file,
+        Err(_) => return media_map,
+    };
+
+    if media_file.read_to_string(&mut media_manifest).is_err() {
+        return media_map;
+    }
+    drop(media_file);
+
+    let manifest_json = match serde_json::from_str::<Value>(&media_manifest) {
+        Ok(value) => value,
+        Err(_) => return media_map,
+    };
+
+    let Some(manifest) = manifest_json.as_object() else {
+        return media_map;
+    };
+
+    for (archive_key, file_name_value) in manifest {
+        let Some(file_name) = file_name_value.as_str() else {
+            continue;
+        };
+        let trimmed = file_name.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let mut zipped = match archive.by_name(archive_key) {
+            Ok(file) => file,
+            Err(_) => continue,
+        };
+
+        let mut bytes = Vec::new();
+        if zipped.read_to_end(&mut bytes).is_err() || bytes.is_empty() {
+            continue;
+        }
+        drop(zipped);
+
+        let media = AnkiMediaFile {
+            file_name: trimmed.to_string(),
+            mime_type: infer_media_mime(trimmed, &bytes),
+            bytes: Arc::new(bytes),
+        };
+
+        for key in media_lookup_keys(trimmed) {
+            media_map.insert(key, media.clone());
+        }
+    }
+
+    media_map
 }
 
 fn parse_collection_from_archive<R: Read + Seek>(
@@ -169,6 +250,15 @@ pub async fn parse_apkg_from_bytes(apkg_bytes: Vec<u8>) -> Result<Vec<AnkiDeck>>
         .map_err(|e| IncrementumError::NotFound(format!("Cannot unzip .apkg file: {}", e)))?;
 
     parse_apkg_from_archive(&mut archive)
+}
+
+async fn parse_apkg_from_bytes_with_media(
+    apkg_bytes: Vec<u8>,
+) -> Result<(Vec<AnkiDeck>, HashMap<String, AnkiMediaFile>)> {
+    let cursor = Cursor::new(apkg_bytes);
+    let mut archive = ZipArchive::new(cursor)
+        .map_err(|e| IncrementumError::NotFound(format!("Cannot unzip .apkg file: {}", e)))?;
+    parse_apkg_with_media_from_archive(&mut archive)
 }
 
 fn extract_notes_from_deck(
@@ -330,33 +420,50 @@ fn find_cloze_field(note: &AnkiNote) -> Option<&AnkiField> {
     note.fields.iter().find(|field| field.value.contains("{{c"))
 }
 
-fn build_learning_item(
+async fn build_learning_item(
     note: &AnkiNote,
     card: &AnkiCard,
     document_id: Option<&str>,
     deck_name: &str,
+    repo: &Repository,
+    media_map: &HashMap<String, AnkiMediaFile>,
 ) -> Option<LearningItem> {
     let cloze_field = find_cloze_field(note);
+    let mut image_asset_ids = Vec::new();
     let (item_type, question, answer, cloze_text) = if let Some(field) = cloze_field {
         let cloze = normalize_cloze_text(&field.value);
-        (ItemType::Cloze, cloze.clone(), None, Some(cloze))
+        let rendered = rewrite_field_with_media(&cloze, repo, media_map, &mut image_asset_ids).await;
+        let question = fallback_question_text(rendered.trim(), &image_asset_ids);
+        (ItemType::Cloze, question.clone(), None, Some(question))
     } else {
         let question_field = find_question_field(note)
             .or_else(|| note.fields.first());
         let answer_field = find_answer_field(note)
             .or_else(|| note.fields.get(1));
 
-        let question = question_field?.value.trim().to_string();
-        if question.is_empty() {
-            return None;
-        }
+        let raw_question = question_field?.value.trim().to_string();
+        let rendered_question = rewrite_field_with_media(&raw_question, repo, media_map, &mut image_asset_ids).await;
+        let question = fallback_question_text(rendered_question.trim(), &image_asset_ids);
 
         let answer = answer_field
-            .map(|field| field.value.trim().to_string())
-            .filter(|value| !value.is_empty());
+            .map(|field| field.value.trim().to_string());
+        let answer = if let Some(raw_answer) = answer {
+            let rendered_answer = rewrite_field_with_media(&raw_answer, repo, media_map, &mut image_asset_ids).await;
+            if rendered_answer.trim().is_empty() {
+                None
+            } else {
+                Some(rendered_answer.trim().to_string())
+            }
+        } else {
+            None
+        };
 
         (ItemType::Flashcard, question, answer, None)
     };
+
+    if question.trim().is_empty() {
+        return None;
+    }
 
     let mut item = LearningItem::new(item_type, question);
     if let Some(doc_id) = document_id {
@@ -376,8 +483,211 @@ fn build_learning_item(
     tags.push(note.model_name.clone());
     tags.push(deck_name.to_string());
     item.tags = tags;
+    item.image_asset_ids = image_asset_ids;
 
     Some(item)
+}
+
+fn fallback_question_text(text: &str, image_asset_ids: &[String]) -> String {
+    if !text.is_empty() {
+        return text.to_string();
+    }
+    if !image_asset_ids.is_empty() {
+        return "Image card".to_string();
+    }
+    String::new()
+}
+
+async fn rewrite_field_with_media(
+    value: &str,
+    repo: &Repository,
+    media_map: &HashMap<String, AnkiMediaFile>,
+    image_asset_ids: &mut Vec<String>,
+) -> String {
+    let img_regex = Regex::new(r#"(?is)<img[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>"#).expect("valid img regex");
+    let mut transformed = String::with_capacity(value.len());
+    let mut last = 0usize;
+
+    for capture in img_regex.captures_iter(value) {
+        let Some(full) = capture.get(0) else {
+            continue;
+        };
+        let src = capture.get(1).map(|m| m.as_str()).unwrap_or_default();
+        transformed.push_str(&value[last..full.start()]);
+        if let Some(media) = find_media_entry(media_map, src) {
+            if media.mime_type.starts_with("image/") {
+                if let Ok(Some(asset_id)) = persist_media_image_asset(repo, media).await {
+                    if !image_asset_ids.iter().any(|id| id == &asset_id) {
+                        image_asset_ids.push(asset_id);
+                    }
+                } else {
+                    transformed.push_str(&replace_src_value(full.as_str(), &media_data_url(media)));
+                }
+            } else {
+                transformed.push_str(full.as_str());
+            }
+        } else {
+            transformed.push_str(full.as_str());
+        }
+        last = full.end();
+    }
+    transformed.push_str(&value[last..]);
+
+    let sound_regex = Regex::new(r#"(?i)\[sound:([^\]]+)\]"#).expect("valid sound regex");
+    let with_audio = sound_regex
+        .replace_all(&transformed, |caps: &regex::Captures| {
+            let src = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+            if let Some(media) = find_media_entry(media_map, src) {
+                format!(
+                    "<audio controls preload=\"none\" src=\"{}\"></audio>",
+                    media_data_url(media)
+                )
+            } else {
+                caps.get(0).map(|m| m.as_str()).unwrap_or_default().to_string()
+            }
+        })
+        .to_string();
+
+    rewrite_media_src_attributes(&with_audio, media_map)
+}
+
+fn rewrite_media_src_attributes(
+    value: &str,
+    media_map: &HashMap<String, AnkiMediaFile>,
+) -> String {
+    let src_regex = Regex::new(r#"(?is)\bsrc\s*=\s*["']([^"']+)["']"#).expect("valid src regex");
+    src_regex
+        .replace_all(value, |caps: &regex::Captures| {
+            let src = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+            if let Some(media) = find_media_entry(media_map, src) {
+                format!("src=\"{}\"", media_data_url(media))
+            } else {
+                caps.get(0).map(|m| m.as_str()).unwrap_or_default().to_string()
+            }
+        })
+        .to_string()
+}
+
+fn replace_src_value(tag: &str, new_src: &str) -> String {
+    let src_regex = Regex::new(r#"(?is)\bsrc\s*=\s*["'][^"']+["']"#).expect("valid src replace regex");
+    src_regex
+        .replace(tag, format!("src=\"{}\"", new_src))
+        .to_string()
+}
+
+async fn persist_media_image_asset(repo: &Repository, media: &AnkiMediaFile) -> Result<Option<String>> {
+    let guessed = match image::guess_format(media.bytes.as_slice()) {
+        Ok(format) => format,
+        Err(_) => return Ok(None),
+    };
+    let mime_type = normalize_image_mime(&media.mime_type, guessed)?;
+    let dimensions = image::load_from_memory(media.bytes.as_slice())
+        .map_err(|e| IncrementumError::InvalidInput(format!("Unable to decode image dimensions: {}", e)))?
+        .dimensions();
+    let sha256 = hex_sha256(media.bytes.as_slice());
+    let asset = repo
+        .create_or_get_image_asset(
+            &mime_type,
+            Some(&media.file_name),
+            media.bytes.as_slice(),
+            &sha256,
+            i32::try_from(dimensions.0).ok(),
+            i32::try_from(dimensions.1).ok(),
+        )
+        .await?;
+    Ok(Some(asset.id))
+}
+
+fn normalize_image_mime(existing: &str, guessed: image::ImageFormat) -> Result<String> {
+    if existing.starts_with("image/") {
+        return Ok(existing.to_string());
+    }
+    let mime = match guessed {
+        image::ImageFormat::Png => "image/png",
+        image::ImageFormat::Jpeg => "image/jpeg",
+        image::ImageFormat::Gif => "image/gif",
+        image::ImageFormat::WebP => "image/webp",
+        _ => return Err(IncrementumError::InvalidInput("Unsupported image format".to_string())),
+    };
+    Ok(mime.to_string())
+}
+
+fn media_data_url(media: &AnkiMediaFile) -> String {
+    let encoded = general_purpose::STANDARD.encode(media.bytes.as_slice());
+    format!("data:{};base64,{}", media.mime_type, encoded)
+}
+
+fn find_media_entry<'a>(
+    media_map: &'a HashMap<String, AnkiMediaFile>,
+    reference: &str,
+) -> Option<&'a AnkiMediaFile> {
+    for key in media_lookup_keys(reference) {
+        if let Some(media) = media_map.get(&key) {
+            return Some(media);
+        }
+    }
+    None
+}
+
+fn media_lookup_keys(input: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    let decoded = urlencoding::decode(input).map(|cow| cow.into_owned()).unwrap_or_else(|_| input.to_string());
+    let without_fragment = decoded.split('#').next().unwrap_or(decoded.as_str());
+    let without_query = without_fragment.split('?').next().unwrap_or(without_fragment);
+    let sanitized = without_query.trim().trim_start_matches("./").trim_start_matches('/');
+    if sanitized.is_empty() {
+        return keys;
+    }
+
+    keys.push(sanitized.to_string());
+    keys.push(sanitized.to_lowercase());
+    if let Some(base) = Path::new(sanitized).file_name().and_then(|s| s.to_str()) {
+        keys.push(base.to_string());
+        keys.push(base.to_lowercase());
+    }
+    keys.sort();
+    keys.dedup();
+    keys
+}
+
+fn infer_media_mime(file_name: &str, bytes: &[u8]) -> String {
+    let ext = Path::new(file_name)
+        .extension()
+        .and_then(|v| v.to_str())
+        .map(|v| v.to_lowercase())
+        .unwrap_or_default();
+    match ext.as_str() {
+        "png" => "image/png".to_string(),
+        "jpg" | "jpeg" => "image/jpeg".to_string(),
+        "gif" => "image/gif".to_string(),
+        "webp" => "image/webp".to_string(),
+        "svg" => "image/svg+xml".to_string(),
+        "mp3" => "audio/mpeg".to_string(),
+        "wav" => "audio/wav".to_string(),
+        "ogg" => "audio/ogg".to_string(),
+        "m4a" => "audio/mp4".to_string(),
+        "mp4" => "video/mp4".to_string(),
+        "webm" => "video/webm".to_string(),
+        _ => {
+            if let Ok(format) = image::guess_format(bytes) {
+                match format {
+                    image::ImageFormat::Png => "image/png".to_string(),
+                    image::ImageFormat::Jpeg => "image/jpeg".to_string(),
+                    image::ImageFormat::Gif => "image/gif".to_string(),
+                    image::ImageFormat::WebP => "image/webp".to_string(),
+                    _ => "application/octet-stream".to_string(),
+                }
+            } else {
+                "application/octet-stream".to_string()
+            }
+        }
+    }
+}
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
 }
 
 #[tauri::command]
@@ -395,7 +705,11 @@ pub async fn import_anki_package_to_learning_items(
     apkg_path: String,
     repo: State<'_, Repository>,
 ) -> Result<Vec<LearningItem>> {
-    let decks = parse_apkg(&apkg_path).await?;
+    let file = File::open(&apkg_path)
+        .map_err(|e| IncrementumError::NotFound(format!("Cannot open .apkg file: {}", e)))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|e| IncrementumError::NotFound(format!("Cannot unzip .apkg file: {}", e)))?;
+    let (decks, media_map) = parse_apkg_with_media_from_archive(&mut archive)?;
     let mut created_items = Vec::new();
     let mut imported_note_guids = std::collections::HashSet::new();
     let mut skipped_count = 0usize;
@@ -422,7 +736,14 @@ pub async fn import_anki_package_to_learning_items(
                     eprintln!("DEBUG: Skipping duplicate note GUID: {}", note.guid);
                     continue;
                 }
-                if let Some(item) = build_learning_item(&note, card, Some(&deck_doc.id), &deck.name) {
+                if let Some(item) = build_learning_item(
+                    &note,
+                    card,
+                    Some(&deck_doc.id),
+                    &deck.name,
+                    &repo,
+                    &media_map,
+                ).await {
                     let created = repo.create_learning_item(&item).await?;
                     created_items.push(created);
                 }
@@ -441,7 +762,7 @@ pub async fn import_anki_package_bytes_to_learning_items(
     apkg_bytes: Vec<u8>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<LearningItem>> {
-    let decks = parse_apkg_from_bytes(apkg_bytes).await?;
+    let (decks, media_map) = parse_apkg_from_bytes_with_media(apkg_bytes).await?;
     let mut created_items = Vec::new();
     let mut imported_note_guids = std::collections::HashSet::new();
     let mut skipped_count = 0usize;
@@ -468,7 +789,14 @@ pub async fn import_anki_package_bytes_to_learning_items(
                     eprintln!("DEBUG: Skipping duplicate note GUID: {}", note.guid);
                     continue;
                 }
-                if let Some(item) = build_learning_item(&note, card, Some(&deck_doc.id), &deck.name) {
+                if let Some(item) = build_learning_item(
+                    &note,
+                    card,
+                    Some(&deck_doc.id),
+                    &deck.name,
+                    &repo,
+                    &media_map,
+                ).await {
                     let created = repo.create_learning_item(&item).await?;
                     created_items.push(created);
                 }

@@ -53,6 +53,11 @@ import { saveDocumentPosition, pagePosition, scrollPosition } from "../../api/po
 import type { DocumentPosition } from "../../types/position";
 import { useExtractStore } from "../../stores/extractStore";
 import { extractYouTubeVideoId } from "../../utils/youtubeEmbed";
+import {
+  getPdfExtractBlockReason,
+  isValidPdfSelection,
+  type PdfTextSelectionCapability,
+} from "./pdfTextSelection";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -500,6 +505,7 @@ export function DocumentViewer({
   // Extract creation state
   const [selectedText, setSelectedText] = useState("");
   const [selectionContext, setSelectionContext] = useState<PdfSelectionContext | null>(null);
+  const [pdfTextSelectionCapability, setPdfTextSelectionCapability] = useState<PdfTextSelectionCapability | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
@@ -559,7 +565,23 @@ export function DocumentViewer({
   const MAX_SELECTION_CHARS = 10000;
   const updateSelection = useCallback((rawText: string | null | undefined, context?: PdfSelectionContext | null) => {
     const text = rawText?.trim() ?? "";
-    if (text && text.length > 0 && text.length <= MAX_SELECTION_CHARS) {
+    const hasText = text.length > 0 && text.length <= MAX_SELECTION_CHARS;
+
+    if (docType === "pdf") {
+      if (hasText && isValidPdfSelection(text, context)) {
+        setSelectedText(text);
+        lastSelectionRef.current = text;
+        setSelectionContext(context ?? null);
+      } else {
+        setSelectedText("");
+        if (context === null || context === undefined || !isValidPdfSelection(text, context)) {
+          setSelectionContext(null);
+        }
+      }
+      return;
+    }
+
+    if (hasText) {
       setSelectedText(text);
       lastSelectionRef.current = text;
       if (context) {
@@ -575,7 +597,7 @@ export function DocumentViewer({
       // Don't clear lastSelectionRef on empty selection - preserve it for the toolbar button
       // The floating action button is controlled by selectedText state, so it will hide appropriately
     }
-  }, [MAX_SELECTION_CHARS]);
+  }, [MAX_SELECTION_CHARS, docType]);
 
   const clearTextSelection = useCallback(() => {
     setSelectedText("");
@@ -1890,10 +1912,13 @@ export function DocumentViewer({
     if (!documentId) return;
     setOcrResult(null);
     setPdfViewMode("pdf");
+    setPdfTextSelectionCapability(null);
   }, [documentId]);
 
   // Handle text selection
   useEffect(() => {
+    if (docType === "pdf") return;
+
     const handleSelection = () => {
       const selection = window.getSelection();
       if (!selection) return;
@@ -1916,7 +1941,7 @@ export function DocumentViewer({
       document.removeEventListener("mouseup", handleSelection);
       document.removeEventListener("keyup", handleSelection);
     };
-  }, [updateSelection]);
+  }, [docType, updateSelection]);
 
   // Mobile PWA: Handle text selection via selectionchange event
   useEffect(() => {
@@ -1975,9 +2000,11 @@ export function DocumentViewer({
             showButton: true,
           });
 
-          // Update the selected text state for the extract dialog
-          setSelectedText(text);
-          lastSelectionRef.current = text;
+          if (docType !== "pdf") {
+            // For non-PDF content, mobile selection directly drives extract text.
+            setSelectedText(text);
+            lastSelectionRef.current = text;
+          }
 
           // Auto-hide after 5 seconds if not interacted with
           if (mobileSelectionTimeoutRef.current) {
@@ -2011,7 +2038,7 @@ export function DocumentViewer({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isMobilePWA, setSelectedText]);
+  }, [docType, isMobilePWA, setSelectedText]);
 
   // Clear text selection when clicking outside the document content
   useEffect(() => {
@@ -2255,6 +2282,24 @@ export function DocumentViewer({
   };
 
   const openExtractDialog = () => {
+    if (docType === "pdf") {
+      const blockReason = getPdfExtractBlockReason({
+        selectedText,
+        selectionContext,
+        capability: pdfTextSelectionCapability,
+      });
+      if (blockReason === "no_text_layer") {
+        toast.info("No selectable text on this page", "This PDF page appears image-only or lacks a text layer.");
+        return;
+      }
+      if (blockReason === "missing_selection") {
+        toast.info("Select PDF text first", "Drag across PDF text to create an extract.");
+        return;
+      }
+      setIsExtractDialogOpen(true);
+      return;
+    }
+
     const selection = window.getSelection()?.toString().trim();
     const selectionText = selection || lastSelectionRef.current;
     if (selectionText) {
@@ -2265,6 +2310,15 @@ export function DocumentViewer({
 
   // Mobile PWA: Open extract dialog from mobile selection
   const handleMobileExtract = () => {
+    if (docType === "pdf") {
+      setMobileSelection(prev => ({ ...prev, showButton: false }));
+      if (mobileSelectionTimeoutRef.current) {
+        clearTimeout(mobileSelectionTimeoutRef.current);
+      }
+      openExtractDialog();
+      return;
+    }
+
     if (mobileSelection.text) {
       setSelectedText(mobileSelection.text);
       lastSelectionRef.current = mobileSelection.text;
@@ -3103,6 +3157,7 @@ export function DocumentViewer({
             contextPageWindow={contextPageWindow}
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
+            onTextSelectionCapabilityChange={setPdfTextSelectionCapability}
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
           />

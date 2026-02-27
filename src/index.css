@@ -720,4 +720,21 @@
     margin-left: 0.1em;
     padding: 0 0.15em;
   }
+
+  .math-expression .math-text {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-style: normal;
+  }
+
+  .math-expression-fallback {
+    display: inline-block;
+    padding: 0 0.2em;
+    border-radius: 0.25rem;
+    background: color-mix(in oklab, var(--color-yellow-500) 14%, transparent);
+    border: 1px dashed color-mix(in oklab, var(--color-yellow-500) 45%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 }

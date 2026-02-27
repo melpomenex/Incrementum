@@ -40,6 +40,12 @@ export interface AnkiDeck {
   cards: AnkiCard[];
 }
 
+interface AnkiMediaAsset {
+  fileName: string;
+  mimeType: string;
+  dataUrl: string;
+}
+
 /**
  * Parse an Anki .apkg file in the browser
  */
@@ -69,9 +75,10 @@ export async function parseAnkiPackage(file: File | Uint8Array): Promise<AnkiDec
   // Read the database as ArrayBuffer
   const dbBuffer = await collectionFile.async('arraybuffer');
   const db = new SQL.Database(new Uint8Array(dbBuffer));
+  const mediaMap = await extractAnkiMediaMap(zip);
 
   // Parse the database
-  const decks = parseAnkiDatabase(db, zip);
+  const decks = parseAnkiDatabase(db, mediaMap);
 
   return decks;
 }
@@ -79,7 +86,7 @@ export async function parseAnkiPackage(file: File | Uint8Array): Promise<AnkiDec
 /**
  * Parse Anki SQLite database
  */
-function parseAnkiDatabase(db: Database, _zip: JSZip): AnkiDeck[] {
+function parseAnkiDatabase(db: Database, mediaMap: Map<string, AnkiMediaAsset>): AnkiDeck[] {
   // Get models (note types)
   const models: Map<number, { name: string; fields: string[] }> = new Map();
   const normalizeModelFields = (raw: unknown): Array<{ name?: string }> => {
@@ -163,7 +170,7 @@ function parseAnkiDatabase(db: Database, _zip: JSZip): AnkiDeck[] {
         for (let i = 0; i < Math.min(fieldValues.length, model.fields.length); i++) {
           fields.push({
             name: model.fields[i],
-            value: fieldValues[i]
+            value: resolveAnkiMediaReferences(fieldValues[i], mediaMap)
           });
         }
       } else {
@@ -171,7 +178,7 @@ function parseAnkiDatabase(db: Database, _zip: JSZip): AnkiDeck[] {
         for (let i = 0; i < fieldValues.length; i++) {
           fields.push({
             name: `Field ${i + 1}`,
-            value: fieldValues[i]
+            value: resolveAnkiMediaReferences(fieldValues[i], mediaMap)
           });
         }
       }
@@ -254,6 +261,136 @@ function parseAnkiDatabase(db: Database, _zip: JSZip): AnkiDeck[] {
   }
 
   return decks;
+}
+
+async function extractAnkiMediaMap(zip: JSZip): Promise<Map<string, AnkiMediaAsset>> {
+  const map = new Map<string, AnkiMediaAsset>();
+  const mediaManifest = zip.file("media");
+  if (!mediaManifest) {
+    return map;
+  }
+
+  let manifestRaw = "";
+  try {
+    manifestRaw = await mediaManifest.async("text");
+  } catch {
+    return map;
+  }
+
+  let manifest: Record<string, string>;
+  try {
+    const parsed = JSON.parse(manifestRaw);
+    if (!parsed || typeof parsed !== "object") return map;
+    manifest = parsed as Record<string, string>;
+  } catch {
+    return map;
+  }
+
+  for (const [archiveName, logicalName] of Object.entries(manifest)) {
+    if (!logicalName || typeof logicalName !== "string") continue;
+    const file = zip.file(archiveName);
+    if (!file) continue;
+    const bytes = await file.async("uint8array");
+    if (!bytes || bytes.length === 0) continue;
+    const mimeType = inferMediaMimeType(logicalName, bytes);
+    const base64 = uint8ToBase64(bytes);
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const asset: AnkiMediaAsset = { fileName: logicalName, mimeType, dataUrl };
+    for (const key of mediaLookupKeys(logicalName)) {
+      map.set(key, asset);
+    }
+  }
+
+  return map;
+}
+
+function resolveAnkiMediaReferences(value: string, mediaMap: Map<string, AnkiMediaAsset>): string {
+  if (!value || mediaMap.size === 0) return value;
+
+  // Replace Anki audio markers with native controls.
+  let out = value.replace(/\[sound:([^\]]+)\]/gi, (_full, src) => {
+    const asset = findMedia(mediaMap, src);
+    if (!asset) return _full;
+    return `<audio controls preload="none" src="${asset.dataUrl}"></audio>`;
+  });
+
+  // Rewrite src=... references to data URLs when APKG-local media exists.
+  out = out.replace(/\bsrc\s*=\s*["']([^"']+)["']/gi, (full, src) => {
+    const asset = findMedia(mediaMap, src);
+    if (!asset) return full;
+    return `src="${asset.dataUrl}"`;
+  });
+
+  return out;
+}
+
+function findMedia(mediaMap: Map<string, AnkiMediaAsset>, rawRef: string): AnkiMediaAsset | undefined {
+  for (const key of mediaLookupKeys(rawRef)) {
+    const asset = mediaMap.get(key);
+    if (asset) return asset;
+  }
+  return undefined;
+}
+
+function mediaLookupKeys(rawName: string): string[] {
+  const out = new Set<string>();
+  if (!rawName) return [];
+
+  let decoded = rawName;
+  try {
+    decoded = decodeURIComponent(rawName);
+  } catch {
+    decoded = rawName;
+  }
+
+  const noFragment = decoded.split("#")[0] || decoded;
+  const noQuery = noFragment.split("?")[0] || noFragment;
+  const sanitized = noQuery.trim().replace(/^\.?\//, "");
+  if (!sanitized) return [];
+
+  out.add(sanitized);
+  out.add(sanitized.toLowerCase());
+
+  const pathParts = sanitized.split("/");
+  const base = pathParts[pathParts.length - 1];
+  if (base) {
+    out.add(base);
+    out.add(base.toLowerCase());
+  }
+
+  return Array.from(out);
+}
+
+function inferMediaMimeType(fileName: string, bytes: Uint8Array): string {
+  const ext = (fileName.split(".").pop() || "").toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  if (ext === "svg") return "image/svg+xml";
+  if (ext === "mp3") return "audio/mpeg";
+  if (ext === "wav") return "audio/wav";
+  if (ext === "ogg") return "audio/ogg";
+  if (ext === "m4a") return "audio/mp4";
+  if (ext === "mp4") return "video/mp4";
+  if (ext === "webm") return "video/webm";
+
+  if (bytes.length >= 4) {
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+  }
+  return "application/octet-stream";
+}
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    const slice = bytes.subarray(i, i + chunk);
+    binary += String.fromCharCode(...slice);
+  }
+  return btoa(binary);
 }
 
 /**

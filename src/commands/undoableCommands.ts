@@ -4,9 +4,7 @@
  */
 
 import { invokeCommand as invoke } from "../lib/tauri";
-import { Document } from "../types/document";
-import { Extract } from "../types/extract";
-import { LearningItem } from "../types/learning-item";
+import { Document, Extract, LearningItem } from "../types/document";
 import {
   OperationType,
   UndoableCommandBase,
@@ -97,9 +95,9 @@ export class DeleteExtractCommand extends UndoableCommandBase {
     await invoke("create_extract", {
       extract: {
         documentId: this.deletedExtract.documentId,
-        title: this.deletedExtract.title,
+        pageTitle: this.deletedExtract.pageTitle,
         content: this.deletedExtract.content,
-        extractedAt: this.deletedExtract.extractedAt,
+        dateCreated: this.deletedExtract.dateCreated,
       },
     });
   }
@@ -148,9 +146,9 @@ export class BulkDeleteExtractsCommand extends UndoableCommandBase {
       await invoke("create_extract", {
         extract: {
           documentId: extract.documentId,
-          title: extract.title,
+          pageTitle: extract.pageTitle,
           content: extract.content,
-          extractedAt: extract.extractedAt,
+          dateCreated: extract.dateCreated,
         },
       });
     }
@@ -311,7 +309,7 @@ export class CreateExtractCommand extends UndoableCommandBase {
   ) {
     super(
       OperationType.CreateExtract,
-      `Create extract: ${extract.title.slice(0, 20)}...`
+      `Create extract: ${(extract.pageTitle || extract.content).slice(0, 20)}...`
     );
   }
 

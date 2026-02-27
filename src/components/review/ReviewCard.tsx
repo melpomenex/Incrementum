@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { LearningItem } from "../../api/review";
 import { Brain, FileText, Volume2, VolumeX, Pause, Play } from "lucide-react";
 import { useTTS } from "../../hooks/useTTS";
+import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 
 interface ReviewCardProps {
   card: LearningItem;
@@ -10,6 +12,10 @@ interface ReviewCardProps {
 
 export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) {
   const { speak, stop, isSpeaking, isPaused, pause, resume, isSupported } = useTTS();
+
+  useEffect(() => {
+    warmAnkiLatexNormalization([card.question, card.answer, card.cloze_text]);
+  }, [card.question, card.answer, card.cloze_text]);
 
   // Helper to get item type - handles both snake_case and camelCase from different backends
   const getItemType = (): string => {
@@ -69,6 +75,8 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
 
   const questionText = getPlainText(card.question);
   const answerText = card.answer ? getPlainText(card.answer) : "";
+  const questionHtml = renderAnkiHtmlWithLatex(card.question || "");
+  const answerHtml = card.answer ? renderAnkiHtmlWithLatex(card.answer) : "";
 
   const renderQuestion = () => {
     if ((itemType === "cloze" || itemType === "Cloze") && card.cloze_text) {
@@ -85,7 +93,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
                   <span
                     key={idx}
                     className="bg-primary/20 px-1 rounded font-semibold"
-                    dangerouslySetInnerHTML={{ __html: part }}
+                    dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }}
                   />
                 );
               }
@@ -95,7 +103,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
                 </span>
               );
             }
-            return <span key={idx} dangerouslySetInnerHTML={{ __html: part }} />;
+            return <span key={idx} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }} />;
           })}
         </div>
       );
@@ -103,7 +111,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
 
     return (
       <div className="text-base md:text-lg leading-relaxed text-foreground">
-        <span dangerouslySetInnerHTML={{ __html: card.question }} />
+        <span dangerouslySetInnerHTML={{ __html: questionHtml }} />
       </div>
     );
   };
@@ -142,7 +150,7 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
           )}
         </div>
         <div className="text-sm md:text-base leading-relaxed text-foreground">
-          <span dangerouslySetInnerHTML={{ __html: card.answer }} />
+          <span dangerouslySetInnerHTML={{ __html: answerHtml }} />
         </div>
       </div>
     );

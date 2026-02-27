@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles, Loader2, X, Eye } from "lucide-react";
 import { getLearningItemsByExtract, getItemTypeName, type LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
+import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 
 interface GeneratedCardsPopoverProps {
   extractId: string;
@@ -14,7 +15,7 @@ interface GeneratedCardsPopoverProps {
 
 function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
   if (!item.cloze_text || !item.cloze_ranges) {
-    return <span dangerouslySetInnerHTML={{ __html: item.question }} />;
+    return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.question) }} />;
   }
 
   const text = item.cloze_text;
@@ -27,7 +28,7 @@ function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
       parts.push(
         <span
           key={`text-${index}`}
-          dangerouslySetInnerHTML={{ __html: text.slice(lastIndex, start) }}
+          dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex, start)) }}
         />
       );
     }
@@ -38,7 +39,7 @@ function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
         <span
           key={`cloze-${index}`}
           className="bg-green-500/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded font-semibold text-sm"
-          dangerouslySetInnerHTML={{ __html: clozeContent }}
+          dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(clozeContent) }}
         />
       );
     } else {
@@ -59,7 +60,7 @@ function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
     parts.push(
       <span
         key="text-end"
-        dangerouslySetInnerHTML={{ __html: text.slice(lastIndex) }}
+        dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex)) }}
       />
     );
   }
@@ -75,7 +76,7 @@ function getQuestionContent(item: LearningItem, isAnswerRevealed: boolean) {
     case "Qa":
     case "Basic":
     default:
-      return <span dangerouslySetInnerHTML={{ __html: item.question }} />;
+      return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.question) }} />;
   }
 }
 
@@ -88,7 +89,7 @@ function CardPreview({ item, index }: CardPreviewProps) {
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
 
   const answerContent = item.item_type !== "Cloze" && item.answer ? (
-    <span dangerouslySetInnerHTML={{ __html: item.answer }} />
+    <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.answer) }} />
   ) : null;
 
   return (
@@ -177,6 +178,12 @@ export function GeneratedCardsPopover({
       active = false;
     };
   }, [isOpen, extractId]);
+
+  useEffect(() => {
+    for (const item of items) {
+      warmAnkiLatexNormalization([item.question, item.answer, item.cloze_text]);
+    }
+  }, [items]);
 
   useEffect(() => {
     if (!isOpen) return;

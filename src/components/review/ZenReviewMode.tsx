@@ -16,6 +16,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useReviewStore, type ReviewSessionItem } from "../../stores/reviewStore";
 import { ReviewRating, formatInterval } from "../../api/review";
 import { cn } from "../../utils";
+import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
 
 interface ZenReviewModeProps {
   onExit: () => void;
@@ -61,7 +62,7 @@ function ZenCard({
           showAnswer && "opacity-60"
         )}
         dangerouslySetInnerHTML={{ 
-          __html: card.question || card.cloze_text || "No question" 
+          __html: renderAnkiHtmlWithLatex(card.question || card.cloze_text || "No question") 
         }}
       />
       
@@ -78,7 +79,7 @@ function ZenCard({
           <div 
             className="prose prose-lg dark:prose-invert max-w-none text-foreground/80"
             dangerouslySetInnerHTML={{ 
-              __html: card.answer || "No answer" 
+              __html: renderAnkiHtmlWithLatex(card.answer || "No answer") 
             }}
           />
         </div>

@@ -646,7 +646,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     );
   }
 
-  // Horizontal toolbar (default, top position)
+  // Horizontal toolbar (top position)
   return (
     <div className="sticky top-0 z-40 bg-card border-b border-border">
       <div className="flex items-center px-2 py-1 gap-1">
