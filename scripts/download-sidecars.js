@@ -424,7 +424,8 @@ async function main() {
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
   const notebooklmSidecarPresent = fs.existsSync(notebooklmPath);
-  const notebooklmRequired = process.env.SKIP_NOTEBOOKLM_SIDECAR !== '1'
+  const notebooklmSkipped = process.env.SKIP_NOTEBOOKLM_SIDECAR === '1';
+  const notebooklmRequired = !notebooklmSkipped
     && process.env.NOTEBOOKLM_BUNDLE_RUNTIME === '1';
   const notebooklmPortableReady = hasPortableNotebookLMRuntime(targetTriple) && notebooklmSidecarPresent;
   const notebooklmRuntimeReady = targetTriple.includes('windows')
@@ -435,7 +436,7 @@ async function main() {
   if (
     fs.existsSync(ffmpegPath)
     && fs.existsSync(whisperPath)
-    && notebooklmSidecarPresent
+    && (notebooklmSkipped || notebooklmSidecarPresent)
     && (!notebooklmRequired || notebooklmRuntimeReady)
   ) {
     console.log(`Sidecars already exist for ${targetTriple}, skipping download/build.`);
@@ -603,7 +604,7 @@ async function main() {
   }
 
   // Build bundled notebooklm sidecar/runtime used by NotebookLM integration.
-  if (notebooklmRequired || !fs.existsSync(notebooklmPath)) {
+  if (!notebooklmSkipped && (notebooklmRequired || !fs.existsSync(notebooklmPath))) {
     ensureNotebookLMSidecar(targetTriple);
     if (!fs.existsSync(notebooklmPath)) {
       throw new Error(
@@ -611,6 +612,8 @@ async function main() {
         `Ensure python3 is installed to build bundled runtime or wrapper sidecar, or pre-provide ${notebooklmPath}.`
       );
     }
+  } else if (notebooklmSkipped) {
+    console.log(`Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)`);
   } else {
     console.log(`NotebookLM runtime bundling disabled for target ${targetTriple} (lazy first-run install will be used).`);
   }
