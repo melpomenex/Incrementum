@@ -308,7 +308,6 @@ jobs:
           cargo build --release
         env:
           RUST_MIN_STACK: 33554432
-          RUSTFLAGS: -Clink-arg=-lsqlite3
 
       - name: Create Pacman package
         run: |
@@ -337,7 +336,7 @@ jobs:
             npm ci
             npm run build
             cd src-tauri
-            RUSTFLAGS="-Clink-arg=-lsqlite3" cargo build --release
+            cargo build --release
           }
 
           package() {

@@ -27,8 +27,19 @@ if [[ ! -d "$APPDIR" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$NOTEBOOKLM_RUNTIME_SRC" ]]; then
-  echo "NotebookLM runtime source missing: $NOTEBOOKLM_RUNTIME_SRC"
+RUNTIME_TRIPLE="x86_64-unknown-linux-gnu"
+RUNTIME_PY_SRC="$NOTEBOOKLM_RUNTIME_SRC/$RUNTIME_TRIPLE/python/bin/python3"
+RUNTIME_MANIFEST_SRC="$NOTEBOOKLM_RUNTIME_SRC/$RUNTIME_TRIPLE/runtime-manifest.json"
+RUNTIME_MODULE_SRC="$NOTEBOOKLM_RUNTIME_SRC/$RUNTIME_TRIPLE/site-packages/notebooklm"
+RUNTIME_SIDECAR_SRC="src-tauri/bin/notebooklm-$RUNTIME_TRIPLE"
+
+if [[ ! -x "$RUNTIME_PY_SRC" || ! -f "$RUNTIME_MANIFEST_SRC" || ! -d "$RUNTIME_MODULE_SRC" || ! -x "$RUNTIME_SIDECAR_SRC" ]]; then
+  echo "NotebookLM runtime source incomplete; bootstrapping portable runtime for $RUNTIME_TRIPLE..."
+  NOTEBOOKLM_BUNDLE_RUNTIME=1 TARGET_TRIPLE="$RUNTIME_TRIPLE" node scripts/download-sidecars.js
+fi
+
+if [[ ! -x "$RUNTIME_PY_SRC" || ! -f "$RUNTIME_MANIFEST_SRC" || ! -d "$RUNTIME_MODULE_SRC" || ! -x "$RUNTIME_SIDECAR_SRC" ]]; then
+  echo "NotebookLM runtime source still incomplete after bootstrap."
   exit 1
 fi
 
