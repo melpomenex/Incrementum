@@ -59,6 +59,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
           sudo ln -sf "$CARGO_BIN" /usr/local/bin/cargo
+          sudo ln -sf "$CARGO_BIN" /usr/bin/cargo
           cargo --version
 
       - name: Rust cache
