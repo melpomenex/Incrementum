@@ -51,19 +51,23 @@ jobs:
 
       - name: Ensure Cargo is on PATH
         run: |
-          CARGO_BIN="$(command -v cargo)"
+          CARGO_BIN="$(command -v cargo || true)"
+          if [ -z "$CARGO_BIN" ] && [ -x "$HOME/.cargo/bin/cargo" ]; then
+            CARGO_BIN="$HOME/.cargo/bin/cargo"
+          fi
           if [ -z "$CARGO_BIN" ]; then
-            echo "::error::cargo not found on PATH after rust-toolchain setup."
+            CARGO_BIN="$(find /opt/hostedtoolcache -type f -path '*/cargo' 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$CARGO_BIN" ] || [ ! -x "$CARGO_BIN" ]; then
+            echo "::error::cargo not found after rust-toolchain setup."
             exit 1
           fi
           mkdir -p "$HOME/.cargo/bin"
           ln -sf "$CARGO_BIN" "$HOME/.cargo/bin/cargo"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
-          sudo ln -sf "$CARGO_BIN" /usr/local/bin/cargo
-          sudo ln -sf "$CARGO_BIN" /usr/bin/cargo
-          ls -l "$HOME/.cargo/bin/cargo" /usr/local/bin/cargo /usr/bin/cargo
-          cargo --version
+          ls -l "$HOME/.cargo/bin/cargo"
+          "$CARGO_BIN" --version
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
