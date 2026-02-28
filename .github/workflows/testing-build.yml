@@ -68,7 +68,7 @@ jobs:
       - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0
         with:
-          args: ${{ runner.os == 'macOS' && '--bundles dmg' || '--bundles nsis,msi' }}
+          args: ${{ runner.os == 'macOS' && '--bundles dmg' || '--bundles nsis' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"

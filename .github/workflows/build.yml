@@ -52,7 +52,7 @@ jobs:
       - name: Build Tauri application (Windows)
         uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles msi,nsis
+          args: --bundles nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
@@ -173,7 +173,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles msi,nsis
+          args: --bundles nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"

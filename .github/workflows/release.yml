@@ -139,7 +139,7 @@ jobs:
           releaseBody: 'See https://github.com/melpomenex/incrementum-tauri/releases/tag/${{ steps.get_version.outputs.VERSION }} for release notes.'
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.platform == 'macos-latest' && '--bundles dmg' || '--bundles msi,nsis' }}
+          args: ${{ matrix.platform == 'macos-latest' && '--bundles dmg' || '--bundles nsis' }}
 
       - name: List Windows bundles (debug)
         if: runner.os == 'Windows'
