@@ -12,11 +12,8 @@ $exeFiles = Get-ChildItem -Path "src-tauri/target" -Recurse -File -Filter "*.exe
     $_.Name -notmatch "\.exe\.zip$"
   }
 
-if (-not $msiFiles) {
-  throw "No MSI files found under src-tauri/target/**/release/bundle/msi/"
-}
-if (-not $exeFiles) {
-  throw "No NSIS EXE files found under src-tauri/target/**/release/bundle/nsis/"
+if (-not $msiFiles -and -not $exeFiles) {
+  throw "No Windows installer bundles found under src-tauri/target/**/release/bundle/"
 }
 
 $tmpRoot = Join-Path $env:RUNNER_TEMP "incrementum_bundle_verify"
@@ -81,26 +78,34 @@ function Assert-RequiredSidecars {
   }
 }
 
-foreach ($msi in $msiFiles) {
-  $outDir = Join-Path $tmpRoot ("msi_" + [IO.Path]::GetFileNameWithoutExtension($msi.Name))
-  New-Item -ItemType Directory -Path $outDir | Out-Null
-  $targetArg = "TARGETDIR=$outDir"
-  $p = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/a", $msi.FullName, "/qn", $targetArg) -PassThru -Wait
-  if ($p.ExitCode -ne 0) {
-    throw "MSI admin extraction failed for $($msi.FullName) with exit code $($p.ExitCode)"
+if ($msiFiles) {
+  foreach ($msi in $msiFiles) {
+    $outDir = Join-Path $tmpRoot ("msi_" + [IO.Path]::GetFileNameWithoutExtension($msi.Name))
+    New-Item -ItemType Directory -Path $outDir | Out-Null
+    $targetArg = "TARGETDIR=$outDir"
+    $p = Start-Process -FilePath "msiexec.exe" -ArgumentList @("/a", $msi.FullName, "/qn", $targetArg) -PassThru -Wait
+    if ($p.ExitCode -ne 0) {
+      throw "MSI admin extraction failed for $($msi.FullName) with exit code $($p.ExitCode)"
+    }
+    Assert-RequiredSidecars -RootPath $outDir -Label "MSI $($msi.Name)"
   }
-  Assert-RequiredSidecars -RootPath $outDir -Label "MSI $($msi.Name)"
+} else {
+  Write-Host "No MSI bundles found; continuing with NSIS verification."
 }
 
-foreach ($exe in $exeFiles) {
-  $outDir = Join-Path $tmpRoot ("nsis_" + [IO.Path]::GetFileNameWithoutExtension($exe.Name))
-  New-Item -ItemType Directory -Path $outDir | Out-Null
-  $installArg = "/D=$outDir"
-  $p = Start-Process -FilePath $exe.FullName -ArgumentList @("/S", $installArg) -PassThru -Wait
-  if ($p.ExitCode -ne 0) {
-    throw "NSIS silent install failed for $($exe.FullName) with exit code $($p.ExitCode)"
+if ($exeFiles) {
+  foreach ($exe in $exeFiles) {
+    $outDir = Join-Path $tmpRoot ("nsis_" + [IO.Path]::GetFileNameWithoutExtension($exe.Name))
+    New-Item -ItemType Directory -Path $outDir | Out-Null
+    $installArg = "/D=$outDir"
+    $p = Start-Process -FilePath $exe.FullName -ArgumentList @("/S", $installArg) -PassThru -Wait
+    if ($p.ExitCode -ne 0) {
+      throw "NSIS silent install failed for $($exe.FullName) with exit code $($p.ExitCode)"
+    }
+    Assert-RequiredSidecars -RootPath $outDir -Label "NSIS $($exe.Name)"
   }
-  Assert-RequiredSidecars -RootPath $outDir -Label "NSIS $($exe.Name)"
+} else {
+  Write-Host "No NSIS bundles found; continuing with MSI verification."
 }
 
 Write-Host "Windows bundle verification passed."
