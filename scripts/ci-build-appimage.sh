@@ -47,6 +47,18 @@ echo "Injecting notebooklm runtime into AppDir..."
 mkdir -p "$NOTEBOOKLM_RUNTIME_DST"
 rsync -a --delete "$NOTEBOOKLM_RUNTIME_SRC"/ "$NOTEBOOKLM_RUNTIME_DST"/
 
+# Copy the notebooklm sidecar binary to AppDir
+NOTEBOOKLM_SIDECAR_SRC="src-tauri/bin/notebooklm-$RUNTIME_TRIPLE"
+NOTEBOOKLM_SIDECAR_DST="$APPDIR/usr/bin/notebooklm-$RUNTIME_TRIPLE"
+if [[ -x "$NOTEBOOKLM_SIDECAR_SRC" ]]; then
+  echo "Copying notebooklm sidecar to AppDir..."
+  cp -f "$NOTEBOOKLM_SIDECAR_SRC" "$NOTEBOOKLM_SIDECAR_DST"
+  chmod +x "$NOTEBOOKLM_SIDECAR_DST"
+else
+  echo "NotebookLM sidecar not found at $NOTEBOOKLM_SIDECAR_SRC"
+  exit 1
+fi
+
 scripts/verify-notebooklm-runtime.sh "$APPDIR/usr/bin"
 
 mkdir -p "$WORK_DIR"
