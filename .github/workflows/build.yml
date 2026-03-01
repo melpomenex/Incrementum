@@ -76,10 +76,35 @@ jobs:
 
   build:
     if: startsWith(github.ref, 'refs/tags/')
+    continue-on-error: ${{ !matrix.required }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - id: windows-x86_64
+            platform: windows-latest
+            os: windows
+            arch: x86_64
+            tauri_args: --bundles nsis
+            required: false
+          - id: macos-aarch64
+            platform: macos-latest
+            os: macos
+            arch: aarch64
+            tauri_args: --bundles dmg
+            required: true
+          - id: linux-x86_64
+            platform: ubuntu-latest
+            os: linux
+            arch: x86_64
+            tauri_args: --bundles deb
+            required: true
+          - id: linux-aarch64
+            platform: ubuntu-24.04-arm
+            os: linux
+            arch: aarch64
+            tauri_args: --bundles deb
+            required: false
 
     runs-on: ${{ matrix.platform }}
 
@@ -90,7 +115,7 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -115,11 +140,11 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Increase Rust stack size (Unix)
-        if: runner.os != 'Windows'
+        if: matrix.os != 'windows'
         run: echo "RUST_MIN_STACK=33554432" >> $GITHUB_ENV
 
       - name: Increase Rust stack size (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         run: echo "RUST_MIN_STACK=33554432" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Sync node version and setup cache
@@ -169,55 +194,34 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build Tauri application (Windows)
-        if: runner.os == 'Windows'
+      - name: Build Tauri application
         uses: tauri-apps/tauri-action@v0.6
         with:
-          args: --bundles nsis
+          # AppImage remains in a dedicated job. Matrix builds focus on .deb, dmg, and nsis.
+          args: ${{ matrix.tauri_args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
-          # Force bundled SQLite - prevents looking for system sqlite3.lib
-          LIBSQLITE3_SYS_USE_PKG_CONFIG: "0"
-          SQLITE3_STATIC: "1"
-          VCPKGRS_DYNAMIC: "0"
-          # Disable sqlx compile-time checking to avoid needing sqlite during macro compilation
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: ${{ matrix.os == 'windows' && '0' || '1' }}
+          SQLITE3_STATIC: ${{ matrix.os == 'windows' && '1' || '0' }}
+          VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
           SQLX_OFFLINE: "true"
 
-      - name: Build Tauri application (macOS)
-        if: runner.os == 'macOS'
-        uses: tauri-apps/tauri-action@v0.6
-        with:
-          args: --bundles dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NOTEBOOKLM_BUNDLE_RUNTIME: "1"
-
-      - name: Build Tauri application (Linux)
-        if: runner.os == 'Linux'
-        uses: tauri-apps/tauri-action@v0.6
-        with:
-          # AppImage is built in a dedicated job below; keep the matrix Linux job
-          # focused on .deb to reduce bundle-specific failures.
-          args: --bundles deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Verify Linux deb bundle includes NotebookLM runtime
-        if: runner.os == 'Linux'
+        if: matrix.id == 'linux-x86_64'
         shell: bash
         run: |
           chmod +x scripts/verify-deb-bundle.sh
           scripts/verify-deb-bundle.sh
 
       - name: Verify Windows bundles include NotebookLM runtime
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         shell: pwsh
         run: |
           ./scripts/verify-windows-bundles.ps1
 
       - name: Verify macOS bundles include NotebookLM runtime
-        if: runner.os == 'macOS'
+        if: matrix.os == 'macos'
         shell: bash
         run: |
           chmod +x scripts/verify-macos-bundles.sh
@@ -239,10 +243,23 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: incrementum-${{ matrix.platform }}
+          name: incrementum-${{ matrix.id }}
           path: |
             src-tauri/target/**/release/bundle/**
           if-no-files-found: warn
+
+      - name: Add per-architecture summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Build target \`${{ matrix.id }}\`"
+            echo "- Required: \`${{ matrix.required }}\`"
+            echo "- Runner: \`${{ matrix.platform }}\`"
+            echo "- Architecture: \`${{ matrix.arch }}\`"
+            echo "- Job status: \`${{ job.status }}\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload to release (on tag)
         if: startsWith(github.ref, 'refs/tags/')
@@ -406,7 +423,7 @@ jobs:
       - name: Install Arch dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust ttf-dejavu clang lld
+          pacman -S --noconfirm --needed base-devel git webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust ttf-dejavu clang lld sqlite
 
       - name: Install frontend dependencies
         run: npm ci
@@ -452,6 +469,9 @@ jobs:
           cargo build --release
         env:
           RUST_MIN_STACK: 33554432
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: "1"
+          SQLITE3_STATIC: "0"
+          RUSTFLAGS: -C link-arg=-lsqlite3
 
       - name: Create Pacman package
         run: |
@@ -480,7 +500,7 @@ jobs:
             npm ci
             npm run build
             cd src-tauri
-            cargo build --release
+            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 RUSTFLAGS="-C link-arg=-lsqlite3" cargo build --release
           }
 
           package() {
@@ -515,6 +535,29 @@ jobs:
           generate_release_notes: true
           name: Incrementum ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
+
+  release-readiness:
+    needs: [build, build-appimage, build-arch]
+    if: ${{ startsWith(github.ref, 'refs/tags/') && always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize required and optional architecture outcomes
+        run: |
+          {
+            echo "## Release readiness"
+            echo "- build matrix: \`${{ needs.build.result }}\`"
+            echo "- build-appimage: \`${{ needs.build-appimage.result }}\`"
+            echo "- build-arch: \`${{ needs.build-arch.result }}\`"
+            echo ""
+            echo "Required: \`macos-aarch64\`, \`linux-x86_64\`, \`build-appimage\`, \`build-arch\`"
+            echo "Optional: \`windows-x86_64\`, \`linux-aarch64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce required architecture gate
+        run: |
+          test "${{ needs.build.result }}" = "success"
+          test "${{ needs.build-appimage.result }}" = "success"
+          test "${{ needs.build-arch.result }}" = "success"
 
   test:
     runs-on: ubuntu-latest
