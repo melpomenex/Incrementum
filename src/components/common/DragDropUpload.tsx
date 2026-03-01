@@ -479,39 +479,46 @@ export function DragDropUpload({
     window.addEventListener("drop", handleGlobalDrop);
 
     // Tauri native drag-drop listeners (only in Tauri)
-    let unlistenDragEnter: (() => void) | undefined;
-    let unlistenDragOver: (() => void) | undefined;
-    let unlistenDragLeave: (() => void) | undefined;
-    let unlistenDrop: (() => void) | undefined;
+    const unlistenFns = useRef<(() => void)[]>([]);
+    const isMounted = useRef(true);
 
     if (isTauri()) {
       const setupTauriListeners = async () => {
         try {
           const appWindow = getCurrentWindow();
-          
-          unlistenDragEnter = await appWindow.listen("tauri://drag-enter", () => {
+
+          // Check if component is still mounted before setting up listeners
+          if (!isMounted.current) return;
+
+          const unlistenDragEnter = await appWindow.listen("tauri://drag-enter", () => {
             console.log("[DragDropUpload] Tauri drag-enter");
             setIsDragging(true);
           });
-          
-          unlistenDragOver = await appWindow.listen("tauri://drag-over", () => {
+          if (!isMounted.current) { unlistenDragEnter(); return; }
+          unlistenFns.current.push(unlistenDragEnter);
+
+          const unlistenDragOver = await appWindow.listen("tauri://drag-over", () => {
             console.log("[DragDropUpload] Tauri drag-over");
             setIsDragOver(true);
           });
-          
-          unlistenDragLeave = await appWindow.listen("tauri://drag-leave", () => {
+          if (!isMounted.current) { unlistenDragOver(); return; }
+          unlistenFns.current.push(unlistenDragOver);
+
+          const unlistenDragLeave = await appWindow.listen("tauri://drag-leave", () => {
             console.log("[DragDropUpload] Tauri drag-leave");
             dragCounter.current = 0;
             setIsDragging(false);
             setIsDragOver(false);
           });
-          
-          unlistenDrop = await appWindow.listen("tauri://drop", (event: any) => {
+          if (!isMounted.current) { unlistenDragLeave(); return; }
+          unlistenFns.current.push(unlistenDragLeave);
+
+          const unlistenDrop = await appWindow.listen("tauri://drop", (event: any) => {
             console.log("[DragDropUpload] Tauri drop:", event.payload);
             dragCounter.current = 0;
             setIsDragging(false);
             setIsDragOver(false);
-            
+
             // Tauri sends file paths in the payload
             const paths = event.payload?.paths || [];
             if (paths.length > 0) {
@@ -520,26 +527,35 @@ export function DragDropUpload({
               onFilesImported?.(paths);
             }
           });
-          
+          if (!isMounted.current) { unlistenDrop(); return; }
+          unlistenFns.current.push(unlistenDrop);
+
           console.log("[DragDropUpload] Tauri drag-drop listeners registered");
         } catch (err) {
           console.error("[DragDropUpload] Failed to setup Tauri listeners:", err);
         }
       };
-      
+
       setupTauriListeners();
     }
 
     return () => {
+      isMounted.current = false;
       window.removeEventListener("dragenter", handleGlobalDragEnter);
       window.removeEventListener("dragleave", handleGlobalDragLeave);
       window.removeEventListener("dragover", handleGlobalDragOver);
       window.removeEventListener("drop", handleGlobalDrop);
-      
-      unlistenDragEnter?.();
-      unlistenDragOver?.();
-      unlistenDragLeave?.();
-      unlistenDrop?.();
+
+      // Clean up all Tauri listeners
+      unlistenFns.current.forEach((unlisten) => {
+        try {
+          unlisten();
+        } catch (err) {
+          // Ignore errors during cleanup - component may have unmounted before listeners were set up
+          console.debug("[DragDropUpload] Error during listener cleanup:", err);
+        }
+      });
+      unlistenFns.current = [];
     };
   }, [processFiles, traverseDirectory, onFilesImported]);
 
