@@ -14,7 +14,8 @@ for deb in "${debs[@]}"; do
   echo "Verifying deb: $deb"
   listing="$(dpkg-deb -c "$deb")"
 
-  if ! grep -Eq '/whisper-[^/ ]+' <<<"$listing"; then
+  # Tauri sidecars can appear as `whisper` or `whisper-<target>`.
+  if ! grep -Eq '/whisper([^/ ]*)$' <<<"$listing"; then
     echo "Missing whisper sidecar in $deb"
     exit 1
   fi

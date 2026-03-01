@@ -1,0 +1,49 @@
+name: GH Actions Triage
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'owner/repo to inspect (defaults to this repo)'
+        required: false
+        type: string
+      limit:
+        description: 'number of runs to inspect'
+        required: false
+        default: '12'
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate triage report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPO_INPUT="${{ github.event.inputs.repo }}"
+          LIMIT_INPUT="${{ github.event.inputs.limit }}"
+
+          if [ -z "$REPO_INPUT" ]; then
+            REPO_INPUT="${{ github.repository }}"
+          fi
+          if [ -z "$LIMIT_INPUT" ]; then
+            LIMIT_INPUT="12"
+          fi
+
+          scripts/gh-actions-triage.sh "$REPO_INPUT" "$LIMIT_INPUT" | tee gha-triage.md
+          cat gha-triage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload triage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gha-triage-report
+          path: gha-triage.md
+          if-no-files-found: error
