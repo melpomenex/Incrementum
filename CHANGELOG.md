@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-03-01
+
+### Added
+- Next-gen SRS scheduling controls, including desired-retention targeting, scoped FSRS policies (global/deck/tag), one-step review undo, and non-mutating cram sessions.
+- Advanced review interactions: typed answers with fuzzy grading, progressive hints, ordering/matching flows, conversational review, accessibility helpers, and clipboard quick-add capture.
+- New analytics surfaces for workload forecasting and memory decay, including retention-aware heatmap overlays and a dedicated forgetting-curve panel.
+- Content and integration expansion: podcast/audio import transcription, PDF highlight extraction, inline dictionary lookup, reference-import helpers, printable flashcard export, and plugin host lifecycle support.
+- Wave 4 study tooling, including social/collaboration helpers, energy tracking, and reading-speed/ETA support.
+
+### Changed
+- Expanded Rust command/API plumbing, repository/migration schema, and frontend store/API wiring to support the new SRS platform capabilities end to end.
+- Updated review, analytics, learning, and settings UI flows to expose new controls and telemetry-backed behavior in both desktop and browser-backed paths.
+
+### Fixed
+- Strengthened review interaction correctness and regression coverage across scope resolution, semantic grading, accessibility, reference import, collaboration helpers, and performance-sensitive paths.
+
 ## [1.12.11] - 2026-02-27
 
 ### Fixed

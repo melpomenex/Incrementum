@@ -22,12 +22,13 @@ use crate::commands::rss::{
     mark_rss_article_read_http,
     toggle_rss_article_queued_http,
 };
+use crate::commands::review::apply_fsrs_review;
 use crate::database::Repository;
 use crate::error::AppError;
-use crate::models::{Document, FileType, Extract};
+use crate::models::{Document, FileType, Extract, ItemType, LearningItem};
 use axum::{
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
     routing::{get, post, put},
     Router,
@@ -52,6 +53,7 @@ pub struct ServerState {
     pub repo: Arc<Repository>,
     pub running: Arc<Mutex<bool>>,
     pub ai_config: Arc<Mutex<Option<AIConfig>>>,
+    pub automation_api_key: Arc<Mutex<Option<String>>>,
 }
 
 /// Server status for Tauri commands
@@ -70,6 +72,8 @@ pub struct BrowserSyncConfig {
     pub port: u16,
     #[serde(default, alias = "auto_start")]
     pub auto_start: bool,
+    #[serde(default, alias = "apiKey")]
+    pub api_key: Option<String>,
 }
 
 impl Default for BrowserSyncConfig {
@@ -78,6 +82,7 @@ impl Default for BrowserSyncConfig {
             host: "127.0.0.1".to_string(),
             port: 8766,
             auto_start: false,
+            api_key: None,
         }
     }
 }
@@ -276,6 +281,41 @@ pub struct DocumentResponse {
     pub date_modified: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationCreateCardRequest {
+    pub question: String,
+    #[serde(default)]
+    pub answer: Option<String>,
+    #[serde(default)]
+    pub item_type: Option<String>,
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationCreateCardResponse {
+    pub id: String,
+    pub due_date: String,
+    pub interval: f64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationDueCountResponse {
+    pub due_count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationSubmitReviewRequest {
+    pub item_id: String,
+    pub rating: i32,
+    #[serde(default)]
+    pub time_taken: Option<i32>,
+}
+
 /// Global server handle for shutdown
 static SERVER_HANDLE: Mutex<Option<tokio::task::JoinHandle<()>>> = Mutex::const_new(None);
 
@@ -304,6 +344,7 @@ pub async fn start_server(
         repo: repo.clone(),
         running: running.clone(),
         ai_config: Arc::new(Mutex::new(ai_config)),
+        automation_api_key: Arc::new(Mutex::new(config.api_key.clone())),
     };
 
     // Build router with AI, RSS, and Document endpoints
@@ -325,6 +366,10 @@ pub async fn start_server(
         // Document progress endpoints
         .route("/api/documents/:id", get(handle_get_document))
         .route("/api/documents/:id/progress", post(handle_update_progress))
+        // Automation API endpoints
+        .route("/api/automation/cards", post(handle_automation_create_card))
+        .route("/api/automation/reviews/due-count", get(handle_automation_due_count))
+        .route("/api/automation/reviews/submit", post(handle_automation_submit_review))
         .layer(CorsLayer::permissive())
         .layer(RequestBodyLimitLayer::new(MAX_PAYLOAD_SIZE))
         .with_state(state);
@@ -835,6 +880,130 @@ fn extract_text_from_html(html: &str) -> String {
         .filter(|l| !l.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+async fn is_automation_authorized(state: &ServerState, headers: &HeaderMap) -> bool {
+    let maybe_key = state.automation_api_key.lock().await.clone();
+    let Some(expected_key) = maybe_key else {
+        return false;
+    };
+    if expected_key.trim().is_empty() {
+        return false;
+    }
+
+    let provided = headers
+        .get("x-api-key")
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.trim().to_string())
+        .or_else(|| {
+            headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                .map(|value| value.trim().to_string())
+        });
+
+    provided
+        .map(|provided_key| provided_key == expected_key)
+        .unwrap_or(false)
+}
+
+fn map_item_type(value: Option<&str>) -> ItemType {
+    match value.unwrap_or("flashcard").to_ascii_lowercase().as_str() {
+        "cloze" => ItemType::Cloze,
+        "qa" => ItemType::Qa,
+        "basic" => ItemType::Basic,
+        _ => ItemType::Flashcard,
+    }
+}
+
+async fn handle_automation_create_card(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(payload): Json<AutomationCreateCardRequest>,
+) -> Response {
+    if !is_automation_authorized(&state, &headers).await {
+        return (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Unauthorized" }))).into_response();
+    }
+    if payload.question.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "question is required" }))).into_response();
+    }
+
+    let mut item = LearningItem::new(map_item_type(payload.item_type.as_deref()), payload.question);
+    item.answer = payload.answer;
+    item.tags = payload.tags.unwrap_or_default();
+
+    match state.repo.create_learning_item(&item).await {
+        Ok(created) => (
+            StatusCode::OK,
+            Json(AutomationCreateCardResponse {
+                id: created.id,
+                due_date: created.due_date.to_rfc3339(),
+                interval: created.interval,
+            }),
+        )
+            .into_response(),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &error.to_string()),
+    }
+}
+
+async fn handle_automation_due_count(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> Response {
+    if !is_automation_authorized(&state, &headers).await {
+        return (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Unauthorized" }))).into_response();
+    }
+
+    let now = chrono::Utc::now();
+    match state.repo.get_due_learning_items(&now).await {
+        Ok(items) => (
+            StatusCode::OK,
+            Json(AutomationDueCountResponse {
+                due_count: items.len(),
+            }),
+        )
+            .into_response(),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &error.to_string()),
+    }
+}
+
+async fn handle_automation_submit_review(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(payload): Json<AutomationSubmitReviewRequest>,
+) -> Response {
+    if !is_automation_authorized(&state, &headers).await {
+        return (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Unauthorized" }))).into_response();
+    }
+    if payload.rating < 1 || payload.rating > 4 {
+        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "rating must be between 1 and 4" }))).into_response();
+    }
+
+    match apply_fsrs_review(
+        &state.repo,
+        &payload.item_id,
+        payload.rating,
+        payload.time_taken.unwrap_or(0),
+        None,
+        0.9,
+        None,
+        false,
+    )
+    .await
+    {
+        Ok(item) => (
+            StatusCode::OK,
+            Json(json!({
+                "id": item.id,
+                "dueDate": item.due_date.to_rfc3339(),
+                "interval": item.interval,
+                "reviewCount": item.review_count
+            })),
+        )
+            .into_response(),
+        Err(error) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &error.to_string()),
+    }
 }
 
 /// Create error response
@@ -1629,10 +1798,12 @@ pub async fn start_browser_sync_server(
     repo: tauri::State<'_, Repository>,
     ai_state: tauri::State<'_, crate::commands::ai::AIState>,
 ) -> Result<ServerStatus, AppError> {
+    let loaded_config = load_config();
     let config = BrowserSyncConfig {
         host: "127.0.0.1".to_string(),
         port,
         auto_start: false,
+        api_key: loaded_config.api_key,
     };
 
     // Get AI config from the AI state
@@ -1666,10 +1837,12 @@ pub async fn stop_browser_sync_server() -> Result<ServerStatus, AppError> {
 
 #[tauri::command]
 pub async fn get_browser_sync_server_status(port: u16) -> Result<ServerStatus, AppError> {
+    let loaded_config = load_config();
     let config = BrowserSyncConfig {
         host: "127.0.0.1".to_string(),
         port,
         auto_start: false,
+        api_key: loaded_config.api_key,
     };
 
     Ok(get_status(config).await)
@@ -1719,6 +1892,29 @@ pub async fn get_browser_sync_config() -> Result<BrowserSyncConfig, AppError> {
 #[tauri::command]
 pub async fn set_browser_sync_config(config: BrowserSyncConfig) -> Result<(), AppError> {
     save_config(&config)
+}
+
+fn generate_automation_api_key() -> String {
+    format!("inc_{}", uuid::Uuid::new_v4().simple())
+}
+
+#[tauri::command]
+pub async fn get_automation_api_key() -> Result<String, AppError> {
+    let mut config = load_config();
+    if config.api_key.as_deref().unwrap_or_default().is_empty() {
+        config.api_key = Some(generate_automation_api_key());
+        save_config(&config)?;
+    }
+    Ok(config.api_key.unwrap_or_default())
+}
+
+#[tauri::command]
+pub async fn rotate_automation_api_key() -> Result<String, AppError> {
+    let mut config = load_config();
+    let new_key = generate_automation_api_key();
+    config.api_key = Some(new_key.clone());
+    save_config(&config)?;
+    Ok(new_key)
 }
 
 /// Initialize browser sync server (called on app startup)

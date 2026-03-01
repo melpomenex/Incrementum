@@ -17,6 +17,12 @@ pub struct OptimizationResult {
     pub iterations: u32,
     /// Optimization completed successfully
     pub converged: bool,
+    /// Personalized FSRS 17-weight vector
+    pub fsrs_weights: Vec<f64>,
+    /// Number of historical reviews used
+    pub history_count: i32,
+    /// Minimum history required for full-quality optimization
+    pub minimum_history_required: i32,
 }
 
 /// Optimizable parameters
@@ -86,6 +92,9 @@ impl ParameterOptimizer {
                 expected_retention: 0.5,
                 iterations: 0,
                 converged: false,
+                fsrs_weights: default_fsrs_weights(),
+                history_count: 0,
+                minimum_history_required: 200,
             };
         }
 
@@ -126,6 +135,9 @@ impl ParameterOptimizer {
             expected_retention: best_score,
             iterations: self.max_iterations,
             converged,
+            fsrs_weights: default_fsrs_weights(),
+            history_count: history.len() as i32,
+            minimum_history_required: 200,
         }
     }
 
@@ -204,6 +216,13 @@ impl ParameterOptimizer {
 
         neighbors
     }
+}
+
+pub fn default_fsrs_weights() -> Vec<f64> {
+    vec![
+        0.4072, 1.1829, 3.1262, 15.4722, 7.2102, 0.5316, 1.0651, 0.0234, 1.6160,
+        0.1544, 1.0824, 1.9813, 0.0953, 0.2975, 2.2042, 0.2407, 2.9466,
+    ]
 }
 
 /// Calculate simple statistics for review performance

@@ -3,15 +3,35 @@
 use tauri::State;
 use crate::database::Repository;
 use crate::algorithms::calculate_document_priority_score;
-use crate::error::Result;
-use crate::models::{Document, FileType, DocumentMetadata};
+use crate::error::{Result, IncrementumError};
+use crate::models::{Document, FileType, DocumentMetadata, Extract};
 use crate::commands::anna_archive::AnnaArchiveClient;
 use crate::processor;
 use crate::youtube;
 use std::path::PathBuf;
+use lopdf::{Document as LoDocument, Object};
 
 fn build_youtube_thumbnail_url(video_id: &str) -> String {
     format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", video_id)
+}
+
+fn suggest_auto_tags(title: &str, content: &str) -> Vec<String> {
+    let corpus = format!("{} {}", title.to_lowercase(), content.to_lowercase());
+    let mut tags = Vec::new();
+    let candidates = [
+        ("math", vec!["equation", "theorem", "calculus", "algebra"]),
+        ("history", vec!["century", "empire", "war", "revolution"]),
+        ("biology", vec!["cell", "protein", "genome", "species"]),
+        ("language", vec!["vocabulary", "grammar", "translation", "sentence"]),
+        ("computer-science", vec!["algorithm", "compiler", "database", "programming"]),
+    ];
+    for (tag, keywords) in candidates {
+        if keywords.iter().any(|keyword| corpus.contains(keyword)) {
+            tags.push(tag.to_string());
+        }
+    }
+    tags.push("auto-tagged".to_string());
+    tags
 }
 
 async fn resolve_cover_for_document(
@@ -143,6 +163,7 @@ pub async fn import_document(
     // Create the document
     let mut doc = Document::new(title, file_path, file_type);
     doc.content = Some(extracted.text);
+    doc.tags = suggest_auto_tags(&doc.title, doc.content.as_deref().unwrap_or(""));
     doc.content_hash = content_hash;
     doc.total_pages = extracted.page_count.map(|p| p as i32);
     doc.metadata = metadata;
@@ -174,6 +195,95 @@ pub async fn import_documents(
     }
 
     Ok(imported)
+}
+
+fn pdf_object_to_text(object: &Object) -> Option<String> {
+    match object {
+        Object::String(bytes, _) => Some(String::from_utf8_lossy(bytes).to_string()),
+        Object::Name(bytes) => Some(String::from_utf8_lossy(bytes).to_string()),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+pub async fn import_pdf_highlights_as_extracts(
+    document_id: String,
+    repo: State<'_, Repository>,
+) -> Result<i32> {
+    let document = repo.get_document(&document_id).await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Document {} not found", document_id)))?;
+
+    if !matches!(document.file_type, FileType::Pdf) {
+        return Err(IncrementumError::InvalidInput("Highlight import is only supported for PDF documents".to_string()));
+    }
+
+    let pdf = LoDocument::load(&document.file_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to open PDF: {}", e)))?;
+    let mut imported_count = 0_i32;
+
+    for (page_number, page_id) in pdf.get_pages() {
+        let page_obj = match pdf.get_object(page_id) {
+            Ok(obj) => obj,
+            Err(_) => continue,
+        };
+        let page_dict = match page_obj.as_dict() {
+            Ok(dict) => dict,
+            Err(_) => continue,
+        };
+
+        let annots_obj = match page_dict.get(b"Annots") {
+            Ok(obj) => obj,
+            Err(_) => continue,
+        };
+        let annots_array = match annots_obj {
+            Object::Array(arr) => arr.clone(),
+            Object::Reference(reference) => match pdf.get_object(*reference) {
+                Ok(Object::Array(arr)) => arr.clone(),
+                _ => Vec::new(),
+            },
+            _ => Vec::new(),
+        };
+
+        for annot in annots_array {
+            let reference = match annot.as_reference() {
+                Ok(reference) => reference,
+                Err(_) => continue,
+            };
+            let annot_obj = match pdf.get_object(reference) {
+                Ok(obj) => obj,
+                Err(_) => continue,
+            };
+            let annot_dict = match annot_obj.as_dict() {
+                Ok(dict) => dict,
+                Err(_) => continue,
+            };
+
+            let subtype = annot_dict
+                .get(b"Subtype")
+                .ok()
+                .and_then(pdf_object_to_text)
+                .unwrap_or_default();
+            let normalized_subtype = subtype.trim_start_matches('/').to_lowercase();
+            if !matches!(normalized_subtype.as_str(), "highlight" | "underline" | "text" | "squiggly") {
+                continue;
+            }
+
+            let contents = annot_dict
+                .get(b"Contents")
+                .ok()
+                .and_then(pdf_object_to_text)
+                .unwrap_or_else(|| format!("Imported highlight on page {}", page_number));
+
+            let mut extract = Extract::new(document_id.clone(), contents);
+            extract.page_number = Some(page_number as i32);
+            extract.highlight_color = Some("imported".to_string());
+            extract.tags.push("imported-highlight".to_string());
+            repo.create_extract(&extract).await?;
+            imported_count += 1;
+        }
+    }
+
+    Ok(imported_count)
 }
 
 #[tauri::command]

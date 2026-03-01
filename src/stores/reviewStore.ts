@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   getDueItems,
   submitReview,
+  restoreLearningItemState,
   previewReviewIntervals,
   getReviewStreak,
   startReview,
@@ -11,9 +12,13 @@ import {
   ReviewStreak,
 } from "../api/review";
 import { getDueDocumentsOnly } from "../api/queue";
-import { rateDocument } from "../api/algorithm";
+import { rateDocument, restoreDocumentScheduling } from "../api/algorithm";
+import { getDocument } from "../api/documents";
 import { useCollectionStore } from "./collectionStore";
+import { useSettingsStore } from "./settingsStore";
+import { useStudyDeckStore } from "./studyDeckStore";
 import { getUser } from "../lib/sync-client";
+import { resolveFsrsParamsForScope } from "../utils/fsrsScope";
 
 interface StoredReviewSession {
   reviewedIds: string[];
@@ -86,6 +91,34 @@ interface ReviewState {
   // Streak information
   streak: ReviewStreak | null;
   streakLoading: boolean;
+  reviewMode: "normal" | "cram";
+  canUndoLastReview: boolean;
+  lastUndoError: string | null;
+  pendingReviewMetadata: {
+    hintsUsed: number;
+    typedMode?: "exact" | "fuzzy" | "semantic";
+    typedCorrect?: boolean;
+    typedSimilarity?: number;
+    typedProvider?: "local" | "cloud" | "heuristic";
+    handwritingCaptured?: boolean;
+    interactionType?: "ordering" | "matching";
+    interactionCorrect?: boolean;
+  } | null;
+  reviewEventLog: Array<{
+    itemId: string;
+    rating: ReviewRating;
+    timestamp: string;
+    metadata?: {
+      hintsUsed: number;
+      typedMode?: "exact" | "fuzzy" | "semantic";
+      typedCorrect?: boolean;
+      typedSimilarity?: number;
+      typedProvider?: "local" | "cloud" | "heuristic";
+      handwritingCaptured?: boolean;
+      interactionType?: "ordering" | "matching";
+      interactionCorrect?: boolean;
+    };
+  }>;
 
   // Actions
   loadQueue: () => Promise<void>;
@@ -99,7 +132,46 @@ interface ReviewState {
   resetSession: () => void;
   startReviewAtItem: (itemId: string) => Promise<void>;
   getEstimatedTimeRemaining: () => number; // in seconds
+  setReviewMode: (mode: "normal" | "cram") => void;
+  setPendingReviewMetadata: (metadata: ReviewState["pendingReviewMetadata"]) => void;
+  undoLastReview: () => Promise<void>;
 }
+
+type ReviewUndoSnapshot = {
+  queue: ReviewSessionItem[];
+  currentIndex: number;
+  currentCard: ReviewSessionItem | null;
+  isAnswerShown: boolean;
+  reviewsCompleted: number;
+  correctCount: number;
+  averageTimePerCard: number;
+  sessionStartTime: number;
+  reviewedIdsBefore: string[];
+  learningItemState?: {
+    itemId: string;
+    dueDate: string;
+    interval: number;
+    easeFactor: number;
+    lastReviewDate?: string;
+    reviewCount: number;
+    lapses: number;
+    state: string;
+    memoryState?: { stability: number; difficulty: number } | null;
+    difficulty: number;
+  };
+  documentState?: {
+    documentId: string;
+    nextReadingDate?: string;
+    stability?: number;
+    difficulty?: number;
+    reps?: number;
+    totalTimeSpent?: number;
+    consecutiveCount?: number;
+    dateLastReviewed?: string;
+  };
+};
+
+let lastUndoSnapshot: ReviewUndoSnapshot | null = null;
 
 export const useReviewStore = create<ReviewState>((set, get) => ({
   // Initial State
@@ -118,6 +190,11 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   averageTimePerCard: 0,
   streak: null,
   streakLoading: false,
+  reviewMode: "normal",
+  canUndoLastReview: false,
+  lastUndoError: null,
+  pendingReviewMetadata: null,
+  reviewEventLog: [],
 
   // Actions
   loadQueue: async () => {
@@ -207,7 +284,10 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         averageTimePerCard: 0,
         isAnswerShown: isFirstDocument ? true : false,
         previewIntervals: null,
+        canUndoLastReview: false,
+        lastUndoError: null,
       });
+      lastUndoSnapshot = null;
 
       if (interleaved.length > 0) {
         saveStoredSession({
@@ -254,21 +334,82 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   },
 
   submitRating: async (rating: ReviewRating) => {
-    const { currentCard, reviewsCompleted, correctCount, sessionStartTime, sessionId } = get();
+    const {
+      currentCard,
+      reviewsCompleted,
+      correctCount,
+      sessionStartTime,
+      sessionId,
+      reviewMode,
+    } = get();
     if (!currentCard) return;
 
     const timeTaken = Math.floor((Date.now() - sessionStartTime) / 1000); // seconds since session start
+    const pendingReviewMetadata = get().pendingReviewMetadata;
     set({ isSubmitting: true, error: null });
 
     // Optimistically advance to keep the review flow moving.
     const newCorrectCount = rating >= 3 ? correctCount + 1 : correctCount;
     const newReviewsCompleted = reviewsCompleted + 1;
     const newAverageTime = (reviewsCompleted * (get().averageTimePerCard || 0) + timeTaken) / (reviewsCompleted + 1);
-    const { queue, currentIndex } = get();
-    const remainingQueue = queue.filter((item) => item.id !== currentCard.id);
+      const { queue, currentIndex } = get();
+    const currentLearningItem = (currentCard as ReviewDocumentItem).itemType === "document"
+      ? null
+      : (currentCard as LearningItem);
+    const buryExtractId = currentLearningItem?.extract_id;
+    const remainingQueue = queue.filter((item) => {
+      if (item.id === currentCard.id) return false;
+      if (!buryExtractId) return true;
+      if ((item as ReviewDocumentItem).itemType === "document") return true;
+      return (item as LearningItem).extract_id !== buryExtractId;
+    });
     const storedSession = loadStoredSession();
-    const reviewedIds = new Set(storedSession?.reviewedIds ?? []);
+    const reviewedIdsBefore = [...(storedSession?.reviewedIds ?? [])];
+    const reviewedIds = new Set(reviewedIdsBefore);
     reviewedIds.add(currentCard.id);
+
+    const snapshot: ReviewUndoSnapshot = {
+      queue,
+      currentIndex,
+      currentCard,
+      isAnswerShown: get().isAnswerShown,
+      reviewsCompleted,
+      correctCount,
+      averageTimePerCard: get().averageTimePerCard,
+      sessionStartTime,
+      reviewedIdsBefore,
+    };
+
+    if ((currentCard as ReviewDocumentItem).itemType === "document") {
+      const docItem = currentCard as ReviewDocumentItem;
+      const previousDoc = await getDocument(docItem.documentId);
+      if (previousDoc) {
+        snapshot.documentState = {
+          documentId: docItem.documentId,
+          nextReadingDate: previousDoc.nextReadingDate,
+          stability: previousDoc.stability,
+          difficulty: previousDoc.difficulty,
+          reps: previousDoc.reps,
+          totalTimeSpent: previousDoc.totalTimeSpent,
+          consecutiveCount: previousDoc.consecutiveCount,
+          dateLastReviewed: previousDoc.dateLastReviewed,
+        };
+      }
+    } else {
+      const learningCard = currentCard as LearningItem;
+      snapshot.learningItemState = {
+        itemId: learningCard.id,
+        dueDate: learningCard.due_date,
+        interval: learningCard.interval,
+        easeFactor: learningCard.ease_factor,
+        lastReviewDate: learningCard.last_review_date,
+        reviewCount: learningCard.review_count,
+        lapses: learningCard.lapses,
+        state: learningCard.state,
+        memoryState: learningCard.memory_state ?? null,
+        difficulty: learningCard.difficulty,
+      };
+    }
 
     if (remainingQueue.length === 0) {
       set({
@@ -282,6 +423,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         correctCount: newCorrectCount,
         averageTimePerCard: newAverageTime,
         sessionStartTime: Date.now(),
+        pendingReviewMetadata: null,
       });
       clearStoredSession();
     } else {
@@ -299,6 +441,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         correctCount: newCorrectCount,
         averageTimePerCard: newAverageTime,
         sessionStartTime: Date.now(),
+        pendingReviewMetadata: null,
       });
       saveStoredSession({
         reviewedIds: Array.from(reviewedIds),
@@ -314,12 +457,39 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     }
 
     try {
-      if ((currentCard as ReviewDocumentItem).itemType === "document") {
+      if (reviewMode === "normal" && (currentCard as ReviewDocumentItem).itemType === "document") {
         const docItem = currentCard as ReviewDocumentItem;
         await rateDocument(docItem.documentId, rating, timeTaken);
-      } else {
-        await submitReview(currentCard.id, rating, timeTaken, sessionId);
+      } else if (reviewMode === "normal") {
+        const learningCard = currentCard as LearningItem;
+        const settings = useSettingsStore.getState().settings;
+        const activeDeckId = useStudyDeckStore.getState().activeDeckId;
+        const fsrsParams = resolveFsrsParamsForScope({
+          settings,
+          activeDeckId,
+          tags: learningCard.tags ?? [],
+        });
+        await submitReview(currentCard.id, rating, timeTaken, sessionId, {
+          desiredRetention: fsrsParams.desiredRetention,
+          fsrsWeights: fsrsParams.personalizedWeights,
+          noScheduleUpdate: false,
+        });
       }
+      lastUndoSnapshot = snapshot;
+      set((state) => ({
+        canUndoLastReview: true,
+        lastUndoError: null,
+        pendingReviewMetadata: null,
+        reviewEventLog: [
+          ...state.reviewEventLog,
+          {
+            itemId: currentCard.id,
+            rating,
+            timestamp: new Date().toISOString(),
+            metadata: pendingReviewMetadata ?? undefined,
+          },
+        ],
+      }));
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to submit review",
@@ -410,6 +580,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   },
 
   resetSession: () => {
+    lastUndoSnapshot = null;
     set({
       queue: [],
       currentIndex: 0,
@@ -425,6 +596,11 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       averageTimePerCard: 0,
       streak: null,
       streakLoading: false,
+      reviewMode: "normal",
+      canUndoLastReview: false,
+      lastUndoError: null,
+      pendingReviewMetadata: null,
+      reviewEventLog: [],
     });
     clearStoredSession();
   },
@@ -461,5 +637,71 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
 
     // Default estimate: 30 seconds per card
     return remainingCards * 30;
+  },
+
+  setReviewMode: (mode) => {
+    set({ reviewMode: mode });
+  },
+
+  setPendingReviewMetadata: (metadata) => {
+    set({ pendingReviewMetadata: metadata });
+  },
+
+  undoLastReview: async () => {
+    const snapshot = lastUndoSnapshot;
+    if (!snapshot) return;
+
+    try {
+      if (snapshot.learningItemState) {
+        await restoreLearningItemState(snapshot.learningItemState.itemId, {
+          dueDate: snapshot.learningItemState.dueDate,
+          interval: snapshot.learningItemState.interval,
+          easeFactor: snapshot.learningItemState.easeFactor,
+          lastReviewDate: snapshot.learningItemState.lastReviewDate,
+          reviewCount: snapshot.learningItemState.reviewCount,
+          lapses: snapshot.learningItemState.lapses,
+          state: snapshot.learningItemState.state,
+          memoryState: snapshot.learningItemState.memoryState,
+          difficulty: snapshot.learningItemState.difficulty,
+        });
+      }
+      if (snapshot.documentState) {
+        await restoreDocumentScheduling({
+          document_id: snapshot.documentState.documentId,
+          next_reading_date: snapshot.documentState.nextReadingDate,
+          stability: snapshot.documentState.stability,
+          difficulty: snapshot.documentState.difficulty,
+          reps: snapshot.documentState.reps,
+          total_time_spent: snapshot.documentState.totalTimeSpent,
+          consecutive_count: snapshot.documentState.consecutiveCount,
+          date_last_reviewed: snapshot.documentState.dateLastReviewed,
+        });
+      }
+
+      set({
+        queue: snapshot.queue,
+        currentIndex: snapshot.currentIndex,
+        currentCard: snapshot.currentCard,
+        isAnswerShown: snapshot.isAnswerShown,
+        reviewsCompleted: snapshot.reviewsCompleted,
+        correctCount: snapshot.correctCount,
+        averageTimePerCard: snapshot.averageTimePerCard,
+        sessionStartTime: snapshot.sessionStartTime,
+        canUndoLastReview: false,
+        lastUndoError: null,
+      });
+
+      saveStoredSession({
+        reviewedIds: snapshot.reviewedIdsBefore,
+        sessionId: get().sessionId,
+        updatedAt: Date.now(),
+      });
+
+      lastUndoSnapshot = null;
+    } catch (error) {
+      set({
+        lastUndoError: error instanceof Error ? error.message : "Failed to undo review",
+      });
+    }
   },
 }));

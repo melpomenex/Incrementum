@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BarChart } from "lucide-react";
-import { getReviewStatistics } from "../../api/algorithm";
+import { getDueWorkloadForecast, getReviewStatistics } from "../../api/algorithm";
 
 interface ReviewStatistics {
   total_items: number;
@@ -13,8 +13,22 @@ interface ReviewStatistics {
   due_month: number;
 }
 
+interface DueWorkloadForecast {
+  points: Array<{
+    date: string;
+    due_learning_items: number;
+    due_documents: number;
+    due_total: number;
+  }>;
+  summaries: Array<{
+    horizon_days: number;
+    due_total: number;
+  }>;
+}
+
 export function ScheduleVisualization() {
   const [stats, setStats] = useState<ReviewStatistics | null>(null);
+  const [forecast, setForecast] = useState<DueWorkloadForecast | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +36,12 @@ export function ScheduleVisualization() {
     async function loadStats() {
       try {
         setIsLoading(true);
-        const data = await getReviewStatistics();
-        setStats(data);
+        const [statsData, forecastData] = await Promise.all([
+          getReviewStatistics(),
+          getDueWorkloadForecast(90),
+        ]);
+        setStats(statsData);
+        setForecast(forecastData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load statistics");
       } finally {
@@ -49,7 +67,7 @@ export function ScheduleVisualization() {
     );
   }
 
-  if (error || !stats) {
+  if (error || !stats || !forecast) {
     return (
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -63,11 +81,28 @@ export function ScheduleVisualization() {
     );
   }
 
+  const dueByHorizon = (horizon: number): number =>
+    forecast.summaries.find((summary) => summary.horizon_days === horizon)?.due_total ?? 0;
+
+  const due30 = dueByHorizon(30);
+  const due60 = dueByHorizon(60);
+  const due90 = dueByHorizon(90);
+
   // Calculate bar widths (percentage of max value)
-  const maxDue = Math.max(stats.due_today, stats.due_week, stats.due_month, 1);
-  const todayWidth = (stats.due_today / maxDue) * 100;
-  const weekWidth = (stats.due_week / maxDue) * 100;
-  const monthWidth = (stats.due_month / maxDue) * 100;
+  const maxDue = Math.max(due30, due60, due90, 1);
+  const due30Width = (due30 / maxDue) * 100;
+  const due60Width = (due60 / maxDue) * 100;
+  const due90Width = (due90 / maxDue) * 100;
+
+  const peakPoint = forecast.points.reduce<{ date: string; due_total: number } | null>(
+    (best, point) => {
+      if (!best || point.due_total > best.due_total) {
+        return { date: point.date, due_total: point.due_total };
+      }
+      return best;
+    },
+    null
+  );
 
   return (
     <div className="bg-card border border-border rounded-lg p-6">
@@ -95,70 +130,70 @@ export function ScheduleVisualization() {
         <div>
           <h4 className="text-sm font-medium text-foreground mb-3">Items Due</h4>
           <div className="space-y-2">
-            {/* Today */}
+            {/* 30 days */}
             <div className="flex items-center gap-3">
-              <div className="w-20 text-sm text-muted-foreground">Today</div>
+              <div className="w-20 text-sm text-muted-foreground">30 days</div>
               <div className="flex-1 bg-muted rounded-full h-6 overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-300 flex items-center justify-end pr-2"
-                  style={{ width: `${todayWidth}%` }}
+                  style={{ width: `${due30Width}%` }}
                 >
-                  {todayWidth > 15 && (
+                  {due30Width > 15 && (
                     <span className="text-xs font-medium text-primary-foreground">
-                      {stats.due_today}
+                      {due30}
                     </span>
                   )}
                 </div>
               </div>
-              {todayWidth <= 15 && (
-                <span className="w-8 text-sm text-foreground text-right">{stats.due_today}</span>
+              {due30Width <= 15 && (
+                <span className="w-8 text-sm text-foreground text-right">{due30}</span>
               )}
             </div>
 
-            {/* This Week */}
+            {/* 60 days */}
             <div className="flex items-center gap-3">
-              <div className="w-20 text-sm text-muted-foreground">This Week</div>
+              <div className="w-20 text-sm text-muted-foreground">60 days</div>
               <div className="flex-1 bg-muted rounded-full h-6 overflow-hidden">
                 <div
                   className="h-full bg-blue-500 transition-all duration-300 flex items-center justify-end pr-2"
-                  style={{ width: `${weekWidth}%` }}
+                  style={{ width: `${due60Width}%` }}
                 >
-                  {weekWidth > 15 && (
+                  {due60Width > 15 && (
                     <span className="text-xs font-medium text-primary-foreground">
-                      {stats.due_week}
+                      {due60}
                     </span>
                   )}
                 </div>
               </div>
-              {weekWidth <= 15 && (
-                <span className="w-8 text-sm text-foreground text-right">{stats.due_week}</span>
+              {due60Width <= 15 && (
+                <span className="w-8 text-sm text-foreground text-right">{due60}</span>
               )}
             </div>
 
-            {/* This Month */}
+            {/* 90 days */}
             <div className="flex items-center gap-3">
-              <div className="w-20 text-sm text-muted-foreground">This Month</div>
+              <div className="w-20 text-sm text-muted-foreground">90 days</div>
               <div className="flex-1 bg-muted rounded-full h-6 overflow-hidden">
                 <div
                   className="h-full bg-purple-500 transition-all duration-300 flex items-center justify-end pr-2"
-                  style={{ width: `${monthWidth}%` }}
+                  style={{ width: `${due90Width}%` }}
                 >
-                  {monthWidth > 15 && (
+                  {due90Width > 15 && (
                     <span className="text-xs font-medium text-primary-foreground">
-                      {stats.due_month}
+                      {due90}
                     </span>
                   )}
                 </div>
               </div>
-              {monthWidth <= 15 && (
-                <span className="w-8 text-sm text-foreground text-right">{stats.due_month}</span>
+              {due90Width <= 15 && (
+                <span className="w-8 text-sm text-foreground text-right">{due90}</span>
               )}
             </div>
           </div>
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-border">
           <div className="text-center">
             <div className="text-lg font-semibold text-foreground">
               {stats.total_reviews}
@@ -176,6 +211,12 @@ export function ScheduleVisualization() {
               {Math.round(stats.avg_interval)}d
             </div>
             <div className="text-xs text-muted-foreground">Avg Interval</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-semibold text-foreground">
+              {peakPoint?.due_total ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground">Peak Day (90d)</div>
           </div>
         </div>
       </div>

@@ -30,6 +30,17 @@ export interface DocumentRatingResponse {
   scheduling_reason: string;
 }
 
+export interface RestoreDocumentSchedulingRequest {
+  document_id: string;
+  next_reading_date?: string;
+  stability?: number;
+  difficulty?: number;
+  reps?: number;
+  total_time_spent?: number;
+  consecutive_count?: number;
+  date_last_reviewed?: string;
+}
+
 /**
  * Document scheduling request
  */
@@ -97,6 +108,9 @@ export interface OptimizationResult {
   expected_retention: number;
   iterations: number;
   converged: boolean;
+  fsrs_weights: number[];
+  history_count: number;
+  minimum_history_required: number;
 }
 
 /**
@@ -111,6 +125,23 @@ export interface ReviewStatistics {
   due_today: number;
   due_week: number;
   due_month: number;
+}
+
+export interface DueForecastPoint {
+  date: string;
+  due_learning_items: number;
+  due_documents: number;
+  due_total: number;
+}
+
+export interface DueForecastSummary {
+  horizon_days: number;
+  due_total: number;
+}
+
+export interface DueWorkloadForecast {
+  points: DueForecastPoint[];
+  summaries: DueForecastSummary[];
 }
 
 /**
@@ -204,6 +235,12 @@ export async function rateDocumentEngaging(
   return await invokeCommand<DocumentRatingResponse>("rate_document_engaging", { request });
 }
 
+export async function restoreDocumentScheduling(
+  request: RestoreDocumentSchedulingRequest
+): Promise<void> {
+  await invokeCommand<void>("restore_document_scheduling", { request });
+}
+
 /**
  * Schedule documents for incremental reading
  */
@@ -239,6 +276,10 @@ export async function getAlgorithmParams(itemId: string): Promise<AlgorithmParam
  */
 export async function getReviewStatistics(): Promise<ReviewStatistics> {
   return await invokeCommand<ReviewStatistics>("get_review_statistics");
+}
+
+export async function getDueWorkloadForecast(days: number = 90): Promise<DueWorkloadForecast> {
+  return await invokeCommand<DueWorkloadForecast>("get_due_workload_forecast", { days });
 }
 
 /**

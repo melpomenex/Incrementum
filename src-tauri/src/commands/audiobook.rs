@@ -1,5 +1,7 @@
 use tauri::{AppHandle, Manager};
 use crate::error::{IncrementumError, Result};
+use crate::database::Repository;
+use crate::models::{Document, FileType, DocumentMetadata};
 use std::path::Path;
 use serde::Serialize;
 use tauri_plugin_shell::ShellExt;
@@ -7,6 +9,7 @@ use tauri_plugin_shell::process::CommandEvent;
 use crate::transcription::engine::TranscriptionEngine;
 use crate::transcription::model_manager::ModelManager;
 use std::sync::{Arc, Mutex};
+use tauri::State;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +52,13 @@ pub struct AudiobookTranscriptSegment {
 pub struct AudiobookTranscriptResult {
     pub segments: Vec<AudiobookTranscriptSegment>,
     pub language: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PodcastImportResult {
+    pub document: Document,
+    pub transcript_segments: i32,
 }
 
 #[tauri::command]
@@ -146,6 +156,105 @@ pub async fn parse_audiobook_metadata(
     }
 
     Ok(metadata)
+}
+
+#[tauri::command]
+pub async fn import_podcast_audio_file(
+    app_handle: AppHandle,
+    file_path: String,
+    title: Option<String>,
+    language: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<PodcastImportResult> {
+    let path = Path::new(&file_path);
+    if !path.exists() {
+        return Err(IncrementumError::NotFound(format!("Podcast audio file not found: {}", file_path)));
+    }
+
+    let default_title = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Podcast Episode")
+        .to_string();
+    let mut document = Document::new(title.unwrap_or(default_title), file_path.clone(), FileType::Audio);
+    document.tags = vec!["podcast".to_string(), "audio".to_string()];
+    document.metadata = Some(DocumentMetadata {
+        author: None,
+        subject: Some("podcast".to_string()),
+        keywords: Some(vec!["podcast".to_string(), "audio".to_string(), "whisper".to_string()]),
+        created_at: None,
+        modified_at: None,
+        file_size: None,
+        language: language.clone(),
+        page_count: None,
+        word_count: None,
+    });
+
+    let mut created = repo.create_document(&document).await?;
+
+    let model_manager = ModelManager::new(&app_handle)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to initialize model manager: {}", e)))?;
+    let selected_model = model_manager
+        .list_profiles()
+        .into_iter()
+        .find(|profile| model_manager.is_model_installed(&profile.id))
+        .map(|profile| profile.id);
+
+    let mut transcript_segments = 0_i32;
+    if let Some(model_id) = selected_model {
+        let model_path = model_manager.get_model_path(&model_id);
+        let engine = TranscriptionEngine::new(app_handle);
+        let wav_path = engine
+            .prepare_audio(path)
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to prepare audio: {}", e)))?;
+
+        let transcript_state = Arc::new(Mutex::new((String::new(), 0_i32)));
+        let transcript_state_clone = Arc::clone(&transcript_state);
+        if engine
+            .transcribe(
+                &wav_path,
+                &model_path,
+                language.as_deref().unwrap_or("en"),
+                |segment| {
+                    if let Ok(mut state) = transcript_state_clone.lock() {
+                        state.0.push_str(&segment.text);
+                        state.0.push(' ');
+                        state.1 += 1;
+                    }
+                },
+            )
+            .await
+            .is_ok()
+        {
+            let (transcript_text, segments) = transcript_state
+                .lock()
+                .map(|state| (state.0.clone(), state.1))
+                .unwrap_or_else(|_| (String::new(), 0));
+            transcript_segments = segments;
+            if !transcript_text.trim().is_empty() {
+                let content_hash = Some(crate::processor::generate_content_hash(&transcript_text));
+                repo.update_document_content(
+                    &created.id,
+                    transcript_text.trim(),
+                    content_hash,
+                    None,
+                    created.metadata.clone(),
+                )
+                .await?;
+                if let Some(refreshed) = repo.get_document(&created.id).await? {
+                    created = refreshed;
+                }
+            }
+        }
+
+        let _ = std::fs::remove_file(wav_path);
+    }
+
+    Ok(PodcastImportResult {
+        document: created,
+        transcript_segments,
+    })
 }
 
 #[tauri::command]

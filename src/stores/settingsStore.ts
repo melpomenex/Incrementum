@@ -9,15 +9,28 @@ import {
 /**
  * FSRS Algorithm Parameters
  */
-interface FSRSParams {
+export interface FSRSParams {
   desiredRetention: number;
   maximumInterval: number;
+  personalizedWeights?: number[];
+  lastOptimizationAt?: string;
+  optimizedReviewCount?: number;
+}
+
+export interface FSRSScopeOverride {
+  id: string;
+  scopeType: "deck" | "tag";
+  scopeId: string;
+  desiredRetention?: number;
+  maximumInterval?: number;
+  personalizedWeights?: number[];
+  enabled: boolean;
 }
 
 /**
  * Learning Settings
  */
-interface LearningSettings {
+export interface LearningSettings {
   algorithm: "fsrs";
   newCardsPerDay: number;
   reviewsPerDay: number;
@@ -29,6 +42,7 @@ interface LearningSettings {
   leechThreshold: number;
   maxReviewTime: number;
   fsrsParams: FSRSParams;
+  scopedFsrsOverrides: FSRSScopeOverride[];
   timezone: string;
 }
 
@@ -138,6 +152,8 @@ interface InterfaceSettings {
   showStats: boolean;
   compactMode: boolean;
   animationsEnabled: boolean;
+  reviewZenMode: boolean;
+  conversationalReviewEnabled: boolean;
   toolbarPosition: "top" | "left" | "right";
   /**
    * Mouse gesture to duplicate the active tab into a new vertical split.
@@ -294,6 +310,9 @@ interface YouTubeSettings {
  */
 interface FeatureFlags {
   notebooklmEnabled: boolean;
+  fsrsScopedParametersEnabled: boolean;
+  reviewUndoEnabled: boolean;
+  cramModeEnabled: boolean;
 }
 
 /**
@@ -338,6 +357,8 @@ export const defaultSettings: Settings = {
     showStats: true,
     compactMode: false,
     animationsEnabled: true,
+    reviewZenMode: false,
+    conversationalReviewEnabled: true,
     toolbarPosition: "left",
     splitViewSpawn: { button: 1, modifier: "none" },
   },
@@ -356,6 +377,7 @@ export const defaultSettings: Settings = {
       desiredRetention: 0.9,
       maximumInterval: 36500,
     },
+    scopedFsrsOverrides: [],
     timezone: "auto",
   },
   documents: {
@@ -495,6 +517,9 @@ export const defaultSettings: Settings = {
   },
   features: {
     notebooklmEnabled: false,
+    fsrsScopedParametersEnabled: true,
+    reviewUndoEnabled: true,
+    cramModeEnabled: true,
   },
 };
 
@@ -562,6 +587,9 @@ export const useSettingsStore = create<SettingsState>()(
               ...defaultSettings.learning.fsrsParams,
               ...persisted.learning?.fsrsParams,
             },
+            scopedFsrsOverrides: Array.isArray(persisted.learning?.scopedFsrsOverrides)
+              ? persisted.learning?.scopedFsrsOverrides
+              : defaultSettings.learning.scopedFsrsOverrides,
           },
           documents: {
             ...defaultSettings.documents,

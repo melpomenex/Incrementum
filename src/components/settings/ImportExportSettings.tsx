@@ -7,9 +7,49 @@ import { invokeCommand } from "../../lib/tauri";
 import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck, Database } from "lucide-react";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useCollectionStore } from "../../stores/collectionStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { buildCollectionArchive, parseCollectionArchive, restoreBrowserArchive, restoreLocalStorage, shouldUseTauriImport } from "../../utils/collectionArchive";
 import type { CollectionExportScope } from "../../types/archive";
 import { AppStateBackupDialog } from "./AppStateBackupDialog";
+import { exportMnemosyne } from "../../api/learning-items";
+import { importPdfHighlightsAsExtracts, importPodcastAudioFile } from "../../api/documents";
+import {
+  getAutomationApiKey,
+  getBrowserSyncConfig,
+  rotateAutomationApiKey,
+  setBrowserSyncConfig,
+  syncFromLogseq,
+  syncToLogseq,
+  type ObsidianConfig,
+} from "../../api/integrations";
+import { getClipboardWatcherEnabled, setClipboardWatcherEnabled } from "../common/ClipboardQuickAddWatcher";
+import { importReferenceItems, parseMendeleyItems, parseZoteroItems } from "../../utils/referenceImport";
+import {
+  activatePlugin,
+  deactivatePlugin,
+  grantPluginPermission,
+  installPlugin,
+  listInstalledPlugins,
+  uninstallPlugin,
+  type InstalledPlugin,
+  type PluginManifest,
+} from "../../lib/pluginHost";
+import {
+  attachDeckToGroup,
+  buildPublicProfileData,
+  cardsToCommunityDeckCards,
+  createStudyGroup,
+  getPublicProfileConfig,
+  installCommunityDeck,
+  listCommunityDecks,
+  listStudyGroups,
+  publishCommunityDeck,
+  rateCommunityDeck,
+  setPublicProfileConfig,
+  updateGroupMemberStats,
+  type PublicProfileConfig,
+} from "../../utils/wave4Social";
+import { getAllLearningItems, getDailyNoteLinks } from "../../api/learning-items";
 
 /**
  * Export options
@@ -28,6 +68,7 @@ interface ExportOptions {
  */
 export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const { collections, activeCollectionId, documentAssignments } = useCollectionStore();
+  const { settings, updateSettingsCategory } = useSettingsStore();
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     includeDocuments: true,
     includeExtracts: true,
@@ -44,6 +85,29 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const [archiveInProgress, setArchiveInProgress] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
   const [showAppStateDialog, setShowAppStateDialog] = useState(false);
+  const [podcastFile, setPodcastFile] = useState<File | null>(null);
+  const [podcastLanguage, setPodcastLanguage] = useState("en");
+  const [pdfHighlightDocumentId, setPdfHighlightDocumentId] = useState("");
+  const [referenceSource, setReferenceSource] = useState<"zotero" | "mendeley">("zotero");
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [clipboardWatcherEnabled, setClipboardWatcherEnabledState] = useState(false);
+  const [automationApiKey, setAutomationApiKey] = useState("");
+  const [pluginManifestText, setPluginManifestText] = useState('{"id":"my-plugin","name":"My Plugin","version":"0.1.0","permissions":["cards:read"]}');
+  const [plugins, setPlugins] = useState<InstalledPlugin[]>([]);
+  const [logseqConfig, setLogseqConfig] = useState<ObsidianConfig>({
+    vaultPath: "",
+    notesFolder: "pages",
+    attachmentsFolder: "assets",
+    dataviewFolder: "pages",
+  });
+  const [communityDecks, setCommunityDecks] = useState(listCommunityDecks());
+  const [studyGroups, setStudyGroups] = useState(listStudyGroups());
+  const [publicProfile, setPublicProfile] = useState<PublicProfileConfig>(getPublicProfileConfig());
+  const [communityDeckTitle, setCommunityDeckTitle] = useState("My Shared Deck");
+  const [communityDeckDescription, setCommunityDeckDescription] = useState("Shared from Incrementum");
+  const [studyGroupName, setStudyGroupName] = useState("Study Group");
+  const [dailyNoteDate, setDailyNoteDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dailyNoteLinks, setDailyNoteLinks] = useState<Array<Record<string, unknown>>>([]);
 
   // Load demo content status on mount
   useEffect(() => {
@@ -56,6 +120,17 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       }
     };
     loadDemoStatus();
+    setClipboardWatcherEnabledState(getClipboardWatcherEnabled());
+    setPlugins(listInstalledPlugins());
+    getAutomationApiKey().then(setAutomationApiKey).catch(() => setAutomationApiKey(""));
+    getBrowserSyncConfig()
+      .then((config) => {
+        if (config.apiKey) setAutomationApiKey(config.apiKey);
+      })
+      .catch(() => {});
+    getDailyNoteLinks(new Date().toISOString().slice(0, 10))
+      .then(setDailyNoteLinks)
+      .catch(() => setDailyNoteLinks([]));
   }, []);
 
   const handleExport = async (format: "json" | "csv" | "incrementum") => {
@@ -218,6 +293,51 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const handleExportFromCPlusPlus = () => {
     // Launch C++ database reader
     alert("C++ database migration will be implemented in Phase 4.6");
+  };
+
+  const handlePodcastImport = async () => {
+    if (!podcastFile) {
+      alert("Select an .mp3 or .m4a file first.");
+      return;
+    }
+    const filePath = (podcastFile as File & { path?: string }).path;
+    if (!filePath) {
+      alert("Desktop file path is required for local Whisper import.");
+      return;
+    }
+    const result = await importPodcastAudioFile(filePath, podcastFile.name, podcastLanguage);
+    alert(`Imported ${result.document.title} with ${result.transcript_segments} transcript segments.`);
+    onChange();
+  };
+
+  const handleImportPdfHighlights = async () => {
+    if (!pdfHighlightDocumentId.trim()) {
+      alert("Enter a document ID.");
+      return;
+    }
+    const count = await importPdfHighlightsAsExtracts(pdfHighlightDocumentId.trim());
+    alert(`Imported ${count} highlight extract(s).`);
+    onChange();
+  };
+
+  const handleReferenceImport = async () => {
+    if (!referenceFile) {
+      alert("Select a Zotero or Mendeley JSON export first.");
+      return;
+    }
+    const text = await referenceFile.text();
+    const payload = JSON.parse(text);
+    const items = referenceSource === "zotero" ? parseZoteroItems(payload) : parseMendeleyItems(payload);
+    const importedCount = await importReferenceItems(items);
+    alert(`Imported ${importedCount} reference item(s) from ${referenceSource}.`);
+    onChange();
+  };
+
+  const refreshPlugins = () => setPlugins(listInstalledPlugins());
+  const refreshSocial = () => {
+    setCommunityDecks(listCommunityDecks());
+    setStudyGroups(listStudyGroups());
+    setPublicProfile(getPublicProfileConfig());
   };
 
   return (
@@ -651,6 +771,506 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               <li><code>DEMO_CONTENT_DIR</code> - Custom demo content directory path</li>
               <li><code>SKIP_DEMO_IMPORT=1</code> - Disable demo content auto-import</li>
             </ul>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 3 Ingestion"
+        description="Podcast import, PDF highlight extraction, clipboard watcher, and reference manager imports"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Podcast / Audio Import (Whisper)</h4>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".mp3,.m4a"
+                onChange={(e) => setPodcastFile(e.target.files?.[0] || null)}
+                className="flex-1 text-sm"
+              />
+              <input
+                value={podcastLanguage}
+                onChange={(e) => setPodcastLanguage(e.target.value)}
+                className="w-20 px-2 py-1 border border-border rounded bg-background text-sm"
+                placeholder="en"
+              />
+              <button onClick={handlePodcastImport} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
+                Import
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Pre-highlighted PDF Extraction</h4>
+            <div className="flex items-center gap-2">
+              <input
+                value={pdfHighlightDocumentId}
+                onChange={(e) => setPdfHighlightDocumentId(e.target.value)}
+                placeholder="Document ID"
+                className="flex-1 px-2 py-1 border border-border rounded bg-background text-sm"
+              />
+              <button onClick={handleImportPdfHighlights} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
+                Import Highlights
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Clipboard Watcher Quick Add</h4>
+            <label className="flex items-center gap-3 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={clipboardWatcherEnabled}
+                onChange={(e) => {
+                  setClipboardWatcherEnabledState(e.target.checked);
+                  setClipboardWatcherEnabled(e.target.checked);
+                }}
+              />
+              Enable clipboard watcher and quick-add popup
+            </label>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Zotero / Mendeley Import</h4>
+            <div className="flex items-center gap-2">
+              <select
+                value={referenceSource}
+                onChange={(e) => setReferenceSource(e.target.value as "zotero" | "mendeley")}
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              >
+                <option value="zotero">Zotero JSON</option>
+                <option value="mendeley">Mendeley JSON</option>
+              </select>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+                className="flex-1 text-sm"
+              />
+              <button onClick={handleReferenceImport} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 3 Sync & Export"
+        description="Logseq sync, card versioning export, and Mnemosyne portability"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Logseq Bidirectional Sync</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input
+                value={logseqConfig.vaultPath}
+                onChange={(e) => setLogseqConfig((current) => ({ ...current, vaultPath: e.target.value }))}
+                placeholder="Vault path"
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              />
+              <input
+                value={logseqConfig.notesFolder}
+                onChange={(e) => setLogseqConfig((current) => ({ ...current, notesFolder: e.target.value }))}
+                placeholder="Notes folder"
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  const stats = await syncToLogseq(logseqConfig);
+                  alert(`Synced to Logseq: ${stats.documents} docs, ${stats.extracts} extracts`);
+                }}
+                className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+              >
+                Sync To Logseq
+              </button>
+              <button
+                onClick={async () => {
+                  const stats = await syncFromLogseq(logseqConfig);
+                  alert(`Synced from Logseq: ${stats.documents} docs, ${stats.extracts} extracts`);
+                }}
+                className="px-3 py-2 border border-border rounded text-sm text-foreground"
+              >
+                Sync From Logseq
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg">
+            <h4 className="text-sm font-medium text-foreground mb-2">Mnemosyne Export</h4>
+            <button
+              onClick={async () => {
+                const path = await exportMnemosyne();
+                alert(`Mnemosyne export created: ${path}`);
+              }}
+              className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+            >
+              Export Mnemosyne
+            </button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 3 Automation API"
+        description="Authenticated local REST endpoints for external tools"
+      >
+        <div className="space-y-3">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+            <div className="text-sm text-foreground">Automation API key</div>
+            <code className="block text-xs break-all text-muted-foreground">{automationApiKey || "Not set"}</code>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  const key = await rotateAutomationApiKey();
+                  setAutomationApiKey(key);
+                  const config = await getBrowserSyncConfig();
+                  await setBrowserSyncConfig({ ...config, apiKey: key });
+                }}
+                className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+              >
+                Rotate API Key
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              REST routes: <code>/api/automation/cards</code>, <code>/api/automation/reviews/due-count</code>, <code>/api/automation/reviews/submit</code>
+            </p>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 3 Plugin Host"
+        description="Install plugin manifests, grant permissions, and manage activation lifecycle"
+      >
+        <div className="space-y-3">
+          <textarea
+            value={pluginManifestText}
+            onChange={(e) => setPluginManifestText(e.target.value)}
+            className="w-full min-h-24 px-3 py-2 bg-background border border-border rounded-md text-xs font-mono"
+          />
+          <button
+            onClick={() => {
+              const manifest = JSON.parse(pluginManifestText) as PluginManifest;
+              installPlugin(manifest);
+              refreshPlugins();
+            }}
+            className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+          >
+            Install Plugin Manifest
+          </button>
+          <div className="space-y-2">
+            {plugins.map((plugin) => (
+              <div key={plugin.manifest.id} className="p-3 border border-border rounded-md bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{plugin.manifest.name}</p>
+                    <p className="text-xs text-muted-foreground">{plugin.manifest.id} · v{plugin.manifest.version}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {plugin.active ? (
+                      <button
+                        onClick={() => {
+                          deactivatePlugin(plugin.manifest.id);
+                          refreshPlugins();
+                        }}
+                        className="px-2 py-1 border border-border rounded text-xs"
+                      >
+                        Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          for (const permission of plugin.manifest.permissions) {
+                            grantPluginPermission(plugin.manifest.id, permission);
+                          }
+                          activatePlugin(plugin.manifest.id);
+                          refreshPlugins();
+                        }}
+                        className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        uninstallPlugin(plugin.manifest.id);
+                        refreshPlugins();
+                      }}
+                      className="px-2 py-1 border border-destructive text-destructive rounded text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Permissions: {plugin.manifest.permissions.join(", ") || "none"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 4 Community"
+        description="Community marketplace, collaborative study groups, and public profile sharing"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Community Deck Marketplace</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input
+                value={communityDeckTitle}
+                onChange={(e) => setCommunityDeckTitle(e.target.value)}
+                placeholder="Deck title"
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              />
+              <input
+                value={communityDeckDescription}
+                onChange={(e) => setCommunityDeckDescription(e.target.value)}
+                placeholder="Deck description"
+                className="px-2 py-1 border border-border rounded bg-background text-sm"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                const cards = await getAllLearningItems();
+                const selected = cards.slice(0, 50);
+                publishCommunityDeck({
+                  title: communityDeckTitle,
+                  description: communityDeckDescription,
+                  cardCount: selected.length,
+                  sourceUser: "local-user",
+                  cards: cardsToCommunityDeckCards(selected),
+                });
+                refreshSocial();
+              }}
+              className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+            >
+              Publish Deck
+            </button>
+            <div className="space-y-2">
+              {communityDecks.map((deck) => (
+                <div key={deck.id} className="p-3 border border-border rounded bg-card">
+                  <p className="text-sm font-medium text-foreground">{deck.title}</p>
+                  <p className="text-xs text-muted-foreground">{deck.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {deck.cardCount} cards • rating {deck.ratingAverage.toFixed(1)} ({deck.ratingsCount})
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        const imported = await installCommunityDeck(deck.id);
+                        alert(`Installed ${imported} cards`);
+                      }}
+                      className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs"
+                    >
+                      Install
+                    </button>
+                    <button
+                      onClick={() => {
+                        rateCommunityDeck(deck.id, 5);
+                        refreshSocial();
+                      }}
+                      className="px-2 py-1 border border-border rounded text-xs"
+                    >
+                      Rate 5★
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Collaborative Study Groups</h4>
+            <div className="flex items-center gap-2">
+              <input
+                value={studyGroupName}
+                onChange={(e) => setStudyGroupName(e.target.value)}
+                className="flex-1 px-2 py-1 border border-border rounded bg-background text-sm"
+                placeholder="Group name"
+              />
+              <button
+                onClick={() => {
+                  createStudyGroup(studyGroupName);
+                  refreshSocial();
+                }}
+                className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+              >
+                Create Group
+              </button>
+            </div>
+            {studyGroups.map((group) => (
+              <div key={group.id} className="p-3 border border-border rounded bg-card">
+                <p className="text-sm font-medium text-foreground">{group.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Decks: {group.deckIds.length} • Members: {Object.keys(group.memberStats).length}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const firstDeck = communityDecks[0];
+                      if (!firstDeck) return;
+                      attachDeckToGroup(group.id, firstDeck.id);
+                      refreshSocial();
+                    }}
+                    className="px-2 py-1 border border-border rounded text-xs"
+                  >
+                    Attach First Deck
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateGroupMemberStats(group.id, "me", 120, 0.88);
+                      refreshSocial();
+                    }}
+                    className="px-2 py-1 border border-border rounded text-xs"
+                  >
+                    Update Metrics
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Public Profile Sharing</h4>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={publicProfile.enabled}
+                onChange={(e) => {
+                  const next = { ...publicProfile, enabled: e.target.checked };
+                  setPublicProfileConfig(next);
+                  setPublicProfile(next);
+                }}
+              />
+              Enable public profile
+            </label>
+            <input
+              value={publicProfile.slug}
+              onChange={(e) => {
+                const next = { ...publicProfile, slug: e.target.value };
+                setPublicProfileConfig(next);
+                setPublicProfile(next);
+              }}
+              placeholder="profile slug"
+              className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
+            />
+            <div className="flex items-center gap-3 text-xs">
+              {(["streak", "cardsLearned", "retentionRate", "reviewsToday"] as const).map((field) => (
+                <label key={field} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={publicProfile.fields.includes(field)}
+                    onChange={(e) => {
+                      const fields = e.target.checked
+                        ? Array.from(new Set([...publicProfile.fields, field]))
+                        : publicProfile.fields.filter((entry) => entry !== field);
+                      const next = { ...publicProfile, fields };
+                      setPublicProfileConfig(next);
+                      setPublicProfile(next);
+                    }}
+                  />
+                  {field}
+                </label>
+              ))}
+            </div>
+            <pre className="text-xs bg-background border border-border rounded p-2 overflow-auto">
+              {JSON.stringify(
+                buildPublicProfileData(publicProfile, {
+                  streak: 12,
+                  cardsLearned: 340,
+                  retentionRate: 0.91,
+                  reviewsToday: 42,
+                }),
+                null,
+                2
+              )}
+            </pre>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 4 UX & Language"
+        description="Focus/Zen review mode and multi-language interface"
+      >
+        <div className="space-y-3">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+            <label className="text-sm text-foreground font-medium">Interface language</label>
+            <select
+              value={settings.general.language}
+              onChange={(e) => updateSettingsCategory("general", { language: e.target.value })}
+              className="w-full md:w-64 px-2 py-1 border border-border rounded bg-background text-sm"
+            >
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="de">German</option>
+            </select>
+          </div>
+          <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={settings.interface.reviewZenMode}
+                onChange={(e) => updateSettingsCategory("interface", { reviewZenMode: e.target.checked })}
+              />
+              Enable Focus/Zen review mode
+            </label>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={settings.interface.conversationalReviewEnabled}
+                onChange={(e) =>
+                  updateSettingsCategory("interface", { conversationalReviewEnabled: e.target.checked })
+                }
+              />
+              Enable conversational review tutor
+            </label>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Wave 4 Daily Notes"
+        description="Daily note / Zettelkasten links for cards and extracts created today"
+      >
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dailyNoteDate}
+              onChange={(e) => setDailyNoteDate(e.target.value)}
+              className="px-2 py-1 border border-border rounded bg-background text-sm"
+            />
+            <button
+              onClick={async () => {
+                const links = await getDailyNoteLinks(dailyNoteDate);
+                setDailyNoteLinks(links);
+              }}
+              className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+            >
+              Load Daily Links
+            </button>
+          </div>
+          <div className="space-y-2">
+            {dailyNoteLinks.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No linked artifacts for this date.</p>
+            ) : (
+              dailyNoteLinks.map((entry, index) => (
+                <div key={`${index}-${String(entry.id || "")}`} className="rounded border border-border p-2 text-xs">
+                  <p className="text-foreground">
+                    {String(entry.type || "item")} · {String(entry.id || "")}
+                  </p>
+                  <p className="text-muted-foreground">{String(entry.title || "")}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </SettingsSection>

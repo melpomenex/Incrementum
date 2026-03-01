@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles, Languages } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -27,7 +27,7 @@ import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
 import * as documentsApi from "../../api/documents";
-import { generateLearningItemsFromExtract } from "../../api/learning-items";
+import { createLearningItem, generateLearningItemsFromExtract } from "../../api/learning-items";
 import { updateDocumentProgressAuto } from "../../api/documents";
 import { rateDocument } from "../../api/algorithm";
 import { getBrowserFile } from "../../lib/browser-file-store";
@@ -36,6 +36,8 @@ import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoEx
 import { ocrPdfFile } from "../../api/ocrCommands";
 import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
+import { lookupDictionary, type DictionaryResult } from "../../utils/dictionaryLookup";
+import { recordReadingSession } from "../../utils/readingSpeed";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
@@ -208,11 +210,29 @@ export function DocumentViewer({
     currentTime?: number;
     duration?: number;
   } | null>(null);
+  const readingSessionStartRef = useRef(Date.now());
 
   // Clear transient video context when switching documents.
   useEffect(() => {
     setVideoContext(null);
+    readingSessionStartRef.current = Date.now();
   }, [documentId]);
+
+  useEffect(() => {
+    return () => {
+      if (!currentDocument) return;
+      const minutesSpent = (Date.now() - readingSessionStartRef.current) / 60000;
+      if (minutesSpent < 0.5) return;
+      const plainText = String(currentDocument.content || "").replace(/<[^>]+>/g, " ");
+      const wordsRead = plainText.trim() ? plainText.trim().split(/\s+/).length : 0;
+      const normalizedDocType = normalizeDocumentType(String(currentDocument.fileType || "")) || "other";
+      recordReadingSession({
+        docType: normalizedDocType,
+        wordsRead,
+        minutesSpent,
+      });
+    };
+  }, [currentDocument]);
 
   // Notify parent of video context changes
   useEffect(() => {
@@ -507,6 +527,8 @@ export function DocumentViewer({
   const [selectionContext, setSelectionContext] = useState<PdfSelectionContext | null>(null);
   const [pdfTextSelectionCapability, setPdfTextSelectionCapability] = useState<PdfTextSelectionCapability | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
+  const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
+  const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
@@ -519,6 +541,20 @@ export function DocumentViewer({
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileSelectionTimeoutRef = useRef<number | null>(null);
   const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+
+  const handleDictionaryLookup = useCallback(async () => {
+    const word = selectedText.trim().split(/\s+/)[0] || "";
+    if (!word) return;
+    setIsDictionaryLoading(true);
+    try {
+      const result = await lookupDictionary(word);
+      setDictionaryResult(result);
+    } catch (error) {
+      toast.error("Lookup failed", error instanceof Error ? error.message : "Failed to lookup word");
+    } finally {
+      setIsDictionaryLoading(false);
+    }
+  }, [selectedText, toast]);
 
   // Extract store for minimap
   const { extracts, loadExtracts } = useExtractStore();
@@ -3520,16 +3556,68 @@ export function DocumentViewer({
           className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[70] pointer-events-auto animate-in slide-in-from-bottom-4 duration-200"
           data-extract-button="true"
         >
-          <button
-            onClick={openExtractDialog}
-            className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transition-all min-h-[48px] text-sm font-medium"
-            title="Create extract from selection"
-            aria-label={`Create extract from selected text (${selectedText.length} characters)`}
-          >
-            <Lightbulb className="w-5 h-5" aria-hidden="true" />
-            <span>Create Extract</span>
-            <span className="text-xs opacity-75 ml-1">({selectedText.length})</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openExtractDialog}
+              className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transition-all min-h-[48px] text-sm font-medium"
+              title="Create extract from selection"
+              aria-label={`Create extract from selected text (${selectedText.length} characters)`}
+            >
+              <Lightbulb className="w-5 h-5" aria-hidden="true" />
+              <span>Create Extract</span>
+              <span className="text-xs opacity-75 ml-1">({selectedText.length})</span>
+            </button>
+            <button
+              onClick={handleDictionaryLookup}
+              disabled={isDictionaryLoading}
+              className="flex items-center gap-2 px-3 py-3 border border-border bg-card text-foreground rounded-lg shadow-lg hover:bg-muted transition-colors disabled:opacity-60"
+              title="Lookup dictionary and thesaurus"
+            >
+              <Languages className="w-4 h-4" />
+              <span className="text-xs">{isDictionaryLoading ? "Looking up..." : "Lookup"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {dictionaryResult && (
+        <div className="fixed bottom-[7.5rem] md:bottom-24 right-4 md:right-6 z-[72] w-[min(420px,calc(100vw-2rem))] rounded-lg border border-border bg-card p-3 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{dictionaryResult.word}</p>
+              {dictionaryResult.definitions[0] && (
+                <p className="mt-1 text-xs text-muted-foreground">{dictionaryResult.definitions[0]}</p>
+              )}
+              {dictionaryResult.synonyms.length > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Synonyms: {dictionaryResult.synonyms.slice(0, 5).join(", ")}
+                </p>
+              )}
+            </div>
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setDictionaryResult(null)}
+            >
+              Close
+            </button>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              className="rounded bg-primary px-2.5 py-1.5 text-xs text-primary-foreground"
+              onClick={async () => {
+                await createLearningItem({
+                  item_type: "flashcard",
+                  question: `Define: ${dictionaryResult.word}`,
+                  answer: dictionaryResult.definitions[0] || dictionaryResult.synonyms.join(", "),
+                  allow_duplicate: true,
+                });
+                toast.success("Vocabulary card created");
+                setDictionaryResult(null);
+              }}
+            >
+              Create Vocabulary Card
+            </button>
+          </div>
         </div>
       )}
 

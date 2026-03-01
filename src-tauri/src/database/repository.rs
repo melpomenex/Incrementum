@@ -570,6 +570,46 @@ impl Repository {
         Ok(())
     }
 
+    pub async fn restore_document_scheduling(
+        &self,
+        id: &str,
+        next_reading_date: Option<chrono::DateTime<Utc>>,
+        stability: Option<f64>,
+        difficulty: Option<f64>,
+        reps: Option<i32>,
+        total_time_spent: Option<i32>,
+        consecutive_count: Option<i32>,
+        date_last_reviewed: Option<chrono::DateTime<Utc>>,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE documents SET
+                next_reading_date = ?1,
+                stability = ?2,
+                difficulty = ?3,
+                reps = ?4,
+                total_time_spent = ?5,
+                consecutive_count = ?6,
+                date_last_reviewed = ?7,
+                date_modified = ?8
+            WHERE id = ?9
+            "#,
+        )
+        .bind(next_reading_date)
+        .bind(stability)
+        .bind(difficulty)
+        .bind(reps)
+        .bind(total_time_spent)
+        .bind(consecutive_count)
+        .bind(date_last_reviewed)
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn delete_document(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM documents WHERE id = ?")
             .bind(id)
