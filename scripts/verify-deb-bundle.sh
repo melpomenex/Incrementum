@@ -4,7 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-mapfile -t debs < <(find src-tauri/target -type f -path "*/release/bundle/deb/*.deb" | sort)
+# Bash 3 compatible alternative to mapfile
+debs=()
+while IFS= read -r line; do
+  debs+=("$line")
+done < <(find src-tauri/target -type f -path "*/release/bundle/deb/*.deb" | sort)
+
 if [[ ${#debs[@]} -eq 0 ]]; then
   echo "No .deb files found under src-tauri/target/**/release/bundle/deb/"
   exit 1
