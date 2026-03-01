@@ -209,6 +209,18 @@ export async function syncFromObsidian(
   return await invokeCommand("sync_from_obsidian", { config });
 }
 
+export async function syncToLogseq(
+  config: ObsidianConfig
+): Promise<{ documents: number; extracts: number; flashcards: number }> {
+  return await invokeCommand("sync_to_logseq", { config });
+}
+
+export async function syncFromLogseq(
+  config: ObsidianConfig
+): Promise<{ documents: number; extracts: number; flashcards: number }> {
+  return await invokeCommand("sync_from_logseq", { config });
+}
+
 /**
  * Delete an Obsidian file by Incrementum ID
  */
@@ -444,6 +456,7 @@ export interface BrowserSyncConfig {
   host: string;
   port: number;
   autoStart: boolean;
+  apiKey?: string;
 }
 
 /**
@@ -479,6 +492,14 @@ export async function getBrowserSyncConfig(): Promise<BrowserSyncConfig> {
  */
 export async function setBrowserSyncConfig(config: BrowserSyncConfig): Promise<void> {
   await invokeCommand("set_browser_sync_config", { config });
+}
+
+export async function getAutomationApiKey(): Promise<string> {
+  return await invokeCommand<string>("get_automation_api_key");
+}
+
+export async function rotateAutomationApiKey(): Promise<string> {
+  return await invokeCommand<string>("rotate_automation_api_key");
 }
 
 /**

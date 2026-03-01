@@ -77,6 +77,9 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
   const answerText = card.answer ? getPlainText(card.answer) : "";
   const questionHtml = renderAnkiHtmlWithLatex(card.question || "");
   const answerHtml = card.answer ? renderAnkiHtmlWithLatex(card.answer) : "";
+  const interactionMetadata = (card as any)?.interaction_metadata;
+  const audioQuestionUrl = interactionMetadata?.audioQuestionUrl || interactionMetadata?.audio_question_url;
+  const audioAnswerUrl = interactionMetadata?.audioAnswerUrl || interactionMetadata?.audio_answer_url;
 
   const renderQuestion = () => {
     if ((itemType === "cloze" || itemType === "Cloze") && card.cloze_text) {
@@ -152,6 +155,11 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
         <div className="text-sm md:text-base leading-relaxed text-foreground">
           <span dangerouslySetInnerHTML={{ __html: answerHtml }} />
         </div>
+        {audioAnswerUrl && (
+          <div className="mt-3">
+            <audio controls preload="none" src={audioAnswerUrl} className="w-full" />
+          </div>
+        )}
       </div>
     );
   };
@@ -222,6 +230,11 @@ export function ReviewCard({ card, showAnswer, onShowAnswer }: ReviewCardProps) 
             {(itemType === "cloze" || itemType === "Cloze") ? "Complete the sentence" : "Question"}
           </div>
           {renderQuestion()}
+          {audioQuestionUrl && (
+            <div className="mt-3">
+              <audio controls preload="none" src={audioQuestionUrl} className="w-full" />
+            </div>
+          )}
         </div>
 
         {/* Answer (shown when revealed) with fade-in animation */}

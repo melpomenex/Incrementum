@@ -6,6 +6,7 @@ import { UserMenu } from "../auth/UserMenu";
 import { Breadcrumb } from "../common/Breadcrumb";
 import { Toast } from "../common/Toast";
 import { OfflineIndicator } from "../pwa";
+import { useI18n } from "../../lib/i18n";
 import {
   Home,
   BookOpen,
@@ -30,13 +31,13 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { id: "continue-reading", label: "Continue Reading", icon: BookMarked },
-  { id: "dashboard", label: "Dashboard", icon: Home },
-  { id: "documents", label: "Documents", icon: BookOpen },
-  { id: "queue", label: "Queue", icon: Layers },
-  { id: "knowledge-graph", label: "Knowledge Graph", icon: Network },
-  { id: "analytics", label: "Statistics", icon: BarChart3 },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "continue-reading", label: "nav.continue", icon: BookMarked },
+  { id: "dashboard", label: "nav.dashboard", icon: Home },
+  { id: "documents", label: "nav.documents", icon: BookOpen },
+  { id: "queue", label: "nav.queue", icon: Layers },
+  { id: "knowledge-graph", label: "nav.graph", icon: Network },
+  { id: "analytics", label: "nav.analytics", icon: BarChart3 },
+  { id: "settings", label: "nav.settings", icon: Settings },
 ];
 
 export function NewMainLayout({
@@ -58,6 +59,7 @@ export function NewMainLayout({
 }) {
   const settingsTheme = useSettingsStore((state) => state.settings.appearance?.theme || "system");
   const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
+  const { t } = useI18n();
 
   // Sidebar state for mobile responsiveness
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -140,10 +142,11 @@ export function NewMainLayout({
 
         {/* Left Sidebar */}
         {!isReaderFocusMode && (
-          <LeftSidebar
-            activeItem={activeItem}
-            setActiveItem={handlePageChange}
-            stats={dashboardStats}
+            <LeftSidebar
+              activeItem={activeItem}
+              setActiveItem={handlePageChange}
+              t={t}
+              stats={dashboardStats}
             isOpen={isSidebarOpen}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -288,6 +291,7 @@ function TopHeaderBar({
 interface LeftSidebarProps {
   activeItem: string;
   setActiveItem: (item: string) => void;
+  t: (key: string) => string;
   stats: any;
   isOpen: boolean;
   isCollapsed: boolean;
@@ -295,7 +299,7 @@ interface LeftSidebarProps {
   onClose: () => void;
 }
 
-function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, onToggleCollapse, onClose }: LeftSidebarProps) {
+function LeftSidebar({ activeItem, setActiveItem, t, stats, isOpen, isCollapsed, onToggleCollapse, onClose }: LeftSidebarProps) {
   const sidebarWidth = isCollapsed ? "w-16" : "w-64";
   const mobileSidebarTop = "calc(3rem + env(safe-area-inset-top, 0px))";
 
@@ -316,13 +320,13 @@ function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, on
                 activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
               } ${isCollapsed ? "justify-center" : ""}`}
               aria-current={activeItem === item.id ? "page" : undefined}
-              aria-label={`Navigate to ${item.label}`}
-              title={isCollapsed ? item.label : undefined}
+              aria-label={`Navigate to ${t(item.label)}`}
+              title={isCollapsed ? t(item.label) : undefined}
             >
               <item.icon className="w-5 h-5 text-foreground flex-shrink-0" />
               {!isCollapsed && (
                 <span className="text-sm font-medium text-foreground flex-1 text-left truncate">
-                  {item.label}
+                  {t(item.label)}
                 </span>
               )}
               {!isCollapsed && item.count !== undefined && (
@@ -405,11 +409,11 @@ function LeftSidebar({ activeItem, setActiveItem, stats, isOpen, isCollapsed, on
                 activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
               }`}
               aria-current={activeItem === item.id ? "page" : undefined}
-              aria-label={`Navigate to ${item.label}`}
+              aria-label={`Navigate to ${t(item.label)}`}
             >
               <item.icon className="w-5 h-5 text-foreground" />
               <span className="text-sm font-medium text-foreground flex-1 text-left">
-                {item.label}
+                {t(item.label)}
               </span>
               {item.count !== undefined && (
                 <span className="text-xs text-foreground-muted">{item.count}</span>

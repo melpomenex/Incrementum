@@ -8,6 +8,8 @@ import { ActivityChart } from "../../components/analytics/ActivityChart";
 import { CategoryBreakdown } from "../../components/analytics/CategoryBreakdown";
 import { DashboardProgressRings } from "../../components/analytics/ProgressRings";
 import { ReviewHeatmap } from "../../components/analytics/ReviewHeatmap";
+import { ScheduleVisualization } from "../../components/analytics/ScheduleVisualization";
+import { ForgettingCurvePanel } from "../../components/analytics/ForgettingCurvePanel";
 import {
   BookOpen,
   Clock,
@@ -19,14 +21,19 @@ import {
   TrendingUp,
   Library,
 } from "lucide-react";
+import { getEnergyLogs, calculateEnergyCorrelation } from "../../utils/energyTracker";
+import { getReadingSpeedByType } from "../../utils/readingSpeed";
+import { useDocumentStore } from "../../stores/documentStore";
 
 export function AnalyticsTab() {
   const { addTab } = useTabsStore();
+  const documents = useDocumentStore((state) => state.documents);
   const {
     dashboardStats,
     memoryStats,
     activityData,
     categoryStats,
+    leechItems,
     isLoading,
     error,
     loadAll,
@@ -45,10 +52,13 @@ export function AnalyticsTab() {
   }, [loadAll]);
 
   const reviewHeatmapData = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, { count: number; retentionRate: number }> = {};
     for (const day of activityData || []) {
       if (day?.date) {
-        map[day.date] = day.reviews_count || 0;
+        map[day.date] = {
+          count: day.reviews_count || 0,
+          retentionRate: day.retention_rate || 0,
+        };
       }
     }
     return map;
@@ -57,6 +67,32 @@ export function AnalyticsTab() {
   const weeklyProgress = useMemo(() => {
     return (activityData || []).slice(-7).reduce((sum, day) => sum + (day.reviews_count || 0), 0);
   }, [activityData]);
+  const energyLogs = useMemo(() => getEnergyLogs(), []);
+  const energyCorrelation = useMemo(() => calculateEnergyCorrelation(energyLogs), [energyLogs]);
+  const readingSpeedRows = useMemo(() => {
+    const docTypes: Array<"pdf" | "epub" | "markdown" | "html" | "audio" | "video"> = [
+      "pdf",
+      "epub",
+      "markdown",
+      "html",
+      "audio",
+      "video",
+    ];
+    return docTypes.map((type) => ({ type, wpm: Math.round(getReadingSpeedByType(type)) }));
+  }, []);
+  const unreadWords = useMemo(
+    () =>
+      documents.reduce((sum, doc) => {
+        const words = String(doc.content || "").trim().split(/\s+/).filter(Boolean).length;
+        const progress = Number(doc.progressPercent || 0) / 100;
+        return sum + Math.max(0, Math.round(words * (1 - progress)));
+      }, 0),
+    [documents]
+  );
+  const defaultWpm = readingSpeedRows.length
+    ? readingSpeedRows.reduce((sum, row) => sum + row.wpm, 0) / readingSpeedRows.length
+    : 200;
+  const queueEtaMinutes = unreadWords / Math.max(80, defaultWpm);
 
   if (isLoading && !dashboardStats) {
     return (
@@ -228,9 +264,62 @@ export function AnalyticsTab() {
         <ReviewHeatmap data={reviewHeatmapData} months={12} />
       </div>
 
+      {/* Due Forecast */}
+      <ScheduleVisualization />
+
+      {/* Forgetting Curves */}
+      <ForgettingCurvePanel averageStabilityDays={memoryStats?.average_stability} />
+
       {/* Category Breakdown */}
       <div className="p-4 bg-card border border-border rounded-lg">
         <CategoryBreakdown categories={categoryStats} />
+      </div>
+
+      <div className="p-4 bg-card border border-border rounded-lg">
+        <h3 className="text-lg font-semibold text-foreground mb-3">Cognitive Energy Correlation</h3>
+        <p className="text-sm text-muted-foreground">
+          Correlation (energy vs retention): {energyCorrelation.toFixed(2)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Based on {energyLogs.length} logged review sessions.
+        </p>
+      </div>
+
+      <div className="p-4 bg-card border border-border rounded-lg">
+        <h3 className="text-lg font-semibold text-foreground mb-3">Reading Speed & ETA</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {readingSpeedRows.map((row) => (
+            <div key={row.type} className="rounded border border-border p-2">
+              <p className="text-xs uppercase text-muted-foreground">{row.type}</p>
+              <p className="text-sm font-medium text-foreground">{row.wpm} wpm</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Estimated queue completion time: {Math.max(1, Math.round(queueEtaMinutes))} min
+        </p>
+      </div>
+
+      {/* Leech Dashboard */}
+      <div className="p-4 bg-card border border-border rounded-lg">
+        <h3 className="text-lg font-semibold text-foreground mb-3">Leech Dashboard</h3>
+        {leechItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No leeches at current threshold.</p>
+        ) : (
+          <div className="space-y-3">
+            {leechItems.slice(0, 10).map((item) => (
+              <div key={item.id} className="rounded border border-border p-3">
+                <p className="text-sm text-foreground font-medium line-clamp-2">{item.question}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Lapses: {item.lapses} • Reviews: {item.review_count}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {item.suggested_actions.join(" • ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}

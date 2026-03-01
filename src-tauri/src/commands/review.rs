@@ -6,8 +6,8 @@ use crate::database::Repository;
 use crate::error::Result;
 use crate::models::{LearningItem, ReviewRating, MemoryState, ItemState};
 
-/// Desired retention rate (0.9 = 90% retention)
-const DESIRED_RETENTION: f32 = 0.9;
+/// Default desired retention rate (0.9 = 90% retention)
+const DEFAULT_DESIRED_RETENTION: f32 = 0.9;
 
 /// Graduation interval in days - items with intervals >= this are considered "graduated" to Review state
 const GRADUATION_INTERVAL_DAYS: f64 = 1.0;
@@ -140,6 +140,9 @@ pub async fn submit_review(
     rating: i32,
     time_taken: i32,
     session_id: Option<String>,
+    desired_retention: Option<f32>,
+    fsrs_weights: Option<Vec<f32>>,
+    no_schedule_update: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<LearningItem> {
     tracing::info!(
@@ -155,6 +158,9 @@ pub async fn submit_review(
         rating,
         time_taken,
         session_id.as_deref(),
+        desired_retention.unwrap_or(DEFAULT_DESIRED_RETENTION),
+        fsrs_weights.as_deref(),
+        no_schedule_update.unwrap_or(false),
     )
     .await
 }
@@ -165,6 +171,9 @@ pub async fn apply_fsrs_review(
     rating: i32,
     time_taken: i32,
     session_id: Option<&str>,
+    desired_retention: f32,
+    fsrs_weights: Option<&[f32]>,
+    no_schedule_update: bool,
 ) -> Result<LearningItem> {
     // Get the current item
     let mut item = repo.get_learning_item(item_id).await?
@@ -173,8 +182,20 @@ pub async fn apply_fsrs_review(
     // Convert rating to ReviewRating
     let review_rating = ReviewRating::from(rating);
 
-    // Create FSRS instance with default parameters
-    let fsrs = fsrs::FSRS::new(Some(&[]))?;
+    if no_schedule_update {
+        return Ok(item);
+    }
+
+    // Create FSRS instance with personalized weights when provided.
+    let fsrs = if let Some(weights) = fsrs_weights {
+        if weights.len() == 17 {
+            fsrs::FSRS::new(Some(weights))?
+        } else {
+            fsrs::FSRS::new(Some(&[]))?
+        }
+    } else {
+        fsrs::FSRS::new(Some(&[]))?
+    };
 
     // Calculate elapsed time since last review (in days, can be fractional)
     let now = Utc::now();
@@ -199,7 +220,7 @@ pub async fn apply_fsrs_review(
     });
 
     // Calculate next states using FSRS 6
-    let next_states = fsrs.next_states(current_memory_state, DESIRED_RETENTION, elapsed_days)?;
+    let next_states = fsrs.next_states(current_memory_state, desired_retention, elapsed_days)?;
 
     // Select the next state based on rating
     let next_state = match review_rating {
@@ -317,6 +338,54 @@ pub async fn apply_fsrs_review(
     Ok(item)
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct RestoreLearningItemStateRequest {
+    pub item_id: String,
+    pub due_date: chrono::DateTime<Utc>,
+    pub interval: f64,
+    pub ease_factor: f64,
+    pub last_review_date: Option<chrono::DateTime<Utc>>,
+    pub review_count: i32,
+    pub lapses: i32,
+    pub state: String,
+    pub memory_state: Option<MemoryState>,
+    pub difficulty: i32,
+}
+
+fn parse_item_state(value: &str) -> ItemState {
+    match value.to_lowercase().as_str() {
+        "new" => ItemState::New,
+        "learning" => ItemState::Learning,
+        "review" => ItemState::Review,
+        _ => ItemState::Relearning,
+    }
+}
+
+#[tauri::command]
+pub async fn restore_learning_item_state(
+    request: RestoreLearningItemStateRequest,
+    repo: State<'_, Repository>,
+) -> Result<LearningItem> {
+    let mut item = repo
+        .get_learning_item(&request.item_id)
+        .await?
+        .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", request.item_id)))?;
+
+    item.due_date = request.due_date;
+    item.interval = request.interval;
+    item.ease_factor = request.ease_factor;
+    item.last_review_date = request.last_review_date;
+    item.review_count = request.review_count;
+    item.lapses = request.lapses;
+    item.state = parse_item_state(&request.state);
+    item.memory_state = request.memory_state;
+    item.difficulty = request.difficulty;
+    item.date_modified = Utc::now();
+
+    repo.update_learning_item(&item).await?;
+    Ok(item)
+}
+
 // Helper function to get a single learning item (needed for submit_review)
 pub trait RepositoryExt {
     async fn get_learning_item(&self, id: &str) -> Result<Option<LearningItem>>;
@@ -391,7 +460,7 @@ pub async fn preview_review_intervals(
         }
     });
 
-    let next_states = fsrs.next_states(current_memory_state, DESIRED_RETENTION, elapsed_days)?;
+    let next_states = fsrs.next_states(current_memory_state, DEFAULT_DESIRED_RETENTION, elapsed_days)?;
 
     let normalize = |interval: f64, rating: ReviewRating| {
         if !interval.is_finite() || interval <= 0.0 {

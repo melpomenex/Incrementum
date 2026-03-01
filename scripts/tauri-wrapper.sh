@@ -35,7 +35,18 @@ EOF
   # Start Vite as a direct child of this script so the sandbox allows the bind.
   # If a dev server is already listening on the expected port, reuse it.
   export INCREMENTUM_TAURI=1
-  if ss -ltn "( sport = :$port )" | tail -n +2 | grep -q ":$port"; then
+  port_in_use=1
+  if command -v ss >/dev/null 2>&1; then
+    if ss -ltn "( sport = :$port )" 2>/dev/null | tail -n +2 | grep -q ":$port"; then
+      port_in_use=0
+    fi
+  elif command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      port_in_use=0
+    fi
+  fi
+
+  if [[ "$port_in_use" == "0" ]]; then
     echo "Reusing existing dev server on 127.0.0.1:$port"
   else
     npm run dev -- --host 127.0.0.1 --port "$port" --strictPort &

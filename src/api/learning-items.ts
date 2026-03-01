@@ -32,7 +32,24 @@ export interface CreateLearningItemInput {
   item_type: string;
   question: string;
   answer?: string;
+  prerequisite_item_ids?: string[];
   image_asset_ids?: string[];
+  allow_duplicate?: boolean;
+}
+
+export interface DuplicateCandidate {
+  id: string;
+  question: string;
+  similarity: number;
+}
+
+export interface CardVersionEntry {
+  version_id: string;
+  item_id: string;
+  timestamp: string;
+  reason?: string;
+  question: string;
+  answer?: string;
 }
 
 /**
@@ -63,6 +80,10 @@ export async function getLearningItemsByExtract(extractId: string): Promise<Lear
   return await invokeCommand<LearningItem[]>("get_learning_items_by_extract", { extractId });
 }
 
+export async function getAllLearningItems(): Promise<LearningItem[]> {
+  return await invokeCommand<LearningItem[]>("get_all_learning_items");
+}
+
 /**
  * Create a new learning item
  */
@@ -70,7 +91,20 @@ export async function createLearningItem(input: CreateLearningItemInput): Promis
   return await invokeCommand<LearningItem>("create_learning_item", {
     itemType: input.item_type,
     question: input.question,
+    answer: input.answer,
+    prerequisiteItemIds: input.prerequisite_item_ids,
     imageAssetIds: input.image_asset_ids,
+    allowDuplicate: input.allow_duplicate,
+  });
+}
+
+export async function checkSemanticDuplicateCandidates(
+  question: string,
+  limit: number = 5
+): Promise<DuplicateCandidate[]> {
+  return await invokeCommand<DuplicateCandidate[]>("check_semantic_duplicate_candidates", {
+    question,
+    limit,
   });
 }
 
@@ -82,6 +116,47 @@ export async function generateLearningItemsFromExtract(extractId: string): Promi
   return await invokeCommand<LearningItem[]>("generate_learning_items_from_extract", {
     extractId,
   });
+}
+
+export async function updateLearningItemContentWithVersion(
+  itemId: string,
+  question: string,
+  answer?: string,
+  reason?: string
+): Promise<LearningItem> {
+  return await invokeCommand<LearningItem>("update_learning_item_content_with_version", {
+    itemId,
+    question,
+    answer,
+    reason,
+  });
+}
+
+export async function getLearningItemVersions(itemId: string): Promise<CardVersionEntry[]> {
+  return await invokeCommand<CardVersionEntry[]>("get_learning_item_versions", { itemId });
+}
+
+export async function revertLearningItemVersion(itemId: string, versionId: string): Promise<LearningItem> {
+  return await invokeCommand<LearningItem>("revert_learning_item_version", {
+    itemId,
+    versionId,
+  });
+}
+
+export async function exportMnemosyne(outputPath?: string): Promise<string> {
+  return await invokeCommand<string>("export_mnemosyne", { outputPath });
+}
+
+export async function setLearningItemPrerequisites(itemId: string, prerequisiteItemIds: string[]): Promise<void> {
+  await invokeCommand("set_learning_item_prerequisites", { itemId, prerequisiteItemIds });
+}
+
+export async function getLearningItemPrerequisites(itemId: string): Promise<string[]> {
+  return await invokeCommand<string[]>("get_learning_item_prerequisites", { itemId });
+}
+
+export async function getDailyNoteLinks(date?: string): Promise<Array<Record<string, unknown>>> {
+  return await invokeCommand<Array<Record<string, unknown>>>("get_daily_note_links", { date });
 }
 
 /**
