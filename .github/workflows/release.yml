@@ -10,10 +10,21 @@ permissions:
 
 jobs:
   release:
+    continue-on-error: ${{ !matrix.required }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, windows-latest]
+        include:
+          - id: macos-aarch64
+            platform: macos-latest
+            os: macos
+            arch: aarch64
+            required: true
+          - id: windows-x86_64
+            platform: windows-latest
+            os: windows
+            arch: x86_64
+            required: false
 
     runs-on: ${{ matrix.platform }}
 
@@ -24,7 +35,7 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -41,11 +52,11 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Increase Rust stack size (Unix)
-        if: runner.os != 'Windows'
+        if: matrix.os != 'windows'
         run: echo "RUST_MIN_STACK=33554432" >> $GITHUB_ENV
 
       - name: Increase Rust stack size (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         run: echo "RUST_MIN_STACK=33554432" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Sync node version and setup cache
@@ -85,12 +96,12 @@ jobs:
           test "${CARGO_VERSION}" = "${TAG_VERSION}"
 
       - name: Install create-dmg (macOS only)
-        if: runner.os == 'macOS'
+        if: matrix.os == 'macos'
         run: brew install create-dmg
 
       # macOS code signing - Option 1: Ad-hoc signing (no certificate needed)
       - name: Import ad-hoc signing (macOS)
-        if: matrix.platform == 'macos-latest'
+        if: matrix.os == 'macos'
         run: |
           echo "TAURI_SIGNING_IDENTITY=-" >> $GITHUB_ENV
           echo "APPLE_SIGNING_IDENTITY=-" >> $GITHUB_ENV
@@ -139,30 +150,30 @@ jobs:
           releaseBody: 'See https://github.com/melpomenex/incrementum-tauri/releases/tag/${{ steps.get_version.outputs.VERSION }} for release notes.'
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.platform == 'macos-latest' && '--bundles dmg' || '--bundles nsis' }}
+          args: ${{ matrix.os == 'macos' && '--bundles dmg' || '--bundles nsis' }}
 
       - name: List Windows bundles (debug)
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         shell: bash
         run: |
           echo "=== Debug: Listing Windows bundle files ==="
           find src-tauri/target/release/bundle -type f || echo "Bundle dir missing"
 
       - name: Verify Windows bundles include NotebookLM runtime
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         shell: pwsh
         run: |
           ./scripts/verify-windows-bundles.ps1
 
       - name: Verify macOS bundles include NotebookLM runtime
-        if: runner.os == 'macOS'
+        if: matrix.os == 'macos'
         shell: bash
         run: |
           chmod +x scripts/verify-macos-bundles.sh
           scripts/verify-macos-bundles.sh
 
       - name: Upload Windows bundles
-        if: runner.os == 'Windows'
+        if: matrix.os == 'windows'
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -173,6 +184,19 @@ jobs:
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Add per-architecture summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Release target \`${{ matrix.id }}\`"
+            echo "- Required: \`${{ matrix.required }}\`"
+            echo "- Runner: \`${{ matrix.platform }}\`"
+            echo "- Architecture: \`${{ matrix.arch }}\`"
+            echo "- Job status: \`${{ job.status }}\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release-appimage:
     runs-on: ubuntu-latest
@@ -274,7 +298,7 @@ jobs:
       - name: Install Arch dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust cargo clang lld
+          pacman -S --noconfirm base-devel webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust cargo clang lld sqlite
 
       - name: Install frontend dependencies
         run: npm ci
@@ -315,6 +339,9 @@ jobs:
           cargo build --release
         env:
           RUST_MIN_STACK: 33554432
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: "1"
+          SQLITE3_STATIC: "0"
+          RUSTFLAGS: -C link-arg=-lsqlite3
 
       - name: Create Pacman package
         run: |
@@ -343,7 +370,7 @@ jobs:
             npm ci
             npm run build
             cd src-tauri
-            cargo build --release
+            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 RUSTFLAGS="-C link-arg=-lsqlite3" cargo build --release
           }
 
           package() {
@@ -369,9 +396,31 @@ jobs:
           generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}
 
-  create-update-manifest:
+  release-readiness:
     needs: [release, release-appimage, release-arch]
     if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize required and optional release outcomes
+        run: |
+          {
+            echo "## Release readiness"
+            echo "- release matrix: \`${{ needs.release.result }}\`"
+            echo "- release-appimage: \`${{ needs.release-appimage.result }}\`"
+            echo "- release-arch: \`${{ needs.release-arch.result }}\`"
+            echo ""
+            echo "Required: \`macos-aarch64\`, \`release-appimage\`, \`release-arch\`"
+            echo "Optional: \`windows-x86_64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce required architecture gate
+        run: |
+          test "${{ needs.release.result }}" = "success"
+          test "${{ needs.release-appimage.result }}" = "success"
+          test "${{ needs.release-arch.result }}" = "success"
+
+  create-update-manifest:
+    needs: [release-readiness]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
