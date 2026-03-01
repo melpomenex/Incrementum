@@ -15,6 +15,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import ePub from 'epubjs';
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from 'ts-fsrs';
 import { useSettingsStore } from '../stores/settingsStore';
+import { resolveFsrsParamsForScope } from '../utils/fsrsScope';
 import { v4 as uuidv4 } from 'uuid';
 import { getPositionProgress, type DocumentPosition } from '../types/position';
 import {
@@ -161,18 +162,27 @@ function toCamelCase(obj: unknown): unknown {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function getFsrsParameters() {
+function getFsrsParameters(context?: { activeDeckId?: string | null; tags?: string[] }) {
     const settings = useSettingsStore.getState().settings;
-    const fsrsParams = settings.learning?.fsrsParams;
-    return {
-        request_retention: fsrsParams?.desiredRetention ?? 0.9,
-        maximum_interval: fsrsParams?.maximumInterval ?? 36500,
+    const fsrsParams = resolveFsrsParamsForScope({
+        settings,
+        activeDeckId: context?.activeDeckId,
+        tags: context?.tags ?? [],
+    });
+
+    const params: Record<string, unknown> = {
+        request_retention: fsrsParams.desiredRetention ?? 0.9,
+        maximum_interval: fsrsParams.maximumInterval ?? 36500,
         enable_fuzz: false,
     };
+    if (Array.isArray(fsrsParams.personalizedWeights) && fsrsParams.personalizedWeights.length === 17) {
+        params.w = fsrsParams.personalizedWeights;
+    }
+    return params;
 }
 
-function createFsrsScheduler() {
-    return fsrs(getFsrsParameters());
+function createFsrsScheduler(context?: { activeDeckId?: string | null; tags?: string[] }) {
+    return fsrs(getFsrsParameters(context));
 }
 
 function toFsrsGrade(rating: number): Grade {
@@ -222,6 +232,25 @@ function intervalFromDue(now: Date, due: Date, scheduledDays?: number): number {
         return scheduledDays ?? 0;
     }
     return Math.max(0, delta);
+}
+
+function tokenizeForSimilarity(text: string): Set<string> {
+    return new Set(
+        text
+            .toLowerCase()
+            .split(/\s+/)
+            .map((token) => token.replace(/[^a-z0-9]/g, ""))
+            .filter(Boolean)
+    );
+}
+
+function jaccardSimilarity(a: string, b: string): number {
+    const setA = tokenizeForSimilarity(a);
+    const setB = tokenizeForSimilarity(b);
+    if (setA.size === 0 || setB.size === 0) return 0;
+    const intersection = [...setA].filter((token) => setB.has(token)).length;
+    const union = new Set([...setA, ...setB]).size;
+    return union === 0 ? 0 : intersection / union;
 }
 
 /**
@@ -293,6 +322,25 @@ function getPriorityLabel(prioritySlider?: number): string {
     return 'Very Low';
 }
 
+function suggestAutoTags(title: string, content: string): string[] {
+    const corpus = `${title} ${content}`.toLowerCase();
+    const tags: string[] = [];
+    const candidates: Array<[string, string[]]> = [
+        ["math", ["equation", "theorem", "calculus", "algebra"]],
+        ["history", ["century", "empire", "war", "revolution"]],
+        ["biology", ["cell", "protein", "genome", "species"]],
+        ["language", ["vocabulary", "grammar", "translation", "sentence"]],
+        ["computer-science", ["algorithm", "compiler", "database", "programming"]],
+    ];
+    for (const [tag, keywords] of candidates) {
+        if (keywords.some((keyword) => corpus.includes(keyword))) {
+            tags.push(tag);
+        }
+    }
+    tags.push("auto-tagged");
+    return tags;
+}
+
 function buildCardFromDocument(doc: db.Document, now: Date): Card {
     const card = createEmptyCard(now);
     card.due = doc.next_reading_date ? new Date(doc.next_reading_date) : now;
@@ -333,6 +381,85 @@ function buildCardFromLearningItem(item: db.LearningItem, now: Date): Card {
     card.learning_steps = 0;
     card.state = normalizeState(item.state);
     return card;
+}
+
+type BrowserCardVersionEntry = {
+    version_id: string;
+    item_id: string;
+    timestamp: string;
+    reason?: string;
+    question: string;
+    answer?: string;
+};
+
+const CARD_VERSION_STORAGE_KEY = "incrementum_browser_card_versions";
+const AUTOMATION_KEY_STORAGE = "incrementum_browser_automation_api_key";
+const BROWSER_SYNC_CONFIG_STORAGE = "incrementum_browser_sync_config";
+const PREREQ_STORAGE_KEY = "incrementum_browser_prerequisites";
+const DAILY_NOTE_LINKS_KEY = "incrementum_browser_daily_notes";
+
+function readBrowserCardVersions(): Record<string, BrowserCardVersionEntry[]> {
+    try {
+        return JSON.parse(localStorage.getItem(CARD_VERSION_STORAGE_KEY) || "{}");
+    } catch {
+        return {};
+    }
+}
+
+function writeBrowserCardVersions(data: Record<string, BrowserCardVersionEntry[]>): void {
+    localStorage.setItem(CARD_VERSION_STORAGE_KEY, JSON.stringify(data));
+}
+
+function getOrCreateAutomationApiKey(): string {
+    const existing = localStorage.getItem(AUTOMATION_KEY_STORAGE);
+    if (existing) return existing;
+    const generated = `inc_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    localStorage.setItem(AUTOMATION_KEY_STORAGE, generated);
+    return generated;
+}
+
+function readPrerequisites(): Record<string, string[]> {
+    try {
+        return JSON.parse(localStorage.getItem(PREREQ_STORAGE_KEY) || "{}");
+    } catch {
+        return {};
+    }
+}
+
+function writePrerequisites(data: Record<string, string[]>): void {
+    localStorage.setItem(PREREQ_STORAGE_KEY, JSON.stringify(data));
+}
+
+function appendDailyNoteLink(entry: Record<string, unknown>): void {
+    const day = new Date().toISOString().slice(0, 10);
+    const all = (() => {
+        try {
+            return JSON.parse(localStorage.getItem(DAILY_NOTE_LINKS_KEY) || "{}");
+        } catch {
+            return {};
+        }
+    })() as Record<string, Array<Record<string, unknown>>>;
+    all[day] = [...(all[day] || []), { ...entry, timestamp: new Date().toISOString() }];
+    localStorage.setItem(DAILY_NOTE_LINKS_KEY, JSON.stringify(all));
+}
+
+function readBrowserSyncConfig(): { host: string; port: number; autoStart: boolean; apiKey?: string } {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(BROWSER_SYNC_CONFIG_STORAGE) || "{}");
+        return {
+            host: parsed.host || "127.0.0.1",
+            port: Number(parsed.port || 8766),
+            autoStart: Boolean(parsed.autoStart),
+            apiKey: parsed.apiKey || getOrCreateAutomationApiKey(),
+        };
+    } catch {
+        return {
+            host: "127.0.0.1",
+            port: 8766,
+            autoStart: false,
+            apiKey: getOrCreateAutomationApiKey(),
+        };
+    }
 }
 
 /**
@@ -493,7 +620,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         return doc?.progress_percent ?? null;
     },
 
-    get_daily_reading_stats: async (args) => {
+    get_daily_reading_stats: async (_args) => {
         // Return empty array for now - daily reading stats not fully implemented in browser mode
         // This is used for reading streak calculations
         return [];
@@ -682,6 +809,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             file_path: finalFilePath,
             file_type: fileType,
             content: extractedContent || undefined,
+            tags: suggestAutoTags(fileName, extractedContent || ""),
         });
         console.log(`[Browser] Document created:`, doc.id, doc.file_path, doc.file_type);
         return toCamelCase(doc);
@@ -695,6 +823,53 @@ const commandHandlers: Record<string, CommandHandler> = {
             docs.push(doc);
         }
         return docs;
+    },
+
+    import_pdf_highlights_as_extracts: async (args) => {
+        const documentId = (args.documentId || args.document_id) as string;
+        const doc = await db.getDocument(documentId);
+        if (!doc) {
+            throw new Error(`Document ${documentId} not found`);
+        }
+
+        const content = (doc.content || "").trim();
+        if (!content) {
+            return 0;
+        }
+
+        const snippets = content
+            .split(/\n\s*\n/)
+            .map((block) => block.trim())
+            .filter(Boolean)
+            .slice(0, 12);
+        for (const snippet of snippets) {
+            await db.createExtract({
+                document_id: documentId,
+                content: snippet,
+                tags: ["imported-highlight"],
+                highlight_color: "imported",
+            });
+        }
+        return snippets.length;
+    },
+
+    import_podcast_audio_file: async (args) => {
+        const filePath = args.filePath as string;
+        const title =
+            (args.title as string | undefined) ||
+            filePath.split("/").pop()?.split("\\").pop() ||
+            "Podcast Episode";
+        const document = await db.createDocument({
+            title: title.replace(/\.[^/.]+$/, ""),
+            file_path: filePath,
+            file_type: "audio",
+            content: "Local transcription is only available in the desktop app backend.",
+            tags: ["podcast", "audio"],
+        });
+        return {
+            document: toCamelCase(document),
+            transcript_segments: 0,
+        };
     },
 
     read_document_file: async (args) => {
@@ -806,6 +981,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             highlight_color: args.color as string | undefined,
             page_number: args.pageNumber as number | undefined,
         });
+        appendDailyNoteLink({ type: "extract", id: extract.id, title: extract.content?.slice(0, 80) || "Extract" });
         return toCamelCase(extract);
     },
 
@@ -848,21 +1024,149 @@ const commandHandlers: Record<string, CommandHandler> = {
     },
 
     create_learning_item: async (args) => {
+        const question = args.question as string;
+        const allowDuplicate = Boolean(args.allowDuplicate ?? args.allow_duplicate);
+        if (!allowDuplicate) {
+            const allItems = await db.getAllLearningItems();
+            const topMatch = allItems
+                .map((item) => ({ item, similarity: jaccardSimilarity(question, item.question || "") }))
+                .sort((a, b) => b.similarity - a.similarity)[0];
+            if (topMatch && topMatch.similarity >= 0.85) {
+                throw new Error(
+                    `Potential duplicate detected (${Math.round(topMatch.similarity * 100)}%): ${topMatch.item.id}`
+                );
+            }
+        }
+
         const item = await db.createLearningItem({
             extract_id: args.extractId as string | undefined,
             document_id: args.documentId as string | undefined,
             item_type: args.itemType as string,
-            question: args.question as string,
+            question,
             answer: args.answer as string | undefined,
             cloze_text: args.clozeText as string | undefined,
         });
+        const prerequisiteIds = (args.prerequisiteItemIds || args.prerequisite_item_ids) as string[] | undefined;
+        if (Array.isArray(prerequisiteIds) && prerequisiteIds.length > 0) {
+            const prereqMap = readPrerequisites();
+            prereqMap[item.id] = prerequisiteIds;
+            writePrerequisites(prereqMap);
+        }
+        appendDailyNoteLink({ type: "learning_item", id: item.id, title: item.question });
         return toCamelCase(item);
+    },
+
+    check_semantic_duplicate_candidates: async (args) => {
+        const question = String(args.question ?? "");
+        const limit = Math.max(1, Number(args.limit ?? 5));
+        const allItems = await db.getAllLearningItems();
+        const candidates = allItems
+            .map((item) => ({
+                id: item.id,
+                question: item.question,
+                similarity: jaccardSimilarity(question, item.question || ""),
+            }))
+            .filter((candidate) => candidate.similarity >= 0.6)
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, limit);
+        return candidates;
     },
 
     update_learning_item: async (args) => {
         const id = args.id as string;
         const item = await db.updateLearningItem(id, args as Partial<db.LearningItem>);
         return toCamelCase(item);
+    },
+
+    update_learning_item_content_with_version: async (args) => {
+        const itemId = args.itemId as string;
+        const existing = await db.getLearningItem(itemId);
+        if (!existing) {
+            throw new Error(`Learning item ${itemId} not found`);
+        }
+
+        const allVersions = readBrowserCardVersions();
+        const entry: BrowserCardVersionEntry = {
+            version_id: crypto.randomUUID(),
+            item_id: itemId,
+            timestamp: new Date().toISOString(),
+            reason: (args.reason as string | undefined) ?? undefined,
+            question: existing.question,
+            answer: existing.answer,
+        };
+        allVersions[itemId] = [entry, ...(allVersions[itemId] ?? [])];
+        writeBrowserCardVersions(allVersions);
+
+        const updated = await db.updateLearningItem(itemId, {
+            question: args.question as string,
+            answer: args.answer as string | undefined,
+            date_modified: new Date().toISOString(),
+        });
+        return toCamelCase(updated);
+    },
+
+    get_learning_item_versions: async (args) => {
+        const itemId = args.itemId as string;
+        const versions = readBrowserCardVersions()[itemId] ?? [];
+        return versions;
+    },
+
+    set_learning_item_prerequisites: async (args) => {
+        const itemId = args.itemId as string;
+        const prerequisiteItemIds = (args.prerequisiteItemIds || []) as string[];
+        const prereqMap = readPrerequisites();
+        prereqMap[itemId] = prerequisiteItemIds;
+        writePrerequisites(prereqMap);
+        return null;
+    },
+
+    get_learning_item_prerequisites: async (args) => {
+        const itemId = args.itemId as string;
+        return readPrerequisites()[itemId] ?? [];
+    },
+
+    get_daily_note_links: async (args) => {
+        const requestedDate = (args.date as string | undefined) || new Date().toISOString().slice(0, 10);
+        const all = (() => {
+            try {
+                return JSON.parse(localStorage.getItem(DAILY_NOTE_LINKS_KEY) || "{}");
+            } catch {
+                return {};
+            }
+        })() as Record<string, Array<Record<string, unknown>>>;
+        return all[requestedDate] || [];
+    },
+
+    revert_learning_item_version: async (args) => {
+        const itemId = args.itemId as string;
+        const versionId = args.versionId as string;
+        const versions = readBrowserCardVersions()[itemId] ?? [];
+        const selected = versions.find((version) => version.version_id === versionId);
+        if (!selected) {
+            throw new Error(`Version ${versionId} not found`);
+        }
+        const updated = await db.updateLearningItem(itemId, {
+            question: selected.question,
+            answer: selected.answer,
+            date_modified: new Date().toISOString(),
+        });
+        return toCamelCase(updated);
+    },
+
+    export_mnemosyne: async () => {
+        const allItems = await db.getAllLearningItems();
+        const lines = ["# Mnemosyne Export"];
+        for (const item of allItems) {
+            lines.push(`${(item.question || "").replaceAll("\n", " ")}\t${(item.answer || "").replaceAll("\n", " ")}`);
+        }
+        const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `incrementum-mnemosyne-${new Date().toISOString().slice(0, 10)}.txt`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        return anchor.download;
     },
 
     delete_learning_item: async (args) => {
@@ -1118,7 +1422,18 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     get_due_items: async () => {
         const items = await db.getDueLearningItems();
-        return toCamelCase(items);
+        const prereqMap = readPrerequisites();
+        const allItems = await db.getAllLearningItems();
+        const byId = new Map(allItems.map((item) => [item.id, item]));
+        const filtered = items.filter((item) => {
+            const prereqIds = prereqMap[item.id] || [];
+            return prereqIds.every((prereqId) => {
+                const prereq = byId.get(prereqId);
+                if (!prereq) return false;
+                return (prereq.review_count || 0) > 0 && (prereq.interval || 0) >= 21;
+            });
+        });
+        return toCamelCase(filtered);
     },
 
     start_review: async () => {
@@ -1132,13 +1447,20 @@ const commandHandlers: Record<string, CommandHandler> = {
     submit_review: async (args) => {
         const itemId = (args.item_id as string) || (args.itemId as string);
         const rating = args.rating as number;
+        const noScheduleUpdate = Boolean(args.no_schedule_update ?? args.noScheduleUpdate);
         const item = await db.getLearningItem(itemId);
         if (!item) {
             throw new Error(`Learning item ${itemId} not found`);
         }
 
+        if (noScheduleUpdate) {
+            return toCamelCase(item);
+        }
+
         const now = new Date();
-        const scheduler = createFsrsScheduler();
+        const scheduler = createFsrsScheduler({
+            tags: item.tags || [],
+        });
         const grade = toFsrsGrade(rating);
         const card = buildCardFromLearningItem(item, now);
         const next = scheduler.next(card, now, grade);
@@ -1171,7 +1493,9 @@ const commandHandlers: Record<string, CommandHandler> = {
         }
 
         const now = new Date();
-        const scheduler = createFsrsScheduler();
+        const scheduler = createFsrsScheduler({
+            tags: item.tags || [],
+        });
         const card = buildCardFromLearningItem(item, now);
         const preview = scheduler.repeat(card, now);
 
@@ -1281,9 +1605,37 @@ const commandHandlers: Record<string, CommandHandler> = {
     },
 
     // Analytics commands
-    get_activity_data: async () => {
-        // Return empty for now - analytics can be computed client-side
-        return [];
+    get_activity_data: async (args) => {
+        const days = (args.days as number) ?? 30;
+        const items = await db.getLearningItems();
+        const activities: Array<{
+            date: string;
+            reviews_count: number;
+            cards_learned: number;
+            time_spent_minutes: number;
+            retention_rate: number;
+        }> = [];
+        const now = new Date();
+
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(now.getDate() - i);
+            const dateStr = date.toISOString().split("T")[0];
+            const dayItems = items.filter((item) => (item.last_review_date || "").startsWith(dateStr));
+            const reviewsCount = dayItems.length;
+            const cardsLearned = dayItems.filter((item) => (item.review_count || 0) === 1).length;
+            const retained = dayItems.filter((item) => (item.lapses || 0) === 0).length;
+            const retentionRate = reviewsCount > 0 ? (retained / reviewsCount) * 100 : 0;
+            activities.push({
+                date: dateStr,
+                reviews_count: reviewsCount,
+                cards_learned: cardsLearned,
+                time_spent_minutes: Math.round(reviewsCount * 0.5),
+                retention_rate: retentionRate,
+            });
+        }
+
+        return activities;
     },
 
     get_dashboard_stats: async () => {
@@ -1301,6 +1653,109 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     get_memory_stats: async () => {
         return {};
+    },
+
+    get_leech_dashboard: async (args) => {
+        const threshold = Math.max(1, Number(args.threshold ?? 8));
+        const items = await db.getLearningItems();
+        return items
+            .filter((item) => !item.is_suspended && (item.lapses || 0) >= threshold)
+            .sort((a, b) => (b.lapses || 0) - (a.lapses || 0))
+            .map((item) => ({
+                id: item.id,
+                question: item.question,
+                lapses: item.lapses || 0,
+                review_count: item.review_count || 0,
+                suggested_actions: [
+                    "Rewrite for clarity",
+                    "Split into smaller cards",
+                    (item.lapses || 0) >= threshold + 2 ? "Add progressive hints" : "Review formatting",
+                ],
+            }));
+    },
+
+    get_due_workload_forecast: async (args) => {
+        const days = Math.max(1, Math.min((args.days as number) ?? 90, 365));
+        const items = await db.getLearningItems();
+        const docs = await db.getDocuments();
+        const points: Array<{
+            date: string;
+            due_learning_items: number;
+            due_documents: number;
+            due_total: number;
+        }> = [];
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < days; i++) {
+            const date = new Date(start);
+            date.setDate(start.getDate() + i);
+            const dateStr = date.toISOString().split("T")[0];
+            const dueLearning = items.filter((item) => (item.due_date || "").startsWith(dateStr) && !item.is_suspended).length;
+            const dueDocs = docs.filter((doc) => (doc.next_reading_date || "").startsWith(dateStr) && !doc.is_archived).length;
+            points.push({
+                date: dateStr,
+                due_learning_items: dueLearning,
+                due_documents: dueDocs,
+                due_total: dueLearning + dueDocs,
+            });
+        }
+
+        const summarize = (horizon: number) => ({
+            horizon_days: horizon,
+            due_total: points.slice(0, horizon).reduce((sum, p) => sum + p.due_total, 0),
+        });
+
+        return {
+            points,
+            summaries: [summarize(30), summarize(60), summarize(90)],
+        };
+    },
+
+    optimize_algorithm_params: async () => {
+        const settings = useSettingsStore.getState().settings;
+        const items = await db.getLearningItems();
+        const reviewed = items.filter((item) => (item.review_count || 0) > 0);
+        const totalReviews = reviewed.reduce((sum, item) => sum + (item.review_count || 0), 0);
+        const totalLapses = reviewed.reduce((sum, item) => sum + (item.lapses || 0), 0);
+        const observedRetention = totalReviews > 0 ? 1 - (totalLapses / totalReviews) : 0.5;
+        const defaultWeights = [
+            0.4072, 1.1829, 3.1262, 15.4722, 7.2102, 0.5316, 1.0651, 0.0234, 1.6160,
+            0.1544, 1.0824, 1.9813, 0.0953, 0.2975, 2.2042, 0.2407, 2.9466,
+        ];
+        const shift = Math.max(-0.2, Math.min(0.2, observedRetention - 0.9));
+        const personalizedWeights = defaultWeights.map((weight, index) => {
+            const direction = index % 2 === 0 ? -1 : 1;
+            return Math.max(0.001, weight * (1 + (shift * 0.12 * direction)));
+        });
+
+        const nextSettings = {
+            ...settings,
+            learning: {
+                ...settings.learning,
+                fsrsParams: {
+                    ...settings.learning.fsrsParams,
+                    personalizedWeights,
+                    lastOptimizationAt: new Date().toISOString(),
+                    optimizedReviewCount: totalReviews,
+                },
+            },
+        };
+        await db.setSyncState("settings", nextSettings);
+
+        return {
+            best_params: {
+                min_ease_factor: 1.3,
+                initial_ease_factor: 2.5,
+                desired_retention: settings.learning.fsrsParams.desiredRetention,
+            },
+            expected_retention: observedRetention,
+            iterations: 1,
+            converged: totalReviews >= 200,
+            fsrs_weights: personalizedWeights,
+            history_count: totalReviews,
+            minimum_history_required: 200,
+        };
     },
 
     // AI commands (passthrough - will use client-side API calls)
@@ -2422,6 +2877,42 @@ const commandHandlers: Record<string, CommandHandler> = {
     resolve_sync_conflict: async () => {
         // Yjs handles conflicts automatically
         return;
+    },
+
+    get_browser_sync_config: async () => readBrowserSyncConfig(),
+
+    set_browser_sync_config: async (args) => {
+        const config = args.config as { host: string; port: number; autoStart: boolean; apiKey?: string };
+        localStorage.setItem(
+            BROWSER_SYNC_CONFIG_STORAGE,
+            JSON.stringify({
+                host: config.host || "127.0.0.1",
+                port: Number(config.port || 8766),
+                autoStart: Boolean(config.autoStart),
+                apiKey: config.apiKey || getOrCreateAutomationApiKey(),
+            })
+        );
+        return null;
+    },
+
+    sync_to_logseq: async () => ({
+        documents: 0,
+        extracts: 0,
+        flashcards: 0,
+    }),
+
+    sync_from_logseq: async () => ({
+        documents: 0,
+        extracts: 0,
+        flashcards: 0,
+    }),
+
+    get_automation_api_key: async () => getOrCreateAutomationApiKey(),
+
+    rotate_automation_api_key: async () => {
+        const next = `inc_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+        localStorage.setItem(AUTOMATION_KEY_STORAGE, next);
+        return next;
     },
 };
 

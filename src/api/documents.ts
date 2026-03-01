@@ -119,6 +119,30 @@ export async function importDocuments(filePaths: string[]): Promise<Document[]> 
   return await invokeCommand<Document[]>("import_documents", { filePaths });
 }
 
+export async function importPdfHighlightsAsExtracts(documentId: string): Promise<number> {
+  return await invokeCommand<number>("import_pdf_highlights_as_extracts", {
+    documentId,
+    document_id: documentId,
+  });
+}
+
+export interface PodcastImportResult {
+  document: Document;
+  transcript_segments: number;
+}
+
+export async function importPodcastAudioFile(
+  filePath: string,
+  title?: string,
+  language?: string
+): Promise<PodcastImportResult> {
+  return await invokeCommand<PodcastImportResult>("import_podcast_audio_file", {
+    filePath,
+    title,
+    language,
+  });
+}
+
 /**
  * Read document file contents as base64
  * Used for loading PDFs, EPUBs, etc. in the viewer

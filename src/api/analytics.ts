@@ -20,6 +20,7 @@ export interface ActivityDay {
   reviews_count: number;
   cards_learned: number;
   time_spent_minutes: number;
+  retention_rate: number;
 }
 
 export interface MemoryStats {
@@ -35,6 +36,14 @@ export interface CategoryStats {
   card_count: number;
   reviews_count: number;
   retention_rate: number;
+}
+
+export interface LeechItem {
+  id: string;
+  question: string;
+  lapses: number;
+  review_count: number;
+  suggested_actions: string[];
 }
 
 /**
@@ -69,6 +78,14 @@ export async function getCategoryStats(): Promise<CategoryStats[]> {
   const result = await invokeCommand<CategoryStats[] | null>("get_category_stats");
   if (!Array.isArray(result)) {
     console.warn("[analytics] get_category_stats returned non-array result", result);
+  }
+  return Array.isArray(result) ? result : [];
+}
+
+export async function getLeechDashboard(threshold: number = 8): Promise<LeechItem[]> {
+  const result = await invokeCommand<LeechItem[] | null>("get_leech_dashboard", { threshold });
+  if (!Array.isArray(result)) {
+    console.warn("[analytics] get_leech_dashboard returned non-array result", result);
   }
   return Array.isArray(result) ? result : [];
 }

@@ -1460,9 +1460,20 @@ mod tests {
 
     #[test]
     fn test_migration_names_ordered() {
+        // Some historical fixes were appended later while preserving runtime dependency order.
+        // Keep this allowlist explicit so any new out-of-order entries fail the test.
+        let allowed_backfills = std::collections::HashSet::from([
+            "028_remove_extract_category_fk",
+            "029_add_document_is_dismissed",
+        ]);
+
         for window in MIGRATIONS.windows(2) {
+            if window[0].name < window[1].name {
+                continue;
+            }
+
             assert!(
-                window[0].name < window[1].name,
+                allowed_backfills.contains(window[1].name),
                 "Migrations not ordered: {} should come before {}",
                 window[0].name,
                 window[1].name

@@ -9,11 +9,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface DayData {
   date: Date;
   count: number;
+  retentionRate: number;
   dateStr: string;
 }
 
 interface ReviewHeatmapProps {
-  data: Record<string, number>; // date string (YYYY-MM-DD) -> count
+  data: Record<string, number | { count: number; retentionRate?: number }>; // date string (YYYY-MM-DD) -> count/retention
   months?: number;
   className?: string;
 }
@@ -34,7 +35,7 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
   const [hoveredDay, setHoveredDay] = useState<DayData | null>(null);
   const [startOffset, setStartOffset] = useState(0);
 
-  const { weeks, monthLabels, totalCount, maxCount, avgCount } = useMemo(() => {
+  const { weeks, monthLabels, totalCount, maxCount, avgCount, avgRetention } = useMemo(() => {
     const today = new Date();
     const startDate = new Date(today);
     startDate.setMonth(startDate.getMonth() - months + startOffset);
@@ -59,15 +60,20 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
     let total = 0;
     let max = 0;
     let daysWithActivity = 0;
+    let retentionSum = 0;
+    let daysWithRetention = 0;
 
     while (currentDate <= endDate) {
       const dayOfWeek = currentDate.getDay();
       const dateStr = currentDate.toISOString().split("T")[0];
-      const count = data[dateStr] || 0;
+      const raw = data[dateStr];
+      const count = typeof raw === "number" ? raw : raw?.count || 0;
+      const retentionRate = typeof raw === "number" ? 0 : raw?.retentionRate || 0;
 
       const dayData: DayData = {
         date: new Date(currentDate),
         count,
+        retentionRate,
         dateStr,
       };
 
@@ -87,6 +93,10 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
       total += count;
       if (count > max) max = count;
       if (count > 0) daysWithActivity++;
+      if (count > 0 && retentionRate > 0) {
+        retentionSum += retentionRate;
+        daysWithRetention++;
+      }
 
       // Complete week
       if (dayOfWeek === 6) {
@@ -109,6 +119,7 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
       totalCount: total,
       maxCount: max,
       avgCount: daysWithActivity > 0 ? total / daysWithActivity : 0,
+      avgRetention: daysWithRetention > 0 ? retentionSum / daysWithRetention : 0,
     };
   }, [data, months, startOffset]);
 
@@ -216,6 +227,11 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
             <div className="font-medium text-foreground">
               {hoveredDay.count} review{hoveredDay.count !== 1 ? "s" : ""}
             </div>
+            {hoveredDay.retentionRate > 0 && (
+              <div className="text-muted-foreground">
+                Retention: {hoveredDay.retentionRate.toFixed(1)}%
+              </div>
+            )}
             <div className="text-muted-foreground">{formatDate(hoveredDay.date)}</div>
           </div>
         )}
@@ -248,6 +264,9 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
           <div className="text-xs text-muted-foreground">Daily Average</div>
         </div>
       </div>
+      <div className="mt-3 text-xs text-muted-foreground text-right">
+        Avg retention on active days: {avgRetention.toFixed(1)}%
+      </div>
     </div>
   );
 }
@@ -260,7 +279,7 @@ export function ReviewHeatmapCompact({
   weeks = 20,
   className = "",
 }: {
-  data: Record<string, number>;
+  data: Record<string, number | { count: number; retentionRate?: number }>;
   weeks?: number;
   className?: string;
 }) {
@@ -276,9 +295,12 @@ export function ReviewHeatmapCompact({
       const week: DayData[] = [];
       for (let d = 0; d < 7; d++) {
         const dateStr = currentDate.toISOString().split("T")[0];
+        const raw = data[dateStr];
+        const count = typeof raw === "number" ? raw : raw?.count || 0;
         week.push({
           date: new Date(currentDate),
-          count: data[dateStr] || 0,
+          count,
+          retentionRate: typeof raw === "number" ? 0 : raw?.retentionRate || 0,
           dateStr,
         });
         currentDate.setDate(currentDate.getDate() + 1);

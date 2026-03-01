@@ -22,7 +22,12 @@ export async function submitReview(
   itemId: string,
   rating: number,
   timeTaken: number,
-  sessionId?: string
+  sessionId?: string,
+  options?: {
+    desiredRetention?: number;
+    fsrsWeights?: number[];
+    noScheduleUpdate?: boolean;
+  }
 ): Promise<LearningItem> {
   const normalizedSessionId = sessionId?.trim() ? sessionId : undefined;
   return await invokeCommand<LearningItem>("submit_review", {
@@ -33,6 +38,46 @@ export async function submitReview(
     timeTaken,
     session_id: normalizedSessionId,
     sessionId: normalizedSessionId,
+    desired_retention: options?.desiredRetention,
+    desiredRetention: options?.desiredRetention,
+    fsrs_weights: options?.fsrsWeights,
+    fsrsWeights: options?.fsrsWeights,
+    no_schedule_update: options?.noScheduleUpdate,
+    noScheduleUpdate: options?.noScheduleUpdate,
+  });
+}
+
+export async function restoreLearningItemState(
+  itemId: string,
+  previousState: {
+    dueDate: string;
+    interval: number;
+    easeFactor: number;
+    lastReviewDate?: string;
+    reviewCount: number;
+    lapses: number;
+    state: string;
+    memoryState?: { stability: number; difficulty: number } | null;
+    difficulty: number;
+  }
+): Promise<LearningItem> {
+  return await invokeCommand<LearningItem>("restore_learning_item_state", {
+    item_id: itemId,
+    itemId,
+    due_date: previousState.dueDate,
+    dueDate: previousState.dueDate,
+    interval: previousState.interval,
+    ease_factor: previousState.easeFactor,
+    easeFactor: previousState.easeFactor,
+    last_review_date: previousState.lastReviewDate,
+    lastReviewDate: previousState.lastReviewDate,
+    review_count: previousState.reviewCount,
+    reviewCount: previousState.reviewCount,
+    lapses: previousState.lapses,
+    state: previousState.state,
+    memory_state: previousState.memoryState ?? null,
+    memoryState: previousState.memoryState ?? null,
+    difficulty: previousState.difficulty,
   });
 }
 
@@ -77,6 +122,14 @@ export interface LearningItem {
   memory_state?: {
     stability: number;
     difficulty: number;
+  };
+  interaction_metadata?: Record<string, unknown>;
+  source_anchor?: {
+    document_id?: string;
+    extract_id?: string;
+    page_number?: number;
+    start_offset?: number;
+    end_offset?: number;
   };
 }
 

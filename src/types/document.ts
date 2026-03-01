@@ -38,6 +38,7 @@ export interface Document {
   difficulty?: number;
   reps?: number;
   totalTimeSpent?: number;
+  consecutiveCount?: number;
 }
 
 export interface DocumentMetadata {

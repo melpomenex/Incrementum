@@ -4,10 +4,12 @@ import {
   getMemoryStats,
   getActivityData,
   getCategoryStats,
+  getLeechDashboard,
   type DashboardStats,
   type MemoryStats,
   type ActivityDay,
   type CategoryStats,
+  type LeechItem,
 } from "../api/analytics";
 
 interface AnalyticsState {
@@ -15,6 +17,7 @@ interface AnalyticsState {
   memoryStats: MemoryStats | null;
   activityData: ActivityDay[];
   categoryStats: CategoryStats[];
+  leechItems: LeechItem[];
 
   isLoading: boolean;
   error: string | null;
@@ -24,6 +27,7 @@ interface AnalyticsState {
   loadMemoryStats: () => Promise<void>;
   loadActivityData: (days?: number) => Promise<void>;
   loadCategoryStats: () => Promise<void>;
+  loadLeechDashboard: (threshold?: number) => Promise<void>;
   loadAll: () => Promise<void>;
 }
 
@@ -32,6 +36,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   memoryStats: null,
   activityData: [],
   categoryStats: [],
+  leechItems: [],
 
   isLoading: false,
   error: null,
@@ -88,20 +93,35 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
     }
   },
 
+  loadLeechDashboard: async (threshold = 8) => {
+    set({ isLoading: true, error: null });
+    try {
+      const leechItems = await getLeechDashboard(threshold);
+      set({ leechItems, isLoading: false });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to load leech dashboard",
+        isLoading: false,
+      });
+    }
+  },
+
   loadAll: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [dashboardStats, memoryStats, activityData, categoryStats] = await Promise.all([
+      const [dashboardStats, memoryStats, activityData, categoryStats, leechItems] = await Promise.all([
         getDashboardStats(),
         getMemoryStats(),
         getActivityData(30),
         getCategoryStats(),
+        getLeechDashboard(8),
       ]);
       set({
         dashboardStats,
         memoryStats,
         activityData,
         categoryStats,
+        leechItems,
         isLoading: false,
       });
     } catch (error) {

@@ -850,7 +850,17 @@ impl MCPToolRegistry {
         let item_id = args["item_id"].as_str().ok_or("item_id is required")?;
         let rating = args["rating"].as_u64().ok_or("rating is required")?;
 
-        match apply_fsrs_review(self.repository.as_ref(), item_id, rating as i32, 0, None).await {
+        match apply_fsrs_review(
+            self.repository.as_ref(),
+            item_id,
+            rating as i32,
+            0,
+            None,
+            0.9,
+            false,
+        )
+        .await
+        {
             Ok(_) => Ok(ToolCallResult {
                 content: vec![ToolContent {
                     r#type: "text".to_string(),

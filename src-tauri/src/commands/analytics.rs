@@ -26,6 +26,7 @@ pub struct ActivityDay {
     pub reviews_count: i32,
     pub cards_learned: i32,
     pub time_spent_minutes: i32,
+    pub retention_rate: f64,
 }
 
 /// Memory statistics
@@ -45,6 +46,15 @@ pub struct CategoryStats {
     pub card_count: i32,
     pub reviews_count: i32,
     pub retention_rate: f64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LeechItem {
+    pub id: String,
+    pub question: String,
+    pub lapses: i32,
+    pub review_count: i32,
+    pub suggested_actions: Vec<String>,
 }
 
 /// Get overall dashboard statistics
@@ -278,7 +288,7 @@ pub async fn get_activity_data(
 
         // Reviews count
         let reviews_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND is_suspended = false"
+            "SELECT COUNT(*) FROM review_results WHERE timestamp >= ? AND timestamp <= ?"
         )
         .bind(day_start)
         .bind(day_end)
@@ -296,15 +306,38 @@ pub async fn get_activity_data(
         .await
         .map_err(|e: sqlx::Error| e.to_string())?;
 
-        // For time spent, we'd need a reviews log table
-        // For now, approximate: 30 seconds per review
-        let time_spent_minutes = (reviews_count / 2) as i32;
+        // Time spent from review_results
+        let total_seconds: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(time_taken), 0) FROM review_results WHERE timestamp >= ? AND timestamp <= ?"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+        let time_spent_minutes = (total_seconds / 60) as i32;
+
+        // Retention overlay for heatmap: Good/Easy ratio for that day
+        let correct_reviews: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM review_results WHERE timestamp >= ? AND timestamp <= ? AND rating >= 3"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+        let retention_rate = if reviews_count > 0 {
+            (correct_reviews as f64 / reviews_count as f64) * 100.0
+        } else {
+            0.0
+        };
 
         activities.push(ActivityDay {
             date: date.to_string(),
             reviews_count: reviews_count as i32,
             cards_learned: cards_learned as i32,
             time_spent_minutes,
+            retention_rate,
         });
     }
 
@@ -372,4 +405,49 @@ pub async fn get_category_stats(
     }
 
     Ok(stats)
+}
+
+#[tauri::command]
+pub async fn get_leech_dashboard(
+    threshold: Option<i32>,
+    repo: State<'_, Repository>,
+) -> Result<Vec<LeechItem>, String> {
+    let limit_threshold = threshold.unwrap_or(8).max(1);
+    let rows = sqlx::query(
+        r#"
+        SELECT id, question, lapses, review_count
+        FROM learning_items
+        WHERE lapses >= ?1 AND is_suspended = false
+        ORDER BY lapses DESC, review_count DESC
+        "#
+    )
+    .bind(limit_threshold)
+    .fetch_all(repo.pool())
+    .await
+    .map_err(|e: sqlx::Error| e.to_string())?;
+
+    let mut items = Vec::new();
+    for row in rows {
+        let lapses = row.try_get::<i64, _>("lapses").unwrap_or(0) as i32;
+        let review_count = row.try_get::<i64, _>("review_count").unwrap_or(0) as i32;
+        let mut suggested_actions = vec![
+            "Rewrite for clarity".to_string(),
+            "Split into smaller cards".to_string(),
+        ];
+        if lapses >= limit_threshold + 2 {
+            suggested_actions.push("Add progressive hints".to_string());
+        }
+        if review_count > 20 {
+            suggested_actions.push("Consider suspend/reset".to_string());
+        }
+        items.push(LeechItem {
+            id: row.try_get("id").unwrap_or_default(),
+            question: row.try_get("question").unwrap_or_default(),
+            lapses,
+            review_count,
+            suggested_actions,
+        });
+    }
+
+    Ok(items)
 }

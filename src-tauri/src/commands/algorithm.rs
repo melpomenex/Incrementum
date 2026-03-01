@@ -2,7 +2,7 @@
 
 use crate::algorithms::{
     calculate_priority_score, calculate_review_statistics, compare_algorithms,
-    optimizer::{OptimizationParams, OptimizationResult, ParameterOptimizer},
+    optimizer::{OptimizationParams, OptimizationResult, ParameterOptimizer, default_fsrs_weights},
     DocumentScheduler as DocScheduler,
     IncrementalScheduler,
     EngagingScheduler, EngagementPreferences,
@@ -13,6 +13,7 @@ use crate::error::Result;
 use crate::database::Repository;
 use crate::models::{Document, FileType, ReviewRating};
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use tauri::State;
 use chrono::{Duration, Utc};
 
@@ -141,6 +142,19 @@ pub struct ExtractRatingResponse {
     pub difficulty: f64,
     pub interval_days: i64,
     pub scheduling_reason: String,
+}
+
+/// Restore document scheduling request (used for single-step undo)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RestoreDocumentSchedulingRequest {
+    pub document_id: String,
+    pub next_reading_date: Option<chrono::DateTime<Utc>>,
+    pub stability: Option<f64>,
+    pub difficulty: Option<f64>,
+    pub reps: Option<i32>,
+    pub total_time_spent: Option<i32>,
+    pub consecutive_count: Option<i32>,
+    pub date_last_reviewed: Option<chrono::DateTime<Utc>>,
 }
 
 /// Algorithm type selection
@@ -406,6 +420,26 @@ pub async fn rate_extract(
     })
 }
 
+#[tauri::command]
+pub async fn restore_document_scheduling(
+    request: RestoreDocumentSchedulingRequest,
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    repo.restore_document_scheduling(
+        &request.document_id,
+        request.next_reading_date,
+        request.stability,
+        request.difficulty,
+        request.reps,
+        request.total_time_spent,
+        request.consecutive_count,
+        request.date_last_reviewed,
+    )
+    .await?;
+
+    Ok(())
+}
+
 /// Calculate priority scores for queue items
 #[tauri::command]
 pub async fn calculate_priority_scores(
@@ -517,6 +551,26 @@ pub struct ReviewStatisticsOutput {
     pub due_month: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DueForecastPoint {
+    pub date: String,
+    pub due_learning_items: i32,
+    pub due_documents: i32,
+    pub due_total: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DueForecastSummary {
+    pub horizon_days: i32,
+    pub due_total: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DueWorkloadForecast {
+    pub points: Vec<DueForecastPoint>,
+    pub summaries: Vec<DueForecastSummary>,
+}
+
 /// Get review statistics for all items
 #[tauri::command]
 pub async fn get_review_statistics(
@@ -537,24 +591,142 @@ pub async fn get_review_statistics(
     })
 }
 
+#[tauri::command]
+pub async fn get_due_workload_forecast(
+    days: Option<i32>,
+    repo: State<'_, Repository>,
+) -> Result<DueWorkloadForecast> {
+    let pool = repo.pool();
+    let horizon_days = days.unwrap_or(90).clamp(1, 365);
+    let start = Utc::now().date_naive();
+    let mut points = Vec::with_capacity(horizon_days as usize);
+
+    for i in 0..horizon_days {
+        let date = start + Duration::days(i as i64);
+        let day_start = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let day_end = date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+        let due_learning_items: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM learning_items WHERE due_date >= ?1 AND due_date <= ?2 AND is_suspended = false"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(crate::error::IncrementumError::Database)?;
+
+        let due_documents: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM documents WHERE next_reading_date >= ?1 AND next_reading_date <= ?2 AND is_archived = false"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(crate::error::IncrementumError::Database)?;
+
+        let due_total = due_learning_items + due_documents;
+        points.push(DueForecastPoint {
+            date: date.to_string(),
+            due_learning_items: due_learning_items as i32,
+            due_documents: due_documents as i32,
+            due_total: due_total as i32,
+        });
+    }
+
+    let summary_30 = DueForecastSummary {
+        horizon_days: 30,
+        due_total: points.iter().take(30).map(|p| p.due_total).sum::<i32>(),
+    };
+    let summary_60 = DueForecastSummary {
+        horizon_days: 60,
+        due_total: points.iter().take(60).map(|p| p.due_total).sum::<i32>(),
+    };
+    let summary_90 = DueForecastSummary {
+        horizon_days: 90,
+        due_total: points.iter().take(90).map(|p| p.due_total).sum::<i32>(),
+    };
+
+    Ok(DueWorkloadForecast {
+        points,
+        summaries: vec![summary_30, summary_60, summary_90],
+    })
+}
+
 /// Optimize algorithm parameters
 #[tauri::command]
 pub async fn optimize_algorithm_params(
     initial_params: OptimizationParams,
     repo: State<'_, Repository>,
 ) -> Result<OptimizationResult> {
-    // Get all learning items for optimization
-    let _items = repo.get_all_learning_items().await?;
+    const MIN_HISTORY_REQUIRED: i32 = 200;
 
-    // For now, we don't have full review history, so we'll use a simplified approach
-    // Create pseudo-history from current item states
-    let _history = Vec::new(); // Placeholder - would be populated from review log table
+    let rows = sqlx::query(
+        r#"
+        SELECT item_id, rating, timestamp,
+               LAG(timestamp) OVER (PARTITION BY item_id ORDER BY timestamp) AS prev_timestamp
+        FROM review_results
+        ORDER BY timestamp ASC
+        "#
+    )
+    .fetch_all(repo.pool())
+    .await?;
+
+    let mut history = Vec::new();
+    let mut total = 0_i32;
+    let mut retained = 0_i32;
+    let mut avg_days = 0.0_f64;
+
+    for row in rows {
+        let item_id: String = row.try_get("item_id")?;
+        let rating_value: i32 = row.try_get("rating")?;
+        let timestamp: chrono::DateTime<Utc> = row.try_get("timestamp")?;
+        let prev_timestamp: Option<chrono::DateTime<Utc>> = row.try_get("prev_timestamp")?;
+        let days_since_previous_review = prev_timestamp
+            .map(|prev| (timestamp - prev).num_seconds() as f64 / 86400.0)
+            .unwrap_or(0.0)
+            .max(0.0);
+
+        total += 1;
+        if rating_value >= 3 {
+            retained += 1;
+        }
+        avg_days += days_since_previous_review;
+
+        history.push(crate::algorithms::optimizer::ReviewHistory {
+            item_id,
+            rating: ReviewRating::from(rating_value),
+            actual_retention: rating_value >= 3,
+            days_since_previous_review: days_since_previous_review.round() as i32,
+        });
+    }
 
     let optimizer = ParameterOptimizer::new();
+    let mut result = optimizer.optimize_sm2(&history, initial_params);
+    result.history_count = total;
+    result.minimum_history_required = MIN_HISTORY_REQUIRED;
 
-    // Run optimization (simplified for now)
-    let result = optimizer.optimize_sm2(&_history, initial_params);
+    if total <= 0 {
+        result.fsrs_weights = default_fsrs_weights();
+        result.expected_retention = 0.5;
+        result.converged = false;
+        return Ok(result);
+    }
 
+    let observed_retention = retained as f64 / total as f64;
+    let mean_gap_days = avg_days / total as f64;
+    let retention_shift = (observed_retention - 0.9).clamp(-0.2, 0.2);
+    let gap_shift = ((mean_gap_days - 4.0) / 20.0).clamp(-0.2, 0.2);
+
+    let mut weights = default_fsrs_weights();
+    for (index, weight) in weights.iter_mut().enumerate() {
+        let direction = if index % 2 == 0 { -1.0 } else { 1.0 };
+        let adjustment = 1.0 + (retention_shift * 0.12 * direction) + (gap_shift * 0.08);
+        *weight = (*weight * adjustment).max(0.001);
+    }
+
+    result.fsrs_weights = weights;
+    result.expected_retention = observed_retention;
+    result.converged = total >= MIN_HISTORY_REQUIRED;
     Ok(result)
 }
 

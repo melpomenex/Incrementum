@@ -899,6 +899,22 @@ pub async fn sync_from_obsidian(
     })
 }
 
+#[tauri::command]
+pub async fn sync_to_logseq(
+    config: ObsidianConfig,
+    repo: tauri::State<'_, Repository>,
+) -> Result<SyncStats, AppError> {
+    sync_to_obsidian(config, repo).await
+}
+
+#[tauri::command]
+pub async fn sync_from_logseq(
+    config: ObsidianConfig,
+    repo: tauri::State<'_, Repository>,
+) -> Result<SyncStats, AppError> {
+    sync_from_obsidian(config, repo).await
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObsidianDeleteRequest {

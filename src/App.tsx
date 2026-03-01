@@ -18,6 +18,7 @@ import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
 import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
 import { QuickReviewWidget, InlineQuickReview, FloatingReviewButton } from "./components/review/QuickReviewWidget";
 import { ShortcutTooltip } from "./components/common/ShortcutTooltip";
+import { ClipboardQuickAddWatcher } from "./components/common/ClipboardQuickAddWatcher";
 
 // Page components
 import { DocumentsPage } from "./pages/DocumentsPage";
@@ -386,6 +387,7 @@ function App() {
         >
           {renderPage()}
         </NewMainLayout>
+        <ClipboardQuickAddWatcher />
       </>
     );
   }
@@ -407,6 +409,7 @@ function App() {
         >
           {renderPage()}
         </NewMainLayout>
+        <ClipboardQuickAddWatcher />
       </>
     );
   }
@@ -428,6 +431,7 @@ function App() {
         >
           {renderPage()}
         </NewMainLayout>
+        <ClipboardQuickAddWatcher />
       </>
     );
   }
@@ -465,6 +469,7 @@ function App() {
         dueCount={dashboardStats?.cards_due_today || 0}
         onClick={() => setCurrentPage("queue")}
       />
+      <ClipboardQuickAddWatcher />
     </>
   );
 }
