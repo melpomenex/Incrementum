@@ -1,8 +1,13 @@
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { lazy, useCallback, useMemo, useState, useEffect } from "react";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
-import { DocumentViewer } from "../components/tabs/TabRegistry";
 import type { QueueItem } from "../types";
+
+const QueueDocumentViewer = lazy(() =>
+  import("../components/viewer/DocumentViewerWrapper").then((m) => ({
+    default: m.DocumentViewer,
+  }))
+);
 
 export interface DocumentGroup {
   documentId: string;
@@ -83,7 +88,7 @@ export function useQueueNavigation() {
       title: item.documentTitle || "Document",
       icon: "document",
       type: "document-viewer",
-      content: DocumentViewer,
+      content: QueueDocumentViewer,
       closable: true,
       data: { documentId: item.documentId },
     });
