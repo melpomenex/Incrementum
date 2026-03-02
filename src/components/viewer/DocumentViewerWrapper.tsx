@@ -231,14 +231,3 @@ function formatDuration(seconds: number): string {
   }
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
-
-/**
- * Wrapper component that adds Assistant panel to WebBrowser
- */
-import { WebBrowserTab as BaseWebBrowserTab } from "../tabs/WebBrowserTab";
-
-export function WebBrowserTab() {
-  return (
-    <BaseWebBrowserTab />
-  );
-}
