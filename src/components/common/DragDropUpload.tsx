@@ -96,6 +96,9 @@ export function DragDropUpload({
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Refs for Tauri listener cleanup (must be at component level for hooks rules)
+  const unlistenFnsRef = useRef<(() => void)[]>([]);
+  const isMountedRef = useRef(true);
 
   // Handle drag enter
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -479,8 +482,10 @@ export function DragDropUpload({
     window.addEventListener("drop", handleGlobalDrop);
 
     // Tauri native drag-drop listeners (only in Tauri)
-    const unlistenFns = useRef<(() => void)[]>([]);
-    const isMounted = useRef(true);
+    // Note: unlistenFnsRef and isMountedRef are defined at component level to follow hooks rules
+    // Clear any stale listeners from previous mounts before starting fresh
+    isMountedRef.current = true;
+    unlistenFnsRef.current = [];
 
     if (isTauri()) {
       const setupTauriListeners = async () => {
@@ -488,21 +493,21 @@ export function DragDropUpload({
           const appWindow = getCurrentWindow();
 
           // Check if component is still mounted before setting up listeners
-          if (!isMounted.current) return;
+          if (!isMountedRef.current) return;
 
           const unlistenDragEnter = await appWindow.listen("tauri://drag-enter", () => {
             console.log("[DragDropUpload] Tauri drag-enter");
             setIsDragging(true);
           });
-          if (!isMounted.current) { unlistenDragEnter(); return; }
-          unlistenFns.current.push(unlistenDragEnter);
+          if (!isMountedRef.current) { unlistenDragEnter(); return; }
+          unlistenFnsRef.current.push(unlistenDragEnter);
 
           const unlistenDragOver = await appWindow.listen("tauri://drag-over", () => {
             console.log("[DragDropUpload] Tauri drag-over");
             setIsDragOver(true);
           });
-          if (!isMounted.current) { unlistenDragOver(); return; }
-          unlistenFns.current.push(unlistenDragOver);
+          if (!isMountedRef.current) { unlistenDragOver(); return; }
+          unlistenFnsRef.current.push(unlistenDragOver);
 
           const unlistenDragLeave = await appWindow.listen("tauri://drag-leave", () => {
             console.log("[DragDropUpload] Tauri drag-leave");
@@ -510,8 +515,8 @@ export function DragDropUpload({
             setIsDragging(false);
             setIsDragOver(false);
           });
-          if (!isMounted.current) { unlistenDragLeave(); return; }
-          unlistenFns.current.push(unlistenDragLeave);
+          if (!isMountedRef.current) { unlistenDragLeave(); return; }
+          unlistenFnsRef.current.push(unlistenDragLeave);
 
           const unlistenDrop = await appWindow.listen("tauri://drop", (event: any) => {
             console.log("[DragDropUpload] Tauri drop:", event.payload);
@@ -527,8 +532,8 @@ export function DragDropUpload({
               onFilesImported?.(paths);
             }
           });
-          if (!isMounted.current) { unlistenDrop(); return; }
-          unlistenFns.current.push(unlistenDrop);
+          if (!isMountedRef.current) { unlistenDrop(); return; }
+          unlistenFnsRef.current.push(unlistenDrop);
 
           console.log("[DragDropUpload] Tauri drag-drop listeners registered");
         } catch (err) {
@@ -540,22 +545,25 @@ export function DragDropUpload({
     }
 
     return () => {
-      isMounted.current = false;
+      isMountedRef.current = false;
       window.removeEventListener("dragenter", handleGlobalDragEnter);
       window.removeEventListener("dragleave", handleGlobalDragLeave);
       window.removeEventListener("dragover", handleGlobalDragOver);
       window.removeEventListener("drop", handleGlobalDrop);
 
-      // Clean up all Tauri listeners
-      unlistenFns.current.forEach((unlisten) => {
+      // Clean up all Tauri listeners that were actually registered
+      // Capture the current array and clear the ref before calling unlisten
+      // to prevent double-cleanup if the effect runs again
+      const listenersToCleanup = [...unlistenFnsRef.current];
+      unlistenFnsRef.current = [];
+
+      listenersToCleanup.forEach((unlisten) => {
         try {
           unlisten();
         } catch (err) {
           // Ignore errors during cleanup - component may have unmounted before listeners were set up
-          console.debug("[DragDropUpload] Error during listener cleanup:", err);
         }
       });
-      unlistenFns.current = [];
     };
   }, [processFiles, traverseDirectory, onFilesImported]);
 
