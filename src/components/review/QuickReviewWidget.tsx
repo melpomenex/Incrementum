@@ -111,6 +111,15 @@ export function QuickReviewWidget({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture shortcuts when user is typing
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      const target = e.target as HTMLElement;
+      if (target.isContentEditable) {
+        return;
+      }
+
       if (!currentCard) return;
 
       if (e.key === " " || e.key === "Enter") {
