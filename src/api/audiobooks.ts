@@ -379,7 +379,13 @@ async function generateTranscriptWithLocalWhisper(
       lastUpdated: new Date().toISOString(),
     };
   } finally {
-    if (unlisten) unlisten();
+    if (unlisten) {
+      try {
+        unlisten();
+      } catch {
+        // Ignore errors during cleanup - listener may already be removed
+      }
+    }
   }
 }
 

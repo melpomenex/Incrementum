@@ -61,6 +61,103 @@ fi
 
 scripts/verify-notebooklm-runtime.sh "$APPDIR/usr/bin"
 
+# === Bundle GStreamer Plugins for YouTube/Video Playback ===
+# WebKitGTK requires GStreamer plugins for H.264 and other codecs
+bundle_gstreamer_plugins() {
+  echo "Bundling GStreamer plugins for media codec support..."
+
+  # Find system GStreamer plugins directory
+  local GST_PLUGINS_DIR=""
+  if command -v pkg-config &>/dev/null; then
+    GST_PLUGINS_DIR="$(pkg-config --variable=pluginsdir gstreamer-1.0 2>/dev/null || true)"
+  fi
+
+  # Fallback locations
+  if [[ -z "$GST_PLUGINS_DIR" || ! -d "$GST_PLUGINS_DIR" ]]; then
+    for dir in "/usr/lib/gstreamer-1.0" "/usr/lib/x86_64-linux-gnu/gstreamer-1.0" "/usr/lib64/gstreamer-1.0"; do
+      if [[ -d "$dir" ]]; then
+        GST_PLUGINS_DIR="$dir"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$GST_PLUGINS_DIR" || ! -d "$GST_PLUGINS_DIR" ]]; then
+    echo "Warning: Could not find GStreamer plugins directory. YouTube playback may not work."
+    return 0
+  fi
+
+  echo "Found GStreamer plugins at: $GST_PLUGINS_DIR"
+
+  # Create destination directory
+  local GST_DEST="$APPDIR/usr/lib/gstreamer-1.0"
+  mkdir -p "$GST_DEST"
+
+  # Essential plugins for YouTube/video playback
+  # - libgstcoreelements.so (required)
+  # - libgstplayback.so (required)
+  # - libgstlibav.so (H.264, AAC codecs - from gst-libav)
+  # - libgstvideoconvertscale.so (video processing)
+  # - libgstaudioconvert.so, libgstaudioresample.so (audio)
+  # - libgstvorbis.so, libgstopus.so (audio codecs)
+  # - libgstisomp4.so (MP4 container)
+  # - libgsttypefindfunctions.so (media type detection)
+  local PLUGINS=(
+    "libgstcoreelements.so"
+    "libgstcoretracers.so"
+    "libgstplayback.so"
+    "libgstlibav.so"
+    "libgstvideoconvertscale.so"
+    "libgstaudioconvert.so"
+    "libgstaudioresample.so"
+    "libgstvorbis.so"
+    "libgstopus.so"
+    "libgstisomp4.so"
+    "libgsttypefindfunctions.so"
+    "libgstapp.so"
+    "libgstautodetect.so"
+    "libgstpulse.so"
+    "libgstalsa.so"
+  )
+
+  local copied=0
+  for plugin in "${PLUGINS[@]}"; do
+    if [[ -f "$GST_PLUGINS_DIR/$plugin" ]]; then
+      cp -L "$GST_PLUGINS_DIR/$plugin" "$GST_DEST/" 2>/dev/null || true
+      ((copied++)) || true
+    fi
+  done
+
+  # Also copy any dependent libraries for libgstlibav (ffmpeg-based)
+  # Copy gstreamer libraries if they exist in a separate location
+  local GST_LIB_DIR=""
+  for dir in "/usr/lib" "/usr/lib/x86_64-linux-gnu" "/usr/lib64"; do
+    if [[ -f "$dir/libgstreamer-1.0.so.0" ]]; then
+      GST_LIB_DIR="$dir"
+      break
+    fi
+  done
+
+  if [[ -n "$GST_LIB_DIR" ]]; then
+    # Copy gstreamer library dependencies
+    for lib in "libgstreamer-1.0.so.0" "libgstbase-1.0.so.0" "libgstaudio-1.0.so.0" "libgstvideo-1.0.so.0" "libgsttag-1.0.so.0"; do
+      if [[ -f "$GST_LIB_DIR/$lib" ]]; then
+        cp -L "$GST_LIB_DIR/$lib" "$APPDIR/usr/lib/" 2>/dev/null || true
+      fi
+    done
+  fi
+
+  echo "Copied $copied GStreamer plugins to AppDir"
+
+  # List what was copied
+  if [[ -d "$GST_DEST" ]]; then
+    echo "Bundled GStreamer plugins:"
+    ls -la "$GST_DEST"/*.so 2>/dev/null || echo "  (none)"
+  fi
+}
+
+bundle_gstreamer_plugins
+
 mkdir -p "$WORK_DIR"
 if [[ ! -x "$APPIMAGETOOL_BIN" ]]; then
   curl -fsSL -o "$APPIMAGETOOL_APPIMAGE" \

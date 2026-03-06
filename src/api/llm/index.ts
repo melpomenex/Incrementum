@@ -168,7 +168,13 @@ export async function streamChatWithLLM(
   } finally {
     // Clean up listeners after a delay to ensure all events are received
     setTimeout(() => {
-      unlisteners.forEach((unlisten) => unlisten());
+      unlisteners.forEach((unlisten) => {
+        try {
+          unlisten();
+        } catch {
+          // Ignore errors during cleanup - listener may already be removed
+        }
+      });
     }, 1000);
   }
 }

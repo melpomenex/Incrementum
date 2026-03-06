@@ -8,10 +8,13 @@
       "http://127.0.0.1:9527/*",
       "http://localhost:15173/*",
       "http://127.0.0.1:15173/*",
-      "https://www.youtube.com/*",
-      "https://www.youtube-nocookie.com/*",
+      "https://*.youtube.com/*",
+      "https://*.youtube-nocookie.com/*",
       "https://*.googlevideo.com/*",
-      "https://*.ytimg.com/*"
+      "https://*.ytimg.com/*",
+      "https://*.ggpht.com/*",
+      "https://*.gstatic.com/*",
+      "https://*.googleusercontent.com/*"
     ]
   },
   "windows": [
