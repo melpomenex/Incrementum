@@ -31,19 +31,17 @@ fn main() {
     install_early_panic_hook();
     early_log("startup: main begin");
 
-    // Linux WebKitGTK workarounds for "Failed to create GBM buffer" and white screen
+    // Linux WebKitGTK workarounds for YouTube playback and general stability
     #[cfg(target_os = "linux")]
     {
+        // Disable sandbox (required for YouTube iframe playback on WebKitGTK 2.44+)
+        std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
         // Disable DMA-BUF renderer (fixes EGL display issues)
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        // Disable compositing mode (fixes white screen issues)
+        // Disable compositing mode (fixes white screen and video issues)
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-        // WebKitGTK 2.44+ requires this env var for sandbox opt-out in dev.
-        std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
-        // Use software rendering as fallback
-        std::env::set_var("WEBKIT_USE_SURFACE_RENDERING", "1");
-        // Force software GL where EGL/DRI3 is unavailable.
-        std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+        // Disable hardware acceleration (required for YouTube video playback)
+        std::env::set_var("WEBKIT_DISABLE_HARDWARE_ACCELERATION", "1");
     }
     incrementum_tauri_lib::run()
 }

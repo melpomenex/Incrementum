@@ -3371,6 +3371,10 @@ export function DocumentViewer({
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}
               onArchive={() => {
                 loadQueue();
+                const currentTab = tabs.find(t => t.data?.documentId === documentId);
+                if (currentTab) {
+                  closeTab(currentTab.id);
+                }
               }}
               onTranscriptLoad={(segments) => {
                 const transcriptText = segments.map(s => `[${formatTime(s.start)}] ${s.text}`).join("\n");

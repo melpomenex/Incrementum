@@ -1,6 +1,10 @@
 #!/bin/bash
 # AppRun script for Incrementum AppImage
-# This wrapper sets environment variables to fix common webkit2gtk issues
+# This wrapper sets environment variables to fix webkit2gtk issues and enable YouTube playback
+
+# === WebKit Configuration ===
+# Disable sandbox (required for YouTube iframe playback on WebKitGTK 2.44+)
+export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 
 # Disable DMA-BUF renderer to fix EGL display issues
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
@@ -8,23 +12,23 @@ export WEBKIT_DISABLE_DMABUF_RENDERER=1
 # Disable compositing mode to prevent video freezing
 export WEBKIT_DISABLE_COMPOSITING_MODE=1
 
-# Disable hardware acceleration to prevent YouTube crashes
+# Disable hardware acceleration (required for YouTube video playback)
 export WEBKIT_DISABLE_HARDWARE_ACCELERATION=1
 
-# Disable sandbox if needed for compatibility
-export WEBKIT_FORCE_SANDBOX=0
+# === GStreamer Configuration ===
+# Use bundled GStreamer plugins for codec support (H.264, etc.)
+APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
 
-# Keep system GStreamer plugin discovery enabled.
-# Clearing plugin paths breaks media playback (e.g. "autoaudiosink not found").
-unset GST_PLUGIN_SYSTEM_PATH_1_0
-unset GST_PLUGIN_SCANNER_1_0
+# Set GStreamer plugin path to bundled plugins if they exist
+BUNDLED_GST_PATH="$APPDIR/usr/lib/gstreamer-1.0"
+if [ -d "$BUNDLED_GST_PATH" ]; then
+    export GST_PLUGIN_SYSTEM_PATH_1_0="$BUNDLED_GST_PATH"
+    export GST_PLUGIN_PATH="$BUNDLED_GST_PATH"
+fi
 
-# Prefer automatic audio sink selection so PipeWire/Pulse/ALSA can all work.
+# Prefer automatic audio sink selection so PipeWire/Pulse/ALSA can all work
 export GST_AUDIOSINK="${GST_AUDIOSINK:-autoaudiosink}"
 export AUDIOSINK="${AUDIOSINK:-autoaudiosink}"
 
-# Get the directory where this script is located
-APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
-
-# Run the actual application
-exec "$APPDIR/usr/bin/incrementum" "$@"
+# === Run Application ===
+exec "$APPDIR/usr/bin/incrementum-tauri" "$@"

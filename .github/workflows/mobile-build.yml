@@ -198,6 +198,10 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
+          # Ensure cargo is accessible for Gradle's rustBuild task
+          # The Tauri android build runs cargo first, then Gradle which has its own rustBuild task
+          # Gradle spawns a subprocess that needs PATH to include cargo
+          export PATH="$HOME/.cargo/bin:$PATH"
           npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)
@@ -285,12 +289,24 @@ jobs:
             artifacts/mobile-logs/android-outputs.txt
           if-no-files-found: warn
 
+      - name: Get version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: get_version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = context.ref.replace('refs/tags/', '');
+            core.setOutput('VERSION', version);
+
       - name: Upload Android signed artifact to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/android-signing/incrementum-android-arm64-signed.apk
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
 
   ios-build:
     name: iOS build validation (Tauri)
@@ -447,6 +463,15 @@ jobs:
             artifacts/mobile-logs/ios-outputs.txt
           if-no-files-found: warn
 
+      - name: Get version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: get_version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = context.ref.replace('refs/tags/', '');
+            core.setOutput('VERSION', version);
+
       - name: Upload iOS signed artifact to GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && steps.ios_mode.outputs.mode == 'signed'
         uses: softprops/action-gh-release@v2
@@ -454,6 +479,9 @@ jobs:
           files: |
             src-tauri/gen/apple/**/build/**/*.ipa
             src-tauri/target/**/*.ipa
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
 
 # Mobile CI prerequisites (for signed iOS builds):
 # - IOS_CERT_BASE64: Base64-encoded signing certificate (.p12)

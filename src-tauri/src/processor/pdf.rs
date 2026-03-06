@@ -128,9 +128,18 @@ pub async fn extract_pdf_page(file_path: &str, page_num: usize) -> Result<String
     let _page_id = pages.keys().nth(page_num - 1)
         .ok_or_else(|| crate::error::IncrementumError::NotFound("Page not found".to_string()))?;
 
-    // Extract text from the page
-    let text = pdf_extract::extract_text_from_mem(&buffer)
-        .unwrap_or_default();
+    // Extract text from the page (with panic protection)
+    let text = match std::panic::catch_unwind(|| pdf_extract::extract_text_from_mem(&buffer)) {
+        Ok(Ok(t)) => t,
+        Ok(Err(e)) => {
+            eprintln!("PDF text extraction failed: {}", e);
+            String::new()
+        }
+        Err(panic_info) => {
+            eprintln!("PDF text extraction panicked: {:?}", panic_info);
+            String::new()
+        }
+    };
 
     // Note: pdf-extract doesn't support per-page extraction easily
     // For a production implementation, you'd want to use a library that supports
@@ -246,11 +255,15 @@ pub async fn convert_pdf_to_html(file_path: &str) -> Result<String> {
         .unwrap_or("Converted PDF")
         .to_string();
 
-    // Extract full text using pdf-extract
-    let full_text = match pdf_extract::extract_text_from_mem(&buffer) {
-        Ok(t) => t,
-        Err(e) => {
+    // Extract full text using pdf-extract (with panic protection)
+    let full_text = match std::panic::catch_unwind(|| pdf_extract::extract_text_from_mem(&buffer)) {
+        Ok(Ok(t)) => t,
+        Ok(Err(e)) => {
             eprintln!("PDF text extraction failed: {}", e);
+            String::new()
+        }
+        Err(panic_info) => {
+            eprintln!("PDF text extraction panicked: {:?}", panic_info);
             String::new()
         }
     };
