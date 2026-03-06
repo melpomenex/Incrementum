@@ -24,6 +24,20 @@ for deb in "${debs[@]}"; do
     echo "Missing whisper sidecar in $deb"
     exit 1
   fi
+
+  # Check for NotebookLM runtime (optional but recommended)
+  if grep -Eq '/notebooklm-runtime' <<<"$listing"; then
+    echo "NotebookLM runtime directory found in $deb"
+
+    # Check for notebooklm sidecar
+    if grep -Eq '/notebooklm(-[^/ ]*)?$' <<<"$listing"; then
+      echo "NotebookLM sidecar found in $deb"
+    else
+      echo "WARNING: NotebookLM runtime directory found but no sidecar in $deb"
+    fi
+  else
+    echo "WARNING: NotebookLM runtime not bundled in $deb (users need to install notebooklm-py separately)"
+  fi
 done
 
 echo "Deb bundle verification passed."
