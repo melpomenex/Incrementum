@@ -162,6 +162,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
     if (!isTauri()) return;
     let unlistenProgress: (() => void) | null = null;
     let unlistenComplete: (() => void) | null = null;
+    let mounted = true;
 
     listen<{ id: string; progress: number }>("glm-ocr://download-progress", (event) => {
       if (event.payload.id === "ollama") {
@@ -169,7 +170,14 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
         setIsDownloadingInstaller(true);
       }
     }).then((unlisten) => {
-      unlistenProgress = unlisten;
+      if (mounted) {
+        unlistenProgress = unlisten;
+      } else {
+        // Component unmounted before promise resolved, clean up immediately
+        try { unlisten(); } catch { /* ignore */ }
+      }
+    }).catch(() => {
+      // Ignore errors if component unmounted
     });
 
     listen<{ id: string; path: string }>("glm-ocr://download-complete", (event) => {
@@ -179,12 +187,28 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
         setDownloadProgress(null);
       }
     }).then((unlisten) => {
-      unlistenComplete = unlisten;
+      if (mounted) {
+        unlistenComplete = unlisten;
+      } else {
+        // Component unmounted before promise resolved, clean up immediately
+        try { unlisten(); } catch { /* ignore */ }
+      }
+    }).catch(() => {
+      // Ignore errors if component unmounted
     });
 
     return () => {
-      unlistenProgress?.();
-      unlistenComplete?.();
+      mounted = false;
+      try {
+        unlistenProgress?.();
+      } catch {
+        // Ignore errors during cleanup
+      }
+      try {
+        unlistenComplete?.();
+      } catch {
+        // Ignore errors during cleanup
+      }
     };
   }, []);
 
