@@ -19,11 +19,25 @@ jobs:
             platform: macos-latest
             os: macos
             arch: aarch64
+            tauri_args: --bundles dmg
             required: true
           - id: windows-x86_64
             platform: windows-latest
             os: windows
             arch: x86_64
+            tauri_args: --bundles nsis
+            required: false
+          - id: linux-x86_64
+            platform: ubuntu-latest
+            os: linux
+            arch: x86_64
+            tauri_args: --bundles deb
+            required: true
+          - id: linux-aarch64
+            platform: ubuntu-24.04-arm
+            os: linux
+            arch: aarch64
+            tauri_args: --bundles deb
             required: false
 
     runs-on: ${{ matrix.platform }}
@@ -150,7 +164,7 @@ jobs:
           releaseBody: 'See https://github.com/melpomenex/incrementum-tauri/releases/tag/${{ steps.get_version.outputs.VERSION }} for release notes.'
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.os == 'macos' && '--bundles dmg' || '--bundles nsis' }}
+          args: ${{ matrix.tauri_args }}
 
       - name: List Windows bundles (debug)
         if: matrix.os == 'windows'
@@ -172,6 +186,13 @@ jobs:
           chmod +x scripts/verify-macos-bundles.sh
           scripts/verify-macos-bundles.sh
 
+      - name: Verify Linux deb bundles include NotebookLM runtime
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          chmod +x scripts/verify-deb-bundle.sh
+          scripts/verify-deb-bundle.sh
+
       - name: Upload Windows bundles
         if: matrix.os == 'windows'
         uses: softprops/action-gh-release@v2
@@ -181,6 +202,28 @@ jobs:
             src-tauri/target/release/bundle/**/*.exe.zip
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.msi.zip
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Upload macOS bundles
+        if: matrix.os == 'macos'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app.tar.gz
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Upload Linux bundles
+        if: matrix.os == 'linux'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
