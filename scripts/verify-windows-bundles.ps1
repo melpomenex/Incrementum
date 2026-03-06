@@ -28,6 +28,7 @@ function Assert-RequiredSidecars {
     [Parameter(Mandatory = $true)][string]$Label
   )
 
+  # Check for whisper sidecar
   $whisperSidecar = Get-ChildItem -Path $RootPath -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -like "whisper-*" -or $_.Name -eq "whisper.exe" } |
     Select-Object -First 1
@@ -37,6 +38,35 @@ function Assert-RequiredSidecars {
   }
 
   Write-Host "$Label found whisper sidecar: $($whisperSidecar.FullName)"
+
+  # Check for NotebookLM runtime (venv-based on Windows)
+  $notebooklmRuntime = Get-ChildItem -Path $RootPath -Recurse -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq "notebooklm-runtime" } |
+    Select-Object -First 1
+
+  if ($notebooklmRuntime) {
+    # Check for venv-based NotebookLM installation
+    $notebooklmVenv = Get-ChildItem -Path $notebooklmRuntime.FullName -Recurse -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -eq "notebooklm.exe" -or $_.Name -eq "notebooklm" } |
+      Select-Object -First 1
+
+    if ($notebooklmVenv) {
+      Write-Host "$Label found NotebookLM runtime: $($notebooklmVenv.FullName)"
+    } else {
+      Write-Host "$Label WARNING: NotebookLM runtime directory found but no executable detected"
+    }
+  } else {
+    Write-Host "$Label WARNING: NotebookLM runtime directory not found (may be installed on first use)"
+  }
+
+  # Check for notebooklm sidecar wrapper (alternative to venv)
+  $notebooklmSidecar = Get-ChildItem -Path $RootPath -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like "notebooklm-*.cmd" -or $_.Name -like "notebooklm-*.exe" -or $_.Name -eq "notebooklm" } |
+    Select-Object -First 1
+
+  if ($notebooklmSidecar) {
+    Write-Host "$Label found NotebookLM sidecar: $($notebooklmSidecar.FullName)"
+  }
 }
 
 if ($msiFiles) {
