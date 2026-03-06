@@ -471,7 +471,7 @@ jobs:
           RUST_MIN_STACK: 33554432
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "1"
           SQLITE3_STATIC: "0"
-          RUSTFLAGS: -C link-arg=-lsqlite3
+          RUSTFLAGS: -C link-arg=-lsqlite3 -C link-arg=-lzstd
 
       - name: Create Pacman package
         run: |
@@ -492,6 +492,8 @@ jobs:
           license=('MIT')
           depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc')
           makedepends=('rust')
+          optdepends=('notebooklm-py: NotebookLM integration for AI-powered flashcard generation'
+                      'python-notebooklm: Alternative NotebookLM package')
           source=("\$pkgname-\$pkgver::git+https://github.com/melpomenex/incrementum-tauri.git#tag=v\$pkgver")
           sha256sums=('SKIP')
 
@@ -500,7 +502,7 @@ jobs:
             npm ci
             npm run build
             cd src-tauri
-            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 RUSTFLAGS="-C link-arg=-lsqlite3" cargo build --release
+            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 RUSTFLAGS="-C link-arg=-lsqlite3 -C link-arg=-lzstd" cargo build --release
           }
 
           package() {
@@ -515,7 +517,7 @@ jobs:
           cd arch-pkg
           useradd -m builder
           chown -R builder:builder /__w/incrementum-tauri/incrementum-tauri/arch-pkg
-          su builder -c "cd /__w/incrementum-tauri/incrementum-tauri/arch-pkg && makepkg -s --noconfirm"
+          su builder -c "cd /__w/incrementum-tauri/incrementum-tauri/arch-pkg && makepkg -s --noconfirm --nosign"
 
       - name: Upload Pacman artifacts
         uses: actions/upload-artifact@v4

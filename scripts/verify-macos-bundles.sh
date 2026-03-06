@@ -17,6 +17,29 @@ verify_resources() {
   fi
 
   echo "Found whisper sidecar: $whisper_sidecar"
+
+  # Check for NotebookLM runtime
+  local notebooklm_runtime
+  notebooklm_runtime="$(find "$resources" -maxdepth 4 -type d -name 'notebooklm-runtime' | head -n 1 || true)"
+  if [[ -n "$notebooklm_runtime" ]]; then
+    local notebooklm_sidecar
+    notebooklm_sidecar="$(find "$notebooklm_runtime" -maxdepth 3 -type f \( -name 'notebooklm-*' -o -name 'notebooklm' \) | head -n 1 || true)"
+    if [[ -n "$notebooklm_sidecar" ]]; then
+      echo "Found NotebookLM sidecar: $notebooklm_sidecar"
+    else
+      echo "WARNING: NotebookLM runtime directory found but no sidecar detected in $resources"
+    fi
+  else
+    # Also check for notebooklm sidecar directly (alternative location)
+    local notebooklm_sidecar_alt
+    notebooklm_sidecar_alt="$(find "$resources" -maxdepth 3 -type f -name 'notebooklm-*' | head -n 1 || true)"
+    if [[ -n "$notebooklm_sidecar_alt" ]]; then
+      echo "Found NotebookLM sidecar (alt): $notebooklm_sidecar_alt"
+    else
+      echo "WARNING: NotebookLM runtime not found in $resources (may be installed on first use)"
+    fi
+  fi
+
   return 0
 }
 
