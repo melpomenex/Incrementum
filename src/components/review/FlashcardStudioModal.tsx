@@ -1484,7 +1484,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     const loadImageAssets = async () => {
       try {
         const assets = await listImageAssets();
-        setImageAssets(assets);
+        setImageAssets(Array.isArray(assets) ? assets : []);
       } catch (error) {
         console.error("Failed to load image registry assets", error);
       }

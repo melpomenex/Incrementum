@@ -3029,5 +3029,10 @@ export async function browserInvoke<T>(
         return (command.includes('list') || command.endsWith('s') ? [] : null) as T;
     }
 
+    // Commands starting with 'list_' should return an empty array
+    if (command.startsWith('list_')) {
+        return [] as T;
+    }
+
     return undefined as T;
 }
