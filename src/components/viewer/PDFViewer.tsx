@@ -334,6 +334,20 @@ export function PDFViewer({
     }
   }, []);
 
+  // Disable browser-native scroll restoration to prevent "bouncing" during PDF load.
+  // Without this, the browser tries to restore scroll position before the PDF has rendered,
+  // causing the viewport to bounce between browser-attempted and app-controlled positions.
+  useEffect(() => {
+    const previous = history.scrollRestoration;
+    history.scrollRestoration = 'manual';
+    if (pdfNavStabilityDebugRef.current) {
+      console.debug("[PDFViewer] Disabled browser scroll restoration (was:", previous, ")");
+    }
+    return () => {
+      history.scrollRestoration = (previous as ScrollRestoration) || 'auto';
+    };
+  }, []);
+
   const logNav = useCallback((event: string, details?: Record<string, unknown>) => {
     if (!pdfNavStabilityEnabledRef.current || !pdfNavStabilityDebugRef.current) return;
     console.debug("[PDFViewer][nav]", event, details ?? {});
@@ -684,7 +698,12 @@ export function PDFViewer({
             }
             isProgrammaticScrollRef.current = true;
             activeContainer.scrollTop = targetScrollTop;
-            console.log("[PDFViewer] Scrolled to position:", { targetPage, targetScrollTop });
+            console.log("[PDFViewer] Scrolled to position:", {
+              targetPage,
+              targetScrollTop,
+              scrollRestoration: history.scrollRestoration,
+              containerReady: activeContainer.scrollHeight > 0,
+            });
 
             setTimeout(() => {
               isProgrammaticScrollRef.current = false;
