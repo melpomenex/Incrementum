@@ -3617,7 +3617,7 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "1.13.5"
+version = "1.13.8"
 dependencies = [
  "aes-gcm",
  "anyhow",
