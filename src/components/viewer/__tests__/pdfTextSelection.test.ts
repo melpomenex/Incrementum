@@ -80,6 +80,31 @@ describe("pdfTextSelection helpers", () => {
     expect(selectionIntersectsTextLayers(selection, [layer])).toBe(true);
   });
 
+  it("rejects selections that extend outside the PDF text layer", () => {
+    document.body.innerHTML = `
+      <div id="layer"><span id="inside">Inside</span></div>
+      <p id="outside">Outside</p>
+    `;
+    const layer = document.getElementById("layer") as HTMLElement;
+    const insideNode = document.getElementById("inside")?.firstChild;
+    const outsideNode = document.getElementById("outside")?.firstChild;
+    expect(insideNode).toBeTruthy();
+    expect(outsideNode).toBeTruthy();
+
+    const selection = window.getSelection();
+    expect(selection).toBeTruthy();
+    if (!selection || !insideNode || !outsideNode) return;
+
+    const range = document.createRange();
+    range.setStart(insideNode, 0);
+    range.setEnd(outsideNode, 3);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(selectionAnchorsInTextLayers(selection, [layer])).toBe(false);
+    expect(selectionIntersectsTextLayers(selection, [layer])).toBe(true);
+  });
+
   it("gates PDF extract creation by valid selection and page capability", () => {
     const context = createPdfContext();
     expect(isValidPdfSelection("selected text", context)).toBe(true);

@@ -132,6 +132,11 @@ interface PDFViewerProps {
   onTextSelectionCapabilityChange?: (capability: PdfTextSelectionCapability) => void;
 }
 
+type PdfTextLayerRenderer = {
+  cancel?: () => void;
+  render?: (params?: { viewport?: import("pdfjs-dist").PageViewport }) => Promise<void> | void;
+};
+
 type ZoomMode = "custom" | "fit-width" | "fit-page";
 const VIRTUALIZATION_THRESHOLD_PAGES = 80;
 const VIRTUAL_WINDOW_PAGES = 10;
@@ -173,7 +178,7 @@ export function PDFViewer({
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const textLayerContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textLayerRootsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const textLayerBuildersRef = useRef<(TextLayerBuilder | null)[]>([]);
+  const textLayerBuildersRef = useRef<(PdfTextLayerRenderer | null)[]>([]);
   const pageViewportRefs = useRef<(import("pdfjs-dist").PageViewport | null)[]>([]);
   const pageScaleRefs = useRef<(number | null)[]>([]);
   const renderTasksRef = useRef<(any | null)[]>([]);  // Track PDF.js render tasks to cancel
@@ -497,7 +502,6 @@ export function PDFViewer({
   useEffect(() => {
     publishTextSelectionCapability(pageTextSelectionAvailabilityRef.current);
   }, [numPages, pageNumber, publishTextSelectionCapability]);
-
 
   // Update rendered page window around the current page.
   useEffect(() => {
@@ -1285,23 +1289,63 @@ export function PDFViewer({
       textLayerContainer.style.height = `${viewport.height}px`;
       textLayerRootsRef.current[pageIndex] = null;
 
-      // Render the text layer using TextLayerBuilder
-      const textLayerBuilder = new TextLayerBuilder({
-        pdfPage: page,
-        onAppend: (layer: HTMLDivElement) => {
-          // Layer is created by TextLayerBuilder and passed to onAppend
-          layer.style.width = `${viewport.width}px`;
-          layer.style.height = `${viewport.height}px`;
-          // Ensure proper text selection styles
-          layer.style.cursor = 'text';
-          layer.style.userSelect = 'text';
-          textLayerContainer.appendChild(layer);
-          textLayerRootsRef.current[pageIndex] = layer;
-        },
-      });
+      const mountTextLayer = () => {
+        const layer = document.createElement("div");
+        layer.className = "textLayer";
+        layer.style.width = `${viewport.width}px`;
+        layer.style.height = `${viewport.height}px`;
+        layer.style.cursor = "text";
+        layer.style.userSelect = "text";
+        layer.style.webkitUserSelect = "text";
+        textLayerContainer.appendChild(layer);
+        textLayerRootsRef.current[pageIndex] = layer;
+        return layer;
+      };
 
-      textLayerBuildersRef.current[pageIndex] = textLayerBuilder;
-      await textLayerBuilder.render({ viewport });
+      const textLayerRoot = mountTextLayer();
+      const PdfjsTextLayer = (pdfjsLib as any).TextLayer;
+
+      if (typeof PdfjsTextLayer === "function") {
+        const textLayer = new PdfjsTextLayer({
+          textContentSource:
+            typeof (page as any).streamTextContent === "function"
+              ? (page as any).streamTextContent({ includeMarkedContent: true })
+              : await page.getTextContent(),
+          container: textLayerRoot,
+          viewport,
+        });
+
+        textLayerBuildersRef.current[pageIndex] = {
+          cancel: () => {
+            try {
+              textLayer.cancel?.();
+            } catch {
+              // Ignore cancel errors from detached text layers.
+            }
+          },
+        };
+
+        await textLayer.render();
+      } else {
+        textLayerRoot.remove();
+        textLayerRootsRef.current[pageIndex] = null;
+
+        const textLayerBuilder = new TextLayerBuilder({
+          pdfPage: page,
+          onAppend: (layer: HTMLDivElement) => {
+            layer.style.width = `${viewport.width}px`;
+            layer.style.height = `${viewport.height}px`;
+            layer.style.cursor = "text";
+            layer.style.userSelect = "text";
+            (layer.style as any).webkitUserSelect = "text";
+            textLayerContainer.appendChild(layer);
+            textLayerRootsRef.current[pageIndex] = layer;
+          },
+        });
+
+        textLayerBuildersRef.current[pageIndex] = textLayerBuilder as PdfTextLayerRenderer;
+        await textLayerBuilder.render({ viewport });
+      }
       const hasSelectableText = hasSelectableTextInLayer(textLayerRootsRef.current[pageIndex]);
       setPageTextSelectionAvailability(pageNum, hasSelectableText);
       
