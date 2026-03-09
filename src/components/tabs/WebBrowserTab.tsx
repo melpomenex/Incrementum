@@ -729,6 +729,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     }
 
     let isCancelled = false;
+    const unlistenFns: (() => void)[] = [];
 
     const createWebview = async () => {
       if (!isMountedRef.current || isCancelled) return;
@@ -823,19 +824,23 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             setIsLoading(false);
             setTimeout(() => void updateWebviewBounds(), 200);
             setTimeout(() => void updateWebviewBounds(), 500);
-            
+
             // Inject script after page loads
             setTimeout(injectBridgeScript, 1500);
             // Try again after a longer delay in case of slow loading
             setTimeout(injectBridgeScript, 4000);
           }
+        }).then((unlisten) => {
+          if (unlisten) unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach created listener:", e));
-        
+
         // Re-inject on navigation (when URL changes)
         webview.on("tauri://url-changed", () => {
           lastInjectedUrl = ""; // Reset so script will be injected on new page
           setTimeout(injectBridgeScript, 1500);
           setTimeout(injectBridgeScript, 4000);
+        }).then((unlisten) => {
+          if (unlisten) unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach url-changed listener:", e));
 
         webview.once("tauri://error", (event: unknown) => {
@@ -844,6 +849,8 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             const errorMessage = (event as any)?.payload?.message || String(event);
             setWebviewError(`Failed to load: ${errorMessage}`);
           }
+        }).then((unlisten) => {
+          if (unlisten) unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach error listener:", e));
 
         setTimeout(() => {
@@ -868,6 +875,15 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
+      // Clean up event listeners
+      unlistenFns.forEach((unlisten) => {
+        try {
+          unlisten();
+        } catch {
+          // Ignore errors during cleanup - listener may already be removed
+        }
+      });
+      unlistenFns.length = 0;
     };
   }, [currentUrl, refreshToken, updateWebviewBounds]);
 
