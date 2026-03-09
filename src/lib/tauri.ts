@@ -298,15 +298,18 @@ export async function openInWebviewWindow(
     });
 
     // Handle window creation events
-    webview.once("tauri://created", () => {
+    // Note: once() returns a Promise that resolves to an unlisten function
+    // We don't need to clean these up as they fire only once and the window
+    // manages its own lifecycle, but we should handle promise rejections
+    void webview.once("tauri://created", () => {
       console.log("YouTube player window created successfully");
-    });
+    }).catch(() => { /* ignore */ });
 
-    webview.once("tauri://error", (event: unknown) => {
+    void webview.once("tauri://error", (event: unknown) => {
       console.error("Failed to create YouTube player window:", event);
       // Fallback to browser
       openExternal(url);
-    });
+    }).catch(() => { /* ignore */ });
   } catch (error) {
     console.error("Failed to create webview window:", error);
     // Fallback to browser
