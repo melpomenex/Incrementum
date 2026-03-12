@@ -831,7 +831,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             setTimeout(injectBridgeScript, 4000);
           }
         }).then((unlisten) => {
-          if (unlisten) unlistenFns.push(unlisten);
+          if (unlisten && typeof unlisten === 'function') unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach created listener:", e));
 
         // Re-inject on navigation (when URL changes)
@@ -840,7 +840,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
           setTimeout(injectBridgeScript, 1500);
           setTimeout(injectBridgeScript, 4000);
         }).then((unlisten) => {
-          if (unlisten) unlistenFns.push(unlisten);
+          if (unlisten && typeof unlisten === 'function') unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach url-changed listener:", e));
 
         webview.once("tauri://error", (event: unknown) => {
@@ -850,7 +850,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             setWebviewError(`Failed to load: ${errorMessage}`);
           }
         }).then((unlisten) => {
-          if (unlisten) unlistenFns.push(unlisten);
+          if (unlisten && typeof unlisten === 'function') unlistenFns.push(unlisten);
         }).catch((e) => console.warn("Failed to attach error listener:", e));
 
         setTimeout(() => {
@@ -878,7 +878,13 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       // Clean up event listeners
       unlistenFns.forEach((unlisten) => {
         try {
-          unlisten();
+          const result = unlisten();
+          // Handle if unlisten returns a promise
+          if (result && typeof result.then === 'function') {
+            result.catch(() => {
+              // Ignore errors during cleanup - listener may already be removed
+            });
+          }
         } catch {
           // Ignore errors during cleanup - listener may already be removed
         }
