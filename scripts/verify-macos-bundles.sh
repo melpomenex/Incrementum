@@ -4,15 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Function to verify whisper sidecar in a Resources directory
+# Function to verify whisper sidecar in a directory (Resources or MacOS)
 verify_resources() {
-  local resources="$1"
-  echo "Verifying macOS bundle resources: $resources"
+  local search_dir="$1"
+  echo "Verifying macOS bundle for sidecar binaries in: $search_dir"
 
   local whisper_sidecar
-  whisper_sidecar="$(find "$resources" -maxdepth 3 -type f \( -name 'whisper-*' -o -name 'whisper' \) | head -n 1 || true)"
+  whisper_sidecar="$(find "$search_dir" -maxdepth 3 -type f \( -name 'whisper-*' -o -name 'whisper' \) | head -n 1 || true)"
   if [[ -z "$whisper_sidecar" ]]; then
-    echo "Missing whisper sidecar in $resources"
+    echo "Missing whisper sidecar in $search_dir"
     return 1
   fi
 
@@ -20,23 +20,23 @@ verify_resources() {
 
   # Check for NotebookLM runtime
   local notebooklm_runtime
-  notebooklm_runtime="$(find "$resources" -maxdepth 4 -type d -name 'notebooklm-runtime' | head -n 1 || true)"
+  notebooklm_runtime="$(find "$search_dir" -maxdepth 4 -type d -name 'notebooklm-runtime' | head -n 1 || true)"
   if [[ -n "$notebooklm_runtime" ]]; then
     local notebooklm_sidecar
     notebooklm_sidecar="$(find "$notebooklm_runtime" -maxdepth 3 -type f \( -name 'notebooklm-*' -o -name 'notebooklm' \) | head -n 1 || true)"
     if [[ -n "$notebooklm_sidecar" ]]; then
       echo "Found NotebookLM sidecar: $notebooklm_sidecar"
     else
-      echo "WARNING: NotebookLM runtime directory found but no sidecar detected in $resources"
+      echo "WARNING: NotebookLM runtime directory found but no sidecar detected in $search_dir"
     fi
   else
     # Also check for notebooklm sidecar directly (alternative location)
     local notebooklm_sidecar_alt
-    notebooklm_sidecar_alt="$(find "$resources" -maxdepth 3 -type f -name 'notebooklm-*' | head -n 1 || true)"
+    notebooklm_sidecar_alt="$(find "$search_dir" -maxdepth 3 -type f -name 'notebooklm-*' | head -n 1 || true)"
     if [[ -n "$notebooklm_sidecar_alt" ]]; then
       echo "Found NotebookLM sidecar (alt): $notebooklm_sidecar_alt"
     else
-      echo "WARNING: NotebookLM runtime not found in $resources (may be installed on first use)"
+      echo "WARNING: NotebookLM runtime not found in $search_dir (may be installed on first use)"
     fi
   fi
 
@@ -53,7 +53,17 @@ done < <(find src-tauri/target -type d -path "*/release/bundle/macos/*.app/Conte
 if [[ ${#resource_dirs[@]} -gt 0 ]]; then
   echo "Found ${#resource_dirs[@]} .app bundle(s) to verify"
   for resources in "${resource_dirs[@]}"; do
-    verify_resources "$resources"
+    # Get the parent .app directory
+    app_dir="$(dirname "$(dirname "$resources")")"
+    macos_dir="$app_dir/Contents/MacOS"
+
+    # Check MacOS directory for external binaries first
+    if [[ -d "$macos_dir" ]]; then
+      verify_resources "$macos_dir"
+    else
+      # Fallback to Resources
+      verify_resources "$resources"
+    fi
   done
   echo "macOS bundle verification passed."
   exit 0
@@ -107,7 +117,16 @@ for dmg in "${dmg_files[@]}"; do
     exit 1
   fi
 
-  verify_resources "$resources"
+  # For external binaries, check MacOS directory instead of Resources
+  # Tauri places sidecar binaries in Contents/MacOS/ on macOS
+  macos_dir="$app_bundle/Contents/MacOS"
+  if [[ -d "$macos_dir" ]]; then
+    echo "Checking for sidecar binaries in: $macos_dir"
+    verify_resources "$macos_dir"
+  else
+    # Fallback to Resources if MacOS doesn't exist
+    verify_resources "$resources"
+  fi
   result=$?
 
   # Unmount the DMG

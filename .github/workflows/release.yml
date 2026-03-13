@@ -205,6 +205,9 @@ jobs:
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload macOS bundles
         if: matrix.os == 'macos'
@@ -216,6 +219,9 @@ jobs:
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux bundles
         if: matrix.os == 'linux'
@@ -227,6 +233,9 @@ jobs:
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add per-architecture summary
         if: always()
@@ -323,6 +332,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-arch:
     runs-on: ubuntu-latest
@@ -441,6 +453,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-readiness:
     needs: [release, release-appimage, release-arch]
@@ -521,3 +536,6 @@ jobs:
         with:
           files: latest.json
           generate_release_notes: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
