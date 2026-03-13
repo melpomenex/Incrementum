@@ -1,1 +1,1 @@
-yt-dlp==2025.1.26
+# No heavy dependencies - using direct YouTube API
