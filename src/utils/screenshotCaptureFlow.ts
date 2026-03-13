@@ -144,8 +144,16 @@ async function openOverlay(screen: ScreenInfo): Promise<ScreenshotSelection | nu
           finalize(null);
         });
         unlistenAll = () => {
-          unlistenSelection();
-          unlistenCancel();
+          try {
+            unlistenSelection();
+          } catch {
+            // Ignore errors during cleanup - listener may already be removed
+          }
+          try {
+            unlistenCancel();
+          } catch {
+            // Ignore errors during cleanup - listener may already be removed
+          }
         };
       } catch {
         finalize(null);
