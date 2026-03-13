@@ -152,80 +152,108 @@ export async function getYjsSync(): Promise<YjsSyncState> {
     return instance;
   }
 
-  // Check for corruption before initializing
-  await checkAndRepairCorruption();
-
-  const url = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
-  const room = import.meta.env.VITE_YJS_ROOM || getSyncRoomId();
-
-  const doc = new Y.Doc();
-
-  // Create persistence with error handling
-  let persistence: IndexeddbPersistence;
-
   try {
-    persistence = new IndexeddbPersistence(DB_NAME, doc);
+    // Check for corruption before initializing
+    await checkAndRepairCorruption();
 
-    // Handle sync events
-    persistence.on("sync", (isSynced: boolean) => {
-      if (isSynced) {
-        console.log("[YjsSync] IndexedDB sync complete");
-        // Clear corruption flag on successful sync
-        localStorage.removeItem(CORRUPTION_FLAG_KEY);
+    const url = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
+    const room = import.meta.env.VITE_YJS_ROOM || getSyncRoomId();
+
+    let doc: Y.Doc;
+    let persistence: IndexeddbPersistence | null = null;
+
+    try {
+      // Create Y.Doc first
+      doc = new Y.Doc();
+
+      // Create persistence with error handling
+      try {
+        persistence = new IndexeddbPersistence(DB_NAME, doc);
+
+        // Handle sync events
+        persistence.on("sync", (isSynced: boolean) => {
+          if (isSynced) {
+            console.log("[YjsSync] IndexedDB sync complete");
+            // Clear corruption flag on successful sync
+            localStorage.removeItem(CORRUPTION_FLAG_KEY);
+          }
+        });
+
+        // Handle errors
+        persistence.on("error", async (error: Error) => {
+          console.error("[YjsSync] IndexedDB error:", error);
+          localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
+        });
+
+      } catch (persistenceError) {
+        console.error("[YjsSync] Failed to create IndexedDB persistence:", persistenceError);
+        // Continue without persistence
+        persistence = null;
       }
-    });
 
-    // Handle errors
-    persistence.on("error", async (error: Error) => {
-      console.error("[YjsSync] IndexedDB error:", error);
-      localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
-    });
+      const provider = new WebsocketProvider(url, room, doc, {
+        connect: true,
+      });
 
+      if (isSyncDebugEnabled()) {
+        console.info("[YjsSync] Initializing provider", { url, room });
+      }
+
+      // Handle WebSocket errors gracefully
+      provider.on("status", (event: { status: string }) => {
+        const ws = (provider as any).ws as WebSocket | undefined;
+        const socketUrl = ws?.url;
+        console.log("[YjsSync] WebSocket status:", {
+          status: event.status,
+          url: socketUrl ?? url,
+          readyState: ws?.readyState,
+        });
+      });
+
+      provider.on("connection-error", (error: Error) => {
+        console.warn("[YjsSync] WebSocket connection error:", error?.message || error);
+      });
+
+      provider.on("connection-close", (event: CloseEvent | { code?: number; reason?: string }) => {
+        console.warn("[YjsSync] WebSocket closed:", {
+          code: (event as any)?.code,
+          reason: (event as any)?.reason,
+        });
+      });
+
+      instance = {
+        doc,
+        provider,
+        persistence,
+        url,
+        room,
+      };
+
+      return instance;
+    } catch (initError) {
+      console.error("[YjsSync] Failed to initialize Y.js sync:", initError);
+
+      // If initialization failed, try to clean up and rethrow
+      if (doc) {
+        try {
+          doc.destroy();
+        } catch (e) {
+          console.warn("[YjsSync] Error destroying doc during cleanup:", e);
+        }
+      }
+
+      throw initError;
+    }
   } catch (error) {
-    console.error("[YjsSync] Failed to create IndexedDB persistence:", error);
-    // Create doc without persistence as fallback
-    persistence = null as unknown as IndexeddbPersistence;
-  }
+    console.error("[YjsSync] Critical error in getYjsSync:", error);
 
-  const provider = new WebsocketProvider(url, room, doc, {
-    connect: true,
-  });
-
-  if (isSyncDebugEnabled()) {
-    console.info("[YjsSync] Initializing provider", { url, room });
-  }
-
-  // Handle WebSocket errors gracefully
-  provider.on("status", (event: { status: string }) => {
-    const ws = (provider as any).ws as WebSocket | undefined;
-    const socketUrl = ws?.url;
-    console.log("[YjsSync] WebSocket status:", {
-      status: event.status,
-      url: socketUrl ?? url,
-      readyState: ws?.readyState,
+    // If all else fails, try to clear corrupted data and throw
+    await clearYjsIndexedDB().catch(e => {
+      console.warn("[YjsSync] Failed to clear IndexedDB after error:", e);
     });
-  });
 
-  provider.on("connection-error", (error: Error) => {
-    console.warn("[YjsSync] WebSocket connection error:", error?.message || error);
-  });
-
-  provider.on("connection-close", (event: CloseEvent | { code?: number; reason?: string }) => {
-    console.warn("[YjsSync] WebSocket closed:", {
-      code: (event as any)?.code,
-      reason: (event as any)?.reason,
-    });
-  });
-
-  instance = {
-    doc,
-    provider,
-    persistence,
-    url,
-    room,
-  };
-
-  return instance;
+    throw error;
+  }
 }
 
 /**

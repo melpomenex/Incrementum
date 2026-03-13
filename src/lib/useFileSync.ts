@@ -32,12 +32,17 @@ async function ensureFileSyncReady(): Promise<void> {
 
   if (!initPromise) {
     initPromise = (async () => {
-      const sync = await getYjsSync();
-      if (!manifestInstance) {
-        manifestInstance = new FileManifest(sync.doc);
-      }
-      if (!transferManagerInstance) {
-        transferManagerInstance = new FileTransferManager(sync.provider, manifestInstance);
+      try {
+        const sync = await getYjsSync();
+        if (!manifestInstance) {
+          manifestInstance = new FileManifest(sync.doc);
+        }
+        if (!transferManagerInstance) {
+          transferManagerInstance = new FileTransferManager(sync.provider, manifestInstance);
+        }
+      } catch (error) {
+        console.error("[useFileSync] Failed to initialize file sync:", error);
+        throw error;
       }
     })();
   }
