@@ -47,7 +47,16 @@ export async function initLocalStorageSync(): Promise<void> {
   }
 
   initPromise = (async () => {
-    const sync = await getYjsSync();
+    let sync;
+    try {
+      sync = await getYjsSync();
+    } catch (error) {
+      console.error("[LocalStorageSync] Failed to initialize Y.js sync:", error);
+      // Continue without sync - localStorage will still work locally
+      initialized = true;
+      return;
+    }
+
   const map = sync.doc.getMap<SyncEntry>("localStorage");
   const lastApplied = new Map<string, number>();
 
