@@ -23,9 +23,19 @@ import {
   selectionIntersectsTextLayers,
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
+// Custom selection engine imports
+import { usePdfCustomSelection } from "./selection";
+import { SelectionRenderer } from "./selection";
+// 3-layer architecture components
+import { HighlightLayer, useHighlightManager, type StoredHighlight } from "./HighlightLayer";
+import { SelectionPopup, type HighlightColor } from "./SelectionPopup";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
+
+// Feature flag for custom PDF selection engine
+// Set to true to use geometric selection instead of native DOM selection
+const ENABLE_CUSTOM_PDF_SELECTION = true;
 
 // Configure PDF.js worker across environments. Keep this best-effort so
 // load fallback logic can still render if worker init fails at runtime.
@@ -209,6 +219,18 @@ export function PDFViewer({
   const [outline, setOutline] = useState<any[]>([]);
   const [showTOC, setShowTOC] = useState(false);
   const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
+
+  // Highlight manager for persistent highlights
+  const {
+    highlights: storedHighlights,
+    addHighlight: addStoredHighlight,
+    getHighlightsForPage,
+  } = useHighlightManager();
+
+  // Selection popup state
+  const [showSelectionPopup, setShowSelectionPopup] = useState(false);
+  const [selectionPopupRect, setSelectionPopupRect] = useState<DOMRect | null>(null);
+  const [pendingSelectionContext, setPendingSelectionContext] = useState<PdfSelectionContext | null>(null);
   const [fallbackPageSize, setFallbackPageSize] = useState<{ width: number; height: number } | null>(null);
   const [renderPass, setRenderPass] = useState(0);
   const [textSelectionCapability, setTextSelectionCapability] = useState<PdfTextSelectionCapability>(() =>
@@ -235,6 +257,80 @@ export function PDFViewer({
   const lastSavedPositionRef = useRef<DocumentPosition | null>(null);
   const positionSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRestoringPositionRef = useRef(false);
+
+  // Custom PDF selection hook
+  const customSelection = usePdfCustomSelection({
+    pdf,
+    documentId,
+    pageContainerRefs,
+    pageViewportRefs,
+    enabled: ENABLE_CUSTOM_PDF_SELECTION,
+    onSelectionChange: (text, context) => {
+      // Store the selection context for later use (highlight, etc.)
+      setPendingSelectionContext(context);
+
+      // Show popup when there's a selection
+      if (text && context) {
+        // Get the bounding rect from the selection
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          setSelectionPopupRect(rect);
+          setShowSelectionPopup(true);
+        }
+      } else {
+        setShowSelectionPopup(false);
+        setSelectionPopupRect(null);
+      }
+
+      // Call parent callback
+      onSelectionChange?.(text, context);
+    },
+  });
+
+  // Handle highlight creation from popup
+  const handleHighlight = useCallback(
+    (color: HighlightColor) => {
+      if (!pendingSelectionContext) return;
+
+      // Create a highlight for each page in the selection
+      for (const page of pendingSelectionContext.pages) {
+        addStoredHighlight({
+          pageNumber: page.pageNumber,
+          pdfRects: page.pdfRects,
+          color,
+          text: customSelection.selectionState.selectedText,
+        });
+      }
+
+      // Clear selection after highlighting
+      customSelection.clearSelection();
+      setShowSelectionPopup(false);
+      setPendingSelectionContext(null);
+    },
+    [pendingSelectionContext, addStoredHighlight, customSelection]
+  );
+
+  // Handle copy action from popup
+  const handleCopy = useCallback(() => {
+    // Copy is handled inside SelectionPopup component
+    setShowSelectionPopup(false);
+    customSelection.clearSelection();
+  }, [customSelection]);
+
+  // Handle add note from popup
+  const handleAddNote = useCallback(() => {
+    // TODO: Implement note modal
+    console.log("Add note for selection:", pendingSelectionContext);
+    setShowSelectionPopup(false);
+  }, [pendingSelectionContext]);
+
+  // Handle popup dismiss
+  const handlePopupDismiss = useCallback(() => {
+    setShowSelectionPopup(false);
+    setPendingSelectionContext(null);
+  }, []);
 
   // Clear selection highlights from all pages
   const clearSelectionHighlights = useCallback(() => {
@@ -1080,8 +1176,10 @@ export function PDFViewer({
     });
   }, [clearSelectionHighlights]);
 
-  // Handle text selection changes
+  // Handle text selection changes (native DOM selection - disabled when custom selection is active)
   useEffect(() => {
+    // Skip native selection handling when custom selection is enabled
+    if (ENABLE_CUSTOM_PDF_SELECTION) return;
     if (!onSelectionChange) return;
     let rafId: number | null = null;
     let isProcessingSelection = false;
@@ -2207,6 +2305,11 @@ export function PDFViewer({
                             }
                           : undefined
                       }
+                      {...(ENABLE_CUSTOM_PDF_SELECTION && {
+                        onPointerDown: (e: React.PointerEvent) => customSelection.handlePointerDown(index, e),
+                        onPointerMove: (e: React.PointerEvent) => customSelection.handlePointerMove(index, e),
+                        onPointerUp: (e: React.PointerEvent) => customSelection.handlePointerUp(index, e),
+                      })}
                     >
                       <canvas
                         ref={(el) => {
@@ -2214,13 +2317,41 @@ export function PDFViewer({
                         }}
                         className="block"
                       />
+                      {/* Layer 2: Highlight Layer - Persistent highlights between canvas and text */}
+                      <HighlightLayer
+                        pageIndex={index}
+                        viewport={pageViewportRefs.current[index]}
+                        highlights={getHighlightsForPage(pageNum)}
+                        interactive={true}
+                        onHighlightClick={(highlight) => {
+                          console.log("Highlight clicked:", highlight);
+                          // TODO: Show highlight options menu
+                        }}
+                      />
                       <div
                         ref={(el) => {
                           textLayerContainerRefs.current[index] = el;
                         }}
-                        className="textLayerContainer"
+                        className={cn(
+                          "textLayerContainer",
+                          ENABLE_CUSTOM_PDF_SELECTION && "customSelectionActive"
+                        )}
                         style={{ transformOrigin: "0 0", zIndex: 10 }}
                       />
+                      {/* Custom selection layer - sits above textLayer for geometric selection */}
+                      {ENABLE_CUSTOM_PDF_SELECTION && (
+                        <div
+                          className="customSelectionLayer"
+                          onPointerDown={(e) => customSelection.handlePointerDown(index, e)}
+                          onPointerMove={(e) => customSelection.handlePointerMove(index, e)}
+                          onPointerUp={(e) => customSelection.handlePointerUp(index, e)}
+                        >
+                          <SelectionRenderer
+                            pageIndex={index}
+                            selectionState={customSelection.selectionState}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2252,6 +2383,17 @@ export function PDFViewer({
           )}
         </div>
       </div>
+
+      {/* Selection Popup - Floating context menu for text selection */}
+      <SelectionPopup
+        visible={showSelectionPopup}
+        selectionRect={selectionPopupRect}
+        selectedText={customSelection.selectionState.selectedText}
+        onHighlight={handleHighlight}
+        onCopy={handleCopy}
+        onAddNote={handleAddNote}
+        onDismiss={handlePopupDismiss}
+      />
     </div>
   );
 }
