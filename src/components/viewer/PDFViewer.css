@@ -1,12 +1,95 @@
 /* PDF Viewer Text Layer Styles */
 /* Based on PDF.js text layer implementation */
 
+/*
+ * ============================================================
+ * 3-LAYER DOM ARCHITECTURE (Zotero-style PDF Reader)
+ * ============================================================
+ *
+ * Layer 1: Canvas Layer (z-index: 1) - Bottom
+ *   - PDF.js renders the visual document here
+ *
+ * Layer 2: Highlight Layer (z-index: 2) - Middle
+ *   - Persistent highlights stored in DB
+ *   - Absolutely positioned divs with semi-transparent background
+ *
+ * Layer 3: Text Layer (z-index: 3) - Top
+ *   - PDF.js textLayer for text selection
+ *   - Transparent text but intercepts mouse events
+ *
+ * IMPORTANT: The text layer must be completely transparent but
+ * intercept all mouse events for text selection.
+ * ============================================================
+ */
+
 /* Container for each page - must be positioned relative for absolute children */
 [data-pdf-page] {
   position: relative;
 }
 
-/* Text layer container - sits above the canvas */
+/* ============================================================
+ * LAYER 1: CANVAS LAYER (Bottom, z-index: 1)
+ * ============================================================
+ * The PDF.js canvas renders the visual document here.
+ */
+[data-pdf-page] canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+/* ============================================================
+ * LAYER 2: HIGHLIGHT LAYER (Middle, z-index: 2)
+ * ============================================================
+ * Persistent highlights are rendered here as absolutely
+ * positioned divs with semi-transparent background colors.
+ */
+.highlightLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none; /* Let clicks pass through to text layer */
+  z-index: 2;
+}
+
+/* Individual highlight rectangle */
+.pdf-highlight {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+
+/* Default yellow highlight color */
+.pdf-highlight.yellow {
+  background-color: rgba(255, 235, 59, 0.5);
+}
+
+.pdf-highlight.green {
+  background-color: rgba(76, 175, 80, 0.4);
+}
+
+.pdf-highlight.blue {
+  background-color: rgba(33, 150, 243, 0.4);
+}
+
+.pdf-highlight.pink {
+  background-color: rgba(233, 30, 99, 0.4);
+}
+
+.pdf-highlight.purple {
+  background-color: rgba(156, 39, 176, 0.4);
+}
+
+/* ============================================================
+ * LAYER 3: TEXT LAYER (Top, z-index: 3)
+ * ============================================================
+ * PDF.js textLayer for text selection. Must be transparent
+ * but intercept all mouse events.
+ */
 .textLayerContainer {
   position: absolute;
   left: 0;
@@ -15,8 +98,7 @@
   height: 100%;
   overflow: hidden;
   pointer-events: auto;
-  z-index: 10;
-  /* Ensure text layer is above canvas but doesn't block all interactions */
+  z-index: 3; /* Above highlight layer (2) */
   mix-blend-mode: normal;
   user-select: text;
   -webkit-user-select: text;
@@ -38,7 +120,7 @@
   text-size-adjust: none;
   forced-color-adjust: none;
   pointer-events: auto;
-  z-index: 1;
+  z-index: 1; /* Relative to textLayerContainer which has z-index: 3 */
   /* Ensure proper text selection behavior */
   cursor: text;
   user-select: text;
@@ -137,11 +219,8 @@
   padding: 0 1px;
 }
 
-/* Canvas sits below the text layer */
-[data-pdf-page] canvas {
-  position: relative;
-  z-index: 1;
-}
+/* Canvas sits below the text layer - handled by canvas layer section above */
+/* This rule is now in the LAYER 1 section at the top of the file */
 
 /* Ensure page containers handle pointer events correctly */
 [data-pdf-page] {
@@ -158,3 +237,198 @@
 }
 
 /* End of text layer styles */
+
+/* === CUSTOM SELECTION ENGINE STYLES === */
+
+/*
+ * Custom selection layer - sits above ALL other layers for geometric selection.
+ * This layer intercepts pointer events and manages its own selection state.
+ * Z-index: 4 (above text layer's z-index: 3)
+ */
+.customSelectionLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4;  /* Above textLayer (z-index: 3) */
+  /* Just for rendering - events captured on parent page container */
+  pointer-events: none;
+}
+
+/* Disable native text selection when custom selection is active */
+.textLayerContainer.customSelectionActive,
+.textLayerContainer.customSelectionActive .textLayer,
+.textLayerContainer.customSelectionActive .textLayer span {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  pointer-events: none !important;
+}
+
+/* Custom selection highlight boxes */
+.custom-selection-highlight-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.custom-selection-highlight {
+  position: absolute;
+  background-color: rgba(59, 130, 246, 0.4);
+  border-radius: 2px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+/* SVG-based selection layer */
+.custom-selection-svg-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* End of custom selection styles */
+
+/* ============================================================
+ * SELECTION POPUP / CONTEXT MENU
+ * ============================================================
+ * Floating popup that appears above selected text with options
+ * like "Highlight", "Copy", "Note", etc.
+ */
+
+.selection-popup {
+  position: fixed;
+  z-index: 1000;
+  background: var(--background, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  animation: selection-popup-appear 0.15s ease-out;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@keyframes selection-popup-appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.selection-popup-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground, #1f2937);
+  transition: background-color 0.1s ease;
+  white-space: nowrap;
+}
+
+.selection-popup-button:hover {
+  background: var(--muted, #f3f4f6);
+}
+
+.selection-popup-button:active {
+  background: var(--muted, #e5e7eb);
+}
+
+.selection-popup-button.highlight-yellow:hover {
+  background: rgba(255, 235, 59, 0.3);
+}
+
+.selection-popup-button.highlight-green:hover {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.selection-popup-button.highlight-blue:hover {
+  background: rgba(33, 150, 243, 0.2);
+}
+
+.selection-popup-button.highlight-pink:hover {
+  background: rgba(233, 30, 99, 0.2);
+}
+
+.selection-popup-button.highlight-purple:hover {
+  background: rgba(156, 39, 176, 0.2);
+}
+
+/* Color picker dropdown */
+.selection-popup-color-picker {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-left: 1px solid var(--border, #e5e7eb);
+  margin-left: 2px;
+  padding-left: 8px;
+}
+
+.color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot:focus {
+  outline: none;
+  border-color: var(--foreground, #1f2937);
+}
+
+.color-dot.yellow {
+  background: rgba(255, 235, 59, 0.8);
+}
+
+.color-dot.green {
+  background: rgba(76, 175, 80, 0.8);
+}
+
+.color-dot.blue {
+  background: rgba(33, 150, 243, 0.8);
+}
+
+.color-dot.pink {
+  background: rgba(233, 30, 99, 0.8);
+}
+
+.color-dot.purple {
+  background: rgba(156, 39, 176, 0.8);
+}
+
+/* Divider in popup */
+.selection-popup-divider {
+  width: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 4px 4px;
+}
