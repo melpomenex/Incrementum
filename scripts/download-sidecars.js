@@ -49,6 +49,12 @@ function ensureWhisperSource() {
     return;
   }
 
+  // If whisper.cpp directory exists but doesn't have CMakeLists.txt, it's corrupted - remove it
+  if (fs.existsSync('whisper.cpp')) {
+    console.log('Removing corrupted whisper.cpp directory...');
+    fs.rmSync('whisper.cpp', { recursive: true, force: true });
+  }
+
   try {
     execSync('git submodule update --init --recursive whisper.cpp');
   } catch {
@@ -154,6 +160,209 @@ function hasPortableNotebookLMRuntime(targetTriple) {
     return false;
   }
 }
+
+// ============ Pocket TTS Sidecar Support ============
+
+function pocketTTSRuntimeLayout(targetTriple) {
+  const runtimeDir = path.join(BIN_DIR, 'pocket-tts-runtime', targetTriple);
+  const pythonHome = path.join(runtimeDir, 'python');
+  const runtimePy = process.platform === 'win32'
+    ? path.join(pythonHome, 'python.exe')
+    : path.join(pythonHome, 'bin', 'python3');
+  const sitePackages = path.join(runtimeDir, 'site-packages');
+  const manifestPath = path.join(runtimeDir, 'runtime-manifest.json');
+  return { runtimeDir, pythonHome, runtimePy, sitePackages, manifestPath };
+}
+
+function renderPocketTTSLauncherScript(targetTriple) {
+  return (
+    '#!/bin/sh\n' +
+    'set -eu\n' +
+    'SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\n' +
+    `RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/${targetTriple}"\n` +
+    'RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"\n' +
+    'RUNTIME_SITE="$RUNTIME_BASE/site-packages"\n' +
+    'if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then\n' +
+    '  export PYTHONHOME="$RUNTIME_BASE/python"\n' +
+    '  export PYTHONPATH="$RUNTIME_SITE"\n' +
+    '  exec "$RUNTIME_PY" -m pocket_tts "$@"\n' +
+    'fi\n' +
+    'if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then\n' +
+    '  PATH="$PATH:$HOME/.local/bin"\n' +
+    'fi\n' +
+    'PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"\n' +
+    'export PATH\n' +
+    'for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do\n' +
+    '  if [ -x "$CANDIDATE" ]; then\n' +
+    '    exec "$CANDIDATE" "$@"\n' +
+    '  fi\n' +
+    'done\n' +
+    'exec pocket-tts "$@"\n'
+  );
+}
+
+function writePocketTTSLauncher(sidecarPath, targetTriple) {
+  fs.writeFileSync(sidecarPath, renderPocketTTSLauncherScript(targetTriple));
+  fs.chmodSync(sidecarPath, 0o755);
+}
+
+function hasPortablePocketTTSRuntime(targetTriple) {
+  const { runtimePy, sitePackages, manifestPath } = pocketTTSRuntimeLayout(targetTriple);
+  if (!fs.existsSync(runtimePy) || !fs.existsSync(sitePackages) || !fs.existsSync(manifestPath)) {
+    return false;
+  }
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    return manifest.layout === 'portable-python-home-v1';
+  } catch {
+    return false;
+  }
+}
+
+function buildPortablePocketTTSRuntime(targetTriple, pythonCmd) {
+  const { runtimeDir, pythonHome, runtimePy, sitePackages, manifestPath } = pocketTTSRuntimeLayout(targetTriple);
+  const buildInfo = getPythonBuildInfo(pythonCmd);
+  const pyMajorMinor = `${buildInfo.major}.${buildInfo.minor}`;
+  const stdlibDest = path.join(pythonHome, 'lib', `python${pyMajorMinor}`);
+  const pyBinDir = process.platform === 'win32' ? pythonHome : path.join(pythonHome, 'bin');
+
+  fs.rmSync(runtimeDir, { recursive: true, force: true });
+  fs.mkdirSync(pyBinDir, { recursive: true });
+  fs.mkdirSync(sitePackages, { recursive: true });
+
+  fs.copyFileSync(buildInfo.executable, runtimePy);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(runtimePy, 0o755);
+    try {
+      fs.symlinkSync('python3', path.join(pyBinDir, 'python'));
+    } catch {
+      // ignore if symlink cannot be created
+    }
+  }
+
+  fs.cpSync(buildInfo.stdlib, stdlibDest, {
+    recursive: true,
+    filter: (source) => {
+      const normalized = source.replace(/\\/g, '/');
+      if (normalized.includes('/test/') || normalized.endsWith('/test')) {
+        return false;
+      }
+      if (normalized.includes('/__pycache__/')) {
+        return false;
+      }
+      return true;
+    },
+  });
+
+  // Remove distro-managed marker for the bundled private runtime
+  const externallyManagedMarker = path.join(stdlibDest, 'EXTERNALLY-MANAGED');
+  if (fs.existsSync(externallyManagedMarker)) {
+    fs.rmSync(externallyManagedMarker, { force: true });
+  }
+
+  if (buildInfo.libdir && buildInfo.ldlibrary) {
+    const libpython = path.join(buildInfo.libdir, buildInfo.ldlibrary);
+    if (fs.existsSync(libpython)) {
+      const libDest = path.join(pythonHome, 'lib');
+      fs.mkdirSync(libDest, { recursive: true });
+      fs.copyFileSync(libpython, path.join(libDest, path.basename(libpython)));
+    }
+  }
+
+  if (process.platform === 'linux') {
+    copyDynamicLibs(runtimePy, path.join(pythonHome, 'lib'));
+  }
+
+  // Install pocket-tts
+  if (!runOptionalCommand(`${pythonCmd} -m pip --version`, process.env)) {
+    runOptionalCommand(`${pythonCmd} -m ensurepip --upgrade`, process.env);
+  }
+  execSync(`${pythonCmd} -m pip install --target "${sitePackages}" "pocket-tts"`, {
+    stdio: 'inherit',
+    env: process.env,
+  });
+
+  fs.writeFileSync(manifestPath, JSON.stringify({
+    layout: 'portable-python-home-v1',
+    built_with: buildInfo.version,
+    target: targetTriple,
+    python_executable: path.relative(runtimeDir, runtimePy),
+    site_packages: path.relative(runtimeDir, sitePackages),
+  }, null, 2));
+}
+
+function ensurePocketTTSSidecar(targetTriple) {
+  const bundleRuntime = process.env.POCKET_TTS_BUNDLE_RUNTIME === '1';
+  if (process.env.SKIP_POCKET_TTS_SIDECAR === '1') {
+    console.log('Skipping Pocket TTS sidecar (SKIP_POCKET_TTS_SIDECAR=1)');
+    fs.mkdirSync(path.join(BIN_DIR, 'pocket-tts-runtime'), { recursive: true });
+    return;
+  }
+  if (!bundleRuntime) {
+    console.log('Skipping bundled Pocket TTS runtime (set POCKET_TTS_BUNDLE_RUNTIME=1 to enable).');
+    fs.mkdirSync(path.join(BIN_DIR, 'pocket-tts-runtime'), { recursive: true });
+    const sidecarPath = path.join(BIN_DIR, sidecarExecutableName('pocket-tts', targetTriple));
+    if (!targetTriple.includes('windows')) {
+      writePocketTTSLauncher(sidecarPath, targetTriple);
+    }
+    return;
+  }
+
+  const platform = process.platform;
+  const ext = targetTriple.includes('windows') ? '.exe' : '';
+  const sidecarName = sidecarExecutableName('pocket-tts', targetTriple);
+  const sidecarPath = path.join(BIN_DIR, sidecarName);
+  const { runtimeDir } = pocketTTSRuntimeLayout(targetTriple);
+
+  let runtimeBuilt = hasPortablePocketTTSRuntime(targetTriple);
+  if (runtimeBuilt) {
+    console.log(`Pocket TTS portable runtime already exists: ${runtimeDir}`);
+  }
+  const pythonCmd = resolvePythonCommand();
+  if (!runtimeBuilt && pythonCmd && platform !== 'win32') {
+    console.log(`Building bundled Pocket TTS runtime at ${runtimeDir} ...`);
+    buildPortablePocketTTSRuntime(targetTriple, pythonCmd);
+    runtimeBuilt = true;
+  } else if (!runtimeBuilt && platform !== 'win32') {
+    console.warn('Python not found; falling back to wrapper sidecar when possible.');
+  }
+
+  if (platform === 'win32') {
+    if (pythonCmd) {
+      const venvPath = path.join(runtimeDir, '.venv');
+      const py = path.join(venvPath, 'Scripts', 'python.exe');
+      const pocketTtsBin = path.join(venvPath, 'Scripts', 'pocket-tts.exe');
+      fs.mkdirSync(runtimeDir, { recursive: true });
+      execSync(`${pythonCmd} -m venv "${venvPath}"`, { stdio: 'inherit' });
+      execSync(`"${py}" -m pip install --upgrade pip`, { stdio: 'inherit' });
+      execSync(`"${py}" -m pip install "pocket-tts"`, { stdio: 'inherit' });
+      // On Windows, create a shim batch file
+      const shimPath = path.join(BIN_DIR, `pocket-tts-${targetTriple}.cmd`);
+      fs.writeFileSync(
+        shimPath,
+        `@echo off\r\nset SCRIPT_DIR=%~dp0\r\nset RUNTIME=%SCRIPT_DIR%pocket-tts-runtime\\${targetTriple}\\.venv\\Scripts\\pocket-tts.exe\r\nif exist "%RUNTIME%" (\r\n  "%RUNTIME%" %*\r\n) else (\r\n  pocket-tts %*\r\n)\r\n`
+      );
+      // Keep native CLI binary as the tauri sidecar target when available.
+      if (fs.existsSync(pocketTtsBin)) {
+        fs.copyFileSync(pocketTtsBin, sidecarPath);
+        runtimeBuilt = true;
+      } else {
+        console.warn('Pocket TTS venv binary missing; CLI fallback on PATH will be required.');
+      }
+    }
+  } else {
+    writePocketTTSLauncher(sidecarPath, targetTriple);
+  }
+
+  // On unix-like systems we can always emit a wrapper so bundling still succeeds.
+  if (!runtimeBuilt && !targetTriple.includes('windows')) {
+    writePocketTTSLauncher(sidecarPath, targetTriple);
+  }
+
+  console.log(`Pocket TTS sidecar prepared: ${sidecarPath}`);
+}
+
+// ============ End Pocket TTS Support ============
 
 function getPythonBuildInfo(pythonCmd) {
   const script = 'import json,platform,sys,sysconfig;print(json.dumps({"executable":sys.executable,"version":platform.python_version(),"major":sys.version_info.major,"minor":sys.version_info.minor,"stdlib":sysconfig.get_path("stdlib"),"libdir":sysconfig.get_config_var("LIBDIR"),"ldlibrary":sysconfig.get_config_var("LDLIBRARY")}))';
@@ -619,6 +828,23 @@ async function main() {
     console.log(`Skipping NotebookLM sidecar (SKIP_NOTEBOOKLM_SIDECAR=1)`);
   } else {
     console.log(`NotebookLM runtime bundling disabled for target ${targetTriple} (lazy first-run install will be used).`);
+  }
+
+  // Build bundled Pocket TTS sidecar/runtime
+  const pocketTtsName = sidecarExecutableName('pocket-tts', targetTriple);
+  const pocketTtsPath = path.join(BIN_DIR, pocketTtsName);
+  const pocketTtsSkipped = process.env.SKIP_POCKET_TTS_SIDECAR === '1';
+  const pocketTtsRequired = !pocketTtsSkipped && process.env.POCKET_TTS_BUNDLE_RUNTIME === '1';
+
+  if (!pocketTtsSkipped) {
+    ensurePocketTTSSidecar(targetTriple);
+    // For non-Windows, the wrapper script is always created
+    // For Windows, we need the actual binary
+    if (!targetTriple.includes('windows') || pocketTtsRequired) {
+      if (!fs.existsSync(pocketTtsPath)) {
+        console.warn(`Pocket TTS sidecar not created for ${targetTriple} - will fall back to system pocket-tts if available.`);
+      }
+    }
   }
 
   // Make executable

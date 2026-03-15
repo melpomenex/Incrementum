@@ -191,6 +191,7 @@ export function DocumentViewer({
   const { settings } = useSettingsStore();
 
   const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState<number>(0);
   const [scale, setScale] = useState(1.0);
   const [zoomMode, setZoomMode] = useState<"custom" | "fit-width" | "fit-page">("fit-width");
   const [fileData, setFileData] = useState<Uint8Array | null>(null);
@@ -2259,6 +2260,9 @@ export function DocumentViewer({
   const handleDocumentLoad = useCallback((numPages: number, outline: any[] = []) => {
     console.log("Document loaded:", numPages, "pages", outline.length, "outline items");
 
+    // Store total pages for TTS auto-advance
+    setTotalPages(numPages);
+
     // Update document with page count if not already set
     // This ensures the "Continue Reading" tab can calculate progress correctly
     if (currentDocument && numPages > 0 && !currentDocument.totalPages) {
@@ -2286,6 +2290,20 @@ export function DocumentViewer({
     },
     [onPdfContextTextChange, ocrContextText, settings.documents.ocr.autoOCR, settings.documents.ocr.autoExtractOnLoad]
   );
+
+  // Handle TTS completion - advance to next page if available
+  const handleTTSComplete = useCallback(() => {
+    // Only auto-advance for paginated documents (PDF/EPUB)
+    if (docType !== "pdf" && docType !== "epub") return;
+
+    const nextPage = pageNumber + 1;
+    if (nextPage <= totalPages) {
+      console.log(`TTS: Auto-advancing to page ${nextPage}`);
+      setPageNumber(nextPage);
+    } else {
+      console.log("TTS: Reached end of document");
+    }
+  }, [docType, pageNumber, totalPages]);
 
   useEffect(() => {
     if (docType === "pdf" || docType === "epub") return;
@@ -3459,6 +3477,8 @@ export function DocumentViewer({
         {viewMode === "document" && (docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html") && (
           <ReaderTTSControls
             text={readerContextText}
+            onComplete={handleTTSComplete}
+            autoAdvance={true}
             className={cn(
               "absolute z-40",
               embedded ? "bottom-3 left-3 right-3" : "bottom-4 left-1/2 -translate-x-1/2"

@@ -63,15 +63,21 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
   const isSupported = hasSpeechSynthesis || hasAudioPlayback;
 
   const ttsSettings = settings.tts;
+
+  // Pocket TTS is always "configured" when enabled since it doesn't need API keys
+  const isPocketProvider = ttsSettings?.provider === "pocket";
   const directKey =
     ttsSettings?.provider === "groq"
       ? (ttsSettings.apiKey?.trim() || settings.audioTranscription?.groq?.apiKey?.trim() || "")
       : (ttsSettings?.apiKey?.trim() || "");
+
   const providerConfigured =
     ttsSettings?.enabled &&
-    (ttsSettings.requestMode === "proxy"
-      ? Boolean(ttsSettings.proxyUrl?.trim())
-      : Boolean(directKey));
+    (isPocketProvider
+      ? true // Pocket TTS doesn't need API keys
+      : ttsSettings.requestMode === "proxy"
+        ? Boolean(ttsSettings.proxyUrl?.trim())
+        : Boolean(directKey));
 
   const stop = useCallback(() => {
     if (hasSpeechSynthesis) {

@@ -525,80 +525,35 @@ export function EPUBViewer({
           }
 
           if (onContextTextChange) {
-            const maxTokens = settings.ai.maxTokens && settings.ai.maxTokens > 0 ? settings.ai.maxTokens : 2000;
-            const maxChars = maxTokens * 4;
-            const extractContext = async () => {
+            // Extract text from current chapter only (not entire book)
+            const extractCurrentChapterText = () => {
               try {
-                const spine = await epubBook.loaded.spine;
-                let combined = "";
-
-                // EPUB.js shape varies across versions/bundles:
-                // - spine.items
-                // - spine.spineItems
-                // - spine as an array
-                const spineItems = Array.isArray(spine)
-                  ? spine
-                  : Array.isArray((spine as any)?.items)
-                    ? (spine as any).items
-                    : Array.isArray((spine as any)?.spineItems)
-                      ? (spine as any).spineItems
-                      : [];
-
-                for (const item of spineItems) {
-                  if (!mounted || combined.length >= maxChars) break;
-                  try {
-                    let loadedSection: any = null;
-                    if (item.load) {
-                      loadedSection = await item.load(epubBook.load.bind(epubBook));
-                    }
-
-                    const text = item.document?.body?.textContent?.trim()
-                      || loadedSection?.document?.body?.textContent?.trim()
-                      || loadedSection?.contents?.textContent?.trim();
-
-                    if (text) {
-                      combined += (combined ? "\n\n" : "") + text;
-                    }
-                  } finally {
-                    try {
-                      if (item.unload) {
-                        item.unload();
-                      }
-                    } catch {
-                      // ignore unload errors
-                    }
-                  }
-                }
-
-                if (mounted) {
-                  // Fallback: use currently rendered chapter text if full spine extraction failed.
-                  if (!combined.trim()) {
-                    try {
-                      const renderedText = rendition
-                        ?.getContents?.()
-                        ?.map((content: any) => content?.document?.body?.textContent?.trim())
-                        ?.filter(Boolean)
-                        ?.join("\n\n");
-                      if (renderedText) {
-                        combined = renderedText;
-                      }
-                    } catch {
-                      // ignore fallback extraction errors
-                    }
-                  }
-
-                  if (combined.trim()) {
-                    onContextTextChange(combined.slice(0, maxChars));
+                const contents = rendition?.getContents?.();
+                if (contents && contents.length > 0) {
+                  const text = contents
+                    .map((content: any) => content?.document?.body?.textContent?.trim())
+                    .filter(Boolean)
+                    .join("\n\n");
+                  if (text && mounted) {
+                    onContextTextChange(text);
                   }
                 }
               } catch (err) {
-                console.warn("EPUBViewer: Failed to extract context text:", err);
+                console.warn("EPUBViewer: Failed to extract current chapter text:", err);
               }
             };
 
+            // Extract initial text after content renders
             setTimeout(() => {
-              void extractContext();
-            }, 0);
+              extractCurrentChapterText();
+            }, 100);
+
+            // Update text when user navigates to new chapter
+            rendition.on("relocated", () => {
+              setTimeout(() => {
+                extractCurrentChapterText();
+              }, 100);
+            });
           }
 
           // Mark initial display as complete after a delay to allow content to render

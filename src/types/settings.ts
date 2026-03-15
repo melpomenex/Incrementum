@@ -177,7 +177,7 @@ export interface TTSPreset {
 
 export interface TTSVoiceProfile {
   id: string;
-  provider: 'fal' | 'groq';
+  provider: 'fal' | 'groq' | 'pocket';
   name: string;
   kind: 'builtin' | 'cloned';
   voice?: string;
@@ -189,7 +189,7 @@ export interface TTSVoiceProfile {
 export interface TTSSettings {
   schemaVersion: number;
   enabled: boolean;
-  provider: 'fal' | 'groq';
+  provider: 'fal' | 'groq' | 'pocket';
   requestMode: TTSRequestMode;
   apiKey: string;
   proxyUrl: string;
@@ -202,6 +202,9 @@ export interface TTSSettings {
   defaultPresetId: string;
   voiceProfiles: TTSVoiceProfile[];
   presets: TTSPreset[];
+  // Pocket TTS settings
+  pocketSpeed?: number;
+  pocketAvailable?: boolean;
 }
 
 // Integration Settings

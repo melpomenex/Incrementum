@@ -28,6 +28,7 @@ mod browser_sync_server;
 mod transcription;
 mod utils;
 mod notebooklm;
+mod pocket_tts;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
@@ -245,6 +246,7 @@ pub fn run() {
                 app.manage(state);
                 app.manage(AIState::default());
                 app.manage(FocusTimer::new());
+                app.manage(pocket_tts::PocketTTSState::default());
                 app.manage(transcription::TranscriptionState {
                     job_queue: transcription::job_queue::JobQueue::new(app.handle().clone(), repo.clone()),
                 });
@@ -519,6 +521,11 @@ pub fn run() {
             notebooklm::notebooklm_cli_login,
             notebooklm::notebooklm_cli_logout,
             notebooklm::notebooklm_cli_status,
+            // Pocket TTS commands
+            pocket_tts::pocket_tts_status,
+            pocket_tts::pocket_tts_generate,
+            pocket_tts::pocket_tts_stop,
+            pocket_tts::pocket_tts_cleanup,
             // Browser sync server commands (HTTP for extension)
             browser_sync_server::start_browser_sync_server,
             browser_sync_server::stop_browser_sync_server,
