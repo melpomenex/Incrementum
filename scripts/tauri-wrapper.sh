@@ -4,6 +4,15 @@ set -euo pipefail
 cmd="${1:-}"
 shift || true
 
+if [[ "$cmd" == "build" ]]; then
+  # On Arch Linux and other modern distros, linuxdeploy's bundled strip binary
+  # doesn't support the .relr.dyn section (type 0x13) in newer ELF binaries.
+  # Use NO_STRIP=1 to skip stripping and let the system handle it.
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    export NO_STRIP=1
+  fi
+fi
+
 if [[ "$cmd" == "dev" ]]; then
   # Tauri (wry/tao) on Linux requires a GTK display backend. In headless shells
   # this otherwise fails with a panic like:

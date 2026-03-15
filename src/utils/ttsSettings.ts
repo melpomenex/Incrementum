@@ -31,8 +31,20 @@ export const GROQ_BUILTIN_VOICES = [
   "Stella",
 ] as const;
 
+export const POCKET_BUILTIN_VOICES = [
+  "alba",
+  "marius",
+  "javert",
+  "jean",
+  "fantine",
+  "cosette",
+  "eponine",
+  "azelma",
+] as const;
+
 export type FalBuiltinVoice = (typeof FAL_BUILTIN_VOICES)[number];
 export type GroqBuiltinVoice = (typeof GROQ_BUILTIN_VOICES)[number];
+export type PocketBuiltinVoice = (typeof POCKET_BUILTIN_VOICES)[number];
 
 export const FAL_LANGUAGES = [
   "Auto",
@@ -50,7 +62,7 @@ export const FAL_LANGUAGES = [
 
 export type FalLanguage = (typeof FAL_LANGUAGES)[number];
 
-export type TTSProvider = "fal" | "groq";
+export type TTSProvider = "fal" | "groq" | "pocket";
 export type TTSRequestMode = "direct" | "proxy";
 
 export interface TTSPreset {
@@ -71,7 +83,7 @@ export interface TTSVoiceProfile {
   provider: TTSProvider;
   name: string;
   kind: "builtin" | "cloned";
-  voice?: FalBuiltinVoice | GroqBuiltinVoice;
+  voice?: FalBuiltinVoice | GroqBuiltinVoice | PocketBuiltinVoice;
   speakerEmbeddingUrl?: string;
   referenceText?: string;
   createdAt: string;
@@ -93,6 +105,9 @@ export interface TTSSettings {
   defaultPresetId: string;
   voiceProfiles: TTSVoiceProfile[];
   presets: TTSPreset[];
+  // Pocket TTS settings
+  pocketSpeed: number; // 0.5 - 2.0
+  pocketAvailable: boolean; // Runtime flag for sidecar availability
 }
 
 export const DEFAULT_TTS_PRESETS: TTSPreset[] = [
@@ -153,11 +168,27 @@ export function makeDefaultTTSVoiceProfiles(): TTSVoiceProfile[] {
     createdAt: new Date(0).toISOString(),
   }));
 
-  return [...falVoices, ...groqVoices];
+  const pocketVoices = POCKET_BUILTIN_VOICES.map((voice) => ({
+    id: `pocket-builtin-${voice}`,
+    provider: "pocket" as const,
+    name: voice.charAt(0).toUpperCase() + voice.slice(1), // Capitalize
+    kind: "builtin" as const,
+    voice,
+    createdAt: new Date(0).toISOString(),
+  }));
+
+  return [...falVoices, ...groqVoices, ...pocketVoices];
 }
 
 function defaultVoiceIdForProvider(provider: TTSProvider): string {
-  return provider === "groq" ? "groq-builtin-fiora" : "fal-builtin-Vivian";
+  switch (provider) {
+    case "groq":
+      return "groq-builtin-fiora";
+    case "pocket":
+      return "pocket-builtin-alba";
+    default:
+      return "fal-builtin-Vivian";
+  }
 }
 
 export function createDefaultTTSSettings(): TTSSettings {
@@ -177,6 +208,9 @@ export function createDefaultTTSSettings(): TTSSettings {
     defaultPresetId: DEFAULT_TTS_PRESETS[0].id,
     voiceProfiles: makeDefaultTTSVoiceProfiles(),
     presets: DEFAULT_TTS_PRESETS,
+    // Pocket TTS defaults
+    pocketSpeed: 1.0,
+    pocketAvailable: false,
   };
 }
 
@@ -213,7 +247,9 @@ function normalizeVoiceProfiles(
     const kind = item.kind === "cloned" ? "cloned" : item.kind === "builtin" ? "builtin" : null;
     if (!kind) continue;
 
-    const provider: TTSProvider = item.provider === "groq" ? "groq" : "fal";
+    const provider: TTSProvider =
+      item.provider === "groq" ? "groq" :
+      item.provider === "pocket" ? "pocket" : "fal";
     const id = asNonEmptyString(item.id, "");
     const name = asNonEmptyString(item.name, "");
     if (!id || !name) continue;
@@ -232,6 +268,8 @@ function normalizeVoiceProfiles(
           profile.voice = item.voice as FalBuiltinVoice;
         } else if (provider === "groq" && (GROQ_BUILTIN_VOICES as readonly string[]).includes(item.voice)) {
           profile.voice = item.voice as GroqBuiltinVoice;
+        } else if (provider === "pocket" && (POCKET_BUILTIN_VOICES as readonly string[]).includes(item.voice)) {
+          profile.voice = item.voice as PocketBuiltinVoice;
         } else {
           continue;
         }
@@ -296,7 +334,13 @@ export function sanitizeTTSSettings(input: unknown): TTSSettings {
   const voiceProfiles = normalizeVoiceProfiles(input.voiceProfiles, defaults.voiceProfiles);
   const presets = normalizePresets(input.presets, defaults.presets);
 
-  const provider: TTSProvider = input.provider === "groq" ? "groq" : "fal";
+  let provider: TTSProvider = "fal";
+  if (input.provider === "groq") {
+    provider = "groq";
+  } else if (input.provider === "pocket") {
+    provider = "pocket";
+  }
+
   const defaultVoiceIdRaw = asString(input.defaultVoiceId, defaultVoiceIdForProvider(provider));
   const defaultPresetIdRaw = asString(input.defaultPresetId, defaults.defaultPresetId);
 
@@ -320,6 +364,10 @@ export function sanitizeTTSSettings(input: unknown): TTSSettings {
 
   const groqResponseFormat = input.groqResponseFormat === "wav" ? "wav" : "mp3";
 
+  // Pocket TTS settings
+  const pocketSpeed = clampNumber(input.pocketSpeed, 1.0, 0.5, 2.0);
+  const pocketAvailable = Boolean(input.pocketAvailable);
+
   return {
     schemaVersion: TTS_SETTINGS_SCHEMA_VERSION,
     enabled: Boolean(input.enabled),
@@ -336,6 +384,8 @@ export function sanitizeTTSSettings(input: unknown): TTSSettings {
     defaultPresetId,
     voiceProfiles,
     presets,
+    pocketSpeed,
+    pocketAvailable,
   };
 }
 
@@ -345,6 +395,12 @@ export function getVoicesForProvider(settings: TTSSettings, provider: TTSProvide
 
 export function validateTTSConfiguration(settings: TTSSettings): { valid: boolean; error?: string } {
   if (!settings.enabled) {
+    return { valid: true };
+  }
+
+  // Pocket TTS requires no API key - it's local
+  if (settings.provider === "pocket") {
+    // Pocket TTS is always valid when enabled (sidecar check happens at runtime)
     return { valid: true };
   }
 

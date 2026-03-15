@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.13.10",
+  "version": "1.14.0",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -16,7 +16,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:debug": "tauri build --debug",
-    "tauri:build:linux": "tauri build --target linux",
+    "tauri:build:linux": "tauri build --bundles deb,rpm",
     "tauri:build:linux:appimage": "bash scripts/ci-build-appimage.sh",
     "tauri:build:linux:deb": "tauri build --target deb",
     "tauri:build:macos": "tauri build --target macos",

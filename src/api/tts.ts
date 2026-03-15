@@ -376,6 +376,25 @@ export async function generateSpeech(
   const preset = resolvePreset(tts, request.presetId);
   const voice = resolveVoice(tts, request.voiceId);
 
+  // Pocket TTS - local sidecar
+  if (tts.provider === "pocket") {
+    const { generatePocketSpeech } = await import("./pocketTts");
+    const pocketVoice = typeof voice.voice === "string" ? voice.voice : "alba";
+    const speed = tts.pocketSpeed ?? 1.0;
+
+    const result = await generatePocketSpeech({
+      text: request.text,
+      voice: pocketVoice,
+      speed,
+    });
+
+    return {
+      audioUrl: result.audioUrl,
+      durationSec: result.durationSec,
+      rawOutput: { provider: "pocket", voice: pocketVoice },
+    };
+  }
+
   if (tts.provider === "groq") {
     const groqVoice = typeof voice.voice === "string" ? voice.voice.toLowerCase() : "fiora";
     const speed = Math.max(0.5, Math.min(2, 1 + (preset.temperature - 0.9) * 0.4));
