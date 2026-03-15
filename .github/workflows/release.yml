@@ -158,6 +158,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+          POCKET_TTS_BUNDLE_RUNTIME: "1"
         with:
           tagName: ${{ steps.get_version.outputs.VERSION }}
           releaseName: 'Incrementum ${{ steps.get_version.outputs.VERSION }}'
@@ -323,6 +324,7 @@ jobs:
           TAURI_BUNDLE_APPIMAGE: "true"
           APPIMAGE_EXTRACT_AND_RUN: "1"
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+          POCKET_TTS_BUNDLE_RUNTIME: "1"
 
       - name: Upload AppImage to release
         uses: softprops/action-gh-release@v2

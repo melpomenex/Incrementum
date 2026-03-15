@@ -3,6 +3,7 @@ import {
   AlertCircle,
   Check,
   Copy,
+  Download,
   Loader2,
   Mic,
   Play,
@@ -11,8 +12,11 @@ import {
   Save,
   Trash2,
   Volume2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { cloneVoice, generateSpeech, TTSServiceError } from "../../api/tts";
+import { checkPocketTTSAvailable } from "../../api/pocketTts";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
   FAL_LANGUAGES,
@@ -21,8 +25,10 @@ import {
   validateTTSConfiguration,
   type TTSPreset,
   type TTSVoiceProfile,
+  type TTSProvider,
 } from "../../utils/ttsSettings";
 import { cn } from "../../utils";
+import { isTauri } from "../../lib/tauri";
 
 const MAX_SAMPLE_FILE_SIZE_MB = 12;
 const MAX_SAMPLE_DURATION_SECONDS = 45;
@@ -363,15 +369,75 @@ export function TTSSettings() {
     });
   };
 
-  const setProvider = (provider: "fal" | "groq") => {
+  const setProvider = (provider: TTSProvider) => {
     const latestTts = useSettingsStore.getState().settings.tts ?? createDefaultTTSSettings();
     const voices = getVoicesForProvider(latestTts, provider);
     updateTTS({
       provider,
-      requestMode: provider === "groq" ? "direct" : latestTts.requestMode,
+      requestMode: provider === "groq" || provider === "pocket" ? "direct" : latestTts.requestMode,
       defaultVoiceId: voices[0]?.id || latestTts.defaultVoiceId,
     });
   };
+
+  // Pocket TTS status
+  const [pocketStatus, setPocketStatus] = useState<{
+    available: boolean;
+    downloading: boolean;
+    downloadProgress: number;
+    error?: string;
+  }>({ available: false, downloading: false, downloadProgress: 0 });
+
+  // Check Pocket TTS availability on mount
+  useEffect(() => {
+    if (!isTauri()) {
+      setPocketStatus({ available: false, downloading: false, downloadProgress: 0 });
+      return;
+    }
+
+    checkPocketTTSAvailable().then((status) => {
+      setPocketStatus({
+        available: status.available,
+        downloading: status.downloading,
+        downloadProgress: status.downloadProgress ?? 0,
+        error: status.error,
+      });
+    });
+  }, []);
+
+  const handleDownloadPocketTTS = async () => {
+    if (!isTauri()) return;
+
+    setPocketStatus((prev) => ({ ...prev, downloading: true, downloadProgress: 0, error: undefined }));
+
+    try {
+      // Pocket TTS downloads models automatically on first use
+      // We trigger a short synthesis to force model download
+      const { generatePocketSpeech } = await import("../../api/pocketTts");
+
+      setPocketStatus((prev) => ({ ...prev, downloadProgress: 50 }));
+
+      await generatePocketSpeech({
+        text: "Download complete.",
+        voice: "alba",
+      });
+
+      setPocketStatus({
+        available: true,
+        downloading: false,
+        downloadProgress: 100,
+        error: undefined,
+      });
+    } catch (error) {
+      setPocketStatus((prev) => ({
+        ...prev,
+        downloading: false,
+        error: error instanceof Error ? error.message : "Failed to initialize Pocket TTS",
+      }));
+    }
+  };
+
+  const isPocketProvider = tts.provider === "pocket";
+  const showPocketOption = isTauri();
 
   return (
     <div className="space-y-8">
@@ -405,12 +471,16 @@ export function TTSSettings() {
             <span className="font-medium text-foreground">Provider</span>
             <select
               value={tts.provider}
-              onChange={(e) => setProvider(e.target.value as "fal" | "groq")}
+              onChange={(e) => setProvider(e.target.value as TTSProvider)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2"
             >
-              <option value="fal">Fal.ai</option>
-              <option value="groq">Groq</option>
+              <option value="fal">Fal.ai (cloud)</option>
+              <option value="groq">Groq (cloud)</option>
+              {showPocketOption && <option value="pocket">Pocket TTS (local)</option>}
             </select>
+            {!showPocketOption && (
+              <span className="text-xs text-muted-foreground">Pocket TTS (local) requires desktop app</span>
+            )}
           </label>
 
           {isGroqProvider ? (
@@ -418,6 +488,13 @@ export function TTSSettings() {
               <span className="font-medium text-foreground">Request Mode</span>
               <div className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-foreground">
                 Direct (client to Groq)
+              </div>
+            </div>
+          ) : isPocketProvider ? (
+            <div className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Request Mode</span>
+              <div className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-foreground">
+                Local (offline, no API)
               </div>
             </div>
           ) : (
@@ -434,7 +511,7 @@ export function TTSSettings() {
             </label>
           )}
 
-          {!isGroqProvider && (
+          {!isGroqProvider && !isPocketProvider && (
             <label className="space-y-1 text-sm">
               <span className="font-medium text-foreground">Language</span>
               <select
@@ -448,7 +525,73 @@ export function TTSSettings() {
               </select>
             </label>
           )}
+
+          {isPocketProvider && (
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-foreground">Speed</span>
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={tts.pocketSpeed ?? 1.0}
+                onChange={(e) => updateTTS({ pocketSpeed: parseFloat(e.target.value) })}
+                className="w-full"
+              />
+              <span className="text-xs text-muted-foreground">{(tts.pocketSpeed ?? 1.0).toFixed(1)}x</span>
+            </label>
+          )}
         </div>
+
+        {/* Pocket TTS Status Panel */}
+        {isPocketProvider && (
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {pocketStatus.available ? (
+                  <WifiOff className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Wifi className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="font-medium text-foreground">
+                  {pocketStatus.available
+                    ? "Pocket TTS Ready (Offline)"
+                    : pocketStatus.downloading
+                      ? "Downloading Model..."
+                      : "Pocket TTS Not Installed"}
+                </span>
+              </div>
+              {!pocketStatus.available && !pocketStatus.downloading && (
+                <button
+                  onClick={handleDownloadPocketTTS}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+              )}
+            </div>
+            {pocketStatus.downloading && (
+              <div className="mt-3">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${pocketStatus.downloadProgress}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {pocketStatus.downloadProgress.toFixed(0)}% downloaded
+                </p>
+              </div>
+            )}
+            {pocketStatus.error && (
+              <p className="mt-2 text-xs text-destructive">{pocketStatus.error}</p>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Pocket TTS runs locally on your CPU. No internet required after download.
+            </p>
+          </div>
+        )}
 
         {!ttsConfigValidation.valid && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -456,6 +599,8 @@ export function TTSSettings() {
           </div>
         )}
 
+        {/* API Key section - not needed for Pocket TTS */}
+        {!isPocketProvider && (
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-foreground">{tts.provider === "groq" ? "Groq API Key" : "Fal API Key"}</span>
@@ -487,8 +632,10 @@ export function TTSSettings() {
             </label>
           )}
         </div>
+        )}
 
-        {tts.provider === "fal" ? (
+        {/* Fal-specific model settings */}
+        {tts.provider === "fal" && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1 text-sm">
               <span className="font-medium text-foreground">TTS Model ID</span>
@@ -509,7 +656,10 @@ export function TTSSettings() {
               />
             </label>
           </div>
-        ) : (
+        )}
+
+        {/* Groq-specific model settings */}
+        {tts.provider === "groq" && (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1 text-sm">
               <span className="font-medium text-foreground">Groq TTS Model</span>

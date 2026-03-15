@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-03-15
+
+### Added
+- **Pocket TTS Integration** - Local CPU-based text-to-speech for offline, privacy-focused audio playback
+  - New "Pocket TTS" provider option alongside Fal.ai and Groq cloud TTS
+  - 8 pre-built voices: alba, marius, javert, jean, fantine, cosette, eponine, azelma
+  - Bundled as a Tauri sidecar binary for seamless desktop integration
+  - Low-latency synthesis (~200ms to first audio) running entirely on CPU
+  - Automatic text chunking optimized for streaming long documents
+  - Voice selection UI in Settings > Text To Speech
+  - Integrated TTS controls in document viewers (PDF, EPUB, Markdown)
+
+### Changed
+- Extended TTS settings schema to support Pocket TTS provider configuration
+- Updated TTS hook and controls for streaming audio playback support
+
 ## [1.13.0] - 2026-03-01
 
 ### Added
