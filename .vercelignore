@@ -1,0 +1,67 @@
+# Vite/build output
+dist/
+node_modules
+*.local
+*.log
+*.tsbuildinfo
+
+# Tauri specific
+src-tauri/
+src-tauri/bin/
+src-tauri/Cargo.lock
+src-tauri/Cargo.tom
+src-tauri/.cargo
+!.gitignore
+!.vercelignore
+*.pem
+*.pem-ignore
+*.pem-*
+*.pem-*
+
+# whisper.cpp
+whisper.cpp/build/
+whisper.cpp/bindings
+whisper.cpp/cmake
+
+whisper.cpp/ffmpeg
+whisper.cpp/main
+*.md
+*.markdown
+*.pyc
+*.pyd
+*.pyo
+*.toml
+**/*.tsx
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.icns
+*.plist
+*.wasm
+*.mjs
+*.pbxproj
+*.xcworkspace
+*.cursorrules
+*.npmrc
+*.npmignore
+*.nvmrc
+*.env
+*.env.local
+*.env.production
+*.env.*.local
+!.vercelignore
+# API
+!api/youtube/transcript.ts.bak
+!api/**/*.test
+!api/**/*.spec.js
+!api/**/*.ts
+!api/**/*.ts.snap
+!api/**/*.tsx.bak
+
+# Ignore Python caches
+__pycache__/
+__pypackages__/
+!.vercelignore
