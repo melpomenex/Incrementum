@@ -25,43 +25,20 @@ whisper.cpp/cmake
 
 whisper.cpp/ffmpeg
 whisper.cpp/main
-*.md
-*.markdown
+
+# Ignore build artifacts and common excludes, but keep source files
 *.pyc
 *.pyd
 *.pyo
-*.toml
-**/*.tsx
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.ico
-*.icns
-*.plist
-*.wasm
-*.mjs
+__pycache__/
+__pypackages__/
+
 *.pbxproj
 *.xcworkspace
 *.cursorrules
 *.npmrc
 *.npmignore
 *.nvmrc
-*.env
-*.env.local
-*.env.production
-*.env.*.local
-!.vercelignore
-# API
-!api/youtube/transcript.ts.bak
-!api/**/*.test
-!api/**/*.spec.js
-!api/**/*.ts
-!api/**/*.ts.snap
-!api/**/*.tsx.bak
 
-# Ignore Python caches
-__pycache__/
-__pypackages__/
-!.vercelignore
+# Only ignore specific large/unneeded files, not all source files
+# The previous broad ignores like **/*.tsx were preventing the build from working
