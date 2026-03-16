@@ -2,11 +2,9 @@
 jobs = 1
 target-dir = "target"
 
-# Use LLVM's linker through clang to avoid GNU ld segfaults seen on large
-# local builds in this environment.
+# Use gcc linker (GNU ld) — LLD 21 was segfaulting on this codebase.
 [target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+linker = "gcc"
 
 # NOTE: We intentionally do NOT force `mold` here.
 # In some environments `-fuse-ld=mold` has caused non-deterministic build

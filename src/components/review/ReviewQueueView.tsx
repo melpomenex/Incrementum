@@ -160,7 +160,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     if (item.itemType !== "learning-item") return null;
     const raw = item.clozeText || item.question || "";
     if (!raw) return null;
-    const noCloze = raw.replace(/\[\[c\\d+::(.*?)\\]\]/g, "$1");
+    const noCloze = raw.replace(/\[\[c\d+::(.*?)\]\]/g, "$1");
     const withoutHtml = noCloze.replace(/<[^>]*>/g, " ");
     const trimmed = withoutHtml.replace(/\s+/g, " ").trim();
     if (!trimmed) return null;

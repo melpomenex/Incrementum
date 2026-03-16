@@ -19,7 +19,10 @@ interface ReaderTTSControlsProps {
 
 const CHUNK_TARGET = 420;
 const CHUNK_MAX = 700;
-const PREFETCH_COUNT = 3; // How many chunks to pre-generate
+const BUFFER_TARGET_SEC = 12;   // target seconds of audio buffered ahead
+const MAX_CONCURRENT_GEN = 2;   // max parallel sidecar invocations
+const EVICT_BEHIND_COUNT = 3;   // keep N already-played chunks in memory
+const CLOUD_PREFETCH_COUNT = 3; // simple fire-and-forget for fast cloud providers
 
 function normalizeText(text: string): string {
   return text
@@ -114,7 +117,64 @@ export function ReaderTTSControls({
   const wasPlayingRef = useRef(false);
   const intentionalStopRef = useRef(false);
 
+  // Buffer underrun indicator
+  const [isBuffering, setIsBuffering] = useState(false);
+
   const chunks = useMemo(() => buildChunks(text), [text]);
+
+  // Sync refs for values read in callbacks (avoids stale closures)
+  const isAutoPlayingRef = useRef(isAutoPlaying);
+  isAutoPlayingRef.current = isAutoPlaying;
+  const bufferStatusRef = useRef(bufferStatus);
+  bufferStatusRef.current = bufferStatus;
+  const chunksLenRef = useRef(chunks.length);
+  chunksLenRef.current = chunks.length;
+
+  // Buffer manager — tracks adaptive state for Pocket TTS
+  const bufferMgrRef = useRef({
+    activeGenCount: 0,
+    queuedIndices: new Set<number>(),
+    avgGenTimeMs: 0,
+    avgPlaybackDurationMs: 0,
+    getBufferedSecondsAhead(index: number): number {
+      let total = 0;
+      for (let i = index; i < chunksLenRef.current; i++) {
+        const entry = audioBufferRef.current.get(i);
+        if (!entry) break;
+        total += entry.durationSec ?? 3; // fallback ~3s if unknown
+      }
+      return total;
+    },
+    evictPlayedChunks(index: number) {
+      const cutoff = index - EVICT_BEHIND_COUNT;
+      for (const key of audioBufferRef.current.keys()) {
+        if (key < cutoff) {
+          audioBufferRef.current.delete(key);
+        }
+      }
+      // Also clean bufferStatus
+      setBufferStatus(prev => {
+        const next = new Map(prev);
+        let changed = false;
+        for (const key of next.keys()) {
+          if (key < cutoff) {
+            next.delete(key);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    },
+    reset() {
+      this.activeGenCount = 0;
+      this.queuedIndices.clear();
+      this.avgGenTimeMs = 0;
+      this.avgPlaybackDurationMs = 0;
+    },
+  });
+
+  // Detect if we're using Pocket TTS (local/slow provider)
+  const isPocketProvider = tts?.provider === "pocket";
 
   // Create a text fingerprint to detect when content actually changes
   const textFingerprint = useMemo(
@@ -140,12 +200,14 @@ export function ReaderTTSControls({
   useEffect(() => {
     setChunkIndex(0);
     setIsAutoPlaying(false);
+    setIsBuffering(false);
     intentionalStopRef.current = true;
     stopAudio();
 
     // Clear buffer
     audioBufferRef.current.clear();
     setBufferStatus(new Map());
+    bufferMgrRef.current.reset();
   }, [textFingerprint]);
 
   // Stop audio helper
@@ -169,10 +231,12 @@ export function ReaderTTSControls({
     try {
       setBufferStatus(prev => new Map(prev).set(index, "loading"));
 
+      const t0 = performance.now();
       const result = await generateSpeech(settings, {
         text: chunk,
         voiceId,
       });
+      const genTimeMs = performance.now() - t0;
 
       const buffered: BufferedAudio = {
         audioUrl: result.audioUrl,
@@ -182,43 +246,105 @@ export function ReaderTTSControls({
       audioBufferRef.current.set(index, buffered);
       setBufferStatus(prev => new Map(prev).set(index, "ready"));
 
+      // Update EMA averages for adaptive buffering
+      const mgr = bufferMgrRef.current;
+      const alpha = 0.3; // smoothing factor
+      if (mgr.avgGenTimeMs === 0) {
+        mgr.avgGenTimeMs = genTimeMs;
+      } else {
+        mgr.avgGenTimeMs = alpha * genTimeMs + (1 - alpha) * mgr.avgGenTimeMs;
+      }
+      const durMs = (result.durationSec ?? 3) * 1000;
+      if (mgr.avgPlaybackDurationMs === 0) {
+        mgr.avgPlaybackDurationMs = durMs;
+      } else {
+        mgr.avgPlaybackDurationMs = alpha * durMs + (1 - alpha) * mgr.avgPlaybackDurationMs;
+      }
+
+      // Decrement active gen count
+      mgr.activeGenCount = Math.max(0, mgr.activeGenCount - 1);
+      mgr.queuedIndices.delete(index);
+
       return buffered;
     } catch (error) {
       console.error(`Failed to generate audio for chunk ${index}:`, error);
       setBufferStatus(prev => new Map(prev).set(index, "error"));
+      bufferMgrRef.current.activeGenCount = Math.max(0, bufferMgrRef.current.activeGenCount - 1);
+      bufferMgrRef.current.queuedIndices.delete(index);
       return null;
     }
   }, [chunks, settings, voiceId]);
 
   // Pre-buffer upcoming chunks
-  const preBufferChunks = useCallback(async (fromIndex: number) => {
-    const indicesToBuffer: number[] = [];
+  const preBufferChunks = useCallback((fromIndex: number) => {
+    // Evict old chunks
+    bufferMgrRef.current.evictPlayedChunks(fromIndex);
 
-    for (let i = 0; i < PREFETCH_COUNT; i++) {
-      const idx = fromIndex + i;
-      if (idx < chunks.length && !audioBufferRef.current.has(idx)) {
-        indicesToBuffer.push(idx);
+    if (isPocketProvider) {
+      // --- Pocket TTS: adaptive time-based lookahead ---
+      const mgr = bufferMgrRef.current;
+      const secondsAhead = mgr.getBufferedSecondsAhead(fromIndex);
+
+      // If gen is slower than playback, scale target up proportionally
+      let target = BUFFER_TARGET_SEC;
+      if (mgr.avgGenTimeMs > 0 && mgr.avgPlaybackDurationMs > 0) {
+        const ratio = mgr.avgGenTimeMs / mgr.avgPlaybackDurationMs;
+        if (ratio > 1) target = BUFFER_TARGET_SEC * ratio;
+      }
+
+      if (secondsAhead >= target) return;
+
+      // Find next unbuffered chunks until we hit target
+      let bufferedSec = secondsAhead;
+      let idx = fromIndex;
+      while (idx < chunks.length && bufferedSec < target) {
+        if (!audioBufferRef.current.has(idx) && !mgr.queuedIndices.has(idx)) {
+          // Check buffer status too (might be loading/pending)
+          const status = bufferStatusRef.current.get(idx);
+          if (!status || status === "error") {
+            // Concurrency gate
+            if (mgr.activeGenCount < MAX_CONCURRENT_GEN) {
+              mgr.activeGenCount++;
+              mgr.queuedIndices.add(idx);
+              setBufferStatus(prev => new Map(prev).set(idx, "pending"));
+              generateChunkAudio(idx).catch(err => {
+                console.warn(`Background generation failed for chunk ${idx}:`, err);
+              });
+            }
+          }
+        }
+        const entry = audioBufferRef.current.get(idx);
+        if (entry) bufferedSec += entry.durationSec ?? 3;
+        idx++;
+      }
+    } else {
+      // --- Cloud providers (Fal, Groq): simple fire-and-forget ---
+      const indicesToBuffer: number[] = [];
+      for (let i = 0; i < CLOUD_PREFETCH_COUNT; i++) {
+        const idx = fromIndex + i;
+        if (idx < chunks.length && !audioBufferRef.current.has(idx)) {
+          indicesToBuffer.push(idx);
+        }
+      }
+
+      for (const idx of indicesToBuffer) {
+        setBufferStatus(prev => {
+          const next = new Map(prev);
+          if (!next.has(idx)) next.set(idx, "pending");
+          return next;
+        });
+      }
+
+      for (const idx of indicesToBuffer) {
+        generateChunkAudio(idx).catch(err => {
+          console.warn(`Background generation failed for chunk ${idx}:`, err);
+        });
       }
     }
+  }, [chunks.length, generateChunkAudio, isPocketProvider]);
 
-    // Mark as pending
-    for (const idx of indicesToBuffer) {
-      setBufferStatus(prev => {
-        const next = new Map(prev);
-        if (!next.has(idx)) {
-          next.set(idx, "pending");
-        }
-        return next;
-      });
-    }
-
-    // Generate in parallel (but don't wait for all)
-    for (const idx of indicesToBuffer) {
-      generateChunkAudio(idx).catch(err => {
-        console.warn(`Background generation failed for chunk ${idx}:`, err);
-      });
-    }
-  }, [chunks.length, generateChunkAudio]);
+  // Ref so audio.onended always calls the latest playChunkAtIndex (avoids stale closure)
+  const playChunkAtIndexRef = useRef<(index: number) => Promise<void>>(() => Promise.resolve());
 
   // Play a chunk by index
   const playChunkAtIndex = useCallback(async (index: number) => {
@@ -232,8 +358,10 @@ export function ReaderTTSControls({
     let buffered = audioBufferRef.current.get(index);
 
     if (!buffered) {
-      // Need to generate now
+      // Buffer underrun — show indicator and generate synchronously
+      setIsBuffering(true);
       buffered = await generateChunkAudio(index);
+      setIsBuffering(false);
       if (!buffered) {
         console.error("Failed to generate audio for chunk", index);
         setIsAutoPlaying(false);
@@ -265,11 +393,11 @@ export function ReaderTTSControls({
       setIsPlaying(false);
       setIsPaused(false);
 
-      // Auto-advance if still in auto-play mode
-      if (isAutoPlaying && autoAdvance && !intentionalStopRef.current) {
+      // Auto-advance if still in auto-play mode (use ref to avoid stale closure)
+      if (isAutoPlayingRef.current && autoAdvance && !intentionalStopRef.current) {
         const nextIndex = index + 1;
-        if (nextIndex < chunks.length) {
-          playChunkAtIndex(nextIndex);
+        if (nextIndex < chunksLenRef.current) {
+          playChunkAtIndexRef.current(nextIndex);
         } else {
           // All done
           setIsAutoPlaying(false);
@@ -292,7 +420,8 @@ export function ReaderTTSControls({
       console.error("Failed to play audio:", error);
       setIsPlaying(false);
     }
-  }, [chunks, playbackRate, isAutoPlaying, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart]);
+  }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart]);
+  playChunkAtIndexRef.current = playChunkAtIndex;
 
   // Start pre-buffering when component mounts or text changes
   useEffect(() => {
@@ -351,6 +480,7 @@ export function ReaderTTSControls({
     // Clear buffer when voice changes since audio URLs are voice-specific
     audioBufferRef.current.clear();
     setBufferStatus(new Map());
+    bufferMgrRef.current.reset();
   };
 
   const speedOptions = [0.8, 1, 1.2, 1.5, 2];
@@ -385,7 +515,9 @@ export function ReaderTTSControls({
           disabled={isLoading}
           title={isPlaying ? (isPaused ? "Resume" : "Pause") : "Play"}
         >
-          {isLoading ? (
+          {isBuffering && isAutoPlaying ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : isLoading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : isPlaying && !isPaused ? (
             <Pause className="h-3.5 w-3.5" />
@@ -451,7 +583,7 @@ export function ReaderTTSControls({
         </span>
       </div>
       <p className="mt-1 max-w-[26rem] truncate text-[11px] text-muted-foreground" title={currentChunk}>
-        {isLoading ? "Generating audio..." : currentChunk}
+        {isBuffering && isAutoPlaying ? "Buffering next segment..." : isLoading ? "Generating audio..." : currentChunk}
       </p>
     </div>
   );

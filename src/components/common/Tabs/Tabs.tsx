@@ -61,49 +61,54 @@ export function Tabs() {
 
   // Handle keyboard shortcuts for tab navigation
   useEffect(() => {
+    const cycleTab = (direction: 1 | -1) => {
+      const paneIds = useTabsStore.getState().getTabPaneIds();
+      const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
+      if (firstPane && firstPane.type === "tabs") {
+        const safePane = normalizePane(firstPane);
+        if (safePane.type === "tabs" && safePane.tabIds.length > 0) {
+          const currentIndex = safePane.tabIds.findIndex((id) => id === safePane.activeTabId);
+          const nextIndex = direction === 1
+            ? (currentIndex + 1) % safePane.tabIds.length
+            : currentIndex <= 0 ? safePane.tabIds.length - 1 : currentIndex - 1;
+          if (safePane.tabIds[nextIndex]) {
+            setActiveTab(safePane.id, safePane.tabIds[nextIndex]);
+          }
+        }
+      }
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      const target = e.target as HTMLElement;
+
+      // Don't intercept when typing in inputs, textareas, or contentEditable
+      const isEditable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
+      // Alt+ArrowLeft / Alt+ArrowRight: Previous/Next tab
+      if (e.altKey && !ctrlOrMeta && (e.key === "ArrowLeft" || e.key === "ArrowRight") && !isEditable) {
+        e.preventDefault();
+        cycleTab(e.key === "ArrowRight" ? 1 : -1);
+        return;
+      }
 
       // Ctrl+Tab: Next tab in current pane
       if (ctrlOrMeta && e.key === "Tab" && !e.shiftKey) {
         e.preventDefault();
-        // Find the currently focused pane and cycle through its tabs
-        const paneIds = useTabsStore.getState().getTabPaneIds();
-        // For now, cycle through first pane's tabs
-        const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
-        if (firstPane && firstPane.type === "tabs") {
-          const safePane = normalizePane(firstPane);
-          if (safePane.type === "tabs" && safePane.tabIds.length > 0) {
-            const currentIndex = safePane.tabIds.findIndex((id) => id === safePane.activeTabId);
-            const nextIndex = (currentIndex + 1) % safePane.tabIds.length;
-            if (safePane.tabIds[nextIndex]) {
-              setActiveTab(safePane.id, safePane.tabIds[nextIndex]);
-            }
-          }
-        }
+        cycleTab(1);
+        return;
       }
 
       // Ctrl+Shift+Tab: Previous tab in current pane
       if (ctrlOrMeta && e.shiftKey && e.key === "Tab") {
         e.preventDefault();
-        const paneIds = useTabsStore.getState().getTabPaneIds();
-        const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
-        if (firstPane && firstPane.type === "tabs") {
-          const safePane = normalizePane(firstPane);
-          if (safePane.type === "tabs" && safePane.tabIds.length > 0) {
-            const currentIndex = safePane.tabIds.findIndex((id) => id === safePane.activeTabId);
-            const prevIndex = currentIndex <= 0 ? safePane.tabIds.length - 1 : currentIndex - 1;
-            if (safePane.tabIds[prevIndex]) {
-              setActiveTab(safePane.id, safePane.tabIds[prevIndex]);
-            }
-          }
-        }
+        cycleTab(-1);
+        return;
       }
 
       // Ctrl+W: Close current tab
       if (ctrlOrMeta && e.key === "w") {
         e.preventDefault();
-        // Find active tab in any pane
         const paneIds = useTabsStore.getState().getTabPaneIds();
         for (const paneId of paneIds) {
           const pane = useTabsStore.getState().findPaneById(paneId);

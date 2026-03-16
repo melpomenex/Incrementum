@@ -14,9 +14,11 @@ interface GeneratedCardsPopoverProps {
 }
 
 function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
-  if (!item.cloze_text || !item.cloze_ranges) {
+  if (!item.cloze_text) {
     return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.question) }} />;
   }
+
+  if (item.cloze_ranges) {
 
   const text = item.cloze_text;
   const ranges = item.cloze_ranges;
@@ -66,6 +68,34 @@ function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
   }
 
   return <>{parts}</>;
+  }
+
+  // Fallback: parse [[cN::content]] markers from cloze_text via regex
+  const parts = item.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
+  return (
+    <span>
+      {parts.map((part, idx) => {
+        if (idx % 3 === 1) return null;
+        if (idx % 3 === 2) {
+          if (isAnswerRevealed) {
+            return (
+              <span
+                key={idx}
+                className="bg-green-500/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded font-semibold text-sm"
+                dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }}
+              />
+            );
+          }
+          return (
+            <span key={idx} className="bg-primary/20 px-2 py-0.5 rounded mx-0.5 text-sm">
+              [...]
+            </span>
+          );
+        }
+        return <span key={idx} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }} />;
+      })}
+    </span>
+  );
 }
 
 function getQuestionContent(item: LearningItem, isAnswerRevealed: boolean) {
