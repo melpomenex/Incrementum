@@ -82,9 +82,12 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
 
     // Render cloze text with blanks or revealed answers
     const renderClozeText = () => {
-        if (!learningItem.cloze_text || !learningItem.cloze_ranges) {
+        if (!learningItem.cloze_text) {
             return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.question) }} />;
         }
+
+        // If cloze_ranges are available, use range-based rendering
+        if (learningItem.cloze_ranges) {
 
         const text = learningItem.cloze_text;
         const ranges = learningItem.cloze_ranges;
@@ -137,6 +140,37 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         }
 
         return <>{parts}</>;
+        }
+
+        // Fallback: parse [[cN::content]] markers from cloze_text via regex
+        const parts = learningItem.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
+        return (
+            <span className="text-lg leading-relaxed">
+                {parts.map((part, idx) => {
+                    if (idx % 3 === 1) return null; // Skip the cloze number
+                    if (idx % 3 === 2) {
+                        if (isAnswerRevealed) {
+                            return (
+                                <span
+                                    key={idx}
+                                    className="bg-green-500/20 text-green-400 px-2 py-0.5 rounded font-semibold"
+                                    dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }}
+                                />
+                            );
+                        }
+                        return (
+                            <span
+                                key={idx}
+                                className="bg-primary/30 px-4 py-0.5 rounded mx-1"
+                            >
+                                [...]
+                            </span>
+                        );
+                    }
+                    return <span key={idx} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }} />;
+                })}
+            </span>
+        );
     };
 
     // Get display content based on item type

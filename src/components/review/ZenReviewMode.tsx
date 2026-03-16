@@ -52,19 +52,59 @@ function ZenCard({
   }
 
   const card = item as any;
-  
-  return (
-    <div className="max-w-2xl mx-auto text-center">
-      {/* Question */}
-      <div 
+
+  // Render cloze text by parsing [[cN::content]] markers
+  const renderQuestion = () => {
+    const clozeText = card.cloze_text;
+    if (clozeText && /\[\[c\d+::/.test(clozeText)) {
+      const parts = clozeText.split(/\[\[c(\d+)::(.*?)\]\]/g);
+      return (
+        <div
+          className={cn(
+            "prose prose-xl dark:prose-invert max-w-none transition-opacity duration-75",
+            showAnswer && "opacity-60"
+          )}
+        >
+          {parts.map((part: string, idx: number) => {
+            if (idx % 3 === 1) return null; // Skip the cloze number
+            if (idx % 3 === 2) {
+              if (showAnswer) {
+                return (
+                  <span
+                    key={idx}
+                    className="bg-primary/20 px-1 rounded font-semibold"
+                    dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }}
+                  />
+                );
+              }
+              return (
+                <span key={idx} className="bg-muted px-2 py-0.5 rounded text-foreground font-bold border border-border/50">
+                  [...]
+                </span>
+              );
+            }
+            return <span key={idx} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(part) }} />;
+          })}
+        </div>
+      );
+    }
+    return (
+      <div
         className={cn(
           "prose prose-xl dark:prose-invert max-w-none transition-opacity duration-75",
           showAnswer && "opacity-60"
         )}
-        dangerouslySetInnerHTML={{ 
-          __html: renderAnkiHtmlWithLatex(card.question || card.cloze_text || "No question") 
+        dangerouslySetInnerHTML={{
+          __html: renderAnkiHtmlWithLatex(card.question || card.cloze_text || "No question")
         }}
       />
+    );
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto text-center">
+      {/* Question */}
+      {renderQuestion()}
       
       {/* Answer reveal */}
       {!showAnswer ? (
@@ -74,7 +114,7 @@ function ZenCard({
         >
           Press Space to reveal
         </button>
-      ) : (
+      ) : card.item_type === "Cloze" ? null : (
         <div className="mt-8 pt-8 border-t border-border/20">
           <div 
             className="prose prose-lg dark:prose-invert max-w-none text-foreground/80"
