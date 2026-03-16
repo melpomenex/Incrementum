@@ -5,6 +5,9 @@
  * and PWA-specific functionality.
  */
 
+import { useState, useEffect } from 'react';
+import { isTauri } from './tauri';
+
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 type DocumentWithFullscreen = Document & {
   webkitFullscreenElement?: Element | null;
@@ -381,7 +384,3 @@ export function usePWAStatus() {
     device: getDeviceInfo()
   };
 }
-
-// Import useState and useEffect for the hook
-import { useState, useEffect } from 'react';
-import { isTauri } from './tauri';
