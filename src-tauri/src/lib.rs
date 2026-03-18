@@ -17,8 +17,7 @@ mod integrations;
 mod ocr;
 mod segmentation;
 mod notifications;
-// TEMPORARILY DISABLED for debugging Windows startup crash
-// mod mcp;
+mod mcp;
 mod cloud;
 mod cloud_sync;
 mod backup;
@@ -573,15 +572,17 @@ pub fn run() {
             commands::get_notification_settings,
             commands::update_notification_settings,
             commands::create_custom_notification,
-            // MCP commands - TEMPORARILY DISABLED for debugging Windows startup crash
-            // commands::mcp::mcp_list_servers,
-            // commands::mcp::mcp_add_server,
-            // commands::mcp::mcp_remove_server,
-            // commands::mcp::mcp_update_server,
-            // commands::mcp::mcp_list_tools,
-            // commands::mcp::mcp_call_tool,
-            // commands::mcp::mcp_get_incrementum_tools,
-            // commands::mcp::mcp_call_incrementum_tool,
+            // MCP commands
+            commands::mcp::mcp_list_servers,
+            commands::mcp::mcp_add_server,
+            commands::mcp::mcp_remove_server,
+            commands::mcp::mcp_update_server,
+            commands::mcp::mcp_list_tools,
+            commands::mcp::mcp_call_tool,
+            commands::mcp::mcp_get_incrementum_tools,
+            commands::mcp::mcp_call_incrementum_tool,
+            commands::mcp::mcp_get_server_tools,
+            commands::mcp::mcp_get_server_info,
             // LLM commands
             commands::llm::llm_chat,
             commands::llm::llm_chat_with_context,

@@ -553,6 +553,11 @@ export async function getAllLearningItems(): Promise<LearningItem[]> {
     return items.filter(i => !i._deleted);
 }
 
+// Alias for getAllLearningItems for API consistency
+export async function getLearningItems(): Promise<LearningItem[]> {
+    return getAllLearningItems();
+}
+
 export async function updateLearningItem(id: string, updates: Partial<LearningItem>): Promise<LearningItem> {
     const existing = await getLearningItem(id);
     if (!existing) throw new Error(`Learning item ${id} not found`);
