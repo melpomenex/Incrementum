@@ -16,7 +16,7 @@ pub mod review;
 pub mod rss;
 pub mod segmentation;
 pub mod notifications;
-// pub mod mcp;
+pub mod mcp;
 pub mod llm;
 pub mod cloud;
 pub mod scheduler;
@@ -68,6 +68,7 @@ pub use audiobook::*;
 pub use semantic_search::*;
 pub use focus_timer::*;
 pub use image_registry::*;
+pub use mcp::*;
 
 // Cloud commands
 pub use cloud::oauth::*;
