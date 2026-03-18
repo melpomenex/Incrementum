@@ -9,6 +9,13 @@ import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 
+// Define outside component to keep a stable reference across renders
+const FONT_FAMILY_MAP: Record<string, string> = {
+  serif: "\"Iowan Old Style\", \"Charter\", \"Source Serif 4\", \"Palatino Linotype\", Palatino, Georgia, \"Times New Roman\", serif",
+  "sans-serif": "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+  monospace: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+};
+
 interface EPUBViewerProps {
   fileData?: Uint8Array | null;
   fileUrl?: string | null;
@@ -62,11 +69,13 @@ export function EPUBViewer({
   const fontFamilyRef = useRef(epubSettings.fontFamily);
   const lineHeightRef = useRef(epubSettings.lineHeight);
 
-  const fontFamilyMap: Record<string, string> = {
-    serif: "\"Iowan Old Style\", \"Charter\", \"Source Serif 4\", \"Palatino Linotype\", Palatino, Georgia, \"Times New Roman\", serif",
-    "sans-serif": "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-    monospace: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-  };
+  // Use refs for callback props so the main loading effect doesn't re-run when they change
+  const onContextTextChangeRef = useRef(onContextTextChange);
+  onContextTextChangeRef.current = onContextTextChange;
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+  const onProgressChangeRef = useRef(onProgressChange);
+  onProgressChangeRef.current = onProgressChange;
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
@@ -142,13 +151,16 @@ export function EPUBViewer({
     });
   }, [settings.documents, updateSettings]);
 
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
+
   const applyContentOverrides = useCallback((contents: any) => {
     const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
     const bgColor = themeRef.current.colors.background;
-    const fontFamily = fontFamilyMap[fontFamilyRef.current] || fontFamilyMap.serif;
-    const contentPadding = isMobile ? "1.25rem 1rem 4.5rem" : "2rem 3rem";
-    const contentMaxWidth = isMobile ? "40rem" : "100%";
-    const contentMargin = isMobile ? "0 auto" : "0";
+    const fontFamily = FONT_FAMILY_MAP[fontFamilyRef.current] || FONT_FAMILY_MAP.serif;
+    const contentPadding = isMobileRef.current ? "1.25rem 1rem 4.5rem" : "2rem 3rem";
+    const contentMaxWidth = isMobileRef.current ? "40rem" : "100%";
+    const contentMargin = isMobileRef.current ? "0 auto" : "0";
 
     const existing = contents.document.getElementById("epub-override-styles");
     if (existing) {
@@ -255,13 +267,13 @@ export function EPUBViewer({
       }
     `;
     contents.document.head.appendChild(style);
-  }, [fontFamilyMap, isMobile]);
+  }, []);
 
   const applyRenditionTheme = useCallback(() => {
     if (!rendition) return;
 
     const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
-    const fontFamily = fontFamilyMap[fontFamilyRef.current] || fontFamilyMap.serif;
+    const fontFamily = FONT_FAMILY_MAP[fontFamilyRef.current] || FONT_FAMILY_MAP.serif;
     rendition.themes.default({
       body: {
         "font-size": `${fontSizeRef.current}px !important`,
@@ -293,7 +305,7 @@ export function EPUBViewer({
     } catch {
       // Ignore if contents are not ready yet
     }
-  }, [applyContentOverrides, fontFamilyMap, rendition]);
+  }, [applyContentOverrides, rendition]);
 
   // Update font size
   const updateFontSize = useCallback((newSize: number) => {
@@ -524,7 +536,7 @@ export function EPUBViewer({
             console.log("EPUBViewer: Book displayed successfully");
           }
 
-          if (onContextTextChange) {
+          if (onContextTextChangeRef.current) {
             // Extract text from current chapter only (not entire book)
             const extractCurrentChapterText = () => {
               try {
@@ -535,7 +547,7 @@ export function EPUBViewer({
                     .filter(Boolean)
                     .join("\n\n");
                   if (text && mounted) {
-                    onContextTextChange(text);
+                    onContextTextChangeRef.current?.(text);
                   }
                 }
               } catch (err) {
@@ -584,7 +596,7 @@ export function EPUBViewer({
               if (typeof percent === "number" && !Number.isNaN(percent)) {
                 const rounded = Math.round(percent * 100);
                 setProgressPercent(rounded);
-                onProgressChange?.(rounded);
+                onProgressChangeRef.current?.(rounded);
               }
             } catch {
               // Ignore progress calculation errors
@@ -637,7 +649,7 @@ export function EPUBViewer({
             const selection = contents.window.getSelection();
             if (selection && selection.toString()) {
               selectionActiveRef.current = true;
-              onSelectionChange?.(selection.toString());
+              onSelectionChangeRef.current?.(selection.toString());
             }
           });
 
@@ -677,9 +689,10 @@ export function EPUBViewer({
         bookInstance.destroy();
       }
     };
-    // Note: onLoad is intentionally excluded from deps - it's a callback that
-    // shouldn't trigger reloading the EPUB source.
-  }, [fileData, fileUrl, documentId, initialCfi, loadReadingPosition, onContextTextChange, saveReadingPosition, settings.ai.maxTokens]);
+    // Note: onLoad, onContextTextChange, onSelectionChange, and onProgressChange are
+    // intentionally excluded from deps - they use refs to avoid destroying and
+    // recreating the EPUB book when parent callbacks change.
+  }, [fileData, fileUrl, documentId, initialCfi, loadReadingPosition, saveReadingPosition]);
 
   // Re-apply styles when settings or theme change
   useEffect(() => {

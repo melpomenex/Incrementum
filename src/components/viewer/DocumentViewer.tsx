@@ -533,6 +533,8 @@ export function DocumentViewer({
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
 
   // Mobile PWA text selection state
   const [mobileSelection, setMobileSelection] = useState<{
@@ -956,37 +958,17 @@ export function DocumentViewer({
     if (needsFileData) {
       setFileData(null);
       try {
-        // For PDFs in Tauri, load file data directly via backend command.
-        // The convertFileSrc URL approach causes WebKit errors on Linux (WebKitGTK).
-        if (inferredType === "pdf" && isTauri()) {
-          // Load PDF data directly via backend to avoid WebKit asset protocol issues
-          const base64Data = await documentsApi.readDocumentFile(doc.filePath);
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          console.log("[DocumentViewer] PDF data loaded via backend, size:", bytes.byteLength);
-          setFileData(bytes);
-        } else if (inferredType === "epub" && isTauri()) {
-          // EPUBs can use URL-based loading as they handle it differently
-          const url = await convertFileSrc(doc.filePath);
-          setEpubUrl(url);
-          console.log("[DocumentViewer] Using Tauri asset URL for EPUB:", url);
-        } else {
-          // Web/PWA: Read file through backend when byte buffer is required
-          const base64Data = await documentsApi.readDocumentFile(doc.filePath);
-
-          // Convert base64 to bytes for viewer consumption
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-
-          console.log("[DocumentViewer] File data loaded successfully, size:", bytes.byteLength);
-          setFileData(bytes);
+        // Load file data directly via backend for both PDFs and EPUBs in Tauri.
+        // The convertFileSrc URL approach causes WebKit/CORS errors on Linux (WebKitGTK)
+        // because epubjs uses XMLHttpRequest internally, which is blocked on asset://.
+        const base64Data = await documentsApi.readDocumentFile(doc.filePath);
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
+        console.log("[DocumentViewer] File data loaded via backend, type:", inferredType, "size:", bytes.byteLength);
+        setFileData(bytes);
       } catch (error) {
         console.error(`Failed to load ${inferredType}:`, error);
       } finally {
@@ -1172,7 +1154,7 @@ export function DocumentViewer({
       // Mark as viewed in session (for smart queue filtering)
       markItemViewed(documentId, false);
 
-      const doc = documents.find((d) => d.id === documentId);
+      const doc = documentsRef.current.find((d) => d.id === documentId);
       if (doc) {
         setCurrentDocument(doc);
         loadDocumentData(doc);
@@ -1190,7 +1172,7 @@ export function DocumentViewer({
           });
       }
     }
-  }, [documentId, documents, setCurrentDocument, loadDocumentData]);
+  }, [documentId, setCurrentDocument, loadDocumentData]);
 
   useEffect(() => {
     if (initialViewMode) {
@@ -2784,14 +2766,6 @@ export function DocumentViewer({
   }
 
   const hasPageNavigation = docType === "pdf" || docType === "epub";
-
-  console.log("[DocumentViewer] Render:", {
-    docType,
-    fileType: currentDocument.fileType,
-    filePath: currentDocument.filePath,
-    hasFileData: !!fileData,
-    fileDataLength: fileData?.byteLength,
-  });
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
