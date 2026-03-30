@@ -79,8 +79,8 @@ export function Settings() {
                 </div>
               </div>
               <select
-                value={settings.algorithm}
-                onChange={(e) => updateSettings({ algorithm: e.target.value as any })}
+                value={settings.learning.algorithm}
+                onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
                 <option value="fsrs">FSRS-5 (Recommended)</option>
