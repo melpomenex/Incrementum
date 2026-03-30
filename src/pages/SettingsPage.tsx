@@ -211,6 +211,7 @@ function GeneralSettings() {
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
                 <option value="fsrs">FSRS-5 (Recommended)</option>
+                <option value="sm18">SuperMemo 18</option>
                 <option value="sm2">SuperMemo 2</option>
               </select>
             </div>

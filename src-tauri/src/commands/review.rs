@@ -142,6 +142,7 @@ pub async fn submit_review(
     session_id: Option<String>,
     desired_retention: Option<f32>,
     fsrs_weights: Option<Vec<f32>>,
+    algorithm: Option<String>,
     no_schedule_update: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<LearningItem> {
@@ -150,19 +151,39 @@ pub async fn submit_review(
         rating,
         time_taken,
         session_id = session_id.as_deref().unwrap_or(""),
+        algorithm = algorithm.as_deref().unwrap_or("fsrs"),
         "submit_review invoked"
     );
-    apply_fsrs_review(
-        &repo,
-        &item_id,
-        rating,
-        time_taken,
-        session_id.as_deref(),
-        desired_retention.unwrap_or(DEFAULT_DESIRED_RETENTION),
-        fsrs_weights.as_deref(),
-        no_schedule_update.unwrap_or(false),
-    )
-    .await
+
+    let algo = algorithm.as_deref().unwrap_or("fsrs");
+
+    match algo {
+        "sm18" => {
+            apply_sm18_review(
+                &repo,
+                &item_id,
+                rating,
+                time_taken,
+                session_id.as_deref(),
+                desired_retention.unwrap_or(DEFAULT_DESIRED_RETENTION),
+            )
+            .await
+        }
+        _ => {
+            // FSRS (default) and SM-2 fallback
+            apply_fsrs_review(
+                &repo,
+                &item_id,
+                rating,
+                time_taken,
+                session_id.as_deref(),
+                desired_retention.unwrap_or(DEFAULT_DESIRED_RETENTION),
+                fsrs_weights.as_deref(),
+                no_schedule_update.unwrap_or(false),
+            )
+            .await
+        }
+    }
 }
 
 pub async fn apply_fsrs_review(
@@ -338,6 +359,137 @@ pub async fn apply_fsrs_review(
     Ok(item)
 }
 
+/// Apply SM-18 algorithm review logic
+pub async fn apply_sm18_review(
+    repo: &Repository,
+    item_id: &str,
+    rating: i32,
+    time_taken: i32,
+    session_id: Option<&str>,
+    _desired_retention: f32,
+) -> Result<LearningItem> {
+    use crate::algorithms::supermemo::{SM18Algorithm, SM18State};
+
+    let mut item = repo.get_learning_item(item_id).await?
+        .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", item_id)))?;
+
+    let review_rating = ReviewRating::from(rating);
+    let now = Utc::now();
+
+    let algorithm = SM18Algorithm::new();
+
+    // Calculate elapsed time since last review (in days)
+    let elapsed_days = item.last_review_date
+        .map(|lr| {
+            let duration = now - lr;
+            duration.num_seconds() as f64 / 86400.0
+        })
+        .unwrap_or(0.0)
+        .max(0.0);
+
+    // Build SM-18 state from persisted memory state
+    let sm18_state = item.memory_state.as_ref().map(|ms| SM18State {
+        stability: ms.stability,
+        difficulty: ms.difficulty,
+        interval: item.interval,
+        repetition: item.review_count as u32,
+        lapses: item.lapses as u32,
+    });
+
+    // Calculate next state
+    let result = algorithm.review(
+        sm18_state.as_ref().unwrap_or(&SM18State::default()),
+        review_rating,
+        elapsed_days,
+    );
+
+    let is_lapse = result.state.lapses > item.lapses as u32;
+
+    // Calculate due date
+    let interval_seconds = (result.interval_days * 86400.0).round().max(60.0) as i64;
+    item.due_date = now + Duration::seconds(interval_seconds);
+
+    // Update item fields
+    item.review_count += 1;
+    item.interval = result.interval_days;
+    item.last_review_date = Some(now);
+    item.date_modified = now;
+
+    // Persist SM-18 state
+    item.memory_state = Some(MemoryState {
+        stability: result.state.stability,
+        difficulty: result.state.difficulty,
+    });
+
+    if is_lapse {
+        item.lapses = result.state.lapses as i32;
+    }
+
+    if item.ease_factor <= 0.0 {
+        item.ease_factor = 2.5;
+    }
+
+    // Update state
+    item.state = if is_lapse {
+        ItemState::Relearning
+    } else if result.interval_days >= GRADUATION_INTERVAL_DAYS {
+        ItemState::Review
+    } else {
+        match item.state {
+            ItemState::New => ItemState::Learning,
+            ItemState::Relearning => ItemState::Relearning,
+            _ => ItemState::Learning,
+        }
+    };
+
+    // Save
+    repo.update_learning_item(&item).await?;
+
+    // Create review result record
+    let was_correct = !is_lapse;
+    let review_result_id = uuid::Uuid::new_v4().to_string();
+    repo.create_review_result(
+        &review_result_id,
+        session_id,
+        item_id,
+        rating,
+        time_taken,
+        &item.due_date,
+        item.interval,
+        item.ease_factor,
+    ).await?;
+
+    // Update study statistics
+    let today = now.format("%Y-%m-%d").to_string();
+    let (new_cards, learning_cards, review_cards) = match item.state {
+        ItemState::New => (1, 0, 0),
+        ItemState::Learning | ItemState::Relearning => (0, 1, 0),
+        ItemState::Review => (0, 0, 1),
+    };
+
+    repo.update_study_statistics(
+        &today,
+        1,
+        if was_correct { 1 } else { 0 },
+        time_taken,
+        new_cards,
+        learning_cards,
+        review_cards,
+    ).await?;
+
+    if let Some(sid) = session_id {
+        repo.update_review_session(
+            sid,
+            1,
+            if was_correct { 1 } else { 0 },
+            time_taken,
+            false,
+        ).await?;
+    }
+
+    Ok(item)
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct RestoreLearningItemStateRequest {
     pub item_id: String,
@@ -432,8 +584,48 @@ pub async fn get_next_review_times(
 #[tauri::command]
 pub async fn preview_review_intervals(
     item_id: String,
+    algorithm: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<PreviewIntervals> {
+    let algo = algorithm.as_deref().unwrap_or("fsrs");
+
+    if algo == "sm18" {
+        let item = repo.get_learning_item(&item_id).await?
+            .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", item_id)))?;
+
+        use crate::algorithms::supermemo::{SM18Algorithm, SM18State};
+        let sm18 = SM18Algorithm::new();
+        let now = Utc::now();
+        let elapsed_days = item.last_review_date
+            .map(|lr| (now - lr).num_seconds() as f64 / 86400.0)
+            .unwrap_or(0.0)
+            .max(0.0);
+
+        let sm18_state = SM18State {
+            stability: item.memory_state.as_ref().map(|ms| ms.stability).unwrap_or(0.0),
+            difficulty: item.memory_state.as_ref().map(|ms| ms.difficulty).unwrap_or(0.5),
+            interval: item.interval,
+            repetition: item.review_count as u32,
+            lapses: item.lapses as u32,
+        };
+
+        let again = sm18.review(&sm18_state, ReviewRating::Again, elapsed_days);
+        let hard = sm18.review(&sm18_state, ReviewRating::Hard, elapsed_days);
+        let good = sm18.review(&sm18_state, ReviewRating::Good, elapsed_days);
+        let easy = sm18.review(&sm18_state, ReviewRating::Easy, elapsed_days);
+
+        let normalize = |interval: f64| {
+            if !interval.is_finite() || interval <= 0.0 { 1.0 } else { interval }
+        };
+
+        return Ok(PreviewIntervals {
+            again: normalize(again.interval_days),
+            hard: normalize(hard.interval_days),
+            good: normalize(good.interval_days),
+            easy: normalize(easy.interval_days),
+        });
+    }
+
     let item = repo.get_learning_item(&item_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", item_id)))?;
 

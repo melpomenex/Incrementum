@@ -26,6 +26,7 @@ export async function submitReview(
   options?: {
     desiredRetention?: number;
     fsrsWeights?: number[];
+    algorithm?: "fsrs" | "sm2" | "sm18";
     noScheduleUpdate?: boolean;
   }
 ): Promise<LearningItem> {
@@ -42,6 +43,7 @@ export async function submitReview(
     desiredRetention: options?.desiredRetention,
     fsrs_weights: options?.fsrsWeights,
     fsrsWeights: options?.fsrsWeights,
+    algorithm: options?.algorithm,
     no_schedule_update: options?.noScheduleUpdate,
     noScheduleUpdate: options?.noScheduleUpdate,
   });
@@ -86,11 +88,13 @@ export async function getDueItems(): Promise<LearningItem[]> {
 }
 
 export async function previewReviewIntervals(
-  itemId: string
+  itemId: string,
+  algorithm?: string
 ): Promise<PreviewIntervals> {
   return await invokeCommand<PreviewIntervals>("preview_review_intervals", {
     item_id: itemId,
     itemId,
+    algorithm,
   });
 }
 

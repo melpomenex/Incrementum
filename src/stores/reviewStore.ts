@@ -472,6 +472,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         await submitReview(currentCard.id, rating, timeTaken, sessionId, {
           desiredRetention: fsrsParams.desiredRetention,
           fsrsWeights: fsrsParams.personalizedWeights,
+          algorithm: settings.learning.algorithm,
           noScheduleUpdate: false,
         });
       }
@@ -503,7 +504,8 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     if ((currentCard as ReviewDocumentItem).itemType === "document") return;
 
     try {
-      const intervals = await previewReviewIntervals(currentCard.id);
+      const settings = useSettingsStore.getState().settings;
+      const intervals = await previewReviewIntervals(currentCard.id, settings.learning.algorithm);
       set({ previewIntervals: intervals });
     } catch (error) {
       // Non-critical, just log but don't set error

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "../../utils";
 import { submitReview, previewReviewIntervals, type ReviewRating, type PreviewIntervals, RATING_LABELS, formatInterval } from "../../api/review";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { getDeviceInfo } from "../../lib/pwa";
 
 export interface HoverRatingControlsProps {
@@ -59,7 +60,8 @@ export function HoverRatingControls({
   // Load preview intervals when itemId changes
   useEffect(() => {
     if (itemId && context === "review") {
-      previewReviewIntervals(itemId)
+      const settings = useSettingsStore.getState().settings;
+      previewReviewIntervals(itemId, settings.learning.algorithm)
         .then(setPreviewIntervals)
         .catch((err) => console.error("Failed to load preview intervals:", err));
     }
