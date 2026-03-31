@@ -53,7 +53,7 @@ describe("ankiLatex normalization", () => {
 
     const refreshed = reprocessAnkiLatexContent("[$]x^2[/$]");
     expect(refreshed).not.toBe(second);
-    expect(refreshed.html).toContain("<sup>2</sup>");
+    expect(refreshed.html).toContain("katex");
   });
 
   it("normalizes flashcard fields as derived metadata", () => {
@@ -63,7 +63,7 @@ describe("ankiLatex normalization", () => {
       clozeText: "Solve [[c1::[$]x^2[/$]]]",
     });
 
-    expect(normalized.question?.html).toContain("<sup>2</sup>");
+    expect(normalized.question?.html).toContain("katex");
     expect(normalized.answer?.html).toContain("math-expression-block");
     expect(normalized.clozeText?.html).toContain("math-expression");
   });
@@ -71,7 +71,6 @@ describe("ankiLatex normalization", () => {
   it("renderAnkiHtmlWithLatex returns normalized html", () => {
     const html = renderAnkiHtmlWithLatex("The value is [$]\\frac{1}{2}[/$].");
     expect(html).toContain("math-expression");
-    expect(html).toContain("numerator");
-    expect(html).toContain("denominator");
+    expect(html).toContain("katex");
   });
 });

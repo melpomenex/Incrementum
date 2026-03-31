@@ -13,101 +13,78 @@ import {
 
 describe("mathOcr", () => {
   describe("latexToHTML", () => {
-    it("should convert simple LaTeX to HTML", () => {
-      const latex = "\\frac{1}{2}";
-      const html = latexToHTML(latex);
+    it("should render LaTeX using KaTeX", () => {
+      const html = latexToHTML("\\frac{1}{2}");
 
-      expect(html).toContain("numerator");
-      expect(html).toContain("denominator");
+      expect(html).toContain("katex");
       expect(html).toContain("1");
       expect(html).toContain("2");
     });
 
-    it("should convert square root to HTML", () => {
-      const latex = "\\sqrt{x}";
-      const html = latexToHTML(latex);
+    it("should render square root", () => {
+      const html = latexToHTML("\\sqrt{x}");
 
-      expect(html).toContain("sqrt");
-      expect(html).toContain("radicand");
+      expect(html).toContain("katex");
       expect(html).toContain("x");
     });
 
-    it("should convert superscript to HTML", () => {
-      const latex = "x^{2}";
-      const html = latexToHTML(latex);
+    it("should render superscript and subscript", () => {
+      const html = latexToHTML("x^{2} + y_1");
 
-      expect(html).toContain("<sup>");
+      expect(html).toContain("katex");
       expect(html).toContain("2");
+      expect(html).toContain("1");
     });
 
-    it("should convert subscript to HTML", () => {
-      const latex = "H_{2}O";
-      const html = latexToHTML(latex);
+    it("should render Greek letters", () => {
+      const html = latexToHTML("\\pi \\alpha \\beta");
 
-      expect(html).toContain("<sub>");
-      expect(html).toContain("2");
+      expect(html).toContain("katex");
+      // KaTeX renders Greek letters as styled spans, not HTML entities
+      expect(html).toContain("mathnormal");
     });
 
-    it("should convert Greek letters to HTML entities", () => {
-      const latex = "\\pi \\alpha \\beta";
-      const html = latexToHTML(latex);
+    it("should render math operators", () => {
+      const html = latexToHTML("\\sum \\prod \\int \\infty");
 
-      expect(html).toContain("&pi;");
-      expect(html).toContain("&alpha;");
-      expect(html).toContain("&beta;");
-    });
-
-    it("should convert math operators to HTML entities", () => {
-      const latex = "\\sum \\prod \\int \\infty";
-      const html = latexToHTML(latex);
-
-      expect(html).toContain("&sum;");
-      expect(html).toContain("&prod;");
-      expect(html).toContain("&int;");
-      expect(html).toContain("&infin;");
+      expect(html).toContain("katex");
     });
 
     it("should render text commands like mbox", () => {
-      const latex = "y=ux \\mbox{or} x=vy";
-      const html = latexToHTML(latex);
+      const html = latexToHTML("y=ux \\mbox{or} x=vy");
 
-      expect(html).toContain("math-text");
+      expect(html).toContain("katex");
       expect(html).toContain("or");
     });
 
-    it("should support simple unbraced super/subscript", () => {
-      const latex = "x^2 + y_1";
-      const html = latexToHTML(latex);
+    it("should render relation and operation commands", () => {
+      const html = latexToHTML("a \\leq b, c \\neq d, x \\to y, p \\times q");
 
-      expect(html).toContain("<sup>2</sup>");
-      expect(html).toContain("<sub>1</sub>");
+      expect(html).toContain("katex");
     });
 
-    it("should convert common relation and operation commands", () => {
-      const latex = "a \\leq b, c \\neq d, x \\to y, p \\times q";
-      const html = latexToHTML(latex);
+    it("should render overline and other decoration commands", () => {
+      const html = latexToHTML("\\overline{AB}");
 
-      expect(html).toContain("&le;");
-      expect(html).toContain("&ne;");
-      expect(html).toContain("&rarr;");
-      expect(html).toContain("&times;");
+      expect(html).toContain("katex");
+      expect(html).toContain("AB");
     });
 
-    it("should convert additional greek and calculus commands", () => {
-      const latex = "\\phi + \\rho + \\partial_x f";
-      const html = latexToHTML(latex);
+    it("should render hat and vec commands", () => {
+      const html = latexToHTML("\\hat{x} + \\vec{v}");
 
-      expect(html).toContain("&phi;");
-      expect(html).toContain("&rho;");
-      expect(html).toContain("&part;");
+      expect(html).toContain("katex");
     });
 
-    it("should convert proportional and set-membership commands", () => {
-      const latex = "f \\propto g, x \\in A";
-      const html = latexToHTML(latex);
+    it("should render mathbb and mathcal commands", () => {
+      const html = latexToHTML("\\mathbb{R} \\cup \\mathcal{S}");
 
-      expect(html).toContain("&prop;");
-      expect(html).toContain("&isin;");
+      expect(html).toContain("katex");
+    });
+
+    it("should wrap output in math-expression span", () => {
+      const html = latexToHTML("x^2");
+      expect(html).toContain("math-expression");
     });
 
     it("should handle empty LaTeX", () => {

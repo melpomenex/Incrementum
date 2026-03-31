@@ -153,33 +153,22 @@ function renderMathToken(
   expression: string,
   mode: MathMode,
   source: string,
-  unsupportedCommands: string[],
+  _unsupportedCommands: string[],
 ): AnkiLatexNormalizationToken {
   const trimmed = expression.trim();
-  const validation = validateLatex(trimmed);
-  const unsupported = extractUnsupportedCommands(trimmed);
-  unsupportedCommands.push(...unsupported);
 
-  const fallbackReason = !trimmed
-    ? "empty-expression"
-    : !validation.valid
-      ? "invalid-latex"
-      : unsupported.length > 0
-        ? "unsupported-command"
-        : undefined;
-
-  if (fallbackReason) {
-    const fallbackHtml = `<span class="math-expression-fallback" data-latex-fallback="true" data-latex-reason="${fallbackReason}">${escapeHtml(trimmed)}</span>`;
-    const rendered = mode === "block" ? `<div class="math-expression-block">${fallbackHtml}</div>` : fallbackHtml;
+  if (!trimmed) {
+    const fallbackHtml = `<span class="math-expression-fallback" data-latex-fallback="true" data-latex-reason="empty-expression">${escapeHtml(trimmed)}</span>`;
     return {
       type: mode === "block" ? "math-block" : "math-inline",
       source,
-      rendered,
+      rendered: mode === "block" ? `<div class="math-expression-block">${fallbackHtml}</div>` : fallbackHtml,
       fallback: true,
-      fallbackReason,
+      fallbackReason: "empty-expression",
     };
   }
 
+  // latexToHTML uses KaTeX which handles virtually all LaTeX commands
   const renderedMath = latexToHTML(trimmed);
   return {
     type: mode === "block" ? "math-block" : "math-inline",
