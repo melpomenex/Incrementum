@@ -497,6 +497,8 @@ export interface LearningItem {
     is_suspended: boolean;
     tags: string[];
     memory_state?: MemoryState;
+    algorithm_type?: string;
+    algorithm_state?: string;
     sync_version?: number;
     _deleted?: boolean;
 }
@@ -525,6 +527,8 @@ export async function createLearningItem(item: Partial<LearningItem>): Promise<L
         is_suspended: item.is_suspended || false,
         tags: item.tags || [],
         memory_state: item.memory_state,
+        algorithm_type: item.algorithm_type || 'fsrs',
+        algorithm_state: item.algorithm_state,
         sync_version: 0,
     };
 

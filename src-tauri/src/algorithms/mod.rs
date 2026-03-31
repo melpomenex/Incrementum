@@ -3,14 +3,17 @@
 //! This module provides different spaced repetition algorithms:
 //! - FSRS-6 (Free Spaced Repetition Scheduler)
 //! - SM-2, SM-5, SM-8, SM-15 (SuperMemo algorithms)
+//! - SM-18 (Latest SuperMemo algorithm)
 //! - Queue selector with weighted randomization
 //! - Document scheduler for incremental reading
 
+use serde::{Serialize, Deserialize};
 use crate::models::{LearningItem, ReviewRating};
 use chrono::{Utc, Duration};
 
 pub mod optimizer;
 pub mod supermemo;
+pub mod sm18;
 pub mod queue_selector;
 pub mod document_scheduler;
 pub mod incremental_scheduler;
@@ -22,6 +25,57 @@ pub use queue_selector::QueueSelector;
 pub use document_scheduler::{DocumentScheduler, DocumentSchedulerParams};
 pub use incremental_scheduler::{IncrementalScheduler, IncrementalSchedulerParams};
 pub use engaging_scheduler::{EngagingScheduler, EngagementPreferences, ItemEngagementMeta, EngagingScheduleResult};
+pub use sm18::{SM18State, SM18Algorithm, SM18ReviewResult};
+
+/// Supported spaced repetition algorithms
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AlgorithmType {
+    Fsrs,
+    Sm2,
+    Sm5,
+    Sm8,
+    Sm15,
+    Sm18,
+}
+
+impl AlgorithmType {
+    /// Parse from string, defaulting to Fsrs for unknown values
+    pub fn from_str_lossy(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "fsrs" => AlgorithmType::Fsrs,
+            "sm2" => AlgorithmType::Sm2,
+            "sm5" => AlgorithmType::Sm5,
+            "sm8" => AlgorithmType::Sm8,
+            "sm15" => AlgorithmType::Sm15,
+            "sm18" => AlgorithmType::Sm18,
+            _ => AlgorithmType::Fsrs,
+        }
+    }
+
+    /// Convert to string representation
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AlgorithmType::Fsrs => "fsrs",
+            AlgorithmType::Sm2 => "sm2",
+            AlgorithmType::Sm5 => "sm5",
+            AlgorithmType::Sm8 => "sm8",
+            AlgorithmType::Sm15 => "sm15",
+            AlgorithmType::Sm18 => "sm18",
+        }
+    }
+}
+
+impl std::fmt::Display for AlgorithmType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Default for AlgorithmType {
+    fn default() -> Self {
+        AlgorithmType::Fsrs
+    }
+}
 
 #[cfg(test)]
 mod tests;

@@ -999,8 +999,9 @@ impl Repository {
                 answer, cloze_text, difficulty, interval,
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
-                is_suspended, tags, image_asset_ids, memory_state_stability, memory_state_difficulty
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                is_suspended, tags, image_asset_ids, memory_state_stability, memory_state_difficulty,
+                algorithm_type, algorithm_state
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
             "#,
         )
         .bind(&item.id)
@@ -1025,6 +1026,8 @@ impl Repository {
         .bind(&image_asset_ids_json)
         .bind(stability)
         .bind(difficulty)
+        .bind(&item.algorithm_type)
+        .bind(&item.algorithm_state)
         .execute(&self.pool)
         .await?;
 
@@ -1050,6 +1053,9 @@ impl Repository {
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
             let memory_state = Self::parse_memory_state(stability, difficulty);
 
+            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
+            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1073,6 +1079,8 @@ impl Repository {
                 tags,
                 image_asset_ids,
                 memory_state,
+                algorithm_type,
+                algorithm_state,
             });
         }
 
@@ -1098,6 +1106,9 @@ impl Repository {
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
             let memory_state = Self::parse_memory_state(stability, difficulty);
 
+            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
+            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1121,6 +1132,8 @@ impl Repository {
                 tags,
                 image_asset_ids,
                 memory_state,
+                algorithm_type,
+                algorithm_state,
             });
         }
 
@@ -1146,6 +1159,9 @@ impl Repository {
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
             let memory_state = Self::parse_memory_state(stability, difficulty);
 
+            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
+            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1169,6 +1185,8 @@ impl Repository {
                 tags,
                 image_asset_ids,
                 memory_state,
+                algorithm_type,
+                algorithm_state,
             });
         }
 
@@ -1190,7 +1208,8 @@ impl Repository {
                 due_date = ?1, interval = ?2, ease_factor = ?3,
                 state = ?4, review_count = ?5, lapses = ?6,
                 last_review_date = ?7, date_modified = ?8,
-                memory_state_stability = ?9, memory_state_difficulty = ?10
+                memory_state_stability = ?9, memory_state_difficulty = ?10,
+                algorithm_type = ?12, algorithm_state = ?13
             WHERE id = ?11
             "#,
         )
@@ -1205,6 +1224,8 @@ impl Repository {
         .bind(stability)
         .bind(difficulty)
         .bind(&item.id)
+        .bind(&item.algorithm_type)
+        .bind(&item.algorithm_state)
         .execute(&self.pool)
         .await?;
 
@@ -1229,6 +1250,9 @@ impl Repository {
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
             let memory_state = Self::parse_memory_state(stability, difficulty);
 
+            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
+            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1252,6 +1276,8 @@ impl Repository {
                 tags,
                 image_asset_ids,
                 memory_state,
+                algorithm_type,
+                algorithm_state,
             });
         }
 

@@ -1210,6 +1210,14 @@ pub const MIGRATIONS: &[Migration] = &[
         ALTER TABLE learning_items ADD COLUMN image_asset_ids TEXT NOT NULL DEFAULT '[]';
         "#,
     ),
+    // Migration 034: Add algorithm selection fields to learning items
+    Migration::new(
+        "034_add_algorithm_fields",
+        r#"
+        ALTER TABLE learning_items ADD COLUMN algorithm_type TEXT NOT NULL DEFAULT 'fsrs';
+        ALTER TABLE learning_items ADD COLUMN algorithm_state TEXT;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

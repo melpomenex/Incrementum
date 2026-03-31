@@ -22,7 +22,7 @@ use crate::commands::rss::{
     mark_rss_article_read_http,
     toggle_rss_article_queued_http,
 };
-use crate::commands::review::apply_fsrs_review;
+use crate::commands::review::apply_review;
 use crate::database::Repository;
 use crate::error::AppError;
 use crate::models::{Document, FileType, Extract, ItemType, LearningItem};
@@ -980,7 +980,7 @@ async fn handle_automation_submit_review(
         return (StatusCode::BAD_REQUEST, Json(json!({ "error": "rating must be between 1 and 4" }))).into_response();
     }
 
-    match apply_fsrs_review(
+    match apply_review(
         &state.repo,
         &payload.item_id,
         payload.rating,

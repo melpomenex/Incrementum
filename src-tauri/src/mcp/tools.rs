@@ -4,7 +4,7 @@ use super::types::{ToolDefinition, ToolCallResult, ToolContent};
 use std::collections::HashMap;
 use std::sync::Arc;
 use crate::database::Repository;
-use crate::commands::review::apply_fsrs_review;
+use crate::commands::review::apply_review;
 use crate::models::{Document, Extract, LearningItem, FileType, ItemType, VideoExtract};
 use crate::youtube::TranscriptSegment;
 use chrono::{Utc, Duration};
@@ -850,7 +850,7 @@ impl MCPToolRegistry {
         let item_id = args["item_id"].as_str().ok_or("item_id is required")?;
         let rating = args["rating"].as_u64().ok_or("rating is required")?;
 
-        match apply_fsrs_review(
+        match apply_review(
             self.repository.as_ref(),
             item_id,
             rating as i32,
