@@ -16,6 +16,7 @@ import ePub from 'epubjs';
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from 'ts-fsrs';
 import { useSettingsStore } from '../stores/settingsStore';
 import { resolveFsrsParamsForScope } from '../utils/fsrsScope';
+import { parseSm18State, sm18Review, ratingToSm18Grade } from './sm18';
 import { v4 as uuidv4 } from 'uuid';
 import { getPositionProgress, type DocumentPosition } from '../types/position';
 import {
@@ -232,6 +233,108 @@ function intervalFromDue(now: Date, due: Date, scheduledDays?: number): number {
         return scheduledDays ?? 0;
     }
     return Math.max(0, delta);
+}
+
+// SM-2 algorithm state for browser/PWA
+interface SM2State {
+    ease_factor: number;
+    interval: number;
+    repetitions: number;
+}
+
+function parseSm2State(algorithmState: string | undefined): SM2State {
+    if (algorithmState) {
+        try {
+            const parsed = JSON.parse(algorithmState);
+            if (parsed && typeof parsed.ease_factor === 'number') {
+                return parsed as SM2State;
+            }
+        } catch { /* ignore */ }
+    }
+    return { ease_factor: 2.5, interval: 0, repetitions: 0 };
+}
+
+function sm2NextInterval(state: SM2State, rating: number): SM2State {
+    const quality = rating <= 1 ? 0 : rating === 2 ? 3 : rating === 3 ? 4 : 5;
+    const newState = { ...state };
+
+    if (quality < 3) {
+        newState.repetitions = 0;
+        newState.interval = 0;
+    } else {
+        newState.repetitions += 1;
+        switch (newState.repetitions) {
+            case 1: newState.interval = 1; break;
+            case 2: newState.interval = 6; break;
+            default: newState.interval = state.interval * state.ease_factor; break;
+        }
+        const q = quality;
+        newState.ease_factor += 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02);
+        if (newState.ease_factor < 1.3) newState.ease_factor = 1.3;
+    }
+    return newState;
+}
+
+async function applySm2ReviewBrowser(item: db.LearningItem, rating: number): Promise<db.LearningItem> {
+    const state = parseSm2State(item.algorithm_state);
+    const newState = sm2NextInterval(state, rating);
+    const now = new Date();
+    const intervalSeconds = newState.interval * 86400 * 1000;
+    const nextDue = new Date(now.getTime() + intervalSeconds);
+
+    const failed = rating <= 1;
+    const graduated = newState.interval >= 1.0;
+    const nextState = failed ? 'relearning'
+        : graduated ? 'review'
+        : item.state === 'new' ? 'learning' : item.state;
+
+    return db.updateLearningItem(item.id, {
+        due_date: nextDue.toISOString(),
+        interval: newState.interval,
+        ease_factor: newState.ease_factor,
+        last_review_date: now.toISOString(),
+        review_count: (item.review_count || 0) + 1,
+        lapses: failed ? (item.lapses || 0) + 1 : item.lapses || 0,
+        state: nextState,
+        algorithm_state: JSON.stringify(newState),
+    });
+}
+
+async function applySm18ReviewBrowser(item: db.LearningItem, rating: number): Promise<db.LearningItem> {
+    const state = parseSm18State(item.algorithm_state);
+    const now = new Date();
+
+    // Compute elapsed days since last review
+    let elapsedDays = 0;
+    if (item.last_review_date) {
+        elapsedDays = (now.getTime() - new Date(item.last_review_date).getTime()) / (86400 * 1000);
+    }
+
+    const grade = ratingToSm18Grade(rating);
+    const result = sm18Review(state, grade, elapsedDays);
+
+    const intervalMs = result.new_interval * 86400 * 1000;
+    const nextDue = new Date(now.getTime() + intervalMs);
+
+    const failed = grade < 3;
+    const nextState = failed ? 'relearning'
+        : result.new_interval >= 1.0 ? 'review'
+        : item.state === 'new' ? 'learning' : item.state;
+
+    return db.updateLearningItem(item.id, {
+        due_date: nextDue.toISOString(),
+        interval: result.new_interval,
+        last_review_date: now.toISOString(),
+        review_count: (item.review_count || 0) + 1,
+        lapses: result.state.lapses,
+        state: nextState,
+        memory_state: {
+            stability: result.state.stability,
+            difficulty: result.state.difficulty * 10.0, // SM-18 D is [0,1], display uses [0,10]
+        },
+        difficulty: result.state.difficulty * 10.0,
+        algorithm_state: JSON.stringify(result.state),
+    });
 }
 
 function tokenizeForSimilarity(text: string): Set<string> {
@@ -1457,6 +1560,17 @@ const commandHandlers: Record<string, CommandHandler> = {
             return toCamelCase(item);
         }
 
+        const algorithmType = item.algorithm_type || 'fsrs';
+
+        if (algorithmType === 'sm2') {
+            return toCamelCase(await applySm2ReviewBrowser(item, rating));
+        }
+
+        if (algorithmType === 'sm18') {
+            return toCamelCase(await applySm18ReviewBrowser(item, rating));
+        }
+
+        // FSRS-6 (default)
         const now = new Date();
         const scheduler = createFsrsScheduler({
             tags: item.tags || [],
@@ -1490,6 +1604,25 @@ const commandHandlers: Record<string, CommandHandler> = {
         const item = await db.getLearningItem(itemId);
         if (!item) {
             throw new Error(`Learning item ${itemId} not found`);
+        }
+
+        const algorithmType = item.algorithm_type || 'fsrs';
+
+        // SM-18 preview
+        if (algorithmType === 'sm18') {
+            const now = new Date();
+            let elapsedDays = 0;
+            if (item.last_review_date) {
+                elapsedDays = (now.getTime() - new Date(item.last_review_date).getTime()) / (86400 * 1000);
+            }
+            const previewIntervals: Record<string, number> = {};
+            for (const [name, rating] of [['again', 0], ['hard', 1], ['good', 2], ['easy', 3]] as const) {
+                const state = parseSm18State(item.algorithm_state);
+                const grade = ratingToSm18Grade(rating);
+                const result = sm18Review(state, grade, elapsedDays);
+                previewIntervals[name] = result.new_interval;
+            }
+            return previewIntervals;
         }
 
         const now = new Date();
