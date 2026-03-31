@@ -9,44 +9,44 @@ export const ANKI_LATEX_FIXTURES: AnkiLatexFixture[] = [
   {
     name: "block latex wrapper",
     input: "[latex]x^{2} + y^{2}[/latex]",
-    expectContains: ["math-expression-block", "<sup>2</sup>"],
+    expectContains: ["math-expression-block", "katex"],
   },
   {
     name: "anki inline wrapper",
     input: "The value is [$]\\frac{1}{2}[/$].",
-    expectContains: ["math-expression", "numerator", "denominator"],
+    expectContains: ["math-expression", "katex"],
   },
   {
     name: "display delimiters",
     input: "$$\\int_0^1 x^2 dx$$",
-    expectContains: ["math-expression-block", "&int;"],
+    expectContains: ["math-expression-block", "katex"],
   },
   {
     name: "escaped delimiters",
     input: "\\(a^2+b^2=c^2\\)",
-    expectContains: ["math-expression", "<sup>2</sup>"],
+    expectContains: ["math-expression", "katex"],
   },
   {
     name: "mixed malformed delimiter",
     input: "if $B \\neq 0\\]",
-    expectContains: ["math-expression", "&ne;"],
+    expectContains: ["math-expression", "katex"],
   },
   {
     name: "raw latex plain text",
     input: "\\frac{d(n)y}{dx(n)} = f(x,y, \\frac{dy}{dx})",
-    expectContains: ["math-expression", "fraction"],
+    expectContains: ["math-expression", "katex"],
   },
   {
     name: "malformed expression fallback",
     input: "[$]\\frac{1}{2[/$]",
-    expectContains: ["math-expression-fallback", "data-latex-fallback=\"true\""],
-    expectFallback: true,
+    // KaTeX with throwOnError:false renders malformed expressions gracefully
+    expectContains: ["math-expression", "katex"],
   },
   {
-    name: "unsupported command fallback",
+    name: "unsupported command renders via KaTeX",
     input: "[$]\\unknowncmd{x}[/$]",
-    expectContains: ["math-expression-fallback", "\\unknowncmd{x}"],
-    expectFallback: true,
+    // KaTeX with throwOnError:false renders unknown commands as styled text
+    expectContains: ["math-expression", "katex"],
   },
   {
     name: "code block is preserved",

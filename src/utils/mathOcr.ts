@@ -4,6 +4,16 @@
  */
 
 import { invokeCommand } from "../lib/tauri";
+import katex from "katex";
+
+// Inject KaTeX CSS once
+if (typeof document !== "undefined" && !document.getElementById("katex-css-injected")) {
+  const link = document.createElement("link");
+  link.id = "katex-css-injected";
+  link.rel = "stylesheet";
+  link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+  document.head.appendChild(link);
+}
 
 /**
  * Math OCR model types
@@ -116,64 +126,26 @@ export async function extractMathWithPix2Tex(
  * Convert LaTeX to HTML for preview
  */
 export function latexToHTML(latex: string): string {
-  const normalizedLatex = latex
-    // OCR/import sometimes emits derivative order as d(n), dx(n-1), etc.
-    .replace(/\bd\(([0-9nN+\-]+)\)(?=[A-Za-z\\])/g, "d^{$1}")
-    .replace(/\bd([A-Za-z])\(([0-9nN+\-]+)\)/g, "d$1^{$2}");
-
-  // Basic LaTeX to HTML conversion
-  // In production, use MathJax or KaTeX for proper rendering
-  let html = normalizedLatex
+  const normalized = latex
     .replace(/\$\$/g, "")
     .replace(/\$/g, "")
     .replace(/\\\[/g, "")
     .replace(/\\\]/g, "")
-    .replace(/\\left/g, "")
-    .replace(/\\right/g, "")
-    .replace(/\\\\/g, "<br/>")
-    .replace(/\\(?:mbox|text|textrm|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '<span class="math-text">$1</span>')
-    .replace(/\\begin\{[^}]+\}/g, "")
-    .replace(/\\end\{[^}]+\}/g, "")
-    .replace(/\\item\b/g, "<br/>• ")
-    .replace(/\\(?:sin|cos|tan)\b/g, (match) => `<span class="math-text">${match.slice(1)}</span>`)
-    .replace(/\\(?:quad|qquad|,|;|:|!)/g, " ")
-    .replace(/~/g, " ")
-    .replace(/\\frac\{((?:[^{}]|\{[^{}]*\})+)\}\{((?:[^{}]|\{[^{}]*\})+)\}/g, '<span class="fraction"><span class="numerator">$1</span><span class="denominator">$2</span></span>')
-    .replace(/\\sqrt\{([^}]+)\}/g, '<span class="sqrt">&radic;<span class="radicand">$1</span></span>')
-    .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>')
-    .replace(/\^([A-Za-z0-9+-])/g, "<sup>$1</sup>")
-    .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-    .replace(/_([A-Za-z0-9+-])/g, "<sub>$1</sub>")
-    .replace(/\\pi/g, "&pi;")
-    .replace(/\\infty/g, "&infin;")
-    .replace(/\\alpha/g, "&alpha;")
-    .replace(/\\beta/g, "&beta;")
-    .replace(/\\gamma/g, "&gamma;")
-    .replace(/\\delta/g, "&delta;")
-    .replace(/\\theta/g, "&theta;")
-    .replace(/\\lambda/g, "&lambda;")
-    .replace(/\\mu/g, "&mu;")
-    .replace(/\\sigma/g, "&sigma;")
-    .replace(/\\omega/g, "&omega;")
-    .replace(/\\phi/g, "&phi;")
-    .replace(/\\rho/g, "&rho;")
-    .replace(/\\sum/g, "&sum;")
-    .replace(/\\prod/g, "&prod;")
-    .replace(/\\int/g, "&int;")
-    .replace(/\\cdot/g, "&middot;")
-    .replace(/\\times/g, "&times;")
-    .replace(/\\pm/g, "&plusmn;")
-    .replace(/\\leq/g, "&le;")
-    .replace(/\\geq/g, "&ge;")
-    .replace(/\\neq/g, "&ne;")
-    .replace(/\\approx/g, "&asymp;")
-    .replace(/\\propto/g, "&prop;")
-    .replace(/\\partial/g, "&part;")
-    .replace(/\\in\b/g, "&isin;")
-    .replace(/\\to|\\rightarrow/g, "&rarr;")
-    .replace(/\\leftarrow/g, "&larr;");
+    // OCR/import sometimes emits derivative order as d(n), dx(n-1), etc.
+    .replace(/\bd\(([0-9nN+\-]+)\)(?=[A-Za-z\\])/g, "d^{$1}")
+    .replace(/\bd([A-Za-z])\(([0-9nN+\-]+)\)/g, "d$1^{$2}")
+    .trim();
 
-  return `<span class="math-expression">${html}</span>`;
+  try {
+    const html = katex.renderToString(normalized, {
+      throwOnError: false,
+      strict: false,
+      trust: true,
+    });
+    return `<span class="math-expression">${html}</span>`;
+  } catch {
+    return `<span class="math-expression-fallback" data-latex-fallback="true">${normalized}</span>`;
+  }
 }
 
 /**
