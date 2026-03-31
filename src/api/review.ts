@@ -127,6 +127,8 @@ export interface LearningItem {
     stability: number;
     difficulty: number;
   };
+  algorithm_type?: string;
+  algorithm_state?: string;
   interaction_metadata?: Record<string, unknown>;
   source_anchor?: {
     document_id?: string;

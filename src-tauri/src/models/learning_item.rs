@@ -12,7 +12,7 @@ pub struct MemoryState {
 }
 
 /// Rating for a review
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReviewRating {
     Again = 1,
     Hard = 2,
@@ -58,6 +58,10 @@ pub struct LearningItem {
     pub image_asset_ids: Vec<String>,
     /// FSRS Memory State (stability and difficulty)
     pub memory_state: Option<MemoryState>,
+    /// Algorithm type used for scheduling (e.g., "fsrs", "sm2", "sm18")
+    pub algorithm_type: String,
+    /// Algorithm-specific state as JSON (e.g., SM-18 state, SM-2 params)
+    pub algorithm_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -102,6 +106,8 @@ impl LearningItem {
             tags: Vec::new(),
             image_asset_ids: Vec::new(),
             memory_state: None,
+            algorithm_type: "fsrs".to_string(),
+            algorithm_state: None,
         }
     }
 

@@ -627,6 +627,8 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
         tags,
         image_asset_ids,
         memory_state,
+        algorithm_type: "fsrs".to_string(),
+        algorithm_state: None,
     })
 }
 
