@@ -20,6 +20,36 @@ export function LearningSettings() {
         <h3 className="text-lg font-semibold mb-3 text-foreground">Algorithm</h3>
         <div className="space-y-4">
           <div>
+            <label htmlFor="algorithm-select" className="block text-sm font-medium text-foreground mb-2">
+              Spaced Repetition Algorithm
+            </label>
+            <select
+              id="algorithm-select"
+              value={settings.learning.algorithm}
+              onChange={(e) =>
+                updateSettings({
+                  learning: { ...settings.learning, algorithm: e.target.value as any },
+                })
+              }
+              className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
+            >
+              <option value="fsrs">FSRS-5 (Recommended)</option>
+              <option value="sm18">SuperMemo 18</option>
+              <option value="sm15">SuperMemo 15</option>
+              <option value="sm8">SuperMemo 8</option>
+              <option value="sm5">SuperMemo 5</option>
+              <option value="sm2">SuperMemo 2</option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {settings.learning.algorithm === "fsrs"
+                ? "Free Spaced Repetition Scheduler — optimal retention-based scheduling"
+                : settings.learning.algorithm === "sm18"
+                ? "SuperMemo 18 — uses stability increase matrix for interval calculation"
+                : `SuperMemo ${settings.learning.algorithm.toUpperCase().replace("SM", "")}`}
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="fsrs-retention" className="block text-sm font-medium text-foreground mb-2">
               Desired Retention: {Math.round(settings.learning.fsrsParams.desiredRetention * 100)}%
             </label>
