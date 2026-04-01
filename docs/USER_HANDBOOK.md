@@ -29,7 +29,7 @@ Incrementum is a powerful learning application that combines two proven techniqu
 
 **Incremental Reading** - Process large amounts of information in small, manageable chunks over time. Instead of reading articles cover-to-cover, you extract key points and gradually build understanding.
 
-**Spaced Repetition** - Review material at scientifically-optimized intervals to maximize retention. The FSRS-5 algorithm predicts when you're about to forget and schedules reviews just in time.
+**Spaced Repetition** - Review material at scientifically-optimized intervals to maximize retention. Algorithms like FSRS-5 and SM-18 predict when you're about to forget and schedule reviews just in time.
 
 ### Key Concepts
 
@@ -59,7 +59,7 @@ When you first launch Incrementum, you'll see the **Dashboard** with four main s
    - Try "Modern Dark" or "Material You" for a modern look
 
 2. **Configure Review Settings** - Settings → Learning → Algorithm
-   - **Algorithm**: FSRS-5 (recommended) or SM-2
+   - **Algorithm**: FSRS-5 (recommended), SM-18, or SM-2
    - **Desired Retention**: 90% (default) - targets how well you want to remember
    - **Learn Per Day**: 20-50 items recommended for beginners
 
@@ -487,7 +487,7 @@ The Analytics dashboard provides comprehensive insights:
 - Cards by type (Flashcard, Cloze, etc.)
 - New vs. mature cards
 
-**Algorithm Metrics (FSRS):**
+**Algorithm Metrics (FSRS/SM-18):**
 - Average stability
 - Average difficulty
 - Predicted retention
@@ -568,14 +568,23 @@ Export your data for analysis:
 
 #### Algorithm Selection
 
+Incrementum supports three scheduling algorithms. Choose the one that best fits your learning style:
+
 **FSRS-5 (Recommended):**
 - Modern, research-backed
 - Adapts to individual memory
 - Predicts forgetting times
 - Better retention with fewer reviews
 
+**SM-18 (SuperMemo 18):**
+- Latest SuperMemo algorithm, reverse-engineered from the original application
+- Uses a 3D SInc (Stability Increase) lookup matrix across difficulty, stability, and retrievability
+- Explicit difficulty tracking with trailing-average updates
+- Exponential forgetting curve model: `R = 0.9^(t/S)`
+- Sophisticated failure handling with lapse-dependent stability reduction
+
 **SM-2 (Classic):**
-- Traditional SuperMemo 2 algorithm
+- Traditional SuperMemo 2 algorithm (publicly documented)
 - Simpler, predictable
 - More reviews required
 
@@ -691,7 +700,7 @@ Incrementum provides a complete backup and restore system to protect your learni
 - **Documents**: All imported documents with metadata
 - **Extracts**: All highlights and extracted content
 - **Learning Items**: All flashcards, cloze deletions, Q&A cards
-- **Scheduling Data**: FSRS memory states, due dates, intervals, ease factors
+- **Scheduling Data**: Algorithm memory states (stability, difficulty, intervals), due dates
 - **Collections**: All collections and document assignments
 - **UI State**: Sidebar state, theme preferences
 - **Optional**: Actual document files (PDFs, EPUBs, etc.)
@@ -748,7 +757,7 @@ Incrementum provides a complete backup and restore system to protect your learni
 | **Restore after reformatting** | Import complete backup with files |
 
 **Important Notes:**
-- **Scheduling Preservation**: All FSRS scheduling data (stability, difficulty, due dates) is preserved exactly
+- **Scheduling Preservation**: All scheduling data (stability, difficulty, due dates) for all algorithm types is preserved exactly
 - **File Paths**: When importing without files, you'll need to re-import the original documents. Incrementum will match them by content hash and restore the metadata
 - **Version Compatibility**: Backups are forward-compatible but may not work with older app versions
 - **Storage**: Keep backups secure - they contain your personal learning data
@@ -1506,7 +1515,7 @@ Export your data before major changes (Settings → Backup → Export)
 
 **Review Session**: A period of actively recalling and rating cards
 
-**FSRS**: Free Spaced Repetition Scheduler, modern algorithm optimizing review timing
+**FSRS**: Free Spaced Repetition Scheduler, modern algorithm optimizing review timing (FSRS-5 is the current version)
 
 **Interval**: Time between reviews (e.g., 7 days)
 
