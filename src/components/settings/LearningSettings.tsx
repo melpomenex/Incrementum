@@ -35,9 +35,6 @@ export function LearningSettings() {
             >
               <option value="fsrs">FSRS-5 (Recommended)</option>
               <option value="sm18">SuperMemo 18</option>
-              <option value="sm15">SuperMemo 15</option>
-              <option value="sm8">SuperMemo 8</option>
-              <option value="sm5">SuperMemo 5</option>
               <option value="sm2">SuperMemo 2</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
