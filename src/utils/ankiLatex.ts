@@ -1,7 +1,7 @@
 import { latexToHTML, validateLatex } from "./mathOcr";
 
 const RAW_LATEX_HINT =
-  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox)\b|(?:\^|_)\{[^}]+\}/;
+  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|vec)\b|(?:\^|_)\{[^}]+\}/;
 
 const POTENTIAL_LATEX_HINT = /\[latex\]|\[\$\$\]|\[\$\]|\$\$|\$|\\\(|\\\[/i;
 
@@ -51,6 +51,24 @@ const SUPPORTED_LATEX_COMMANDS = new Set<string>([
   "mathrm",
   "mathbf",
   "mathit",
+  "overrightarrow",
+  "overleftarrow",
+  "hat",
+  "bar",
+  "vec",
+  "dot",
+  "ddot",
+  "tilde",
+  "underline",
+  "overline",
+  "overbrace",
+  "underbrace",
+  "widehat",
+  "widetilde",
+  "mathbb",
+  "mathcal",
+  "mathfrak",
+  "boldsymbol",
   "quad",
   "qquad",
   ",",
