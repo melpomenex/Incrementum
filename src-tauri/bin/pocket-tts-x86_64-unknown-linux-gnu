@@ -1,22 +1,45 @@
 #!/bin/sh
+# Pocket TTS Wrapper Script for Linux
+#
+# This script wraps the system-installed pocket-tts CLI for use as a Tauri sidecar.
+# The pocket-tts package should be installed via: uv tool install pocket-tts
+# or: pip install pocket-tts
+
 set -eu
+
+# Strip AppImage environment variables that interfere with Python's
+# ability to locate its standard library (encodings module, etc.).
+unset APPDIR APPIMAGE OWD LD_LIBRARY_PATH PYTHONHOME PYTHONPATH
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/x86_64-unknown-linux-gnu"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
 RUNTIME_SITE="$RUNTIME_BASE/site-packages"
+
+# Try bundled runtime first
 if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
   export PYTHONHOME="$RUNTIME_BASE/python"
   export PYTHONPATH="$RUNTIME_SITE"
   exec "$RUNTIME_PY" -m pocket_tts "$@"
 fi
+
+# Fall back to system-installed pocket-tts
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
   PATH="$PATH:$HOME/.local/bin"
 fi
 PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
+
 for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do
   if [ -x "$CANDIDATE" ]; then
     exec "$CANDIDATE" "$@"
   fi
 done
-exec pocket-tts "$@"
+
+echo "error: Pocket TTS not found" >&2
+echo "" >&2
+echo "To install:" >&2
+echo "  uv tool install pocket-tts" >&2
+echo "  or" >&2
+echo "  pip install --user pocket-tts" >&2
+exit 1
