@@ -7,6 +7,7 @@ import { useShortcut } from "../common/KeyboardShortcuts";
 import { VimiumNavigationProvider, useVimiumEnabled, type VimiumCommand } from "../common/VimiumNavigation";
 import { Toolbar } from "../Toolbar";
 import { Tabs } from "../common/Tabs";
+import { ThemedBackground } from "../common/ThemedBackground";
 import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab } from "../tabs/TabRegistry";
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
@@ -418,7 +419,12 @@ export function MainLayout() {
         commands={vimiumCommands}
         actions={vimiumActions}
       >
-        {renderLayout()}
+        <div className="themed-background-shell">
+          <ThemedBackground />
+          <div className="relative z-10 h-full">
+            {renderLayout()}
+          </div>
+        </div>
       </VimiumNavigationProvider>
     </MobileLayoutWrapper>
   );

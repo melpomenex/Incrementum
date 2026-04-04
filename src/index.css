@@ -238,6 +238,464 @@
     height: 100vh;
   }
 
+  .themed-background-shell {
+    position: relative;
+    min-height: 100vh;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at top, color-mix(in oklab, var(--color-primary) 20%, transparent), transparent 40%),
+      var(--color-background);
+  }
+
+  .theme-motion-root,
+  .theme-motion-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .theme-motion-root {
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .theme-motion-bg {
+    will-change: transform, opacity, background-position;
+  }
+
+  .theme-star-twinkle,
+  .theme-ocean-bubble,
+  .theme-ember-particle {
+    position: absolute;
+    display: block;
+    border-radius: 9999px;
+  }
+
+  .theme-star-twinkle {
+    background: rgb(255 255 255 / 0.95);
+    box-shadow: 0 0 12px rgb(255 255 255 / 0.5);
+    animation: theme-twinkle 3.6s ease-in-out infinite;
+  }
+
+  .theme-ocean-bubble {
+    bottom: -8%;
+    border: 1px solid rgb(186 230 253 / 0.45);
+    background: rgb(186 230 253 / 0.08);
+    box-shadow: 0 0 18px rgb(125 211 252 / 0.14);
+    animation: theme-bubbles linear infinite;
+  }
+
+  .theme-ember-particle {
+    bottom: -10%;
+    background: radial-gradient(circle, rgb(254 215 170 / 0.95) 0%, rgb(249 115 22 / 0.9) 55%, rgb(249 115 22 / 0) 100%);
+    box-shadow: 0 0 18px rgb(249 115 22 / 0.5);
+    animation: theme-embers linear infinite;
+  }
+
+  .theme-deep-space-base {
+    background:
+      radial-gradient(circle at 20% 20%, rgb(30 64 175 / 0.24), transparent 26%),
+      radial-gradient(circle at 78% 28%, rgb(139 92 246 / 0.18), transparent 22%),
+      radial-gradient(circle at 50% 78%, rgb(56 189 248 / 0.12), transparent 28%),
+      linear-gradient(180deg, #020611 0%, #030919 48%, #071225 100%);
+  }
+
+  .theme-deep-space-nebula {
+    background:
+      radial-gradient(circle at 22% 34%, rgb(96 165 250 / 0.18), transparent 0 26%),
+      radial-gradient(circle at 72% 58%, rgb(168 85 247 / 0.16), transparent 0 22%),
+      radial-gradient(circle at 52% 18%, rgb(34 211 238 / 0.12), transparent 0 18%);
+    filter: blur(24px);
+    opacity: 0.9;
+  }
+
+  .theme-deep-space-grid {
+    background:
+      linear-gradient(rgb(125 211 252 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(125 211 252 / 0.04) 1px, transparent 1px);
+    background-size: 96px 96px;
+    mask-image: linear-gradient(180deg, transparent, black 30%, black 70%, transparent);
+  }
+
+  .theme-deep-space-stars {
+    opacity: 0.5;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.9) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 72% 16%, rgb(255 255 255 / 0.8) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 46% 64%, rgb(255 255 255 / 0.75) 0 1.5px, transparent 2px),
+      radial-gradient(circle at 88% 48%, rgb(255 255 255 / 0.7) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 8% 82%, rgb(255 255 255 / 0.7) 0 1.5px, transparent 2px),
+      radial-gradient(circle at 62% 86%, rgb(255 255 255 / 0.75) 0 1px, transparent 1.5px);
+    background-size: cover;
+  }
+
+  .theme-deep-space-stars-secondary {
+    opacity: 0.25;
+    transform: scale(1.18);
+    filter: blur(1px);
+  }
+
+  .theme-storm-forest-sky {
+    background:
+      radial-gradient(circle at 50% 0%, rgb(34 197 94 / 0.1), transparent 34%),
+      linear-gradient(180deg, #04110d 0%, #0a1d16 44%, #06110d 100%);
+  }
+
+  .theme-storm-forest-mist {
+    background:
+      radial-gradient(circle at 20% 70%, rgb(186 230 253 / 0.08), transparent 22%),
+      radial-gradient(circle at 80% 78%, rgb(255 255 255 / 0.06), transparent 24%),
+      linear-gradient(180deg, transparent, rgb(4 20 13 / 0.25) 70%, rgb(2 10 7 / 0.4));
+    filter: blur(18px);
+  }
+
+  .theme-storm-forest-rain,
+  .theme-storm-forest-rain-far {
+    background-image: repeating-linear-gradient(
+      102deg,
+      rgb(191 219 254 / 0) 0 12px,
+      rgb(191 219 254 / 0.24) 12px 14px,
+      rgb(191 219 254 / 0) 14px 28px
+    );
+    animation: theme-rain 0.8s linear infinite;
+    opacity: 0.42;
+  }
+
+  .theme-storm-forest-rain-far {
+    animation-duration: 1.35s;
+    opacity: 0.22;
+    filter: blur(1.5px);
+  }
+
+  .theme-storm-forest-canopy {
+    background:
+      linear-gradient(180deg, transparent 56%, rgb(2 8 6 / 0.55) 70%, rgb(1 5 4 / 0.82) 100%),
+      radial-gradient(circle at 10% 100%, rgb(3 10 7) 0 14%, transparent 15%),
+      radial-gradient(circle at 24% 100%, rgb(3 10 7) 0 18%, transparent 19%),
+      radial-gradient(circle at 43% 100%, rgb(4 11 8) 0 21%, transparent 22%),
+      radial-gradient(circle at 62% 100%, rgb(3 10 7) 0 17%, transparent 18%),
+      radial-gradient(circle at 82% 100%, rgb(4 11 8) 0 20%, transparent 21%);
+    background-repeat: no-repeat;
+  }
+
+  .theme-storm-forest-lightning {
+    background:
+      linear-gradient(115deg, transparent 46%, rgb(255 255 255 / 0.95) 49%, transparent 52%),
+      radial-gradient(circle at 78% 22%, rgb(255 255 255 / 0.95), transparent 18%),
+      linear-gradient(180deg, rgb(191 219 254 / 0.44), transparent 70%);
+    mix-blend-mode: screen;
+    transition: opacity 120ms ease-out;
+  }
+
+  .theme-aurora-night {
+    background:
+      radial-gradient(circle at 50% 20%, rgb(45 212 191 / 0.08), transparent 28%),
+      linear-gradient(180deg, #020712 0%, #071322 58%, #0a1620 100%);
+  }
+
+  .theme-aurora-curtain,
+  .theme-aurora-curtain-secondary {
+    background:
+      radial-gradient(ellipse at top, rgb(94 234 212 / 0.28), transparent 48%),
+      linear-gradient(130deg, rgb(45 212 191 / 0.12), transparent 34%, rgb(129 140 248 / 0.18) 58%, transparent 82%);
+    filter: blur(20px);
+    opacity: 0.8;
+  }
+
+  .theme-aurora-curtain-secondary {
+    transform: translateY(-8%) scale(1.08);
+    opacity: 0.52;
+  }
+
+  .theme-aurora-stars {
+    background-image:
+      radial-gradient(circle at 18% 26%, rgb(255 255 255 / 0.8) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 74% 22%, rgb(255 255 255 / 0.75) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 32% 44%, rgb(255 255 255 / 0.7) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 85% 52%, rgb(255 255 255 / 0.75) 0 1px, transparent 1.5px);
+    opacity: 0.38;
+  }
+
+  .theme-sunset-drive-sky {
+    background:
+      linear-gradient(180deg, #14081f 0%, #35114a 38%, #b91c6b 74%, #ff8f5b 100%);
+  }
+
+  .theme-sunset-drive-sun {
+    background:
+      radial-gradient(circle at 50% 70%, rgb(253 186 116 / 0.95) 0 9%, rgb(253 186 116 / 0) 10%),
+      repeating-linear-gradient(180deg, rgb(255 255 255 / 0) 0 6px, rgb(255 255 255 / 0.14) 6px 8px);
+    background-position: center 34%, center 34%;
+    background-repeat: no-repeat;
+    background-size: 28% 28%, 28% 20%;
+  }
+
+  .theme-sunset-drive-clouds {
+    background:
+      radial-gradient(circle at 20% 26%, rgb(255 255 255 / 0.08), transparent 12%),
+      radial-gradient(circle at 38% 18%, rgb(255 255 255 / 0.1), transparent 12%),
+      radial-gradient(circle at 72% 28%, rgb(255 255 255 / 0.08), transparent 14%);
+    filter: blur(12px);
+  }
+
+  .theme-sunset-drive-road {
+    clip-path: polygon(42% 56%, 58% 56%, 100% 100%, 0% 100%);
+    background: linear-gradient(180deg, rgb(15 7 26 / 0), rgb(15 7 26 / 0.9));
+  }
+
+  .theme-sunset-drive-grid {
+    clip-path: polygon(0 58%, 100% 58%, 100% 100%, 0 100%);
+    background:
+      linear-gradient(rgb(251 113 133 / 0.35) 2px, transparent 2px),
+      linear-gradient(90deg, rgb(251 113 133 / 0.28) 2px, transparent 2px);
+    background-size: 100% 48px, 80px 100%;
+    transform-origin: center top;
+    transform: perspective(700px) rotateX(72deg);
+    opacity: 0.72;
+  }
+
+  .theme-ocean-depths-base {
+    background:
+      radial-gradient(circle at 50% -10%, rgb(125 211 252 / 0.16), transparent 30%),
+      linear-gradient(180deg, #031324 0%, #06243a 52%, #071a2b 100%);
+  }
+
+  .theme-ocean-depths-caustics {
+    background:
+      repeating-linear-gradient(115deg, rgb(186 230 253 / 0) 0 18px, rgb(186 230 253 / 0.08) 18px 22px, rgb(186 230 253 / 0) 22px 40px),
+      repeating-linear-gradient(65deg, rgb(125 211 252 / 0) 0 20px, rgb(125 211 252 / 0.05) 20px 24px, rgb(125 211 252 / 0) 24px 42px);
+    opacity: 0.8;
+    filter: blur(1px);
+  }
+
+  .theme-ocean-depths-glow {
+    background:
+      radial-gradient(circle at 50% 0%, rgb(103 232 249 / 0.16), transparent 24%),
+      radial-gradient(circle at 30% 72%, rgb(45 212 191 / 0.08), transparent 20%);
+    filter: blur(10px);
+  }
+
+  .theme-emberfall-base {
+    background:
+      radial-gradient(circle at 50% 90%, rgb(249 115 22 / 0.18), transparent 24%),
+      linear-gradient(180deg, #120704 0%, #281008 52%, #180904 100%);
+  }
+
+  .theme-emberfall-smoke {
+    background:
+      radial-gradient(circle at 22% 74%, rgb(255 255 255 / 0.05), transparent 16%),
+      radial-gradient(circle at 58% 68%, rgb(255 255 255 / 0.07), transparent 18%),
+      radial-gradient(circle at 82% 76%, rgb(255 255 255 / 0.04), transparent 16%);
+    filter: blur(24px);
+    opacity: 0.7;
+  }
+
+  .theme-emberfall-glow {
+    background:
+      radial-gradient(circle at 50% 100%, rgb(251 146 60 / 0.26), transparent 18%),
+      radial-gradient(circle at 12% 88%, rgb(239 68 68 / 0.14), transparent 16%);
+  }
+
+  .theme-desert-mirage-sky {
+    background:
+      linear-gradient(180deg, #3b1f0a 0%, #8b4b17 42%, #e9964a 76%, #f5c98b 100%);
+  }
+
+  .theme-desert-mirage-sun {
+    background: radial-gradient(circle at 78% 22%, rgb(255 248 220 / 0.88) 0 9%, rgb(255 248 220 / 0) 10%);
+    filter: blur(1px);
+  }
+
+  .theme-desert-mirage-dunes {
+    background:
+      radial-gradient(ellipse at 24% 100%, rgb(140 77 28 / 0.92) 0 18%, transparent 19%),
+      radial-gradient(ellipse at 54% 100%, rgb(170 101 38 / 0.9) 0 22%, transparent 23%),
+      radial-gradient(ellipse at 82% 100%, rgb(120 66 24 / 0.92) 0 18%, transparent 19%);
+  }
+
+  .theme-desert-mirage-heat {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent 20%, rgb(255 255 255 / 0.06) 60%, transparent 100%);
+    mix-blend-mode: screen;
+    opacity: 0.6;
+  }
+
+  .theme-desert-mirage-dust {
+    background-image:
+      radial-gradient(circle at 20% 40%, rgb(255 237 213 / 0.16) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 38% 66%, rgb(255 237 213 / 0.14) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 72% 30%, rgb(255 237 213 / 0.14) 0 1.5px, transparent 2px),
+      radial-gradient(circle at 92% 58%, rgb(255 237 213 / 0.12) 0 1px, transparent 1.5px);
+    opacity: 0.38;
+  }
+
+  .theme-motion-drift-slow {
+    animation: theme-drift-horizontal 26s ease-in-out infinite alternate;
+  }
+
+  .theme-motion-drift-medium {
+    animation: theme-drift-horizontal 16s ease-in-out infinite alternate;
+  }
+
+  .theme-motion-wave-slow {
+    animation: theme-wave 18s ease-in-out infinite alternate;
+  }
+
+  .theme-motion-wave-medium {
+    animation: theme-wave 12s ease-in-out infinite alternate;
+  }
+
+  .theme-motion-pan-vertical {
+    animation: theme-pan-vertical 30s linear infinite;
+  }
+
+  .theme-motion-pan-horizontal {
+    animation: theme-pan-horizontal 26s linear infinite;
+  }
+
+  .theme-motion-pulse-soft {
+    animation: theme-pulse-soft 7s ease-in-out infinite;
+  }
+
+  .theme-motion-road-scroll {
+    animation: theme-road-scroll 1.5s linear infinite;
+  }
+
+  .theme-motion-shimmer {
+    animation: theme-shimmer 4.2s ease-in-out infinite;
+  }
+
+  @keyframes theme-drift-horizontal {
+    from {
+      transform: translate3d(-3%, 0, 0) scale(1.02);
+    }
+
+    to {
+      transform: translate3d(3%, -1.5%, 0) scale(1.08);
+    }
+  }
+
+  @keyframes theme-wave {
+    from {
+      transform: translate3d(-2%, -1%, 0) rotate(-2deg) scale(1.02);
+    }
+
+    to {
+      transform: translate3d(2%, 1%, 0) rotate(2deg) scale(1.08);
+    }
+  }
+
+  @keyframes theme-pan-vertical {
+    from {
+      transform: translateY(-4%);
+    }
+
+    to {
+      transform: translateY(4%);
+    }
+  }
+
+  @keyframes theme-pan-horizontal {
+    from {
+      transform: translateX(-6%);
+    }
+
+    to {
+      transform: translateX(6%);
+    }
+  }
+
+  @keyframes theme-pulse-soft {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes theme-road-scroll {
+    from {
+      background-position: 0 0, 0 0;
+    }
+
+    to {
+      background-position: 0 48px, 80px 0;
+    }
+  }
+
+  @keyframes theme-rain {
+    from {
+      transform: translateY(-18%);
+    }
+
+    to {
+      transform: translateY(18%);
+    }
+  }
+
+  @keyframes theme-bubbles {
+    from {
+      transform: translate3d(0, 0, 0) scale(0.85);
+      opacity: 0;
+    }
+
+    20% {
+      opacity: 0.85;
+    }
+
+    to {
+      transform: translate3d(18px, -120vh, 0) scale(1.1);
+      opacity: 0;
+    }
+  }
+
+  @keyframes theme-embers {
+    from {
+      transform: translate3d(0, 0, 0) scale(0.7);
+      opacity: 0;
+    }
+
+    20% {
+      opacity: 1;
+    }
+
+    to {
+      transform: translate3d(14px, -110vh, 0) scale(1.1);
+      opacity: 0;
+    }
+  }
+
+  @keyframes theme-twinkle {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.85);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.35);
+    }
+  }
+
+  @keyframes theme-shimmer {
+    0%,
+    100% {
+      transform: translateY(0) scaleY(1);
+      opacity: 0.32;
+    }
+
+    50% {
+      transform: translateY(0.8%) scaleY(1.06);
+      opacity: 0.55;
+    }
+  }
+
   @supports (height: 100dvh) {
     .app-shell {
       height: 100dvh;
@@ -474,7 +932,21 @@
     .animate-glass-fade-in,
     .animate-glass-scale-in,
     .haptic-feedback,
-    .haptic-confetti {
+    .haptic-confetti,
+    .theme-motion-drift-slow,
+    .theme-motion-drift-medium,
+    .theme-motion-wave-slow,
+    .theme-motion-wave-medium,
+    .theme-motion-pan-vertical,
+    .theme-motion-pan-horizontal,
+    .theme-motion-pulse-soft,
+    .theme-motion-road-scroll,
+    .theme-motion-shimmer,
+    .theme-star-twinkle,
+    .theme-ocean-bubble,
+    .theme-ember-particle,
+    .theme-storm-forest-rain,
+    .theme-storm-forest-rain-far {
       animation: none;
     }
 

@@ -144,6 +144,13 @@ export const BUILTIN_THEMES = {
   HIGH_CONTRAST_LIGHT: 'high-contrast-light',
   HIGH_CONTRAST_DARK: 'high-contrast-dark',
   LEMON_SLICE: 'lemon-slice',
+  DEEP_SPACE: 'deep-space',
+  STORM_FOREST: 'storm-forest',
+  AURORA_DRIFT: 'aurora-drift',
+  SUNSET_DRIVE: 'sunset-drive',
+  OCEAN_DEPTHS: 'ocean-depths',
+  EMBERFALL: 'emberfall',
+  DESERT_MIRAGE: 'desert-mirage',
   FOCUS: 'focus',
   FOCUS_COMPACT: 'focus-compact',
 } as const;
