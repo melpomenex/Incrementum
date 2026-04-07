@@ -276,7 +276,7 @@ async function handleNavigationRequest(request) {
         </body>
       </html>`,
       {
-        status: 503,
+        status: 200,
         headers: { 'Content-Type': 'text/html' }
       }
     );
@@ -554,3 +554,111 @@ async function clearCache() {
 self.addEventListener('controllerchange', () => {
   console.log('[SW] Controller changed, new service worker is active');
 });
+
+/**
+ * Periodic Background Sync
+ * Wakes up periodically to check for due cards and show notifications.
+ * No server required - reads review data from IndexedDB.
+ */
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-due-cards') {
+    event.waitUntil(checkDueCardsAndNotify());
+  }
+});
+
+async function checkDueCardsAndNotify() {
+  console.log('[SW] Periodic sync: checking for due cards...');
+
+  try {
+    // Read notification preferences from IndexedDB
+    const prefs = await readSWPreferences();
+    if (!prefs || !prefs.studyReminders) return;
+
+    // Check quiet hours
+    if (isInQuietHours(prefs)) return;
+
+    // Count due items by reading from IndexedDB (sql.js data)
+    // Since the main app stores data in sql.js (IndexedDB-backed),
+    // we can read review counts from the app's IndexedDB
+    const dueCount = await getDueCardCount();
+
+    if (dueCount > 0) {
+      await self.registration.showNotification('Cards Due for Review', {
+        body: `You have ${dueCount} card${dueCount > 1 ? 's' : ''} due for review. Keep your streak going!`,
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        tag: 'due-cards',
+        requireInteraction: false,
+        data: { type: 'due-cards', url: '/#/review', count: dueCount },
+        actions: [
+          { action: 'review', title: 'Start Review' },
+          { action: 'dismiss', title: 'Later' },
+        ],
+      });
+    }
+  } catch (err) {
+    console.error('[SW] Periodic sync failed:', err);
+  }
+}
+
+async function readSWPreferences() {
+  return new Promise((resolve) => {
+    const request = indexedDB.open('incrementum-sw', 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('preferences')) {
+        db.createObjectStore('preferences', { keyPath: 'key' });
+      }
+    };
+    request.onsuccess = () => {
+      const db = request.result;
+      try {
+        const tx = db.transaction('preferences', 'readonly');
+        const store = tx.objectStore('preferences');
+        const getReq = store.get('notifications');
+        getReq.onsuccess = () => resolve(getReq.result || null);
+        getReq.onerror = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
+    };
+    request.onerror = () => resolve(null);
+  });
+}
+
+function isInQuietHours(prefs) {
+  if (!prefs.quietHoursEnabled || !prefs.quietHoursStart || !prefs.quietHoursEnd) return false;
+
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  const [startH, startM] = prefs.quietHoursStart.split(':').map(Number);
+  const [endH, endM] = prefs.quietHoursEnd.split(':').map(Number);
+  const start = startH * 60 + startM;
+  const end = endH * 60 + endM;
+
+  if (start <= end) return current >= start && current < end;
+  return current >= start || current < end;
+}
+
+async function getDueCardCount() {
+  // Read from the app's sql.js database stored in IndexedDB
+  // The app stores its SQLite database in IndexedDB under a known key
+  return new Promise((resolve) => {
+    const request = indexedDB.open('incrementum-sw', 1);
+    request.onsuccess = () => {
+      const db = request.result;
+      try {
+        // Try to read the due count from preferences store
+        // (the main app will write this value when syncing prefs)
+        const tx = db.transaction('preferences', 'readonly');
+        const store = tx.objectStore('preferences');
+        const getReq = store.get('due-card-count');
+        getReq.onsuccess = () => resolve(getReq.result?.count || 0);
+        getReq.onerror = () => resolve(0);
+      } catch {
+        resolve(0);
+      }
+    };
+    request.onerror = () => resolve(0);
+  });
+}
