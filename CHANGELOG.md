@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-04-07
+
+### Added
+- **Shared sound service** - Consolidated three separate AudioContext implementations (notification beep, focus timer, haptic feedback) into a single shared `soundService.ts` with singleton AudioContext management, eliminating duplicate code and resource leaks
+- **Notification sound picker** - Users can now choose from multiple notification sounds (default tone, bell, chime, ding, complete) with a volume slider and preview button in Settings > Notifications
+- **Bundled audio files** - Added 4 synthesized audio files (bell, chime, ding, complete) in `public/sounds/` for richer notification sounds beyond the basic oscillator beep
+- **Background reminders** - Periodic Background Sync API integration for PWA: the service worker wakes up periodically to check for due review cards and shows local notifications, with no server or database required
+- **PWA icon generation** - Script to generate all required PWA icon sizes from the source SVG
+
+### Changed
+- `useHapticFeedback` now reads sound toggle from `notifications.soundEnabled` instead of the non-existent `appearance.soundEnabled` field, so haptic sounds actually respect the notification settings toggle
+- Focus timer uses the shared sound service instead of creating its own AudioContext on each timer completion
+- Notification service delegates sound playback to the shared sound service
+
+### Fixed
+- **PWA installability** - Generated all 8 missing PNG icon files referenced by manifest.json (only `icon.svg` and `sprout.png` existed before, causing 404s and Lighthouse failures)
+- **Manifest display mode** - Changed from `fullscreen` to `standalone` for proper Lighthouse compliance and better UX (users get standard navigation controls)
+- **Maskable icons** - Split 192x192 and 512x512 icons into separate `any` and `maskable` entries for correct Lighthouse validation
+- **Missing screenshots** - Removed screenshot references from manifest (files didn't exist, not required for installability)
+- **Offline fallback status** - Service worker offline page now returns HTTP 200 instead of 503, matching Lighthouse requirements
+
 ## [1.14.2] - 2026-03-16
 
 ### Fixed

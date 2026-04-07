@@ -5,35 +5,9 @@
 
 import { useCallback } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
+import { playFeedback, type FeedbackType } from '../utils/soundService';
 
-/**
- * Feedback types
- */
-export type FeedbackType =
-  | 'success'
-  | 'error'
-  | 'warning'
-  | 'complete'
-  | 'click'
-  | 'delete'
-  | 'review-complete'
-  | 'streak'
-  | 'milestone';
-
-/**
- * Sound frequencies for different feedback types
- */
-const SOUND_FREQUENCIES: Record<FeedbackType, { freq: number; duration: number; type: OscillatorType; volume: number }> = {
-  success: { freq: 880, duration: 0.15, type: 'sine', volume: 0.2 },
-  error: { freq: 220, duration: 0.3, type: 'square', volume: 0.15 },
-  warning: { freq: 440, duration: 0.2, type: 'triangle', volume: 0.15 },
-  complete: { freq: 523.25, duration: 0.2, type: 'sine', volume: 0.25 }, // C5
-  click: { freq: 1200, duration: 0.05, type: 'sine', volume: 0.1 },
-  delete: { freq: 300, duration: 0.15, type: 'sawtooth', volume: 0.15 },
-  'review-complete': { freq: 659.25, duration: 0.25, type: 'sine', volume: 0.2 }, // E5
-  streak: { freq: 783.99, duration: 0.3, type: 'sine', volume: 0.25 }, // G5
-  milestone: { freq: 1046.5, duration: 0.4, type: 'sine', volume: 0.3 }, // C6
-};
+export type { FeedbackType } from '../utils/soundService';
 
 /**
  * Visual feedback configuration
@@ -49,46 +23,6 @@ const VISUAL_CONFIG: Record<FeedbackType, { color: string; animation: string; ic
   streak: { color: '#fbbf24', animation: 'fire', icon: '🔥' },
   milestone: { color: '#38bdf8', animation: 'confetti', icon: '🎉' },
 };
-
-/**
- * Play a sound using Web Audio API
- */
-function playSound(type: FeedbackType, volume: number = 1): void {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const config = SOUND_FREQUENCIES[type];
-
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = config.freq;
-    oscillator.type = config.type;
-    gainNode.gain.value = config.volume * volume;
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + config.duration);
-
-    // Add a second tone for completion sounds
-    if (type === 'complete' || type === 'review-complete' || type === 'streak' || type === 'milestone') {
-      setTimeout(() => {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        osc2.frequency.value = config.freq * 1.25; // Major third up
-        osc2.type = config.type;
-        gain2.gain.value = config.volume * volume * 0.8;
-        osc2.start();
-        osc2.stop(audioContext.currentTime + config.duration * 0.8);
-      }, config.duration * 500);
-    }
-  } catch (e) {
-    console.warn('Could not play sound:', e);
-  }
-}
 
 /**
  * Create a visual feedback element
@@ -162,7 +96,7 @@ function createConfetti(x: number, y: number): void {
  */
 export function useHapticFeedback() {
   const settings = useSettingsStore((state) => state.settings);
-  const soundEnabled = settings.appearance?.soundEnabled ?? true;
+  const soundEnabled = settings.notifications?.soundEnabled ?? true;
   const visualEnabled = settings.appearance?.visualFeedbackEnabled ?? true;
 
   const trigger = useCallback((type: FeedbackType, event?: React.MouseEvent | { x: number; y: number }) => {
@@ -172,7 +106,7 @@ export function useHapticFeedback() {
 
     // Play sound
     if (soundEnabled) {
-      playSound(type);
+      playFeedback(type);
     }
 
     // Visual feedback

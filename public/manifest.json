@@ -3,7 +3,7 @@
     "short_name": "Incrementum",
     "description": "Smart learning with spaced repetition, document management, and AI-powered study tools",
     "start_url": "/",
-    "display": "fullscreen",
+    "display": "standalone",
     "background_color": "#0a0a0a",
     "theme_color": "#6366f1",
     "orientation": "any",
@@ -43,7 +43,13 @@
             "src": "/icons/icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
         },
         {
             "src": "/icons/icon-384x384.png",
@@ -55,7 +61,13 @@
             "src": "/icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
         }
     ],
     "categories": [
@@ -111,20 +123,6 @@
                     "sizes": "96x96"
                 }
             ]
-        }
-    ],
-    "screenshots": [
-        {
-            "src": "/screenshots/desktop-dashboard.png",
-            "sizes": "1280x720",
-            "type": "image/png",
-            "form_factor": "wide"
-        },
-        {
-            "src": "/screenshots/mobile-dashboard.png",
-            "sizes": "750x1334",
-            "type": "image/png",
-            "form_factor": "narrow"
         }
     ]
 }
