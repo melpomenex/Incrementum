@@ -212,6 +212,8 @@ interface NotificationSettings {
   reminderTime: string;
   dueDateReminders: boolean;
   soundEnabled: boolean;
+  notificationSound: string;
+  soundVolume: number;
   quietHoursEnabled: boolean;
   quietHoursStart: string;
   quietHoursEnd: string;
@@ -459,6 +461,8 @@ export const defaultSettings: Settings = {
     reminderTime: "09:00",
     dueDateReminders: true,
     soundEnabled: true,
+    notificationSound: "default",
+    soundVolume: 0.5,
     quietHoursEnabled: false,
     quietHoursStart: "22:00",
     quietHoursEnd: "08:00",

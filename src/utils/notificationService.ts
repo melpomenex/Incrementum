@@ -4,6 +4,7 @@
  */
 
 import { isTauri, invokeCommand } from "../lib/tauri";
+import { playNotificationSound as _playNotificationSound } from "./soundService";
 
 export type NotificationPermission = "granted" | "denied" | "default";
 
@@ -349,43 +350,7 @@ function isInQuietHours(): boolean {
  * Play notification sound
  */
 function playNotificationSound(): void {
-  // Get sound setting from localStorage
-  const settings = localStorage.getItem("incrementum-settings");
-  if (!settings) return;
-
-  try {
-    const parsed = JSON.parse(settings);
-    const { notifications } = parsed.state?.settings || {};
-
-    if (!notifications?.soundEnabled) return;
-
-    // Use Web Audio API for a simple notification sound
-    const audioContext = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
-
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-    oscillator.frequency.exponentialRampToValueAtTime(
-      440,
-      audioContext.currentTime + 0.1
-    );
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContext.currentTime + 0.1
-    );
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.1);
-  } catch (error) {
-    console.error("Failed to play notification sound:", error);
-  }
+  _playNotificationSound();
 }
 
 /**
