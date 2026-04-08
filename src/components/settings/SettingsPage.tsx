@@ -76,54 +76,92 @@ interface SettingsTabConfig {
 }
 
 export const SETTINGS_TABS: SettingsTabConfig[] = [
-  { 
-    id: SettingsTab.General, 
-    label: "General", 
+  {
+    id: SettingsTab.General,
+    label: "General",
     icon: Sliders,
     keywords: ["language", "startup", "default", "view", "auto-save", "backup", "data", "storage"],
-    description: "Basic application settings, language, and data management"
+    description: "Basic application settings, language, and data management",
   },
-  { 
-    id: SettingsTab.Appearance, 
-    label: "Appearance", 
+  {
+    id: SettingsTab.Appearance,
+    label: "Appearance",
     icon: Palette,
-    keywords: ["theme", "color", "font", "size", "typography", "dark mode", "light mode", "display", "compact"],
-    description: "Customize the look and feel of the app"
+    keywords: [
+      "theme",
+      "color",
+      "font",
+      "size",
+      "typography",
+      "dark mode",
+      "light mode",
+      "display",
+      "compact",
+    ],
+    description: "Customize the look and feel of the app",
   },
-  { 
-    id: SettingsTab.Learning, 
-    label: "Learning", 
+  {
+    id: SettingsTab.Learning,
+    label: "Learning",
     icon: GraduationCap,
-    keywords: ["algorithm", "fsrs", "interval", "review", "flashcard", "retention", "difficulty", "scheduler"],
-    description: "Learning algorithm and review settings"
+    keywords: [
+      "algorithm",
+      "fsrs",
+      "interval",
+      "review",
+      "flashcard",
+      "retention",
+      "difficulty",
+      "scheduler",
+    ],
+    description: "Learning algorithm and review settings",
   },
-  { 
-    id: SettingsTab.Documents, 
-    label: "Documents", 
+  {
+    id: SettingsTab.Documents,
+    label: "Documents",
     icon: BookOpen,
     keywords: ["import", "pdf", "epub", "reading", "extract", "annotation", "highlight"],
-    description: "Document import and reading preferences"
+    description: "Document import and reading preferences",
   },
-  { 
-    id: SettingsTab.Shortcuts, 
-    label: "Shortcuts", 
+  {
+    id: SettingsTab.Shortcuts,
+    label: "Shortcuts",
     icon: Keyboard,
     keywords: ["keyboard", "hotkey", "keybinding", "shortcut", "command", "vim"],
-    description: "Keyboard shortcuts and keybindings"
+    description: "Keyboard shortcuts and keybindings",
   },
-  { 
-    id: SettingsTab.AI, 
-    label: "AI", 
+  {
+    id: SettingsTab.AI,
+    label: "AI",
     icon: Brain,
-    keywords: ["openai", "anthropic", "ollama", "llm", "model", "token", "api key", "assistant", "flashcard generation"],
-    description: "AI provider settings and API keys"
+    keywords: [
+      "openai",
+      "anthropic",
+      "ollama",
+      "llm",
+      "model",
+      "token",
+      "api key",
+      "assistant",
+      "flashcard generation",
+    ],
+    description: "AI provider settings and API keys",
   },
-  { 
-    id: SettingsTab.AudioTranscription, 
-    label: "Audio Transcription", 
+  {
+    id: SettingsTab.AudioTranscription,
+    label: "Audio Transcription",
     icon: Mic,
-    keywords: ["audio", "transcription", "whisper", "speech", "speech to text", "model", "download", "offline"],
-    description: "Download Whisper models for local transcription"
+    keywords: [
+      "audio",
+      "transcription",
+      "whisper",
+      "speech",
+      "speech to text",
+      "model",
+      "download",
+      "offline",
+    ],
+    description: "Download Whisper models for local transcription",
   },
   {
     id: SettingsTab.TTS,
@@ -132,54 +170,54 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
     keywords: ["tts", "text to speech", "fal", "voice clone", "speech synthesis", "audio output"],
     description: "Configure Fal.ai voices, cloning, and generation presets",
   },
-  { 
-    id: SettingsTab.Sync, 
-    label: "Sync", 
+  {
+    id: SettingsTab.Sync,
+    label: "Sync",
     icon: RefreshCw,
     keywords: ["synchronization", "backup", "cloud", "export", "import", "data transfer"],
-    description: "Data synchronization settings"
+    description: "Data synchronization settings",
   },
-  { 
-    id: SettingsTab.Integrations, 
-    label: "Integrations", 
+  {
+    id: SettingsTab.Integrations,
+    label: "Integrations",
     icon: Plug,
     keywords: ["obsidian", "anki", "third-party", "extension", "browser", "plugin"],
-    description: "Third-party app integrations"
+    description: "Third-party app integrations",
   },
-  { 
-    id: SettingsTab.CloudStorage, 
-    label: "Cloud Storage", 
+  {
+    id: SettingsTab.CloudStorage,
+    label: "Cloud Storage",
     icon: Cloud,
     keywords: ["google drive", "dropbox", "onedrive", "backup", "cloud", "storage", "oauth"],
-    description: "Cloud storage providers and backups"
+    description: "Cloud storage providers and backups",
   },
-  { 
-    id: SettingsTab.ImportExport, 
-    label: "Import/Export", 
+  {
+    id: SettingsTab.ImportExport,
+    label: "Import/Export",
     icon: FolderOpen,
     keywords: ["data", "backup", "migration", "json", "csv", "archive", "transfer"],
-    description: "Import and export your data"
+    description: "Import and export your data",
   },
-  { 
-    id: SettingsTab.Notifications, 
-    label: "Notifications", 
+  {
+    id: SettingsTab.Notifications,
+    label: "Notifications",
     icon: Bell,
     keywords: ["reminder", "alert", "study", "due", "email", "push", "sound"],
-    description: "Notification and reminder settings"
+    description: "Notification and reminder settings",
   },
-  { 
-    id: SettingsTab.Privacy, 
-    label: "Privacy", 
+  {
+    id: SettingsTab.Privacy,
+    label: "Privacy",
     icon: Shield,
     keywords: ["security", "password", "encryption", "private", "data protection", "gdpr"],
-    description: "Privacy and security settings"
+    description: "Privacy and security settings",
   },
-  { 
-    id: SettingsTab.Handbook, 
-    label: "Handbook", 
+  {
+    id: SettingsTab.Handbook,
+    label: "Handbook",
     icon: BookText,
     keywords: ["guide", "help", "tutorial", "documentation", "manual", "how to", "learn"],
-    description: "User guide and documentation"
+    description: "User guide and documentation",
   },
 ];
 
@@ -192,7 +230,7 @@ export function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(true);
-  
+
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
   const initialTabKey = "incrementum_settings_initial_tab";
@@ -211,7 +249,7 @@ export function SettingsPage() {
   // Group filtered results by relevance for search display
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
-    
+
     const query = searchQuery.toLowerCase();
     return SETTINGS_TABS.map((tab) => {
       let score = 0;
@@ -243,9 +281,7 @@ export function SettingsPage() {
   };
 
   const handleReset = () => {
-    const confirm = window.confirm(
-      "Are you sure you want to reset all settings to default?"
-    );
+    const confirm = window.confirm("Are you sure you want to reset all settings to default?");
     if (confirm) {
       setHasChanges(false);
     }
@@ -266,12 +302,12 @@ export function SettingsPage() {
   return (
     <div className="flex h-full bg-background">
       {/* Sidebar / Mobile Menu */}
-      <div className={cn(
-        "flex-shrink-0 border-r border-border bg-muted/30 text-foreground",
-        isMobile 
-          ? showMobileMenu ? "w-full" : "hidden" 
-          : "w-64"
-      )}>
+      <div
+        className={cn(
+          "flex-shrink-0 border-r border-border bg-muted/30 text-foreground",
+          isMobile ? (showMobileMenu ? "w-full" : "hidden") : "w-64"
+        )}
+      >
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2 mb-4">
@@ -280,10 +316,12 @@ export function SettingsPage() {
           </div>
 
           {/* Search Bar */}
-          <div className={cn(
-            "relative transition-all",
-            isSearchFocused && "ring-2 ring-primary rounded-lg"
-          )}>
+          <div
+            className={cn(
+              "relative transition-all",
+              isSearchFocused && "ring-2 ring-primary rounded-lg"
+            )}
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -330,12 +368,14 @@ export function SettingsPage() {
                       <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium">{tab.label}</div>
-                        <div className={cn(
-                          "text-xs mt-0.5 line-clamp-1",
-                          activeTab === tab.id 
-                            ? "text-primary-foreground/80" 
-                            : "text-muted-foreground"
-                        )}>
+                        <div
+                          className={cn(
+                            "text-xs mt-0.5 line-clamp-1",
+                            activeTab === tab.id
+                              ? "text-primary-foreground/80"
+                              : "text-muted-foreground"
+                          )}
+                        >
                           {tab.description}
                         </div>
                       </div>
@@ -368,10 +408,12 @@ export function SettingsPage() {
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span className="text-sm font-medium">{tab.label}</span>
                   {isMobile && (
-                    <ChevronRight className={cn(
-                      "w-4 h-4 ml-auto",
-                      activeTab === tab.id ? "opacity-100" : "opacity-40"
-                    )} />
+                    <ChevronRight
+                      className={cn(
+                        "w-4 h-4 ml-auto",
+                        activeTab === tab.id ? "opacity-100" : "opacity-40"
+                      )}
+                    />
                   )}
                 </button>
               );
@@ -381,10 +423,12 @@ export function SettingsPage() {
       </div>
 
       {/* Main content */}
-      <div className={cn(
-        "flex-1 flex flex-col overflow-hidden",
-        isMobile && showMobileMenu ? "hidden" : "flex"
-      )}>
+      <div
+        className={cn(
+          "flex-1 flex flex-col overflow-hidden",
+          isMobile && showMobileMenu ? "hidden" : "flex"
+        )}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-border gap-3">
           <div className="flex items-center gap-3">
@@ -415,7 +459,9 @@ export function SettingsPage() {
 
           {hasChanges && (
             <div className="flex items-center gap-2">
-              <span className="hidden md:inline text-sm text-muted-foreground">Unsaved changes</span>
+              <span className="hidden md:inline text-sm text-muted-foreground">
+                Unsaved changes
+              </span>
               <button
                 onClick={handleSave}
                 className="px-4 py-2 md:py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors min-h-[44px] text-sm font-medium"
@@ -428,20 +474,34 @@ export function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {activeTab === SettingsTab.General && <GeneralSettings onChange={() => setHasChanges(true)} />}
-          {activeTab === SettingsTab.Appearance && <AppearanceSettings onChange={() => setHasChanges(true)} />}
+          {activeTab === SettingsTab.General && (
+            <GeneralSettings onChange={() => setHasChanges(true)} />
+          )}
+          {activeTab === SettingsTab.Appearance && (
+            <AppearanceSettings onChange={() => setHasChanges(true)} />
+          )}
           {activeTab === SettingsTab.Learning && <LearningSettings />}
           {activeTab === SettingsTab.Documents && <DocumentsSettings />}
-          {activeTab === SettingsTab.Shortcuts && <ShortcutSettings onChange={() => setHasChanges(true)} />}
+          {activeTab === SettingsTab.Shortcuts && (
+            <ShortcutSettings onChange={() => setHasChanges(true)} />
+          )}
           {activeTab === SettingsTab.AI && <AISettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.AudioTranscription && <AudioTranscriptionSettings />}
           {activeTab === SettingsTab.TTS && <TTSSettings />}
           {activeTab === SettingsTab.Sync && <SyncSettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.Integrations && <IntegrationSettings />}
-          {activeTab === SettingsTab.CloudStorage && <CloudStorageSettings onChange={() => setHasChanges(true)} />}
-          {activeTab === SettingsTab.ImportExport && <ImportExportSettings onChange={() => setHasChanges(true)} />}
-          {activeTab === SettingsTab.Notifications && <NotificationSettings onChange={() => setHasChanges(true)} />}
-          {activeTab === SettingsTab.Privacy && <PrivacySettings onChange={() => setHasChanges(true)} />}
+          {activeTab === SettingsTab.CloudStorage && (
+            <CloudStorageSettings onChange={() => setHasChanges(true)} />
+          )}
+          {activeTab === SettingsTab.ImportExport && (
+            <ImportExportSettings onChange={() => setHasChanges(true)} />
+          )}
+          {activeTab === SettingsTab.Notifications && (
+            <NotificationSettings onChange={() => setHasChanges(true)} />
+          )}
+          {activeTab === SettingsTab.Privacy && (
+            <PrivacySettings onChange={() => setHasChanges(true)} />
+          )}
           {activeTab === SettingsTab.Handbook && <HandbookSettings />}
         </div>
 
@@ -453,9 +513,7 @@ export function SettingsPage() {
           >
             Reset to defaults
           </button>
-          <p className="text-xs text-muted-foreground">
-            Changes are saved automatically
-          </p>
+          <p className="text-xs text-muted-foreground">Changes are saved automatically</p>
         </div>
       </div>
     </div>
@@ -478,9 +536,7 @@ export function SettingsSection({
     <div className="mb-8">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-        {description && (
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
-        )}
+        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
       </div>
       <div className="space-y-4">{children}</div>
     </div>
@@ -503,9 +559,7 @@ export function SettingsRow({
     <div className="flex flex-col sm:flex-row sm:items-start justify-between py-4 border-b border-border last:border-0 gap-3 sm:gap-4">
       <div className="flex-1">
         <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
+        {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
       </div>
       <div className="sm:ml-4 flex-shrink-0">{children}</div>
     </div>
@@ -540,14 +594,8 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
 
   return (
     <>
-      <SettingsSection
-        title="Application"
-        description="Basic application settings"
-      >
-        <SettingsRow
-          label="Language"
-          description="Select your preferred language"
-        >
+      <SettingsSection title="Application" description="Basic application settings">
+        <SettingsRow label="Language" description="Select your preferred language">
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             onChange={onChange}
@@ -562,10 +610,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
           </select>
         </SettingsRow>
 
-        <SettingsRow
-          label="Default View"
-          description="Select the default view on startup"
-        >
+        <SettingsRow label="Default View" description="Select the default view on startup">
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             onChange={onChange}
@@ -596,25 +641,14 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
         </SettingsRow>
 
         {isDesktop && (
-          <SettingsRow
-            label="App Version"
-            description="Version of the desktop application"
-          >
-            <span className="text-sm text-muted-foreground">
-              {appVersion ?? "Loading..."}
-            </span>
+          <SettingsRow label="App Version" description="Version of the desktop application">
+            <span className="text-sm text-muted-foreground">{appVersion ?? "Loading..."}</span>
           </SettingsRow>
         )}
       </SettingsSection>
 
-      <SettingsSection
-        title="Data"
-        description="Data storage and management"
-      >
-        <SettingsRow
-          label="Data Location"
-          description="Folder where all data is stored"
-        >
+      <SettingsSection title="Data" description="Data storage and management">
+        <SettingsRow label="Data Location" description="Folder where all data is stored">
           <div className="flex items-center gap-2">
             <button className="w-full sm:w-auto px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-muted text-sm font-medium min-h-[44px]">
               Open Folder
@@ -632,10 +666,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
           </label>
         </SettingsRow>
 
-        <SettingsRow
-          label="Max Backups"
-          description="Maximum number of backups to keep"
-        >
+        <SettingsRow label="Max Backups" description="Maximum number of backups to keep">
           <input
             type="number"
             min="1"
@@ -651,11 +682,46 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
 }
 
 /**
+ * Maps font family name to CSS font-family value
+ */
+function getFontFamilyCSS(fontFamily: string): string {
+  const systemFonts: Record<string, string> = {
+    "system-ui": 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    serif: 'Georgia, "Times New Roman", Times, serif',
+    "sans-serif": 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    monospace:
+      '"JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  };
+
+  if (systemFonts[fontFamily]) {
+    return systemFonts[fontFamily];
+  }
+
+  // For Google Fonts, use the font name directly with fallbacks
+  return `"${fontFamily}", system-ui, sans-serif`;
+}
+
+/**
+ * Apply font family to document
+ */
+function applyFontFamily(fontFamily: string): void {
+  const root = document.documentElement;
+  const cssValue = getFontFamilyCSS(fontFamily);
+  root.style.setProperty("--font-family", cssValue);
+  root.style.setProperty("--font-family-sans", cssValue);
+}
+
+/**
  * Appearance Settings Component
  */
 function AppearanceSettings({ onChange }: { onChange: () => void }) {
   const { settings, updateSettingsCategory } = useSettingsStore();
   const { toolbarPosition, splitViewSpawn } = settings.interface;
+
+  // Apply font family when it changes
+  useEffect(() => {
+    applyFontFamily(settings.appearance.fontFamily);
+  }, [settings.appearance.fontFamily]);
 
   const handleToolbarPositionChange = (value: "top" | "left" | "right") => {
     updateSettingsCategory("interface", { toolbarPosition: value });
@@ -674,47 +740,163 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
       </SettingsSection>
 
       <SettingsSection
-        title="Typography"
-        description="Font settings"
+        title="Animated Backdrop"
+        description="Adjust the particle animations for animated themes"
       >
-        <SettingsRow
-          label="Font Family"
-          description="Choose your preferred font"
-        >
+        <SettingsRow label="Particle Density" description="How many particles appear on screen">
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0.25"
+              max="2"
+              step="0.25"
+              value={settings.interface.animationFrequency}
+              onChange={(e) => {
+                updateSettingsCategory("interface", {
+                  animationFrequency: parseFloat(e.target.value),
+                });
+                onChange();
+              }}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground w-12">
+              {Math.round(settings.interface.animationFrequency * 100)}%
+            </span>
+          </div>
+        </SettingsRow>
+
+        <SettingsRow label="Brightness" description="How visible the animations are">
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={settings.interface.animationBrightness}
+              onChange={(e) => {
+                updateSettingsCategory("interface", {
+                  animationBrightness: parseInt(e.target.value, 10),
+                });
+                onChange();
+              }}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground w-12">
+              {settings.interface.animationBrightness}x
+            </span>
+          </div>
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection title="Typography" description="Font settings">
+        <SettingsRow label="Font Family" description="Choose your preferred font">
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
-            onChange={onChange}
-            defaultValue="inter"
+            value={settings.appearance.fontFamily}
+            onChange={(e) => {
+              updateSettingsCategory("appearance", { fontFamily: e.target.value });
+              onChange();
+            }}
           >
-            <option value="inter">Inter</option>
-            <option value="system">System UI</option>
-            <option value="sans">Sans Serif</option>
-            <option value="serif">Serif</option>
-            <option value="mono">Monospace</option>
+            <optgroup label="Sans Serif">
+              <option value="Inter">Inter</option>
+              <option value="Outfit">Outfit</option>
+              <option value="Nunito">Nunito</option>
+              <option value="Poppins">Poppins</option>
+              <option value="Open Sans">Open Sans</option>
+              <option value="Lato">Lato</option>
+              <option value="Rubik">Rubik</option>
+              <option value="Lexend">Lexend</option>
+              <option value="Sora">Sora</option>
+              <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+              <option value="DM Sans">DM Sans</option>
+              <option value="Manrope">Manrope</option>
+              <option value="Space Grotesk">Space Grotesk</option>
+              <option value="Raleway">Raleway</option>
+              <option value="Josefin Sans">Josefin Sans</option>
+              <option value="Quicksand">Quicksand</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Work Sans">Work Sans</option>
+              <option value="Barlow">Barlow</option>
+              <option value="Mulish">Mulish</option>
+              <option value="Karla">Karla</option>
+              <option value="Urbanist">Urbanist</option>
+              <option value="Albert Sans">Albert Sans</option>
+              <option value="Figtree">Figtree</option>
+              <option value="Syne">Syne</option>
+            </optgroup>
+            <optgroup label="Serif">
+              <option value="Merriweather">Merriweather</option>
+              <option value="Playfair Display">Playfair Display</option>
+              <option value="Lora">Lora</option>
+              <option value="Crimson Text">Crimson Text</option>
+              <option value="Bitter">Bitter</option>
+            </optgroup>
+            <optgroup label="Monospace">
+              <option value="JetBrains Mono">JetBrains Mono</option>
+              <option value="Fira Code">Fira Code</option>
+              <option value="Source Code Pro">Source Code Pro</option>
+              <option value="IBM Plex Mono">IBM Plex Mono</option>
+              <option value="Roboto Mono">Roboto Mono</option>
+              <option value="Ubuntu Mono">Ubuntu Mono</option>
+              <option value="Inconsolata">Inconsolata</option>
+              <option value="Space Mono">Space Mono</option>
+              <option value="Courier Prime">Courier Prime</option>
+              <option value="DM Mono">DM Mono</option>
+              <option value="Anonymous Pro">Anonymous Pro</option>
+              <option value="PT Mono">PT Mono</option>
+              <option value="Overpass Mono">Overpass Mono</option>
+              <option value="Noto Sans Mono">Noto Sans Mono</option>
+              <option value="Victor Mono">Victor Mono</option>
+              <option value="Red Hat Mono">Red Hat Mono</option>
+              <option value="Martian Mono">Martian Mono</option>
+              <option value="Oxygen Mono">Oxygen Mono</option>
+              <option value="Share Tech Mono">Share Tech Mono</option>
+              <option value="Azeret Mono">Azeret Mono</option>
+              <option value="Spline Sans Mono">Spline Sans Mono</option>
+              <option value="Xanh Mono">Xanh Mono</option>
+              <option value="Cutive Mono">Cutive Mono</option>
+              <option value="B612 Mono">B612 Mono</option>
+              <option value="Nova Mono">Nova Mono</option>
+              <option value="Syne Mono">Syne Mono</option>
+              <option value="Nanum Gothic Coding">Nanum Gothic Coding</option>
+              <option value="Cousine">Cousine</option>
+              <option value="Chivo Mono">Chivo Mono</option>
+              <option value="Fira Mono">Fira Mono</option>
+            </optgroup>
+            <optgroup label="Display / Decorative">
+              <option value="Comic Neue">Comic Neue</option>
+              <option value="Major Mono Display">Major Mono Display</option>
+            </optgroup>
+            <optgroup label="System">
+              <option value="system-ui">System UI</option>
+              <option value="serif">System Serif</option>
+              <option value="sans-serif">System Sans</option>
+              <option value="monospace">System Mono</option>
+            </optgroup>
           </select>
         </SettingsRow>
 
-        <SettingsRow
-          label="Font Size"
-          description="Base font size for the interface"
-        >
+        <SettingsRow label="Font Size" description="Base font size for the interface">
           <div className="flex items-center gap-3">
             <input
               type="range"
               min="12"
               max="20"
-              defaultValue="14"
-              onChange={onChange}
+              value={settings.appearance.fontSize}
+              onChange={(e) => {
+                updateSettingsCategory("appearance", { fontSize: parseInt(e.target.value, 10) });
+                onChange();
+              }}
               className="w-32"
             />
-            <span className="text-sm text-muted-foreground w-12">14px</span>
+            <span className="text-sm text-muted-foreground w-12">
+              {settings.appearance.fontSize}px
+            </span>
           </div>
         </SettingsRow>
 
-        <SettingsRow
-          label="Line Height"
-          description="Line height for text content"
-        >
+        <SettingsRow label="Line Height" description="Line height for text content">
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             onChange={onChange}
@@ -728,10 +910,7 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
         </SettingsRow>
       </SettingsSection>
 
-      <SettingsSection
-        title="Display"
-        description="Display preferences"
-      >
+      <SettingsSection title="Display" description="Display preferences">
         <SettingsRow
           label="Toolbar Position"
           description="Position of the main toolbar (desktop only)"
@@ -739,7 +918,9 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             value={toolbarPosition}
-            onChange={(e) => handleToolbarPositionChange(e.target.value as "top" | "left" | "right")}
+            onChange={(e) =>
+              handleToolbarPositionChange(e.target.value as "top" | "left" | "right")
+            }
           >
             <option value="top">Top</option>
             <option value="left">Left</option>
@@ -755,7 +936,9 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
             <select
               className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
               value={splitViewSpawn.button}
-              onChange={(e) => handleSplitViewSpawnChange({ button: Number(e.target.value) as 0 | 1 | 2 })}
+              onChange={(e) =>
+                handleSplitViewSpawnChange({ button: Number(e.target.value) as 0 | 1 | 2 })
+              }
             >
               <option value={1}>Middle Click (Wheel)</option>
               <option value={2}>Right Click</option>
@@ -780,20 +963,14 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
           </div>
         </SettingsRow>
 
-        <SettingsRow
-          label="Compact Mode"
-          description="Reduce spacing and padding for more content"
-        >
+        <SettingsRow label="Compact Mode" description="Reduce spacing and padding for more content">
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={onChange} />
             <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
           </label>
         </SettingsRow>
 
-        <SettingsRow
-          label="Sidebar Width"
-          description="Width of the navigation sidebar"
-        >
+        <SettingsRow label="Sidebar Width" description="Width of the navigation sidebar">
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             onChange={onChange}
