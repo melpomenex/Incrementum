@@ -188,6 +188,10 @@ pub async fn import_podcast_audio_file(
         language: language.clone(),
         page_count: None,
         word_count: None,
+        source: None,
+        fetched_at: None,
+        site_name: None,
+        browser_import_mode: None,
     });
 
     let mut created = repo.create_document(&document).await?;
