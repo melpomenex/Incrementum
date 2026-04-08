@@ -60,6 +60,7 @@ export interface DocumentMetadata {
   favicon?: string;
   fetchMethod?: 'direct' | 'proxy';
   readingTime?: number;
+  browserImportMode?: 'text-editor' | 'rich-preview';
   // ArXiv metadata
   arxivId?: string;
   arxivUrl?: string;

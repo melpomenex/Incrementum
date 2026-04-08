@@ -381,9 +381,9 @@ impl Repository {
             r#"
             UPDATE documents SET
                 content = ?1,
-                content_hash = ?2,
-                total_pages = ?3,
-                metadata = ?4,
+                content_hash = COALESCE(?2, content_hash),
+                total_pages = COALESCE(?3, total_pages),
+                metadata = COALESCE(?4, metadata),
                 date_modified = ?5
             WHERE id = ?6
             "#,

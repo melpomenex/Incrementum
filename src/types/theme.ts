@@ -91,6 +91,10 @@ export interface ThemeShadows {
   xl: string;
 }
 
+export interface ThemeEffects {
+  backgroundAnimation?: string;
+}
+
 export interface Theme {
   id: string;
   name: string;
@@ -103,6 +107,7 @@ export interface Theme {
   spacing: ThemeSpacing;
   radius: ThemeRadius;
   shadows: ThemeShadows;
+  effects?: ThemeEffects;
   customCSS?: string;
 }
 

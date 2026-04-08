@@ -154,9 +154,8 @@ function App() {
     setUser(syncClient.getUser());
 
     // Subscribe to sync state changes
-    const unsubscribe = syncClient.subscribeSyncState((syncState) => {
-      // Sync state updates could trigger UI changes here
-      console.log('Sync state updated:', syncState);
+    const unsubscribe = syncClient.subscribeSyncState(() => {
+      // Reserved for future UI updates.
     });
 
     // Initialize notifications

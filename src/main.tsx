@@ -51,7 +51,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { initializePWA } from "./lib/pwa";
-import { isTauri } from "./lib/tauri";
+import { isPWA, isTauri } from "./lib/tauri";
 import { initLocalStorageSync } from "./lib/localStorageSync";
 import { installNetworkDebugInstrumentation, isNetworkDebugEnabled } from "./debug/networkDebug";
 
@@ -150,10 +150,13 @@ if (isNetworkDebugEnabled()) {
 // Initialize PWA (works in both Tauri and Web)
 initializePWA();
 
-// Initialize localStorage -> Yjs sync (shared state across devices).
-initLocalStorageSync().catch((error) => {
-  console.error("[main.tsx] Failed to initialize local storage sync:", error);
-});
+// Only enable browser localStorage mirroring in standalone web installs.
+// In desktop Tauri this adds global write amplification without helping UX.
+if (!isTauri() && isPWA()) {
+  initLocalStorageSync().catch((error) => {
+    console.error("[main.tsx] Failed to initialize local storage sync:", error);
+  });
+}
 
 // Dev/Tauri: ensure no service worker or cache is present to avoid stale assets.
 if ((import.meta.env.DEV || isTauri()) && "serviceWorker" in navigator) {
