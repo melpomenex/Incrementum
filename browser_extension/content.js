@@ -17,6 +17,67 @@
   let isPWAAvailable = false;
   let pwaMessageQueue = [];
   let pwaResponseHandlers = new Map();
+  let keepAliveIntervalId = null;
+  let priorityDialogStyleAdded = false;
+
+  function isRuntimeAvailable() {
+    return Boolean(globalThis.chrome?.runtime?.id);
+  }
+
+  function isExtensionContextInvalidatedError(error) {
+    const message = error?.message || '';
+    return message.includes('Extension context invalidated');
+  }
+
+  function startRuntimeKeepAlive() {
+    if (keepAliveIntervalId !== null || !isRuntimeAvailable()) {
+      return;
+    }
+
+    keepAliveIntervalId = window.setInterval(() => {
+      if (!isRuntimeAvailable()) {
+        stopRuntimeKeepAlive();
+        return;
+      }
+
+      chrome.runtime.sendMessage({ action: 'keepAlive', source: 'content_script' }, () => {
+        const lastError = chrome.runtime.lastError;
+        if (!lastError) {
+          return;
+        }
+
+        if (lastError.message.includes('Extension context invalidated')) {
+          stopRuntimeKeepAlive();
+        }
+      });
+    }, 20000);
+  }
+
+  function stopRuntimeKeepAlive() {
+    if (keepAliveIntervalId !== null) {
+      window.clearInterval(keepAliveIntervalId);
+      keepAliveIntervalId = null;
+    }
+  }
+
+  function sendRuntimeMessage(message) {
+    return new Promise((resolve) => {
+      if (!isRuntimeAvailable()) {
+        resolve({ success: false, error: 'Extension context invalidated' });
+        return;
+      }
+
+      chrome.runtime.sendMessage(message, (response) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          resolve({ success: false, error: lastError.message });
+          return;
+        }
+
+        resolve(response);
+      });
+    });
+  }
 
   /**
    * Check if current page is the Incrementum PWA
@@ -116,10 +177,10 @@
         });
       } else {
         // Fallback to background script
-        chrome.runtime.sendMessage({
+        sendRuntimeMessage({
           action: 'saveExtract',
           extract: data
-        }, resolve);
+        }).then(resolve);
       }
     });
   }
@@ -443,13 +504,17 @@
     savePageExtracts();
 
     // Send to background script
-    chrome.runtime.sendMessage({
+    sendRuntimeMessage({
       action: 'saveExtractWithPriority',
       extract: extractData
-    }, (response) => {
+    }).then((response) => {
       if (response && response.success) {
         highlightText(range, extractData.id, getPriorityColor(calculatedPriority));
         showSaveIndicator(`Extract queued (Priority: ${calculatedPriority}): "${text.substring(0, 50)}..."`);
+      } else if (response?.error && response.error.includes('Extension context invalidated')) {
+        showSaveIndicator('Extension reloaded. Reopen the page and try again.');
+        pageExtracts = pageExtracts.filter(e => e.id !== extractData.id);
+        savePageExtracts();
       } else {
         showSaveIndicator('Failed to save extract');
         // Remove from local storage if save failed
@@ -658,7 +723,7 @@
       <div class="priority-dialog-content">
         <div class="priority-dialog-header">
           <h3>📚 Create Extract with Priority</h3>
-          <button class="priority-dialog-close" onclick="this.closest('#incrementum-priority-dialog').remove()">&times;</button>
+          <button type="button" class="priority-dialog-close" data-action="close-dialog" aria-label="Close dialog">&times;</button>
         </div>
         <div class="priority-dialog-body">
           <div class="extract-preview">
@@ -696,8 +761,8 @@
           </div>
         </div>
         <div class="priority-dialog-footer">
-          <button class="priority-btn-cancel" onclick="this.closest('#incrementum-priority-dialog').remove()">Cancel</button>
-          <button class="priority-btn-create" onclick="window.incrementumCreateExtractWithPriority()">Create Extract</button>
+          <button type="button" class="priority-btn-cancel" data-action="close-dialog">Cancel</button>
+          <button type="button" class="priority-btn-create" data-action="create-extract">Create Extract</button>
         </div>
       </div>
     `;
@@ -718,8 +783,10 @@
     `;
 
     // Add styles for dialog content
-    const style = document.createElement('style');
-    style.textContent = `
+    if (!priorityDialogStyleAdded) {
+      const style = document.createElement('style');
+      style.id = 'incrementum-priority-dialog-style';
+      style.textContent = `
       .priority-dialog-content {
         background: white;
         border-radius: 12px;
@@ -870,39 +937,56 @@
         background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
       }
     `;
+      document.head.appendChild(style);
+      priorityDialogStyleAdded = true;
+    }
 
-    document.head.appendChild(style);
-    document.body.appendChild(dialog);
+    const selectionRange = selection.getRangeAt(0).cloneRange();
 
-    // Store references for the creation function
-    window.incrementumCurrentSelection = selection;
-    window.incrementumCurrentText = text;
-  }
-
-  // Create extract with selected priority
-  window.incrementumCreateExtractWithPriority = function() {
-    const dialog = document.getElementById('incrementum-priority-dialog');
-    if (!dialog) return;
-
-    const selectedPriority = dialog.querySelector('input[name="priority"]:checked');
-    const tagsInput = dialog.querySelector('#extract-tags');
-
-    const options = {
-      priority: selectedPriority ? selectedPriority.value : 'normal',
-      priority_source: 'user_selected',
-      tags: tagsInput ? tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+    const closeDialog = () => {
+      dialog.remove();
     };
 
-    // Create the extract
-    createSmartExtract(window.incrementumCurrentText, window.incrementumCurrentSelection, options);
+    dialog.addEventListener('click', (event) => {
+      const action = event.target?.dataset?.action;
+      if (action === 'close-dialog' || event.target === dialog) {
+        closeDialog();
+        return;
+      }
 
-    // Close dialog
-    dialog.remove();
+      if (action === 'create-extract') {
+        const selectedPriority = dialog.querySelector('input[name="priority"]:checked');
+        const tagsInput = dialog.querySelector('#extract-tags');
+        const options = {
+          priority: selectedPriority ? selectedPriority.value : 'normal',
+          priority_source: 'user_selected',
+          tags: tagsInput ? tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag) : []
+        };
 
-    // Clean up global references
-    delete window.incrementumCurrentSelection;
-    delete window.incrementumCurrentText;
-  };
+        const staticSelection = {
+          getRangeAt(index) {
+            if (index !== 0) {
+              throw new Error('Only a single range is supported');
+            }
+            return selectionRange.cloneRange();
+          },
+          removeAllRanges() {}
+        };
+
+        createSmartExtract(text, staticSelection, options);
+        closeDialog();
+      }
+    });
+
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeDialog();
+      }
+    });
+
+    document.body.appendChild(dialog);
+    dialog.querySelector('input[name="priority"]:checked')?.focus();
+  }
 
   // Page structure analysis
   function analyzePageStructure() {
@@ -1602,13 +1686,17 @@
   
   // Add keyboard shortcut listeners
   document.addEventListener('keydown', (event) => {
+    const key = (event.key || '').toLowerCase();
+
     // Ctrl+Shift+S (or Cmd+Shift+S on Mac) - Save current page
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'S') {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 's') {
       event.preventDefault();
 
-      chrome.runtime.sendMessage({ action: 'saveCurrentTab' }, (response) => {
+      sendRuntimeMessage({ action: 'saveCurrentTab' }).then((response) => {
         if (response && response.success) {
           showSaveIndicator('Page saved to Incrementum!');
+        } else if (response?.error && response.error.includes('Extension context invalidated')) {
+          showSaveIndicator('Extension reloaded. Refresh the page to continue.');
         } else {
           showSaveIndicator('Failed to save page');
         }
@@ -1616,7 +1704,7 @@
     }
 
     // Ctrl+Shift+E (or Cmd+Shift+E on Mac) - Toggle extract mode
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'E') {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'e') {
       event.preventDefault();
 
       if (extractMode) {
@@ -1629,7 +1717,7 @@
     }
 
     // Ctrl+Shift+X (or Cmd+Shift+X on Mac) - Quick extract with priority
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'X') {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'x') {
       event.preventDefault();
 
       const selection = window.getSelection();
@@ -1644,7 +1732,7 @@
     }
 
     // Ctrl+Shift+H (or Cmd+Shift+H on Mac) - Toggle highlights
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'H') {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'h') {
       event.preventDefault();
 
       const result = toggleHighlights();
@@ -1652,7 +1740,7 @@
     }
 
     // Ctrl+Shift+P (or Cmd+Shift+P on Mac) - Priority extract (alternative shortcut)
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'P') {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'p') {
       event.preventDefault();
 
       const selection = window.getSelection();
@@ -1676,6 +1764,9 @@
       target: event.target
     };
   });
+
+  window.addEventListener('beforeunload', stopRuntimeKeepAlive);
+  startRuntimeKeepAlive();
 
   // YouTube-specific functionality
   function initYouTubeIntegration() {

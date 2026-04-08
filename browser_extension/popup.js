@@ -5,12 +5,14 @@ class PopupController {
     this.extractMode = false;
     this.pageExtracts = [];
     this.apiConfig = null;
+    this.keepAliveTimer = null;
     this.init();
   }
 
   async init() {
     // Set up event listeners
     this.setupEventListeners();
+    this.startKeepAlive();
 
     // Load initial data
     await this.loadStatus();
@@ -308,7 +310,12 @@ class PopupController {
           });
 
           if (result && result.success) {
-            this.showNotification('Extract created successfully!', 'success');
+            this.showNotification(
+              result.queued
+                ? (result.message || 'Extract cached locally and will sync when Incrementum launches.')
+                : 'Extract created successfully!',
+              result.queued ? 'info' : 'success'
+            );
             await this.loadStats(); // Refresh stats
           } else {
             this.showNotification(result?.error || 'Failed to create extract', 'error');
@@ -366,6 +373,11 @@ class PopupController {
 
   sendMessage(message) {
     return new Promise((resolve, reject) => {
+      if (!chrome?.runtime?.id) {
+        reject(new Error('Extension context invalidated'));
+        return;
+      }
+
       chrome.runtime.sendMessage(message, (response) => {
         if (chrome.runtime.lastError) {
           reject(chrome.runtime.lastError);
@@ -392,6 +404,10 @@ class PopupController {
 
   handleContentScriptError(error, fallbackMessage = 'Action failed') {
     const message = error?.message || '';
+    if (message.includes('Extension context invalidated')) {
+      this.showNotification('Extension reloaded. Close and reopen the popup, then retry.', 'error');
+      return;
+    }
     if (message.includes('Receiving end does not exist')) {
       this.showNotification('This page does not allow extension content scripts.', 'info');
       return;
@@ -400,10 +416,91 @@ class PopupController {
     this.showNotification(fallbackMessage, 'error');
   }
 
+  startKeepAlive() {
+    if (this.keepAliveTimer !== null) {
+      clearInterval(this.keepAliveTimer);
+    }
+
+    this.keepAliveTimer = setInterval(() => {
+      this.sendMessage({ action: 'keepAlive', source: 'popup' }).catch((error) => {
+        if ((error?.message || '').includes('Extension context invalidated')) {
+          clearInterval(this.keepAliveTimer);
+          this.keepAliveTimer = null;
+        }
+      });
+    }, 20000);
+  }
+
   // Store current AI response for saving
   currentAIResponse = null;
   currentPageContent = null;
   currentPageInfo = null;
+
+  buildAISummaryExtractPayload() {
+    if (!this.currentAIResponse || !this.currentPageInfo) {
+      return null;
+    }
+
+    const sections = [];
+    const summary = (this.currentAIResponse.summary || '').trim();
+    const keyPoints = Array.isArray(this.currentAIResponse.key_points) ? this.currentAIResponse.key_points : [];
+    const questions = Array.isArray(this.currentAIResponse.questions) ? this.currentAIResponse.questions : [];
+
+    if (summary) {
+      sections.push(`Summary\n${summary}`);
+    }
+
+    if (keyPoints.length > 0) {
+      sections.push(`Key Points\n${keyPoints.map((point) => `- ${point}`).join('\n')}`);
+    }
+
+    if (questions.length > 0) {
+      sections.push(`Questions\n${questions.map((question) => `- ${question}`).join('\n')}`);
+    }
+
+    const text = sections.join('\n\n').trim();
+    if (!text) {
+      return null;
+    }
+
+    return {
+      text,
+      url: this.currentPageInfo.url,
+      title: `${this.currentPageInfo.title} - AI Summary`,
+      context: this.currentPageContent || null,
+      analysis: this.currentAIResponse,
+      tags: ['ai-summary']
+    };
+  }
+
+  async persistAISummaryExtract({ closeModalOnSuccess = false } = {}) {
+    const extract = this.buildAISummaryExtractPayload();
+    if (!extract) {
+      throw new Error('No AI summary available to save');
+    }
+
+    const result = await this.sendMessage({
+      action: 'saveExtract',
+      extract
+    });
+
+    if (!result?.success) {
+      throw new Error(result?.error || 'Failed to save AI summary extract');
+    }
+
+    this.showNotification(
+      result.queued
+        ? (result.message || 'AI summary cached locally and will sync when Incrementum launches.')
+        : 'AI summary saved to Incrementum!',
+      result.queued ? 'info' : 'success'
+    );
+
+    if (closeModalOnSuccess) {
+      this.closeModal();
+    }
+
+    return result;
+  }
 
   // Generate AI Summary
   async generateAISummary() {
@@ -472,6 +569,7 @@ class PopupController {
       }
 
       this.currentAIResponse = response;
+      await this.persistAISummaryExtract();
 
       // Render the results
       this.renderAIResults(response);
@@ -576,39 +674,16 @@ class PopupController {
 
   // Save AI Extract
   async saveAIExtract() {
-    if (!this.currentPageContent || !this.currentPageInfo) {
+    if (!this.currentPageInfo || !this.currentAIResponse) {
       this.showNotification('No content to save', 'error');
       return;
     }
 
     try {
-      // Build extract text with summary and key points
-      let extractText = this.currentPageContent;
-
-      if (this.currentAIResponse?.summary) {
-        extractText = `📝 SUMMARY:\n${this.currentAIResponse.summary}\n\n---\n\n${extractText}`;
-      }
-
-      const result = await this.sendMessage({
-        action: 'saveExtract',
-        extract: {
-          text: this.currentPageContent,
-          url: this.currentPageInfo.url,
-          title: this.currentPageInfo.title,
-          context: this.currentAIResponse?.summary || null,
-          analysis: this.currentAIResponse
-        }
-      });
-
-      if (result?.success) {
-        this.showNotification('Extract saved with AI analysis!', 'success');
-        this.closeModal();
-      } else {
-        throw new Error(result?.error || 'Failed to save extract');
-      }
+      await this.persistAISummaryExtract({ closeModalOnSuccess: true });
     } catch (error) {
       console.error('Save error:', error);
-      this.showNotification('Failed to save extract', 'error');
+      this.showNotification(error.message || 'Failed to save extract', 'error');
     }
   }
 
