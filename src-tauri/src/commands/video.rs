@@ -114,6 +114,10 @@ pub async fn import_video_file(
         language: None,
         page_count: None,
         word_count: None,
+        source: None,
+        fetched_at: None,
+        site_name: None,
+        browser_import_mode: None,
     };
 
     let mut document = Document::new(title, dest_path.to_string_lossy().to_string(), FileType::Video);
