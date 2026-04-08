@@ -1,6 +1,6 @@
 [package]
 name = "incrementum-tauri"
-version = "1.16.0"
+version = "1.17.0"
 description = "Incrementum - Incremental Reading and Spaced Repetition"
 authors = ["Incrementum Team"]
 edition = "2021"
@@ -103,8 +103,10 @@ default = []
 custom-protocol = ["tauri/custom-protocol"]
 screenshot = ["xcap"]
 
-# Disable LTO to avoid bitcode compatibility issues
+# Keep release optimization modest because higher LLVM optimization levels have
+# been unstable in this workspace during native Tauri release builds.
 [profile.release]
+opt-level = 1
 lto = false
 
 # NOTE: In some environments we've observed rustc/LLVM crashing (SIGSEGV) when

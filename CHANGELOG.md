@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-04-08
+
+### Added
+- Imported the full legacy `index.html` theme catalog into the app, including more than a hundred built-in themes and lightweight animated backdrop variants for the legacy animated themes.
+- Added theme backdrop rendering infrastructure so animated themes can show motion without relying on expensive full-screen effects.
+
+### Changed
+- Browser-imported web content now opens in an editable article workspace instead of being treated as a mostly static HTML snapshot.
+- Browser extension captures and AI summaries now queue locally when the desktop app is offline and sync automatically when the app becomes reachable again.
+
+### Fixed
+- Browser extension extract flows now cache offline, sync on reconnect, and show clearer toast/status feedback.
+- Browser extension AI summary saves now persist the generated summary itself as an extract through the same online/offline sync path.
+- Browser extension shortcut registration, extension icons, and popup/runtime invalidation handling were cleaned up.
+- Theme animation visibility was reworked so animated themes render motion through a lightweight backdrop layer instead of collapsing into static solid-color shells.
+
 ## [1.16.0] - 2026-04-07
 
 ### Added

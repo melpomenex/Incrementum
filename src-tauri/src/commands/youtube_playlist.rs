@@ -54,6 +54,10 @@ async fn import_youtube_video_as_document(
         language: Some("en".to_string()),
         page_count: None,
         word_count: None,
+        source: Some("youtube".to_string()),
+        fetched_at: Some(created_at),
+        site_name: Some("YouTube".to_string()),
+        browser_import_mode: None,
     });
 
     // Save to database
