@@ -152,6 +152,10 @@ interface InterfaceSettings {
   showStats: boolean;
   compactMode: boolean;
   animationsEnabled: boolean;
+  /** Particle density / count multiplier for animated theme backdrops (0.25–2). */
+  animationFrequency: number;
+  /** Global brightness multiplier for animated theme backdrops (1–20). */
+  animationBrightness: number;
   reviewZenMode: boolean;
   conversationalReviewEnabled: boolean;
   toolbarPosition: "top" | "left" | "right";
@@ -359,6 +363,8 @@ export const defaultSettings: Settings = {
     showStats: true,
     compactMode: false,
     animationsEnabled: true,
+    animationFrequency: 1,
+    animationBrightness: 12,
     reviewZenMode: false,
     conversationalReviewEnabled: true,
     toolbarPosition: "left",
