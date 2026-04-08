@@ -114,6 +114,12 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
             file_path: url,
             file_type: 'html',
             tags: tags || [],
+            metadata: {
+              source: 'browser_extension',
+              fetchedAt: new Date().toISOString(),
+              siteName: new URL(url).hostname,
+              browserImportMode: 'text-editor',
+            },
           });
         }
 
@@ -163,8 +169,13 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
           file_path: url,
           file_type: 'html',
           content: text,
-          html_content: html_content,
           tags: tags || [],
+          metadata: {
+            source: 'browser_extension',
+            fetchedAt: new Date().toISOString(),
+            siteName: new URL(url).hostname,
+            browserImportMode: 'text-editor',
+          },
         });
 
         sendResponse({

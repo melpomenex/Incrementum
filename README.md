@@ -448,7 +448,7 @@ Apache 2.0 License - see [LICENSE](LICENSE) for details.
 ### **Built with ❤️ using Tauri + React + Rust**
 
 [![Website](https://img.shields.io/badge/Website-readsync.org-blue)](https://readsync.org)
-[![Documentation](https://img.shields.io/badge-Docs-latest-green)](docs/)
+[![Documentation](https://img.shields.io/badge-Docs-latest-brightgreen)](docs/)
 [![Issues](https://img.shields.io/badge/Issues-Get%20Help-orange)](https://github.com/melpomenex/incrementum-tauri/issues)
 [![Changelog](https://img.shields.io/badge/Changelog-Release%20Notes-purple)](CHANGELOG.md)
 

@@ -4,6 +4,7 @@
  */
 
 import { Theme } from '../types/theme';
+import { legacyIndexThemes } from './legacyIndex';
 
 // Modern Dark Theme
 export const modernDarkTheme: Theme = {
@@ -2131,6 +2132,7 @@ export const focusCompactTheme: Theme = {
 
 // Export all built-in themes
 export const builtInThemes: Theme[] = [
+  ...legacyIndexThemes,
   modernDarkTheme,
   materialYouTheme,
   snowTheme,

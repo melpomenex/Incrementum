@@ -6,8 +6,9 @@
 import React from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { Theme, ThemeId } from "../../types/theme";
-import { Check, X, Maximize2, Smartphone } from "lucide-react";
+import { Check, X, Maximize2, Smartphone, Sparkles } from "lucide-react";
 import { cn } from "../../utils";
+import { builtInThemes as registeredBuiltInThemes } from "../../themes/builtin";
 
 interface ThemeGalleryProps {
   onClose?: () => void;
@@ -171,12 +172,27 @@ function ThemeGalleryCard({
           {theme.name}
         </h3>
         <div className="flex items-center justify-between mt-0.5">
-          <span
-            className="text-xs"
-            style={{ color: theme.colors.textSecondary }}
-          >
-            {theme.variant}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="text-xs"
+              style={{ color: theme.colors.textSecondary }}
+            >
+              {theme.variant}
+            </span>
+            {theme.effects?.backgroundAnimation && (
+              <span
+                className="flex items-center gap-0.5 text-[9px] font-medium px-1 py-px rounded-full"
+                style={{
+                  background: `${theme.colors.primary}22`,
+                  color: theme.colors.primary,
+                  border: `1px solid ${theme.colors.primary}33`,
+                }}
+              >
+                <Sparkles className="w-2 h-2" />
+                animated
+              </span>
+            )}
+          </div>
           <Smartphone
             className="w-3 h-3"
             style={{ color: theme.colors.textSecondary }}
@@ -198,29 +214,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
     onThemeSelect?.(themeId);
   };
 
-  const allThemeIds: ThemeId[] = [
-    "modern-dark",
-    "material-you",
-    "snow",
-    "mistral-dark",
-    "aurora-light",
-    "forest-light",
-    "ice-blue",
-    "nocturne-dark",
-    "mapquest",
-    "milky-matcha",
-    "sandstone-light",
-    "minecraft",
-    "mistral-light",
-    "modern-polished",
-    "omar-chy-bliss",
-    "super-game-bro",
-    "cartographer",
-    "high-contrast-light",
-    "high-contrast-dark",
-    "focus",
-    "focus-compact",
-  ];
+  const allThemeIds: ThemeId[] = registeredBuiltInThemes.map((builtinTheme) => builtinTheme.id);
   const builtinOrder = new Map(allThemeIds.map((id, index) => [id, index]));
   const themeSort = (a: Theme, b: Theme) => {
     const aIndex = builtinOrder.get(a.id as ThemeId);
