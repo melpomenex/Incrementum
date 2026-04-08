@@ -82,6 +82,10 @@ pub struct DocumentMetadata {
     pub language: Option<String>,
     pub page_count: Option<i32>,
     pub word_count: Option<i32>,
+    pub source: Option<String>,
+    pub fetched_at: Option<DateTime<Utc>>,
+    pub site_name: Option<String>,
+    pub browser_import_mode: Option<String>,
 }
 
 impl Document {

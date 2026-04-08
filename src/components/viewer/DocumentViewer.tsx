@@ -39,6 +39,7 @@ import { processHtmlContent } from "../../utils/documentImport";
 import { lookupDictionary, type DictionaryResult } from "../../utils/dictionaryLookup";
 import { recordReadingSession } from "../../utils/readingSpeed";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
+import { ScrollModeArticleEditor } from "../review/ScrollModeArticleEditor";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import {
@@ -107,6 +108,22 @@ const normalizeDocumentType = (value?: string): DocumentType | undefined => {
   if (AUDIO_EXTENSIONS.has(normalized)) return "audio";
   if (VIDEO_EXTENSIONS.has(normalized)) return "video";
   return undefined;
+};
+
+const isEditableBrowserArticleDocument = (doc?: {
+  fileType?: string;
+  metadata?: {
+    source?: string;
+    browserImportMode?: string;
+  };
+}) => {
+  if (!doc) return false;
+  const normalizedType = normalizeDocumentType(doc.fileType);
+  return (
+    doc.metadata?.source === "browser_extension" &&
+    doc.metadata?.browserImportMode === "text-editor" &&
+    (normalizedType === "html" || normalizedType === "markdown")
+  );
 };
 
 /**
@@ -1036,7 +1053,9 @@ export function DocumentViewer({
         setIsLoading(false);
       }
     } else if (inferredType === "html") {
-      if (!doc.content && doc.filePath) {
+      if (isEditableBrowserArticleDocument(doc)) {
+        setIsLoading(false);
+      } else if (!doc.content && doc.filePath) {
         try {
           const base64Data = await documentsApi.readDocumentFile(doc.filePath);
           const binaryString = atob(base64Data);
@@ -3285,6 +3304,8 @@ export function DocumentViewer({
               </div>
             </div>
           )
+        ) : isEditableBrowserArticleDocument(currentDocument) ? (
+          <ScrollModeArticleEditor document={currentDocument} />
         ) : docType === "markdown" ? (
           <div
             className="reading-surface reading-surface-markdown relative min-h-full h-full overflow-x-hidden"

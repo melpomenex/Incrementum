@@ -28,6 +28,7 @@ const BLOCKED_PREFIXES = [
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
+const LOCAL_WRITE_DEBOUNCE_MS = 350;
 
 function isBlocked(key: string): boolean {
   if (BLOCKED_KEYS.has(key)) {
@@ -59,6 +60,8 @@ export async function initLocalStorageSync(): Promise<void> {
 
   const map = sync.doc.getMap<SyncEntry>("localStorage");
   const lastApplied = new Map<string, number>();
+  const pendingWrites = new Map<string, string | null>();
+  let flushTimer: number | null = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
@@ -86,28 +89,54 @@ export async function initLocalStorageSync(): Promise<void> {
     }
   };
 
-  const pushLocal = (key: string, value: string | null) => {
+  const flushPendingWrites = () => {
+    flushTimer = null;
+
+    pendingWrites.forEach((value, key) => {
+      if (isBlocked(key)) {
+        return;
+      }
+
+      const current = map.get(key);
+      if ((current?.value ?? null) === value) {
+        if (current) {
+          lastApplied.set(key, current.updatedAt);
+        }
+        return;
+      }
+
+      const now = Date.now();
+      map.set(key, { value, updatedAt: now });
+      lastApplied.set(key, now);
+    });
+
+    pendingWrites.clear();
+  };
+
+  const schedulePushLocal = (key: string, value: string | null) => {
     if (isBlocked(key)) {
       return;
     }
 
-    const now = Date.now();
-    map.set(key, { value, updatedAt: now });
-    lastApplied.set(key, now);
+    pendingWrites.set(key, value);
+    if (flushTimer !== null) {
+      window.clearTimeout(flushTimer);
+    }
+    flushTimer = window.setTimeout(flushPendingWrites, LOCAL_WRITE_DEBOUNCE_MS);
   };
 
   // Patch localStorage to broadcast changes through Yjs.
   localStorage.setItem = (key: string, value: string) => {
     originalSetItem(key, value);
     if (!isApplyingRemote) {
-      pushLocal(key, value);
+      schedulePushLocal(key, value);
     }
   };
 
   localStorage.removeItem = (key: string) => {
     originalRemoveItem(key);
     if (!isApplyingRemote) {
-      pushLocal(key, null);
+      schedulePushLocal(key, null);
     }
   };
 
@@ -124,7 +153,7 @@ export async function initLocalStorageSync(): Promise<void> {
 
     if (!isApplyingRemote) {
       keys.forEach((key) => {
-        pushLocal(key, null);
+        schedulePushLocal(key, null);
       });
     }
   };
@@ -138,7 +167,9 @@ export async function initLocalStorageSync(): Promise<void> {
       }
       const value = localStorage.getItem(key);
       if (value !== null) {
-        pushLocal(key, value);
+        const now = Date.now();
+        map.set(key, { value, updatedAt: now });
+        lastApplied.set(key, now);
       }
     }
   } else {
@@ -150,7 +181,9 @@ export async function initLocalStorageSync(): Promise<void> {
       if (!map.has(key)) {
         const value = localStorage.getItem(key);
         if (value !== null) {
-          pushLocal(key, value);
+          const now = Date.now();
+          map.set(key, { value, updatedAt: now });
+          lastApplied.set(key, now);
         }
       }
     }

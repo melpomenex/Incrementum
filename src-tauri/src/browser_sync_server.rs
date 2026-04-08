@@ -43,6 +43,7 @@ use tower_http::{
     limit::RequestBodyLimitLayer,
 };
 use tracing::{info, error, warn};
+use url::Url;
 
 /// Maximum payload size (10MB)
 const MAX_PAYLOAD_SIZE: usize = 10 * 1024 * 1024;
@@ -522,6 +523,28 @@ fn infer_extension_file_type(payload: &ExtensionRequest) -> FileType {
     FileType::Html
 }
 
+fn build_browser_import_metadata(payload: &ExtensionRequest) -> crate::models::DocumentMetadata {
+    let site_name = Url::parse(&payload.url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string));
+
+    crate::models::DocumentMetadata {
+        author: None,
+        subject: None,
+        keywords: None,
+        created_at: None,
+        modified_at: None,
+        file_size: None,
+        language: None,
+        page_count: None,
+        word_count: None,
+        source: Some("browser_extension".to_string()),
+        fetched_at: Some(chrono::Utc::now()),
+        site_name,
+        browser_import_mode: Some("text-editor".to_string()),
+    }
+}
+
 /// Handle general document import request (page or video)
 async fn handle_import_request(
     state: &ServerState,
@@ -569,6 +592,11 @@ async fn handle_import_request(
     };
 
     let category = if matches!(file_type, FileType::Youtube) { Some("YouTube Videos".to_string()) } else { None };
+    let metadata = if matches!(file_type, FileType::Html) {
+        Some(build_browser_import_metadata(payload))
+    } else {
+        None
+    };
 
     // Create document
     let document = Document {
@@ -598,7 +626,7 @@ async fn handle_import_request(
         is_archived: false,
         is_favorite: false,
         is_dismissed: false,
-        metadata: None,
+        metadata,
         cover_image_url: None,
         cover_image_source: None,
         next_reading_date: None,
@@ -634,6 +662,11 @@ async fn handle_extract_request(
         doc.id
     } else {
         let inferred_file_type = infer_extension_file_type(payload);
+        let metadata = if matches!(inferred_file_type, FileType::Html) {
+            Some(build_browser_import_metadata(payload))
+        } else {
+            None
+        };
         // Create a minimal document for this URL
         let document = Document {
             id: uuid::Uuid::new_v4().to_string(),
@@ -662,7 +695,7 @@ async fn handle_extract_request(
             is_archived: false,
             is_favorite: false,
             is_dismissed: false,
-            metadata: None,
+            metadata,
             cover_image_url: None,
             cover_image_source: None,
             next_reading_date: None,

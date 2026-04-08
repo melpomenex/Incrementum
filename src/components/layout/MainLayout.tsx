@@ -11,6 +11,7 @@ import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, Settings
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
+import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import {
   LayoutDashboard,
   ListTodo,
@@ -355,19 +356,23 @@ export function MainLayout() {
     // Toolbar on the left
     if (toolbarPosition === "left") {
       return (
-        <div className="app-shell flex w-full overflow-hidden bg-background">
-          {/* Toolbar - Left side - Hidden on mobile */}
-          <div className="flex-shrink-0 hidden md:block h-full">
-            <Toolbar position="left" />
-          </div>
+        <div className="app-shell relative isolate flex w-full overflow-hidden bg-background">
+          <ThemeBackdrop />
 
-          {/* Tabbed Interface - takes remaining space */}
-          <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
-            <Tabs />
-          </div>
+          <div className="relative z-10 flex w-full overflow-hidden">
+            {/* Toolbar - Left side - Hidden on mobile */}
+            <div className="flex-shrink-0 hidden md:block h-full">
+              <Toolbar position="left" />
+            </div>
 
-          {/* Global Command Center */}
-          <CommandCenter />
+            {/* Tabbed Interface - takes remaining space */}
+            <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
+              <Tabs />
+            </div>
+
+            {/* Global Command Center */}
+            <CommandCenter />
+          </div>
         </div>
       );
     }
@@ -375,38 +380,46 @@ export function MainLayout() {
     // Toolbar on the right
     if (toolbarPosition === "right") {
       return (
-        <div className="app-shell flex w-full overflow-hidden bg-background">
-          {/* Tabbed Interface - takes remaining space */}
-          <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
-            <Tabs />
-          </div>
+        <div className="app-shell relative isolate flex w-full overflow-hidden bg-background">
+          <ThemeBackdrop />
 
-          {/* Toolbar - Right side - Hidden on mobile */}
-          <div className="flex-shrink-0 hidden md:block h-full">
-            <Toolbar position="right" />
-          </div>
+          <div className="relative z-10 flex w-full overflow-hidden">
+            {/* Tabbed Interface - takes remaining space */}
+            <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
+              <Tabs />
+            </div>
 
-          {/* Global Command Center */}
-          <CommandCenter />
+            {/* Toolbar - Right side - Hidden on mobile */}
+            <div className="flex-shrink-0 hidden md:block h-full">
+              <Toolbar position="right" />
+            </div>
+
+            {/* Global Command Center */}
+            <CommandCenter />
+          </div>
         </div>
       );
     }
 
     // Default: Toolbar on top
     return (
-      <div className="app-shell flex flex-col w-full overflow-hidden bg-background">
-        {/* Toolbar - Fixed at top - Hidden on mobile */}
-        <div className="flex-shrink-0 hidden md:block">
-          <Toolbar position="top" />
-        </div>
+      <div className="app-shell relative isolate flex flex-col w-full overflow-hidden bg-background">
+        <ThemeBackdrop />
 
-        {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
-        <div className="flex-1 min-h-0 h-full" data-vimium-scroll>
-          <Tabs />
-        </div>
+        <div className="relative z-10 flex flex-1 min-h-0 flex-col">
+          {/* Toolbar - Fixed at top - Hidden on mobile */}
+          <div className="flex-shrink-0 hidden md:block">
+            <Toolbar position="top" />
+          </div>
 
-        {/* Global Command Center */}
-        <CommandCenter />
+          {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
+          <div className="flex-1 min-h-0 h-full" data-vimium-scroll>
+            <Tabs />
+          </div>
+
+          {/* Global Command Center */}
+          <CommandCenter />
+        </div>
       </div>
     );
   };

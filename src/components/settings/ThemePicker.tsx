@@ -6,9 +6,10 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId } from '../../types/theme';
-import { Check, Palette, Download, Upload, Trash2, Eye } from 'lucide-react';
+import { Check, Palette, Download, Upload, Trash2, Eye, Sparkles } from 'lucide-react';
 import { invokeCommand } from '../../lib/tauri';
 import { ThemeGallery } from './ThemeGallery';
+import { builtInThemes as registeredBuiltInThemes } from '../../themes/builtin';
 
 interface ThemeCardProps {
   theme: Theme;
@@ -74,20 +75,35 @@ function ThemeCard({ theme, isSelected, onSelect, onPreview }: ThemeCardProps) {
             {theme.description}
           </p>
         )}
-        <div className="flex items-center gap-1 mt-2">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{
-              backgroundColor: theme.variant === 'dark' ? '#1a1a1a' : '#f0f0f0',
-              border: `1px solid ${theme.colors.outline}`,
-            }}
-          />
-          <span
-            className="text-xs opacity-70"
-            style={{ color: theme.colors.onSurface }}
-          >
-            {theme.variant}
-          </span>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-1">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{
+                backgroundColor: theme.variant === 'dark' ? '#1a1a1a' : '#f0f0f0',
+                border: `1px solid ${theme.colors.outline}`,
+              }}
+            />
+            <span
+              className="text-xs opacity-70"
+              style={{ color: theme.colors.onSurface }}
+            >
+              {theme.variant}
+            </span>
+          </div>
+          {theme.effects?.backgroundAnimation && (
+            <span
+              className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+              style={{
+                background: `linear-gradient(135deg, ${theme.colors.primary}33, ${theme.colors.secondary || theme.colors.primary}33)`,
+                color: theme.colors.primary,
+                border: `1px solid ${theme.colors.primary}44`,
+              }}
+            >
+              <Sparkles className="w-2.5 h-2.5" />
+              animated
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -176,30 +192,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
     }
   };
 
-  const builtinThemeIds: ThemeId[] = [
-    'modern-dark',
-    'material-you',
-    'snow',
-    'windows-95',
-    'mistral-dark',
-    'aurora-light',
-    'forest-light',
-    'ice-blue',
-    'nocturne-dark',
-    'mapquest',
-    'milky-matcha',
-    'sandstone-light',
-    'minecraft',
-    'mistral-light',
-    'modern-polished',
-    'omar-chy-bliss',
-    'super-game-bro',
-    'cartographer',
-    'high-contrast-light',
-    'high-contrast-dark',
-    'focus',
-    'focus-compact',
-  ];
+  const builtinThemeIds: ThemeId[] = registeredBuiltInThemes.map((builtinTheme) => builtinTheme.id);
   const builtinThemeIdSet = new Set(builtinThemeIds);
   const builtinThemes = themes.filter((t) => builtinThemeIdSet.has(t.id));
   const customThemes = themes.filter((t) => !builtinThemeIdSet.has(t.id));

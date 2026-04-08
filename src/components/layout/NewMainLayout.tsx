@@ -5,6 +5,7 @@ import { SyncStatusIndicator } from "../sync/SyncStatusIndicator";
 import { UserMenu } from "../auth/UserMenu";
 import { Breadcrumb } from "../common/Breadcrumb";
 import { Toast } from "../common/Toast";
+import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { OfflineIndicator } from "../pwa";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -114,7 +115,9 @@ export function NewMainLayout({
   }, [onPageChange]);
 
   return (
-    <div className="app-shell flex flex-col w-full bg-cream">
+    <div className="app-shell relative isolate flex flex-col w-full bg-cream">
+      <ThemeBackdrop />
+
       {/* Toast Notifications */}
       <Toast />
 
@@ -131,7 +134,7 @@ export function NewMainLayout({
       )}
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="relative z-10 flex flex-1 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {!isReaderFocusMode && isSidebarOpen && (
           <div
