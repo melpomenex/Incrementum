@@ -62,6 +62,13 @@
       },
       "description": "Save current tab to Incrementum"
     },
+    "save-all-tabs": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Save all tabs to Incrementum"
+    },
     "toggle-extract-mode": {
       "suggested_key": {
         "default": "Ctrl+Shift+E",
@@ -77,10 +84,6 @@
       "description": "Create quick extract from selection"
     },
     "toggle-highlights": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+H",
-        "mac": "Command+Shift+H"
-      },
       "description": "Toggle highlights visibility"
     }
   },
