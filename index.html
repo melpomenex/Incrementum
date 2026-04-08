@@ -1,79 +1,122 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1" />
+    <meta
+      name="description"
+      content="Spaced repetition and incremental reading for effective learning"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Incrementum" />
 
-  <!-- PWA Meta Tags -->
-  <meta name="theme-color" content="#6366f1" />
-  <meta name="description" content="Spaced repetition and incremental reading for effective learning" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Incrementum" />
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="icons/sprout.png" />
+    <link rel="apple-touch-icon" href="icons/sprout.png" />
 
-  <!-- Icons -->
-  <link rel="icon" type="image/png" href="icons/sprout.png" />
-  <link rel="apple-touch-icon" href="icons/sprout.png" />
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json" />
 
-  <!-- Manifest -->
-  <link rel="manifest" href="manifest.json" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&family=Fira+Code:wght@400;500;700&family=Source+Code+Pro:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&family=Roboto+Mono:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&family=Inconsolata:wght@400;500;700&family=Space+Mono:wght@400;700&family=Courier+Prime:wght@400;700&family=DM+Mono:wght@400;500&family=Anonymous+Pro:wght@400;700&family=PT+Mono&family=Overpass+Mono:wght@400;500;700&family=Noto+Sans+Mono:wght@400;500;700&family=Victor+Mono:wght@400;500;700&family=Red+Hat+Mono:wght@400;500;700&family=Inter:wght@400;500;700&family=Outfit:wght@400;500;700&family=Nunito:wght@400;600;700&family=Poppins:wght@400;500;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&family=Rubik:wght@400;500;700&family=Lexend:wght@400;500;700&family=Sora:wght@400;500;700&family=Merriweather:wght@400;700&family=Comic+Neue:wght@400;700&family=Martian+Mono:wght@400;700&family=Oxygen+Mono&family=Share+Tech+Mono&family=Azeret+Mono:wght@400;500;700&family=Spline+Sans+Mono:wght@400;500;700&family=Major+Mono+Display&family=Xanh+Mono&family=Cutive+Mono&family=B612+Mono:wght@400;700&family=Nova+Mono&family=Syne+Mono&family=Nanum+Gothic+Coding&family=Cousine:wght@400;700&family=Chivo+Mono:wght@400;700&family=Fira+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700&family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&family=Raleway:wght@400;500;700&family=Josefin+Sans:wght@400;600;700&family=Quicksand:wght@400;500;700&family=Montserrat:wght@400;500;700&family=Work+Sans:wght@400;500;700&family=Barlow:wght@400;500;700&family=Mulish:wght@400;500;700&family=Karla:wght@400;500;700&family=Urbanist:wght@400;500;700&family=Albert+Sans:wght@400;500;700&family=Figtree:wght@400;500;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;700&family=Crimson+Text:wght@400;700&family=Bitter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
 
-  <title>Incrementum</title>
-  <script>
-    (function () {
-      const isDevHost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-      const isTauri = !!(window.__TAURI__ || window.__TAURI_INTERNALS__ || /Tauri/i.test(navigator.userAgent));
-      if (!("serviceWorker" in navigator) || !(isDevHost || isTauri)) return;
-      if (sessionStorage.getItem("__sw_cleared__") === "1") return;
-      sessionStorage.setItem("__sw_cleared__", "1");
-      navigator.serviceWorker.getRegistrations()
-        .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
-        .then(() => ("caches" in window ? caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))) : undefined))
-        .then(() => location.reload());
-    })();
-  </script>
-</head>
+    <title>Incrementum</title>
+    <script>
+      (function () {
+        const isDevHost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        const isTauri = !!(
+          window.__TAURI__ ||
+          window.__TAURI_INTERNALS__ ||
+          /Tauri/i.test(navigator.userAgent)
+        );
+        if (!("serviceWorker" in navigator) || !(isDevHost || isTauri)) return;
+        if (sessionStorage.getItem("__sw_cleared__") === "1") return;
+        sessionStorage.setItem("__sw_cleared__", "1");
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
+          .then(() =>
+            "caches" in window
+              ? caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+              : undefined
+          )
+          .then(() => location.reload());
+      })();
+    </script>
+  </head>
 
-<body data-incrementum-app="true">
-  <div id="root"></div>
-  <div id="error-display" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;color:#fff;padding:20px;overflow:auto;z-index:99999;font-family:monospace;white-space:pre-wrap;"></div>
-  <script>
-    (function() {
-      var errorDiv = document.getElementById('error-display');
-      function isBenignResizeObserverMessage(message) {
-        if (!message) return false;
-        return message.includes("ResizeObserver loop limit exceeded") ||
-          message.includes("ResizeObserver loop completed with undelivered notifications");
-      }
-      window.addEventListener('error', function(e) {
-        if (isBenignResizeObserverMessage(e.message || "")) {
-          e.preventDefault && e.preventDefault();
-          return;
+  <body data-incrementum-app="true">
+    <div id="root"></div>
+    <div
+      id="error-display"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        color: #fff;
+        padding: 20px;
+        overflow: auto;
+        z-index: 99999;
+        font-family: monospace;
+        white-space: pre-wrap;
+      "
+    ></div>
+    <script>
+      (function () {
+        var errorDiv = document.getElementById("error-display");
+        function isBenignResizeObserverMessage(message) {
+          if (!message) return false;
+          return (
+            message.includes("ResizeObserver loop limit exceeded") ||
+            message.includes("ResizeObserver loop completed with undelivered notifications")
+          );
         }
-        errorDiv.style.display = 'block';
-        errorDiv.textContent += 'Error: ' + e.message + '\n' + (e.error && e.error.stack ? e.error.stack : '') + '\n\n';
-      });
-      window.addEventListener('unhandledrejection', function(e) {
-        var reasonText = "";
-        if (typeof e.reason === "string") {
-          reasonText = e.reason;
-        } else if (e.reason && typeof e.reason.message === "string") {
-          reasonText = e.reason.message;
-        } else {
-          reasonText = String(e.reason || "");
-        }
-        if (isBenignResizeObserverMessage(reasonText)) {
-          e.preventDefault && e.preventDefault();
-          return;
-        }
-        errorDiv.style.display = 'block';
-        errorDiv.textContent += 'Promise rejection: ' + e.reason + '\n' + (e.reason && e.reason.stack ? e.reason.stack : '') + '\n\n';
-      });
-      console.log('Error handler installed');
-    })();
-  </script>
-  <script type="module" src="src/main.tsx"></script>
-</body>
-
+        window.addEventListener("error", function (e) {
+          if (isBenignResizeObserverMessage(e.message || "")) {
+            e.preventDefault && e.preventDefault();
+            return;
+          }
+          errorDiv.style.display = "block";
+          errorDiv.textContent +=
+            "Error: " + e.message + "\n" + (e.error && e.error.stack ? e.error.stack : "") + "\n\n";
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var reasonText = "";
+          if (typeof e.reason === "string") {
+            reasonText = e.reason;
+          } else if (e.reason && typeof e.reason.message === "string") {
+            reasonText = e.reason.message;
+          } else {
+            reasonText = String(e.reason || "");
+          }
+          if (isBenignResizeObserverMessage(reasonText)) {
+            e.preventDefault && e.preventDefault();
+            return;
+          }
+          errorDiv.style.display = "block";
+          errorDiv.textContent +=
+            "Promise rejection: " +
+            e.reason +
+            "\n" +
+            (e.reason && e.reason.stack ? e.reason.stack : "") +
+            "\n\n";
+        });
+        console.log("Error handler installed");
+      })();
+    </script>
+    <script type="module" src="src/main.tsx"></script>
+  </body>
 </html>
