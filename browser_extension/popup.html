@@ -506,6 +506,28 @@
         .options-link:hover {
             color: var(--primary);
         }
+
+        .shortcut-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .shortcut-item span:last-child {
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -565,6 +587,17 @@
         <a href="#" id="options-link" class="options-link">
             ⚙️ Settings
         </a>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Shortcuts</div>
+        <div class="shortcut-list">
+            <div class="shortcut-item"><span>Save current tab</span><span>Ctrl/Cmd + Shift + S</span></div>
+            <div class="shortcut-item"><span>Save all tabs</span><span>Ctrl/Cmd + Shift + A</span></div>
+            <div class="shortcut-item"><span>Toggle extract mode</span><span>Ctrl/Cmd + Shift + E</span></div>
+            <div class="shortcut-item"><span>Quick extract</span><span>Ctrl/Cmd + Shift + X</span></div>
+            <div class="shortcut-item"><span>Toggle highlights</span><span>Ctrl/Cmd + Shift + H</span></div>
+        </div>
     </div>
 
     <!-- AI Summary Modal -->
