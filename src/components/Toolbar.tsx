@@ -82,16 +82,20 @@ function ToolbarButtonItem({ button, orientation = "horizontal" }: ToolbarButton
       onAuxClick={handleAuxClick}
       disabled={button.disabled}
       title={`${button.label} (${button.shortcut})`}
+      data-toolbar-orientation={orientation}
       className={`
-        relative rounded transition-colors
-        hover:bg-muted hover:text-foreground
+        toolbar-button relative rounded transition-colors
         disabled:opacity-50 disabled:cursor-not-allowed
         ${button.disabled ? "text-muted-foreground" : "text-foreground"}
         ${isVertical ? "p-2.5 w-full flex justify-center" : "p-2"}
       `}
       aria-label={button.label}
     >
-      <Icon className={isVertical ? "w-5 h-5" : "w-5 h-5"} />
+      <span className="toolbar-button-background" aria-hidden="true" />
+      <span className="toolbar-button-indicator" aria-hidden="true" />
+      <span className="toolbar-button-content">
+        <Icon className={isVertical ? "w-5 h-5" : "w-5 h-5"} />
+      </span>
       <span className="sr-only">{button.label}</span>
     </button>
   );

@@ -31,6 +31,16 @@ interface SidebarItem {
   count?: number;
 }
 
+interface NavItemButtonProps {
+  item: SidebarItem;
+  isActive: boolean;
+  isCollapsed?: boolean;
+  orientation?: "vertical" | "horizontal";
+  label: string;
+  onClick: () => void;
+  tutorialId?: string;
+}
+
 const sidebarItems: SidebarItem[] = [
   { id: "continue-reading", label: "nav.continue", icon: BookMarked },
   { id: "dashboard", label: "nav.dashboard", icon: Home },
@@ -40,6 +50,44 @@ const sidebarItems: SidebarItem[] = [
   { id: "analytics", label: "nav.analytics", icon: BarChart3 },
   { id: "settings", label: "nav.settings", icon: Settings },
 ];
+
+function NavItemButton({
+  item,
+  isActive,
+  isCollapsed = false,
+  orientation = "vertical",
+  label,
+  onClick,
+  tutorialId,
+}: NavItemButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      data-tutorial={tutorialId}
+      data-nav-orientation={orientation}
+      className={`app-nav-item w-full min-h-[44px] flex items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
+        isActive ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
+      } ${isCollapsed ? "justify-center px-3 py-3" : "px-4 py-3"}`}
+      aria-current={isActive ? "page" : undefined}
+      aria-label={`Navigate to ${label}`}
+      title={isCollapsed ? label : undefined}
+    >
+      <span className="app-nav-item-background" aria-hidden="true" />
+      <span className="app-nav-item-indicator" aria-hidden="true" />
+      <span className="app-nav-item-content">
+        <item.icon className="w-5 h-5 text-foreground flex-shrink-0" />
+        {!isCollapsed && (
+          <span className="text-sm font-medium text-foreground flex-1 text-left truncate">
+            {label}
+          </span>
+        )}
+        {!isCollapsed && item.count !== undefined && (
+          <span className="text-xs text-foreground-muted">{item.count}</span>
+        )}
+      </span>
+    </button>
+  );
+}
 
 export function NewMainLayout({
   children,
@@ -315,27 +363,15 @@ function LeftSidebar({ activeItem, setActiveItem, t, stats, isOpen, isCollapsed,
         {/* Sidebar Items */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           {sidebarItems.map((item) => (
-            <button
+            <NavItemButton
               key={item.id}
+              item={item}
+              isActive={activeItem === item.id}
+              isCollapsed={isCollapsed}
+              label={t(item.label)}
               onClick={() => setActiveItem(item.id)}
-              data-tutorial={item.id === 'queue' ? 'queue-nav' : item.id === 'analytics' ? 'analytics-nav' : item.id === 'documents' ? 'document-list' : undefined}
-              className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
-                activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
-              } ${isCollapsed ? "justify-center" : ""}`}
-              aria-current={activeItem === item.id ? "page" : undefined}
-              aria-label={`Navigate to ${t(item.label)}`}
-              title={isCollapsed ? t(item.label) : undefined}
-            >
-              <item.icon className="w-5 h-5 text-foreground flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="text-sm font-medium text-foreground flex-1 text-left truncate">
-                  {t(item.label)}
-                </span>
-              )}
-              {!isCollapsed && item.count !== undefined && (
-                <span className="text-xs text-foreground-muted">{item.count}</span>
-              )}
-            </button>
+              tutorialId={item.id === 'queue' ? 'queue-nav' : item.id === 'analytics' ? 'analytics-nav' : item.id === 'documents' ? 'document-list' : undefined}
+            />
           ))}
         </div>
 
@@ -402,26 +438,16 @@ function LeftSidebar({ activeItem, setActiveItem, t, stats, isOpen, isCollapsed,
         {/* Sidebar Items */}
         <div className="flex-1 overflow-y-auto">
           {sidebarItems.map((item) => (
-            <button
+            <NavItemButton
               key={item.id}
+              item={item}
+              isActive={activeItem === item.id}
+              label={t(item.label)}
               onClick={() => {
                 setActiveItem(item.id);
                 onClose();
               }}
-              className={`w-full px-4 py-3 min-h-[44px] flex items-center gap-3 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none ${
-                activeItem === item.id ? "sidebar-item-active" : "sidebar-item hover:bg-sidebar-hover"
-              }`}
-              aria-current={activeItem === item.id ? "page" : undefined}
-              aria-label={`Navigate to ${t(item.label)}`}
-            >
-              <item.icon className="w-5 h-5 text-foreground" />
-              <span className="text-sm font-medium text-foreground flex-1 text-left">
-                {t(item.label)}
-              </span>
-              {item.count !== undefined && (
-                <span className="text-xs text-foreground-muted">{item.count}</span>
-              )}
-            </button>
+            />
           ))}
         </div>
 
