@@ -1334,11 +1334,20 @@
     display: inline-block;
     padding: 0 0.2em;
     border-radius: 0.25rem;
-    background: color-mix(in oklab, var(--color-yellow-500) 14%, transparent);
-    border: 1px dashed color-mix(in oklab, var(--color-yellow-500) 45%, transparent);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.9em;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .math-expression-fallback[data-latex-error] {
+    background: color-mix(in oklab, var(--color-red-500) 12%, transparent);
+    border: 1px dashed color-mix(in oklab, var(--color-red-500) 45%, transparent);
+    cursor: help;
+  }
+
+  .math-expression-fallback:not([data-latex-error]) {
+    background: color-mix(in oklab, var(--color-yellow-500) 14%, transparent);
+    border: 1px dashed color-mix(in oklab, var(--color-yellow-500) 45%, transparent);
   }
 }

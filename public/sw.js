@@ -5,7 +5,7 @@
  * for the Progressive Web App (PWA) version of Incrementum.
  */
 
-const VERSION = 'incrementum-v3';
+const VERSION = 'incrementum-v4';
 
 // Disable SW on localhost/dev (unregister and bypass all caching)
 const IS_DEV_HOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
@@ -48,7 +48,9 @@ const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icons/icon.svg',
+  '/apple-touch-icon.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
 ];
 
 // API endpoints that should be cached

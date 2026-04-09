@@ -1,9 +1,10 @@
-import { latexToHTML, validateLatex } from "./mathOcr";
+import { latexToHTML, validateLatex, shouldUseDisplayMode } from "./mathOcr";
+import { MacroExpander } from "./latexMacros";
 
 const RAW_LATEX_HINT =
-  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|vec)\b|(?:\^|_)\{[^}]+\}/;
+  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|newcommand|renewcommand|DeclareMathOperator|ce|pu|operatorname|sin|cos|tan|log|ln|exp|lim|sup|inf|min|max|in|notin|subset|cup|cap|setminus|exists|forall|nabla|cdot|pm|equiv|sim|simeq|perp|angle|triangle|square|cong|propto|oplus|otimes|bigcup|bigcap|bigsqcup|binom|dfrac|tfrac|cfrac|mathrm|mathbf|mathit|mathsf|mathtt|mathscr|mathfrak|boldsymbol|coloneqq|coloneq)(?![a-zA-Z])|(?:\^|_)\{[^}]+\}|\\[a-zA-Z]+[\{_]|\\[a-zA-Z]+$/;
 
-const POTENTIAL_LATEX_HINT = /\[latex\]|\[\$\$\]|\[\$\]|\$\$|\$|\\\(|\\\[/i;
+const POTENTIAL_LATEX_HINT = /\[latex\]|\[\$\$\]|\[\$\]|\$\$|\$|\\\(|\\\[|\\\$|\\newcommand|\\DeclareMathOperator/i;
 
 const SUPPORTED_LATEX_COMMANDS = new Set<string>([
   "frac",
@@ -69,6 +70,12 @@ const SUPPORTED_LATEX_COMMANDS = new Set<string>([
   "mathcal",
   "mathfrak",
   "boldsymbol",
+  "operatorname",
+  "ce",
+  "pu",
+  "newcommand",
+  "renewcommand",
+  "DeclareMathOperator",
   "quad",
   "qquad",
   ",",
@@ -172,6 +179,7 @@ function renderMathToken(
   mode: MathMode,
   source: string,
   _unsupportedCommands: string[],
+  macros: MacroExpander,
 ): AnkiLatexNormalizationToken {
   const trimmed = expression.trim();
 
@@ -187,11 +195,23 @@ function renderMathToken(
   }
 
   // latexToHTML uses KaTeX which handles virtually all LaTeX commands
-  const renderedMath = latexToHTML(trimmed);
+  // Block mode always uses display mode; inline mode auto-detects display-only environments
+  const renderedMath = latexToHTML(trimmed, {
+    displayMode: mode === "block" ? true : undefined,
+    macros,
+  });
+
+  // If auto-detected display mode produced block-level output, upgrade token type
+  const isDisplayAutoUpgrade = mode === "inline" && renderedMath.includes("math-expression-block");
+  const tokenType = isDisplayAutoUpgrade ? "math-block" : mode === "block" ? "math-block" : "math-inline";
+  const rendered = tokenType === "math-block" && !renderedMath.includes("math-expression-block")
+    ? `<div class="math-expression-block">${renderedMath}</div>`
+    : renderedMath;
+
   return {
-    type: mode === "block" ? "math-block" : "math-inline",
+    type: tokenType,
     source,
-    rendered: mode === "block" ? `<div class="math-expression-block">${renderedMath}</div>` : renderedMath,
+    rendered,
     fallback: false,
   };
 }
@@ -209,6 +229,19 @@ function maybeLogFallbackTelemetry(result: AnkiLatexNormalizationResult): void {
 
 function parseWithTokenizer(content: string): AnkiLatexNormalizationResult {
   const { text: protectedText, segments } = protectCodeSegments(content);
+
+  // Process macro definitions first (before delimiter tokenization)
+  const macros = new MacroExpander();
+  const textWithMacrosProcessed = macros.parseDefinitions(protectedText);
+
+  // Replace escaped dollar signs to prevent them from being treated as delimiters
+  const escapedDollarSegments: string[] = [];
+  const textWithEscapedDollars = textWithMacrosProcessed.replace(/\\\$/g, (_match) => {
+    const index = escapedDollarSegments.length;
+    escapedDollarSegments.push("$");
+    return `@@ESCAPED_DOLLAR_${index}@@`;
+  });
+
   const tokens: AnkiLatexNormalizationToken[] = [];
   const unsupportedCommands: string[] = [];
   let output = "";
@@ -218,9 +251,9 @@ function parseWithTokenizer(content: string): AnkiLatexNormalizationResult {
   const tokenRegex = /\[latex\]([\s\S]*?)\[\/latex\]|\[\$\$\]([\s\S]*?)\[\/\$\$\]|\[\$\]([\s\S]*?)\[\/\$\]|\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$|\\\(([\s\S]*?)\\\)|\$([^$\n]*?)\\\]|\$([^$\n]+?)\$/gi;
 
   let match: RegExpExecArray | null;
-  while ((match = tokenRegex.exec(protectedText)) !== null) {
+  while ((match = tokenRegex.exec(textWithEscapedDollars)) !== null) {
     if (match.index > lastIndex) {
-      const textSegment = protectedText.slice(lastIndex, match.index);
+      const textSegment = textWithEscapedDollars.slice(lastIndex, match.index);
       tokens.push({
         type: "text",
         source: textSegment,
@@ -251,6 +284,7 @@ function parseWithTokenizer(content: string): AnkiLatexNormalizationResult {
       blockExpression !== undefined ? "block" : "inline",
       source,
       unsupportedCommands,
+      macros,
     );
 
     tokens.push(token);
@@ -258,8 +292,8 @@ function parseWithTokenizer(content: string): AnkiLatexNormalizationResult {
     lastIndex = tokenRegex.lastIndex;
   }
 
-  if (lastIndex < protectedText.length) {
-    const trailing = protectedText.slice(lastIndex);
+  if (lastIndex < textWithEscapedDollars.length) {
+    const trailing = textWithEscapedDollars.slice(lastIndex);
     tokens.push({
       type: "text",
       source: trailing,
@@ -272,6 +306,11 @@ function parseWithTokenizer(content: string): AnkiLatexNormalizationResult {
   // Drop orphan tags emitted by malformed cards
   output = output.replace(/\[\/latex\]/gi, "").replace(/\[latex\]/gi, "");
   output = restoreProtectedSegments(output, segments);
+
+  // Restore escaped dollar signs
+  escapedDollarSegments.forEach((dollar, index) => {
+    output = output.replaceAll(`@@ESCAPED_DOLLAR_${index}@@`, dollar);
+  });
 
   const dedupUnsupported = Array.from(new Set(unsupportedCommands));
   const result: AnkiLatexNormalizationResult = {
@@ -359,7 +398,7 @@ export function normalizeAnkiLatexContent(content: string): AnkiLatexNormalizati
           html: source,
           tokens: [
             {
-              type: "text",
+              type: "text" as const,
               source,
               rendered: source,
               fallback: false,
@@ -368,6 +407,16 @@ export function normalizeAnkiLatexContent(content: string): AnkiLatexNormalizati
           hasFallback: false,
           unsupportedCommands: [],
         };
+
+  // If tokenizer found no math tokens but raw LaTeX is present after macro processing,
+  // render the whole content as math (handles bare LaTeX like "\newcommand...\R")
+  if (
+    !result.tokens.some((t) => t.type === "math-inline" || t.type === "math-block") &&
+    RAW_LATEX_HINT.test(result.html) &&
+    !hasHtmlTags
+  ) {
+    return parseWithTokenizer(`[$]${result.html}[/$]`);
+  }
 
   if (NORMALIZATION_CACHE.size >= MAX_CACHE_ENTRIES) {
     const oldestKey = NORMALIZATION_CACHE.keys().next().value;

@@ -34,7 +34,10 @@ export interface CreateLearningItemInput {
   item_type: string;
   question: string;
   answer?: string;
+  cloze_text?: string;
+  document_id?: string;
   prerequisite_item_ids?: string[];
+  tags?: string[];
   image_asset_ids?: string[];
   interaction_metadata?: LearningItemInteractionMetadata;
   allow_duplicate?: boolean;
@@ -95,7 +98,10 @@ export async function createLearningItem(input: CreateLearningItemInput): Promis
     itemType: input.item_type,
     question: input.question,
     answer: input.answer,
+    clozeText: input.cloze_text,
+    documentId: input.document_id,
     prerequisiteItemIds: input.prerequisite_item_ids,
+    tags: input.tags,
     imageAssetIds: input.image_asset_ids,
     interactionMetadata: input.interaction_metadata,
     allowDuplicate: input.allow_duplicate,

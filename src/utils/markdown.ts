@@ -83,12 +83,12 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
     value
       // \[ ... \]
       .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression) => {
-        const rendered = latexToHTML(expression.trim());
+        const rendered = latexToHTML(expression.trim(), { displayMode: true });
         return `<div class="math-expression-block">${rendered}</div>`;
       })
       // $$ ... $$
       .replace(/\$\$([\s\S]*?)\$\$/g, (_match, expression) => {
-        const rendered = latexToHTML(expression.trim());
+        const rendered = latexToHTML(expression.trim(), { displayMode: true });
         return `<div class="math-expression-block">${rendered}</div>`;
       });
 

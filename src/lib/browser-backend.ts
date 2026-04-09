@@ -1150,6 +1150,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             question,
             answer: args.answer as string | undefined,
             cloze_text: args.clozeText as string | undefined,
+            tags: (args.tags ?? args.tag_list) as string[] | undefined,
             image_asset_ids: (args.imageAssetIds ?? args.image_asset_ids) as string[] | undefined,
             interaction_metadata: (args.interactionMetadata ?? args.interaction_metadata) as Record<string, unknown> | undefined,
         });

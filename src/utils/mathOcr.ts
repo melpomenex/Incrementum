@@ -5,6 +5,8 @@
 
 import { invokeCommand } from "../lib/tauri";
 import katex from "katex";
+import "katex/dist/contrib/mhchem";
+import { MacroExpander } from "./latexMacros";
 
 // Inject KaTeX CSS once
 if (typeof document !== "undefined" && !document.getElementById("katex-css-injected")) {
@@ -123,10 +125,31 @@ export async function extractMathWithPix2Tex(
 }
 
 /**
- * Convert LaTeX to HTML for preview
+ * Display-mode-only environments that require `displayMode: true` in KaTeX.
  */
-export function latexToHTML(latex: string): string {
-  const normalized = latex
+const DISPLAY_ONLY_ENVS = /\b(?:gather|split|multline|flalign|alignat|align)\b|\btag\b/;
+
+/**
+ * Detect whether a LaTeX expression contains display-mode-only constructs.
+ */
+export function shouldUseDisplayMode(expression: string): boolean {
+  return DISPLAY_ONLY_ENVS.test(expression);
+}
+
+export interface LatexRenderOptions {
+  /** Force display mode (true) or inline mode (false). When omitted, auto-detects. */
+  displayMode?: boolean;
+  /** When true and display mode is auto-detected, wrap in block-level container. */
+  wrapBlock?: boolean;
+  /** Optional macro expander for \newcommand / \DeclareMathOperator support. */
+  macros?: MacroExpander;
+}
+
+/**
+ * Convert LaTeX to HTML for preview.
+ */
+export function latexToHTML(latex: string, options?: LatexRenderOptions): string {
+  let normalized = latex
     .replace(/\$\$/g, "")
     .replace(/\$/g, "")
     .replace(/\\\[/g, "")
@@ -136,16 +159,67 @@ export function latexToHTML(latex: string): string {
     .replace(/\bd([A-Za-z])\(([0-9nN+\-]+)\)/g, "d$1^{$2}")
     .trim();
 
+  // Expand macros if an expander is provided
+  if (options?.macros) {
+    normalized = options.macros.process(normalized);
+  }
+
+  const autoDetected = options?.displayMode === undefined && shouldUseDisplayMode(normalized);
+  const displayMode = options?.displayMode ?? autoDetected;
+  const shouldWrapBlock = autoDetected || options?.wrapBlock === true;
+
   try {
     const html = katex.renderToString(normalized, {
       throwOnError: false,
       strict: false,
       trust: true,
+      displayMode,
     });
-    return `<span class="math-expression">${html}</span>`;
+
+    // If KaTeX produced an error span and we were in inline mode, retry with display mode
+    if (!displayMode && html.includes("katex-error") && shouldUseDisplayModeFromError(html)) {
+      const retryHtml = katex.renderToString(normalized, {
+        throwOnError: false,
+        strict: false,
+        trust: true,
+        displayMode: true,
+      });
+      if (!retryHtml.includes("katex-error")) {
+        return `<div class="math-expression-block"><span class="math-expression">${retryHtml}</span></div>`;
+      }
+    }
+
+    const inner = `<span class="math-expression">${html}</span>`;
+    const wrapped = shouldWrapBlock
+      ? `<div class="math-expression-block">${inner}</div>`
+      : inner;
+
+    // If KaTeX still produced an error, wrap in fallback with error details
+    if (html.includes("katex-error")) {
+      const errorMatch = html.match(/data-latex-error="([^"]*)"/);
+      const errorMsg = errorMatch ? errorMatch[1] : "unknown";
+      return `<span class="math-expression-fallback" data-latex-fallback="true" data-latex-error="${escapeHtmlAttr(errorMsg)}" title="LaTeX error: ${escapeHtmlAttr(errorMsg)}">${normalized}</span>`;
+    }
+
+    return wrapped;
   } catch {
     return `<span class="math-expression-fallback" data-latex-fallback="true">${normalized}</span>`;
   }
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Check if a KaTeX error message indicates display-mode-only content.
+ */
+function shouldUseDisplayModeFromError(html: string): boolean {
+  return /can be used only in display mode/.test(html);
 }
 
 /**
