@@ -127,7 +127,7 @@ export function DashboardTab() {
     },
     {
       id: "settings",
-      title: t("dashboard.settings"),
+      title: t("nav.settings"),
       description: t("dashboard.appPreferences"),
       icon: Settings,
       iconBg: "bg-slate-500/10 text-slate-500",
