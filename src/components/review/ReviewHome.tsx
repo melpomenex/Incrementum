@@ -11,6 +11,7 @@ import { ReviewDecksModal } from "./ReviewDecksModal";
 import { ReviewPreviewModal } from "./ReviewPreviewModal";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 
 interface ReviewHomeProps {
   onStartReview: () => Promise<void>;
@@ -89,6 +90,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const [isDecksModalOpen, setIsDecksModalOpen] = useState(false);
   const [isAnkiImporting, setIsAnkiImporting] = useState(false);
   const toast = useToast();
+  const { t } = useI18n();
 
   const activeDeck = useMemo(
     () => (decks || []).find((deck) => deck.id === activeDeckId) ?? null,
@@ -207,9 +209,9 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
         <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Review</h1>
+              <h1 className="text-3xl font-bold text-foreground">{t("review.title")}</h1>
               <p className="text-muted-foreground">
-                Choose a deck and dive into focused sessions with clarity.
+                {t("review.subtitle")}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -240,7 +242,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 className="inline-flex items-center gap-2 rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload className="h-4 w-4" />
-                {isAnkiImporting ? "Importing..." : "Import Anki (.apkg)"}
+                {isAnkiImporting ? t("review.importing") : t("review.importAnki")}
               </button>
               <button
                 onClick={() => setIsReviewPreviewOpen(true)}

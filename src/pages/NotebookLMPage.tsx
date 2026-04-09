@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../lib/i18n";
 import {
   ArrowLeft,
   Brain,
@@ -38,6 +39,7 @@ import { useToast } from "../components/common/Toast";
 type ConnectionState = "checking" | "connected" | "disconnected" | "error";
 
 export function NotebookLMPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const toast = useToast();
   const { settings, updateSettingsCategory } = useSettingsStore();
@@ -105,18 +107,18 @@ export function NotebookLMPage() {
         } catch (listError: any) {
           setConnectionState("error");
           setConnectionMessage(
-            listError?.message || "Connected, but failed to load notebooks"
+            listError?.message || t("notebooklm.failedLoadNotebooks")
           );
           setNotebooks([]);
           setSelectedNotebook(null);
         }
       } else {
         setConnectionState("disconnected");
-        setConnectionMessage("Not connected to NotebookLM");
+        setConnectionMessage(t("notebooklm.notConnected"));
       }
     } catch (error: any) {
       setConnectionState("error");
-      setConnectionMessage(error.message || "Failed to check connection");
+      setConnectionMessage(error.message || t("notebooklm.failedToCheckConnection"));
     }
   };
 
@@ -131,7 +133,7 @@ export function NotebookLMPage() {
       await checkConnection();
     } catch (error: any) {
       setConnectionState("error");
-      setConnectionMessage(error.message || "Failed to connect");
+      setConnectionMessage(error.message || t("notebooklm.failedToConnect"));
     } finally {
       setIsConnecting(false);
     }
@@ -162,18 +164,18 @@ export function NotebookLMPage() {
       const result = await notebooklmCLILogin();
       if (result.success) {
         toast.success(
-          "NotebookLM Login",
-          result.message || "Successfully authenticated with NotebookLM."
+          t("notebooklm.notebooklmLogin"),
+          result.message || t("notebooklm.loginSuccess")
         );
         // Backend auto-connects on success; refresh the UI state
         await handleConnect();
       } else {
-        toast.error("NotebookLM Login", result.message || "Login did not complete.");
+        toast.error(t("notebooklm.notebooklmLogin"), result.message || t("notebooklm.loginDidNotComplete"));
       }
     } catch (error: any) {
       toast.error(
-        "NotebookLM Login Failed",
-        error?.message || "Failed to start NotebookLM login flow."
+        t("notebooklm.notebooklmLogin"),
+        error?.message || t("notebooklm.loginFailed")
       );
     } finally {
       setIsLoggingIn(false);
@@ -208,8 +210,8 @@ export function NotebookLMPage() {
 
   const handleSyncToIncrementum = (items: ImportPreviewItem[]) => {
     toast.success(
-      "Synced to Incrementum",
-      `${items.length} item${items.length !== 1 ? "s" : ""} added to your queue for review.`
+      t("notebooklm.synced"),
+      t("notebooklm.syncedToIncrementum", { count: items.length })
     );
   };
 
@@ -295,7 +297,7 @@ export function NotebookLMPage() {
   };
 
   const handleAddArtifactToQueue = () => {
-    toast.success("Added to Queue", "Content has been added to your review queue.");
+    toast.success(t("queue.addedToQueue"), t("notebooklm.addedToQueue"));
     setViewingArtifact(null);
   };
 
@@ -305,7 +307,7 @@ export function NotebookLMPage() {
       <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Connecting to NotebookLM...</p>
+          <p className="text-muted-foreground">{t("notebooklm.connecting")}</p>
         </div>
       </div>
     );
@@ -327,7 +329,7 @@ export function NotebookLMPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-semibold text-foreground">NotebookLM</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t("notebooklm.title")}</h1>
           </div>
         </div>
 
@@ -339,10 +341,10 @@ export function NotebookLMPage() {
                 <Brain className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
-                Connect to NotebookLM
+                {t("notebooklm.connect")}
               </h2>
               <p className="text-muted-foreground">
-                Import sources, chat with your documents, and generate study materials.
+                {t("notebooklm.connectDesc")}
               </p>
             </div>
 
@@ -356,15 +358,15 @@ export function NotebookLMPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Provider
+                  {t("notebooklm.provider")}
                 </label>
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as "mock" | "cli")}
                   className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  <option value="cli">CLI (notebooklm command)</option>
-                  <option value="mock">Mock (for testing)</option>
+                  <option value="cli">{t("notebooklm.cliProvider")}</option>
+                  <option value="mock">{t("notebooklm.mockProvider")}</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Requires the notebooklm-py CLI to be installed and authenticated.
@@ -379,10 +381,10 @@ export function NotebookLMPage() {
                 {isConnecting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Connecting...
+                    {t("common.connecting")}
                   </>
                 ) : (
-                  "Connect to NotebookLM"
+                  t("notebooklm.connectBtn")
                 )}
               </button>
 
@@ -393,7 +395,7 @@ export function NotebookLMPage() {
                   rel="noopener noreferrer"
                   className="text-sm text-primary hover:underline"
                 >
-                  Learn more about notebooklm-py →
+                  {t("notebooklm.learnMore")}
                 </a>
               </div>
 
@@ -419,7 +421,7 @@ export function NotebookLMPage() {
           <button
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-muted rounded-lg transition-colors"
-            title="Go back"
+            title={t("common.back")}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -427,14 +429,14 @@ export function NotebookLMPage() {
             <Brain className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">NotebookLM</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t("notebooklm.title")}</h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Check className="w-3 h-3 text-green-500" />
-                Connected
+                {t("notebooklm.connected")}
               </span>
               <span>•</span>
-              <span>{notebooks.length} notebook{notebooks.length !== 1 ? "s" : ""}</span>
+              <span>{t("notebooklm.notebooksCount", { count: notebooks.length })}</span>
             </div>
           </div>
         </div>
@@ -462,7 +464,7 @@ export function NotebookLMPage() {
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="p-2 hover:bg-muted rounded-lg transition-colors"
-            title="Settings"
+            title={t("common.settings")}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -473,7 +475,7 @@ export function NotebookLMPage() {
       {showSettings && (
         <div className="px-4 py-3 bg-muted/50 border-b border-border flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Provider:</span>
+            <span className="text-sm text-muted-foreground">{t("notebooklm.providerLabel")}</span>
             <span className="text-sm font-medium text-foreground">{provider}</span>
           </div>
           <div className="flex-1" />
@@ -489,7 +491,7 @@ export function NotebookLMPage() {
               ) : (
                 <ExternalLink className="w-3.5 h-3.5" />
               )}
-              {isLoggingIn ? "Starting Login..." : "NotebookLM Login"}
+              {isLoggingIn ? t("notebooklm.startingLogin") : t("notebooklm.loginTitle")}
             </button>
           )}
           <button
@@ -497,13 +499,13 @@ export function NotebookLMPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+            {t("common.refresh")}
           </button>
           <button
             onClick={handleDisconnect}
             className="px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
           >
-            Disconnect
+            {t("common.disconnect")}
           </button>
         </div>
       )}
@@ -540,15 +542,15 @@ export function NotebookLMPage() {
                 <Brain className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium text-foreground mb-2">
-                No notebook selected
+                {t("notebooklm.noNotebook")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Create a new notebook to get started.
+                {t("notebooklm.createFirst")}
               </p>
               {provider === "cli" && (
                 <div className="mb-4">
                   <p className="text-xs text-muted-foreground mb-2">
-                    If you are not logged in, sign in to NotebookLM first.
+                    {t("notebooklm.signInFirst")}
                   </p>
                   <button
                     onClick={handleCLILogin}
@@ -558,12 +560,12 @@ export function NotebookLMPage() {
                     {isLoggingIn ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Starting Login...
+                        {t("notebooklm.startingLogin")}
                       </>
                     ) : (
                       <>
                         <ExternalLink className="w-4 h-4" />
-                        Sign In to NotebookLM
+                        {t("notebooklm.signIn")}
                       </>
                     )}
                   </button>
@@ -571,13 +573,13 @@ export function NotebookLMPage() {
               )}
               <button
                 onClick={() => {
-                  const title = prompt("Enter notebook title:") || "New Notebook";
+                  const title = prompt(t("notebooklm.enterNotebookTitle")) || t("notebooklm.newNotebook");
                   setNewNotebookTitle(title);
                   handleCreateNotebook();
                 }}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
-                Create Notebook
+                {t("notebooklm.createNotebook")}
               </button>
             </div>
           </div>

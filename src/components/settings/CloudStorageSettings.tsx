@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { invokeCommand as invoke, isTauri } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import { useSearchParams } from "react-router-dom";
 import {
   Cloud,
@@ -72,6 +73,7 @@ const PROVIDER_INFO = {
 };
 
 export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<CloudStorageState>({
     provider: null,
@@ -353,7 +355,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <Cloud className="w-5 h-5 text-primary" />
-                  <span className="font-medium text-foreground">Backup Only</span>
+                  <span className="font-medium text-foreground">t("cloudStorage.backupOnly")</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   One-way backup from your computer to the cloud. Your local
@@ -370,7 +372,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
               >
                 <div className="flex items-center gap-3 mb-2">
                   <RefreshCw className="w-5 h-5 text-primary" />
-                  <span className="font-medium text-foreground">Two-Way Sync</span>
+                  <span className="font-medium text-foreground">t("cloudStorage.twoWaySync")</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Synchronize changes between your computer and the cloud.
@@ -475,7 +477,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
               <div className="space-y-2">
                 {state.lastBackupTime && (
                   <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-foreground">Last backup:</span>
+                    <span className="text-sm text-foreground">t("cloudStorage.lastBackup")</span>
                     <span className="text-sm text-muted-foreground">
                       {new Date(state.lastBackupTime).toLocaleString()}
                     </span>
@@ -484,7 +486,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
 
                 {state.lastSyncTime && (
                   <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm text-foreground">Last sync:</span>
+                    <span className="text-sm text-foreground">t("cloudStorage.lastSync")</span>
                     <span className="text-sm text-muted-foreground">
                       {new Date(state.lastSyncTime).toLocaleString()}
                     </span>

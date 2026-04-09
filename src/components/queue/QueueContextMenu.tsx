@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MoreVertical, Play, Trash2, Calendar } from "lucide-react";
 import type { QueueItem } from "../../types/queue";
+import { useI18n } from "../../lib/i18n";
 
 interface QueueContextMenuProps {
   item: QueueItem;
@@ -10,6 +11,7 @@ interface QueueContextMenuProps {
 }
 
 export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: QueueContextMenuProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [showPostponeDialog, setShowPostponeDialog] = useState(false);
 
@@ -23,7 +25,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
   };
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${item.documentTitle}"?`)) {
+    if (confirm(t("delete.deleteQueueItemConfirm", { title: item.documentTitle }))) {
       try {
         await onDelete(item.id);
         setIsOpen(false);
@@ -39,7 +41,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="p-1.5 rounded hover:bg-muted transition-colors"
-          title="More options"
+          title={t("delete.moreOptions")}
         >
           <MoreVertical className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -59,7 +61,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
                 className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <Play className="w-4 h-4" />
-                Start Review
+                {t("delete.startReview")}
               </button>
 
               {item.itemType === "learning-item" && (
@@ -72,7 +74,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
                     className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
                   >
                     <Calendar className="w-4 h-4" />
-                    Postpone...
+                    {t("delete.postpone")}
                   </button>
 
                   <button
@@ -80,7 +82,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
                     className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Delete
+                    {t("common.delete")}
                   </button>
                 </>
               )}
@@ -94,10 +96,10 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
           <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-sm">
             <div className="p-4">
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                Postpone Item
+                {t("delete.postponeItem")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Select how many days to postpone this item
+                {t("delete.selectDays")}
               </p>
 
               <div className="grid grid-cols-3 gap-2">
@@ -110,7 +112,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
                     }}
                     className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md transition-colors"
                   >
-                    {days} day{days !== 1 ? "s" : ""}
+                    {t("delete.day", { count: days })}
                   </button>
                 ))}
               </div>
@@ -120,7 +122,7 @@ export function QueueContextMenu({ item, onPostpone, onDelete, onStartReview }: 
                   onClick={() => setShowPostponeDialog(false)}
                   className="px-4 py-2 bg-card border border-border text-foreground rounded-md hover:bg-muted transition-colors"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </div>

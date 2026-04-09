@@ -17,6 +17,7 @@ import {
   Target,
   Sparkles,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface TutorialStep {
   id: string;
@@ -28,18 +29,18 @@ interface TutorialStep {
   spotlight?: boolean;
 }
 
-const tutorialSteps: TutorialStep[] = [
+const getTutorialSteps = (t: (key: string, vars?: Record<string, string | number>) => string): TutorialStep[] => [
   {
     id: "welcome",
-    title: "Let's Get You Started",
-    description: "This quick tutorial will show you how to use Incrementum effectively. We'll cover importing documents, creating extracts, and reviewing with spaced repetition.",
+    title: t("onboarding.tutorialTitle"),
+    description: t("onboarding.tutorialWelcomeDesc"),
     icon: Sparkles,
     position: "center",
   },
   {
     id: "import",
-    title: "Step 1: Import Documents",
-    description: "Click the Import button to add documents. We support PDFs, EPUBs, YouTube videos, web articles, and more. You can also drag and drop files directly onto the page.",
+    title: t("onboarding.step1Title"),
+    description: t("onboarding.tutorialImportDesc"),
     icon: FileUp,
     targetSelector: "[data-tutorial='import-button']",
     position: "bottom",
@@ -47,8 +48,8 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     id: "read",
-    title: "Step 2: Read & Highlight",
-    description: "Open any document to read it. Select text to create extracts - these are key passages you want to remember. Extracts become flashcards automatically.",
+    title: t("onboarding.step2Title"),
+    description: t("onboarding.tutorialReadDesc"),
     icon: Highlighter,
     targetSelector: "[data-tutorial='document-list']",
     position: "right",
@@ -56,15 +57,15 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     id: "extract",
-    title: "Step 3: Create Learning Items",
-    description: "When you select text, you can create Q&A cards, cloze deletions, or simple extracts. These will be added to your review queue automatically.",
+    title: t("onboarding.step3Title"),
+    description: t("onboarding.tutorialExtractDesc"),
     icon: Target,
     position: "center",
   },
   {
     id: "review",
-    title: "Step 4: Review with Spaced Repetition",
-    description: "Your learning items appear in the queue based on the FSRS algorithm. Review them regularly to build long-term memory. Rate each card: Again, Hard, Good, or Easy.",
+    title: t("onboarding.step4Title"),
+    description: t("onboarding.tutorialReviewDesc"),
     icon: RotateCcw,
     targetSelector: "[data-tutorial='queue-nav']",
     position: "right",
@@ -72,8 +73,8 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     id: "learn",
-    title: "Step 5: Track Your Progress",
-    description: "Watch your knowledge grow over time. The analytics page shows your review history, streak, and retention rate. Consistent daily reviews lead to better retention!",
+    title: t("onboarding.step5Title"),
+    description: t("onboarding.tutorialProgressDesc"),
     icon: Brain,
     targetSelector: "[data-tutorial='analytics-nav']",
     position: "right",
@@ -81,8 +82,8 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     id: "complete",
-    title: "You're All Set!",
-    description: "You now know the basics of Incrementum. Remember: Import → Read & Extract → Review. Press ? anytime to see keyboard shortcuts. Happy learning!",
+    title: t("onboarding.allSet"),
+    description: t("onboarding.tutorialCompleteDesc"),
     icon: Check,
     position: "center",
   },
@@ -99,6 +100,8 @@ export function InteractiveTutorial({
   onSkip,
   startStep = 0,
 }: InteractiveTutorialProps) {
+  const { t } = useI18n();
+  const tutorialSteps = getTutorialSteps(t);
   const [currentStep, setCurrentStep] = useState(startStep);
   const [highlightedElement, setHighlightedElement] = useState<HTMLElement | null>(null);
 
@@ -245,7 +248,7 @@ export function InteractiveTutorial({
             <button
               onClick={handleSkip}
               className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
-              aria-label="Close tutorial"
+              aria-label={t("onboarding.closeTutorial")}
             >
               <X className="w-5 h-5 text-foreground/60" />
             </button>
@@ -257,7 +260,7 @@ export function InteractiveTutorial({
               <div>
                 <h2 className="text-2xl font-bold text-foreground">{step.title}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Step {currentStep + 1} of {tutorialSteps.length}
+                  {t("onboarding.stepOf", { current: currentStep + 1, total: tutorialSteps.length })}
                 </p>
               </div>
             </div>
@@ -281,10 +284,10 @@ export function InteractiveTutorial({
             {step.id === "import" && (
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
-                  { icon: "📄", name: "PDF", desc: "Documents & papers" },
-                  { icon: "📖", name: "EPUB", desc: "E-books" },
-                  { icon: "🎬", name: "YouTube", desc: "Videos & transcripts" },
-                  { icon: "🌐", name: "Web", desc: "Articles & blogs" },
+                  { icon: "📄", name: "PDF", desc: t("onboarding.formatPdf") },
+                  { icon: "📖", name: "EPUB", desc: t("onboarding.formatEpub") },
+                  { icon: "🎬", name: "YouTube", desc: t("onboarding.formatYoutube") },
+                  { icon: "🌐", name: "Web", desc: t("onboarding.formatWeb") },
                 ].map((format) => (
                   <div
                     key={format.name}
@@ -305,9 +308,9 @@ export function InteractiveTutorial({
             {step.id === "extract" && (
               <div className="space-y-3 mb-6">
                 {[
-                  { type: "Q&A Card", desc: "Question and answer format" },
-                  { type: "Cloze", desc: "Fill in the blank" },
-                  { type: "Extract", desc: "Key passage highlight" },
+                  { type: t("onboarding.qaCard"), desc: t("onboarding.qaCardDesc") },
+                  { type: t("onboarding.cloze"), desc: t("onboarding.clozeDesc") },
+                  { type: t("onboarding.extractType"), desc: t("onboarding.extractTypeDesc") },
                 ].map((item) => (
                   <div
                     key={item.type}
@@ -330,14 +333,14 @@ export function InteractiveTutorial({
             {step.id === "review" && (
               <div className="bg-muted/30 rounded-lg p-4 mb-6">
                 <div className="text-xs text-muted-foreground mb-2">
-                  FSRS Rating Buttons
+                  {t("onboarding.fsrsRatingButtons")}
                 </div>
                 <div className="flex gap-2">
                   {[
-                    { label: "Again", color: "bg-red-500/20 text-red-400" },
-                    { label: "Hard", color: "bg-orange-500/20 text-orange-400" },
-                    { label: "Good", color: "bg-green-500/20 text-green-400" },
-                    { label: "Easy", color: "bg-blue-500/20 text-blue-400" },
+                    { label: t("review.again"), color: "bg-red-500/20 text-red-400" },
+                    { label: t("review.hard"), color: "bg-orange-500/20 text-orange-400" },
+                    { label: t("review.good"), color: "bg-green-500/20 text-green-400" },
+                    { label: t("review.easy"), color: "bg-blue-500/20 text-blue-400" },
                   ].map((btn) => (
                     <span
                       key={btn.label}
@@ -354,12 +357,12 @@ export function InteractiveTutorial({
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-5 h-5 text-primary" />
-                  <span className="font-medium text-foreground">Quick Tips</span>
+                  <span className="font-medium text-foreground">{t("onboarding.tutorialQuickTips")}</span>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">?</kbd> for keyboard shortcuts</li>
-                  <li>• Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl/⌘ + K</kbd> for command palette</li>
-                  <li>• Daily reviews build long-term memory</li>
+                  <li>{t("onboarding.tutorialShortcutsHint", { key: "?" })}</li>
+                  <li>{t("onboarding.tutorialCommandPaletteHint", { key: "Ctrl/⌘ + K" })}</li>
+                  <li>{t("onboarding.tutorialDailyReviews")}</li>
                 </ul>
               </div>
             )}
@@ -382,7 +385,7 @@ export function InteractiveTutorial({
                       ? "bg-primary/50"
                       : "bg-muted"
                   }`}
-                  aria-label={`Go to step ${index + 1}`}
+                  aria-label={t("onboarding.goToStep", { step: index + 1 })}
                 />
               ))}
             </div>
@@ -396,7 +399,7 @@ export function InteractiveTutorial({
               className="flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              Back
+              {t("common.back")}
             </button>
 
             <div className="flex items-center gap-2">
@@ -404,13 +407,13 @@ export function InteractiveTutorial({
                 onClick={handleSkip}
                 className="px-4 py-2 text-foreground/70 hover:text-foreground transition-colors"
               >
-                Skip tutorial
+                {t("onboarding.skipTutorial")}
               </button>
               <button
                 onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
-                {isLastStep ? "Start Learning" : "Next"}
+                {isLastStep ? t("onboarding.startLearning") : t("common.next")}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -552,6 +555,7 @@ export function FeatureSpotlight({
   onDismiss,
   position = "bottom",
 }: FeatureSpotlightProps) {
+  const { t } = useI18n();
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -602,7 +606,7 @@ export function FeatureSpotlight({
             onClick={onDismiss}
             className="w-full px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors"
           >
-            Got it
+            {t("onboarding.gotIt")}
           </button>
         </div>
       </div>

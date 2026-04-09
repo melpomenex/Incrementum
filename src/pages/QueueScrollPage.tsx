@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useI18n } from "../lib/i18n";
 import type { TabPane } from "../stores/tabsStore";
 import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -113,6 +114,7 @@ const SESSION_KEYS = {
  * - Smart start position (resumes or varies start for engagement)
  */
 export function QueueScrollPage() {
+  const { t } = useI18n();
   const { filteredItems: allQueueItems, loadQueue } = useQueueStore();
   const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore();
   const { rootPane, closeTab, updateTab } = useTabsStore();
@@ -378,7 +380,7 @@ export function QueueScrollPage() {
 
           // Only show toast when position is actually applied
           if (shouldShowToast) {
-            toast.info("Resuming where you left off", `Position ${lastPosition + 1} of ${scrollItems.length}`);
+            toast.info(t("queueScroll.resuming"), t("queueScroll.resumingPosition", { position: lastPosition + 1, total: scrollItems.length }));
           }
         }
       });
@@ -595,7 +597,7 @@ export function QueueScrollPage() {
       const extractItems: ScrollItem[] = dueExtracts.map((extract) => {
         // Find document title
         const doc = documents.find(d => d.id === extract.document_id);
-        const title = doc ? doc.title : "Unknown Document";
+        const title = doc ? doc.title : t("queueScroll.unknownDocument");
 
         return {
           id: `extract-${extract.id}`,
@@ -1375,8 +1377,8 @@ export function QueueScrollPage() {
     } catch (error) {
       console.error("[QueueScroll] Failed to handle rating:", error);
       toast.error(
-        "Rating failed",
-        error instanceof Error ? error.message : "Please try again"
+        t("queueScroll.ratingFailed"),
+        error instanceof Error ? error.message : t("queueScroll.pleaseTryAgain")
       );
     } finally {
       // Always reset isRating after a short delay, even on error
@@ -1407,7 +1409,7 @@ export function QueueScrollPage() {
 
     // Only documents can be dismissed
     if (currentItem.type !== "document" || !currentItem.documentId) {
-      toast.info("Dismiss not available", "Only documents can be dismissed");
+      toast.info(t("queueScroll.dismissNotAvailable"), t("queueScroll.onlyDocuments"));
       return;
     }
 
@@ -1432,7 +1434,7 @@ export function QueueScrollPage() {
       setItemsReviewedThisSession((prev) => prev + 1);
 
       // Show success toast
-      toast.success("Document dismissed", "Item hidden from queue. You can still find it via search.");
+      toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
 
       // Remove the dismissed document from scrollItems and reload queue
       advanceAfterRemoval(dismissedItemId);
@@ -1440,8 +1442,8 @@ export function QueueScrollPage() {
     } catch (error) {
       console.error("[QueueScroll] Failed to dismiss document:", error);
       toast.error(
-        "Dismiss failed",
-        error instanceof Error ? error.message : "Please try again"
+        t("queueScroll.dismissFailed"),
+        error instanceof Error ? error.message : t("queueScroll.pleaseTryAgain")
       );
     } finally {
       setTimeout(() => {
@@ -1615,14 +1617,14 @@ export function QueueScrollPage() {
         await createExtract({ document_id: documentId, content: selectionText });
       }
 
-      toast.success("Extract created", "Saved from RSS item.");
+      toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedFromRSS"));
       setRssSelectedText("");
       window.getSelection()?.removeAllRanges();
     } catch (error) {
       console.error("Failed to create extract from RSS item:", error);
       toast.error(
-        "Failed to create extract",
-        error instanceof Error ? error.message : "An error occurred"
+        t("queueScroll.failedCreateExtract"),
+        error instanceof Error ? error.message : t("queueScroll.anErrorOccurred")
       );
     }
   }, [renderedItem, rssSelectedText, documents, addDocument, updateDocument, toast]);
@@ -1770,7 +1772,7 @@ export function QueueScrollPage() {
                 <div className="mb-6">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 reading-meta">
                     <span className="px-2 py-1 bg-orange-500/10 text-orange-500 rounded-md text-xs font-medium">
-                      RSS
+                      {t("queueScroll.rss")}
                     </span>
                     <span>{renderedItem.rssFeed?.title}</span>
                   </div>
@@ -1916,15 +1918,15 @@ export function QueueScrollPage() {
           <button
             onClick={toggleAssistantVisibility}
             className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-black/70 text-white rounded-lg shadow-lg hover:bg-black/80 transition-colors min-h-[44px] text-sm md:text-base"
-            title={isAssistantVisible ? "Hide assistant" : "Show assistant"}
+            title={isAssistantVisible ? t("queueScroll.hideAssistant") : t("queueScroll.showAssistant")}
             aria-pressed={!isAssistantVisible}
           >
             <Sparkles className="w-5 h-5" />
             <span className="font-medium hidden sm:inline">
-              {isAssistantVisible ? "Hide Assistant" : "Show Assistant"}
+              {isAssistantVisible ? t("queueScroll.hideAssistant") : t("queueScroll.showAssistant")}
             </span>
             <span className="font-medium sm:hidden">
-              {isAssistantVisible ? "Hide" : "Show"}
+              {isAssistantVisible ? t("queueScroll.hideAssistantShort") : t("queueScroll.showAssistantShort")}
             </span>
           </button>
         </div>
@@ -1936,11 +1938,11 @@ export function QueueScrollPage() {
           <button
             onClick={handleCreateRssExtract}
             className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity min-h-[44px] text-sm md:text-base"
-            title="Create extract from selection"
+            title={t("queueScroll.createExtractFromSelection")}
           >
             <Lightbulb className="w-5 h-5" />
-            <span className="font-medium hidden sm:inline">Create Extract</span>
-            <span className="font-medium sm:hidden">Extract</span>
+            <span className="font-medium hidden sm:inline">{t("queueScroll.createExtract")}</span>
+            <span className="font-medium sm:hidden">{t("queueScroll.createExtractShort")}</span>
           </button>
         </div>
       )}
@@ -1959,7 +1961,7 @@ export function QueueScrollPage() {
           <button
             onClick={handleMobileRssExtract}
             className="flex items-center justify-center w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-xl hover:opacity-90 hover:scale-110 active:scale-95 transition-all"
-            title="Create extract from selection"
+            title={t("queueScroll.createExtractFromSelection")}
             aria-label={`Create extract from selected text (${mobileRssSelection.text.length} characters)`}
           >
             <Lightbulb className="w-6 h-6" aria-hidden="true" />
@@ -1974,11 +1976,11 @@ export function QueueScrollPage() {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm pointer-events-auto">
           <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-foreground">Queue Settings</h2>
+              <h2 className="text-xl font-semibold text-foreground">{t("queueScroll.queueSettingsTitle")}</h2>
               <button
                 onClick={() => setShowSettings(false)}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
-                title="Close settings"
+                title={t("queueScroll.closeSettings")}
               >
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -2049,7 +2051,7 @@ export function QueueScrollPage() {
                 onClick={() => setShowSettings(false)}
                 className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
               >
-                Done
+                {t("common.done")}
               </button>
             </div>
           </div>
@@ -2070,7 +2072,7 @@ export function QueueScrollPage() {
               <button
                 onClick={handleExit}
                 className="p-2 rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
-                title="Exit Scroll Mode (Esc)"
+                title={t("queueScroll.exitScrollMode")}
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -2090,10 +2092,10 @@ export function QueueScrollPage() {
                         "flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60",
                         isOpen && "bg-black/60"
                       )}
-                      title="Item details"
+                      title={t("queueScroll.itemDetails")}
                     >
                       <Info className="w-4 h-4" />
-                      Details
+                      {t("queueScroll.details")}
                     </button>
                   )}
                 />
@@ -2101,18 +2103,18 @@ export function QueueScrollPage() {
               <button
                 onClick={() => setShowSettings(true)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                title="Queue settings"
+                title={t("queueScroll.queueSettings")}
               >
                 <Settings2 className="w-4 h-4" />
-                Settings
+                {t("common.settings")}
               </button>
               <button
                 onClick={() => setShowRssSettings(true)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                title="RSS queue settings"
+                title={t("queueScroll.rssQueueSettings")}
               >
                 <Rss className="w-4 h-4" />
-                RSS
+                {t("queueScroll.rss")}
               </button>
               <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
                 {currentItem.type === "document" && (
@@ -2154,11 +2156,11 @@ export function QueueScrollPage() {
                   onClick={() => handleRating(1)}
                   disabled={isRating}
                   className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Again - Forgot completely (1)"
+                  title={t("queueScroll.againTitle")}
                 >
                   <AlertCircle className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Again (1)
+                    {t("queueScroll.again")}
                   </span>
                 </button>
 
@@ -2167,11 +2169,11 @@ export function QueueScrollPage() {
                   onClick={() => handleRating(2)}
                   disabled={isRating}
                   className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Hard - Difficult recall (2)"
+                  title={t("queueScroll.hardTitle")}
                 >
                   <Star className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Hard (2)
+                    {t("queueScroll.hard")}
                   </span>
                 </button>
 
@@ -2180,11 +2182,11 @@ export function QueueScrollPage() {
                   onClick={() => handleRating(3)}
                   disabled={isRating}
                   className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Good - Normal recall (3)"
+                  title={t("queueScroll.goodTitle")}
                 >
                   <CheckCircle className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Good (3)
+                    {t("queueScroll.good")}
                   </span>
                 </button>
 
@@ -2193,11 +2195,11 @@ export function QueueScrollPage() {
                   onClick={() => handleRating(4)}
                   disabled={isRating}
                   className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Easy - Perfect recall (4)"
+                  title={t("queueScroll.easyTitle")}
                 >
                   <Sparkles className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Easy (4)
+                    {t("queueScroll.easy")}
                   </span>
                 </button>
 
@@ -2208,11 +2210,11 @@ export function QueueScrollPage() {
                     onClick={handleDismiss}
                     disabled={isRating}
                     className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                    title="Dismiss - Hide from queue (still searchable)"
+                    title={t("queueScroll.dismissTitle")}
                   >
                     <EyeOff className="w-6 h-6 text-white" />
                     <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Dismiss (hide from queue)
+                      {t("queueScroll.dismissLabel")}
                     </span>
                   </button>
                 )}
@@ -2239,11 +2241,11 @@ export function QueueScrollPage() {
                   }}
                   disabled={isRating}
                   className="group relative p-4 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                  title={currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
+                  title={currentItem?.type === "document" ? t("queueScroll.markAsReadGood") : t("queueScroll.markAsRead")}
                 >
                   <CheckCircle className="w-7 h-7 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {currentItem?.type === "document" ? "Mark as Read (Good)" : "Mark as Read"}
+                    {currentItem?.type === "document" ? t("queueScroll.markAsReadGood") : t("queueScroll.markAsRead")}
                   </span>
                 </button>
 
@@ -2254,11 +2256,11 @@ export function QueueScrollPage() {
                     onClick={handleDismiss}
                     disabled={isRating}
                     className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                    title="Dismiss - Hide from queue (still searchable)"
+                    title={t("queueScroll.dismissTitle")}
                   >
                     <EyeOff className="w-6 h-6 text-white" />
                     <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Dismiss (hide from queue)
+                      {t("queueScroll.dismissLabel")}
                     </span>
                   </button>
                 )}
@@ -2276,7 +2278,7 @@ export function QueueScrollPage() {
               "p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg",
               currentIndex === 0 && "opacity-30 cursor-not-allowed"
             )}
-            title="Previous Document (Alt+↑ or scroll to top)"
+            title={t("queueScroll.previousDocument")}
           >
             <ChevronUp className="w-6 h-6 text-white" />
           </button>
@@ -2288,7 +2290,7 @@ export function QueueScrollPage() {
               "p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg",
               currentIndex === scrollItems.length - 1 && "opacity-30 cursor-not-allowed"
             )}
-            title="Next Document (Alt+↓ or scroll to bottom)"
+            title={t("queueScroll.nextDocument")}
           >
             <ChevronDown className="w-6 h-6 text-white" />
           </button>
@@ -2310,10 +2312,10 @@ export function QueueScrollPage() {
             const doc = documents.find(d => d.id === currentItem.documentId);
             const fileType = doc?.fileType || doc?.filePath?.split('.').pop()?.toLowerCase();
             return fileType === "epub" || fileType === "pdf"
-              ? "Rate or use Alt+Arrows to navigate • H to toggle controls • Esc to exit"
-              : "Scroll to edge to navigate • Alt+Arrows/Space to skip • H to toggle controls • Esc to exit";
+              ? t("queueScroll.helpTextDocFile")
+              : t("queueScroll.helpTextDocScroll");
           })()}
-          {currentItem?.type !== "document" && "Scroll to edge to navigate • Alt+Arrows/Space to skip • H to toggle controls • Esc to exit"}
+          {currentItem?.type !== "document" && t("queueScroll.helpTextNonDoc")}
         </div>
       </div>
 

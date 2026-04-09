@@ -496,6 +496,8 @@ export interface LearningItem {
     state: string;
     is_suspended: boolean;
     tags: string[];
+    image_asset_ids?: string[];
+    interaction_metadata?: Record<string, unknown>;
     memory_state?: MemoryState;
     algorithm_type?: string;
     algorithm_state?: string;
@@ -526,6 +528,8 @@ export async function createLearningItem(item: Partial<LearningItem>): Promise<L
         state: item.state || 'new',
         is_suspended: item.is_suspended || false,
         tags: item.tags || [],
+        image_asset_ids: item.image_asset_ids || [],
+        interaction_metadata: item.interaction_metadata,
         memory_state: item.memory_state,
         algorithm_type: item.algorithm_type || 'fsrs',
         algorithm_state: item.algorithm_state,

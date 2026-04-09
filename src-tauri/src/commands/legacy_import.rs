@@ -491,6 +491,10 @@ fn parse_document_row(row: &sqlx::sqlite::SqliteRow) -> Result<Document> {
         .try_get("image_asset_ids")
         .unwrap_or_else(|_| "[]".to_string());
     let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+    let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+    let interaction_metadata = interaction_metadata_json
+        .as_deref()
+        .and_then(|value| serde_json::from_str(value).ok());
     let metadata_json: Option<String> = row.try_get("metadata").ok();
     let metadata = metadata_json
         .as_ref()
@@ -626,6 +630,7 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
         is_suspended: row.try_get::<i64, _>("is_suspended").unwrap_or(0) != 0,
         tags,
         image_asset_ids,
+        interaction_metadata,
         memory_state,
         algorithm_type: "fsrs".to_string(),
         algorithm_state: None,

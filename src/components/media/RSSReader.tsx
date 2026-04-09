@@ -47,6 +47,7 @@ import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizati
 import { NewsletterDirectory } from "../newsletter/NewsletterDirectory";
 import { NewsletterUrlImporter } from "../newsletter/NewsletterUrlImporter";
 import { RSSScrollMode } from "./RSSScrollMode";
+import { useI18n } from "../../lib/i18n";
 import { isTauri, openExternal } from "../../lib/tauri";
 import { getDeviceInfo } from "../../lib/pwa";
 
@@ -56,6 +57,7 @@ type ViewMode = "all" | "unread" | "favorites" | "search";
 const DEFAULT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export function RSSReader() {
+  const { t } = useI18n();
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
   const [items, setItems] = useState<Array<{ feed: Feed; item: FeedItem }>>([]);
@@ -316,7 +318,7 @@ export function RSSReader() {
   };
 
   const handleRemoveFeed = async (feedId: string) => {
-    if (confirm("Are you sure you want to unsubscribe from this feed?")) {
+    if (confirm(t("delete.unsubscribeConfirm"))) {
       await unsubscribeFromFeedAuto(feedId);
       await loadFeeds();
       if (selectedFeed?.id === feedId) {
@@ -456,14 +458,14 @@ export function RSSReader() {
     viewMode === "all" && selectedFeed
       ? selectedFeed.title
       : viewMode === "unread"
-        ? "Unread"
+        ? t("common.unread")
         : viewMode === "favorites"
-          ? "Favorites"
-          : "Search";
+          ? t("common.favorites")
+          : t("common.search");
   const itemsSubtitle =
     viewMode === "all" && selectedFeed
-      ? `${selectedFeed.items.length} items`
-      : `${items.length} items`;
+      ? `${selectedFeed.items.length} ${t("common.items")}`
+      : `${items.length} ${t("common.items")}`;
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     if (mode !== "search") {
@@ -513,13 +515,13 @@ export function RSSReader() {
           <div className="px-4 pt-3 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Rss className="w-4 h-4 text-orange-500" />
-              RSS Reader
+              {t("rssReader.title")}
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowAddDialog(true)}
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
-                title="Add feed"
+                title={t("common.addFeed")}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -535,10 +537,10 @@ export function RSSReader() {
                 }`}
                 title={
                   syncFeedback === "error"
-                    ? "Sync completed with errors"
+                    ? t("rssReader.syncErrors")
                     : syncFeedback === "success"
-                      ? "Sync complete"
-                      : "Sync all feeds"
+                      ? t("rssReader.syncCompleted")
+                      : t("rssReader.syncAllFeeds")
                 }
               >
                 {isAutoRefreshing ? (
@@ -554,7 +556,7 @@ export function RSSReader() {
               <button
                 onClick={() => setScrollMode(true)}
                 className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-lg mobile-density-tap"
-                title="Enter scroll mode"
+                title={t("rssReader.scrollMode")}
               >
                 <Scroll className="w-4 h-4" />
               </button>
@@ -570,7 +572,7 @@ export function RSSReader() {
                     : "text-muted-foreground"
                 }`}
               >
-                Feeds
+                {t("rssReader.feeds")}
               </button>
               <button
                 onClick={() => setMobileView("items")}
@@ -580,7 +582,7 @@ export function RSSReader() {
                     : "text-muted-foreground"
                 }`}
               >
-                Articles
+                {t("rssReader.articles")}
               </button>
               <button
                 onClick={() => selectedItem && setMobileView("reader")}
@@ -591,7 +593,7 @@ export function RSSReader() {
                     : "text-muted-foreground"
                 } ${!selectedItem ? "opacity-50" : ""}`}
               >
-                Reader
+                {t("rssReader.reader")}
               </button>
             </div>
           </div>
@@ -611,28 +613,28 @@ export function RSSReader() {
                 <button
                   onClick={() => setShowAddDialog(true)}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
-                  title="Add feed"
+                  title={t("common.addFeed")}
                 >
                   <Plus className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setShowUrlImport(true)}
                   className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
-                  title="Import by URL"
+                  title={t("rssReader.importByUrl")}
                 >
                   <Link2 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setShowNewsletterDirectory(true)}
                   className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
-                  title="Browse directory"
+                  title={t("rssReader.browseDirectory")}
                 >
                   <Newspaper className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setScrollMode(true)}
                   className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
-                  title="Scroll mode"
+                  title={t("rssReader.scrollMode")}
                 >
                   <Scroll className="w-4 h-4" />
                 </button>
@@ -648,10 +650,10 @@ export function RSSReader() {
                   }`}
                   title={
                     syncFeedback === "error"
-                      ? "Sync completed with errors"
+                      ? t("rssReader.syncErrors")
                       : syncFeedback === "success"
-                        ? "Sync complete"
-                        : "Sync all feeds"
+                        ? t("rssReader.syncCompleted")
+                        : t("rssReader.syncAllFeeds")
                   }
                 >
                   {isAutoRefreshing ? (
@@ -667,7 +669,7 @@ export function RSSReader() {
                 <div className="relative group">
                   <button
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
-                    title="More options"
+                    title={t("rssReader.moreOptions")}
                   >
                     <Settings className="w-4 h-4" />
                   </button>
@@ -677,21 +679,21 @@ export function RSSReader() {
                       className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 first:rounded-t-lg flex items-center gap-2"
                     >
                       <Import className="w-4 h-4" />
-                      Import OPML
+                      {t("rssReader.importOpml")}
                     </button>
                     <button
                       onClick={handleExportOPML}
                       className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
                     >
                       <Download className="w-4 h-4" />
-                      Export OPML
+                      {t("rssReader.exportOpml")}
                     </button>
                     <button
                       onClick={() => setShowCustomization(true)}
                       className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 last:rounded-b-lg flex items-center gap-2"
                     >
                       <Settings className="w-4 h-4" />
-                      Customize
+                      {t("rssReader.customize")}
                     </button>
                   </div>
                 </div>
@@ -701,12 +703,12 @@ export function RSSReader() {
             {(syncFeedback !== "idle" || lastAutoRefresh) && (
               <div className="mt-2 text-xs text-muted-foreground">
                 {isAutoRefreshing || syncFeedback === "syncing"
-                  ? "Syncing feeds..."
+                  ? t("rssReader.syncing")
                   : syncFeedback === "success"
-                    ? "Sync complete"
+                    ? t("rssReader.syncCompleted")
                     : syncFeedback === "error"
-                      ? "Sync finished with some errors"
-                      : "Idle"}{" "}
+                      ? t("rssReader.syncFinishedErrors")
+                      : t("rssReader.syncIdle")}{" "}
                 {lastAutoRefresh ? `· Last sync ${lastAutoRefresh.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
               </div>
             )}
@@ -720,7 +722,7 @@ export function RSSReader() {
                   : "text-muted-foreground hover:bg-muted/70"
                   }`}
               >
-                All
+                {t("rssReader.all")}
               </button>
               <button
                 onClick={() => handleViewModeChange("unread")}
@@ -729,7 +731,7 @@ export function RSSReader() {
                   : "text-muted-foreground hover:bg-muted/70"
                   }`}
               >
-                Unread
+                {t("rssReader.unread")}
                 {unreadCount > 0 && (
                   <span className="ml-1 px-1 bg-red-500 text-white text-[10px] rounded-full">
                     {unreadCount}
@@ -743,7 +745,7 @@ export function RSSReader() {
                   : "text-muted-foreground hover:bg-muted/70"
                   }`}
               >
-                Favorites
+                {t("rssReader.favorites")}
               </button>
             </div>
           </div>
@@ -753,12 +755,12 @@ export function RSSReader() {
             {feeds.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Rss className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="mb-2">No feeds yet</p>
+                <p className="mb-2">{t("rssReader.noFeeds")}</p>
                 <button
                   onClick={() => setShowAddDialog(true)}
                   className="text-orange-500 hover:underline text-sm"
                 >
-                  Add your first feed
+                  {t("rssReader.addFirstFeed")}
                 </button>
               </div>
             ) : (
@@ -874,21 +876,21 @@ export function RSSReader() {
                     <button
                       onClick={() => handleRefreshFeed(selectedFeed)}
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
-                      title="Refresh feed"
+                      title={t("rssReader.refreshFeed")}
                     >
                       <RefreshCw className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleMarkAllRead(selectedFeed.id)}
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
-                      title="Mark all as read"
+                      title={t("rssReader.markAllRead")}
                     >
                       <CheckCircle2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleRemoveFeed(selectedFeed.id)}
                       className="p-2 text-destructive hover:bg-destructive/20 rounded-lg mobile-density-tap"
-                      title="Unsubscribe"
+                      title={t("rssReader.unsubscribe")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -902,7 +904,7 @@ export function RSSReader() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search articles..."
+                  placeholder={t("rssReader.searchArticles")}
                   className="w-full pl-9 pr-3 py-2 bg-background/80 border border-border/70 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
                 />
               </div>
@@ -910,7 +912,7 @@ export function RSSReader() {
 
             {items.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground mobile-density-section">
-                {viewMode === "unread" ? "No unread items" : "No articles"}
+                {viewMode === "unread" ? t("rssReader.noUnread") : t("rssReader.noArticles")}
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto">
@@ -958,7 +960,7 @@ export function RSSReader() {
                               handleToggleFavorite(feed, item);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
-                            title={item.favorite ? "Remove favorite" : "Add to favorites"}
+                            title={item.favorite ? t("rssReader.removeFavorite") : t("rssReader.addFavorite")}
                           >
                             {item.favorite ? (
                               <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
@@ -974,7 +976,7 @@ export function RSSReader() {
                               void handleOpenOriginal(item.link);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
-                            title="Open original"
+                            title={t("rssReader.openOriginal")}
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
@@ -997,14 +999,14 @@ export function RSSReader() {
                       <button
                         onClick={() => setMobileView("items")}
                         className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                        title="Back to articles"
+                        title={t("rssReader.backToArticles")}
                       >
                         <ArrowLeft className="w-4 h-4" />
                       </button>
                     )}
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground uppercase tracking-[0.18em]">
-                        {selectedItemFeed?.title ?? "Article"}
+                        {selectedItemFeed?.title ?? t("rssReader.article")}
                       </p>
                       <h2 className="text-lg font-semibold text-foreground truncate">{selectedItem.title}</h2>
                     </div>
@@ -1014,7 +1016,7 @@ export function RSSReader() {
                       <button
                         onClick={() => handleToggleFavorite(selectedItemFeed, selectedItem)}
                         className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                        title={selectedItem.favorite ? "Remove favorite" : "Add to favorites"}
+                        title={selectedItem.favorite ? t("rssReader.removeFavorite") : t("rssReader.addFavorite")}
                       >
                         {selectedItem.favorite ? (
                           <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
@@ -1030,7 +1032,7 @@ export function RSSReader() {
                         void handleOpenOriginal(selectedItem.link);
                       }}
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                      title="Open original"
+                      title={t("rssReader.openOriginal")}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
@@ -1059,7 +1061,7 @@ export function RSSReader() {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                 <Rss className="w-10 h-10 mb-3 opacity-60" />
-                <p>Select a story to start reading</p>
+                <p>{t("rssReader.selectStory")}</p>
               </div>
             )}
           </div>
@@ -1070,7 +1072,7 @@ export function RSSReader() {
       {showAddDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Add RSS Feed</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">{t("rssReader.addRssFeed")}</h2>
             <input
               type="url"
               value={newFeedUrl}
@@ -1086,14 +1088,14 @@ export function RSSReader() {
                 }}
                 className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleAddFeed}
                 disabled={isAdding || !newFeedUrl}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
               >
-                {isAdding ? "Adding..." : "Add Feed"}
+                {isAdding ? t("common.adding") : t("common.addFeed")}
               </button>
             </div>
           </div>
@@ -1110,9 +1112,9 @@ export function RSSReader() {
                   <Link2 className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold">Import Newsletter</h2>
+                  <h2 className="text-xl font-semibold">{t("rssReader.importNewsletter")}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Paste any newsletter URL to subscribe
+                    {t("rssReader.importNewsletterDesc")}
                   </p>
                 </div>
               </div>

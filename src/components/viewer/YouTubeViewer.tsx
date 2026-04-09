@@ -20,6 +20,7 @@ import { getDocumentAuto, updateDocument, updateDocumentProgressAuto } from "../
 import { generateYouTubeShareUrl, copyShareLink, parseStateFromUrl } from "../../lib/shareLink";
 import { cn } from "../../utils";
 import { saveDocumentPosition, timePosition } from "../../api/position";
+import { useI18n } from "../../lib/i18n";
 import { getDocumentPosition } from "../../api/position";
 import { isTauri } from "../../lib/tauri";
 import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
@@ -61,6 +62,7 @@ export function YouTubeViewer({
   initialTranscriptSegmentId,
 }: YouTubeViewerProps) {
   const toast = useToast();
+  const { t } = useI18n();
   const updateDocumentInStore = useDocumentStore((state) => state.updateDocument);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastSavedTimeRef = useRef<number>(0);
@@ -688,7 +690,7 @@ export function YouTubeViewer({
       setShowInlinePlayer(true);
     }
 
-    toast.success("Seeking", `Starting at ${formatTime(time)}`);
+    toast.success(t("viewer.seeking"), t("viewer.startingAt", { time: formatTime(time) }));
   }, [resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer]);
 
   // Format time for display
@@ -703,15 +705,15 @@ export function YouTubeViewer({
     const shareUrl = generateYouTubeShareUrl(normalizedVideoId, currentTime);
     const success = await copyShareLink(shareUrl);
     if (success) {
-      toast.success("Link copied!", "The timestamped video link has been copied to your clipboard.");
+      toast.success(t("viewer.linkCopied"), t("viewer.linkCopiedTimestamp"));
     } else {
-      toast.error("Failed to copy", "Could not copy the link to clipboard.");
+      toast.error(t("viewer.failedToCopy"), t("viewer.couldNotCopyLink"));
     }
   };
 
   const handlePlayVideo = () => {
     if (!normalizedVideoId) {
-      toast.error("Invalid YouTube URL", "Could not determine a valid video ID.");
+      toast.error(t("viewer.invalidYouTubeUrlToast"), t("viewer.invalidYouTubeUrlDesc"));
       return;
     }
     setShowInlinePlayer(true);
@@ -723,11 +725,11 @@ export function YouTubeViewer({
     try {
       await updateDocument(documentId, { isArchived: true } as any);
       updateDocumentInStore(documentId, { isArchived: true });
-      toast.success("Archived", "Video removed from the queue but kept in your library.");
+      toast.success(t("viewer.archived"), t("viewer.archivedDesc"));
       setShowArchivePrompt(false);
       onArchive?.();
     } catch (error) {
-      toast.error("Archive failed", error instanceof Error ? error.message : "Please try again");
+      toast.error(t("viewer.archiveFailed"), error instanceof Error ? error.message : t("viewer.archiveFailedDesc"));
     } finally {
       setIsArchiving(false);
     }
@@ -750,7 +752,7 @@ export function YouTubeViewer({
 
   const handleExtractCreated = useCallback(() => {
     setShowCreateExtract(false);
-    toast.success('Video extract created successfully');
+    toast.success(t("viewer.videoExtractCreated"));
   }, [toast]);
 
   // YouTube Player Event Handlers
@@ -839,18 +841,18 @@ export function YouTubeViewer({
 
     const message =
       code === 5
-        ? "YouTube HTML5 playback failed in the embedded webview."
+        ? t("viewer.youTubePlaybackFailed")
         : code === 101 || code === 150
-          ? "This video cannot be played in an embedded player."
+          ? t("viewer.videoCannotPlayEmbedded")
           : code === 100
-            ? "This video is unavailable."
-            : "YouTube playback error.";
+            ? t("viewer.videoUnavailable")
+            : t("viewer.youTubePlaybackError");
 
     console.warn("[YouTubeViewer] Player error:", { code, message });
     setPlayerError({ code, message });
   };
 
-  const displayTitle = resolvedTitle || title || "YouTube Video";
+  const displayTitle = resolvedTitle || title || t("viewer.youTubeVideo");
 
   const youtubeOpts: YouTubeProps['opts'] = {
     host: embedHost,
@@ -886,7 +888,7 @@ export function YouTubeViewer({
     <div className={`flex h-full min-h-0 overflow-hidden bg-background ${transcriptLayout === 'side' && showTranscript ? 'flex-row' : 'flex-col'}`}>
       {!normalizedVideoId && (
         <div className="p-3 text-sm bg-destructive/10 border-b border-destructive/30 text-destructive">
-          Invalid YouTube URL/ID: <code>{videoId}</code>
+          {t("viewer.invalidYouTubeUrl", { videoId })} <code>{videoId}</code>
         </div>
       )}
       {/* Video Player Container */}
@@ -915,14 +917,14 @@ export function YouTubeViewer({
                     <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground">
-                        Inline YouTube playback failed
+                        {t("viewer.inlinePlaybackFailed")}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {playerError.message} (code {playerError.code})
                       </div>
                       {inlinePlaybackLikelyUnsupported && (
                         <div className="text-xs text-muted-foreground mt-2">
-                          On Linux, this often means the WebView is missing H.264/MP4 codecs (GStreamer plugins).
+                          {t("viewer.missingH264Codecs")}
                         </div>
                       )}
                       <div className="mt-4 flex flex-col sm:flex-row gap-2">
@@ -933,7 +935,7 @@ export function YouTubeViewer({
                           className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors font-medium border border-gray-700"
                         >
                           <ExternalLink className="w-4 h-4" />
-                          Open in Browser
+                          {t("viewer.openInBrowser")}
                         </a>
                         <button
                           onClick={() => {
@@ -943,7 +945,7 @@ export function YouTubeViewer({
                           className="inline-flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-4 py-2 rounded-lg transition-colors font-medium"
                         >
                           <X className="w-4 h-4" />
-                          Close
+                          {t("viewer.close")}
                         </button>
                       </div>
                     </div>
@@ -978,7 +980,7 @@ export function YouTubeViewer({
                 {startTime > 0 && (
                   <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    Resume from {formatTime(startTime)}
+                    {t("viewer.resumeFrom", { time: formatTime(startTime) })}
                   </div>
                 )}
                 
@@ -986,7 +988,7 @@ export function YouTubeViewer({
                 {segments.length > 0 && (
                   <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
                     <SkipForward className="w-4 h-4" />
-                    {segments.length} Skippable Segments
+                    {t("viewer.skippableSegments", { count: segments.length })}
                   </div>
                 )}
               </div>
@@ -1006,7 +1008,7 @@ export function YouTubeViewer({
                   className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-lg shadow-red-600/20"
                 >
                   <Play className="w-5 h-5" />
-                  {startTime > 0 ? `Resume from ${formatTime(startTime)}` : "Play Video"}
+                  {startTime > 0 ? t("viewer.resumeFrom", { time: formatTime(startTime) }) : t("viewer.playVideo")}
                 </button>
                 
                 <button
@@ -1014,7 +1016,7 @@ export function YouTubeViewer({
                   className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-medium border border-gray-700"
                 >
                   <Share2 className="w-5 h-5" />
-                  Share
+                  {t("viewer.share")}
                 </button>
 
                 <a
@@ -1024,7 +1026,7 @@ export function YouTubeViewer({
                   className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-medium border border-gray-700"
                 >
                   <ExternalLink className="w-5 h-5" />
-                  Browser
+                  {t("viewer.browser")}
                 </a>
               </div>
 
@@ -1034,10 +1036,10 @@ export function YouTubeViewer({
                     <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5" />
                     <div className="min-w-0">
                       <div className="text-sm text-foreground font-medium">
-                        Inline playback may not work in this Tauri webview
+                        {t("viewer.inlinePlaybackMayNotWork")}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        This machine appears to lack MP4/H.264 support, which YouTube typically requires in WebKitGTK.
+                        {t("viewer.machineLacksMp4Support")}
                       </div>
                       <button
                         onClick={() => {
@@ -1046,7 +1048,7 @@ export function YouTubeViewer({
                         }}
                         className="mt-2 inline-flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors text-sm"
                       >
-                        Try inline anyway
+                        {t("viewer.tryInlineAnyway")}
                       </button>
                     </div>
                   </div>
@@ -1062,9 +1064,9 @@ export function YouTubeViewer({
               <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-red-600/10 flex items-center justify-center">
                 <Youtube className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Finished watching?</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{t("viewer.finishedWatching")}</h3>
               <p className="text-sm text-muted-foreground mb-5">
-                Archive this video to keep it searchable without scheduling it in your queue.
+                {t("viewer.archiveVideoDesc")}
               </p>
               <div className="flex flex-col gap-2">
                 <button
@@ -1072,19 +1074,19 @@ export function YouTubeViewer({
                   disabled={isArchiving}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
                 >
-                  {isArchiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Archive video</span>}
+                  {isArchiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{t("viewer.archiveVideo")}</span>}
                 </button>
                 <button
                   onClick={() => setShowArchivePrompt(false)}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
                 >
-                  Keep in queue
+                  {t("viewer.keepInQueue")}
                 </button>
                 <button
                   onClick={handleReplay}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Replay
+                  {t("viewer.replay")}
                 </button>
               </div>
             </div>
@@ -1098,7 +1100,7 @@ export function YouTubeViewer({
           className={`w-1 flex-shrink-0 relative z-10 ${isResizing ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
           onMouseDown={handleResizeStart}
           onTouchStart={handleResizeStart}
-          title="Drag to resize"
+          title={t("viewer.dragToResize")}
         >
           {/* Visual grip indicator */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
@@ -1122,11 +1124,11 @@ export function YouTubeViewer({
                   {displayTitle}
                 </h2>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  {duration > 0 && <span>Duration: {formatDuration(duration)}</span>}
+                  {duration > 0 && <span>{t("viewer.duration", { duration: formatDuration(duration) })}</span>}
                   {segments.length > 0 && (
                     <span className="flex items-center gap-1 text-green-600">
                       <SkipForward className="w-3 h-3" />
-                      SponsorBlock Enabled
+                      {t("viewer.sponsorBlockEnabled")}
                     </span>
                   )}
                 </div>
@@ -1148,10 +1150,10 @@ export function YouTubeViewer({
                       }
                     }}
                     className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
-                    title={`Resume from ${formatTime(startTime)}`}
+                    title={t("viewer.resumeFrom", { time: formatTime(startTime) })}
                   >
                     <Clock className="w-4 h-4" />
-                    <span className="font-medium">Resume</span>
+                    <span className="font-medium">{t("viewer.resume")}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatTime(startTime)}
                     </span>
@@ -1166,10 +1168,10 @@ export function YouTubeViewer({
                       "px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
                       showVideoFeatures ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
                     )}
-                    title="Video Features (Bookmarks, Chapters, Extracts)"
+                    title={t("viewer.videoFeatures")}
                   >
                     <Layers className="w-4 h-4" />
-                    <span className="font-medium">Panels</span>
+                    <span className="font-medium">{t("viewer.panels")}</span>
                   </button>
                 )}
 
@@ -1178,7 +1180,7 @@ export function YouTubeViewer({
                   <button
                     onClick={() => setTranscriptLayout(transcriptLayout === 'below' ? 'side' : 'below')}
                     className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
-                    title={transcriptLayout === 'below' ? 'Switch to side-by-side view' : 'Switch to stacked view'}
+                    title={transcriptLayout === 'below' ? t("viewer.switchToSideBySide") : t("viewer.switchToStacked")}
                   >
                     <span className="text-xs">{transcriptLayout === 'below' ? '↔' : '↕'}</span>
                   </button>
@@ -1189,7 +1191,7 @@ export function YouTubeViewer({
                   onClick={() => setShowTranscript(!showTranscript)}
                   className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
                 >
-                  <span className="font-medium">{showTranscript ? "Hide" : "Show"} Transcript</span>
+                  <span className="font-medium">{showTranscript ? t("viewer.hideTranscript") : t("viewer.showTranscript")}</span>
                   <span className="text-xs text-muted-foreground">
                     {showTranscript ? "▼" : "▶"}
                   </span>
@@ -1205,18 +1207,18 @@ export function YouTubeViewer({
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-6 h-6 animate-spin" />
-                    <span className="text-sm">Loading transcript...</span>
+                    <span className="text-sm">{t("viewer.loadingTranscript")}</span>
                   </div>
                 </div>
               ) : transcriptError ? (
                 <div className="flex items-center justify-center h-full p-6">
                   <div className="text-center max-w-md">
                     <AlertTriangle className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
-                    <h3 className="text-sm font-medium text-foreground mb-2">Transcript Unavailable</h3>
+                    <h3 className="text-sm font-medium text-foreground mb-2">{t("viewer.transcriptUnavailable")}</h3>
                     <p className="text-xs text-muted-foreground">{transcriptError}</p>
                     {!isTauri() && (
                       <p className="text-xs text-muted-foreground mt-2">
-                        Note: Transcript fetching requires the API server to be running.
+                        {t("viewer.transcriptRequiresApi")}
                       </p>
                     )}
                   </div>
@@ -1224,7 +1226,7 @@ export function YouTubeViewer({
               ) : transcript.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="text-center">
-                    <p className="text-sm">No transcript available for this video.</p>
+                    <p className="text-sm">{t("viewer.noTranscriptForVideo")}</p>
                   </div>
                 </div>
               ) : (
@@ -1254,7 +1256,7 @@ export function YouTubeViewer({
             className={`absolute left-0 top-0 h-full w-1 ${isResizingVideoFeatures ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
             onMouseDown={handleVideoFeaturesResizeStart}
             onTouchStart={handleVideoFeaturesResizeStart}
-            title="Drag to resize"
+            title={t("viewer.dragToResize")}
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
               <GripVertical className="w-3 h-3 text-muted-foreground" />
@@ -1262,7 +1264,7 @@ export function YouTubeViewer({
           </div>
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <h3 className="text-lg font-semibold text-foreground">Video Features</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("viewer.videoFeaturesTitle")}</h3>
             <button
               onClick={() => setShowVideoFeatures(false)}
               className="p-1 hover:bg-muted rounded transition-colors"

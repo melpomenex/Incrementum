@@ -9,6 +9,7 @@ import {
 } from "../common/KeyboardShortcuts";
 import { useVimiumEnabled } from "../common/VimiumNavigation";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Keyboard shortcut recording button
@@ -55,7 +56,7 @@ function ShortcutRecorder({
           : "bg-background hover:bg-muted"
       }`}
     >
-      {isRecording ? "Press keys..." : formatKeyCombo(combo)}
+      {isRecording ? t("settings.pressKeys") : formatKeyCombo(combo)}
     </button>
   );
 }
@@ -64,6 +65,7 @@ function ShortcutRecorder({
  * Keyboard Shortcut Settings
  */
 export function KeyboardShortcutSettings({ onChange }: { onChange: () => void }) {
+  const { t } = useI18n();
   const { shortcuts, updateShortcut, resetShortcut, resetAll } = useShortcutStore();
   const [vimiumEnabled, setVimiumEnabled] = useVimiumEnabled();
 
@@ -78,8 +80,8 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
   return (
     <>
       <SettingsSection
-        title="Keyboard Shortcuts"
-        description="Customize keyboard shortcuts for quick actions"
+        title={t("settings.keyboardShortcuts")}
+        description={t("settings.keyboardShortcutsDesc")}
       >
         <div className="flex justify-end mb-4">
           <button
@@ -89,7 +91,7 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
             }}
             className="text-sm text-muted-foreground hover:text-destructive transition-colors"
           >
-            Reset all to defaults
+            {t("settings.resetAllDefaults")}
           </button>
         </div>
 
@@ -127,7 +129,7 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
                             onChange();
                           }}
                           className="p-2 hover:bg-destructive/10 hover:text-destructive rounded"
-                          title="Reset to default"
+                          title={t("settings.resetToDefault")}
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -144,13 +146,13 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
       </SettingsSection>
 
       <SettingsSection
-        title="Vimium Navigation"
-        description="Vimium-style keyboard navigation settings"
+        title={t("settings.vimiumNavigation")}
+        description={t("settings.vimiumNavigationDesc")}
       >
         <div className="space-y-1">
           <SettingsRow
-            label="Enable Vimium Navigation"
-            description="Use keyboard shortcuts for navigation (like Vimium)"
+            label={t("settings.enableVimium")}
+            description={t("settings.enableVimiumDesc")}
           >
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -167,8 +169,8 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
           </SettingsRow>
 
           <SettingsRow
-            label="Link Hint Keys"
-            description="Characters used for link hints"
+            label={t("settings.linkHintKeys")}
+            description={t("settings.linkHintKeysDesc")}
           >
             <input
               type="text"

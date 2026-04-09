@@ -14,6 +14,7 @@ import {
   Download,
   Upload,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import {
   MediaItem,
   MediaType,
@@ -36,6 +37,7 @@ type FilterType = "all" | MediaType;
 type ViewSection = "library" | "playlists" | "folders";
 
 export function MediaLibrary() {
+  const { t } = useI18n();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MediaItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -104,7 +106,7 @@ export function MediaLibrary() {
   };
 
   const handleDeleteItem = (id: string) => {
-    if (confirm("Are you sure you want to delete this item?")) {
+    if (confirm(t("mediaLibrary.deleteConfirm"))) {
       deleteMediaItem(id);
       loadItems();
     }
@@ -138,9 +140,9 @@ export function MediaLibrary() {
           const data = event.target?.result as string;
           if (importLibraryData(data)) {
             loadItems();
-            alert("Library imported successfully!");
+            alert(t("mediaLibrary.libraryImported"));
           } else {
-            alert("Failed to import library");
+            alert(t("mediaLibrary.libraryImportFailed"));
           }
         };
         reader.readAsText(file);
@@ -155,7 +157,7 @@ export function MediaLibrary() {
       <div className="w-64 border-r border-border bg-card">
         {/* Navigation */}
         <div className="p-4">
-          <h2 className="text-lg font-semibold text-foreground mb-3">Media Library</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">{t("mediaLibrary.title")}</h2>
           <nav className="space-y-1">
             <button
               onClick={() => setSection("library")}
@@ -166,7 +168,7 @@ export function MediaLibrary() {
               }`}
             >
               <Grid className="w-4 h-4" />
-              Library
+              {t("mediaLibrary.library")}
             </button>
             <button
               onClick={() => setSection("playlists")}
@@ -177,7 +179,7 @@ export function MediaLibrary() {
               }`}
             >
               <List className="w-4 h-4" />
-              Playlists
+              {t("mediaLibrary.playlists")}
             </button>
             <button
               onClick={() => setSection("folders")}
@@ -188,21 +190,21 @@ export function MediaLibrary() {
               }`}
             >
               <FolderPlus className="w-4 h-4" />
-              Folders
+              {t("mediaLibrary.folders")}
             </button>
           </nav>
         </div>
 
         {/* Quick Stats */}
         <div className="px-4 py-2 border-t border-border">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-2">STATISTICS</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground mb-2">{t("mediaLibrary.statistics")}</h3>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-foreground">
-              <span>Total items</span>
+              <span>{t("mediaLibrary.totalItems")}</span>
               <span>{stats.totalItems}</span>
             </div>
             <div className="flex justify-between text-foreground">
-              <span>Total duration</span>
+              <span>{t("mediaLibrary.totalDuration")}</span>
               <span>{formatDuration(stats.totalDuration)}</span>
             </div>
           </div>
@@ -210,21 +212,21 @@ export function MediaLibrary() {
 
         {/* Import/Export */}
         <div className="px-4 py-2 border-t border-border">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-2">MANAGE</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground mb-2">{t("mediaLibrary.manage")}</h3>
           <div className="space-y-1">
             <button
               onClick={handleExport}
               className="w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Export Library
+              {t("mediaLibrary.exportLibrary")}
             </button>
             <button
               onClick={handleImport}
               className="w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg flex items-center gap-2"
             >
               <Upload className="w-4 h-4" />
-              Import Library
+              {t("mediaLibrary.importLibrary")}
             </button>
           </div>
         </div>
@@ -242,7 +244,7 @@ export function MediaLibrary() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search media..."
+                placeholder={t("mediaLibrary.searchPlaceholder")}
                 className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -253,11 +255,11 @@ export function MediaLibrary() {
               onChange={(e) => setFilterType(e.target.value as FilterType)}
               className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">All Types</option>
-              <option value="video">Videos</option>
-              <option value="audio">Audio</option>
-              <option value="podcast">Podcasts</option>
-              <option value="youtube">YouTube</option>
+              <option value="all">{t("mediaLibrary.allTypes")}</option>
+              <option value="video">{t("mediaLibrary.videos")}</option>
+              <option value="audio">{t("mediaLibrary.audio")}</option>
+              <option value="podcast">{t("mediaLibrary.podcasts")}</option>
+              <option value="youtube">{t("mediaLibrary.youtube")}</option>
             </select>
 
             {/* Sort */}
@@ -266,9 +268,9 @@ export function MediaLibrary() {
               onChange={(e) => setSortBy(e.target.value as SortBy)}
               className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="dateAdded">Recently Added</option>
-              <option value="lastPlayed">Recently Played</option>
-              <option value="playCount">Most Played</option>
+              <option value="dateAdded">{t("mediaLibrary.recentlyAdded")}</option>
+              <option value="lastPlayed">{t("mediaLibrary.recentlyPlayed")}</option>
+              <option value="playCount">{t("mediaLibrary.mostPlayed")}</option>
               <option value="title">Title</option>
               <option value="duration">Duration</option>
             </select>
@@ -298,25 +300,25 @@ export function MediaLibrary() {
               onClick={() => setItems(getRecentlyAdded(20))}
               className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-full hover:opacity-90"
             >
-              Recently Added
+              {t("mediaLibrary.recentlyAdded")}
             </button>
             <button
               onClick={() => setItems(getRecentlyPlayed(20))}
               className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-full hover:opacity-90"
             >
-              Recently Played
+              {t("mediaLibrary.recentlyPlayed")}
             </button>
             <button
               onClick={() => setItems(getMostPlayed(20))}
               className="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded-full hover:opacity-90"
             >
-              Most Played
+              {t("mediaLibrary.mostPlayed")}
             </button>
             <button
               onClick={() => loadItems()}
               className="px-3 py-1 text-sm text-muted-foreground hover:bg-muted rounded-full"
             >
-              Show All
+              {t("mediaLibrary.showAll")}
             </button>
           </div>
         </div>
@@ -326,11 +328,11 @@ export function MediaLibrary() {
           {filteredItems.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">No media items found</p>
+              <p className="text-lg mb-2">{t("mediaLibrary.noMediaItems")}</p>
               <p className="text-sm">
                 {searchQuery || filterType !== "all"
-                  ? "Try adjusting your filters"
-                  : "Add media files to get started"}
+                  ? t("mediaLibrary.tryAdjustingFilters")
+                  : t("mediaLibrary.addMediaToStart")}
               </p>
             </div>
           ) : viewMode === "grid" ? (

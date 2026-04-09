@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useI18n } from "../../lib/i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { optimizeAlgorithmParams } from "../../api/algorithm";
 
 export function LearningSettings() {
+  const { t } = useI18n();
   const { settings, updateSettings } = useSettingsStore();
   const { decks } = useStudyDeckStore();
   const [newScopeType, setNewScopeType] = useState<"deck" | "tag">("deck");
@@ -17,7 +19,7 @@ export function LearningSettings() {
     <div className="space-y-6">
       {/* Algorithm Selection */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Algorithm</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.algorithm")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="algorithm-select" className="block text-sm font-medium text-foreground mb-2">
@@ -122,7 +124,7 @@ export function LearningSettings() {
 
           <div className="border border-border rounded-lg p-4 space-y-3">
             <div>
-              <h4 className="font-medium text-foreground">Scoped FSRS Overrides</h4>
+              <h4 className="font-medium text-foreground">t("learningSettings.scopedOverrides")</h4>
               <p className="text-xs text-muted-foreground">
                 Precedence is global → deck → tag. Tag overrides win when both match.
               </p>
@@ -190,7 +192,7 @@ export function LearningSettings() {
 
             <div className="space-y-2">
               {scopedOverrides.length === 0 && (
-                <p className="text-xs text-muted-foreground">No scoped overrides configured.</p>
+                <p className="text-xs text-muted-foreground">t("learningSettings.noScopedOverrides")</p>
               )}
               {scopedOverrides.map((override) => (
                 <div key={override.id} className="border border-border rounded-md p-3 space-y-2">
@@ -269,7 +271,7 @@ export function LearningSettings() {
 
       {/* New Cards */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">New Cards</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.newCards")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="newCardsPerDay" className="block text-sm font-medium text-foreground mb-2">
@@ -313,7 +315,7 @@ export function LearningSettings() {
 
       {/* Reviews */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Reviews</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.reviews")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="reviewsPerDay" className="block text-sm font-medium text-foreground mb-2">
@@ -360,7 +362,7 @@ export function LearningSettings() {
 
       {/* Lapses */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Lapses (Forgotten Cards)</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.lapses")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="lapseSteps" className="block text-sm font-medium text-foreground mb-2">
@@ -409,7 +411,7 @@ export function LearningSettings() {
 
       {/* Graduated Interval */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Graduated Interval</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.graduatedInterval")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="graduatingInterval" className="block text-sm font-medium text-foreground mb-2">
@@ -459,7 +461,7 @@ export function LearningSettings() {
 
       {/* Leech Threshold */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Leech Cards</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.leechCards")</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="leechThreshold" className="block text-sm font-medium text-foreground mb-2">
@@ -487,7 +489,7 @@ export function LearningSettings() {
 
       {/* Timezone */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Timezone</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">t("learningSettings.timezone")</h3>
         <div>
           <label htmlFor="timezone" className="block text-sm font-medium text-foreground mb-2">
             Your Timezone

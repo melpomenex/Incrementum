@@ -80,6 +80,7 @@ import { extractYouTubeID, fetchYouTubeTranscript } from "../../api/youtube";
 import { renderMarkdown } from "../../utils/markdown";
 import { useDocumentStore, useLLMProvidersStore, useSettingsStore, useStudyDeckStore } from "../../stores";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 import { buildChapterQAContext, getChapterTitles } from "../../utils/chapterUtils";
 
@@ -1227,7 +1228,7 @@ function DocumentSelector({
       >
         <FileText className="w-4 h-4" />
         <span className="max-w-[150px] truncate">
-          {selectedDoc?.title || "Select document..."}
+          {selectedDoc?.title || t("flashcardStudio.selectDocument")}
         </span>
         <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
       </button>
@@ -1389,6 +1390,7 @@ function DeckSelector({
 // =============================================================================
 
 export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalProps) {
+  const { t } = useI18n();
   const toast = useToast();
   const { documents, loadDocuments } = useDocumentStore();
   const { decks, activeDeckId } = useStudyDeckStore();
@@ -2184,9 +2186,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">AI Flashcard Studio</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("flashcardStudio.title")}</h2>
               <p className="text-xs text-muted-foreground">
-                Create, refine, and organize your learning cards
+                {t("flashcardStudio.subtitle")}
               </p>
             </div>
           </div>
@@ -2202,7 +2204,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 )}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Chat
+                {t("flashcardStudio.chat")}
               </button>
               <button
                 onClick={() => setViewMode("templates")}
@@ -2212,7 +2214,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 )}
               >
                 <Zap className="w-3.5 h-3.5" />
-                Templates
+                {t("flashcardStudio.templates")}
               </button>
               <button
                 onClick={() => setViewMode("history")}
@@ -2222,7 +2224,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 )}
               >
                 <History className="w-3.5 h-3.5" />
-                History
+                {t("flashcardStudio.history")}
                 {generationHistory.length > 0 && (
                   <span className="ml-0.5 text-[10px] bg-primary-foreground/20 px-1 rounded-full">
                     {generationHistory.length}
@@ -2239,7 +2241,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 onChange={(e) => setSelectedProviderId(e.target.value || null)}
                 className="bg-transparent text-xs text-foreground outline-none min-w-[120px]"
               >
-                {enabledProviders.length === 0 && <option value="">No provider</option>}
+                {enabledProviders.length === 0 && <option value="">{t("flashcardStudio.noProvider")}</option>}
                 {notebookLmEnabled && <option value={NOTEBOOKLM_PROVIDER_ID}>NotebookLM</option>}
                 {enabledProviders.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -2260,7 +2262,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   onChange={(e) => void handleNotebookSelect(e.target.value)}
                   className="bg-transparent text-xs text-foreground outline-none min-w-[160px]"
                 >
-                  <option value="">Select notebook</option>
+                  <option value="">{t("flashcardStudio.selectNotebook")}</option>
                   {notebooks.map((notebook) => (
                     <option key={notebook.id} value={notebook.id}>
                       {notebook.title}
@@ -2324,7 +2326,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
             >
               <ImagePlus className="w-3.5 h-3.5" />
-              Import image
+              {t("flashcardStudio.importImage")}
             </button>
             <button
               type="button"
@@ -2333,7 +2335,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
             >
               <ClipboardPaste className="w-3.5 h-3.5" />
-              Paste image
+              {t("flashcardStudio.pasteImage")}
             </button>
             <button
               type="button"
@@ -2342,7 +2344,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
               className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-60"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Delete selected
+              {t("flashcardStudio.deleteSelected")}
             </button>
           </div>
           {imageAssets.length > 0 && (
@@ -2405,7 +2407,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         <Sparkles className="w-8 h-8 text-primary" />
                       </div>
                       <h3 className="text-lg font-semibold text-foreground mb-2">
-                        Welcome to Flashcard Studio
+                        {t("flashcardStudio.welcome")}
                       </h3>
                       <p className="text-sm text-muted-foreground max-w-md mb-4">
                         Describe what you want to learn, or select a template. 

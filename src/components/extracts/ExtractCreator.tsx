@@ -3,6 +3,7 @@ import { Plus, X, Scissors, MessageSquare } from "lucide-react";
 import { createExtract } from "../../api/extracts";
 import { ClozeCreatorPopup } from "./ClozeCreatorPopup";
 import { QACreatorPopup } from "./QACreatorPopup";
+import { useI18n } from "../../lib/i18n";
 
 interface ExtractCreatorProps {
   documentId: string;
@@ -28,6 +29,7 @@ export function ExtractCreator({
   const [tagInput, setTagInput] = useState("");
   const [category, setCategory] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { t } = useI18n();
 
   // Chained creation state
   const [creationMode, setCreationMode] = useState<'edit' | 'cloze' | 'qa'>('edit');
@@ -143,11 +145,11 @@ export function ExtractCreator({
       <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Create Extract</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t("extracts.createTitle")}</h2>
           <button
             onClick={onCancel}
             className="p-2 rounded-md hover:bg-muted transition-colors"
-            title="Close"
+            title={t("common.close")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -158,7 +160,7 @@ export function ExtractCreator({
           {/* Selected Text */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Extracted Text
+              {t("extracts.extractedText")}
             </label>
             <textarea
               value={content}
@@ -171,7 +173,7 @@ export function ExtractCreator({
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Category (Optional)
+              {t("extracts.categoryOptional")}
             </label>
             <div className="flex flex-wrap gap-2">
               <button
@@ -181,7 +183,7 @@ export function ExtractCreator({
                   : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
               >
-                None
+                {t("extracts.none")}
               </button>
               {categories.map((cat) => (
                 <button
@@ -201,7 +203,7 @@ export function ExtractCreator({
           {/* Color */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Highlight Color
+              {t("extracts.highlightColor")}
             </label>
             <div className="flex gap-2">
               {colors.map((color) => (
@@ -221,7 +223,7 @@ export function ExtractCreator({
           {/* Tags */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Tags (Optional)
+              {t("extracts.tagsOptional")}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
@@ -262,7 +264,7 @@ export function ExtractCreator({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Notes (Optional)
+              {t("extracts.notesOptional")}
             </label>
             <textarea
               value={note}
@@ -279,26 +281,26 @@ export function ExtractCreator({
             onClick={onCancel}
             className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleSave('cloze')}
               disabled={!content.trim() || isSaving}
               className="px-3 py-2 bg-secondary/80 hover:bg-secondary text-secondary-foreground rounded-md transition-colors text-sm flex items-center gap-2"
-              title="Save and create Cloze card"
+              title={t("extracts.saveAndCloze")}
             >
               <Scissors className="w-4 h-4" />
-              + Cloze
+              + {t("extracts.clozeShort")}
             </button>
             <button
               onClick={() => handleSave('qa')}
               disabled={!content.trim() || isSaving}
               className="px-3 py-2 bg-secondary/80 hover:bg-secondary text-secondary-foreground rounded-md transition-colors text-sm flex items-center gap-2"
-              title="Save and create Q&A card"
+              title={t("extracts.saveAndQA")}
             >
               <MessageSquare className="w-4 h-4" />
-              + Q&A
+              + {t("extracts.qaShort")}
             </button>
           </div>
           <button
@@ -306,7 +308,7 @@ export function ExtractCreator({
             disabled={!content.trim() || isSaving}
             className="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? "Saving..." : "Save Extract"}
+            {isSaving ? t("extracts.saving") : t("extracts.saveExtract")}
           </button>
         </div>
       </div>

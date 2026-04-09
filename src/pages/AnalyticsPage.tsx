@@ -9,11 +9,13 @@ import {
   Activity,
   Download,
 } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 
 export function AnalyticsPage() {
   const { dashboardStats, activityData, categoryStats, loadAll } =
     useAnalyticsStore();
   const [timeRange, setTimeRange] = useState<string>("7d");
+  const { t } = useI18n();
 
   useEffect(() => {
     loadAll(timeRange);
@@ -22,7 +24,7 @@ export function AnalyticsPage() {
   const exportStats = async () => {
     try {
       await invokeCommand("export_analytics", { timeRange });
-      alert("Statistics exported successfully!");
+      alert(`${t("analytics.title")} ${t("common.export").toLowerCase()}ed successfully!`);
     } catch (error) {
       console.error("Failed to export:", error);
     }
@@ -34,9 +36,9 @@ export function AnalyticsPage() {
       <div className="p-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Statistics</h1>
+            <h1 className="text-xl font-semibold text-foreground">{t("analytics.title")}</h1>
             <p className="text-sm text-foreground-secondary">
-              Track your learning progress
+              {t("analytics.subtitle")}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -56,7 +58,7 @@ export function AnalyticsPage() {
               className="px-3 py-1.5 bg-background border border-border rounded text-sm hover:bg-muted flex items-center gap-1"
             >
               <Download className="w-3 h-3" />
-              Export
+              {t("common.export")}
             </button>
           </div>
         </div>
@@ -67,7 +69,7 @@ export function AnalyticsPage() {
           {/* Overview Stats */}
           <div className="grid grid-cols-4 gap-4">
             <StatCard
-              label="Total Cards"
+              label={t("analytics.totalCards")}
               value={dashboardStats?.total_cards || 0}
               icon={<BarChart3 className="w-5 h-5" />}
               trend={
@@ -78,17 +80,17 @@ export function AnalyticsPage() {
               }
             />
             <StatCard
-              label="Cards Learned"
+              label={t("analytics.cardsLearned")}
               value={dashboardStats?.cards_learned || 0}
               icon={<TrendingUp className="w-5 h-5" />}
             />
             <StatCard
-              label="Due Today"
+              label={t("layout.dueToday")}
               value={dashboardStats?.cards_due_today || 0}
               icon={<Calendar className="w-5 h-5" />}
             />
             <StatCard
-              label="Retention Rate"
+              label={t("analytics.retentionRate")}
               value={`${Math.round(
                 ((dashboardStats?.cards_retained || 0) /
                   Math.max(1, dashboardStats?.total_cards || 0)) *
@@ -101,7 +103,7 @@ export function AnalyticsPage() {
           {/* Memory States */}
           <div className="bg-card border border-border rounded p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              Memory States
+              {t("analytics.memoryStates")}
             </h3>
             <div className="grid grid-cols-5 gap-4">
               {memoryStates.map((state) => (
@@ -123,7 +125,7 @@ export function AnalyticsPage() {
                     {state.name}
                   </div>
                   <div className="text-xs text-foreground-secondary">
-                    {state.count} cards
+                    {state.count}
                   </div>
                 </div>
               ))}
@@ -133,7 +135,7 @@ export function AnalyticsPage() {
           {/* Activity Chart */}
           <div className="bg-card border border-border rounded p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              Review Activity
+              {t("analytics.reviewActivity")}
             </h3>
             <div className="h-48 flex items-end gap-1">
               {activityData?.map((day: any, index: number) => (
@@ -167,7 +169,7 @@ export function AnalyticsPage() {
           {categoryStats && categoryStats.length > 0 && (
             <div className="bg-card border border-border rounded p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">
-                Category Breakdown
+              {t("analytics.categoryBreakdown")}
               </h3>
               <div className="space-y-3">
                 {categoryStats.map((cat: any) => (

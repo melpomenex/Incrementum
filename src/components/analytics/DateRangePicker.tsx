@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Date range preset
@@ -20,7 +21,7 @@ export interface DateRangePreset {
 export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     id: "today",
-    label: "Today",
+    label: "dateRange.today",
     range: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -30,7 +31,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "yesterday",
-    label: "Yesterday",
+    label: "dateRange.yesterday",
     range: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
@@ -40,7 +41,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-7-days",
-    label: "Last 7 Days",
+    label: "dateRange.last7Days",
     range: () => {
       const end = new Date();
       const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -49,7 +50,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-30-days",
-    label: "Last 30 Days",
+    label: "dateRange.last30Days",
     range: () => {
       const end = new Date();
       const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -58,7 +59,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "this-week",
-    label: "This Week",
+    label: "dateRange.thisWeek",
     range: () => {
       const now = new Date();
       const day = now.getDay();
@@ -70,7 +71,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-week",
-    label: "Last Week",
+    label: "dateRange.lastWeek",
     range: () => {
       const now = new Date();
       const day = now.getDay();
@@ -82,7 +83,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "this-month",
-    label: "This Month",
+    label: "dateRange.thisMonth",
     range: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -92,7 +93,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-month",
-    label: "Last Month",
+    label: "dateRange.lastMonth",
     range: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -102,7 +103,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "this-quarter",
-    label: "This Quarter",
+    label: "dateRange.thisQuarter",
     range: () => {
       const now = new Date();
       const quarter = Math.floor(now.getMonth() / 3);
@@ -113,7 +114,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-quarter",
-    label: "Last Quarter",
+    label: "dateRange.lastQuarter",
     range: () => {
       const now = new Date();
       const quarter = Math.floor(now.getMonth() / 3);
@@ -124,7 +125,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "this-year",
-    label: "This Year",
+    label: "dateRange.thisYear",
     range: () => {
       const now = new Date();
       const start = new Date(now.getFullYear(), 0, 1);
@@ -134,7 +135,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "last-year",
-    label: "Last Year",
+    label: "dateRange.lastYear",
     range: () => {
       const start = new Date(new Date().getFullYear() - 1, 0, 1);
       const end = new Date(new Date().getFullYear() - 1, 11, 31, 23, 59, 59);
@@ -143,7 +144,7 @@ export const DATE_RANGE_PRESETS: DateRangePreset[] = [
   },
   {
     id: "all-time",
-    label: "All Time",
+    label: "dateRange.allTime",
     range: () => {
       return { start: new Date(2020, 0, 1), end: new Date() };
     },
@@ -174,6 +175,7 @@ export function DateRangePicker({
   align = "left",
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useI18n();
   const [customStart, setCustomStart] = useState(value.start);
   const [customEnd, setCustomEnd] = useState(value.end);
 
@@ -227,7 +229,7 @@ export function DateRangePicker({
       >
         <Calendar className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm">
-          {currentPreset ? currentPreset.label : `${formatDate(value.start)} - ${formatDate(value.end)}`}
+          {currentPreset ? t(currentPreset.label) : `${formatDate(value.start)} - ${formatDate(value.end)}`}
         </span>
       </button>
 
@@ -240,7 +242,7 @@ export function DateRangePicker({
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <span className="text-sm font-semibold">Date Range</span>
+              <span className="text-sm font-semibold">{t("dateRange.dateRange")}</span>
               <button
                 onClick={() => setIsOpen(false)}
                 className="p-1 hover:bg-muted rounded"
@@ -252,7 +254,7 @@ export function DateRangePicker({
             {/* Presets */}
             <div className="max-h-64 overflow-y-auto p-2">
               <div className="text-xs font-semibold text-muted-foreground px-2 py-1">
-                Presets
+                {t("dateRange.presets")}
               </div>
               {presets.map((preset) => (
                 <button
@@ -264,19 +266,19 @@ export function DateRangePicker({
                       : "hover:bg-muted"
                   }`}
                 >
-                  {preset.label}
+                  {t(preset.label)}
                 </button>
               ))}
 
               {/* Custom Range */}
               <div className="mt-2 pt-2 border-t border-border">
                 <div className="text-xs font-semibold text-muted-foreground px-2 py-1">
-                  Custom Range
+                  {t("dateRange.customRange")}
                 </div>
                 <div className="space-y-2 p-2">
                   <div>
                     <label className="block text-xs text-muted-foreground mb-1">
-                      Start Date
+                      {t("dateRange.startDate")}
                     </label>
                     <input
                       type="date"
@@ -291,7 +293,7 @@ export function DateRangePicker({
                   </div>
                   <div>
                     <label className="block text-xs text-muted-foreground mb-1">
-                      End Date
+                      {t("dateRange.endDate")}
                     </label>
                     <input
                       type="date"
@@ -309,7 +311,7 @@ export function DateRangePicker({
                     disabled={customStart > customEnd}
                     className="w-full px-3 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Apply Custom Range
+                    {t("dateRange.applyCustomRange")}
                   </button>
                 </div>
               </div>
@@ -338,11 +340,12 @@ export function DateRangeComparison({
   presets?: DateRangePreset[];
 }) {
   const [showComparison, setShowComparison] = useState(false);
+  const { t } = useI18n();
 
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Primary:</span>
+        <span className="text-sm text-muted-foreground">{t("dateRange.primary")}</span>
         <DateRangePicker
           value={primaryRange}
           onChange={onPrimaryChange}
@@ -358,12 +361,12 @@ export function DateRangeComparison({
             : "bg-muted text-muted-foreground hover:bg-muted/80"
         }`}
       >
-        Compare
+        {t("dateRange.compare")}
       </button>
 
       {showComparison && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">vs:</span>
+          <span className="text-sm text-muted-foreground">{t("dateRange.vs")}</span>
           <DateRangePicker
             value={comparisonRange}
             onChange={onComparisonChange}
@@ -387,6 +390,8 @@ export function DateRangeNavigation({
   onChange: (range: { start: Date; end: Date }) => void;
   step?: "day" | "week" | "month" | "quarter" | "year";
 }) {
+  const { t } = useI18n();
+
   const navigate = useCallback(
     (direction: "prev" | "next") => {
       const multiplier = direction === "next" ? 1 : -1;
@@ -463,7 +468,7 @@ export function DateRangeNavigation({
       <button
         onClick={() => navigate("prev")}
         className="p-2 hover:bg-muted rounded"
-        title={`Previous ${step}`}
+        title={t("dateRange.previous", { step })}
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
@@ -475,7 +480,7 @@ export function DateRangeNavigation({
       <button
         onClick={() => navigate("next")}
         className="p-2 hover:bg-muted rounded"
-        title={`Next ${step}`}
+        title={t("dateRange.next", { step })}
       >
         <ChevronRight className="w-5 h-5" />
       </button>

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { Document } from "../../types";
 import { renderMarkdown } from "../../utils/markdown";
+import { useI18n } from "../../lib/i18n";
 
 interface MarkdownViewerProps {
   document: Document;
@@ -17,6 +18,7 @@ export function MarkdownViewer({
   initialScrollPercent,
   onScrollPositionChange,
 }: MarkdownViewerProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
@@ -117,7 +119,7 @@ export function MarkdownViewer({
       {content ? (
         <div dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <div className="text-muted-foreground italic">No content available</div>
+        <div className="text-muted-foreground italic">{t("viewer.noContentAvailable")}</div>
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import {
   FileText,
   Shield,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import type {
   CloudProviderType,
   BackupInfo,
@@ -34,14 +35,14 @@ interface BackupRestorePanelProps {
 }
 
 const BACKUP_PRESETS: {
-  name: string;
-  description: string;
+  nameKey: string;
+  descriptionKey: string;
   options: BackupOptions;
   icon: React.ReactNode;
 }[] = [
     {
-      name: "Full Backup",
-      description: "Database, documents, and settings",
+      nameKey: "backup.fullBackup",
+      descriptionKey: "backup.databaseDocumentsSettings",
       options: {
         include_database: true,
         include_documents: true,
@@ -52,8 +53,8 @@ const BACKUP_PRESETS: {
       icon: <HardDrive className="w-5 h-5" />,
     },
     {
-      name: "Database Only",
-      description: "Just your learning database",
+      nameKey: "backup.databaseOnly",
+      descriptionKey: "backup.justLearningDatabase",
       options: {
         include_database: true,
         include_documents: false,
@@ -64,8 +65,8 @@ const BACKUP_PRESETS: {
       icon: <Database className="w-5 h-5" />,
     },
     {
-      name: "Documents Only",
-      description: "Document files without database",
+      nameKey: "backup.documentsOnly",
+      descriptionKey: "backup.docFilesWithoutDatabase",
       options: {
         include_database: false,
         include_documents: true,
@@ -83,6 +84,7 @@ export function BackupRestorePanel({
   onBackupComplete,
   onRestoreComplete,
 }: BackupRestorePanelProps) {
+  const { t } = useI18n();
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [backupInProgress, setBackupInProgress] = useState(false);
@@ -134,7 +136,7 @@ export function BackupRestorePanel({
     setBackupInProgress(true);
     setError(null);
     setSuccess(null);
-    setBackupProgress({ current: 0, total: 100, message: "Initializing backup..." });
+    setBackupProgress({ current: 0, total: 100, message: t("backup.initializing") });
 
     try {
       const options = BACKUP_PRESETS[selectedPreset].options;
@@ -160,10 +162,10 @@ export function BackupRestorePanel({
       });
 
       clearInterval(progressInterval);
-      setBackupProgress({ current: 100, total: 100, message: "Backup complete!" });
+      setBackupProgress({ current: 100, total: 100, message: t("backup.complete") });
 
       setBackups((prev) => [result, ...prev]);
-      setSuccess(`Backup created successfully at ${new Date(result.created_at).toLocaleString()}`);
+      setSuccess(t("backup.backupCreatedSuccess", { date: new Date(result.created_at).toLocaleString() }));
       onBackupComplete?.(result);
 
       setTimeout(() => {
@@ -178,12 +180,12 @@ export function BackupRestorePanel({
   };
 
   const getProgressMessage = (progress: number): string => {
-    if (progress < 20) return "Exporting database...";
-    if (progress < 40) return "Copying document files...";
-    if (progress < 60) return "Compressing backup...";
-    if (progress < 80) return "Uploading to cloud...";
-    if (progress < 100) return "Finalizing backup...";
-    return "Backup complete!";
+    if (progress < 20) return t("backup.exportingDatabase");
+    if (progress < 40) return t("backup.copyingDocumentFiles");
+    if (progress < 60) return t("backup.compressingBackup");
+    if (progress < 80) return t("backup.uploadingToCloud");
+    if (progress < 100) return t("backup.finalizingBackup");
+    return t("backup.complete");
   };
 
   const handleRestoreClick = (backup: BackupInfo) => {
@@ -207,11 +209,11 @@ export function BackupRestorePanel({
       if (result.conflicts.length > 0) {
         setRestoreConflicts(result.conflicts);
         setSuccess(
-          `Restore completed with ${result.conflicts.length} conflicts. Please review below.`
+          t("backup.restoreCompletedConflicts", { count: result.conflicts.length })
         );
       } else {
         setSuccess(
-          `Restore completed successfully! ${result.restored_items} items restored.`
+          t("backup.restoreCompletedSuccess", { count: result.restored_items })
         );
         onRestoreComplete?.();
       }
@@ -238,7 +240,7 @@ export function BackupRestorePanel({
       });
 
       setBackups((prev) => prev.filter((b) => b.id !== backupId));
-      setSuccess("Backup deleted successfully.");
+      setSuccess(t("backup.backupDeletedSuccess"));
     } catch (err) {
       setError(err as string);
     }
@@ -254,9 +256,9 @@ export function BackupRestorePanel({
 
   const getBackupTypeLabel = (backup: BackupInfo): string => {
     const parts: string[] = [];
-    if (backup.includes.database) parts.push("Database");
-    if (backup.includes.documents) parts.push("Documents");
-    if (backup.includes.settings) parts.push("Settings");
+    if (backup.includes.database) parts.push(t("backup.settings"));
+    if (backup.includes.documents) parts.push(t("backup.documents"));
+    if (backup.includes.settings) parts.push(t("common.settings"));
     return parts.join(" + ");
   };
 
@@ -265,7 +267,7 @@ export function BackupRestorePanel({
       <div className="p-6 bg-muted/30 rounded-lg border border-border text-center">
         <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
         <p className="text-muted-foreground">
-          Connect to a cloud storage provider to manage backups.
+          {t("backup.connectToCloudProvider")}
         </p>
       </div>
     );
@@ -276,7 +278,7 @@ export function BackupRestorePanel({
       {/* Create Backup Section */}
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-4">
-          Create Backup
+          {t("backup.createBackup")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -292,9 +294,9 @@ export function BackupRestorePanel({
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-primary">{preset.icon}</div>
-                <span className="font-medium text-foreground">{preset.name}</span>
+                <span className="font-medium text-foreground">{t(preset.nameKey)}</span>
               </div>
-              <p className="text-sm text-muted-foreground">{preset.description}</p>
+              <p className="text-sm text-muted-foreground">{t(preset.descriptionKey)}</p>
             </button>
           ))}
         </div>
@@ -307,12 +309,12 @@ export function BackupRestorePanel({
           {backupInProgress ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Creating Backup...
+              {t("backup.creatingBackup")}
             </>
           ) : (
             <>
               <HardDrive className="w-5 h-5" />
-              Create Backup Now
+              {t("backup.createBackupNow")}
             </>
           )}
         </button>
@@ -342,7 +344,7 @@ export function BackupRestorePanel({
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
-            Backup History
+            {t("backup.backupHistory")}
           </h3>
           <button
             onClick={loadBackups}
@@ -350,21 +352,21 @@ export function BackupRestorePanel({
             className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            {t("common.refresh")}
           </button>
         </div>
 
         {loading && backups.length === 0 ? (
           <div className="p-8 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">Loading backups...</p>
+            <p className="text-muted-foreground">{t("backup.loadingBackups")}</p>
           </div>
         ) : backups.length === 0 ? (
           <div className="p-8 text-center bg-muted/30 rounded-lg border border-border">
             <HardDrive className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground mb-1">No backups found</p>
+            <p className="text-muted-foreground mb-1">{t("backup.noBackupsFound")}</p>
             <p className="text-sm text-muted-foreground">
-              Create your first backup to get started.
+              {t("backup.createFirstBackup")}
             </p>
           </div>
         ) : (
@@ -384,13 +386,13 @@ export function BackupRestorePanel({
                       {backup.encrypted && (
                         <Shield
                           className="w-4 h-4 text-primary"
-                          title="Encrypted backup"
+                          title={t("backup.encrypted")}
                         />
                       )}
                       {backup.compressed && (
                         <FileText
                           className="w-4 h-4 text-muted-foreground"
-                          title="Compressed backup"
+                          title={t("backup.compressed")}
                         />
                       )}
                     </div>
@@ -399,7 +401,7 @@ export function BackupRestorePanel({
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>{formatBytes(backup.size)}</span>
-                      <span>{backup.file_count} files</span>
+                      <span>{t("backup.files", { count: backup.file_count })}</span>
                       <span>{backup.device_id}</span>
                       <span>v{backup.app_version}</span>
                     </div>
@@ -410,14 +412,14 @@ export function BackupRestorePanel({
                       onClick={() => handleRestoreClick(backup)}
                       disabled={restoreInProgress}
                       className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Restore from this backup"
+                      title={t("backup.restoreFromBackup")}
                     >
                       <Download className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDeleteBackup(backup.id)}
                       className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                      title="Delete this backup"
+                      title={t("backup.deleteBackup")}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -434,11 +436,10 @@ export function BackupRestorePanel({
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
           <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
-            Restore Conflicts
+            {t("backup.restoreConflicts")}
           </h4>
           <p className="text-sm text-muted-foreground mb-3">
-            The following items were found in both your local data and the backup.
-            Choose how to resolve each conflict:
+            {t("backup.restoreConflictsDesc")}
           </p>
           <div className="space-y-2">
             {restoreConflicts.map((conflict, index) => (
@@ -456,8 +457,7 @@ export function BackupRestorePanel({
             ))}
           </div>
           <p className="text-xs text-muted-foreground mt-3">
-            Conflict resolution UI will be implemented in a future update.
-            Currently, all conflicts are automatically resolved by keeping the backup version.
+            {t("backup.conflictResolutionNote")}
           </p>
         </div>
       )}
@@ -467,35 +467,33 @@ export function BackupRestorePanel({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              Confirm Restore
+              {t("backup.confirmRestore")}
             </h3>
             <p className="text-muted-foreground mb-4">
-              Are you sure you want to restore from backup created on{" "}
-              {new Date(selectedBackup.created_at).toLocaleString()}?
+              {t("backup.confirmRestoreDesc", { date: new Date(selectedBackup.created_at).toLocaleString() })}
             </p>
             <div className="p-3 bg-muted rounded-lg mb-4 text-sm">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-foreground">Type:</span>
+                <span className="text-foreground">{t("backup.type")}</span>
                 <span className="text-muted-foreground">
                   {getBackupTypeLabel(selectedBackup)}
                 </span>
               </div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-foreground">Size:</span>
+                <span className="text-foreground">{t("backup.size")}</span>
                 <span className="text-muted-foreground">
                   {formatBytes(selectedBackup.size)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-foreground">Files:</span>
+                <span className="text-foreground">{t("backup.fileCount")}</span>
                 <span className="text-muted-foreground">
                   {selectedBackup.file_count}
                 </span>
               </div>
             </div>
             <p className="text-sm text-yellow-600 dark:text-yellow-300 mb-4">
-              <strong>Warning:</strong> Restoring will replace your current data.
-              Consider creating a backup first.
+              {t("backup.restoringWarning")}
             </p>
             <div className="flex gap-3">
               <button
@@ -503,7 +501,7 @@ export function BackupRestorePanel({
                 disabled={restoreInProgress}
                 className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleRestoreConfirm}
@@ -513,12 +511,12 @@ export function BackupRestorePanel({
                 {restoreInProgress ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Restoring...
+                    {t("backup.restoring")}
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    Restore
+                    {t("backup.restore")}
                   </>
                 )}
               </button>
@@ -533,14 +531,14 @@ export function BackupRestorePanel({
           <div className="flex items-start gap-3">
             <Check className="w-5 h-5 text-green-600 dark:text-green-300 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-medium text-foreground mb-1">Success</h4>
+              <h4 className="font-medium text-foreground mb-1">{t("common.success")}</h4>
               <p className="text-sm text-muted-foreground">{success}</p>
             </div>
             <button
               onClick={() => setSuccess(null)}
               className="text-green-600 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200"
             >
-              Dismiss
+              {t("common.dismiss")}
             </button>
           </div>
         </div>
@@ -552,14 +550,14 @@ export function BackupRestorePanel({
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-medium text-destructive-foreground mb-1">Error</h4>
+              <h4 className="font-medium text-destructive-foreground mb-1">{t("backup.error")}</h4>
               <p className="text-sm text-destructive/80">{error}</p>
             </div>
             <button
               onClick={() => setError(null)}
               className="text-destructive hover:text-destructive/80"
             >
-              Dismiss
+              {t("common.dismiss")}
             </button>
           </div>
         </div>

@@ -42,6 +42,7 @@ import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Settings tab
@@ -78,14 +79,14 @@ interface SettingsTabConfig {
 export const SETTINGS_TABS: SettingsTabConfig[] = [
   {
     id: SettingsTab.General,
-    label: "General",
+    label: "settings.general",
     icon: Sliders,
     keywords: ["language", "startup", "default", "view", "auto-save", "backup", "data", "storage"],
     description: "Basic application settings, language, and data management",
   },
   {
     id: SettingsTab.Appearance,
-    label: "Appearance",
+    label: "settings.appearance",
     icon: Palette,
     keywords: [
       "theme",
@@ -102,7 +103,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
   {
     id: SettingsTab.Learning,
-    label: "Learning",
+    label: "settings.learning",
     icon: GraduationCap,
     keywords: [
       "algorithm",
@@ -118,21 +119,21 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
   {
     id: SettingsTab.Documents,
-    label: "Documents",
+    label: "settings.documents",
     icon: BookOpen,
     keywords: ["import", "pdf", "epub", "reading", "extract", "annotation", "highlight"],
     description: "Document import and reading preferences",
   },
   {
     id: SettingsTab.Shortcuts,
-    label: "Shortcuts",
+    label: "settings.shortcuts",
     icon: Keyboard,
     keywords: ["keyboard", "hotkey", "keybinding", "shortcut", "command", "vim"],
     description: "Keyboard shortcuts and keybindings",
   },
   {
     id: SettingsTab.AI,
-    label: "AI",
+    label: "settings.ai",
     icon: Brain,
     keywords: [
       "openai",
@@ -149,7 +150,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
   {
     id: SettingsTab.AudioTranscription,
-    label: "Audio Transcription",
+    label: "settings.audioTranscription",
     icon: Mic,
     keywords: [
       "audio",
@@ -165,56 +166,56 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
   {
     id: SettingsTab.TTS,
-    label: "Text To Speech",
+    label: "settings.tts",
     icon: Volume2,
     keywords: ["tts", "text to speech", "fal", "voice clone", "speech synthesis", "audio output"],
     description: "Configure Fal.ai voices, cloning, and generation presets",
   },
   {
     id: SettingsTab.Sync,
-    label: "Sync",
+    label: "settings.sync",
     icon: RefreshCw,
     keywords: ["synchronization", "backup", "cloud", "export", "import", "data transfer"],
     description: "Data synchronization settings",
   },
   {
     id: SettingsTab.Integrations,
-    label: "Integrations",
+    label: "settings.integrations",
     icon: Plug,
     keywords: ["obsidian", "anki", "third-party", "extension", "browser", "plugin"],
     description: "Third-party app integrations",
   },
   {
     id: SettingsTab.CloudStorage,
-    label: "Cloud Storage",
+    label: "settings.cloudStorage",
     icon: Cloud,
     keywords: ["google drive", "dropbox", "onedrive", "backup", "cloud", "storage", "oauth"],
     description: "Cloud storage providers and backups",
   },
   {
     id: SettingsTab.ImportExport,
-    label: "Import/Export",
+    label: "settings.importExport",
     icon: FolderOpen,
     keywords: ["data", "backup", "migration", "json", "csv", "archive", "transfer"],
     description: "Import and export your data",
   },
   {
     id: SettingsTab.Notifications,
-    label: "Notifications",
+    label: "settings.notifications",
     icon: Bell,
     keywords: ["reminder", "alert", "study", "due", "email", "push", "sound"],
     description: "Notification and reminder settings",
   },
   {
     id: SettingsTab.Privacy,
-    label: "Privacy",
+    label: "settings.privacy",
     icon: Shield,
     keywords: ["security", "password", "encryption", "private", "data protection", "gdpr"],
     description: "Privacy and security settings",
   },
   {
     id: SettingsTab.Handbook,
-    label: "Handbook",
+    label: "settings.handbook",
     icon: BookText,
     keywords: ["guide", "help", "tutorial", "documentation", "manual", "how to", "learn"],
     description: "User guide and documentation",
@@ -287,6 +288,7 @@ export function SettingsPage() {
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
   const initialTabKey = "incrementum_settings_initial_tab";
+  const { t } = useI18n();
 
   useEffect(() => {
     const initial = localStorage.getItem(initialTabKey) as SettingsTab | null;
@@ -365,7 +367,7 @@ export function SettingsPage() {
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2 mb-4">
             <SettingsIcon className="w-5 h-5" />
-            <h1 className="text-lg font-semibold">Settings</h1>
+            <h1 className="text-lg font-semibold">{t("settings.title")}</h1>
           </div>
 
           {/* Search Bar */}
@@ -382,7 +384,7 @@ export function SettingsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder="Search settings..."
+              placeholder={t("settings.searchPlaceholder")}
               className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none"
             />
             {searchQuery && (
@@ -403,14 +405,14 @@ export function SettingsPage() {
             searchResults && searchResults.length > 0 ? (
               <>
                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Search Results
+                  {t("settings.searchResults")}
                 </div>
                 {searchResults.map((tab) => {
                   return (
                     <SettingsMenuItem
                       key={tab.id}
                       icon={tab.icon}
-                      label={tab.label}
+                      label={t(tab.label)}
                       description={tab.description}
                       isActive={activeTab === tab.id}
                       isMobile={isMobile}
@@ -422,8 +424,8 @@ export function SettingsPage() {
             ) : (
               <div className="px-3 py-8 text-center text-muted-foreground">
                 <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No settings found for "{searchQuery}"</p>
-                <p className="text-xs mt-1 opacity-70">Try different keywords</p>
+                <p className="text-sm">{t("settings.noSettingsFound", { query: searchQuery })}</p>
+                <p className="text-xs mt-1 opacity-70">{t("settings.tryDifferentKeywords")}</p>
               </div>
             )
           ) : (
@@ -433,7 +435,7 @@ export function SettingsPage() {
                 <SettingsMenuItem
                   key={tab.id}
                   icon={tab.icon}
-                  label={tab.label}
+                  label={t(tab.label)}
                   isActive={activeTab === tab.id}
                   isMobile={isMobile}
                   onClick={() => handleTabChange(tab.id)}
@@ -456,11 +458,11 @@ export function SettingsPage() {
           <div className="flex items-center gap-3">
             {/* Mobile Back Button */}
             {isMobile && (
-              <button
-                onClick={handleMobileBack}
-                className="p-2 -ml-2 rounded-full hover:bg-muted"
-                aria-label="Back to settings menu"
-              >
+                <button
+                  onClick={handleMobileBack}
+                  className="p-2 -ml-2 rounded-full hover:bg-muted"
+                  aria-label={t("settings.backToMenu")}
+                >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
@@ -469,7 +471,7 @@ export function SettingsPage() {
                 {currentTabConfig && (
                   <currentTabConfig.icon className="w-5 h-5 text-muted-foreground" />
                 )}
-                {currentTabConfig?.label}
+                {currentTabConfig ? t(currentTabConfig.label) : ""}
               </h2>
               {!isMobile && currentTabConfig && (
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -482,13 +484,13 @@ export function SettingsPage() {
           {hasChanges && (
             <div className="flex items-center gap-2">
               <span className="hidden md:inline text-sm text-muted-foreground">
-                Unsaved changes
+                {t("settings.unsavedChanges")}
               </span>
               <button
                 onClick={handleSave}
                 className="px-4 py-2 md:py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors min-h-[44px] text-sm font-medium"
               >
-                Save
+                {t("common.save")}
               </button>
             </div>
           )}
@@ -592,8 +594,11 @@ export function SettingsRow({
  * General Settings Component
  */
 function GeneralSettings({ onChange }: { onChange: () => void }) {
+  const general = useSettingsStore((state) => state.settings.general);
+  const updateSettingsCategory = useSettingsStore((state) => state.updateSettingsCategory);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const isDesktop = isTauri();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -616,12 +621,15 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
 
   return (
     <>
-      <SettingsSection title="Application" description="Basic application settings">
-        <SettingsRow label="Language" description="Select your preferred language">
+      <SettingsSection title={t("settings.application")} description={t("settings.applicationDesc")}>
+        <SettingsRow label={t("settings.language")} description={t("settings.languageHelp")}>
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
-            onChange={onChange}
-            defaultValue="en"
+            value={general.language}
+            onChange={(e) => {
+              updateSettingsCategory("general", { language: e.target.value });
+              onChange();
+            }}
           >
             <option value="en">English</option>
             <option value="zh">中文</option>
@@ -632,7 +640,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
           </select>
         </SettingsRow>
 
-        <SettingsRow label="Default View" description="Select the default view on startup">
+        <SettingsRow label={t("settings.defaultView")} description={t("settings.defaultViewDesc")}>
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
             onChange={onChange}
@@ -646,8 +654,8 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
         </SettingsRow>
 
         <SettingsRow
-          label="Auto-save Interval"
-          description="How often to automatically save changes"
+          label={t("settings.autoSaveInterval")}
+          description={t("settings.autoSaveIntervalDesc")}
         >
           <select
             className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
@@ -669,11 +677,11 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
         )}
       </SettingsSection>
 
-      <SettingsSection title="Data" description="Data storage and management">
-        <SettingsRow label="Data Location" description="Folder where all data is stored">
+      <SettingsSection title={t("settings.data")} description={t("settings.dataDesc")}>
+        <SettingsRow label={t("settings.dataLocation")} description={t("settings.dataLocationDesc")}>
           <div className="flex items-center gap-2">
             <button className="w-full sm:w-auto px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-muted text-sm font-medium min-h-[44px]">
-              Open Folder
+              {t("settings.openFolder")}
             </button>
           </div>
         </SettingsRow>

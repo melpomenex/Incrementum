@@ -20,6 +20,7 @@ import {
   PartyPopper,
   Target,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface EmptyStateProps {
   icon?: "documents" | "queue" | "search" | "inbox" | "analytics" | "review" | "folder" | ReactNode;
@@ -115,16 +116,18 @@ const formatIcons = [
  * Format Icons Grid - Shows supported import formats
  */
 function FormatIconsGrid({ onImport }: { onImport?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <div className="mb-6">
-      <p className="text-sm text-muted-foreground mb-3">Supported formats:</p>
+      <p className="text-sm text-muted-foreground mb-3">{t("emptyState.supportedFormats")}</p>
       <div className="flex flex-wrap justify-center gap-3">
         {formatIcons.map(({ icon: Icon, label, color }) => (
           <button
             key={label}
             onClick={onImport}
             className="flex flex-col items-center gap-1.5 p-3 bg-card border border-border rounded-xl hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group"
-            title={`Import ${label}`}
+            title={t("emptyState.importFormat", { format: label })}
           >
             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center group-hover:scale-110 transition-transform">
               <Icon className={`w-5 h-5 ${color}`} />
@@ -142,6 +145,8 @@ function FormatIconsGrid({ onImport }: { onImport?: () => void }) {
 // Pre-configured empty states for common scenarios
 
 export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -154,12 +159,12 @@ export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
           </div>
         </div>
       }
-      title="Import your first document"
-      description="Start building your knowledge library. Drag and drop files onto this page, or click a format below to get started."
+      title={t("emptyState.importFirst")}
+      description={t("emptyState.importDocumentsDesc")}
       action={
         onImport
           ? {
-              label: "Browse Files",
+              label: t("emptyState.browseFiles"),
               onClick: onImport,
               icon: <Plus className="w-4 h-4" />,
             }
@@ -172,6 +177,8 @@ export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
 }
 
 export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -184,19 +191,19 @@ export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
           </div>
         </div>
       }
-      title="Add items to your queue"
-      description="Create extracts and flashcards from your documents. They'll appear here for spaced repetition review."
+      title={t("emptyState.addToQueue")}
+      description={t("emptyState.queueDesc")}
       action={
         onStartReview
           ? {
-              label: "Start Review",
+              label: t("emptyState.startReview"),
               onClick: onStartReview,
               icon: <Zap className="w-4 h-4" />,
             }
           : undefined
       }
       secondaryAction={{
-        label: "Go to Documents",
+        label: t("emptyState.goToDocuments"),
         onClick: () => window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" })),
       }}
     >
@@ -209,20 +216,22 @@ export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
             <BookOpen className="w-4 h-4 text-blue-500" />
           </div>
         </div>
-        <span>Extract from PDFs, EPUBs, and more</span>
+        <span>{t("emptyState.extractFromDocs")}</span>
       </div>
     </EmptyState>
   );
 }
 
 export function EmptySearch({ query, onClear }: { query: string; onClear: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon="search"
-      title="No results found"
-      description={`We couldn't find anything matching "${query}". Try adjusting your search terms or filters.`}
+      title={t("emptyState.noResults")}
+      description={t("emptyState.searchDesc", { query })}
       action={{
-        label: "Clear Search",
+        label: t("emptyState.clearSearch"),
         onClick: onClear,
       }}
     />
@@ -230,6 +239,8 @@ export function EmptySearch({ query, onClear }: { query: string; onClear: () => 
 }
 
 export function EmptyAnalytics({ onImport }: { onImport?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -239,12 +250,12 @@ export function EmptyAnalytics({ onImport }: { onImport?: () => void }) {
           </div>
         </div>
       }
-      title="No data to analyze"
-      description="Start learning and reviewing to see your progress statistics. Import documents and create flashcards to begin tracking your journey."
+      title={t("emptyState.noDataToAnalyze")}
+      description={t("emptyState.analyticsDesc")}
       action={
         onImport
           ? {
-              label: "Import Your First Document",
+              label: t("emptyState.importFirstDoc"),
               onClick: onImport,
               icon: <Plus className="w-4 h-4" />,
             }
@@ -259,6 +270,8 @@ export function EmptyAnalytics({ onImport }: { onImport?: () => void }) {
  * Celebratory empty state to make users feel good about completing reviews
  */
 export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -274,18 +287,18 @@ export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
           </div>
         </div>
       }
-      title="All caught up!"
-      description="You've completed all your reviews for today. Great job! Come back tomorrow when new cards are due."
+      title={t("emptyState.allCaughtUp")}
+      description={t("emptyState.reviewDesc")}
       action={
         onGoToQueue
           ? {
-              label: "View Queue",
+              label: t("emptyState.viewQueue"),
               onClick: onGoToQueue,
             }
           : undefined
       }
       secondaryAction={{
-        label: "Import More Content",
+        label: t("emptyState.importMore"),
         onClick: () => window.dispatchEvent(new CustomEvent("import-document")),
       }}
     >
@@ -295,9 +308,9 @@ export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
             <Zap className="w-5 h-5 text-green-500" />
           </div>
           <div className="text-left">
-            <div className="text-sm font-medium text-foreground">Keep the streak going!</div>
+            <div className="text-sm font-medium text-foreground">{t("emptyState.keepStreak")}</div>
             <div className="text-xs text-muted-foreground">
-              Review daily for better retention
+              {t("emptyState.reviewDaily")}
             </div>
           </div>
         </div>
@@ -307,6 +320,8 @@ export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
 }
 
 export function EmptyExtracts({ onOpenDocument }: { onOpenDocument?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -316,12 +331,12 @@ export function EmptyExtracts({ onOpenDocument }: { onOpenDocument?: () => void 
           </div>
         </div>
       }
-      title="No extracts yet"
-      description="Select text in any document to create extracts. These will become flashcards for your review sessions."
+      title={t("emptyState.noExtracts")}
+      description={t("emptyState.extractsDesc")}
       action={
         onOpenDocument
           ? {
-              label: "Open a Document",
+              label: t("emptyState.openDocument"),
               onClick: onOpenDocument,
               icon: <BookOpen className="w-4 h-4" />,
             }
@@ -330,7 +345,7 @@ export function EmptyExtracts({ onOpenDocument }: { onOpenDocument?: () => void 
     >
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
         <div className="px-3 py-1.5 bg-muted rounded-lg text-xs">
-          <kbd className="font-mono">Select text</kbd> → <kbd className="font-mono">Create extract</kbd>
+          <kbd className="font-mono">{t("emptyState.selectTextHint")}</kbd>
         </div>
       </div>
     </EmptyState>
@@ -341,6 +356,8 @@ export function EmptyExtracts({ onOpenDocument }: { onOpenDocument?: () => void 
  * Empty Learning Cards - When no flashcards exist yet
  */
 export function EmptyLearningCards({ onCreateCards }: { onCreateCards?: () => void }) {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon={
@@ -350,12 +367,12 @@ export function EmptyLearningCards({ onCreateCards }: { onCreateCards?: () => vo
           </div>
         </div>
       }
-      title="No learning cards yet"
-      description="Create Q&A cards, cloze deletions, or extracts from your documents to start learning with spaced repetition."
+      title={t("emptyState.noCards")}
+      description={t("emptyState.cardsDesc")}
       action={
         onCreateCards
           ? {
-              label: "Create Cards",
+              label: t("emptyState.createCardsBtn"),
               onClick: onCreateCards,
               icon: <Plus className="w-4 h-4" />,
             }
@@ -365,15 +382,15 @@ export function EmptyLearningCards({ onCreateCards }: { onCreateCards?: () => vo
       <div className="grid grid-cols-3 gap-3 mb-6 max-w-xs">
         <div className="p-3 bg-card border border-border rounded-lg text-center">
           <div className="text-2xl mb-1">Q&A</div>
-          <div className="text-xs text-muted-foreground">Question & Answer</div>
+          <div className="text-xs text-muted-foreground">{t("emptyState.questionAndAnswer")}</div>
         </div>
         <div className="p-3 bg-card border border-border rounded-lg text-center">
           <div className="text-2xl mb-1">[...]</div>
-          <div className="text-xs text-muted-foreground">Cloze Deletion</div>
+          <div className="text-xs text-muted-foreground">{t("emptyState.clozeDeletion")}</div>
         </div>
         <div className="p-3 bg-card border border-border rounded-lg text-center">
           <div className="text-2xl mb-1">📝</div>
-          <div className="text-xs text-muted-foreground">Extract</div>
+          <div className="text-xs text-muted-foreground">{t("emptyState.extractLabel")}</div>
         </div>
       </div>
     </EmptyState>

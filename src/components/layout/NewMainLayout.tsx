@@ -230,22 +230,23 @@ interface MobileBottomBarProps {
 }
 
 const mobilePrimaryItems = [
-  { id: "dashboard", label: "Home", icon: Home },
-  { id: "documents", label: "Library", icon: BookOpen },
-  { id: "queue", label: "Queue", icon: Layers },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "dashboard", label: "nav.dashboard", icon: Home },
+  { id: "documents", label: "nav.documents", icon: BookOpen },
+  { id: "queue", label: "nav.queue", icon: Layers },
+  { id: "settings", label: "nav.settings", icon: Settings },
 ] as const;
 
 const mobileSecondaryItems = [
-  { id: "continue-reading", label: "Continue Reading", icon: BookMarked },
-  { id: "knowledge-graph", label: "Knowledge Graph", icon: Network },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "continue-reading", label: "nav.continue", icon: BookMarked },
+  { id: "knowledge-graph", label: "nav.graph", icon: Network },
+  { id: "analytics", label: "nav.analytics", icon: BarChart3 },
 ] as const;
 
 function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showIosInstallHelp, setShowIosInstallHelp] = useState(false);
   const { canInstall, install, isStandalone } = usePWAStatus();
+  const { t } = useI18n();
 
   const isIOSDevice =
     typeof navigator !== "undefined" &&
@@ -282,13 +283,13 @@ function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
                 }}
                 className={`mobile-pwa-nav-item ${active ? "mobile-pwa-nav-item-active" : ""}`}
                 aria-current={active ? "page" : undefined}
-                aria-label={item.label}
+                aria-label={t(item.label)}
               >
                 <span className="mobile-pwa-nav-item-background" aria-hidden="true" />
                 <span className="mobile-pwa-nav-item-indicator" aria-hidden="true" />
                 <span className="mobile-pwa-nav-item-content">
                   <item.icon className="w-5 h-5" />
-                  <span className="mobile-pwa-nav-label">{item.label}</span>
+                  <span className="mobile-pwa-nav-label">{t(item.label)}</span>
                 </span>
               </button>
             );
@@ -299,13 +300,13 @@ function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
             onClick={() => setIsMoreMenuOpen(true)}
             className={`mobile-pwa-nav-item ${moreActive || isMoreMenuOpen ? "mobile-pwa-nav-item-active" : ""}`}
             aria-expanded={isMoreMenuOpen}
-            aria-label="More sections and actions"
+            aria-label={t("nav.more")}
           >
             <span className="mobile-pwa-nav-item-background" aria-hidden="true" />
             <span className="mobile-pwa-nav-item-indicator" aria-hidden="true" />
             <span className="mobile-pwa-nav-item-content">
               <Menu className="w-5 h-5" />
-              <span className="mobile-pwa-nav-label">More</span>
+              <span className="mobile-pwa-nav-label">{t("nav.more")}</span>
             </span>
           </button>
         </div>
@@ -325,8 +326,8 @@ function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
           >
             <div className="mobile-pwa-sheet-header">
               <div>
-                <p className="mobile-pwa-sheet-eyebrow">More</p>
-                <h2 className="mobile-pwa-sheet-title">Sections and shortcuts</h2>
+                <p className="mobile-pwa-sheet-eyebrow">{t("nav.more")}</p>
+                <h2 className="mobile-pwa-sheet-title">{t("nav.more")}</h2>
               </div>
               <button
                 type="button"
@@ -354,7 +355,7 @@ function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
                   className={`mobile-pwa-sheet-item ${activeItem === item.id ? "mobile-pwa-sheet-item-active" : ""}`}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className="flex-1 text-left">{t(item.label)}</span>
                 </button>
               ))}
             </div>
@@ -699,12 +700,13 @@ export function MainContent({
   activeTab,
   onTabChange,
 }: MainContentProps) {
+  const { t } = useI18n();
   const tabs = [
-    { id: "import", label: "Import" },
-    { id: "review", label: "Start Review Process" },
-    { id: "queue", label: "View Queue" },
-    { id: "reports", label: "Reports" },
-    { id: "statistics", label: "Statistics" },
+    { id: "import", label: "dashboard.import" },
+    { id: "review", label: "layout.startReviewProcess" },
+    { id: "queue", label: "layout.viewQueue" },
+    { id: "reports", label: "layout.reports" },
+    { id: "statistics", label: "layout.statistics" },
   ];
 
   return (
@@ -715,15 +717,15 @@ export function MainContent({
           <div className="flex gap-8">
             <div>
               <div className="stats-number">{stats.total}</div>
-              <div className="text-xs text-foreground-secondary">Total Items</div>
+              <div className="text-xs text-foreground-secondary">{t("layout.totalItems")}</div>
             </div>
             <div>
               <div className="stats-number">{stats.due}</div>
-              <div className="text-xs text-foreground-secondary">Due Today</div>
+              <div className="text-xs text-foreground-secondary">{t("layout.dueToday")}</div>
             </div>
             <div>
               <div className="stats-number">{stats.new}</div>
-              <div className="text-xs text-foreground-secondary">New Items</div>
+              <div className="text-xs text-foreground-secondary">{t("layout.newItems")}</div>
             </div>
           </div>
         </div>
@@ -741,7 +743,7 @@ export function MainContent({
                   activeTab === tab.id ? "tab-button-active" : ""
                 }`}
               >
-                {tab.label}
+                {t(tab.label)}
               </button>
             ))}
           </div>
@@ -756,7 +758,7 @@ export function MainContent({
       {/* Bottom Bar */}
       <div className="h-8 glass-panel-light flex items-center justify-between px-3 flex-shrink-0">
         <div className="text-xs text-foreground-secondary">
-          {stats?.total || 0} items total
+          {t("layout.itemsTotal", { count: stats?.total || 0 })}
         </div>
         <div className="flex items-center gap-1">
           <button className="p-1 hover:bg-muted rounded text-foreground-secondary">

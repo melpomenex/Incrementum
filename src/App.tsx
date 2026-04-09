@@ -29,6 +29,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ContinueReadingPage } from "./pages/ContinueReadingPage";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { CommandCenter } from "./components/search/CommandCenter";
+import { useI18n } from "./lib/i18n";
 
 // Storage keys
 const ONBOARDING_COMPLETE_KEY = 'incrementum_onboarding_complete';
@@ -483,6 +484,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const documents = useDocumentStore((state) => state.documents);
   const [recentActivity, setRecentActivity] = useState<ActivityDataPoint[]>([]);
   const [activeTab, setActiveTab] = useState("review");
+  const { t } = useI18n();
 
   useEffect(() => {
     loadRecentActivity();
@@ -506,7 +508,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const reviewCards = documents.slice(0, 10).map(doc => ({
     id: doc.id,
     front: doc.title || "Untitled",
-    back: doc.content?.slice(0, 200) || "No content available",
+    back: doc.content?.slice(0, 200) || "",
     documentTitle: doc.title,
   }));
 
@@ -532,7 +534,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           <div className="lg:col-span-2 space-y-6">
             {/* Quick Actions */}
             <div>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard.quickActions")}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <ShortcutTooltip label="Import Document" shortcut="mod+o">
                   <button
@@ -540,7 +542,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     className="w-full p-4 bg-card border border-border rounded-lg hover:shadow-md hover:border-primary/30 transition-all text-left"
                   >
                     <div className="text-2xl mb-2">📄</div>
-                    <div className="text-sm font-medium text-foreground">Import</div>
+                    <div className="text-sm font-medium text-foreground">{t("dashboard.import")}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       PDF, EPUB, or MD
                     </div>
@@ -552,9 +554,9 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     className="w-full p-4 bg-card border border-border rounded-lg hover:shadow-md hover:border-primary/30 transition-all text-left"
                   >
                     <div className="text-2xl mb-2">📚</div>
-                    <div className="text-sm font-medium text-foreground">Queue</div>
+                    <div className="text-sm font-medium text-foreground">{t("nav.queue")}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {dashboardStats?.cards_due_today || 0} due
+                      {t("dashboard.due", { count: dashboardStats?.cards_due_today || 0 })}
                     </div>
                   </button>
                 </ShortcutTooltip>
@@ -564,9 +566,9 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     className="w-full p-4 bg-card border border-border rounded-lg hover:shadow-md hover:border-primary/30 transition-all text-left"
                   >
                     <div className="text-2xl mb-2">🎴</div>
-                    <div className="text-sm font-medium text-foreground">Review</div>
+                    <div className="text-sm font-medium text-foreground">{t("dashboard.review")}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Flashcards
+                      {t("dashboard.flashcards")}
                     </div>
                   </button>
                 </ShortcutTooltip>
@@ -576,9 +578,9 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     className="w-full p-4 bg-card border border-border rounded-lg hover:shadow-md hover:border-primary/30 transition-all text-left"
                   >
                     <div className="text-2xl mb-2">📊</div>
-                    <div className="text-sm font-medium text-foreground">Stats</div>
+                    <div className="text-sm font-medium text-foreground">{t("dashboard.stats")}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Progress
+                      {t("dashboard.progress")}
                     </div>
                   </button>
                 </ShortcutTooltip>
@@ -587,10 +589,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
             {/* Recent Activity */}
             <div>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard.recentActivity")}</h2>
               {recentActivity.length === 0 ? (
                 <div className="p-6 bg-card border border-border rounded-lg text-center text-muted-foreground">
-                  No recent activity. Start by importing a document!
+                  {t("dashboard.noRecentActivity")}
                 </div>
               ) : (
                 <div className="bg-card border border-border rounded-lg divide-y divide-border">
@@ -600,7 +602,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                         <div className="w-2 h-2 rounded-full bg-primary" />
                         <div>
                           <div className="text-sm text-foreground">
-                            {activity.reviews_count} reviews completed
+                            {t("dashboard.reviewsCompleted", { count: activity.reviews_count })}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(activity.date).toLocaleDateString()}
@@ -621,17 +623,16 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               <div className="p-6 bg-card border border-border rounded-lg text-center">
                 <div className="text-4xl mb-3">👋</div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Welcome to Incrementum!
+                  {t("dashboard.welcome")}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Your incremental reading and spaced repetition companion.
-                  Import your first document to get started.
+                  {t("dashboard.welcomeBody")}
                 </p>
                 <button
                   onClick={() => onNavigate("documents")}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  Import Your First Document
+                  {t("dashboard.importFirst")}
                 </button>
               </div>
             )}

@@ -1148,6 +1148,8 @@ const commandHandlers: Record<string, CommandHandler> = {
             question,
             answer: args.answer as string | undefined,
             cloze_text: args.clozeText as string | undefined,
+            image_asset_ids: (args.imageAssetIds ?? args.image_asset_ids) as string[] | undefined,
+            interaction_metadata: (args.interactionMetadata ?? args.interaction_metadata) as Record<string, unknown> | undefined,
         });
         const prerequisiteIds = (args.prerequisiteItemIds || args.prerequisite_item_ids) as string[] | undefined;
         if (Array.isArray(prerequisiteIds) && prerequisiteIds.length > 0) {

@@ -297,7 +297,7 @@ export function Review() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="text-4xl mb-4">🔄</div>
-          <div className="text-muted-foreground">Loading review queue...</div>
+          <div className="text-muted-foreground">{t("review.importing")}</div>
         </div>
       </div>
     );
@@ -309,14 +309,14 @@ export function Review() {
         <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
-            Error Loading Review
+            {t("common.failed")}
           </h2>
           <p className="text-muted-foreground mb-4">{error}</p>
           <button
             onClick={loadQueue}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
-            Try Again
+            {t("common.retry")}
           </button>
         </div>
       </div>
@@ -329,10 +329,10 @@ export function Review() {
         <div className="text-center">
           <div className="text-6xl mb-4">🎉</div>
           <h3 className="text-2xl font-bold text-foreground mb-2">
-            All Caught Up!
+            {t("emptyState.allCaughtUp")}
           </h3>
           <p className="text-muted-foreground mb-6">
-            No cards are due for review right now. Check back later!
+            {t("review.emptyState")}
           </p>
         </div>
       </div>
@@ -413,7 +413,7 @@ export function Review() {
         </div>
         {reviewMode === "cram" && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Cram mode does not update long-term scheduling.
+            Cram mode does not update long-term scheduling. {/* TODO: i18n */}
           </p>
         )}
         {lastUndoError && <p className="mt-2 text-xs text-destructive">{lastUndoError}</p>}
@@ -474,20 +474,20 @@ export function Review() {
             {typedMode && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Type your answer ({typedMode})
+                  {t("review.answer")} ({typedMode})
                 </label>
                 <div className="flex gap-2">
                   <input
                     value={typedAnswer}
                     onChange={(e) => setTypedAnswer(e.target.value)}
-                    placeholder="Type your answer..."
+                    placeholder={t("review.answer")}
                     className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                   />
                   <button
                     onClick={() => void handleCheckTypedAnswer()}
                     className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
                   >
-                    {isCheckingSemantic ? "Checking..." : "Check"}
+                    {isCheckingSemantic ? t("common.loading") : t("common.confirm")}
                   </button>
                 </div>
                 {typedFeedback && (
@@ -614,7 +614,7 @@ export function Review() {
             {supportsHandwriting && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-foreground">Handwriting Canvas</p>
+                  <p className="text-sm font-medium text-foreground">{t("review.question")}</p>
                   <button
                     onClick={() => {
                       const canvas = canvasRef.current;
@@ -626,7 +626,7 @@ export function Review() {
                     }}
                     className="rounded border border-border px-2 py-1 text-xs"
                   >
-                    Clear
+                    {t("common.clear")}
                   </button>
                 </div>
                 <canvas

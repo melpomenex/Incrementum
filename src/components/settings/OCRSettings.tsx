@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { ScanText, Languages, Cloud, Server, Eye, Zap, FileText, Brain, Cpu } from "lucide-react";
 import { isTauri, listen } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import {
   downloadOllamaInstaller,
   getGLMRuntimeStatus,
@@ -121,6 +122,7 @@ const MATH_OCR_MODELS = [
 ];
 
 export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
+  const { t } = useI18n();
   const selectedProvider = OCR_PROVIDERS.find((p) => p.id === settings.provider);
   const ProviderIcon = selectedProvider?.icon || ScanText;
   const [runtimeStatus, setRuntimeStatus] = useState<GLMRuntimeStatus | null>(null);
@@ -318,7 +320,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
           <ScanText className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">OCR Settings</h3>
+          <h3 className="text-lg font-semibold text-foreground">t("ocrSettings.title")</h3>
           <p className="text-sm text-muted-foreground">
             Configure optical character recognition for documents
           </p>
@@ -332,7 +334,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-start gap-3">
               <Zap className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-foreground">Auto-OCR</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.autoOcr")</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Automatically OCR images and scanned documents on import
                 </div>
@@ -358,7 +360,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
           <div className="flex items-center gap-3 mb-4">
             <ProviderIcon className="w-5 h-5 text-muted-foreground" />
             <div>
-              <div className="text-sm font-medium text-foreground">OCR Provider</div>
+              <div className="text-sm font-medium text-foreground">t("ocrSettings.provider")</div>
               <div className="text-xs text-muted-foreground">
                 Select the OCR engine to use
               </div>
@@ -399,7 +401,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
           <div className="flex items-center gap-3 mb-3">
             <Languages className="w-5 h-5 text-muted-foreground" />
             <div>
-              <div className="text-sm font-medium text-foreground">OCR Language</div>
+              <div className="text-sm font-medium text-foreground">t("ocrSettings.language")</div>
               <div className="text-xs text-muted-foreground">
                 Primary language for text recognition
               </div>
@@ -425,7 +427,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-center gap-3 mb-4">
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">Google Document AI</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.googleDocAi")</div>
                 <div className="text-xs text-muted-foreground">
                   Configure Google Cloud Document AI credentials
                 </div>
@@ -509,7 +511,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-center gap-3 mb-4">
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">AWS Textract</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.awsTextract")</div>
                 <div className="text-xs text-muted-foreground">
                   Configure AWS credentials for text extraction
                 </div>
@@ -568,7 +570,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-center gap-3 mb-4">
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">Azure Computer Vision</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.azureVision")</div>
                 <div className="text-xs text-muted-foreground">
                   Configure Azure Vision API credentials
                 </div>
@@ -611,7 +613,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-center gap-3 mb-4">
               <Cpu className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">GLM-OCR (Local)</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.glmOcr")</div>
                 <div className="text-xs text-muted-foreground">
                   Configure your local OpenAI-compatible endpoint
                 </div>
@@ -692,7 +694,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <div className="flex items-center gap-3 mb-4">
               <Cpu className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">GLM-OCR Runtime</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.glmRuntime")</div>
                 <div className="text-xs text-muted-foreground">
                   Choose a backend and manage local runtime setup
                 </div>
@@ -861,7 +863,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
             <div className="flex items-center gap-3 mb-4">
               <Server className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">Local Processing</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.localProcessing")</div>
                 <div className="text-xs text-muted-foreground">
                   Configure local OCR engine options
                 </div>
@@ -870,7 +872,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Prefer Local OCR</p>
+                <p className="text-sm font-medium text-foreground">t("ocrSettings.preferLocal")</p>
                 <p className="text-xs text-muted-foreground">
                   Always use local processing even when cloud providers are available
                 </p>
@@ -898,7 +900,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
               <div className="flex items-center gap-3">
                 <Brain className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm font-medium text-foreground">Math OCR</div>
+                  <div className="text-sm font-medium text-foreground">t("ocrSettings.mathOcr")</div>
                   <div className="text-xs text-muted-foreground">
                     Extract mathematical equations and formulas
                   </div>
@@ -974,7 +976,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
             <div className="flex items-start gap-3">
               <Eye className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-foreground">Key Phrase Extraction</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.keyPhrase")</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Automatically extract important keywords and phrases
                 </div>
@@ -1001,7 +1003,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
             <div className="flex items-start gap-3">
               <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-foreground">Auto-Extract on Load</div>
+                <div className="text-sm font-medium text-foreground">t("ocrSettings.autoExtractOnLoad")</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Automatically extract content when opening documents
                 </div>
@@ -1025,7 +1027,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
         {/* Info Box */}
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
           <p className="text-sm text-primary">
-            <strong>Note:</strong> Local OCR providers (Tesseract, GLM-OCR, Marker, Nougat) process
+            <strong>t("ocrSettings.note")</strong> Local OCR providers (Tesseract, GLM-OCR, Marker, Nougat) process
             documents on your computer. Cloud providers (Google, AWS, Azure) may incur costs
             and require internet access.
           </p>

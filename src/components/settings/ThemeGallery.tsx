@@ -9,6 +9,7 @@ import { Theme, ThemeId } from "../../types/theme";
 import { Check, X, Maximize2, Smartphone, Sparkles } from "lucide-react";
 import { cn } from "../../utils";
 import { builtInThemes as registeredBuiltInThemes } from "../../themes/builtin";
+import { useI18n } from "../../lib/i18n";
 
 interface ThemeGalleryProps {
   onClose?: () => void;
@@ -189,7 +190,7 @@ function ThemeGalleryCard({
                 }}
               >
                 <Sparkles className="w-2 h-2" />
-                animated
+                {t("settings.themeAnimated")}
               </span>
             )}
           </div>
@@ -207,6 +208,7 @@ function ThemeGalleryCard({
  * Full screen gallery modal
  */
 export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
+  const { t } = useI18n();
   const { theme, themes, setTheme } = useTheme();
 
   const handleSelectTheme = (themeId: ThemeId) => {
@@ -245,10 +247,10 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
               className="text-xl font-bold"
               style={{ color: theme.colors.onSurface }}
             >
-              Theme Gallery
+              {t("settings.themeGalleryTitle")}
             </h2>
             <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-              Preview all available themes
+              {t("settings.themeGalleryDesc")}
             </p>
           </div>
           <button
@@ -274,7 +276,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
                 className="text-sm font-semibold mb-3 uppercase tracking-wide"
                 style={{ color: theme.colors.textSecondary }}
               >
-                Light Themes
+                {t("settings.themeLightThemes")}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {lightThemes.map((t) => (
@@ -296,7 +298,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
                 className="text-sm font-semibold mb-3 uppercase tracking-wide"
                 style={{ color: theme.colors.textSecondary }}
               >
-                Dark Themes
+                {t("settings.themeDarkThemes")}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {darkThemes.map((t) => (
@@ -319,7 +321,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
           style={{ borderColor: theme.colors.outline }}
         >
           <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-            {themes.length} themes available
+            {t("settings.themeCount", { count: themes.length })}
           </div>
           <button
             onClick={onClose}
@@ -329,7 +331,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
               color: theme.colors.onPrimary,
             }}
           >
-            Done
+            {t("common.done")}
           </button>
         </div>
       </div>
@@ -341,6 +343,7 @@ export function ThemeGallery({ onClose, onThemeSelect }: ThemeGalleryProps) {
  * Button to open the gallery
  */
 export function ThemeGalleryButton({ onSelect }: { onSelect?: (themeId: ThemeId) => void }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = React.useState(false);
   const { theme } = useTheme();
 
@@ -357,7 +360,7 @@ export function ThemeGalleryButton({ onSelect }: { onSelect?: (themeId: ThemeId)
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
       >
         <Maximize2 className="w-4 h-4" />
-        <span className="text-sm">Open Gallery</span>
+        <span className="text-sm">{t("settings.themeOpenGallery")}</span>
       </button>
 
       {isOpen && (

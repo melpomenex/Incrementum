@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { saveDocumentPosition, timePosition } from '../../api/position';
+import { useI18n } from '../../lib/i18n';
 import { getDocumentAuto, updateDocumentProgressAuto } from '../../api/documents';
 import { useToast } from '../common/Toast';
 import { VideoFeatures } from '../video/VideoFeatures';
@@ -57,6 +58,7 @@ export function LocalVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const { t } = useI18n();
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -560,7 +562,7 @@ export function LocalVideoPlayer({
       const errorMessage = buildPlayErrorMessage(error);
       console.error(`[LocalVideoPlayer] Play error (${context}):`, errorMessage);
       setPlayError(errorMessage);
-      toast.error('Playback Error', errorMessage);
+      toast.error(t("viewer.playbackError"), errorMessage);
     }
   }, [buildPlayErrorMessage]);
 
@@ -735,7 +737,7 @@ export function LocalVideoPlayer({
   const handleTranscriptComplete = () => {
     // Refresh transcript when transcription completes
     loadTranscript();
-    toast.success("Transcription Complete", "Your transcript is now available.");
+    toast.success(t("viewer.transcriptionComplete"), t("viewer.transcriptNowAvailable"));
   };
 
   const waveformBars = useMemo(() => {
@@ -807,7 +809,7 @@ export function LocalVideoPlayer({
         if (videoRef.current) {
           const mediaDuration = videoRef.current.duration;
           setDuration(mediaDuration);
-          onLoad?.({ duration: mediaDuration, title: title || 'Audio' });
+          onLoad?.({ duration: mediaDuration, title: title || t("viewer.audio") });
           if (startTimeRef.current > 0) {
             videoRef.current.currentTime = startTimeRef.current;
             console.log("[LocalVideoPlayer] Seeked audio to saved time:", startTimeRef.current);
@@ -863,7 +865,7 @@ export function LocalVideoPlayer({
 
         console.error('[LocalVideoPlayer] Audio error:', errorMessage, e);
         setPlayError(userFriendlyMessage);
-        toast.error('Audio Error', userFriendlyMessage);
+        toast.error(t("viewer.audioPlaybackError"), userFriendlyMessage);
       }}
     />
   ) : (
@@ -882,7 +884,7 @@ export function LocalVideoPlayer({
         if (videoRef.current) {
           const mediaDuration = videoRef.current.duration;
           setDuration(mediaDuration);
-          onLoad?.({ duration: mediaDuration, title: title || 'Video' });
+          onLoad?.({ duration: mediaDuration, title: title || t("viewer.video") });
           if (startTimeRef.current > 0) {
             videoRef.current.currentTime = startTimeRef.current;
             console.log("[LocalVideoPlayer] Seeked video to saved time:", startTimeRef.current);
@@ -941,7 +943,7 @@ export function LocalVideoPlayer({
 
         console.error('[LocalVideoPlayer] Video error:', errorMessage, e);
         setPlayError(userFriendlyMessage);
-        toast.error('Video Error', userFriendlyMessage);
+        toast.error(t("viewer.videoPlaybackError"), userFriendlyMessage);
       }}
       onWheel={handleScroll}
     />
@@ -992,7 +994,7 @@ export function LocalVideoPlayer({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Playback Error</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">{t("viewer.playbackError")}</h3>
             <p className="text-sm text-gray-300 mb-4">{playError}</p>
             <div className="flex gap-2 justify-center">
               <button
@@ -1004,13 +1006,13 @@ export function LocalVideoPlayer({
                 }}
                 className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
               >
-                Retry
+                {t("viewer.retry")}
               </button>
               <button
                 onClick={() => setPlayError(null)}
                 className="mt-4 px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:opacity-90"
               >
-                Dismiss
+                {t("viewer.dismiss")}
               </button>
             </div>
           </div>
@@ -1058,13 +1060,13 @@ export function LocalVideoPlayer({
         {/* Top Controls */}
         <div className="flex items-center justify-between">
           <div className={cn("text-sm truncate", mediaType === "audio" ? "text-foreground" : "text-white")}>
-            {title || (mediaType === "audio" ? "Audio" : "Video")}
+            {title || (mediaType === "audio" ? t("viewer.audio") : t("viewer.video"))}
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={toggleFullscreen}
               className="p-1 hover:bg-white/20 rounded transition-colors"
-              title="Fullscreen (F)"
+              title={t("viewer.fullscreenF")}
             >
               <Maximize className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
             </button>
@@ -1076,7 +1078,7 @@ export function LocalVideoPlayer({
           <button
             onClick={() => seekRelative(-10)}
             className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            title="Back 10s (←)"
+            title={t("viewer.back10s")}
           >
             <SkipBack className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
           </button>
@@ -1084,7 +1086,7 @@ export function LocalVideoPlayer({
           <button
             onClick={() => seekRelative(-5)}
             className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            title="Back 5s"
+            title={t("viewer.back5s")}
           >
             <SkipBack className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
           </button>
@@ -1092,7 +1094,7 @@ export function LocalVideoPlayer({
           <button
             onClick={togglePlay}
             className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-            title="Play/Pause (Space/K)"
+            title={t("viewer.playPause")}
           >
             {isPlaying ? (
               <Pause className={cn("w-6 h-6", mediaType === "audio" ? "text-foreground" : "text-white")} />
@@ -1104,7 +1106,7 @@ export function LocalVideoPlayer({
           <button
             onClick={() => seekRelative(5)}
             className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            title="Forward 5s"
+            title={t("viewer.forward5s")}
           >
             <SkipForward className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
           </button>
@@ -1112,7 +1114,7 @@ export function LocalVideoPlayer({
           <button
             onClick={() => seekRelative(10)}
             className="p-2 hover:bg-white/20 rounded-full transition-colors"
-            title="Forward 10s"
+            title={t("viewer.forward10s")}
           >
             <SkipForward className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
           </button>
@@ -1144,7 +1146,7 @@ export function LocalVideoPlayer({
               <button
                 onClick={togglePlay}
                 className="p-1.5 bg-white/10 hover:bg-white/20 rounded transition-colors"
-                title="Play/Pause (Space/K)"
+                title={t("viewer.playPause")}
               >
                 {isPlaying ? (
                   <Pause className="w-4 h-4" />
@@ -1158,7 +1160,7 @@ export function LocalVideoPlayer({
               <button
                 onClick={() => changePlaybackRate(playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : playbackRate === 1.5 ? 1.75 : playbackRate === 1.75 ? 2 : 1)}
                 className="px-2 py-0.5 bg-white/10 rounded text-xs hover:bg-white/20 transition-colors"
-                title="Speed"
+                title={t("viewer.speed")}
               >
                 {playbackRate}x
               </button>
@@ -1171,7 +1173,7 @@ export function LocalVideoPlayer({
                 <button
                   onClick={toggleMute}
                   className="p-1 hover:bg-white/20 rounded transition-colors"
-                  title="Mute (M)"
+                  title={t("viewer.mute")}
                 >
                   {isMuted || volume === 0 ? (
                     <VolumeX className="w-5 h-5" />
@@ -1193,7 +1195,7 @@ export function LocalVideoPlayer({
               <button
                 onClick={toggleFullscreen}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
-                title="Fullscreen (F)"
+                title={t("viewer.fullscreenF")}
               >
                 <Maximize className="w-5 h-5" />
               </button>
@@ -1208,17 +1210,17 @@ export function LocalVideoPlayer({
           "absolute bottom-24 left-4 p-2 rounded text-xs opacity-0 hover:opacity-100 transition-opacity z-10 pointer-events-none",
           mediaType === "audio" ? "bg-background/90 text-foreground border border-border" : "bg-black/70 text-white"
         )}>
-          <div className="font-semibold mb-1">Shortcuts:</div>
-          <div>Space/K: Play/Pause</div>
-          <div>←/→: 5s</div>
-          <div>↑/↓: Volume</div>
-          <div>Scroll: Seek ±5s</div>
-          <div>Click: Play/Pause</div>
-          <div>Dbl Click: Fullscreen</div>
-          <div>M: Mute</div>
-          <div>F: Fullscreen</div>
-          <div>0-9: Jump to %</div>
-          <div>&lt;/&gt;: Speed</div>
+          <div className="font-semibold mb-1">{t("viewer.shortcuts")}</div>
+          <div>{t("viewer.spaceKPlayPause")}</div>
+          <div>{t("viewer.arrow5s")}</div>
+          <div>{t("viewer.arrowUpDownVolume")}</div>
+          <div>{t("viewer.scrollSeek")}</div>
+          <div>{t("viewer.clickPlayPause")}</div>
+          <div>{t("viewer.dblClickFullscreen")}</div>
+          <div>{t("viewer.mMute")}</div>
+          <div>{t("viewer.fFullscreen")}</div>
+          <div>{t("viewer.jumpToPercent")}</div>
+          <div>{t("viewer.angleBracketSpeed")}</div>
         </div>
       </div>
 
@@ -1228,7 +1230,7 @@ export function LocalVideoPlayer({
           className={`w-1 flex-shrink-0 relative z-10 ${isResizingTranscript ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
           onMouseDown={handleTranscriptResizeStart}
           onTouchStart={handleTranscriptResizeStart}
-          title="Drag to resize"
+          title={t("viewer.dragToResize")}
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
             <GripVertical className="w-3 h-3 text-muted-foreground" />
@@ -1246,10 +1248,10 @@ export function LocalVideoPlayer({
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-semibold text-foreground line-clamp-2 mb-1">
-                  {title || (mediaType === "audio" ? "Audio" : "Video")}
+                  {title || (mediaType === "audio" ? t("viewer.audio") : t("viewer.video"))}
                 </h2>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  {duration > 0 && <span>Duration: {formatTime(duration)}</span>}
+                  {duration > 0 && <span>{t("viewer.duration", { duration: formatTime(duration) })}</span>}
                 </div>
               </div>
 
@@ -1261,10 +1263,10 @@ export function LocalVideoPlayer({
                       "px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2",
                       showVideoFeatures ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground"
                     )}
-                    title="Video Features (Bookmarks, Chapters, Extracts)"
+                    title={t("viewer.videoFeatures")}
                   >
                     <Layers className="w-4 h-4" />
-                    <span className="font-medium">Panels</span>
+                    <span className="font-medium">{t("viewer.panels")}</span>
                   </button>
                 )}
 
@@ -1272,7 +1274,7 @@ export function LocalVideoPlayer({
                   <button
                     onClick={() => setTranscriptLayout(transcriptLayout === 'below' ? 'side' : 'below')}
                     className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
-                    title={transcriptLayout === 'below' ? 'Switch to side-by-side view' : 'Switch to stacked view'}
+                    title={transcriptLayout === 'below' ? t("viewer.switchToSideBySide") : t("viewer.switchToStacked")}
                   >
                     <span className="text-xs">{transcriptLayout === 'below' ? '↔' : '↕'}</span>
                   </button>
@@ -1282,7 +1284,7 @@ export function LocalVideoPlayer({
                   onClick={() => setShowTranscript(!showTranscript)}
                   className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors flex items-center gap-2"
                 >
-                  <span className="font-medium">{showTranscript ? "Hide" : "Show"} Transcript</span>
+                  <span className="font-medium">{showTranscript ? t("viewer.hideTranscript") : t("viewer.showTranscript")}</span>
                   <span className="text-xs text-muted-foreground">
                     {showTranscript ? "▼" : "▶"}
                   </span>
@@ -1297,13 +1299,13 @@ export function LocalVideoPlayer({
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
                     <div className="animate-spin h-6 w-6 border-2 border-muted-foreground border-t-transparent rounded-full" />
-                    <span className="text-sm">Loading transcript...</span>
+                    <span className="text-sm">{t("viewer.loadingTranscript")}</span>
                   </div>
                 </div>
               ) : transcriptError ? (
                 <div className="flex items-center justify-center h-full p-6">
                   <div className="text-center max-w-md">
-                    <p className="text-sm font-medium text-foreground mb-2">Transcript Unavailable</p>
+                    <p className="text-sm font-medium text-foreground mb-2">{t("viewer.transcriptUnavailableLocal")}</p>
                     <p className="text-xs text-muted-foreground">{transcriptError}</p>
                   </div>
                 </div>
@@ -1312,21 +1314,21 @@ export function LocalVideoPlayer({
                   <div className="text-center space-y-4 max-w-md">
                     {autoInProgress && (
                       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
-                        Transcribing in the background…
+                        {t("viewer.transcribingInBackground")}
                       </div>
                     )}
                     {autoFailed && !autoNeedsApiKey && !autoNeedsModel && (
                       <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-                        <p className="font-medium">Transcription failed</p>
+                        <p className="font-medium">{t("viewer.transcriptionFailed")}</p>
                         {transcriptionError && (
                           <p className="mt-1 opacity-90">{transcriptionError}</p>
                         )}
-                        <p className="mt-1">Click the button below to try again.</p>
+                        <p className="mt-1">{t("viewer.clickButtonBelowToRetry")}</p>
                       </div>
                     )}
-                    <p className="text-sm">No transcript available for this {mediaType === "audio" ? "audio" : "video"}.</p>
+                    <p className="text-sm">{t("viewer.noTranscriptForMedia", { mediaType: mediaType === "audio" ? t("viewer.audio") : t("viewer.video") })}</p>
                     <p className="text-xs text-muted-foreground">
-                      Generate an AI transcript to read along and create extracts.
+                      {t("viewer.generateTranscriptDesc")}
                     </p>
                     {documentId && (
                       <TranscriptionButton
@@ -1363,7 +1365,7 @@ export function LocalVideoPlayer({
             className={`absolute left-0 top-0 h-full w-1 ${isResizingVideoFeatures ? 'bg-primary' : 'bg-border hover:bg-primary/50'} cursor-ew-resize transition-colors`}
             onMouseDown={handleVideoFeaturesResizeStart}
             onTouchStart={handleVideoFeaturesResizeStart}
-            title="Drag to resize"
+            title={t("viewer.dragToResize")}
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
               <GripVertical className="w-3 h-3 text-muted-foreground" />
@@ -1371,7 +1373,7 @@ export function LocalVideoPlayer({
           </div>
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <h3 className="text-lg font-semibold text-foreground">Video Features</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("viewer.videoFeaturesTitle")}</h3>
             <button
               onClick={() => setShowVideoFeatures(false)}
               className="p-1 hover:bg-muted rounded transition-colors"
@@ -1399,7 +1401,7 @@ export function LocalVideoPlayer({
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Scissors className="w-4 h-4" />
-                  Video Extracts
+                  {t("viewer.videoExtracts")}
                 </h4>
                 <button
                   onClick={handleOpenCreateExtract}
@@ -1465,8 +1467,8 @@ function ScrollHint({ isPlaying: _isPlaying }: { isPlaying: boolean }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
           <div>
-            <div className="font-medium">Scroll to seek</div>
-            <div className="text-xs text-white/70">Scroll up/down to rewind/forward</div>
+            <div className="font-medium">{t("viewer.scrollToSeek")}</div>
+            <div className="text-xs text-white/70">{t("viewer.scrollUpDownToSeek")}</div>
           </div>
         </div>
       </div>

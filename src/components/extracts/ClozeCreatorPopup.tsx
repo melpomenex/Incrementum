@@ -3,6 +3,7 @@ import { Scissors, X, Check } from "lucide-react";
 import { createClozeFromExtract } from "../../api/extract-review";
 import type { LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
+import { useI18n } from "../../lib/i18n";
 
 interface ClozeCreatorPopupProps {
     extractId: string;
@@ -13,6 +14,7 @@ interface ClozeCreatorPopupProps {
 }
 
 export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _selectionRange, onCreated, onCancel }: ClozeCreatorPopupProps) {
+    const { t } = useI18n();
     // Pre-fill with selected text wrapped in cloze deletion syntax [1...]
     // Wait, backend expects cloze_text (full text with clozes) and cloze_ranges.
     // BUT the API creates ranges.
@@ -129,8 +131,8 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
                             <Scissors className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-foreground">Create Cloze Deletion</h3>
-                            <p className="text-sm text-muted-foreground">Wrap text in {"{{ }}"} to hide it</p>
+                            <h3 className="text-lg font-semibold text-foreground">{t("extracts.createCloze")}</h3>
+                            <p className="text-sm text-muted-foreground">{t("extracts.clozeHint", { syntax: "{{ }}" })}</p>
                         </div>
                     </div>
                     <button
@@ -144,7 +146,7 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
                 {/* Content */}
                 <div className="p-6 flex flex-col gap-4 overflow-y-auto">
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Card Text</label>
+                        <label className="text-sm font-medium text-foreground">{t("extracts.cardText")}</label>
                         <textarea
                             ref={textareaRef}
                             value={text}
@@ -164,7 +166,7 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
                         onClick={onCancel}
                         className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     >
-                        Cancel
+                        {t("common.cancel")}
                     </button>
                     <button
                         onClick={handleSubmit}
@@ -175,7 +177,7 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
                         )}
                     >
                         <Check className="w-4 h-4" />
-                        {isSubmitting ? "Creating..." : "Create Cloze"}
+                        {isSubmitting ? t("extracts.creating") : t("extracts.createClozeBtn")}
                     </button>
                 </div>
             </div>

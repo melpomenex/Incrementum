@@ -11,11 +11,13 @@ import { useMCPServersStore } from "../../stores/mcpServersStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import { useState, useEffect } from "react";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * AI Provider Settings
  */
 export function AISettings({ onChange }: { onChange: () => void }) {
+  const { t } = useI18n();
   const providers = useLLMProvidersStore((state) => state.providers);
   const addProvider = useLLMProvidersStore((state) => state.addProvider);
   const updateProvider = useLLMProvidersStore((state) => state.updateProvider);
@@ -103,12 +105,12 @@ export function AISettings({ onChange }: { onChange: () => void }) {
 
       {/* AI Model Settings */}
       <SettingsSection
-        title="Model Settings"
-        description="Configure AI model behavior and context limits"
+        title={t("aiSettings.modelSettings")}
+        description={t("aiProvider.modelSettingsDesc")}
       >
         <SettingsRow
-          label="Context Window (Document Content)"
-          description="How much document content to send to the AI when generating flashcards or answering questions (in tokens)"
+          label={t("aiSettings.contextWindow")}
+          description={t("aiProvider.contextWindowDesc")}
         >
           <input
             type="number"

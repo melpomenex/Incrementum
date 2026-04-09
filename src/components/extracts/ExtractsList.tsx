@@ -9,6 +9,7 @@ import { EditExtractDialog } from "./EditExtractDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { GeneratedCardsPopover } from "../common/GeneratedCardsPopover";
 import { RichContentRenderer } from "../common/RichContentRenderer";
+import { useI18n } from "../../lib/i18n";
 
 interface ExtractsListProps {
   documentId: string;
@@ -38,6 +39,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   const [deletingExtract, setDeletingExtract] = useState<Extract | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const loadExtracts = async () => {
@@ -48,7 +50,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         const data = await getExtracts(documentId);
         setExtracts(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load extracts");
+        setError(err instanceof Error ? err.message : t("extracts.failedToLoad"));
       } finally {
         setIsLoading(false);
       }
@@ -208,7 +210,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading extracts...</div>
+        <div className="text-muted-foreground">{t("extracts.loading")}</div>
       </div>
     );
   }
@@ -216,7 +218,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   if (error) {
     return (
       <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-        Failed to load extracts: {error}
+        {t("extracts.failedToLoad")}: {error}
       </div>
     );
   }
@@ -226,10 +228,10 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
       <div className="text-center py-12">
         <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          No extracts yet
+          {t("extracts.noExtractsYet")}
         </h3>
         <p className="text-muted-foreground">
-          Select text from the document to create your first extract
+          {t("extracts.createFirstExtract")}
         </p>
       </div>
     );
@@ -239,7 +241,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">
-          Extracts ({extracts.length})
+          {t("extracts.title")} ({extracts.length})
         </h2>
       </div>
 
@@ -279,7 +281,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         <div className="sticky top-0 z-10 p-3 bg-card border border-border rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">
-              {selectedIds.size} extract{selectedIds.size !== 1 ? "s" : ""} selected
+              {selectedIds.size} {t("extracts.extractSelected", { count: selectedIds.size })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -290,12 +292,12 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                 {bulkOperationLoading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Processing...
+                    {t("common.processing")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5" />
-                    Generate Cards
+                    {t("extracts.generateCards")}
                   </>
                 )}
               </button>
@@ -307,12 +309,12 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                 {bulkOperationLoading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Deleting...
+                    {t("extracts.deleting")}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-3.5 h-3.5" />
-                    Delete
+                    {t("common.delete")}
                   </>
                 )}
               </button>
@@ -320,7 +322,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                 onClick={clearSelection}
                 className="px-3 py-1.5 bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors"
               >
-                Clear
+                {t("common.clear")}
               </button>
             </div>
           </div>
@@ -332,7 +334,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         <button
           onClick={selectedIds.size === extracts.length ? clearSelection : selectAll}
           className="p-2 hover:bg-muted rounded transition-colors"
-          title={selectedIds.size === extracts.length ? "Deselect all" : "Select all"}
+          title={selectedIds.size === extracts.length ? t("extracts.deselectAll") : t("extracts.selectAll")}
         >
           {selectedIds.size === extracts.length ? (
             <CheckSquare className="w-4 h-4 text-primary" />
@@ -341,7 +343,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
           )}
         </button>
         <span className="text-sm text-muted-foreground">
-          {selectedIds.size === extracts.length ? "All selected" : "Select all"}
+          {selectedIds.size === extracts.length ? t("extracts.allSelected") : t("extracts.selectAll")}
         </span>
       </div>
 
@@ -358,7 +360,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
             <button
               onClick={() => setSelected(extract.id, !selectedIds.has(extract.id))}
               className="float-left mr-3 mt-1"
-              title={selectedIds.has(extract.id) ? "Deselect" : "Select"}
+              title={selectedIds.has(extract.id) ? t("extracts.deselect") : t("extracts.select")}
             >
               {selectedIds.has(extract.id) ? (
                 <CheckSquare className="w-5 h-5 text-primary" />
@@ -386,9 +388,9 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                   </span>
                 )}
                 {extract.html_content && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded" title="Rich content preserved">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded" title={t("extracts.richContent")}>
                     <Eye className="w-3 h-3" />
-                    Rich
+                    {t("extracts.rich")}
                   </span>
                 )}
               </div>
@@ -396,14 +398,14 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                 <button
                   onClick={() => handleEdit(extract)}
                   className="p-1.5 rounded hover:bg-muted transition-colors"
-                  title="Edit extract"
+                  title={t("extracts.editExtract")}
                 >
                   <Edit className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <button
                   onClick={() => handleDelete(extract)}
                   className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
-                  title="Delete extract"
+                  title={t("extracts.deleteExtract")}
                 >
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </button>
@@ -432,7 +434,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
             {extract.notes && (
               <div className="mb-3 p-3 bg-muted rounded-md">
                 <div className="text-xs font-medium text-muted-foreground mb-1">
-                  Notes
+                  {t("extracts.notes")}
                 </div>
                 <p className="text-sm text-foreground">{extract.notes}</p>
               </div>
@@ -442,7 +444,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-4">
                 {extract.page_number && (
-                  <span>Page {extract.page_number}</span>
+                  <span>{t("extracts.page")} {extract.page_number}</span>
                 )}
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
@@ -473,7 +475,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
-                    Disclosure level:
+                    {t("extracts.disclosureLevel")}:
                   </span>
                   <div className="flex gap-1">
                     {Array.from({ length: extract.max_disclosure_level }).map(
@@ -512,10 +514,10 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                       {count ? (
                         <span className="flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-primary" />
-                          {count} card{count !== 1 ? "s" : ""} generated
+                          {count} {t("extracts.cardsGenerated", { count })}
                         </span>
                       ) : (
-                        <span>No cards generated yet</span>
+                        <span>{t("extracts.noCardsGenerated")}</span>
                       )}
                     </button>
                   )}
@@ -533,12 +535,12 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                   {generatingIds.has(extract.id) ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      Generating...
+                      {t("extracts.generating")}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3 h-3" />
-                      Generate Cards
+                      {t("extracts.generateCards")}
                     </>
                   )}
                 </button>

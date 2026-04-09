@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Tag as TagIcon, FolderOpen, Bold, Italic, Code, List, Layers, Eye } from "lucide-react";
 import { updateExtract, UpdateExtractInput, Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
+import { useI18n } from "../../lib/i18n";
 
 interface EditExtractDialogProps {
   extract: Extract;
@@ -58,6 +59,7 @@ export function EditExtractDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const { t } = useI18n();
 
   // Reset form when extract changes
   useEffect(() => {
@@ -127,7 +129,7 @@ export function EditExtractDialog({
 
   const handleUpdate = async (generateCards = false) => {
     if (!content.trim()) {
-      setError("Content is required");
+      setError(t("extracts.contentRequired"));
       return;
     }
 
@@ -155,7 +157,7 @@ export function EditExtractDialog({
       onUpdate?.(updated);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update extract");
+      setError(err instanceof Error ? err.message : t("extracts.failedToUpdate"));
     } finally {
       setIsUpdating(false);
       setIsGenerating(false);
@@ -171,10 +173,10 @@ export function EditExtractDialog({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
-              Edit Extract
+              {t("extracts.editTitle")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Created: {new Date(extract.date_created).toLocaleDateString()}
+              {t("extracts.created")}: {new Date(extract.date_created).toLocaleDateString()}
             </p>
           </div>
           <button
@@ -191,14 +193,14 @@ export function EditExtractDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-foreground">
-                Content <span className="text-destructive">*</span>
+                {t("extracts.content")} <span className="text-destructive">*</span>
               </label>
               <button
                 onClick={() => setShowPreview(!showPreview)}
                 className="px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground rounded transition-colors flex items-center gap-1"
               >
                 <Eye className="w-3 h-3" />
-                {showPreview ? "Edit" : "Preview"}
+                {showPreview ? t("extracts.edit") : t("extracts.preview")}
               </button>
             </div>
 
@@ -217,7 +219,7 @@ export function EditExtractDialog({
                 ))}
                 <div className="flex-1" />
                 <span className="text-xs text-muted-foreground">
-                  Select text to format
+                  {t("extracts.selectTextToFormat")}
                 </span>
               </div>
             )}
@@ -235,7 +237,7 @@ export function EditExtractDialog({
                 {content ? (
                   <div dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
                 ) : (
-                  <span className="text-muted-foreground">Preview will appear here...</span>
+                  <span className="text-muted-foreground">{t("extracts.previewHint")}</span>
                 )}
               </div>
             )}
@@ -244,7 +246,7 @@ export function EditExtractDialog({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Notes
+              {t("extracts.notes")}
             </label>
             <textarea
               value={notes}
@@ -259,7 +261,7 @@ export function EditExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <FolderOpen className="w-4 h-4 inline mr-1" />
-              Category
+              {t("extracts.category")}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {COMMON_CATEGORIES.map((cat) => (
@@ -289,7 +291,7 @@ export function EditExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <TagIcon className="w-4 h-4 inline mr-1" />
-              Tags
+              {t("extracts.tags")}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
@@ -320,7 +322,7 @@ export function EditExtractDialog({
                 onClick={handleAddTag}
                 className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md transition-colors"
               >
-                Add
+                {t("extracts.add")}
               </button>
             </div>
           </div>
@@ -328,7 +330,7 @@ export function EditExtractDialog({
           {/* Highlight Color */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Highlight Color
+              {t("extracts.highlightColor")}
             </label>
             <div className="flex flex-wrap gap-2">
               {HIGHLIGHT_COLORS.map((color) => (
@@ -351,10 +353,10 @@ export function EditExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <Layers className="w-4 h-4 inline mr-1" />
-              Progressive Disclosure Level
+              {t("extracts.progressiveDisclosure")}
             </label>
             <p className="text-xs text-muted-foreground mb-3">
-              Set how many levels of difficulty this extract should be revealed across (0 = disabled)
+              {t("extracts.progressiveDisclosureHint")}
             </p>
             <div className="flex items-center gap-2">
               {[0, 1, 2, 3, 4, 5].map((level) => (
@@ -366,7 +368,7 @@ export function EditExtractDialog({
                       ? "bg-primary text-primary-foreground scale-105"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
-                  title={`Level ${level}`}
+                  title={`${t("extracts.level")} ${level}`}
                 >
                   {level}
                 </button>
@@ -394,14 +396,14 @@ export function EditExtractDialog({
             disabled={isUpdating}
             className="px-4 py-2 bg-card border border-border text-foreground rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={() => handleUpdate(false)}
             disabled={isUpdating || isGenerating}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isUpdating ? "Updating..." : "Update Extract"}
+            {isUpdating ? t("extracts.updating") : t("extracts.updateExtract")}
           </button>
           <button
             onClick={() => handleUpdate(true)}
@@ -411,11 +413,11 @@ export function EditExtractDialog({
             {isGenerating ? (
               <>
                 <span className="animate-spin">⏳</span>
-                Regenerating Cards...
+                {t("extracts.regeneratingCards")}
               </>
             ) : (
               <>
-                <span>Update & Regenerate Cards</span>
+                <span>{t("extracts.updateAndRegenerate")}</span>
               </>
             )}
           </button>

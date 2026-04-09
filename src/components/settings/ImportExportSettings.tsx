@@ -50,6 +50,7 @@ import {
   type PublicProfileConfig,
 } from "../../utils/wave4Social";
 import { getAllLearningItems, getDailyNoteLinks } from "../../api/learning-items";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Export options
@@ -67,6 +68,7 @@ interface ExportOptions {
  * Import/Export Settings
  */
 export function ImportExportSettings({ onChange }: { onChange: () => void }) {
+  const { t } = useI18n();
   const { collections, activeCollectionId, documentAssignments } = useCollectionStore();
   const { settings, updateSettingsCategory } = useSettingsStore();
   const [exportOptions, setExportOptions] = useState<ExportOptions>({

@@ -26,6 +26,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { toggleFullscreen, isFullscreen, isFullscreenSupported, isPWA } from "../../lib/pwa";
+import { useI18n } from "../../lib/i18n";
 import { useTabsStore } from "../../stores";
 import type { TabType } from "../../stores/tabsStore";
 import { usePWAStatus } from "../pwa";
@@ -154,6 +155,7 @@ export function MobileNavigation({
   unreadCount = 0,
   hidden = false,
 }: MobileNavigationProps) {
+  const { t } = useI18n();
   const { tabs, rootPane, addTab, setActiveTab } = useTabsStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [fullscreenState, setFullscreenState] = useState(isFullscreen());
@@ -312,7 +314,7 @@ export function MobileNavigation({
         <div className="mobile-nav-icon">
           <Menu className="w-6 h-6" />
         </div>
-        <span className="mobile-nav-label">More</span>
+        <span className="mobile-nav-label">{t("nav.more")}</span>
       </button>
     </nav>
 
@@ -331,8 +333,8 @@ export function MobileNavigation({
           >
             <div className="mobile-more-header">
               <div>
-                <p className="mobile-more-eyebrow">More</p>
-                <h3 className="mobile-more-title">Sections and actions</h3>
+                <p className="mobile-more-eyebrow">{t("nav.more")}</p>
+                <h3 className="mobile-more-title">{t("mobileNav.sectionsAndActions")}</h3>
               </div>
               <button
                 type="button"
@@ -399,7 +401,7 @@ export function MobileNavigation({
                 >
                   <Download className="w-5 h-5" />
                   <span className="flex-1 text-left">
-                    {isIOSDevice ? "Add to Home Screen" : "Install App"}
+                    {isIOSDevice ? t("mobileNav.addHomeScreen") : t("mobileNav.installApp")}
                   </span>
                 </button>
               )}
@@ -412,12 +414,12 @@ export function MobileNavigation({
                   {fullscreenState ? (
                     <>
                       <Minimize2 className="w-5 h-5" />
-                      <span className="flex-1 text-left">Exit Fullscreen</span>
+                      <span className="flex-1 text-left">{t("mobileNav.exitFullscreen")}</span>
                     </>
                   ) : (
                     <>
                       <Maximize2 className="w-5 h-5" />
-                      <span className="flex-1 text-left">Enter Fullscreen</span>
+                      <span className="flex-1 text-left">{t("mobileNav.enterFullscreen")}</span>
                     </>
                   )}
                 </button>
@@ -426,10 +428,8 @@ export function MobileNavigation({
 
             {showInstallCta && isIOSDevice && showIosInstallHelp && (
               <div className="mobile-more-tip">
-                <p className="mobile-more-tip-title">Add this app to your home screen</p>
-                <p className="mobile-more-tip-copy">
-                  Open the browser share menu, then choose <strong>Add to Home Screen</strong>.
-                </p>
+                <p className="mobile-more-tip-title">{t("mobileNav.addToHomeScreenTip")}</p>
+                <p className="mobile-more-tip-copy" dangerouslySetInnerHTML={{ __html: t("mobileNav.addToHomeScreenDesc") }} />
               </div>
             )}
           </div>
