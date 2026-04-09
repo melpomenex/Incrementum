@@ -136,7 +136,7 @@ export const ja: Dict = {
   "settings.reviewSettings": "復習設定",
   "settings.algorithm": "アルゴリズム",
   "settings.algorithmDesc": "間隔反復アルゴリズム",
-  "settings.fsrs5Recommended": "FSRS-5（推奨）",
+  "settings.fsrs6Recommended": "FSRS-6（推奨）",
   "settings.newCardsPerDay": "1日の新規カード数",
   "settings.newCardsPerDayDesc": "1日に表示する新規カードの最大数",
   "settings.reviewsPerDay": "1日の復習数",

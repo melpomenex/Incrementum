@@ -1,4 +1,5 @@
 import type { Settings } from "../stores/settingsStore";
+import { normalizeFsrsParameters } from "./fsrsParameters";
 
 export type FsrsScopeType = "deck" | "tag";
 
@@ -47,7 +48,7 @@ export function resolveFsrsParamsForScope(options: ResolveOptions): ResolvedFsrs
     return {
       desiredRetention: globalParams.desiredRetention,
       maximumInterval: globalParams.maximumInterval,
-      personalizedWeights: globalParams.personalizedWeights,
+      personalizedWeights: normalizeFsrsParameters(globalParams.personalizedWeights),
       source: "global",
     };
   }
@@ -55,7 +56,9 @@ export function resolveFsrsParamsForScope(options: ResolveOptions): ResolvedFsrs
   return {
     desiredRetention: winner.desiredRetention ?? globalParams.desiredRetention,
     maximumInterval: winner.maximumInterval ?? globalParams.maximumInterval,
-    personalizedWeights: winner.personalizedWeights ?? globalParams.personalizedWeights,
+    personalizedWeights: normalizeFsrsParameters(
+      winner.personalizedWeights ?? globalParams.personalizedWeights
+    ),
     source: winner.scopeType,
   };
 }

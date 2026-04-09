@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings } from "../../stores/settingsStore";
 import { resolveFsrsParamsForScope } from "../fsrsScope";
+import { getDefaultFsrsParameters } from "../fsrsParameters";
 
 describe("resolveFsrsParamsForScope", () => {
   it("falls back to global parameters when no override matches", () => {
@@ -82,20 +83,24 @@ describe("resolveFsrsParamsForScope", () => {
   });
 
   it("propagates personalized weight vectors from winning scope", () => {
+    const globalWeights = getDefaultFsrsParameters();
+    const scopedWeights = [...globalWeights];
+    scopedWeights[0] = 0.5;
+
     const settings = {
       ...defaultSettings,
       learning: {
         ...defaultSettings.learning,
         fsrsParams: {
           ...defaultSettings.learning.fsrsParams,
-          personalizedWeights: Array.from({ length: 17 }, (_, i) => i + 1),
+          personalizedWeights: globalWeights,
         },
         scopedFsrsOverrides: [
           {
             id: "tag-typed",
             scopeType: "tag" as const,
             scopeId: "bio",
-            personalizedWeights: Array.from({ length: 17 }, (_, i) => i + 101),
+            personalizedWeights: scopedWeights,
             enabled: true,
           },
         ],
@@ -105,7 +110,7 @@ describe("resolveFsrsParamsForScope", () => {
       settings,
       tags: ["bio"],
     });
-    expect(resolved.personalizedWeights?.[0]).toBe(101);
-    expect(resolved.personalizedWeights).toHaveLength(17);
+    expect(resolved.personalizedWeights?.[0]).toBe(0.5);
+    expect(resolved.personalizedWeights).toHaveLength(21);
   });
 });

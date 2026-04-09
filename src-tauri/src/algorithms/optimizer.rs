@@ -17,7 +17,7 @@ pub struct OptimizationResult {
     pub iterations: u32,
     /// Optimization completed successfully
     pub converged: bool,
-    /// Personalized FSRS 17-weight vector
+    /// Personalized FSRS parameter vector, normalized to the 21-parameter FSRS-6 shape
     pub fsrs_weights: Vec<f64>,
     /// Number of historical reviews used
     pub history_count: i32,
@@ -220,8 +220,9 @@ impl ParameterOptimizer {
 
 pub fn default_fsrs_weights() -> Vec<f64> {
     vec![
-        0.4072, 1.1829, 3.1262, 15.4722, 7.2102, 0.5316, 1.0651, 0.0234, 1.6160,
-        0.1544, 1.0824, 1.9813, 0.0953, 0.2975, 2.2042, 0.2407, 2.9466,
+        0.2120, 1.2931, 2.3065, 8.2956, 6.4133, 0.8334, 3.0194, 0.0010, 1.8722,
+        0.1666, 0.7960, 1.4835, 0.0614, 0.2629, 1.6483, 0.6014, 1.8729, 0.5425,
+        0.0912, 0.0658, 0.1542,
     ]
 }
 

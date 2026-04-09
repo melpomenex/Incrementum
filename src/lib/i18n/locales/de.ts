@@ -136,7 +136,7 @@ export const de: Dict = {
   "settings.reviewSettings": "Wiederholungseinstellungen",
   "settings.algorithm": "Algorithmus",
   "settings.algorithmDesc": "Verteilte-Wiederholung-Algorithmus",
-  "settings.fsrs5Recommended": "FSRS-5 (Empfohlen)",
+  "settings.fsrs6Recommended": "FSRS-6 (Empfohlen)",
   "settings.newCardsPerDay": "Neue Karten pro Tag",
   "settings.newCardsPerDayDesc": "Maximale neue Karten pro Tag",
   "settings.reviewsPerDay": "Wiederholungen pro Tag",

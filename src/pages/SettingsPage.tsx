@@ -246,7 +246,7 @@ function GeneralSettings() {
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
-                <option value="fsrs">{t("settings.fsrs5Recommended")}</option>
+                <option value="fsrs">{t("settings.fsrs6Recommended")}</option>
                 <option value="sm18">SuperMemo 18</option>
                 <option value="sm15">SuperMemo 15</option>
                 <option value="sm8">SuperMemo 8</option>

@@ -20,7 +20,7 @@ export const KEYBOARD_SHORTCUTS = {
 } as const;
 
 export const ALGORITHM_NAMES = {
-  fsrs: "FSRS-5",
+  fsrs: "FSRS-6",
   sm2: "SuperMemo 2",
 } as const;
 

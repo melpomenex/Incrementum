@@ -16,6 +16,7 @@ import ePub from 'epubjs';
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from 'ts-fsrs';
 import { useSettingsStore } from '../stores/settingsStore';
 import { resolveFsrsParamsForScope } from '../utils/fsrsScope';
+import { getDefaultFsrsParameters, normalizeFsrsParameters } from '../utils/fsrsParameters';
 import { parseSm18State, sm18Review, ratingToSm18Grade } from './sm18';
 import { v4 as uuidv4 } from 'uuid';
 import { getPositionProgress, type DocumentPosition } from '../types/position';
@@ -176,8 +177,9 @@ function getFsrsParameters(context?: { activeDeckId?: string | null; tags?: stri
         maximum_interval: fsrsParams.maximumInterval ?? 36500,
         enable_fuzz: false,
     };
-    if (Array.isArray(fsrsParams.personalizedWeights) && fsrsParams.personalizedWeights.length === 17) {
-        params.w = fsrsParams.personalizedWeights;
+    const normalizedWeights = normalizeFsrsParameters(fsrsParams.personalizedWeights);
+    if (normalizedWeights) {
+        params.w = normalizedWeights;
     }
     return params;
 }
@@ -1854,10 +1856,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         const totalReviews = reviewed.reduce((sum, item) => sum + (item.review_count || 0), 0);
         const totalLapses = reviewed.reduce((sum, item) => sum + (item.lapses || 0), 0);
         const observedRetention = totalReviews > 0 ? 1 - (totalLapses / totalReviews) : 0.5;
-        const defaultWeights = [
-            0.4072, 1.1829, 3.1262, 15.4722, 7.2102, 0.5316, 1.0651, 0.0234, 1.6160,
-            0.1544, 1.0824, 1.9813, 0.0953, 0.2975, 2.2042, 0.2407, 2.9466,
-        ];
+        const defaultWeights = getDefaultFsrsParameters();
         const shift = Math.max(-0.2, Math.min(0.2, observedRetention - 0.9));
         const personalizedWeights = defaultWeights.map((weight, index) => {
             const direction = index % 2 === 0 ? -1 : 1;
@@ -3101,33 +3100,34 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
     console.log(`[Browser] Converted: ${documents.length} documents, ${learningItems.length} learning items`);
 
     // Store documents
-    const docIds: string[] = [];
-    for (const doc of documents) {
+    const documentIdMap = new Map<string, string>();
+    for (const [index, doc] of documents.entries()) {
         const createdDoc = await db.createDocument({
             title: doc.title,
             content: doc.content,
             file_path: `anki://${doc.title}`,
             file_type: doc.fileType,
-        });
-        docIds.push(createdDoc.id);
-
-        // Add tags and category to document (stored in metadata)
-        await db.updateDocument(createdDoc.id, {
             category: doc.category,
+            tags: doc.tags,
         });
+        const sourceDeck = decks[index];
+        const placeholderId = `anki-deck-${sourceDeck?.id ?? index}`;
+        documentIdMap.set(placeholderId, createdDoc.id);
     }
 
     // Create learning items
     console.log(`[Browser] Creating ${learningItems.length} learning items in database...`);
     const items = [];
     for (const item of learningItems) {
+        const documentId = documentIdMap.get(item.documentId) ?? item.documentId;
         const createdItem = await db.createLearningItem({
-            document_id: item.documentId,
+            document_id: documentId,
             item_type: item.itemType,
             question: item.question,
             answer: item.answer,
             cloze_text: item.clozeText,
             cloze_ranges: item.clozeRanges,
+            tags: item.tags,
         });
 
         // Convert to camelCase and return as plain object

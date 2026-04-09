@@ -5,6 +5,7 @@ import {
   sanitizeTTSSettings,
   type TTSSettings,
 } from "../utils/ttsSettings";
+import { normalizeFsrsParameters } from "../utils/fsrsParameters";
 
 /**
  * FSRS Algorithm Parameters
@@ -584,6 +585,16 @@ export const useSettingsStore = create<SettingsState>()(
       onRehydrateStorage: () => (state, error) => {
         if (error || !state) return;
         const persisted = state.settings || defaultSettings;
+        const persistedFsrsParams = persisted.learning?.fsrsParams;
+        const normalizedGlobalWeights = normalizeFsrsParameters(
+          persistedFsrsParams?.personalizedWeights
+        );
+        const normalizedScopedOverrides = Array.isArray(persisted.learning?.scopedFsrsOverrides)
+          ? persisted.learning.scopedFsrsOverrides.map((entry) => ({
+              ...entry,
+              personalizedWeights: normalizeFsrsParameters(entry.personalizedWeights),
+            }))
+          : defaultSettings.learning.scopedFsrsOverrides;
         const merged: Settings = {
           ...defaultSettings,
           ...persisted,
@@ -595,11 +606,10 @@ export const useSettingsStore = create<SettingsState>()(
             ...persisted.learning,
             fsrsParams: {
               ...defaultSettings.learning.fsrsParams,
-              ...persisted.learning?.fsrsParams,
+              ...persistedFsrsParams,
+              personalizedWeights: normalizedGlobalWeights,
             },
-            scopedFsrsOverrides: Array.isArray(persisted.learning?.scopedFsrsOverrides)
-              ? persisted.learning?.scopedFsrsOverrides
-              : defaultSettings.learning.scopedFsrsOverrides,
+            scopedFsrsOverrides: normalizedScopedOverrides,
           },
           documents: {
             ...defaultSettings.documents,
