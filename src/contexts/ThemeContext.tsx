@@ -23,7 +23,7 @@ function getFontFamilyCSS(fontFamily: string): string {
     return systemFonts[fontFamily];
   }
 
-  // For Google Fonts, use the font name directly with fallbacks
+  // Use the configured family name with local/system fallbacks.
   return `"${fontFamily}", system-ui, sans-serif`;
 }
 
@@ -88,7 +88,9 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
 
   // Apply typography - use font family override from settings if available
   const fontFamily = fontFamilyOverride || theme.typography.fontFamily;
-  root.style.setProperty("--font-family", getFontFamilyCSS(fontFamily));
+  const fontFamilyCSS = getFontFamilyCSS(fontFamily);
+  root.style.setProperty("--font-family", fontFamilyCSS);
+  root.style.setProperty("--font-family-sans", fontFamilyCSS);
   Object.entries(theme.typography.fontSize).forEach(([key, value]) => {
     root.style.setProperty(`--font-size-${key}`, value);
   });
@@ -121,8 +123,9 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
     theme.colors.onSecondary || theme.colors.onPrimary
   );
 
-  // Apply typography
-  root.style.setProperty("--font-family", theme.typography.fontFamily);
+  // Re-apply typography tokens after shared UI colors without clobbering the normalized font stack.
+  root.style.setProperty("--font-family", fontFamilyCSS);
+  root.style.setProperty("--font-family-sans", fontFamilyCSS);
   Object.entries(theme.typography.fontSize).forEach(([key, value]) => {
     root.style.setProperty(`--font-size-${key}`, value);
   });

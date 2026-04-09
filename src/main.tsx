@@ -45,6 +45,7 @@ if (typeof window !== 'undefined') {
 
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
+import "./styles/offline-fonts.css";
 import "./index.css";
 import "./styles/mobile.css";
 import { HashRouter, Routes, Route } from "react-router-dom";
