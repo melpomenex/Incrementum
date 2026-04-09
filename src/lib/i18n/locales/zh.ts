@@ -136,7 +136,7 @@ export const zh: Dict = {
   "settings.reviewSettings": "复习设置",
   "settings.algorithm": "算法",
   "settings.algorithmDesc": "间隔重复算法",
-  "settings.fsrs5Recommended": "FSRS-5（推荐）",
+  "settings.fsrs6Recommended": "FSRS-6（推荐）",
   "settings.newCardsPerDay": "每日新卡数",
   "settings.newCardsPerDayDesc": "每天最多显示的新卡片数",
   "settings.reviewsPerDay": "每日复习数",
