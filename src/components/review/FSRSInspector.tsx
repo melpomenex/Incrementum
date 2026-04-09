@@ -1,20 +1,24 @@
 /**
- * FSRS Inspector Panel
- * 
- * DevTools-style panel for power users to inspect FSRS 6 parameters.
+ * Algorithm Inspector Panel
+ *
+ * DevTools-style panel for power users to inspect algorithm parameters.
  * Toggled via Cmd+I (like browser DevTools).
- * 
+ *
  * Features:
  * - Current card parameters (D, S, R)
- * - Forget curve visualization
- * - Optimal interval calculation
+ * - Forget curve visualization (FSRS: R=exp(-t/S), SM18: R=0.9^(t/S))
+ * - Simulated interval calculation
  * - Raw memory state data
+ * - Algorithm-aware: adapts labels and formulas for FSRS-6 and SM18
  */
 
 import { useState, useRef } from "react";
 import { X, Activity, Brain, Clock, Database, TrendingDown } from "lucide-react";
 import { cn } from "../../utils";
 import type { LearningItem } from "../../api/review";
+import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
+import type { SM18State } from "../../lib/sm18";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 interface FSRSInspectorProps {
   card: LearningItem | null;
@@ -22,11 +26,20 @@ interface FSRSInspectorProps {
   onClose: () => void;
 }
 
-// Forget curve calculation
+// Forget curve calculation — branches on algorithm type
 function calculateForgetCurve(
   stability: number,
-  days: number[]
+  days: number[],
+  algorithmType?: string,
+  elapsedDays?: number
 ): { day: number; retrievability: number }[] {
+  if (algorithmType === "sm18") {
+    return days.map((day) => ({
+      day,
+      retrievability: Math.pow(0.9, day / stability),
+    }));
+  }
+  // FSRS-6 default
   return days.map((day) => ({
     day,
     retrievability: Math.exp(-day / stability),
@@ -34,26 +47,26 @@ function calculateForgetCurve(
 }
 
 // Simple SVG line chart for forget curve
-function ForgetCurveChart({ 
-  data, 
-  width = 280, 
-  height = 100 
-}: { 
+function ForgetCurveChart({
+  data,
+  width = 280,
+  height = 100
+}: {
   data: { day: number; retrievability: number }[];
   width?: number;
   height?: number;
 }) {
   if (data.length === 0) return null;
-  
+
   const padding = { top: 5, right: 5, bottom: 20, left: 30 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  
+
   const maxDay = data[data.length - 1].day;
-  
+
   const xScale = (day: number) => padding.left + (day / maxDay) * chartWidth;
   const yScale = (r: number) => padding.top + (1 - r) * chartHeight;
-  
+
   // Generate path
   const pathD = data
     .map((point, i) => {
@@ -62,10 +75,10 @@ function ForgetCurveChart({
       return `${i === 0 ? "M" : "L"} ${x} ${y}`;
     })
     .join(" ");
-  
+
   // Area fill path
   const areaD = `${pathD} L ${xScale(maxDay)} ${padding.top + chartHeight} L ${padding.left} ${padding.top + chartHeight} Z`;
-  
+
   return (
     <svg width={width} height={height} className="text-muted-foreground">
       {/* Grid lines */}
@@ -92,10 +105,10 @@ function ForgetCurveChart({
           </text>
         </g>
       ))}
-      
+
       {/* Area fill */}
       <path d={areaD} fill="currentColor" fillOpacity={0.05} />
-      
+
       {/* Line */}
       <path
         d={pathD}
@@ -104,7 +117,7 @@ function ForgetCurveChart({
         strokeWidth={1.5}
         strokeOpacity={0.6}
       />
-      
+
       {/* X-axis labels */}
       {[0, Math.floor(maxDay / 2), maxDay].map((day) => (
         <text
@@ -157,28 +170,49 @@ function ParameterRow({
 export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showRaw, setShowRaw] = useState(false);
-  
+  const { settings } = useSettingsStore();
+
   if (!isOpen || !card) return null;
-  
-  const memoryState = card.memory_state;
-  const stability = memoryState?.stability ?? 0;
-  const difficulty = memoryState?.difficulty ?? 0;
-  const retrievability = memoryState?.retrievability ?? 0;
-  
+
+  // Use card's algorithm_type if set, otherwise fall back to user's setting
+  const effectiveAlgorithm = card.algorithm_type || settings.learning.algorithm;
+  const isSm18 = effectiveAlgorithm === "sm18";
+  const sm18State: SM18State | null = isSm18 ? parseSm18State(card.algorithm_state) : null;
+
+  const stability = isSm18 && sm18State
+    ? sm18State.stability
+    : card.memory_state?.stability ?? 0;
+  const difficulty = isSm18 && sm18State
+    ? sm18State.difficulty
+    : card.memory_state?.difficulty ?? 0;
+  const retrievability = isSm18 && sm18State && sm18State.stability > 0
+    ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
+    : (card.memory_state as any)?.retrievability ?? 0;
+
+  const inspectorTitle = isSm18 ? "SM18 Inspector" : "FSRS-6 Inspector";
+
   // Calculate forget curve data
   const curveDays = [0, 1, 3, 7, 14, 30, 60, 90];
-  const forgetCurve = stability > 0 
-    ? calculateForgetCurve(stability, curveDays)
+  const forgetCurve = stability > 0
+    ? calculateForgetCurve(stability, curveDays, effectiveAlgorithm, sm18State?.elapsed)
     : curveDays.map((day) => ({ day, retrievability: 1 }));
-  
+
   // Calculate optimal intervals for each rating
   const calculateInterval = (rating: number) => {
     if (!stability) return 0;
-    // Simplified FSRS interval calculation
+    // Simplified interval calculation
     const multipliers = { 1: 0.1, 2: 0.8, 3: 1.0, 4: 1.5 };
     return Math.round(stability * (multipliers[rating as keyof typeof multipliers] || 1));
   };
-  
+
+  // Algorithm-specific descriptions
+  const stabilityDesc = isSm18
+    ? "Days until retrievability drops to 90%"
+    : "Days until retrievability drops to ~37%";
+  const difficultyDesc = isSm18
+    ? "0-1 scale. Higher = harder to remember"
+    : "1-10 scale. Higher = harder to remember";
+
   return (
     <div
       ref={panelRef}
@@ -192,7 +226,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold">FSRS Inspector</span>
+          <span className="text-sm font-semibold">{inspectorTitle}</span>
         </div>
         <button
           onClick={onClose}
@@ -201,7 +235,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
           <X className="w-4 h-4" />
         </button>
       </div>
-      
+
       {/* Content */}
       <div className="overflow-y-auto h-[calc(100%-48px)]">
         {/* Card ID */}
@@ -210,29 +244,29 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             ID: {card.id}
           </div>
         </div>
-        
+
         {/* Parameters */}
         <div className="p-4 space-y-1">
           <div className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
             <Brain className="w-3.5 h-3.5" />
             Memory State
           </div>
-          
+
           <ParameterRow
             label="Stability (S)"
             value={stability ? stability.toFixed(2) : "—"}
             unit="d"
-            description="Days until retrievability drops to 90%"
+            description={stabilityDesc}
             icon={Clock}
           />
-          
+
           <ParameterRow
             label="Difficulty (D)"
-            value={difficulty ? difficulty.toFixed(2) : "—"}
-            description="1-10 scale. Higher = harder to remember"
+            value={difficulty != null ? difficulty.toFixed(2) : "—"}
+            description={difficultyDesc}
             icon={Activity}
           />
-          
+
           <ParameterRow
             label="Retrievability (R)"
             value={retrievability ? (retrievability * 100).toFixed(1) : "—"}
@@ -240,8 +274,25 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             description="Current probability of recall"
             icon={Brain}
           />
+
+          {isSm18 && sm18State && (
+            <>
+              <ParameterRow
+                label="Reps"
+                value={sm18State.repetition}
+                description="Repetitions since last lapse"
+                icon={Activity}
+              />
+              <ParameterRow
+                label="Lapses"
+                value={sm18State.lapses}
+                description="Total times forgotten (grade < 3)"
+                icon={Activity}
+              />
+            </>
+          )}
         </div>
-        
+
         {/* Forget Curve */}
         <div className="px-4 py-3 border-t border-border">
           <div className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -253,9 +304,10 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground">
             Projected retrievability over time based on current stability.
+            {isSm18 ? " R = 0.9^(t/S)" : " R = exp(-t/S)"}
           </div>
         </div>
-        
+
         {/* Optimal Intervals */}
         <div className="px-4 py-3 border-t border-border">
           <div className="text-xs font-semibold text-foreground mb-2">
@@ -281,7 +333,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             })}
           </div>
         </div>
-        
+
         {/* Raw Data Toggle */}
         <div className="px-4 py-3 border-t border-border">
           <button
@@ -291,7 +343,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             <Database className="w-3.5 h-3.5" />
             {showRaw ? "Hide" : "Show"} raw data
           </button>
-          
+
           {showRaw && (
             <pre className="mt-2 text-[9px] font-mono text-muted-foreground bg-muted/50 rounded p-2 overflow-x-auto">
               {JSON.stringify(
@@ -307,7 +359,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             </pre>
           )}
         </div>
-        
+
         {/* Keyboard hint */}
         <div className="px-4 py-3 border-t border-border">
           <div className="text-[10px] text-muted-foreground/60 text-center">

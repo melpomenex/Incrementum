@@ -859,6 +859,7 @@ impl MCPToolRegistry {
             0.9,
             None,
             false,
+            None,
         )
         .await
         {

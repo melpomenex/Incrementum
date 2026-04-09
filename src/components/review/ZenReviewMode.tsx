@@ -7,7 +7,7 @@
  * Features:
  * - No visible buttons, progress bars, or headers
  * - Pure keyboard grading (1-4, Space)
- * - Subtle FSRS metadata (10px monospace, bottom-right)
+ * - Subtle algorithm metadata (10px monospace, bottom-right)
  * - Context Peek: Hold Alt to see source document context
  * - Instant card transitions (no animations)
  */
@@ -17,6 +17,8 @@ import { useReviewStore, type ReviewSessionItem } from "../../stores/reviewStore
 import { ReviewRating, formatInterval } from "../../api/review";
 import { cn } from "../../utils";
 import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
+import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 interface ZenReviewModeProps {
   onExit: () => void;
@@ -128,24 +130,24 @@ function ZenCard({
   );
 }
 
-// Subtle FSRS metadata display
-function FSRSMetadata({ 
-  stability, 
-  difficulty, 
+// Subtle algorithm metadata display
+function AlgorithmMetadata({
+  stability,
+  difficulty,
   retrievability,
-  interval 
-}: { 
-  stability?: number; 
-  difficulty?: number; 
+  interval
+}: {
+  stability?: number;
+  difficulty?: number;
   retrievability?: number;
   interval?: number;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   if (!stability && !difficulty && !retrievability) return null;
-  
+
   return (
-    <div 
+    <div
       className="fixed bottom-4 right-4 z-50 text-right select-none"
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
@@ -371,24 +373,40 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   }
   
   const currentCardData = currentCard as any;
-  
+  const { settings } = useSettingsStore();
+
+  // Compute algorithm-aware metadata values
+  const effectiveAlgorithm = currentCardData.algorithm_type || settings.learning.algorithm;
+  const isSm18 = effectiveAlgorithm === "sm18";
+  const sm18State = isSm18 ? parseSm18State(currentCardData.algorithm_state) : null;
+  const metaStability = isSm18 && sm18State
+    ? sm18State.stability
+    : currentCardData.stability;
+  const metaDifficulty = isSm18 && sm18State
+    ? sm18State.difficulty
+    : currentCardData.difficulty;
+  const metaRetrievability = isSm18 && sm18State && sm18State.stability > 0
+    ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
+    : currentCardData.retrievability;
+  const metaInterval = currentCardData.interval;
+
   return (
     <div className="h-full flex flex-col items-center justify-center p-8 md:p-16 relative">
       {/* Session Timer */}
       {sessionStartTime && <SessionTimer startTime={sessionStartTime} />}
-      
+
       {/* Card Content */}
       <div className={cn(
         "w-full flex-1 flex items-center justify-center",
         justRated && "opacity-0"
       )}>
-        <ZenCard 
-          item={currentCard} 
+        <ZenCard
+          item={currentCard}
           showAnswer={isAnswerShown}
           onShowAnswer={showAnswer}
         />
       </div>
-      
+
       {/* Subtle hint at bottom */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/20">
         {isAnswerShown ? (
@@ -397,13 +415,13 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
           <span className="tracking-wide">Space</span>
         )}
       </div>
-      
-      {/* FSRS Metadata */}
-      <FSRSMetadata 
-        stability={currentCardData.stability}
-        difficulty={currentCardData.difficulty}
-        retrievability={currentCardData.retrievability}
-        interval={currentCardData.interval}
+
+      {/* Algorithm Metadata */}
+      <AlgorithmMetadata
+        stability={metaStability}
+        difficulty={metaDifficulty}
+        retrievability={metaRetrievability}
+        interval={metaInterval}
       />
       
       {/* Context Peek Overlay */}

@@ -110,7 +110,7 @@ function BackgroundNotificationSettings({
           <Bell className={`w-5 h-5 ${bgStatus.subscribed ? "text-green-500" : "text-yellow-500"}`} />
         </div>
         <div>
-          <p className="font-medium">t("notificationSettings.backgroundReminders")</p>
+          <p className="font-medium">{t("notificationSettings.backgroundReminders")}</p>
           <p className="text-sm text-muted-foreground">
             {bgStatus.subscribed
               ? "Active - you'll be reminded about due cards even when the app is closed"
@@ -256,7 +256,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
 
       {/* Permission Status */}
       <section>
-        <h3 className="text-lg font-semibold mb-4">t("notificationSettings.title")</h3>
+        <h3 className="text-lg font-semibold mb-4">{t("notificationSettings.title")}</h3>
         <div className="space-y-4">
           <div
             className={`flex items-center gap-3 p-4 rounded-lg ${permissionStatus.bg}`}
@@ -318,7 +318,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
               <Bell className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-medium">t("notificationSettings.enableNotifications")</p>
+              <p className="font-medium">{t("notificationSettings.enableNotifications")}</p>
               <p className="text-sm text-muted-foreground">
                 Receive notifications for study reminders and due dates
               </p>
@@ -339,14 +339,14 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
 
       {/* Notification Types */}
       <section>
-        <h3 className="text-lg font-semibold mb-4">t("notificationSettings.notificationTypes")</h3>
+        <h3 className="text-lg font-semibold mb-4">{t("notificationSettings.notificationTypes")}</h3>
         <div className="space-y-4">
           {/* Study Reminders */}
           <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
             <div className="flex items-start gap-3">
               <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">t("notificationSettings.studyReminders")</p>
+                <p className="font-medium">{t("notificationSettings.studyReminders")}</p>
                 <p className="text-sm text-muted-foreground">
                   Daily reminders to start your review session
                 </p>
@@ -372,7 +372,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BellRing className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">t("notificationSettings.reminderTime")</span>
+                  <span className="text-sm">{t("notificationSettings.reminderTime")}</span>
                 </div>
                 <input
                   type="time"
@@ -392,7 +392,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">t("notificationSettings.dueDateReminders")</p>
+                <p className="font-medium">{t("notificationSettings.dueDateReminders")}</p>
                 <p className="text-sm text-muted-foreground">
                   Notify when cards are due for review
                 </p>
@@ -421,7 +421,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
                 <VolumeX className="w-5 h-5 text-muted-foreground mt-0.5" />
               )}
               <div>
-                <p className="font-medium">t("notificationSettings.notificationSounds")</p>
+                <p className="font-medium">{t("notificationSettings.notificationSounds")}</p>
                 <p className="text-sm text-muted-foreground">
                   Play sound with notifications
                 </p>
@@ -447,7 +447,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Volume2 className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">t("notificationSettings.sound")</span>
+                  <span className="text-sm">{t("notificationSettings.sound")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
@@ -491,7 +491,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
                 </div>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm">t("notificationSettings.volume")</span>
+                <span className="text-sm">{t("notificationSettings.volume")}</span>
                 <input
                   type="range"
                   min="0"
@@ -510,14 +510,14 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
 
       {/* Additional Options */}
       <section>
-        <h3 className="text-lg font-semibold mb-4">t("notificationSettings.additionalOptions")</h3>
+        <h3 className="text-lg font-semibold mb-4">{t("notificationSettings.additionalOptions")}</h3>
         <div className="space-y-4">
           {/* Quiet Hours */}
           <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
             <div className="flex items-start gap-3">
               <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">t("notificationSettings.quietHours")</p>
+                <p className="font-medium">{t("notificationSettings.quietHours")}</p>
                 <p className="text-sm text-muted-foreground">
                   Pause notifications during specific hours
                 </p>
@@ -571,7 +571,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
             <div className="flex items-start gap-3">
               <Bell className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium">t("notificationSettings.showBadgeCount")</p>
+                <p className="font-medium">{t("notificationSettings.showBadgeCount")}</p>
                 <p className="text-sm text-muted-foreground">
                   Display due card count on app icon/badge
                 </p>
@@ -594,7 +594,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
       {/* Background Notifications (PWA only) */}
       {platform === "pwa" && (
         <section>
-          <h3 className="text-lg font-semibold mb-4">t("notificationSettings.backgroundReminders")</h3>
+          <h3 className="text-lg font-semibold mb-4">{t("notificationSettings.backgroundReminders")}</h3>
           <BackgroundNotificationSettings
             enabled={notificationSettings.enabled}
             permission={permission}
@@ -608,7 +608,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
           <h3 className="text-lg font-semibold mb-4">Test</h3>
           <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
             <div>
-              <p className="font-medium">t("notificationSettings.sendTest")</p>
+              <p className="font-medium">{t("notificationSettings.sendTest")}</p>
               <p className="text-sm text-muted-foreground">
                 Verify your notification settings are working
               </p>
@@ -632,11 +632,11 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-500 mt-0.5" />
           <div className="text-sm text-blue-600 dark:text-blue-400">
-            <p className="font-medium mb-1">t("notificationSettings.about")</p>
+            <p className="font-medium mb-1">{t("notificationSettings.about")}</p>
             <ul className="space-y-1 list-disc list-inside text-muted-foreground">
-              <li>t("notificationSettings.studyRemindersDaily")</li>
-              <li>t("notificationSettings.dueDateNotify")</li>
-              <li>t("notificationSettings.quietHoursPrevent")</li>
+              <li>{t("notificationSettings.studyRemindersDaily")}</li>
+              <li>{t("notificationSettings.dueDateNotify")}</li>
+              <li>{t("notificationSettings.quietHoursPrevent")}</li>
               {platform === "pwa" && (
                 <li>PWA notifications work even when the app is closed</li>
               )}
