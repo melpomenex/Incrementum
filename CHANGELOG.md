@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.4] - 2026-04-09
+
+### Added
+- **Comprehensive LaTeX engine upgrade** for flashcard rendering with KaTeX.
+  - Enabled mhchem extension for chemistry notation (`\ce{}`, `\pu{}`) — renders chemical formulas, equations, and physical units natively.
+  - Auto-detection of display-mode-only environments (`gather`, `split`, `multline`, `flalign`, `alignat`, `align`, `tag`) — inline expressions containing these now automatically render as centered block math.
+  - Custom macro pre-processor supporting `\newcommand`, `\renewcommand`, and `\DeclareMathOperator` — macros are scoped per card field and expanded before rendering.
+  - Live LaTeX preview in the Flashcard Studio editor — rendered math updates as users type with a 300ms debounce, using the same rendering pipeline as review surfaces.
+  - Fallback UX improvements — KaTeX rendering errors now show a red-tinted fallback with the raw source and a tooltip describing the error, distinct from the existing yellow non-error fallback.
+  - Expanded test coverage: 35 new tests for mhchem, display-mode detection, macro expansion, delimiter parsing, and fallback behavior.
+- **Image Occlusion card type** — hide parts of images (diagrams, charts) during review by defining rectangular regions that reveal on answer. Supports multiple labeled regions per card, image selection from the asset registry, and localized study prompts.
+- **Multiple Choice card type** — create question cards with multiple answer options, a single correct answer, and optional explanation. Options render as selectable buttons with green/red color-coding after reveal. Supports 2+ options with validation at creation time.
+- **Interaction metadata system** — both card types store their specialized data (options, correct answer, regions, image asset) in a structured JSON `interaction_metadata` field, enabling frontend-specific rendering while keeping the backend type system clean.
+
+### Changed
+- Broadened LaTeX hint detection in the Anki normalization pipeline to recognize macro definitions (`\newcommand`, `\DeclareMathOperator`), chemistry commands (`\ce`, `\pu`), and a wider range of LaTeX commands for bare-text detection.
+- Escaped dollar signs (`\$`) are now properly handled during delimiter tokenization — they are preserved as literal characters and not treated as math delimiters.
+
+### Fixed
+- Display-mode-only environments (e.g., `gather`, `split`) no longer silently degrade when used inside inline delimiters — they auto-upgrade to block display mode with proper centered rendering.
+
 ## [1.18.3] - 2026-04-09
 
 ### Changed

@@ -9,6 +9,7 @@ import {
   extractMathFromText,
   detectMathContent,
   cleanMathOCR,
+  shouldUseDisplayMode,
 } from "../mathOcr";
 
 describe("mathOcr", () => {
@@ -90,6 +91,67 @@ describe("mathOcr", () => {
     it("should handle empty LaTeX", () => {
       const html = latexToHTML("");
       expect(html).toContain("math-expression");
+    });
+
+    it("should render chemistry notation via mhchem", () => {
+      const html = latexToHTML("\\ce{CO2 + H2O -> H2CO3}");
+      expect(html).toContain("katex");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should render physical units via mhchem", () => {
+      const html = latexToHTML("\\pu{9.8 m/s^2}");
+      expect(html).toContain("katex");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should render isotopes via mhchem", () => {
+      const html = latexToHTML("\\ce{^{227}_{90}Th+}");
+      expect(html).toContain("katex");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should auto-detect display mode for gather environment", () => {
+      const html = latexToHTML("\\begin{gather} a=b \\\\ c=d \\end{gather}");
+      expect(html).toContain("math-expression-block");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should auto-detect display mode for split environment", () => {
+      const html = latexToHTML("\\begin{split} a &= b + c \\\\ &= d \\end{split}");
+      expect(html).toContain("math-expression-block");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should auto-detect display mode for tag command", () => {
+      const html = latexToHTML("\\int_0^1 x^2 dx \\tag{1}");
+      expect(html).toContain("math-expression-block");
+      expect(html).not.toContain("katex-error");
+    });
+
+    it("should use explicit displayMode option when provided", () => {
+      const html = latexToHTML("x^2 + y^2", { displayMode: true });
+      expect(html).toContain("math-expression");
+    });
+
+    it("should keep inline mode for simple expressions without display-only envs", () => {
+      const html = latexToHTML("\\frac{1}{2}");
+      expect(html).toContain("math-expression");
+      expect(html).not.toContain("math-expression-block");
+    });
+
+    it("should show fallback with error attribute for truly broken LaTeX", () => {
+      // \ce requires mhchem; if the extension failed to load, \ce{CO2} would error
+      // Use a known-broken expression to test the fallback path
+      const html = latexToHTML("\\begin{tikzpicture} \\draw (0,0) -- (1,1); \\end{tikzpicture}");
+      expect(html).toContain("math-expression-fallback");
+      expect(html).toContain("data-latex-error");
+    });
+
+    it("should include raw source in fallback output", () => {
+      const html = latexToHTML("\\begin{tikzpicture} test \\end{tikzpicture}");
+      expect(html).toContain("math-expression-fallback");
+      expect(html).toContain("tikzpicture");
     });
   });
 
@@ -223,6 +285,37 @@ describe("mathOcr", () => {
 
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1.0);
+    });
+  });
+
+  describe("shouldUseDisplayMode", () => {
+    it("should detect gather environment", () => {
+      expect(shouldUseDisplayMode("\\begin{gather} a=b \\end{gather}")).toBe(true);
+    });
+
+    it("should detect split environment", () => {
+      expect(shouldUseDisplayMode("\\begin{split} a &= b \\end{split}")).toBe(true);
+    });
+
+    it("should detect tag command", () => {
+      expect(shouldUseDisplayMode("E=mc^2 \\tag{1}")).toBe(true);
+    });
+
+    it("should detect multline environment", () => {
+      expect(shouldUseDisplayMode("\\begin{multline} a \\end{multline}")).toBe(true);
+    });
+
+    it("should not trigger for simple expressions", () => {
+      expect(shouldUseDisplayMode("\\frac{1}{2}")).toBe(false);
+    });
+
+    it("should not trigger for inline-friendly aligned", () => {
+      // 'aligned' is different from 'align' — aligned works in both modes
+      expect(shouldUseDisplayMode("\\begin{aligned} a &= b \\end{aligned}")).toBe(false);
+    });
+
+    it("should detect align environment (display-only)", () => {
+      expect(shouldUseDisplayMode("\\begin{align} a &= b \\end{align}")).toBe(true);
     });
   });
 

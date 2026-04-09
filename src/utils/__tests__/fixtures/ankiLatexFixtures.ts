@@ -39,8 +39,9 @@ export const ANKI_LATEX_FIXTURES: AnkiLatexFixture[] = [
   {
     name: "malformed expression fallback",
     input: "[$]\\frac{1}{2[/$]",
-    // KaTeX with throwOnError:false renders malformed expressions gracefully
-    expectContains: ["math-expression", "katex"],
+    // Malformed expressions (unbalanced braces) produce KaTeX errors which are caught
+    // and wrapped in a fallback with error details
+    expectContains: ["math-expression-fallback", "data-latex-error"],
   },
   {
     name: "unsupported command renders via KaTeX",
@@ -57,5 +58,45 @@ export const ANKI_LATEX_FIXTURES: AnkiLatexFixture[] = [
     name: "currency is not parsed as math",
     input: "Price is $20 and discount is 5%",
     expectContains: ["Price is $20 and discount is 5%"],
+  },
+  {
+    name: "mhchem chemical formula",
+    input: "[$]\\ce{CO2 + H2O -> H2CO3}[/$]",
+    expectContains: ["math-expression", "katex"],
+  },
+  {
+    name: "mhchem physical unit",
+    input: "[$]\\pu{9.8 m/s^2}[/$]",
+    expectContains: ["math-expression", "katex"],
+  },
+  {
+    name: "mhchem block chemical equation",
+    input: "[latex]\\ce{^{227}_{90}Th+} -> \\ce{^{223}_{88}Ra} + \\alpha[/latex]",
+    expectContains: ["math-expression-block", "katex"],
+  },
+  {
+    name: "escaped dollar sign is not a delimiter",
+    input: "Price is \\$20 not $\\alpha$",
+    expectContains: ["$20", "math-expression", "katex"],
+  },
+  {
+    name: "nested inline and block delimiters",
+    input: "$x$ text $$\\int_0^1 x^2 dx$$ text $y$",
+    expectContains: ["math-expression", "math-expression-block", "katex"],
+  },
+  {
+    name: "display-mode env in inline auto-upgrades",
+    input: "[$]\\begin{gather} a=b \\\\ c=d \\end{gather}[/$]",
+    expectContains: ["math-expression-block", "katex"],
+  },
+  {
+    name: "custom macro definition and usage",
+    input: "\\newcommand{\\R}{\\mathbb{R}} x \\in \\R",
+    expectContains: ["math-expression", "katex", "mathbb"],
+  },
+  {
+    name: "DeclareMathOperator definition and usage",
+    input: "\\DeclareMathOperator{\\argmin}{arg\\,min} \\argmin_x f(x)",
+    expectContains: ["math-expression", "katex"],
   },
 ];

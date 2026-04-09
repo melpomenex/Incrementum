@@ -81,7 +81,10 @@ pub async fn create_learning_item(
     item_type: String,
     question: String,
     answer: Option<String>,
+    cloze_text: Option<String>,
+    document_id: Option<String>,
     prerequisite_item_ids: Option<Vec<String>>,
+    tags: Option<Vec<String>>,
     image_asset_ids: Option<Vec<String>>,
     interaction_metadata: Option<serde_json::Value>,
     allow_duplicate: Option<bool>,
@@ -106,7 +109,10 @@ pub async fn create_learning_item(
     };
 
     let mut item = LearningItem::new(item_type, question);
+    item.document_id = document_id;
     item.answer = answer;
+    item.cloze_text = cloze_text;
+    item.tags = tags.unwrap_or_default();
     item.image_asset_ids = image_asset_ids.unwrap_or_default();
     item.interaction_metadata = interaction_metadata;
     let created = repo.create_learning_item(&item).await?;
