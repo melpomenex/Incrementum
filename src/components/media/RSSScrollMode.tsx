@@ -1094,7 +1094,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           <Newspaper className="w-16 h-16 mb-4 opacity-50" />
         )}
         <p className="text-lg mb-2">
-          {favoritesOnly ? t("queueScroll.noFavoriteArticles") : t("queueScroll.noArticles")}
+          {favoritesOnly ? t("queueScroll.noFavoriteArticles") : t("queueScroll.noArticlesYet")}
         </p>
         <p className="text-sm mb-4">
           {favoritesOnly

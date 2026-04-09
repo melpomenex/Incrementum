@@ -886,7 +886,7 @@ function backendFeedToFrontend(feed: BackendRssFeed & { unread_count?: number },
       categories: [],
       guid: item.guid || undefined,
       read: item.is_read,
-      favorite: false,
+      favorite: item.is_queued,
       feedId: feed.id,
     })),
     subscribeDate: feed.date_added,
@@ -918,7 +918,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
       categories: [],
       guid: item.guid || undefined,
       read: item.is_read,
-      favorite: false,
+      favorite: item.is_queued,
       feedId: feed.id,
     })),
     subscribeDate: feed.date_added,
@@ -1422,9 +1422,13 @@ export async function markFeedReadAuto(feedId: string): Promise<void> {
  * Unified toggleItemFavorite - works in both Tauri and Web mode
  */
 export async function toggleItemFavoriteAuto(feedId: string, itemId: string): Promise<void> {
+  if (isTauri()) {
+    await invokeCommand("toggle_rss_article_queued", { id: itemId });
+    return;
+  }
   if (shouldUseHttpBackend()) {
     try {
-      // In web mode, toggle queued status for favorite
+      // In HTTP-backed mode, queued status is used as the persisted favorite flag.
       await fetch(`${getApiBaseUrl()}/api/rss/articles/${itemId}/queued`, {
         method: 'POST',
       });
