@@ -280,7 +280,7 @@ fn apply_fsrs_review_inner(
     now: chrono::DateTime<Utc>,
 ) -> Result<()> {
     let fsrs = if let Some(weights) = fsrs_weights {
-        if weights.len() == 17 {
+        if matches!(weights.len(), 17 | 19 | 21) {
             fsrs::FSRS::new(Some(weights))?
         } else {
             fsrs::FSRS::new(Some(&[]))?

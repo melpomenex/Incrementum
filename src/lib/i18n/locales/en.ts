@@ -136,7 +136,7 @@ export const en: Dict = {
   "settings.reviewSettings": "Review Settings",
   "settings.algorithm": "Algorithm",
   "settings.algorithmDesc": "Spaced repetition algorithm",
-  "settings.fsrs5Recommended": "FSRS-5 (Recommended)",
+  "settings.fsrs6Recommended": "FSRS-6 (Recommended)",
   "settings.newCardsPerDay": "New Cards per Day",
   "settings.newCardsPerDayDesc": "Maximum new cards to show daily",
   "settings.reviewsPerDay": "Reviews per Day",

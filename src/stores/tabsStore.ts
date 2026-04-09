@@ -149,6 +149,34 @@ export interface TabsState {
 }
 
 const STORAGE_KEY = "incrementum-tabs";
+const SINGLE_INSTANCE_TAB_TYPES: ReadonlySet<TabType> = new Set([
+  "continue-reading",
+  "dashboard",
+  "queue",
+  "queue-scroll",
+  "review",
+  "documents",
+  "analytics",
+  "settings",
+  "knowledge-sphere",
+  "knowledge-network",
+  "rss",
+  "newsletter",
+  "doc-qa",
+  "notebooklm",
+]);
+
+function findReusableTab(state: TabsState, tab: Omit<Tab, "id">): Tab | undefined {
+  if (SINGLE_INSTANCE_TAB_TYPES.has(tab.type)) {
+    return state.tabs.find((existingTab) => existingTab.type === tab.type);
+  }
+
+  return state.tabs.find(
+    (existingTab) =>
+      existingTab.type === tab.type &&
+      JSON.stringify(existingTab.data) === JSON.stringify(tab.data)
+  );
+}
 
 // Helper to find a pane by ID recursively
 function findPaneByIdRecursive(pane: Pane, paneId: string): Pane | null {
@@ -279,12 +307,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     const newTab: Tab = { ...tab, id };
 
     set((state) => {
-      // Check if tab of same type with same data already exists
-      const existingTab = state.tabs.find(
-        (t) =>
-          t.type === tab.type &&
-          JSON.stringify(t.data) === JSON.stringify(tab.data)
-      );
+      const existingTab = findReusableTab(state, tab);
 
       if (existingTab) {
         // Find the pane containing this tab and activate it
@@ -377,11 +400,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     const newTab: Tab = { ...tab, id };
 
     set((state) => {
-      const existingTab = state.tabs.find(
-        (t) =>
-          t.type === tab.type &&
-          JSON.stringify(t.data) === JSON.stringify(tab.data)
-      );
+      const existingTab = findReusableTab(state, tab);
 
       if (existingTab) {
         return state;

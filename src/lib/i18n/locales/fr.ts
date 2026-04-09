@@ -136,7 +136,7 @@ export const fr: Dict = {
   "settings.reviewSettings": "Paramètres de révision",
   "settings.algorithm": "Algorithme",
   "settings.algorithmDesc": "Algorithme de répétition espacée",
-  "settings.fsrs5Recommended": "FSRS-5 (Recommandé)",
+  "settings.fsrs6Recommended": "FSRS-6 (Recommandé)",
   "settings.newCardsPerDay": "Nouvelles cartes par jour",
   "settings.newCardsPerDayDesc": "Maximum de nouvelles cartes par jour",
   "settings.reviewsPerDay": "Révisions par jour",

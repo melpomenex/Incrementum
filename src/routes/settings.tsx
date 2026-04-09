@@ -83,7 +83,7 @@ export function Settings() {
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
-                <option value="fsrs">FSRS-5 (Recommended)</option>
+                <option value="fsrs">FSRS-6 (Recommended)</option>
                 <option value="sm18">SuperMemo 18</option>
                 <option value="sm15">SuperMemo 15</option>
                 <option value="sm8">SuperMemo 8</option>

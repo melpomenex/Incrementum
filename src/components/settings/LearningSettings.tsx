@@ -3,6 +3,7 @@ import { useI18n } from "../../lib/i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { optimizeAlgorithmParams } from "../../api/algorithm";
+import { CANONICAL_FSRS_PARAMETER_LENGTH } from "../../utils/fsrsParameters";
 
 export function LearningSettings() {
   const { t } = useI18n();
@@ -35,7 +36,7 @@ export function LearningSettings() {
               }
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             >
-              <option value="fsrs">FSRS-5 (Recommended)</option>
+              <option value="fsrs">FSRS-6 (Recommended)</option>
               <option value="sm18">SuperMemo 18</option>
               <option value="sm2">SuperMemo 2</option>
             </select>
@@ -113,8 +114,8 @@ export function LearningSettings() {
               >
                 {isOptimizing ? "Optimizing..." : "Run Personal FSRS Optimizer"}
               </button>
-              {settings.learning.fsrsParams.personalizedWeights?.length === 17 && (
-                <span className="text-xs text-green-500">17-weight profile active</span>
+              {settings.learning.fsrsParams.personalizedWeights?.length === CANONICAL_FSRS_PARAMETER_LENGTH && (
+                <span className="text-xs text-green-500">FSRS-6 profile active (21 params)</span>
               )}
             </div>
             {optimizerMessage && (
