@@ -6,8 +6,9 @@ import { UserMenu } from "../auth/UserMenu";
 import { Breadcrumb } from "../common/Breadcrumb";
 import { Toast } from "../common/Toast";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
-import { OfflineIndicator } from "../pwa";
+import { OfflineIndicator, usePWAStatus } from "../pwa";
 import { useI18n } from "../../lib/i18n";
+import { isTauri } from "../../lib/tauri";
 import {
   Home,
   BookOpen,
@@ -22,6 +23,8 @@ import {
   BookMarked,
   Menu,
   X,
+  Download,
+  Search as SearchIcon,
 } from "lucide-react";
 
 interface SidebarItem {
@@ -210,7 +213,192 @@ export function NewMainLayout({
           {children}
         </main>
       </div>
+
+      {!isReaderFocusMode && (
+        <MobileBottomBar
+          activeItem={activeItem}
+          onPageChange={handlePageChange}
+        />
+      )}
     </div>
+  );
+}
+
+interface MobileBottomBarProps {
+  activeItem: string;
+  onPageChange: (page: string) => void;
+}
+
+const mobilePrimaryItems = [
+  { id: "dashboard", label: "Home", icon: Home },
+  { id: "documents", label: "Library", icon: BookOpen },
+  { id: "queue", label: "Queue", icon: Layers },
+  { id: "settings", label: "Settings", icon: Settings },
+] as const;
+
+const mobileSecondaryItems = [
+  { id: "continue-reading", label: "Continue Reading", icon: BookMarked },
+  { id: "knowledge-graph", label: "Knowledge Graph", icon: Network },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+] as const;
+
+function MobileBottomBar({ activeItem, onPageChange }: MobileBottomBarProps) {
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showIosInstallHelp, setShowIosInstallHelp] = useState(false);
+  const { canInstall, install, isStandalone } = usePWAStatus();
+
+  const isIOSDevice =
+    typeof navigator !== "undefined" &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const showInstallCta = !isTauri() && !isStandalone && (canInstall || isIOSDevice);
+  const moreActive = mobileSecondaryItems.some((item) => item.id === activeItem);
+
+  const handleInstall = async () => {
+    if (isIOSDevice) {
+      setShowIosInstallHelp((prev) => !prev);
+      return;
+    }
+
+    await install();
+    setIsMoreMenuOpen(false);
+  };
+
+  return (
+    <>
+      <nav
+        className="mobile-pwa-bottom-bar lg:hidden"
+        aria-label="Primary navigation"
+      >
+        <div className="mobile-pwa-bottom-bar-shell">
+          {mobilePrimaryItems.map((item) => {
+            const active = activeItem === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  onPageChange(item.id);
+                }}
+                className={`mobile-pwa-nav-item ${active ? "mobile-pwa-nav-item-active" : ""}`}
+                aria-current={active ? "page" : undefined}
+                aria-label={item.label}
+              >
+                <span className="mobile-pwa-nav-item-background" aria-hidden="true" />
+                <span className="mobile-pwa-nav-item-indicator" aria-hidden="true" />
+                <span className="mobile-pwa-nav-item-content">
+                  <item.icon className="w-5 h-5" />
+                  <span className="mobile-pwa-nav-label">{item.label}</span>
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setIsMoreMenuOpen(true)}
+            className={`mobile-pwa-nav-item ${moreActive || isMoreMenuOpen ? "mobile-pwa-nav-item-active" : ""}`}
+            aria-expanded={isMoreMenuOpen}
+            aria-label="More sections and actions"
+          >
+            <span className="mobile-pwa-nav-item-background" aria-hidden="true" />
+            <span className="mobile-pwa-nav-item-indicator" aria-hidden="true" />
+            <span className="mobile-pwa-nav-item-content">
+              <Menu className="w-5 h-5" />
+              <span className="mobile-pwa-nav-label">More</span>
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {isMoreMenuOpen && (
+        <div
+          className="mobile-pwa-sheet-overlay lg:hidden"
+          onClick={() => {
+            setIsMoreMenuOpen(false);
+            setShowIosInstallHelp(false);
+          }}
+        >
+          <div
+            className="mobile-pwa-sheet"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mobile-pwa-sheet-header">
+              <div>
+                <p className="mobile-pwa-sheet-eyebrow">More</p>
+                <h2 className="mobile-pwa-sheet-title">Sections and shortcuts</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  setShowIosInstallHelp(false);
+                }}
+                className="mobile-pwa-sheet-close"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mobile-pwa-sheet-section">
+              {mobileSecondaryItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onPageChange(item.id);
+                    setIsMoreMenuOpen(false);
+                    setShowIosInstallHelp(false);
+                  }}
+                  className={`mobile-pwa-sheet-item ${activeItem === item.id ? "mobile-pwa-sheet-item-active" : ""}`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="flex-1 text-left">{item.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mobile-pwa-sheet-section">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("command-palette-open"));
+                  setIsMoreMenuOpen(false);
+                  setShowIosInstallHelp(false);
+                }}
+                className="mobile-pwa-sheet-item"
+              >
+                <SearchIcon className="w-5 h-5" />
+                <span className="flex-1 text-left">Search</span>
+              </button>
+
+              {showInstallCta && (
+                <button
+                  type="button"
+                  onClick={handleInstall}
+                  className="mobile-pwa-sheet-item"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="flex-1 text-left">
+                    {isIOSDevice ? "Add to Home Screen" : "Install App"}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {showInstallCta && isIOSDevice && showIosInstallHelp && (
+              <div className="mobile-pwa-install-tip">
+                <p className="mobile-pwa-install-tip-title">Add this app to your home screen</p>
+                <p className="mobile-pwa-install-tip-copy">
+                  Open the browser share menu, then choose <strong>Add to Home Screen</strong>.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
