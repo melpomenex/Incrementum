@@ -41,7 +41,6 @@ import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPan
 import { useToast } from "../common/Toast";
 import { formatRelativeTime } from "../../utils/date";
 import { WEBVIEW_EXTRACT_BRIDGE_SCRIPT, SELECTION_STORAGE_KEY } from "../../lib/webview-extract-bridge";
-import { useI18n } from "../../lib/i18n";
 
 // Type definitions for lazy loading
 type WebviewType = import("@tauri-apps/api/webview").Webview;
