@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.18.4] - 2026-04-09
+## [1.18.5] - 2026-04-09
+
+### Added
+- **SuperMemo 18 algorithm transparency** — review UI now adapts to the active algorithm. When SM18 is selected, the transparency panel, inspector, and zen-mode overlay show SM18-specific stats (stability, difficulty on 0-1 scale, retrievability via `R = 0.9^(t/S)`, reps, lapses) with correct formulas and labels, matching the existing FSRS-6 transparency experience.
+
+### Changed
+- Review backends (Tauri and browser) now respect the algorithm setting passed from the frontend during review submission instead of always reading the stale `algorithm_type` stored on the card. The effective algorithm is also persisted back to the card for correct display.
+- FSRS-specific settings (retention slider, personal optimizer, scoped overrides) are hidden in Learning Settings when a non-FSRS algorithm is selected.
+- Item details popover scheduling section header now shows "FSRS-6" or "SuperMemo 18" based on the active algorithm.
+
+### Fixed
+- Algorithm selection in settings had no effect on actual review scheduling — backends ignored the passed `algorithm` parameter and always dispatched to FSRS-6. All three backends (Tauri, browser, MCP) now correctly route to the user's chosen algorithm.
+- Cards created before the algorithm selector was added were permanently stuck on FSRS-6 even after switching to SM18 — the `algorithm_type` field was never updated.
 
 ### Added
 - **Comprehensive LaTeX engine upgrade** for flashcard rendering with KaTeX.
@@ -637,7 +649,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.3...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.5...HEAD
+[1.18.5]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.4...v1.18.5
+[1.18.4]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.3...v1.18.4
 [1.18.3]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.0...v1.18.3
 [1.2.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/melpomenex/incrementum-tauri/releases/tag/v1.0.0

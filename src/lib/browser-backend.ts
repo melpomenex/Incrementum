@@ -277,7 +277,7 @@ function sm2NextInterval(state: SM2State, rating: number): SM2State {
     return newState;
 }
 
-async function applySm2ReviewBrowser(item: db.LearningItem, rating: number): Promise<db.LearningItem> {
+async function applySm2ReviewBrowser(item: db.LearningItem, rating: number, algorithmType?: string): Promise<db.LearningItem> {
     const state = parseSm2State(item.algorithm_state);
     const newState = sm2NextInterval(state, rating);
     const now = new Date();
@@ -299,10 +299,11 @@ async function applySm2ReviewBrowser(item: db.LearningItem, rating: number): Pro
         lapses: failed ? (item.lapses || 0) + 1 : item.lapses || 0,
         state: nextState,
         algorithm_state: JSON.stringify(newState),
+        algorithm_type: algorithmType || 'sm2',
     });
 }
 
-async function applySm18ReviewBrowser(item: db.LearningItem, rating: number): Promise<db.LearningItem> {
+async function applySm18ReviewBrowser(item: db.LearningItem, rating: number, algorithmType?: string): Promise<db.LearningItem> {
     const state = parseSm18State(item.algorithm_state);
     const now = new Date();
 
@@ -336,6 +337,7 @@ async function applySm18ReviewBrowser(item: db.LearningItem, rating: number): Pr
         },
         difficulty: result.state.difficulty * 10.0,
         algorithm_state: JSON.stringify(result.state),
+        algorithm_type: algorithmType || 'sm18',
     });
 }
 
@@ -1565,14 +1567,14 @@ const commandHandlers: Record<string, CommandHandler> = {
             return toCamelCase(item);
         }
 
-        const algorithmType = item.algorithm_type || 'fsrs';
+        const algorithmType = (args.algorithm as string) || item.algorithm_type || 'fsrs';
 
         if (algorithmType === 'sm2') {
-            return toCamelCase(await applySm2ReviewBrowser(item, rating));
+            return toCamelCase(await applySm2ReviewBrowser(item, rating, algorithmType));
         }
 
         if (algorithmType === 'sm18') {
-            return toCamelCase(await applySm18ReviewBrowser(item, rating));
+            return toCamelCase(await applySm18ReviewBrowser(item, rating, algorithmType));
         }
 
         // FSRS-6 (default)
@@ -1599,6 +1601,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                 difficulty: nextCard.difficulty,
             },
             difficulty: nextCard.difficulty,
+            algorithm_type: algorithmType,
         });
 
         return toCamelCase(updatedItem);
@@ -1611,7 +1614,7 @@ const commandHandlers: Record<string, CommandHandler> = {
             throw new Error(`Learning item ${itemId} not found`);
         }
 
-        const algorithmType = item.algorithm_type || 'fsrs';
+        const algorithmType = (args.algorithm as string) || item.algorithm_type || 'fsrs';
 
         // SM-18 preview
         if (algorithmType === 'sm18') {
