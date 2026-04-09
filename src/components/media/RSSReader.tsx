@@ -31,9 +31,6 @@ import {
   markItemReadAuto,
   markFeedReadAuto,
   toggleItemFavoriteAuto,
-  getUnreadItems,
-  getFavoriteItems,
-  searchFeedItems,
   getFeedFolders,
   importOpmlAuto,
   exportOpmlAuto,
@@ -132,14 +129,46 @@ export function RSSReader() {
 
   // Update items when feeds or view mode changes
   useEffect(() => {
+    const allFeedItems = feeds.flatMap((feed) =>
+      feed.items.map((item) => ({ feed, item }))
+    );
+
     if (viewMode === "all" && selectedFeed) {
       setItems(selectedFeed.items.map((item) => ({ feed: selectedFeed, item })));
     } else if (viewMode === "unread") {
-      setItems(getUnreadItems());
+      setItems(
+        allFeedItems
+          .filter(({ item }) => !item.read)
+          .sort(
+            (a, b) =>
+              new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()
+          )
+      );
     } else if (viewMode === "favorites") {
-      setItems(getFavoriteItems());
+      setItems(
+        allFeedItems
+          .filter(({ item }) => item.favorite)
+          .sort(
+            (a, b) =>
+              new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()
+          )
+      );
     } else if (viewMode === "search" && searchQuery) {
-      setItems(searchFeedItems(searchQuery));
+      const lowerQuery = searchQuery.toLowerCase();
+      setItems(
+        allFeedItems
+          .filter(({ item }) =>
+            item.title.toLowerCase().includes(lowerQuery) ||
+            item.description.toLowerCase().includes(lowerQuery) ||
+            item.content.toLowerCase().includes(lowerQuery)
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()
+          )
+      );
+    } else {
+      setItems([]);
     }
   }, [viewMode, selectedFeed, feeds, searchQuery]);
 
@@ -177,7 +206,12 @@ export function RSSReader() {
   const loadFeeds = async () => {
     const feeds = await getSubscribedFeedsAuto();
     setFeeds(feeds);
+    setSelectedFeed((prev) => {
+      if (!prev) return prev;
+      return feeds.find((feed) => feed.id === prev.id || feed.feedUrl === prev.feedUrl) ?? null;
+    });
     setFolders(getFeedFolders());
+    return feeds;
   };
 
   // Refresh all feeds (for auto-refresh and manual refresh all)
@@ -276,8 +310,10 @@ export function RSSReader() {
       const feed = await fetchFeed(newFeedUrl);
       if (feed) {
         await subscribeToFeedAuto(feed);
-        await loadFeeds();
-        setSelectedFeed(feed);
+        const updatedFeeds = await loadFeeds();
+        setSelectedFeed(
+          updatedFeeds.find((candidate) => candidate.id === feed.id || candidate.feedUrl === feed.feedUrl) ?? feed
+        );
         setShowAddDialog(false);
         setNewFeedUrl("");
       } else {
@@ -295,22 +331,21 @@ export function RSSReader() {
       const updated = await fetchFeed(feed.feedUrl);
       if (updated) {
         // Preserve read/favorite status
-        const existing = getSubscribedFeeds().find((f) => f.id === feed.id);
-        if (existing) {
-          updated.items.forEach((newItem) => {
-            const existingItem = existing.items.find((i) => i.id === newItem.id);
-            if (existingItem) {
-              newItem.read = existingItem.read;
-              newItem.favorite = existingItem.favorite;
-            }
-          });
+        updated.items.forEach((newItem) => {
+          const existingItem = feed.items.find((i) => i.id === newItem.id);
+          if (existingItem) {
+            newItem.read = existingItem.read;
+            newItem.favorite = existingItem.favorite;
+          }
+        });
+
+        if (isTauri()) {
+          await syncFeedToTauri(updated, feed.items);
+        } else {
+          await subscribeToFeedAuto(updated);
         }
 
-        subscribeToFeed(updated);
-        loadFeeds();
-        if (selectedFeed?.id === updated.id) {
-          setSelectedFeed(updated);
-        }
+        await loadFeeds();
       }
     } catch (error) {
       alert("Failed to refresh feed: " + (error as Error).message);

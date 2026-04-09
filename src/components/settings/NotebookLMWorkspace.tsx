@@ -91,7 +91,7 @@ export function NotebookLMWorkspace() {
             <Brain className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground">t("notebooklm.title")</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("notebooklm.title")}</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Connect to NotebookLM to research, generate study materials, and sync content.
             </p>
@@ -105,7 +105,7 @@ export function NotebookLMWorkspace() {
               <div className="mt-4 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-green-600">
                   <Check className="w-4 h-4" />
-                  <span>t("common.connected")</span>
+                  <span>{t("common.connected")}</span>
                   <span className="text-muted-foreground">• {health.message}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -129,7 +129,7 @@ export function NotebookLMWorkspace() {
               <div className="mt-4 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-amber-600">
                   <AlertCircle className="w-4 h-4" />
-                  <span>t("notebooklm.notConnected")</span>
+                  <span>{t("notebooklm.notConnected")}</span>
                 </div>
                 
                 <div className="p-4 bg-muted rounded-lg">
@@ -187,7 +187,7 @@ export function NotebookLMWorkspace() {
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center mb-3">
               <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <h4 className="font-medium text-foreground mb-1">t("notebooklm.chatWithSources")</h4>
+            <h4 className="font-medium text-foreground mb-1">{t("notebooklm.chatWithSources")}</h4>
             <p className="text-sm text-muted-foreground">
               Ask questions about your imported sources and get AI-powered answers.
             </p>
@@ -197,7 +197,7 @@ export function NotebookLMWorkspace() {
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-950 rounded-lg flex items-center justify-center mb-3">
               <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <h4 className="font-medium text-foreground mb-1">t("notebooklm.generateArtifacts")</h4>
+            <h4 className="font-medium text-foreground mb-1">{t("notebooklm.generateArtifacts")}</h4>
             <p className="text-sm text-muted-foreground">
               Create flashcards, quizzes, audio overviews, and study guides.
             </p>
@@ -207,7 +207,7 @@ export function NotebookLMWorkspace() {
             <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-950 rounded-lg flex items-center justify-center mb-3">
               <ExternalLink className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h4 className="font-medium text-foreground mb-1">t("notebooklm.syncToIncrementum")</h4>
+            <h4 className="font-medium text-foreground mb-1">{t("notebooklm.syncToIncrementum")}</h4>
             <p className="text-sm text-muted-foreground">
               Import generated flashcards and quizzes directly into your decks.
             </p>
