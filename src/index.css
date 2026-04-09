@@ -345,6 +345,234 @@
     transition: all 200ms ease-out;
   }
 
+  .app-nav-item {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: calc(var(--radius-lg) + 0.375rem);
+    transition:
+      transform 180ms ease-out,
+      box-shadow 180ms ease-out,
+      background-color 180ms ease-out;
+  }
+
+  .app-nav-item.sidebar-item-active {
+    border-left-width: 0 !important;
+  }
+
+  .app-nav-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .app-nav-item-background {
+    position: absolute;
+    inset: 0.25rem;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 16%, transparent),
+      color-mix(in srgb, var(--color-secondary, var(--color-primary)) 8%, transparent)
+    );
+    opacity: 0;
+    transform: scale(0.97);
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+
+  .app-nav-item-indicator {
+    position: absolute;
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, white 18%, var(--color-primary)),
+      var(--color-primary)
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, white 18%, transparent),
+      0 0 18px color-mix(in srgb, var(--color-primary) 35%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+  }
+
+  .app-nav-item-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: transform 180ms ease-out;
+  }
+
+  .app-nav-item[data-nav-orientation="vertical"] .app-nav-item-indicator {
+    left: 0.45rem;
+    top: 50%;
+    width: 0.2rem;
+    height: 1.65rem;
+    transform: translateY(-50%) scaleY(0.35);
+    transform-origin: center;
+  }
+
+  .app-nav-item[data-nav-orientation="horizontal"] .app-nav-item-indicator {
+    left: 50%;
+    bottom: 0.3rem;
+    width: 1.65rem;
+    height: 0.2rem;
+    transform: translateX(-50%) scaleX(0.35);
+    transform-origin: center;
+  }
+
+  .app-nav-item:hover .app-nav-item-background,
+  .app-nav-item.sidebar-item-active .app-nav-item-background {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .app-nav-item:hover .app-nav-item-indicator,
+  .app-nav-item.sidebar-item-active .app-nav-item-indicator {
+    opacity: 1;
+  }
+
+  .app-nav-item[data-nav-orientation="vertical"]:hover .app-nav-item-indicator,
+  .app-nav-item[data-nav-orientation="vertical"].sidebar-item-active .app-nav-item-indicator {
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  .app-nav-item[data-nav-orientation="horizontal"]:hover .app-nav-item-indicator,
+  .app-nav-item[data-nav-orientation="horizontal"].sidebar-item-active .app-nav-item-indicator {
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  .app-nav-item[data-nav-orientation="vertical"]:hover .app-nav-item-content,
+  .app-nav-item[data-nav-orientation="vertical"].sidebar-item-active .app-nav-item-content {
+    transform: translateX(0.15rem);
+  }
+
+  .app-nav-item[data-nav-orientation="horizontal"]:hover .app-nav-item-content,
+  .app-nav-item[data-nav-orientation="horizontal"].sidebar-item-active .app-nav-item-content {
+    transform: translateY(-0.05rem);
+  }
+
+  .toolbar-button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    transition:
+      transform 180ms ease-out,
+      color 180ms ease-out,
+      box-shadow 180ms ease-out,
+      background-color 180ms ease-out;
+  }
+
+  .toolbar-button:hover:not(:disabled) {
+    color: var(--color-foreground);
+  }
+
+  .toolbar-button-background {
+    position: absolute;
+    inset: 0.18rem;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 14%, transparent),
+      color-mix(in srgb, var(--color-secondary, var(--color-primary)) 7%, transparent)
+    );
+    opacity: 0;
+    transform: scale(0.94);
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+
+  .toolbar-button-indicator {
+    position: absolute;
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, white 18%, var(--color-primary)),
+      var(--color-primary)
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, white 16%, transparent),
+      0 0 14px color-mix(in srgb, var(--color-primary) 32%, transparent);
+    opacity: 0;
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+
+  .toolbar-button-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 180ms ease-out;
+  }
+
+  .toolbar-button[data-toolbar-orientation="horizontal"] .toolbar-button-indicator {
+    left: 50%;
+    bottom: 0.18rem;
+    width: 1.15rem;
+    height: 0.16rem;
+    transform: translateX(-50%) scaleX(0.35);
+    transform-origin: center;
+  }
+
+  .toolbar-button[data-toolbar-orientation="vertical"] .toolbar-button-indicator {
+    left: 0.18rem;
+    top: 50%;
+    width: 0.16rem;
+    height: 1.15rem;
+    transform: translateY(-50%) scaleY(0.35);
+    transform-origin: center;
+  }
+
+  .toolbar-button:hover:not(:disabled) {
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
+  }
+
+  .toolbar-button[data-toolbar-orientation="horizontal"]:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .toolbar-button[data-toolbar-orientation="vertical"]:hover:not(:disabled) {
+    transform: translateX(1px);
+  }
+
+  .toolbar-button:hover:not(:disabled) .toolbar-button-background {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .toolbar-button:hover:not(:disabled) .toolbar-button-indicator {
+    opacity: 1;
+  }
+
+  .toolbar-button[data-toolbar-orientation="horizontal"]:hover:not(:disabled) .toolbar-button-indicator {
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  .toolbar-button[data-toolbar-orientation="vertical"]:hover:not(:disabled) .toolbar-button-indicator {
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  .toolbar-button[data-toolbar-orientation="horizontal"]:hover:not(:disabled) .toolbar-button-content {
+    transform: translateY(-0.03rem);
+  }
+
+  .toolbar-button[data-toolbar-orientation="vertical"]:hover:not(:disabled) .toolbar-button-content {
+    transform: translateX(0.04rem);
+  }
+
   .glass-button:hover {
     background: var(--color-glass-300);
     border-color: var(--color-glass-border-light);
