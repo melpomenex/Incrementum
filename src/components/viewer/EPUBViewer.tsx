@@ -8,6 +8,7 @@ import { getDeviceInfo } from "../../lib/pwa";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 // Define outside component to keep a stable reference across renders
 const FONT_FAMILY_MAP: Record<string, string> = {
@@ -61,6 +62,7 @@ export function EPUBViewer({
   // Get current theme colors
   const { theme } = useTheme();
   const themeRef = useRef(theme);
+  const { t } = useI18n();
   const { settings, updateSettings } = useSettingsStore();
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
@@ -981,7 +983,7 @@ export function EPUBViewer({
     >
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg m-4">
-          Failed to load EPUB: {error}
+          {t("viewer.failedToLoadEpub", { error })}
         </div>
       )}
 
@@ -990,7 +992,7 @@ export function EPUBViewer({
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50">
           <div className="text-center">
             <div className="inline-block w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <div className="text-muted-foreground">Loading EPUB...</div>
+            <div className="text-muted-foreground">{t("viewer.loadingEpub")}</div>
           </div>
         </div>
       )}
@@ -1005,12 +1007,12 @@ export function EPUBViewer({
             )}
           >
             <div className="p-3 space-y-2">
-              <div className="text-xs font-medium text-muted-foreground mb-2">Font Size</div>
+              <div className="text-xs font-medium text-muted-foreground mb-2">{t("viewer.fontSize")}</div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={decreaseFontSize}
                   className="p-1 rounded hover:bg-muted transition-colors"
-                  title="Decrease font size (Ctrl+-)"
+                  title={t("viewer.decreaseFontSize")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -1020,7 +1022,7 @@ export function EPUBViewer({
                 <button
                   onClick={increaseFontSize}
                   className="p-1 rounded hover:bg-muted transition-colors"
-                  title="Increase font size (Ctrl++)"
+                  title={t("viewer.increaseFontSize")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1031,7 +1033,7 @@ export function EPUBViewer({
                 onClick={resetFontSize}
                 className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Reset (Ctrl+0)
+                {t("viewer.reset")}
               </button>
             </div>
           </div>
@@ -1040,7 +1042,7 @@ export function EPUBViewer({
           <button
             onClick={() => setShowFontSizeControl(!showFontSizeControl)}
             className="absolute top-4 right-4 z-30 p-2 bg-card border border-border rounded-lg shadow-md hover:shadow-lg transition-all"
-            title="Font size settings"
+            title={t("viewer.fontSizeSettings")}
           >
             <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
@@ -1087,7 +1089,7 @@ export function EPUBViewer({
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-foreground truncate">{fileName}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {currentChapter || "Reading"}
+                    {currentChapter || t("viewer.reading")}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1112,7 +1114,7 @@ export function EPUBViewer({
                     data-chrome-control="true"
                     onClick={() => setChromeVisible(false)}
                     className="p-1.5 rounded-full border border-border bg-card text-foreground"
-                    aria-label="Hide toolbar"
+                    aria-label={t("viewer.hideToolbar")}
                   >
                     <ChevronUp className="w-4 h-4" />
                   </button>
@@ -1139,7 +1141,7 @@ export function EPUBViewer({
                       onClick={handlePrevPage}
                       className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
                     >
-                      Prev
+                      {t("viewer.prev")}
                     </button>
                     <button
                       type="button"
@@ -1147,14 +1149,14 @@ export function EPUBViewer({
                       onClick={handleNextPage}
                       className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
                     >
-                      Next
+                      {t("viewer.next")}
                     </button>
                     <button
                       type="button"
                       data-chrome-control="true"
                       onClick={() => setChromeVisible(false)}
                       className="p-1.5 rounded-full border border-border bg-card text-foreground"
-                      aria-label="Hide toolbar"
+                      aria-label={t("viewer.hideToolbar")}
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
@@ -1178,7 +1180,7 @@ export function EPUBViewer({
                 type="button"
                 onClick={() => setChromeVisible(true)}
                 className="absolute top-4 left-4 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
-                aria-label="Show toolbar"
+                aria-label={t("viewer.showToolbar")}
               >
                 <ChevronDown className="w-5 h-5 text-foreground" />
               </button>
@@ -1188,7 +1190,7 @@ export function EPUBViewer({
                 type="button"
                 onClick={() => setShowTocDrawer(true)}
                 className="absolute top-4 right-16 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
-                aria-label="Open table of contents"
+                aria-label={t("viewer.openTableOfContents")}
               >
                 <Menu className="w-5 h-5 text-foreground" />
               </button>
@@ -1198,7 +1200,7 @@ export function EPUBViewer({
                 type="button"
                 onClick={() => setShowSettingsSheet(true)}
                 className="absolute top-4 right-4 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
-                aria-label="Open settings"
+                aria-label={t("viewer.openSettings")}
               >
                 <Settings className="w-5 h-5 text-foreground" />
               </button>
@@ -1208,7 +1210,7 @@ export function EPUBViewer({
                 type="button"
                 onClick={() => setChromeVisible(true)}
                 className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all flex items-center gap-2"
-                aria-label="Show toolbar"
+                aria-label={t("viewer.showToolbar")}
               >
                 <ChevronUp className="w-4 h-4 text-foreground" />
                 <span className="text-xs font-medium text-foreground">{progressPercent}%</span>
@@ -1221,14 +1223,14 @@ export function EPUBViewer({
             <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setShowTocDrawer(false)}>
               <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-card max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-                  <div className="text-sm font-semibold text-foreground">Table of Contents</div>
+                  <div className="text-sm font-semibold text-foreground">{t("viewer.tableOfContents")}</div>
                   <button
                     type="button"
                     data-chrome-control="true"
                     onClick={() => setShowTocDrawer(false)}
                     className="text-sm text-muted-foreground px-3 py-2 min-h-[44px]"
                   >
-                    Close
+                    {t("viewer.close")}
                   </button>
                 </div>
                 <div className="overflow-y-auto flex-1">
@@ -1255,18 +1257,18 @@ export function EPUBViewer({
             <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setShowSettingsSheet(false)}>
               <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-foreground">Reading Settings</div>
+                  <div className="text-sm font-semibold text-foreground">{t("viewer.readingSettings")}</div>
                   <button
                     type="button"
                     data-chrome-control="true"
                     onClick={() => setShowSettingsSheet(false)}
                     className="text-sm text-muted-foreground px-3 py-2 min-h-[44px]"
                   >
-                    Close
+                    {t("viewer.close")}
                   </button>
                 </div>
                 <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground">Font Size</div>
+                  <div className="text-xs text-muted-foreground">{t("viewer.fontSize")}</div>
                   <div className="flex items-center justify-center gap-4">
                     <button
                       type="button"
@@ -1288,7 +1290,7 @@ export function EPUBViewer({
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground">Line Height</div>
+                  <div className="text-xs text-muted-foreground">{t("viewer.lineHeight")}</div>
                   <div className="flex items-center justify-center gap-4">
                     <button
                       type="button"
@@ -1310,7 +1312,7 @@ export function EPUBViewer({
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground">Font</div>
+                  <div className="text-xs text-muted-foreground">{t("viewer.font")}</div>
                   <div className="flex items-center gap-2">
                     {(["serif", "sans-serif", "monospace"] as const).map((family) => (
                       <button
@@ -1325,7 +1327,7 @@ export function EPUBViewer({
                             : "border-border text-foreground"
                         )}
                       >
-                        {family === "sans-serif" ? "Sans" : family === "serif" ? "Serif" : "Mono"}
+                        {family === "sans-serif" ? t("viewer.sans") : family === "serif" ? t("viewer.serif") : t("viewer.mono")}
                       </button>
                     ))}
                   </div>
@@ -1342,7 +1344,7 @@ export function EPUBViewer({
         {!isMobile && toc.length > 0 && (
           <div className="w-64 border-r border-border bg-card overflow-y-auto z-10 flex-shrink-0">
             <div className="p-4 border-b border-border">
-              <h3 className="font-semibold text-foreground">Table of Contents</h3>
+              <h3 className="font-semibold text-foreground">{t("viewer.tableOfContents")}</h3>
             </div>
             <nav className="p-2">
               {toc.map((chapter, index) => (

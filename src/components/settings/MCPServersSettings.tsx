@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { Server, Plus, Trash2, Check, Loader2, X } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export interface MCPServerConfig {
   id: string;
@@ -33,6 +34,7 @@ export function MCPServersSettings({
   onTestServer,
   maxServers = MAX_SERVERS_DEFAULT,
 }: MCPServersSettingsProps) {
+  const { t } = useI18n();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newServerName, setNewServerName] = useState("");
   const [newServerEndpoint, setNewServerEndpoint] = useState("");
@@ -46,7 +48,7 @@ export function MCPServersSettings({
     }
 
     if (servers.length >= maxServers) {
-      alert(`Maximum ${maxServers} servers allowed`);
+      alert(t("settings.mcpMaxServers", { max: maxServers }));
       return;
     }
 
@@ -82,9 +84,9 @@ export function MCPServersSettings({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Configured Servers</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("settings.mcpConfiguredServers")}</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {servers.length} / {maxServers} servers configured
+              {t("settings.mcpServersCount", { count: servers.length, max: maxServers })}
             </p>
           </div>
           <button
@@ -93,16 +95,16 @@ export function MCPServersSettings({
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
-            Add Server
+            {t("settings.mcpAddServer")}
           </button>
         </div>
 
         {servers.length === 0 ? (
           <div className="text-center py-12 bg-muted rounded-lg border-2 border-dashed border-muted-foreground">
             <Server className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">No MCP servers configured</p>
+            <p className="text-muted-foreground">{t("settings.mcpNoServers")}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Add external MCP servers to extend AI capabilities
+              {t("settings.mcpNoServersDesc")}
             </p>
           </div>
         ) : (
@@ -139,7 +141,7 @@ export function MCPServersSettings({
                         onClick={() => handleTestConnection(server)}
                         disabled={isTesting}
                         className="p-2 hover:bg-muted rounded transition-colors"
-                        title="Test connection"
+                        title={t("settings.mcpTestConnection")}
                       >
                         {isTesting ? (
                           <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -155,7 +157,7 @@ export function MCPServersSettings({
                       <button
                         onClick={() => onRemoveServer(server.id)}
                         className="p-2 hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
-                        title="Remove server"
+                        title={t("settings.mcpRemoveServer")}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -172,7 +174,7 @@ export function MCPServersSettings({
       {showAddForm && (
         <div className="p-4 bg-card border rounded-lg space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Add MCP Server</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("settings.mcpAddServerTitle")}</h3>
             <button
               onClick={() => {
                 setShowAddForm(false);
@@ -189,7 +191,7 @@ export function MCPServersSettings({
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Server Name
+              {t("settings.mcpServerName")}
             </label>
             <input
               type="text"
@@ -203,7 +205,7 @@ export function MCPServersSettings({
           {/* Transport Type */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Transport Type
+              {t("settings.mcpTransportType")}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -218,7 +220,7 @@ export function MCPServersSettings({
                 <div className="text-2xl mb-2">⌨️</div>
                 <div className="font-medium text-foreground">STDIO</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Command-line based
+                  {t("settings.mcpStdioDesc")}
                 </div>
               </button>
               <button
@@ -233,7 +235,7 @@ export function MCPServersSettings({
                 <div className="text-2xl mb-2">🌐</div>
                 <div className="font-medium text-foreground">SSE</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  HTTP Server-Sent Events
+                  {t("settings.mcpSseDesc")}
                 </div>
               </button>
             </div>
@@ -242,7 +244,7 @@ export function MCPServersSettings({
           {/* Endpoint */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              {newServerTransport === "stdio" ? "Command" : "URL"}
+              {newServerTransport === "stdio" ? t("settings.mcpCommand") : t("settings.mcpUrl")}
             </label>
             <input
               type="text"
@@ -257,8 +259,8 @@ export function MCPServersSettings({
             />
             <p className="text-xs text-muted-foreground mt-1">
               {newServerTransport === "stdio"
-                ? "Command to start the MCP server (e.g., npx @modelcontextprotocol/server-filesystem)"
-                : "SSE endpoint URL (e.g., http://localhost:3001/sse)"}
+                ? t("settings.mcpCommandHint")
+                : t("settings.mcpSseUrlHint")}
             </p>
           </div>
 
@@ -273,14 +275,14 @@ export function MCPServersSettings({
               }}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={handleAddServer}
               disabled={!newServerName || !newServerEndpoint}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Server
+              {t("settings.mcpAddServer")}
             </button>
           </div>
         </div>
@@ -288,14 +290,14 @@ export function MCPServersSettings({
 
       {/* Help Section */}
       <div className="p-4 bg-muted/30 rounded-lg border border-border">
-        <h4 className="font-medium text-foreground mb-2">About MCP Servers</h4>
+        <h4 className="font-medium text-foreground mb-2">{t("settings.mcpAboutTitle")}</h4>
         <p className="text-sm text-muted-foreground mb-2">
-          MCP (Model Context Protocol) servers extend AI capabilities by providing additional tools.
+          {t("settings.mcpAboutDesc")}
         </p>
         <ul className="text-xs text-muted-foreground space-y-1">
-          <li>• <strong>STDIO</strong>: For command-line based MCP servers</li>
-          <li>• <strong>SSE</strong>: For HTTP-based servers using Server-Sent Events</li>
-          <li>• Maximum {maxServers} external servers can be configured</li>
+          <li>• <strong>STDIO</strong>: {t("settings.mcpAboutStdio")}</li>
+          <li>• <strong>SSE</strong>: {t("settings.mcpAboutSse")}</li>
+          <li>• {t("settings.mcpAboutMaxServers", { max: maxServers })}</li>
         </ul>
       </div>
     </div>

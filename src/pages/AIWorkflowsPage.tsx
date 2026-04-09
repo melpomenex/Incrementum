@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invokeCommand as invoke } from "../lib/tauri";
+import { useI18n } from "../lib/i18n";
 import {
   Sparkles,
   FileText,
@@ -22,43 +23,44 @@ type WorkflowType =
 const workflows = [
   {
     id: "flashcards" as WorkflowType,
-    label: "Generate Flashcards",
-    description: "Create flashcards from any text content",
+    label: "aiWorkflows.generateFlashcards",
+    description: "aiWorkflows.generateFlashcardsDesc",
     icon: <FileText className="w-6 h-6" />,
   },
   {
     id: "qa" as WorkflowType,
-    label: "Q&A",
-    description: "Ask questions about your content",
+    label: "aiWorkflows.qa",
+    description: "aiWorkflows.qaDesc",
     icon: <HelpCircle className="w-6 h-6" />,
   },
   {
     id: "summarize" as WorkflowType,
-    label: "Summarize",
-    description: "Get a concise summary of the content",
+    label: "aiWorkflows.summarize",
+    description: "aiWorkflows.summarizeDesc",
     icon: <BookOpen className="w-6 h-6" />,
   },
   {
     id: "keypoints" as WorkflowType,
-    label: "Key Points",
-    description: "Extract the most important points",
+    label: "aiWorkflows.keyPoints",
+    description: "aiWorkflows.keyPointsDesc",
     icon: <Lightbulb className="w-6 h-6" />,
   },
   {
     id: "simplify" as WorkflowType,
-    label: "Simplify",
-    description: "Make complex content easier to understand",
+    label: "aiWorkflows.simplify",
+    description: "aiWorkflows.simplifyDesc",
     icon: <Wand2 className="w-6 h-6" />,
   },
   {
     id: "title" as WorkflowType,
-    label: "Generate Title",
-    description: "Create a title for the content",
+    label: "aiWorkflows.generateTitle",
+    description: "aiWorkflows.generateTitleDesc",
     icon: <Sparkles className="w-6 h-6" />,
   },
 ];
 
 export function AIWorkflowsPage() {
+  const { t } = useI18n();
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowType | null>(
     null
   );
@@ -84,7 +86,7 @@ export function AIWorkflowsPage() {
           break;
         case "qa":
           if (!question.trim()) {
-            alert("Please enter a question");
+            alert(t("integrations.pleaseEnterQuestion"));
             setIsProcessing(false);
             return;
           }
@@ -114,7 +116,7 @@ export function AIWorkflowsPage() {
           });
           break;
         default:
-          result = "Unknown workflow";
+          result = t("integrations.unknownWorkflow");
       }
 
       setOutput(result);
@@ -130,10 +132,10 @@ export function AIWorkflowsPage() {
       {/* Header */}
       <div className="p-4 border-b border-border bg-card">
         <h1 className="text-xl font-semibold text-foreground mb-1">
-          AI Workflows
+          {t("aiWorkflows.title")}
         </h1>
         <p className="text-sm text-foreground-secondary">
-          Leverage AI to enhance your learning
+          {t("aiWorkflows.subtitle")}
         </p>
       </div>
 
@@ -141,7 +143,7 @@ export function AIWorkflowsPage() {
         {/* Workflow Selection */}
         <div className="w-72 border-r border-border bg-card p-4 overflow-y-auto">
           <h3 className="text-sm font-medium text-foreground mb-3">
-            Select Workflow
+            {t("aiWorkflows.selectWorkflow")}
           </h3>
           <div className="space-y-2">
             {workflows.map((workflow) => (
@@ -157,10 +159,10 @@ export function AIWorkflowsPage() {
                   <div className="text-primary-600">{workflow.icon}</div>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-foreground">
-                      {workflow.label}
+                      {t(workflow.label)}
                     </div>
                     <div className="text-xs text-foreground-secondary mt-1">
-                      {workflow.description}
+                      {t(workflow.description)}
                     </div>
                   </div>
                 </div>
@@ -175,7 +177,7 @@ export function AIWorkflowsPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center text-foreground-secondary">
                 <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Select an AI workflow to get started</p>
+                <p>{t("integrations.selectWorkflowDesc")}</p>
               </div>
             </div>
           ) : (
@@ -185,13 +187,13 @@ export function AIWorkflowsPage() {
                 {selectedWorkflow === "qa" && (
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Your Question
+                      {t("aiWorkflows.yourQuestion")}
                     </label>
                     <input
                       type="text"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
-                      placeholder="What would you like to know?"
+                      placeholder={t("aiWorkflows.whatWouldYouLike")}
                       className="w-full px-3 py-2 bg-card border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary-300"
                     />
                   </div>
@@ -200,15 +202,15 @@ export function AIWorkflowsPage() {
                 <div className="mb-4 flex-1 flex flex-col">
                   <label className="block text-sm font-medium text-foreground mb-2">
                     {selectedWorkflow === "flashcards"
-                      ? "Content to generate flashcards from"
+                      ? t("aiWorkflows.contentToGenerateFlashcards")
                       : selectedWorkflow === "qa"
-                        ? "Context to answer your question"
-                        : "Content to process"}
+                        ? t("aiWorkflows.contextToAnswer")
+                        : t("aiWorkflows.contentToProcess")}
                   </label>
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Paste your content here..."
+                    placeholder={t("aiWorkflows.pasteContent")}
                     className="flex-1 px-3 py-2 bg-card border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary-300 resize-none"
                   />
                 </div>
@@ -217,7 +219,7 @@ export function AIWorkflowsPage() {
                 {output && (
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Result
+                      {t("aiWorkflows.result")}
                     </label>
                     <div className="p-3 bg-card border border-border rounded max-h-64 overflow-y-auto">
                       <pre className="text-sm text-foreground whitespace-pre-wrap font-sans">
@@ -239,7 +241,7 @@ export function AIWorkflowsPage() {
                     }}
                     className="px-4 py-2 text-sm text-foreground-secondary hover:text-foreground"
                   >
-                    Clear
+                    {t("common.clear")}
                   </button>
                   <button
                     onClick={handleProcess}
@@ -249,12 +251,12 @@ export function AIWorkflowsPage() {
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
+                        {t("common.processing")}
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        Process
+                        {t("aiWorkflows.process")}
                       </>
                     )}
                   </button>

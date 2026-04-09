@@ -22,6 +22,7 @@ import { getExtracts, deleteExtract, type Extract } from "../../api/extracts";
 import { summarizeContent, extractKeyPoints, generateQuestions } from "../../api/ai";
 import { cn } from "../../utils";
 import { RichContentRenderer } from "../common/RichContentRenderer";
+import { useI18n } from "../../lib/i18n";
 
 interface ExtractInboxProps {
     onSelectExtract?: (extract: Extract) => void;
@@ -45,6 +46,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
     const [selectedId] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<Record<string, AIAnalysis>>({});
+    const { t } = useI18n();
 
     useEffect(() => {
         loadExtracts();
@@ -138,9 +140,9 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center p-8">
                 <Inbox className="w-16 h-16 text-muted-foreground/40 mb-4" />
-                <h3 className="text-lg font-semibold text-foreground">No extracts yet</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("extracts.noExtractsYet")}</h3>
                 <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                    Use the browser extension to save text from web pages. They'll appear here for AI-powered analysis.
+                    {t("extracts.inboxEmptyDesc")}
                 </p>
             </div>
         );
@@ -155,8 +157,8 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                         <Inbox className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">Extract Inbox</h2>
-                        <p className="text-sm text-muted-foreground">{extracts.length} extracts from browser</p>
+                        <h2 className="text-xl font-bold text-foreground">{t("extracts.inboxTitle")}</h2>
+                        <p className="text-sm text-muted-foreground">{extracts.length} {t("extracts.fromBrowser")}</p>
                     </div>
                 </div>
                 <button
@@ -273,12 +275,12 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                 className="w-full py-3 px-4 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
                                             >
                                                 <Sparkles className="w-5 h-5" />
-                                                Analyze with AI
+                                                {t("extracts.analyzeWithAI")}
                                             </button>
                                         ) : analysis.loading ? (
                                             <div className="flex items-center justify-center py-8 gap-3">
                                                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                                                <span className="text-sm text-muted-foreground">Analyzing content...</span>
+                                                <span className="text-sm text-muted-foreground">{t("extracts.analyzing")}</span>
                                             </div>
                                         ) : analysis.error ? (
                                             <div className="flex items-center justify-center py-4 gap-2 text-destructive">
@@ -293,7 +295,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <Brain className="w-4 h-4 text-primary" />
                                                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                                Summary
+                                                                {t("extracts.summary")}
                                                             </span>
                                                         </div>
                                                         <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-sm text-foreground">
@@ -308,7 +310,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <Target className="w-4 h-4 text-green-500" />
                                                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                                Key Points
+                                                                {t("extracts.keyPoints")}
                                                             </span>
                                                         </div>
                                                         <ul className="space-y-2">
@@ -331,7 +333,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <MessageSquare className="w-4 h-4 text-purple-500" />
                                                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                                Questions to Explore
+                                                                {t("extracts.questionsToExplore")}
                                                             </span>
                                                         </div>
                                                         <ul className="space-y-2">
@@ -357,7 +359,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                             className="flex-1 py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                                         >
                                             <Zap className="w-4 h-4" />
-                                            Create Flashcards
+                                            {t("extracts.createFlashcards")}
                                         </button>
                                         <button
                                             onClick={() => handleDelete(extract.id)}

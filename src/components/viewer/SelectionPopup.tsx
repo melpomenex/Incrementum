@@ -11,6 +11,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Highlighter, Copy, MessageSquarePlus, X } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";
 
@@ -99,6 +100,7 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
   selectedText,
   maxWidth = 320,
 }) => {
+  const { t } = useI18n();
   const popupRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -191,16 +193,16 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
         maxWidth,
       }}
       role="toolbar"
-      aria-label="Text selection actions"
+      aria-label={t("viewer.textSelectionActions")}
     >
       {/* Highlight button with color picker */}
       <button
         className="selection-popup-button"
         onClick={() => setShowColorPicker(!showColorPicker)}
-        title="Highlight"
+        title={t("viewer.highlight")}
       >
         <Highlighter className="w-4 h-4" />
-        <span className="hidden sm:inline">Highlight</span>
+        <span className="hidden sm:inline">{t("viewer.highlight")}</span>
       </button>
 
       {/* Color picker dropdown */}
@@ -209,32 +211,32 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
           <button
             className="color-dot yellow"
             onClick={() => handleHighlight("yellow")}
-            title="Yellow highlight"
-            aria-label="Yellow highlight"
+            title={t("viewer.yellowHighlight")}
+            aria-label={t("viewer.yellowHighlight")}
           />
           <button
             className="color-dot green"
             onClick={() => handleHighlight("green")}
-            title="Green highlight"
-            aria-label="Green highlight"
+            title={t("viewer.greenHighlight")}
+            aria-label={t("viewer.greenHighlight")}
           />
           <button
             className="color-dot blue"
             onClick={() => handleHighlight("blue")}
-            title="Blue highlight"
-            aria-label="Blue highlight"
+            title={t("viewer.blueHighlight")}
+            aria-label={t("viewer.blueHighlight")}
           />
           <button
             className="color-dot pink"
             onClick={() => handleHighlight("pink")}
-            title="Pink highlight"
-            aria-label="Pink highlight"
+            title={t("viewer.pinkHighlight")}
+            aria-label={t("viewer.pinkHighlight")}
           />
           <button
             className="color-dot purple"
             onClick={() => handleHighlight("purple")}
-            title="Purple highlight"
-            aria-label="Purple highlight"
+            title={t("viewer.purpleHighlight")}
+            aria-label={t("viewer.purpleHighlight")}
           />
         </div>
       )}
@@ -246,10 +248,10 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
         <button
           className="selection-popup-button"
           onClick={handleCopy}
-          title="Copy to clipboard"
+          title={t("viewer.copyToClipboard")}
         >
           <Copy className="w-4 h-4" />
-          <span className="hidden sm:inline">Copy</span>
+          <span className="hidden sm:inline">{t("viewer.copy")}</span>
         </button>
       )}
 
@@ -258,10 +260,10 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
         <button
           className="selection-popup-button"
           onClick={handleAddNote}
-          title="Add note"
+          title={t("viewer.addNote")}
         >
           <MessageSquarePlus className="w-4 h-4" />
-          <span className="hidden sm:inline">Note</span>
+          <span className="hidden sm:inline">{t("viewer.note")}</span>
         </button>
       )}
     </div>

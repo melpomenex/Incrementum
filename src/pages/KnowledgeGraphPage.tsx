@@ -17,6 +17,7 @@ import { useTabsStore } from "../stores/tabsStore";
 import { useReviewStore } from "../stores/reviewStore";
 import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
 import { useToast } from "../components/common/Toast";
+import { useI18n } from "../lib/i18n";
 import {
   Network,
   Download,
@@ -34,6 +35,7 @@ import {
 type ViewMode = "graph" | "sphere";
 
 export function KnowledgeGraphPage() {
+  const { t } = useI18n();
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -260,7 +262,7 @@ export function KnowledgeGraphPage() {
           closable: true,
           data: { documentId: node.id.replace("doc-", "") },
         });
-        toast.info("Opened document", "Use document view/actions to edit this item.");
+        toast.info(t("knowledgeGraph.openedDocument"), t("knowledgeGraph.editDocumentHint"));
         break;
       case GraphNodeType.Extract:
         addTab({
@@ -274,7 +276,7 @@ export function KnowledgeGraphPage() {
             initialViewMode: "extracts",
           },
         });
-        toast.info("Opened extracts", "Edit this extract from the document extracts panel.");
+        toast.info(t("knowledgeGraph.openedExtracts"), t("knowledgeGraph.editExtractHint"));
         break;
       case GraphNodeType.Flashcard:
         addTab({
@@ -285,7 +287,7 @@ export function KnowledgeGraphPage() {
           closable: true,
         });
         void useReviewStore.getState().startReviewAtItem(node.id.replace("card-", ""));
-        toast.info("Opened review item", "Edit in review/card workflow.");
+        toast.info(t("knowledgeGraph.openedReviewItem"), t("knowledgeGraph.editFlashcardHint"));
         break;
       default:
         break;
@@ -316,7 +318,7 @@ export function KnowledgeGraphPage() {
         tags: updates.tags ?? doc.tags,
       });
       await loadGraphData();
-      toast.success("Document updated");
+      toast.success(t("knowledgeGraph.documentUpdated"));
       return;
     }
 
@@ -329,7 +331,7 @@ export function KnowledgeGraphPage() {
         tags: updates.tags,
       });
       await loadGraphData();
-      toast.success("Extract updated");
+      toast.success(t("knowledgeGraph.extractUpdated"));
       return;
     }
 
@@ -358,7 +360,7 @@ export function KnowledgeGraphPage() {
             <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
             <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-          <p className="text-muted-foreground">Loading knowledge graph...</p>
+          <p className="text-muted-foreground">{t("knowledgeGraph.loading")}</p>
         </div>
       </div>
     );
@@ -374,9 +376,9 @@ export function KnowledgeGraphPage() {
               <Network className="w-5 h-5 text-primary-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">Knowledge Graph</h1>
+              <h1 className="text-lg font-semibold text-foreground">{t("knowledgeGraph.title")}</h1>
               <p className="text-xs text-muted-foreground">
-                {filteredData.nodes.length} visible · {graphData.nodes.length} total
+                {t("knowledgeGraph.visibleOfTotal", { visible: filteredData.nodes.length, total: graphData.nodes.length })}
               </p>
             </div>
           </div>
@@ -392,7 +394,7 @@ export function KnowledgeGraphPage() {
               }`}
             >
               <GitBranch className="w-4 h-4" />
-              Graph
+              {t("knowledgeGraph.graph")}
             </button>
             <button
               onClick={() => setViewMode("sphere")}
@@ -403,7 +405,7 @@ export function KnowledgeGraphPage() {
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              Sphere
+              {t("knowledgeGraph.sphere")}
             </button>
           </div>
         </div>
@@ -419,7 +421,7 @@ export function KnowledgeGraphPage() {
                 setSearchQuery(e.target.value);
                 setFilters((f) => ({ ...f, searchQuery: e.target.value }));
               }}
-              placeholder="Search nodes..."
+              placeholder={t("knowledgeGraph.searchNodes")}
               className="w-64 pl-10 pr-9 py-2 glass-input rounded-xl text-sm"
             />
             {searchQuery && (
@@ -443,14 +445,14 @@ export function KnowledgeGraphPage() {
             }`}
           >
             <Filter className="w-4 h-4" />
-            Filters
+            {t("knowledgeGraph.filters")}
           </button>
 
           {/* Export with glass styling */}
           <button
             onClick={exportGraph}
             className="flex items-center gap-2 px-3 py-2 glass-button rounded-xl text-sm font-medium transition-colors"
-            title="Export graph"
+            title={t("knowledgeGraph.exportGraph")}
           >
             <Download className="w-4 h-4" />
           </button>
@@ -500,9 +502,9 @@ export function KnowledgeGraphPage() {
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full glass-panel flex items-center justify-center">
                   <Grid3x3 className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">No nodes visible</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-1">{t("knowledgeGraph.noNodes")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Try adjusting your filters to see more content
+                  {t("knowledgeGraph.adjustFilters")}
                 </p>
               </div>
             </div>

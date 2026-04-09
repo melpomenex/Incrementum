@@ -61,6 +61,7 @@ import {
   isValidPdfSelection,
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
+import { useI18n } from "../../lib/i18n";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -197,6 +198,7 @@ export function DocumentViewer({
   onVideoContextChange,
 }: DocumentViewerProps) {
   const toast = useToast();
+  const { t } = useI18n();
   const { documents, setCurrentDocument, currentDocument: globalCurrentDocument, updateDocument } = useDocumentStore();
   
   // Use local document lookup by documentId prop instead of global currentDocument
@@ -570,7 +572,7 @@ export function DocumentViewer({
       const result = await lookupDictionary(word);
       setDictionaryResult(result);
     } catch (error) {
-      toast.error("Lookup failed", error instanceof Error ? error.message : "Failed to lookup word");
+      toast.error(t("viewer.lookupFailed"), error instanceof Error ? error.message : t("viewer.failedToLookupWord"));
     } finally {
       setIsDictionaryLoading(false);
     }
@@ -609,7 +611,7 @@ export function DocumentViewer({
             end: Math.min(1, position + 0.01),
             type: "extracted",
             id: extract.id,
-            label: extract.title || "Extract",
+            label: extract.title || t("viewer.extract"),
           });
         }
       }
@@ -911,7 +913,7 @@ export function DocumentViewer({
         content: options.text,
         note: options.context,
       });
-      toast.success("Extract created");
+      toast.success(t("viewer.extractCreated"));
       // Refresh extracts for minimap
       loadExtracts(options.documentId);
     } catch (error) {
@@ -929,7 +931,7 @@ export function DocumentViewer({
         tags: ["cloze"],
       });
       await generateLearningItemsFromExtract(extract.id);
-      toast.success("Cloze created");
+      toast.success(t("viewer.clozeCreated"));
       loadExtracts(options.documentId);
     } catch (error) {
       console.error("Failed to create cloze:", error);
@@ -2344,11 +2346,11 @@ export function DocumentViewer({
         capability: pdfTextSelectionCapability,
       });
       if (blockReason === "no_text_layer") {
-        toast.info("No selectable text on this page", "This PDF page appears image-only or lacks a text layer.");
+        toast.info(t("viewer.noSelectableText"), t("viewer.pdfPageImageOnly"));
         return;
       }
       if (blockReason === "missing_selection") {
-        toast.info("Select PDF text first", "Drag across PDF text to create an extract.");
+        toast.info(t("viewer.selectPdfTextFirst"), t("viewer.dragAcrossPdfText"));
         return;
       }
       setIsExtractDialogOpen(true);
@@ -2547,9 +2549,9 @@ export function DocumentViewer({
     // Copy to clipboard with toast notification
     const success = await copyShareLink(shareUrl);
     if (success) {
-      toast.success("Link copied!", "The document link has been copied to your clipboard.");
+      toast.success(t("viewer.linkCopied"), t("viewer.linkCopiedDesc"));
     } else {
-      toast.error("Failed to copy", "Could not copy the link to clipboard.");
+      toast.error(t("viewer.failedToCopy"), t("viewer.couldNotCopyLink"));
     }
   };
 
@@ -2643,7 +2645,7 @@ export function DocumentViewer({
       });
       setPdfViewMode("ocr-html");
 
-      toast.success("OCR complete", "Rendered OCR output as HTML.");
+      toast.success(t("viewer.ocrComplete"), t("viewer.ocrRenderedAsHtml"));
     } catch (error) {
       console.error("Failed to OCR PDF:", error);
       toast.error(
@@ -2779,7 +2781,7 @@ export function DocumentViewer({
   if (!currentDocument) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Document not found</div>
+        <div className="text-muted-foreground">{t("viewer.documentNotFound")}</div>
       </div>
     );
   }
@@ -2795,7 +2797,7 @@ export function DocumentViewer({
           <button
             onClick={handleBack}
             className="p-2 rounded-md hover:bg-muted transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
-            title="Back to Documents"
+            title={t("viewer.backToDocuments")}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -2834,7 +2836,7 @@ export function DocumentViewer({
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
               <input
                 type="text"
-                placeholder="Search in document..."
+                placeholder={t("viewer.searchInDocument")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -2862,7 +2864,7 @@ export function DocumentViewer({
             <button
               onClick={() => setShowSearch(true)}
               className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
-              title="Search in document (Ctrl+F)"
+              title={t("viewer.searchInDocumentShortcut")}
             >
               <Search className="w-4 h-4" />
             </button>
@@ -2872,7 +2874,7 @@ export function DocumentViewer({
           <button
             onClick={openExtractDialog}
             className="p-2 rounded-md hover:bg-muted transition-colors text-primary"
-            title="Create Extract"
+            title={t("viewer.createExtract")}
             data-extract-button="true"
           >
             <Lightbulb className="w-4 h-4" />
@@ -2882,7 +2884,7 @@ export function DocumentViewer({
           <button
             onClick={handleShare}
             className="p-2 rounded-md hover:bg-muted transition-colors relative"
-            title="Share document link"
+            title={t("viewer.shareDocumentLink")}
           >
             <Share2 className="w-4 h-4" />
           </button>
@@ -2898,7 +2900,7 @@ export function DocumentViewer({
                   ? "bg-muted text-muted-foreground cursor-wait"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
-              title="OCR → HTML (uses selected OCR provider)"
+              title={t("viewer.ocrToHtml")}
             >
               {isOcrConverting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -2919,7 +2921,7 @@ export function DocumentViewer({
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
-                title="View PDF"
+                title={t("viewer.viewPdf")}
               >
                 PDF
               </button>
@@ -2931,7 +2933,7 @@ export function DocumentViewer({
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
-                title="View OCR HTML"
+                title={t("viewer.viewOcrHtml")}
               >
                 OCR HTML
               </button>
@@ -2948,7 +2950,7 @@ export function DocumentViewer({
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              title="View Document"
+              title={t("viewer.viewDocument")}
             >
               <FileText className="w-4 h-4" />
             </button>
@@ -2960,7 +2962,7 @@ export function DocumentViewer({
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              title="View Extracts"
+              title={t("viewer.viewExtracts")}
             >
               <List className="w-4 h-4" />
             </button>
@@ -2972,7 +2974,7 @@ export function DocumentViewer({
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
-              title="View Learning Cards"
+              title={t("viewer.viewLearningCards")}
             >
               <Brain className="w-4 h-4" />
             </button>
@@ -2984,7 +2986,7 @@ export function DocumentViewer({
               <button
                 onClick={handleNarrowMarkdown}
                 className="p-2 rounded-md hover:bg-background transition-colors"
-                title="Narrow text width"
+                title={t("viewer.narrowTextWidth")}
                 disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
               >
                 <ZoomOut className="w-4 h-4" />
@@ -2995,7 +2997,7 @@ export function DocumentViewer({
               <button
                 onClick={handleWidenMarkdown}
                 className="p-2 rounded-md hover:bg-background transition-colors"
-                title="Widen text width"
+                title={t("viewer.widenTextWidth")}
                 disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
               >
                 <ZoomIn className="w-4 h-4" />
@@ -3003,7 +3005,7 @@ export function DocumentViewer({
               <button
                 onClick={handleResetMarkdownWidth}
                 className="p-2 rounded-md hover:bg-background transition-colors"
-                title="Reset text width"
+                title={t("viewer.resetTextWidth")}
               >
                 <RotateCw className="w-4 h-4" />
               </button>
@@ -3031,15 +3033,15 @@ export function DocumentViewer({
                     onClick={handlePrevPage}
                     disabled={pageNumber <= 1}
                     className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Previous Page"
+                    title={t("viewer.previousPage")}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
 
                   <span className="text-sm text-muted-foreground min-w-[80px] text-center">
                     {currentDocument.totalPages
-                      ? `Page ${pageNumber} of ${currentDocument.totalPages}`
-                      : `Page ${pageNumber}`}
+                      ? t("viewer.pageOf", { current: pageNumber, total: currentDocument.totalPages })
+                      : t("viewer.page", { current: pageNumber })}
                   </span>
 
                   <button
@@ -3048,7 +3050,7 @@ export function DocumentViewer({
                       !currentDocument.totalPages || pageNumber >= (currentDocument.totalPages || 0)
                     }
                     className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Next Page"
+                    title={t("viewer.nextPage")}
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -3066,9 +3068,9 @@ export function DocumentViewer({
                       "p-2 rounded-md transition-colors text-xs",
                       zoomMode === "fit-page" ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                     )}
-                    title="Fit to Page"
+                    title={t("viewer.fitToPage")}
                   >
-                    Fit Page
+                    {t("viewer.fitPage")}
                   </button>
 
                   <button
@@ -3077,9 +3079,9 @@ export function DocumentViewer({
                       "p-2 rounded-md transition-colors text-xs",
                       zoomMode === "fit-width" ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                     )}
-                    title="Fit to Width"
+                    title={t("viewer.fitToWidth")}
                   >
-                    Fit Width
+                    {t("viewer.fitWidth")}
                   </button>
 
                   <div className="h-6 w-px bg-border mx-2" />
@@ -3089,7 +3091,7 @@ export function DocumentViewer({
               <button
                 onClick={handleZoomOut}
                 className="p-2 rounded-md hover:bg-muted transition-colors"
-                title="Zoom Out"
+                title={t("viewer.zoomOut")}
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
@@ -3101,7 +3103,7 @@ export function DocumentViewer({
               <button
                 onClick={handleZoomIn}
                 className="p-2 rounded-md hover:bg-muted transition-colors"
-                title="Zoom In"
+                title={t("viewer.zoomIn")}
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
@@ -3109,7 +3111,7 @@ export function DocumentViewer({
               <button
                 onClick={handleResetZoom}
                 className="p-2 rounded-md hover:bg-muted transition-colors"
-                title="Reset View"
+                title={t("viewer.resetView")}
               >
                 <RotateCw className="w-4 h-4" />
               </button>
@@ -3125,7 +3127,7 @@ export function DocumentViewer({
                     ? "bg-primary text-primary-foreground"
                     : "hover:bg-muted text-muted-foreground"
                 )}
-                title={isFullscreen ? "Exit Fullscreen (F11 or Esc)" : "Enter Fullscreen (F11)"}
+                title={isFullscreen ? t("viewer.exitFullscreen") : t("viewer.enterFullscreen")}
               >
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               </button>
@@ -3163,7 +3165,7 @@ export function DocumentViewer({
       >
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-muted-foreground">Loading document...</div>
+            <div className="text-muted-foreground">{t("viewer.loadingDocument")}</div>
           </div>
         ) : viewMode === "extracts" ? (
           <div className="p-6 bg-background h-full overflow-auto">
@@ -3242,13 +3244,13 @@ export function DocumentViewer({
               <div className="text-center max-w-md px-4">
                 <div className="text-6xl mb-4">🎧</div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Could not load audiobook
+                  {t("viewer.couldNotLoadAudiobook")}
                 </h3>
                 <p className="text-muted-foreground mb-4">
                   {mediaError}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  The file may have been removed or needs to be re-imported.
+                  {t("viewer.fileRemovedOrReimport")}
                 </p>
               </div>
             </div>
@@ -3257,10 +3259,10 @@ export function DocumentViewer({
               <div className="text-center">
                 <div className="text-6xl mb-4">🎧</div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Loading audiobook...
+                  {t("viewer.loadingAudiobook")}
                 </h3>
                 <p className="text-muted-foreground">
-                  Please wait while the audio file is being loaded
+                  {t("viewer.pleaseWaitWhileAudioLoads")}
                 </p>
               </div>
             </div>
@@ -3281,13 +3283,13 @@ export function DocumentViewer({
               <div className="text-center max-w-md px-4">
                 <div className="text-6xl mb-4">🎬</div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Could not load video
+                  {t("viewer.couldNotLoadVideo")}
                 </h3>
                 <p className="text-muted-foreground mb-4">
                   {mediaError}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  The file may have been removed or needs to be re-imported.
+                  {t("viewer.fileRemovedOrReimport")}
                 </p>
               </div>
             </div>
@@ -3296,10 +3298,10 @@ export function DocumentViewer({
               <div className="text-center">
                 <div className="text-6xl mb-4">🎬</div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Loading video...
+                  {t("viewer.loadingVideo")}
                 </h3>
                 <p className="text-muted-foreground">
-                  Please wait while the video file is being loaded
+                  {t("viewer.pleaseWaitWhileVideoLoads")}
                 </p>
               </div>
             </div>
@@ -3316,7 +3318,7 @@ export function DocumentViewer({
                 <button
                   onClick={handleNarrowMarkdown}
                   className="p-1.5 rounded-md hover:bg-muted transition-colors"
-                  title="Narrow text width"
+                  title={t("viewer.narrowTextWidth")}
                   disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
@@ -3327,7 +3329,7 @@ export function DocumentViewer({
                 <button
                   onClick={handleWidenMarkdown}
                   className="p-1.5 rounded-md hover:bg-muted transition-colors"
-                  title="Widen text width"
+                  title={t("viewer.widenTextWidth")}
                   disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
@@ -3411,15 +3413,15 @@ export function DocumentViewer({
             <div className="text-center">
               <div className="text-6xl mb-4">📄</div>
               <h3 className="text-xl font-semibold text-foreground mb-2">
-                Preview not available
+                {t("viewer.previewNotAvailable")}
               </h3>
               <p className="text-muted-foreground">
-                Document type '{docType}' preview is coming soon
+                {t("viewer.documentTypePreviewComingSoon", { type: docType })}
                 {docType !== "epub" && currentDocument.filePath?.endsWith(".epub") && " (fileType was empty, inferred from extension)"}
               </p>
               {docType === "epub" && !fileData && !epubUrl && (
                 <p className="text-sm text-orange-500 mt-2">
-                  EPUB detected but source not loaded. Check console for errors.
+                  {t("viewer.epubDetectedButNotLoaded")}
                 </p>
               )}
             </div>
@@ -3489,8 +3491,8 @@ export function DocumentViewer({
             type="button"
             onClick={() => handleRating(1)}
             className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg"
-            title="Again - Forgot completely (1)"
-            aria-label="Rate Again"
+            title={t("viewer.againForgotCompletely")}
+            aria-label={t("viewer.rateAgain")}
           >
             <AlertCircle className="w-6 h-6 text-white" />
             <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -3502,8 +3504,8 @@ export function DocumentViewer({
             type="button"
             onClick={() => handleRating(2)}
             className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg"
-            title="Hard - Difficult recall (2)"
-            aria-label="Rate Hard"
+            title={t("viewer.hardDifficultRecall")}
+            aria-label={t("viewer.rateHard")}
           >
             <Star className="w-6 h-6 text-white" />
             <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -3515,8 +3517,8 @@ export function DocumentViewer({
             type="button"
             onClick={() => handleRating(3)}
             className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg"
-            title="Good - Normal recall (3)"
-            aria-label="Rate Good"
+            title={t("viewer.goodNormalRecall")}
+            aria-label={t("viewer.rateGood")}
           >
             <CheckCircle className="w-6 h-6 text-white" />
             <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -3528,8 +3530,8 @@ export function DocumentViewer({
             type="button"
             onClick={() => handleRating(4)}
             className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg"
-            title="Easy - Perfect recall (4)"
-            aria-label="Rate Easy"
+            title={t("viewer.easyPerfectRecall")}
+            aria-label={t("viewer.rateEasy")}
           >
             <Sparkles className="w-6 h-6 text-white" />
             <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -3579,21 +3581,21 @@ export function DocumentViewer({
             <button
               onClick={openExtractDialog}
               className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transition-all min-h-[48px] text-sm font-medium"
-              title="Create extract from selection"
-              aria-label={`Create extract from selected text (${selectedText.length} characters)`}
+              title={t("viewer.createExtractFromSelection")}
+              aria-label={t("viewer.createExtractFromSelectionChars", { count: selectedText.length })}
             >
               <Lightbulb className="w-5 h-5" aria-hidden="true" />
-              <span>Create Extract</span>
+              <span>{t("viewer.createExtract")}</span>
               <span className="text-xs opacity-75 ml-1">({selectedText.length})</span>
             </button>
             <button
               onClick={handleDictionaryLookup}
               disabled={isDictionaryLoading}
               className="flex items-center gap-2 px-3 py-3 border border-border bg-card text-foreground rounded-lg shadow-lg hover:bg-muted transition-colors disabled:opacity-60"
-              title="Lookup dictionary and thesaurus"
+              title={t("viewer.lookupDictionaryThesaurus")}
             >
               <Languages className="w-4 h-4" />
-              <span className="text-xs">{isDictionaryLoading ? "Looking up..." : "Lookup"}</span>
+              <span className="text-xs">{isDictionaryLoading ? t("viewer.lookingUp") : t("viewer.lookup")}</span>
             </button>
           </div>
         </div>
@@ -3609,7 +3611,7 @@ export function DocumentViewer({
               )}
               {dictionaryResult.synonyms.length > 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Synonyms: {dictionaryResult.synonyms.slice(0, 5).join(", ")}
+                  {t("viewer.synonyms", { synonyms: dictionaryResult.synonyms.slice(0, 5).join(", ") })}
                 </p>
               )}
             </div>
@@ -3617,7 +3619,7 @@ export function DocumentViewer({
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setDictionaryResult(null)}
             >
-              Close
+              {t("viewer.close")}
             </button>
           </div>
           <div className="mt-3 flex items-center gap-2">
@@ -3630,11 +3632,11 @@ export function DocumentViewer({
                   answer: dictionaryResult.definitions[0] || dictionaryResult.synonyms.join(", "),
                   allow_duplicate: true,
                 });
-                toast.success("Vocabulary card created");
+                toast.success(t("viewer.vocabularyCardCreated"));
                 setDictionaryResult(null);
               }}
             >
-              Create Vocabulary Card
+              {t("viewer.createVocabularyCard")}
             </button>
           </div>
         </div>
@@ -3654,8 +3656,8 @@ export function DocumentViewer({
           <button
             onClick={handleMobileExtract}
             className="flex items-center justify-center w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-xl hover:opacity-90 hover:scale-110 active:scale-95 transition-all"
-            title="Create extract from selection"
-            aria-label={`Create extract from selected text (${mobileSelection.text.length} characters)`}
+            title={t("viewer.createExtractFromSelection")}
+            aria-label={t("viewer.createExtractFromSelectionChars", { count: mobileSelection.text.length })}
           >
             <Lightbulb className="w-6 h-6" aria-hidden="true" />
           </button>
@@ -3688,11 +3690,11 @@ export function DocumentViewer({
               <button
                 onClick={toggleFullscreen}
                 className="flex items-center gap-2 px-4 py-2 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg hover:bg-background transition-colors"
-                title="Exit Fullscreen (F11 or Esc)"
+                title={t("viewer.exitFullscreen")}
               >
                 <Minimize className="w-4 h-4 text-foreground" />
-                <span className="text-sm font-medium text-foreground">Exit Fullscreen</span>
-                <span className="text-xs text-muted-foreground ml-2">(Press F11 or Esc)</span>
+                <span className="text-sm font-medium text-foreground">{t("viewer.exitFullscreenShort")}</span>
+                <span className="text-xs text-muted-foreground ml-2">{t("viewer.pressF11OrEsc")}</span>
               </button>
             </div>
           </div>
@@ -3704,8 +3706,8 @@ export function DocumentViewer({
         <button
           onClick={toggleFullscreen}
           className="fixed bottom-[calc(80px+env(safe-area-inset-bottom,0px))] right-4 z-40 md:hidden"
-          title="Enter Fullscreen"
-          aria-label="Enter fullscreen mode"
+          title={t("viewer.enterFullscreen")}
+          aria-label={t("viewer.enterFullscreenMode")}
         >
           <div className="flex items-center justify-center w-12 h-12 bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg hover:bg-card active:scale-95 transition-all">
             <Maximize className="w-5 h-5 text-foreground" />

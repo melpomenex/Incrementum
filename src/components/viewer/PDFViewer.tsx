@@ -23,6 +23,7 @@ import {
   selectionIntersectsTextLayers,
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
+import { useI18n } from "../../lib/i18n";
 // Custom selection engine imports
 import { usePdfCustomSelection } from "./selection";
 import { SelectionRenderer } from "./selection";
@@ -182,6 +183,7 @@ export function PDFViewer({
   onSelectionChange,
   onTextSelectionCapabilityChange,
 }: PDFViewerProps) {
+  const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -2186,7 +2188,7 @@ export function PDFViewer({
                   "p-2 rounded-md transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center",
                   showTOC ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                 )}
-                title="Toggle Table of Contents"
+                title={t("viewer.toggleToc")}
               >
                 <List className="w-4 h-4 md:w-4 md:h-4" />
               </button>
@@ -2197,7 +2199,7 @@ export function PDFViewer({
                 onClick={handlePrevPage}
                 disabled={pageNumber <= 1}
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
-                title="Previous Page (←)"
+                title={t("viewer.previousPage")}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -2210,7 +2212,7 @@ export function PDFViewer({
                 onClick={handleNextPage}
                 disabled={pageNumber >= numPages}
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
-                title="Next Page (→)"
+                title={t("viewer.nextPage")}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -2224,7 +2226,7 @@ export function PDFViewer({
                   "hidden md:flex p-2 rounded-md transition-colors min-w-[36px] min-h-[36px] items-center justify-center",
                   zoomMode === "fit-page" ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                 )}
-                title="Fit to Page"
+                title={t("viewer.fitToPage")}
               >
                 <Maximize className="w-4 h-4" />
               </button>
@@ -2235,7 +2237,7 @@ export function PDFViewer({
                   "p-2 rounded-md transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center",
                   zoomMode === "fit-width" ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                 )}
-                title="Fit to Width"
+                title={t("viewer.fitToWidth")}
               >
                 <Minimize className="w-4 h-4" />
               </button>
@@ -2248,7 +2250,7 @@ export function PDFViewer({
                   "p-2 rounded-md transition-colors",
                   zoomMode === "custom" ? "bg-muted text-foreground" : "hover:bg-muted text-muted-foreground"
                 )}
-                title="Custom Zoom"
+                title={t("viewer.customZoom")}
               >
                 <span className="text-xs font-medium">
                   {Math.round(scale * 100)}%
@@ -2274,7 +2276,7 @@ export function PDFViewer({
           >
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-muted-foreground">Loading PDF...</div>
+                <div className="text-muted-foreground">{t("viewer.loadingPdf")}</div>
               </div>
             ) : (
               <div className="mx-auto flex flex-col items-center gap-6 w-full">

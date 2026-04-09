@@ -14,6 +14,7 @@ import { cn } from "../../utils";
 import { defaultSettings, useSettingsStore, type RSSQueueSettings } from "../../stores/settingsStore";
 import { getSubscribedFeeds } from "../../api/rss";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 
 interface RSSQueueSettingsProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface RSSQueueSettingsProps {
 }
 
 export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps) {
+  const { t } = useI18n();
   const { settings, updateSettingsCategory } = useSettingsStore();
   const toast = useToast();
   
@@ -62,7 +64,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     };
     
     updateSettingsCategory("rssQueue", newSettings);
-    toast.success("Settings saved", "RSS queue settings have been updated");
+    toast.success(t("common.success"), t("settings.rssSettingsSaved"));
     onClose();
   }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, updateSettingsCategory, toast, onClose]);
   
@@ -112,9 +114,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               <Rss className="w-5 h-5 text-orange-500" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">RSS Queue Settings</h2>
+              <h2 className="text-lg font-semibold">{t("settings.rssQueueTitle")}</h2>
               <p className="text-sm text-muted-foreground">
-                Configure how RSS items appear in your reading queue
+                {t("settings.rssQueueDesc")}
               </p>
             </div>
           </div>
@@ -137,9 +139,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <EyeOff className="w-5 h-5 text-muted-foreground" />
               )}
               <div>
-                <h3 className="font-medium">Include RSS in Queue</h3>
+                <h3 className="font-medium">{t("settings.rssIncludeInQueue")}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Show RSS articles in the main reading queue
+                  {t("settings.rssIncludeInQueueDesc")}
                 </p>
               </div>
             </div>
@@ -166,7 +168,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Percent className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">Queue Percentage</span>
+                    <span className="font-medium">{t("settings.rssQueuePercentage")}</span>
                   </div>
                   <span className="text-sm font-medium">{percentage}%</span>
                 </div>
@@ -179,7 +181,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <p className="text-sm text-muted-foreground">
-                  Approximately {percentage}% of your queue will be RSS articles
+                  {t("settings.rssQueuePercentageDesc", { percentage })}
                 </p>
               </div>
               
@@ -188,10 +190,10 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ListFilter className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">Max Items Per Session</span>
+                    <span className="font-medium">{t("settings.rssMaxItemsPerSession")}</span>
                   </div>
                   <span className="text-sm font-medium">
-                    {maxItems === 0 ? "Unlimited" : maxItems}
+                    {maxItems === 0 ? t("settings.rssUnlimited") : maxItems}
                   </span>
                 </div>
                 <input
@@ -203,9 +205,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <p className="text-sm text-muted-foreground">
-                  {maxItems === 0 
-                    ? "No limit on RSS items per session" 
-                    : `Maximum ${maxItems} RSS articles per session`}
+                  {maxItems === 0
+                    ? t("settings.rssNoLimitDesc")
+                    : t("settings.rssMaxItemsDesc", { max: maxItems })}
                 </p>
               </div>
               
@@ -214,10 +216,10 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ListFilter className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">Auto-Remove Old Items</span>
+                    <span className="font-medium">{t("settings.rssAutoRemoveOld")}</span>
                   </div>
                   <span className="text-sm font-medium">
-                    {maxItemAgeDays === 0 ? "Off" : `${maxItemAgeDays}d`}
+                    {maxItemAgeDays === 0 ? t("settings.rssOff") : `${maxItemAgeDays}d`}
                   </span>
                 </div>
                 <input
@@ -230,8 +232,8 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 />
                 <p className="text-sm text-muted-foreground">
                   {maxItemAgeDays === 0
-                    ? "Keep RSS items in the queue regardless of age"
-                    : `Hide RSS items older than ${maxItemAgeDays} day${maxItemAgeDays === 1 ? "" : "s"} from the queue`}
+                    ? t("settings.rssKeepAllDesc")
+                    : t("settings.rssHideOldDesc", { days: maxItemAgeDays, plural: maxItemAgeDays === 1 ? "" : "s" })}
                 </p>
               </div>
 
@@ -239,7 +241,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               <div className="space-y-3">
                 <h3 className="font-medium flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-muted-foreground" />
-                  Options
+                  {t("settings.options")}
                 </h3>
                 
                 <label className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
@@ -250,9 +252,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                     className="w-4 h-4 rounded border-border"
                   />
                   <div>
-                    <span className="font-medium">Unread Only</span>
+                    <span className="font-medium">{t("settings.rssUnreadOnly")}</span>
                     <p className="text-sm text-muted-foreground">
-                      Only include articles you haven't read yet
+                      {t("settings.rssUnreadOnlyDesc")}
                     </p>
                   </div>
                 </label>
@@ -265,9 +267,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                     className="w-4 h-4 rounded border-border"
                   />
                   <div>
-                    <span className="font-medium">Prefer Recent</span>
+                    <span className="font-medium">{t("settings.rssPreferRecent")}</span>
                     <p className="text-sm text-muted-foreground">
-                      Prioritize newer articles over older ones
+                      {t("settings.rssPreferRecentDesc")}
                     </p>
                   </div>
                 </label>
@@ -278,10 +280,10 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <div className="space-y-3">
                   <h3 className="font-medium flex items-center gap-2">
                     <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                    Feed Selection
+                    {t("settings.rssFeedSelection")}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Choose which feeds appear in your queue. By default, all feeds are included.
+                    {t("settings.rssFeedSelectionDesc")}
                   </p>
                   
                   <div className="space-y-2 max-h-64 overflow-y-auto border border-border rounded-lg">
@@ -310,7 +312,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                             <div className="min-w-0">
                               <p className="font-medium truncate">{feed.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {feed.unreadCount} unread
+                                {t("settings.rssUnreadCount", { count: feed.unreadCount })}
                               </p>
                             </div>
                           </div>
@@ -321,7 +323,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                                 onClick={() => toggleFeedExclusion(feed.id)}
                                 className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
                               >
-                                Include
+                                {t("settings.rssInclude")}
                               </button>
                             ) : (
                               <>
@@ -335,13 +337,13 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                                         : "bg-muted hover:bg-muted/80"
                                     )}
                                   >
-                                    {status === "included" ? "In Queue" : "Include"}
+                                    {status === "included" ? t("settings.rssInQueue") : t("settings.rssInclude")}
                                   </button>
                                 )}
                                 <button
                                   onClick={() => toggleFeedExclusion(feed.id)}
                                   className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                                  title="Exclude from queue"
+                                  title={t("settings.rssExcludeFromQueue")}
                                 >
                                   <EyeOff className="w-4 h-4" />
                                 </button>
@@ -362,7 +364,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                       }}
                       className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
                     >
-                      Include All
+                      {t("settings.rssIncludeAll")}
                     </button>
                     <button
                       onClick={() => {
@@ -371,7 +373,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                       }}
                       className="px-3 py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
                     >
-                      Exclude All
+                      {t("settings.rssExcludeAll")}
                     </button>
                   </div>
                 </div>
@@ -386,13 +388,13 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
           >
-            Save Settings
+            {t("settings.saveSettings")}
           </button>
         </div>
       </div>

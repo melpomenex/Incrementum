@@ -3,6 +3,7 @@ import { useDocumentStore } from "../stores";
 import { useUIStore } from "../stores";
 import { useSettingsStore } from "../stores";
 import { captureAndSaveScreenshot } from "../utils/screenshotCaptureFlow";
+import { useI18n } from "../lib/i18n";
 import {
   ReviewTab,
   DashboardTab,
@@ -113,6 +114,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
   const queueFilterMode = useQueueStore((state) => state.queueFilterMode);
   const toast = useToast();
+  const { t } = useI18n();
 
   const isVertical = position === "left" || position === "right";
 
@@ -133,7 +135,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   // Import URL button
   const handleImportUrl = async () => {
-    const url = prompt("Enter URL to import:");
+    const url = prompt(t("toolbar.enterUrlToImport"));
     if (url) {
       console.log("Import URL:", url);
       try {
@@ -151,7 +153,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
         });
       } catch (error) {
         console.error("URL import failed:", error);
-        alert(`Failed to import URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        alert(t("toolbar.failedImportUrl", { error: error instanceof Error ? error.message : t("toolbar.unknownError") }));
       }
     }
   };
@@ -177,12 +179,12 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       const queueItems = filteredItems.length > 0 ? filteredItems : items;
       const nextItem = queueItems[0];
       if (!nextItem) {
-        toast.info("No items ready", "No queue item is available right now.");
+        toast.info(t("toolbar.noItemsReady"), t("toolbar.noItemAvailable"));
         return;
       }
       await openQueueItem(nextItem);
     } catch (error) {
-      toast.error("Read Next failed", error instanceof Error ? error.message : "Could not open the next item.");
+      toast.error(t("toolbar.readNextFailed"), error instanceof Error ? error.message : t("toolbar.couldNotOpenNext"));
     }
   };
 
@@ -206,13 +208,13 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       const { filteredItems, items } = useQueueStore.getState();
       const queueItems = filteredItems.length > 0 ? filteredItems : items;
       if (queueItems.length === 0) {
-        toast.info("No items ready", "No queue item is available right now.");
+        toast.info(t("toolbar.noItemsReady"), t("toolbar.noItemAvailable"));
         return;
       }
       const randomItem = queueItems[Math.floor(Math.random() * queueItems.length)];
       await openQueueItem(randomItem);
     } catch (error) {
-      toast.error("Random Item failed", error instanceof Error ? error.message : "Could not open a random item.");
+      toast.error(t("toolbar.randomItemFailed"), error instanceof Error ? error.message : t("toolbar.couldNotOpenRandom"));
     }
   };
 
@@ -385,7 +387,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       })
       .catch((error) => {
         console.error("Failed to capture screenshot:", error);
-        alert("Failed to capture screenshot. Please try again.");
+        alert(t("toolbar.screenshotFailed"));
       });
   };
 
@@ -475,7 +477,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "import-file",
       icon: FileUp,
-      label: "Import File",
+      label: t("toolbar.importFile"),
       shortcut: "Ctrl+O",
       action: handleImportFile,
       group: 1,
@@ -483,7 +485,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "import-url",
       icon: Link,
-      label: "Import URL",
+      label: t("toolbar.importUrl"),
       shortcut: "Ctrl+Shift+O",
       action: handleImportUrl,
       group: 1,
@@ -491,7 +493,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "read-next",
       icon: BookMarked,
-      label: "Read Next",
+      label: t("toolbar.readNext"),
       shortcut: "",
       action: handleReadNext,
       group: 1,
@@ -499,7 +501,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "random-item",
       icon: Dices,
-      label: "Random Item",
+      label: t("toolbar.randomItem"),
       shortcut: "",
       action: handleRandomItem,
       group: 1,
@@ -507,7 +509,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "start-review",
       icon: Brain,
-      label: "Start Review",
+      label: t("toolbar.startReview"),
       shortcut: "",
       action: handleStartReview,
       backgroundAction: handleStartReviewBackground,
@@ -517,7 +519,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "rss",
       icon: Rss,
-      label: "RSS Feeds",
+      label: t("toolbar.rssFeeds"),
       shortcut: "",
       action: handleRss,
       group: 2,
@@ -526,7 +528,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "dashboard",
       icon: LayoutDashboard,
-      label: "Dashboard",
+      label: t("toolbar.dashboard"),
       shortcut: "Ctrl+1",
       action: handleDashboard,
       group: 3,
@@ -534,7 +536,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "continue-reading",
       icon: BookOpen,
-      label: "Continue Reading",
+      label: t("toolbar.continueReading"),
       shortcut: "Ctrl+2",
       action: handleContinueReading,
       group: 3,
@@ -542,7 +544,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "knowledge-graph",
       icon: Network,
-      label: "Knowledge Graph",
+      label: t("toolbar.knowledgeGraph"),
       shortcut: "Ctrl+4",
       action: handleKnowledgeGraph,
       backgroundAction: handleKnowledgeGraphBackground,
@@ -551,7 +553,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "knowledge-sphere",
       icon: Orbit,
-      label: "Knowledge Sphere",
+      label: t("toolbar.knowledgeSphere"),
       shortcut: "Ctrl+5",
       action: handleKnowledgeSphere,
       backgroundAction: handleKnowledgeSphereBackground,
@@ -560,7 +562,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "web-browser",
       icon: Compass,
-      label: "Web Browser",
+      label: t("toolbar.webBrowser"),
       shortcut: "Ctrl+6",
       action: handleWebBrowser,
       backgroundAction: handleWebBrowserBackground,
@@ -569,7 +571,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "doc-qa",
       icon: BotMessageSquare,
-      label: "Document Q&A",
+      label: t("toolbar.documentQA"),
       shortcut: "",
       action: handleDocQA,
       backgroundAction: handleDocQABackground,
@@ -578,7 +580,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "notebooklm",
       icon: Sparkles,
-      label: "NotebookLM",
+      label: t("toolbar.notebooklm"),
       shortcut: "",
       action: handleNotebookLM,
       backgroundAction: handleNotebookLMBackground,
@@ -587,7 +589,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "screenshot",
       icon: Camera,
-      label: "Screenshot",
+      label: t("toolbar.screenshot"),
       shortcut: "Ctrl+Shift+S",
       action: handleScreenshot,
       group: 3,
@@ -596,7 +598,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "settings",
       icon: Settings,
-      label: "Settings",
+      label: t("toolbar.settings"),
       shortcut: "Ctrl+,",
       action: handleSettings,
       backgroundAction: handleSettingsBackground,
@@ -605,7 +607,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     {
       id: "command-palette",
       icon: Command,
-      label: "Command Palette",
+      label: t("toolbar.commandPalette"),
       shortcut: "Ctrl+K",
       action: handleCommandPalette,
       group: 4,

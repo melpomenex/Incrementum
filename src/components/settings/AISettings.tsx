@@ -10,6 +10,7 @@ import {
   AIConfig,
 } from "../../api/ai";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useI18n } from "../../lib/i18n";
 
 const DEFAULT_CONFIG: AIConfig = {
   default_provider: LLMProviderType.OpenAI,
@@ -29,6 +30,7 @@ const DEFAULT_CONFIG: AIConfig = {
 };
 
 export function AISettings() {
+  const { t } = useI18n();
   const [config, setConfigState] = useState<AIConfig>(DEFAULT_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -108,7 +110,7 @@ export function AISettings() {
       });
     } catch (error) {
       console.error("Failed to save AI config:", error);
-      alert("Failed to save configuration");
+      alert(t("aiSettings.failedSaveConfig"));
     } finally {
       setIsSaving(false);
     }
@@ -121,7 +123,7 @@ export function AISettings() {
       const result = await testAIConnection(provider);
       setTestResult(`${provider}: ${result}`);
     } catch (error) {
-      setTestResult(`${provider}: Connection failed`);
+      setTestResult(t("aiSettings.connectionFailed", { provider }));
       console.error("Test connection failed:", error);
     } finally {
       setIsTesting(null);
@@ -135,7 +137,7 @@ export function AISettings() {
       setOllamaModels(models);
     } catch (error) {
       console.error("Failed to list Ollama models:", error);
-      alert("Failed to fetch Ollama models. Make sure Ollama is running.");
+      alert(t("aiSettings.failedFetchOllamaModels"));
     } finally {
       setIsLoadingOllama(false);
     }
@@ -153,12 +155,12 @@ export function AISettings() {
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div className="flex items-center gap-3 mb-6">
         <Settings className="w-6 h-6 text-foreground" />
-        <h2 className="text-2xl font-bold text-foreground">AI Settings</h2>
+        <h2 className="text-2xl font-bold text-foreground">{t("aiSettings.title")}</h2>
       </div>
 
       {/* Default Provider Selection */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Default Provider</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">{t("aiSettings.defaultProvider")}</h3>
         <select
           value={config.default_provider}
           onChange={(e) =>
@@ -177,14 +179,14 @@ export function AISettings() {
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <Key className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold text-foreground">API Keys</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("aiSettings.apiKeys")}</h3>
         </div>
 
         <div className="space-y-4">
           {/* OpenAI */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              OpenAI API Key
+              {t("aiSettings.openaiApiKey")}
             </label>
             <div className="flex gap-2">
               <input
@@ -202,7 +204,7 @@ export function AISettings() {
                 {isTesting === LLMProviderType.OpenAI ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Test"
+                  t("common.test")
                 )}
               </button>
             </div>
@@ -211,7 +213,7 @@ export function AISettings() {
           {/* Anthropic */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Anthropic API Key
+              {t("aiSettings.anthropicApiKey")}
             </label>
             <div className="flex gap-2">
               <input
@@ -229,7 +231,7 @@ export function AISettings() {
                 {isTesting === LLMProviderType.Anthropic ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Test"
+                  t("common.test")
                 )}
               </button>
             </div>
@@ -238,7 +240,7 @@ export function AISettings() {
           {/* OpenRouter */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              OpenRouter API Key
+              {t("aiSettings.openrouterApiKey")}
             </label>
             <div className="flex gap-2">
               <input
@@ -256,7 +258,7 @@ export function AISettings() {
                 {isTesting === LLMProviderType.OpenRouter ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Test"
+                  t("common.test")
                 )}
               </button>
             </div>
@@ -282,12 +284,12 @@ export function AISettings() {
 
       {/* Model Settings */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Model Settings</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">{t("aiSettings.modelSettings")}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* OpenAI Model */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              OpenAI Model
+              {t("aiSettings.openaiModel")}
             </label>
             <select
               value={config.models.openai_model}
@@ -309,7 +311,7 @@ export function AISettings() {
           {/* Anthropic Model */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Anthropic Model
+              {t("aiSettings.anthropicModel")}
             </label>
             <select
               value={config.models.anthropic_model}
@@ -347,15 +349,15 @@ export function AISettings() {
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>Precise</span>
-              <span>Creative</span>
+              <span>{t("aiSettings.precise")}</span>
+              <span>{t("aiSettings.creative")}</span>
             </div>
           </div>
 
           {/* Max Tokens */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Max Tokens (Response)
+              {t("aiSettings.maxTokens")}
             </label>
             <input
               type="number"
@@ -372,14 +374,14 @@ export function AISettings() {
               className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Maximum tokens for AI responses
+              {t("aiSettings.maxTokensDesc")}
             </p>
           </div>
 
           {/* Context Window Tokens */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Context Window (Document Content)
+              {t("aiSettings.contextWindow")}
             </label>
             <input
               type="number"
@@ -391,7 +393,7 @@ export function AISettings() {
               className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              How much document content to send to the AI (tokens)
+              {t("aiSettings.contextWindowDesc")}
             </p>
           </div>
 
@@ -400,10 +402,10 @@ export function AISettings() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <label className="block text-sm font-medium text-foreground">
-                  PWA Voice Assistant Button
+                  {t("aiSettings.pwaVoiceAssistant")}
                 </label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Show a floating voice assistant button while reading documents in PWA mode.
+                  {t("aiSettings.pwaVoiceAssistantDesc")}
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 text-sm text-foreground">
@@ -413,12 +415,12 @@ export function AISettings() {
                   onChange={(e) => setPwaAssistantEnabled(e.target.checked)}
                   className="h-4 w-4"
                 />
-                Enabled
+                {t("aiSettings.enabled")}
               </label>
             </div>
 
             <div className="mt-3 flex items-center gap-3">
-              <div className="text-sm text-muted-foreground">Side</div>
+              <div className="text-sm text-muted-foreground">{t("aiSettings.side")}</div>
               <select
                 value={pwaAssistantSide}
                 onChange={(e) => setPwaAssistantSide(e.target.value as "left" | "right")}
@@ -437,14 +439,14 @@ export function AISettings() {
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <Server className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold text-foreground">Ollama (Local LLM)</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("aiSettings.ollamaLocal")}</h3>
         </div>
 
         <div className="space-y-4">
           {/* Base URL */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Ollama Base URL
+              {t("aiSettings.ollamaBaseUrl")}
             </label>
             <input
               type="text"
@@ -466,7 +468,7 @@ export function AISettings() {
           {/* Model Selection */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Ollama Model
+              {t("aiSettings.ollamaModel")}
             </label>
             <div className="flex gap-2">
               <input
@@ -489,7 +491,7 @@ export function AISettings() {
                 {isLoadingOllama ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Refresh"
+                  t("aiSettings.refresh")
                 )}
               </button>
             </div>
@@ -513,12 +515,12 @@ export function AISettings() {
           {isSaving ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
+              {t("aiSettings.saving")}
             </>
           ) : (
             <>
               <Check className="w-4 h-4" />
-              Save Settings
+              {t("aiSettings.saveSettings")}
             </>
           )}
         </button>

@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Validation severity
@@ -274,11 +275,12 @@ export async function validateAllSettings(config: {
  * Validation summary component
  */
 export function ValidationSummary({ result }: { result: ValidationResult }) {
+  const { t } = useI18n();
   if (result.errors.length === 0 && result.warnings.length === 0 && result.info.length === 0) {
     return (
       <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-500">
         <CheckCircle className="w-5 h-5" />
-        <span className="text-sm font-medium">All settings are valid</span>
+        <span className="text-sm font-medium">{t("settings.validationAllValid")}</span>
       </div>
     );
   }
@@ -289,7 +291,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
           <div className="flex items-center gap-2 text-destructive mb-2">
             <XCircle className="w-5 h-5" />
-            <span className="text-sm font-semibold">{result.errors.length} Error{result.errors.length > 1 ? "s" : ""}</span>
+            <span className="text-sm font-semibold">{t("settings.validationErrors", { count: result.errors.length })}</span>
           </div>
           <ul className="space-y-1">
             {result.errors.map((error) => (
@@ -308,7 +310,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-yellow-500 mb-2">
             <AlertTriangle className="w-5 h-5" />
-            <span className="text-sm font-semibold">{result.warnings.length} Warning{result.warnings.length > 1 ? "s" : ""}</span>
+            <span className="text-sm font-semibold">{t("settings.validationWarnings", { count: result.warnings.length })}</span>
           </div>
           <ul className="space-y-1">
             {result.warnings.map((warning) => (
@@ -324,7 +326,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
                     onClick={warning.fixAction}
                     className="text-xs underline hover:text-yellow-500"
                   >
-                    Fix
+                    {t("settings.validationFix")}
                   </button>
                 )}
               </li>
@@ -337,7 +339,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-blue-500 mb-2">
             <Info className="w-5 h-5" />
-            <span className="text-sm font-semibold">{result.info.length} Info</span>
+            <span className="text-sm font-semibold">{t("settings.validationInfo", { count: result.info.length })}</span>
           </div>
           <ul className="space-y-1">
             {result.info.map((info) => (

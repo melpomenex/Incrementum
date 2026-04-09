@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, X, Trash2, Check } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export type ConfirmDialogVariant = "danger" | "warning" | "info";
 
@@ -35,6 +36,8 @@ export function ConfirmDialog({
   itemName = "item",
   itemCount = 1,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   const variantConfig = {
@@ -76,7 +79,7 @@ export function ConfirmDialog({
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-muted rounded-full transition-colors"
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -91,7 +94,7 @@ export function ConfirmDialog({
               </h2>
               {itemCount > 1 && (
                 <p className="text-sm text-muted-foreground">
-                  {itemCount} {itemName}s selected
+                  {t("confirm.itemsSelected", { count: itemCount })}
                 </p>
               )}
             </div>
@@ -108,7 +111,7 @@ export function ConfirmDialog({
           {details && details.length > 0 && (
             <div className="bg-muted/30 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
-                {itemName}s to be affected:
+                {t("confirm.itemsAffectedLabel", { itemName })}:
               </p>
               <ul className="space-y-1">
                 {details.slice(0, 10).map((detail, index) => (
@@ -118,7 +121,7 @@ export function ConfirmDialog({
                 ))}
                 {details.length > 10 && (
                   <li className="text-sm text-muted-foreground">
-                    ... and {details.length - 10} more
+                    {t("confirm.andMore", { count: details.length - 10 })}
                   </li>
                 )}
               </ul>
@@ -130,7 +133,7 @@ export function ConfirmDialog({
             <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
               <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-red-600 dark:text-red-400">
-                This action cannot be undone. {itemCount > 1 ? "All selected items" : "This item"} will be permanently removed.
+                {t("confirm.dangerWarning", { target: itemCount > 1 ? t("confirm.allSelectedItems") : t("confirm.thisItem") })}
               </p>
             </div>
           )}

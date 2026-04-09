@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette } from "lucide-react";
+import { useI18n, t } from "../../lib/i18n";
 
 /**
  * Command definition
@@ -51,6 +52,7 @@ export function useCommandPaletteShortcut(): string {
 }
 
 export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -162,7 +164,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type a command or search..."
+              placeholder={t("commandPalette.placeholder")}
               className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
             />
             <kbd className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded">
@@ -178,8 +180,8 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
             {!hasResults ? (
               <div className="p-8 text-center text-muted-foreground">
                 <CommandIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No commands found</p>
-                <p className="text-xs mt-1">Try a different search term</p>
+                <p>{t("commandPalette.noCommandsFound")}</p>
+                <p className="text-xs mt-1">{t("commandPalette.tryDifferentSearch")}</p>
               </div>
             ) : (
               <div>
@@ -250,14 +252,14 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">↑↓</kbd>
-                  Navigate
+                  {t("commandPalette.navigate")}
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">↵</kbd>
-                  Select
+                  {t("commandPalette.select")}
                 </span>
               </div>
-              <span>{filteredCommands().length} commands</span>
+              <span>{t("commandPalette.commandsCount", { count: filteredCommands().length })}</span>
             </div>
           </div>
         </div>
@@ -352,8 +354,8 @@ export function getDefaultCommands(): Command[] {
   return [
     createCommand({
       id: "new-document",
-      label: "Import Document",
-      description: "Import a new document from file",
+      label: t("commandPalette.importDocument"),
+      description: t("commandPalette.importDocumentDesc"),
       icon: <Plus className="w-4 h-4" />,
       category: CommandCategory.Documents,
       action: () => { window.dispatchEvent(new CustomEvent('import-document')); },
@@ -362,8 +364,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "go-documents",
-      label: "Go to Documents",
-      description: "View all documents",
+      label: t("toolbar.goToDocuments"),
+      description: t("commandPalette.viewAllDocuments"),
       icon: <FileText className="w-4 h-4" />,
       category: CommandCategory.Navigation,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/documents' })); },
@@ -372,8 +374,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "go-queue",
-      label: "Go to Queue",
-      description: "View review queue",
+      label: t("toolbar.goToQueue"),
+      description: t("commandPalette.viewReviewQueue"),
       icon: <List className="w-4 h-4" />,
       category: CommandCategory.Navigation,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/queue' })); },
@@ -382,8 +384,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "start-review",
-      label: "Start Review",
-      description: "Begin flashcard review session",
+      label: t("toolbar.startReviewCmd"),
+      description: t("commandPalette.beginReviewSession"),
       icon: <Zap className="w-4 h-4" />,
       category: CommandCategory.Review,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/review' })); },
@@ -392,8 +394,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "go-analytics",
-      label: "Go to Analytics",
-      description: "View statistics and progress",
+      label: t("commandPalette.goToAnalytics"),
+      description: t("commandPalette.viewStatsAndProgress"),
       icon: <BarChart3 className="w-4 h-4" />,
       category: CommandCategory.Navigation,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/analytics' })); },
@@ -402,8 +404,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "open-settings",
-      label: "Open Settings",
-      description: "Open application settings",
+      label: t("toolbar.openSettings"),
+      description: t("commandPalette.openAppSettings"),
       icon: <Settings className="w-4 h-4" />,
       category: CommandCategory.Settings,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/settings' })); },
@@ -412,8 +414,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "toggle-theme",
-      label: "Toggle Theme",
-      description: "Switch between light and dark mode",
+      label: t("commandPalette.toggleTheme"),
+      description: t("commandPalette.switchThemeDesc"),
       icon: <Palette className="w-4 h-4" />,
       category: CommandCategory.Settings,
       action: () => { window.dispatchEvent(new CustomEvent('toggle-theme')); },
@@ -421,8 +423,8 @@ export function getDefaultCommands(): Command[] {
     }),
     createCommand({
       id: "keyboard-shortcuts",
-      label: "Keyboard Shortcuts",
-      description: "View all keyboard shortcuts",
+      label: t("commandPalette.keyboardShortcuts"),
+      description: t("commandPalette.viewAllShortcuts"),
       icon: <CommandIcon className="w-4 h-4" />,
       category: CommandCategory.General,
       action: () => { window.dispatchEvent(new CustomEvent('show-shortcuts-help')); },

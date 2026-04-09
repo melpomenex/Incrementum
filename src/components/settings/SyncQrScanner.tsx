@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
+import { useI18n } from "../../lib/i18n";
 
 type SyncQrScannerProps = {
   onDetected: (value: string) => void;
@@ -7,6 +8,7 @@ type SyncQrScannerProps = {
 };
 
 export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
+  const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +37,7 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
 
         await scanner.start();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to start camera");
+        setError(err instanceof Error ? err.message : t("settings.syncQrCameraFailed"));
       }
     };
 
@@ -51,12 +53,12 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-sm rounded-lg bg-card p-4">
         <div className="mb-2 flex items-center justify-between">
-          <div className="text-sm font-medium text-foreground">Scan sync code</div>
+          <div className="text-sm font-medium text-foreground">{t("settings.syncQrScanCode")}</div>
           <button
             onClick={onClose}
             className="rounded bg-muted px-2 py-1 text-xs text-foreground"
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
         {error ? (
@@ -72,7 +74,7 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
           />
         )}
         <div className="mt-2 text-xs text-muted-foreground">
-          Point your camera at the QR code shown on the desktop web app.
+          {t("settings.syncQrInstruction")}
         </div>
       </div>
     </div>

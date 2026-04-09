@@ -58,6 +58,7 @@ import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube"
 import { getDeviceInfo } from "../../lib/pwa";
 import { invokeCommand, isTauri } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
+import { useI18n } from "../../lib/i18n";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
 const SAVED_VIEWS_KEY = "documentsSavedViews";
@@ -128,6 +129,7 @@ interface DocumentsViewProps {
 }
 
 export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: DocumentsViewProps) {
+  const { t } = useI18n();
   const {
     documents,
     isLoading,

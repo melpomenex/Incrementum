@@ -1,19 +1,21 @@
 import { useSettingsStore } from "../../stores/settingsStore";
 import { OCRSettings } from "./OCRSettings";
+import { useI18n } from "../../lib/i18n";
 
 export function DocumentsSettings() {
   const { settings, updateSettings } = useSettingsStore();
   const { updateSettingsCategory } = useSettingsStore();
+  const { t } = useI18n();
 
   return (
     <div className="space-y-6">
       {/* Import Settings */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Document Import</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.documentImport")}</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="defaultCategory" className="block text-sm font-medium text-foreground mb-2">
-              Default Category
+              {t("settingsDocs.defaultCategory")}
             </label>
             <input
               type="text"
@@ -24,16 +26,16 @@ export function DocumentsSettings() {
                   documents: { ...settings.documents, defaultCategory: e.target.value },
                 })
               }
-              placeholder="Uncategorized"
+              placeholder={t("settingsDocs.defaultCategory")}
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             />
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Auto-process on import</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.autoProcess")}</p>
               <p className="text-xs text-muted-foreground">
-                Automatically extract and segment imported documents
+                {t("settingsDocs.autoProcessDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -53,9 +55,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Detect duplicates</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.detectDuplicates")}</p>
               <p className="text-xs text-muted-foreground">
-                Check for duplicate documents by content hash
+                {t("settingsDocs.detectDuplicatesDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -75,9 +77,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Preserve images in web imports</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.preserveImages")}</p>
               <p className="text-xs text-muted-foreground">
-                Keep images from imported web pages (disable for text-only reading)
+                {t("settingsDocs.preserveImagesDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -99,11 +101,11 @@ export function DocumentsSettings() {
 
       {/* PDF Settings */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">PDF Documents</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.pdfDocuments")}</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="pdfZoom" className="block text-sm font-medium text-foreground mb-2">
-              Default Zoom Level
+              {t("settingsDocs.defaultZoom")}
             </label>
             <select
               id="pdfZoom"
@@ -129,9 +131,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Two-page spread</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.twoPageSpread")}</p>
               <p className="text-xs text-muted-foreground">
-                Show two pages side by side by default
+                {t("settingsDocs.twoPageSpreadDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -154,9 +156,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Show OCR page breaks</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.showOcrBreaks")}</p>
               <p className="text-xs text-muted-foreground">
-                Display page separators in OCR → HTML view
+                {t("settingsDocs.showOcrBreaksDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -181,11 +183,11 @@ export function DocumentsSettings() {
 
       {/* EPUB Settings */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">EPUB Documents</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.epubDocuments")}</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="epubFontSize" className="block text-sm font-medium text-foreground mb-2">
-              Default Font Size
+              {t("settingsDocs.defaultFontSize")}
             </label>
             <input
               type="number"
@@ -207,7 +209,7 @@ export function DocumentsSettings() {
 
           <div>
             <label htmlFor="epubFontFamily" className="block text-sm font-medium text-foreground mb-2">
-              Font Family
+              {t("settingsDocs.fontFamily")}
             </label>
             <select
               id="epubFontFamily"
@@ -222,15 +224,15 @@ export function DocumentsSettings() {
               }
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             >
-              <option value="serif" className="text-foreground">Serif</option>
-              <option value="sans-serif" className="text-foreground">Sans-serif</option>
-              <option value="monospace" className="text-foreground">Monospace</option>
+              <option value="serif" className="text-foreground">{t("settingsDocs.serif")}</option>
+              <option value="sans-serif" className="text-foreground">{t("settingsDocs.sansSerif")}</option>
+              <option value="monospace" className="text-foreground">{t("settingsDocs.monospace")}</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="epubLineHeight" className="block text-sm font-medium text-foreground mb-2">
-              Line Height
+              {t("settingsDocs.lineHeight")}
             </label>
             <input
               type="number"
@@ -256,9 +258,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Auto-scroll</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.autoScroll")}</p>
               <p className="text-xs text-muted-foreground">
-                Automatically scroll to keep current position visible
+                {t("settingsDocs.autoScrollDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -283,11 +285,11 @@ export function DocumentsSettings() {
 
       {/* Auto-Segmentation */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Auto-Segmentation</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.autoSegmentation")}</h3>
         <div className="space-y-4">
           <div>
             <label htmlFor="segmentationMethod" className="block text-sm font-medium text-foreground mb-2">
-              Segmentation Method
+              {t("settingsDocs.segmentationMethod")}
             </label>
             <select
               id="segmentationMethod"
@@ -302,19 +304,19 @@ export function DocumentsSettings() {
               }
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             >
-              <option value="semantic" className="text-foreground">Semantic (AI-powered)</option>
-              <option value="paragraph" className="text-foreground">Paragraph-based</option>
-              <option value="fixed" className="text-foreground">Fixed-length</option>
-              <option value="smart" className="text-foreground">Smart (adaptive)</option>
+              <option value="semantic" className="text-foreground">{t("settingsDocs.semantic")}</option>
+              <option value="paragraph" className="text-foreground">{t("settingsDocs.paragraphBased")}</option>
+              <option value="fixed" className="text-foreground">{t("settingsDocs.fixedLength")}</option>
+              <option value="smart" className="text-foreground">{t("settingsDocs.smart")}</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
-              How to split documents into extracts
+              {t("settingsDocs.segmentationDesc")}
             </p>
           </div>
 
           <div>
             <label htmlFor="segmentLength" className="block text-sm font-medium text-foreground mb-2">
-              Target Segment Length (words)
+              {t("settingsDocs.targetSegmentLength")}
             </label>
             <input
               type="number"
@@ -333,13 +335,13 @@ export function DocumentsSettings() {
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Approximate words per extract
+              {t("settingsDocs.approxWordsPerExtract")}
             </p>
           </div>
 
           <div>
             <label htmlFor="overlapLength" className="block text-sm font-medium text-foreground mb-2">
-              Overlap Length (words)
+              {t("settingsDocs.overlapLength")}
             </label>
             <input
               type="number"
@@ -358,7 +360,7 @@ export function DocumentsSettings() {
               className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Overlap between segments for context
+              {t("settingsDocs.overlapDesc")}
             </p>
           </div>
         </div>
@@ -366,7 +368,7 @@ export function DocumentsSettings() {
 
       {/* OCR Settings */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">OCR (Optical Character Recognition)</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.ocr")}</h3>
         <OCRSettings
           settings={settings.documents.ocr}
           onUpdateSettings={(updates) =>
@@ -380,13 +382,13 @@ export function DocumentsSettings() {
 
       {/* Storage */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-foreground">Storage & Cache</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("settingsDocs.storage")}</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Cache document content</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.cacheContent")}</p>
               <p className="text-xs text-muted-foreground">
-                Store processed documents locally for faster access
+                {t("settingsDocs.cacheContentDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -406,9 +408,9 @@ export function DocumentsSettings() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Auto-cleanup cache</p>
+              <p className="font-medium text-foreground">{t("settingsDocs.autoCleanup")}</p>
               <p className="text-xs text-muted-foreground">
-                Remove cached documents older than 30 days
+                {t("settingsDocs.autoCleanupDesc")}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">

@@ -18,10 +18,12 @@ import {
   type UsageStats 
 } from "../../api/groqTranscription";
 import { cn } from "../../utils";
+import { useI18n } from "../../lib/i18n";
 
 type Provider = 'local' | 'groq';
 
 export function AudioTranscriptionSettings() {
+  const { t } = useI18n();
   const { profiles, fetchProfiles, downloadProgress, currentStatus } = useTranscriptionStore();
   const { settings, updateSettings } = useSettingsStore();
   const audioSettings = settings.audioTranscription;
@@ -149,11 +151,11 @@ export function AudioTranscriptionSettings() {
           <Mic className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="text-xl font-bold text-foreground">Audio Transcription</h3>
+          <h3 className="text-xl font-bold text-foreground">{t("settings.audioTranscription")}</h3>
           <p className="text-sm text-muted-foreground">
-            {isDesktop 
-              ? "Choose your preferred transcription provider" 
-              : "Cloud-based transcription for your audio and video files"
+            {isDesktop
+              ? t("settings.audioTranscriptionDescDesktop")
+              : t("settings.audioTranscriptionDescWeb")
             }
           </p>
         </div>
@@ -167,17 +169,17 @@ export function AudioTranscriptionSettings() {
               <Monitor className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="font-medium text-blue-900">Desktop App Recommended</p>
+              <p className="font-medium text-blue-900">{t("settings.audioDesktopRecommended")}</p>
               <p className="text-sm text-blue-800/90 mt-1">
-                For the best transcription experience, use the desktop app which supports:
+                {t("settings.audioDesktopRecommendedDesc")}
               </p>
               <ul className="text-sm text-blue-800/90 mt-2 ml-4 list-disc">
-                <li>Local Whisper transcription (fully offline)</li>
-                <li>Large file chunking for Groq transcription</li>
-                <li>Background transcription processing</li>
+                <li>{t("settings.audioDesktopFeature1")}</li>
+                <li>{t("settings.audioDesktopFeature2")}</li>
+                <li>{t("settings.audioDesktopFeature3")}</li>
               </ul>
               <p className="text-sm text-blue-800/90 mt-2">
-                In the web app, only direct Groq transcription of smaller files is available.
+                {t("settings.audioWebLimitation")}
               </p>
             </div>
           </div>
@@ -197,7 +199,7 @@ export function AudioTranscriptionSettings() {
             )}
           >
             <Settings2 className="w-4 h-4" />
-            Local Whisper
+            {t("settings.audioLocalWhisper")}
           </button>
           <button
             onClick={() => handleProviderChange('groq')}
@@ -209,9 +211,9 @@ export function AudioTranscriptionSettings() {
             )}
           >
             <Cloud className="w-4 h-4" />
-            Groq Cloud
+            {t("settings.audioGroqCloud")}
             <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
-              Free Tier
+              {t("settings.audioFreeTier")}
             </span>
           </button>
         </div>
@@ -220,13 +222,13 @@ export function AudioTranscriptionSettings() {
         <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-xl border border-border">
           <Cloud className="w-5 h-5 text-primary" />
           <div>
-            <p className="font-medium text-foreground">Groq Cloud Transcription</p>
+            <p className="font-medium text-foreground">{t("settings.audioGroqCloudTranscription")}</p>
             <p className="text-xs text-muted-foreground">
-              Using Groq&apos;s fast cloud-based Whisper API
+              {t("settings.audioGroqCloudDesc")}
             </p>
           </div>
           <span className="ml-auto px-2 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
-            Active
+            {t("settings.audioActive")}
           </span>
         </div>
       )}
@@ -242,9 +244,9 @@ export function AudioTranscriptionSettings() {
                   <Mic className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Auto-transcribe local videos</p>
+                  <p className="font-medium">{t("settings.audioAutoTranscribe")}</p>
                   <p className="text-sm text-muted-foreground">
-                    Automatically generate transcripts for newly imported local videos in the background
+                    {t("settings.audioAutoTranscribeDesc")}
                   </p>
                 </div>
               </div>
@@ -262,10 +264,9 @@ export function AudioTranscriptionSettings() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
               <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
               <div className="space-y-1">
-                <p className="font-medium">Resource warning</p>
+                <p className="font-medium">{t("settings.audioResourceWarning")}</p>
                 <p className="text-amber-800/90">
-                  Background transcription can use significant CPU and battery on laptops. You can disable
-                  auto-transcription at any time.
+                  {t("settings.audioResourceWarningDesc")}
                 </p>
               </div>
             </div>
@@ -275,10 +276,10 @@ export function AudioTranscriptionSettings() {
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-muted-foreground" />
-              <h4 className="font-semibold text-foreground">Default Transcription Model</h4>
+              <h4 className="font-semibold text-foreground">{t("settings.audioDefaultModel")}</h4>
             </div>
             <label className="text-xs font-medium text-muted-foreground">
-              Preferred model for auto-transcribe and quick actions
+              {t("settings.audioDefaultModelDesc")}
               <select
                 value={audioSettings.preferredModelId || ''}
                 onChange={(e) => handleUpdateSettings({ preferredModelId: e.target.value })}
@@ -286,11 +287,11 @@ export function AudioTranscriptionSettings() {
                 disabled={profiles.length === 0}
               >
                 {profiles.length === 0 && (
-                  <option value="">No models available</option>
+                  <option value="">{t("settings.audioNoModels")}</option>
                 )}
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
-                    {profile.name}{profile.installed ? " (Installed)" : ""}
+                    {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
                   </option>
                 ))}
               </select>
@@ -300,13 +301,13 @@ export function AudioTranscriptionSettings() {
           {/* Model Prompt */}
           {audioSettings.autoTranscribeLocalVideos && !hasInstalledModel && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
-              <p className="font-semibold">Download a model to enable auto-transcription</p>
+              <p className="font-semibold">{t("settings.audioDownloadToEnable")}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Choose a model below. Each model includes a short description to help you decide.
+                {t("settings.audioDownloadToEnableDesc")}
               </p>
               {hasDownloadInProgress && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  A download is already in progress. Transcription will start after it finishes.
+                  {t("settings.audioDownloadInProgress")}
                 </p>
               )}
             </div>
@@ -316,7 +317,7 @@ export function AudioTranscriptionSettings() {
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-muted-foreground" />
-              <h4 className="font-semibold text-foreground">Models & Profiles</h4>
+              <h4 className="font-semibold text-foreground">{t("settings.audioModelsAndProfiles")}</h4>
             </div>
             
             <div className="grid gap-4">
@@ -350,7 +351,7 @@ export function AudioTranscriptionSettings() {
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-2 text-xs font-medium text-primary">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>Downloading {Math.round(progress)}%</span>
+                            <span>{t("settings.audioDownloading", { percent: Math.round(progress) })}</span>
                           </div>
                           <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div 
@@ -363,7 +364,7 @@ export function AudioTranscriptionSettings() {
                         <button
                           onClick={() => handleDelete(profile.id)}
                           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                          title="Delete model"
+                          title={t("settings.audioDeleteModel")}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -374,7 +375,7 @@ export function AudioTranscriptionSettings() {
                           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                         >
                           <Download className="w-4 h-4" />
-                          Download
+                          {t("settings.audioDownload")}
                         </button>
                       )}
                     </div>
@@ -388,42 +389,41 @@ export function AudioTranscriptionSettings() {
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-primary">
               <Info className="w-5 h-5" />
-              <h5 className="font-bold">Offline & Private</h5>
+              <h5 className="font-bold">{t("settings.audioOfflinePrivate")}</h5>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Transcription happens entirely on your machine. Your audio files are never sent to any server. 
-              The first-time setup requires downloading the models above.
+              {t("settings.audioOfflinePrivateDesc")}
             </p>
             <div className="pt-2 flex flex-wrap gap-4">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span>Min. 8GB RAM recommended</span>
+                <span>{t("settings.audioMinRam")}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span>AVX/AVX2 support required</span>
+                <span>{t("settings.audioAvxRequired")}</span>
               </div>
             </div>
             
             {/* GPU Support Info */}
             <div className="pt-3 border-t border-border">
-              <p className="text-xs font-medium text-foreground mb-2">GPU Acceleration</p>
+              <p className="text-xs font-medium text-foreground mb-2">{t("settings.audioGpuAcceleration")}</p>
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  <span><strong>Apple Silicon (M1/M2/M3):</strong> Metal GPU acceleration enabled automatically</span>
+                  <span>{t("settings.audioGpuApple")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  <span><strong>Linux + NVIDIA:</strong> CUDA acceleration enabled if drivers installed</span>
+                  <span>{t("settings.audioGpuLinux")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  <span><strong>Windows:</strong> CPU only (GPU support coming soon)</span>
+                  <span>{t("settings.audioGpuWindows")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                  <span><strong>Intel Mac:</strong> CPU only (no Metal on Intel)</span>
+                  <span>{t("settings.audioGpuIntelMac")}</span>
                 </div>
               </div>
             </div>
@@ -438,11 +438,10 @@ export function AudioTranscriptionSettings() {
           <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-200 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-orange-600">
               <Zap className="w-5 h-5" />
-              <h5 className="font-bold">Fast Cloud Transcription</h5>
+              <h5 className="font-bold">{t("settings.audioFastCloud")}</h5>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Groq provides ultra-fast transcription powered by their LPU (Language Processing Unit) infrastructure. 
-              Perfect for quickly transcribing videos and podcasts without using local resources.
+              {t("settings.audioFastCloudDesc")}
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <span className="px-2 py-1 bg-orange-500/20 text-orange-700 text-xs rounded-full font-medium">
@@ -466,11 +465,9 @@ export function AudioTranscriptionSettings() {
               <Lock className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="font-medium text-green-900">Your Data Stays Private</p>
+              <p className="font-medium text-green-900">{t("settings.audioDataPrivate")}</p>
               <p className="text-sm text-green-800/90 mt-1">
-                Even though transcription happens in the cloud, your API key and all transcripts 
-                are stored locally on your device. Groq only receives the audio data temporarily 
-                for processing and does not retain it.
+                {t("settings.audioDataPrivateDesc")}
               </p>
             </div>
           </div>
@@ -479,18 +476,18 @@ export function AudioTranscriptionSettings() {
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <Key className="w-5 h-5 text-muted-foreground" />
-              <h4 className="font-semibold text-foreground">API Configuration</h4>
+              <h4 className="font-semibold text-foreground">{t("settings.audioApiConfig")}</h4>
             </div>
             
             <div className="space-y-3">
               {/* API Key Input */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Groq API Key
+                  {t("settings.audioGroqApiKey")}
                   {isKeyValid && (
                     <span className="ml-2 text-green-600 text-xs font-normal flex items-center gap-1 inline-flex">
                       <Check className="w-3 h-3" />
-                      Configured
+                      {t("settings.audioConfigured")}
                     </span>
                   )}
                 </label>
@@ -512,7 +509,7 @@ export function AudioTranscriptionSettings() {
                       onClick={() => setShowApiKey(!showApiKey)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      {showApiKey ? "Hide" : "Show"}
+                      {showApiKey ? t("settings.audioHide") : t("settings.audioShow")}
                     </button>
                   </div>
                   <button
@@ -520,28 +517,28 @@ export function AudioTranscriptionSettings() {
                     disabled={!apiKeyInput || !!apiKeyError || apiKeyInput === audioSettings.groq.apiKey}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save
+                    {t("common.save")}
                   </button>
                 </div>
                 {apiKeyError && (
                   <p className="text-xs text-red-500">{apiKeyError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Your API key is stored locally and never shared. 
-                  <a 
-                    href="https://console.groq.com/keys" 
-                    target="_blank" 
+                  {t("settings.audioApiKeyStored")}
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline inline-flex items-center gap-0.5 ml-1"
                   >
-                    Get a free API key <ExternalLink className="w-3 h-3" />
+                    {t("settings.audioGetFreeKey")} <ExternalLink className="w-3 h-3" />
                   </a>
                 </p>
               </div>
 
               {/* Model Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Model</label>
+                <label className="text-sm font-medium text-foreground">{t("settings.audioModel")}</label>
                 <select
                   value={audioSettings.groq.model}
                   onChange={(e) => handleUpdateGroqSettings({ model: e.target.value as 'whisper-large-v3' | 'whisper-large-v3-turbo' })}
@@ -555,9 +552,9 @@ export function AudioTranscriptionSettings() {
                   </option>
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  {audioSettings.groq.model === 'whisper-large-v3-turbo' 
-                    ? "Best price-performance ratio. Recommended for most use cases."
-                    : "State-of-the-art accuracy. Best for error-sensitive applications."}
+                  {audioSettings.groq.model === 'whisper-large-v3-turbo'
+                    ? t("settings.audioModelTurboDesc")
+                    : t("settings.audioModelAccurateDesc")}
                 </p>
               </div>
             </div>
@@ -568,33 +565,33 @@ export function AudioTranscriptionSettings() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-muted-foreground" />
-                <h4 className="font-semibold text-foreground">Usage This Month</h4>
+                <h4 className="font-semibold text-foreground">{t("settings.audioUsageThisMonth")}</h4>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                     <Clock className="w-3.5 h-3.5" />
-                    Audio Processed
+                    {t("settings.audioProcessed")}
                   </div>
                   <p className="text-2xl font-bold text-foreground">
                     {(usageStats.audioSecondsProcessed / 60).toFixed(0)} min
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    of {Math.floor(GROQ_FREE_TIER.AUDIO_SECONDS_PER_DAY / 60)} min free daily limit
+                    {t("settings.audioFreeDailyLimit", { limit: Math.floor(GROQ_FREE_TIER.AUDIO_SECONDS_PER_DAY / 60) })}
                   </p>
                 </div>
                 
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                     <TrendingUp className="w-3.5 h-3.5" />
-                    Estimated Cost
+                    {t("settings.audioEstimatedCost")}
                   </div>
                   <p className="text-2xl font-bold text-foreground">
                     ${usageStats.estimatedCost.toFixed(4)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    if you exceed free tier
+                    {t("settings.audioIfExceedFreeTier")}
                   </p>
                 </div>
               </div>
@@ -602,7 +599,7 @@ export function AudioTranscriptionSettings() {
               {/* Daily Remaining */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Daily Audio Remaining</span>
+                  <span className="text-muted-foreground">{t("settings.audioDailyAudioRemaining")}</span>
                   <span className="font-medium">
                     {Math.floor(usageStats.remainingDailySeconds / 60)} min
                   </span>
@@ -621,7 +618,7 @@ export function AudioTranscriptionSettings() {
                 </div>
                 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Daily Requests Remaining</span>
+                  <span className="text-muted-foreground">{t("settings.audioDailyRequestsRemaining")}</span>
                   <span className="font-medium">
                     {usageStats.remainingDailyRequests.toLocaleString()}
                   </span>
@@ -645,7 +642,7 @@ export function AudioTranscriptionSettings() {
                 <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
                   <AlertTriangle className="mt-0.5 h-4 w-4 text-red-600 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Approaching Free Tier Limits</p>
+                    <p className="font-medium">{t("settings.audioApproachingLimits")}</p>
                     <p className="text-red-800/90 text-xs mt-1">{rateLimitStatus.message}</p>
                   </div>
                 </div>
@@ -655,7 +652,7 @@ export function AudioTranscriptionSettings() {
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   <Info className="mt-0.5 h-4 w-4 text-amber-600 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Free Tier Usage</p>
+                    <p className="font-medium">{t("settings.audioFreeTierUsage")}</p>
                     <p className="text-amber-800/90 text-xs mt-1">{rateLimitStatus.message}</p>
                   </div>
                 </div>
@@ -667,7 +664,7 @@ export function AudioTranscriptionSettings() {
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Languages className="w-5 h-5 text-muted-foreground" />
-              <h4 className="font-semibold text-foreground">Language</h4>
+              <h4 className="font-semibold text-foreground">{t("settings.audioLanguage")}</h4>
             </div>
             <select
               value={audioSettings.language}
@@ -693,7 +690,7 @@ export function AudioTranscriptionSettings() {
               <option value="vi">Vietnamese</option>
             </select>
             <p className="text-xs text-muted-foreground">
-              Specifying a language improves accuracy and speed. &quot;Auto-detect&quot; works for most cases.
+              {t("settings.audioLanguageDesc")}
             </p>
           </section>
 
@@ -701,7 +698,7 @@ export function AudioTranscriptionSettings() {
           <div className="bg-muted/50 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-foreground">
               <Info className="w-4 h-4" />
-              <h5 className="font-medium text-sm">Free Tier Limits (Resets Daily)</h5>
+              <h5 className="font-medium text-sm">{t("settings.audioFreeTierLimits")}</h5>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="flex items-center gap-2">
@@ -723,14 +720,13 @@ export function AudioTranscriptionSettings() {
             </div>
             <div className="pt-2 border-t border-border space-y-2">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">💡 Large file support:</span> Files over 25MB are automatically split into chunks and transcribed seamlessly. No file size limits!
+                {t("settings.audioLargeFileSupport")}
               </p>
               <p className="text-xs text-muted-foreground">
-                For most users, the free tier covers ~8 hours of audio per day. 
-                If you need more, consider upgrading at{' '}
-                <a 
-                  href="https://console.groq.com/settings/billing" 
-                  target="_blank" 
+                {t("settings.audioFreeTierCovers")}{' '}
+                <a
+                  href="https://console.groq.com/settings/billing"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >

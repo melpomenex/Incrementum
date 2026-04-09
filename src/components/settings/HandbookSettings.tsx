@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import handbookMarkdown from "../../../docs/USER_HANDBOOK.md?raw";
 import { renderMarkdown } from "../../utils/markdown";
+import { useI18n } from "../../lib/i18n";
 
 type Heading = {
   level: number;
@@ -70,6 +71,7 @@ const fixInternalLinks = (html: string) =>
   });
 
 export function HandbookSettings() {
+  const { t } = useI18n();
   const headings = useMemo(() => parseHeadings(handbookMarkdown), []);
   const rendered = useMemo(() => {
     const html = renderMarkdown(handbookMarkdown);
@@ -79,10 +81,10 @@ export function HandbookSettings() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Handbook</p>
-        <h3 className="text-2xl font-semibold text-foreground mt-2">Incrementum User Handbook</h3>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("handbook.handbook")}</p>
+        <h3 className="text-2xl font-semibold text-foreground mt-2">{t("handbook.userHandbook")}</h3>
         <p className="text-sm text-muted-foreground mt-2">
-          Browse chapters and jump between sections like a printed guide.
+          {t("handbook.browseChapters")}
         </p>
       </div>
 
@@ -90,7 +92,7 @@ export function HandbookSettings() {
         <aside className="md:sticky md:top-6 md:w-60 md:shrink-0 self-start">
           <div className="border border-border rounded-lg bg-muted/30 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-              Contents
+              {t("handbook.contents")}
             </div>
             <nav className="space-y-1 text-sm">
               {headings

@@ -1218,6 +1218,12 @@ pub const MIGRATIONS: &[Migration] = &[
         ALTER TABLE learning_items ADD COLUMN algorithm_state TEXT;
         "#,
     ),
+    Migration::new(
+        "035_add_learning_item_interaction_metadata",
+        r#"
+        ALTER TABLE learning_items ADD COLUMN interaction_metadata TEXT;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

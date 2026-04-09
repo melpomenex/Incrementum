@@ -42,6 +42,7 @@ import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import { getSessionStats, clearQueueSession } from "../../lib/queueSession";
 import { RotateCcw } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 type QueueMode = "reading" | "review";
 
@@ -52,6 +53,7 @@ interface ReviewQueueViewProps {
 }
 
 export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMode }: ReviewQueueViewProps) {
+  const { t } = useI18n();
   const {
     items,
     isLoading,
@@ -560,7 +562,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center justify-between gap-3">
           <div className="w-full md:w-auto">
             <h1 className="text-xl md:text-2xl font-semibold text-foreground">
-              {queueMode === "reading" ? "Reading Queue" : "Review Queue"}
+              {queueMode === "reading" ? t("nav.queue") : t("review.title")}
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
               {queueMode === "reading"

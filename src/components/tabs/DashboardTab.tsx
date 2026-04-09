@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTabsStore } from "../../stores";
 import { useDocumentStore } from "../../stores/documentStore";
 import type { TabType } from "../../stores/tabsStore";
+import { useI18n } from "../../lib/i18n";
 import {
   QueueTab,
   ReviewTab,
@@ -40,6 +41,7 @@ interface QuickAction {
 }
 
 export function DashboardTab() {
+  const { t } = useI18n();
   const { addTab, tabs } = useTabsStore();
   const documents = useDocumentStore((state) => state.documents);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -63,8 +65,8 @@ export function DashboardTab() {
   const quickActions: QuickAction[] = [
     {
       id: "queue",
-      title: "Reading Queue",
-      description: "Continue your reading",
+      title: t("dashboard.readingQueue"),
+      description: t("dashboard.continueReading"),
       icon: BookOpen,
       iconBg: "bg-blue-500/10 text-blue-500",
       tabType: "queue",
@@ -76,8 +78,8 @@ export function DashboardTab() {
     },
     {
       id: "review",
-      title: "Flashcards",
-      description: "Review due cards",
+      title: t("dashboard.flashcards"),
+      description: t("dashboard.reviewDueCards"),
       icon: Brain,
       iconBg: "bg-purple-500/10 text-purple-500",
       tabType: "review",
@@ -89,8 +91,8 @@ export function DashboardTab() {
     },
     {
       id: "documents",
-      title: "Library",
-      description: "Browse documents",
+      title: t("dashboard.library"),
+      description: t("dashboard.browseDocuments"),
       icon: Files,
       iconBg: "bg-green-500/10 text-green-500",
       tabType: "documents",
@@ -101,8 +103,8 @@ export function DashboardTab() {
     },
     {
       id: "rss",
-      title: "RSS Feeds",
-      description: "Latest articles",
+      title: t("dashboard.rssFeeds"),
+      description: t("dashboard.latestArticles"),
       icon: Rss,
       iconBg: "bg-orange-500/10 text-orange-500",
       tabType: "rss",
@@ -113,8 +115,8 @@ export function DashboardTab() {
     },
     {
       id: "analytics",
-      title: "Analytics",
-      description: "Track progress",
+      title: t("dashboard.analytics"),
+      description: t("dashboard.trackProgress"),
       icon: BarChart3,
       iconBg: "bg-cyan-500/10 text-cyan-500",
       tabType: "analytics",
@@ -125,8 +127,8 @@ export function DashboardTab() {
     },
     {
       id: "settings",
-      title: "Settings",
-      description: "App preferences",
+      title: t("dashboard.settings"),
+      description: t("dashboard.appPreferences"),
       icon: Settings,
       iconBg: "bg-slate-500/10 text-slate-500",
       tabType: "settings",
@@ -174,8 +176,8 @@ export function DashboardTab() {
       documents.slice(0, 10).map((doc) => ({
         id: doc.id,
         front: doc.title || "Untitled",
-        back: doc.extracted_text?.slice(0, 220) || "No extracted content available.",
-        documentTitle: doc.title || "Untitled",
+        back: doc.extracted_text?.slice(0, 220) || t("dashboardTab.noExtractedContent"),
+        documentTitle: doc.title || t("dashboardTab.untitled"),
       })),
     [documents]
   );
@@ -193,10 +195,10 @@ export function DashboardTab() {
         {/* Header */}
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-2">
-            Welcome back
+            {t("dashboard.welcomeBack")}
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Your incremental reading and spaced repetition companion
+            {t("dashboard.companion")}
           </p>
         </div>
 
@@ -226,12 +228,12 @@ export function DashboardTab() {
                     <div className="flex items-center gap-1 text-xs font-medium text-primary">
                       {action.id === "queue" && (stats.due_documents || stats.cards_due_today || 0) > 0 && (
                         <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                          {(stats.due_documents || stats.cards_due_today || 0)} due
+                          {(stats.due_documents || stats.cards_due_today || 0)} {t("dashboard.due")}
                         </span>
                       )}
                       {action.id === "review" && stats.cards_due_today > 0 && (
                         <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                          {stats.cards_due_today} due
+                          {stats.cards_due_today} {t("dashboard.due")}
                         </span>
                       )}
                     </div>
@@ -250,14 +252,14 @@ export function DashboardTab() {
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-muted-foreground" />
                 <h2 className="text-lg md:text-xl font-semibold text-foreground">
-                  Your Progress
+                  {t("dashboard.yourProgress")}
                 </h2>
               </div>
               <button
                 onClick={() => openTab(quickActions.find(a => a.id === "analytics")!)}
                 className="text-xs md:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
               >
-                View all
+                {t("dashboard.viewAll")}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -275,7 +277,7 @@ export function DashboardTab() {
                   </span>
                 </div>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Documents
+                  {t("dashboard.documents")}
                 </p>
               </div>
 
@@ -291,7 +293,7 @@ export function DashboardTab() {
                   </span>
                 </div>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Due Today
+                  {t("layout.dueToday")}
                 </p>
               </div>
 
@@ -307,7 +309,7 @@ export function DashboardTab() {
                   </span>
                 </div>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Cards Learned
+                  {t("dashboard.cardsLearned")}
                 </p>
               </div>
             </div>
@@ -315,7 +317,7 @@ export function DashboardTab() {
             {/* Progress bar */}
             <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-border">
               <div className="flex items-center justify-between text-xs md:text-sm mb-2">
-                <span className="text-muted-foreground">Daily Goal Progress</span>
+                <span className="text-muted-foreground">{t("dashboard.dailyGoalProgress")}</span>
                 <span className="font-medium text-foreground">
                   {Math.min(
                     100,
@@ -364,16 +366,16 @@ export function DashboardTab() {
                   />
                 </svg>
               </div>
-              <h3 className="font-semibold text-foreground">Device Sync</h3>
+              <h3 className="font-semibold text-foreground">{t("dashboard.deviceSync")}</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Sync your data across all your devices seamlessly.
+              {t("dashboard.syncDescription")}
             </p>
             <button
               onClick={openSyncSettings}
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             >
-              Set Up Sync
+              {t("dashboard.setupSync")}
             </button>
           </div>
         </div>
@@ -381,10 +383,10 @@ export function DashboardTab() {
         {/* Tips Section */}
         <div className="mt-6 md:mt-8 p-4 md:p-5 bg-muted/50 border border-border rounded-xl">
           <h3 className="font-medium text-sm text-foreground mb-2">
-            💡 Quick Tip
+            💡 {t("dashboard.quickTip")}
           </h3>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Use the keyboard shortcut <kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs">Ctrl+K</kbd> to open the Command Palette for quick navigation.
+            {t("dashboard.commandPaletteHint")}
           </p>
         </div>
 

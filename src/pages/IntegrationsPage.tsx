@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invokeCommand as invoke } from "../lib/tauri";
 import { useTabsStore } from "../stores";
 import { NotebookLMTab } from "../components/tabs/TabRegistry";
+import { useI18n } from "../lib/i18n";
 import {
   Link as LinkIcon,
   Download,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export function IntegrationsPage() {
+  const { t } = useI18n();
   const addTab = useTabsStore((state) => state.addTab);
   const [obsidianVault, setObsidianVault] = useState("");
   const [obsidianStatus, setObsidianStatus] = useState<string>("");
@@ -36,7 +38,7 @@ export function IntegrationsPage() {
 
   const handleObsidianExport = async () => {
     if (!obsidianVault) {
-      alert("Please enter your Obsidian vault path");
+      alert(t("integrations.obsidianVaultRequired"));
       return;
     }
 
@@ -59,7 +61,7 @@ export function IntegrationsPage() {
 
   const handleObsidianSync = async () => {
     if (!obsidianVault) {
-      alert("Please enter your Obsidian vault path");
+      alert(t("integrations.obsidianVaultRequired"));
       return;
     }
 
@@ -105,9 +107,9 @@ export function IntegrationsPage() {
   return (
     <div className="h-full flex flex-col bg-cream">
       <div className="p-4 border-b border-border bg-card">
-        <h1 className="text-xl font-semibold text-foreground mb-1">Integrations</h1>
+        <h1 className="text-xl font-semibold text-foreground mb-1">{t("integrations.title")}</h1>
         <p className="text-sm text-foreground-secondary">
-          Connect Incrementum with external tools and services.
+          {t("integrations.subtitle")}
         </p>
       </div>
 
@@ -122,10 +124,9 @@ export function IntegrationsPage() {
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">NotebookLM</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t("integrations.notebooklm")}</h3>
                     <p className="text-sm text-foreground-secondary mt-1">
-                      Research, generate artifacts, and sync study content into Incrementum decks.
-                      Chat with your sources, create flashcards, quizzes, audio overviews, and more.
+                      {t("integrations.notebooklmDesc")}
                     </p>
                   </div>
                   <button
@@ -133,7 +134,7 @@ export function IntegrationsPage() {
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
                   >
                     <Sparkles className="w-4 h-4" />
-                    Open NotebookLM
+                    {t("integrations.openNotebooklm")}
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -141,15 +142,15 @@ export function IntegrationsPage() {
                 <div className="mt-4 grid grid-cols-3 gap-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Chat with sources
+                    {t("integrations.chatWithSources")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    Generate flashcards
+                    {t("integrations.generateFlashcards")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                    Create audio overviews
+                    {t("integrations.createAudioOverviews")}
                   </div>
                 </div>
               </div>
@@ -163,15 +164,15 @@ export function IntegrationsPage() {
                 <Gem className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground">Obsidian</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("integrations.obsidian")}</h3>
                 <p className="text-sm text-foreground-secondary mt-1 mb-4">
-                  Sync your documents and flashcards to Obsidian for advanced note-taking.
+                  {t("integrations.obsidianDesc")}
                 </p>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Vault Path
+                      {t("integrations.vaultPath")}
                     </label>
                     <input
                       type="text"
@@ -190,12 +191,12 @@ export function IntegrationsPage() {
                       {obsidianStatus === "exporting" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Exporting...
+                          {t("integrations.exporting")}
                         </>
                       ) : (
                         <>
                           <Upload className="w-4 h-4" />
-                          Export to Obsidian
+                          {t("integrations.exportToObsidian")}
                         </>
                       )}
                     </button>
@@ -207,12 +208,12 @@ export function IntegrationsPage() {
                       {obsidianStatus === "syncing" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Syncing...
+                          {t("integrations.syncing")}
                         </>
                       ) : (
                         <>
                           <LinkIcon className="w-4 h-4" />
-                          Sync
+                          {t("integrations.sync")}
                         </>
                       )}
                     </button>
@@ -220,7 +221,7 @@ export function IntegrationsPage() {
                   {obsidianStatus === "success" && (
                     <div className="flex items-center gap-2 text-sm text-green-600">
                       <Check className="w-4 h-4" />
-                      Sync completed successfully
+                      {t("integrations.syncComplete")}
                     </div>
                   )}
                   {obsidianStatus?.startsWith("error") && (
@@ -241,15 +242,15 @@ export function IntegrationsPage() {
                 <Layers className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground">Anki</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("integrations.anki")}</h3>
                 <p className="text-sm text-foreground-secondary mt-1 mb-4">
-                  Sync your flashcards to Anki for cross-platform spaced repetition.
+                  {t("integrations.ankiDesc")}
                 </p>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Anki Profile
+                      {t("integrations.ankiProfile")}
                     </label>
                     <input
                       type="text"
@@ -268,10 +269,10 @@ export function IntegrationsPage() {
                       {ankiStatus === "testing" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Testing...
+                          {t("integrations.testing")}
                         </>
                       ) : (
-                        "Test Connection"
+                        t("integrations.testConnection")
                       )}
                     </button>
                     <button
@@ -282,12 +283,12 @@ export function IntegrationsPage() {
                       {ankiStatus === "syncing" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Syncing...
+                          {t("integrations.syncing")}
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4" />
-                          Sync to Anki
+                          {t("integrations.syncToAnki")}
                         </>
                       )}
                     </button>
@@ -295,13 +296,13 @@ export function IntegrationsPage() {
                   {ankiStatus === "success" && (
                     <div className="flex items-center gap-2 text-sm text-green-600">
                       <Check className="w-4 h-4" />
-                      Sync completed successfully
+                      {t("integrations.syncComplete")}
                     </div>
                   )}
                   {ankiStatus === "connected" && (
                     <div className="flex items-center gap-2 text-sm text-green-600">
                       <Check className="w-4 h-4" />
-                      Anki connection successful
+                      {t("integrations.ankiSuccess")}
                     </div>
                   )}
                   {ankiStatus?.startsWith("error") && (
@@ -322,12 +323,12 @@ export function IntegrationsPage() {
                 <ExternalLink className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground">Browser Extension</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("integrations.browserExtension")}</h3>
                 <p className="text-sm text-foreground-secondary mt-1">
-                  Install the browser extension to quickly save content from the web.
+                  {t("integrations.browserExtensionDesc")}
                 </p>
                 <button className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity">
-                  Install Extension
+                  {t("integrations.installExtension")}
                 </button>
               </div>
             </div>

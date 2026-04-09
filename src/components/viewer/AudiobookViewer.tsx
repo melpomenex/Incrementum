@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../utils";
 import { Document } from "../../types/document";
+import { useI18n } from "../../lib/i18n";
 import {
   AudiobookMetadata,
   AudiobookChapter,
@@ -78,6 +79,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
+  const { t } = useI18n();
   const { profiles, fetchProfiles, currentStatus, activeJob, activeSegments, loadTranscript, transcriptionProgress } = useTranscriptionStore();
   
   // Core playback state
@@ -414,12 +416,12 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
           setIsPlaying(false);
         });
       }
-      showInfo("Next part", `Playing part ${nextPartIndex + 1} of ${multiPartInfo.partFiles.length}`);
+      showInfo(t("viewer.nextPart"), t("viewer.playingPart", { current: nextPartIndex + 1, total: multiPartInfo.partFiles.length }));
       return;
     }
     
     setIsPlaying(false);
-    showInfo("Audiobook finished", "You've reached the end");
+    showInfo(t("viewer.audiobookFinished"), t("viewer.reachedTheEnd"));
   };
   
   // Go to specific part (for multi-part books)
@@ -491,21 +493,21 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
 
     if (hasTriedFallback) {
       showError(
-        "Playback failed",
-        "The audio format may not be supported by your system codecs."
+        t("viewer.playbackFailed"),
+        t("viewer.audioFormatNotSupported")
       );
       return;
     }
 
     if (!isTauri() || !document.filePath) {
-      showError("Playback failed", "Unable to load audio file.");
+      showError(t("viewer.playbackFailed"), t("viewer.unableToLoadAudio"));
       return;
     }
 
     // Fallback: read file into memory and create a blob URL (slower, but avoids file-scope issues).
     try {
       setHasTriedFallback(true);
-      showInfo("Loading audio", "Direct playback failed. Falling back to buffered mode (may be slow).");
+      showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
       const base64Data = await readDocumentFile(document.filePath);
       if (!base64Data) {
         throw new Error("Empty file data");
@@ -518,11 +520,11 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       const mimeType = getAudioMimeType(document.filePath);
       const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
       setFallbackSrc(blobUrl);
-      showSuccess("Audio loaded", "Retry play.");
+      showSuccess(t("viewer.audioLoaded"), t("viewer.retryPlay"));
     } catch (err) {
       showError(
-        "Playback failed",
-        err instanceof Error ? err.message : "Unable to load audio file"
+        t("viewer.playbackFailed"),
+        err instanceof Error ? err.message : t("viewer.unableToLoadAudio")
       );
     }
   };
@@ -617,7 +619,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     const newBookmark: AudiobookBookmark = {
       id: `bookmark-${Date.now()}`,
       time: currentTime,
-      title: chapter?.title || `Bookmark at ${formatDuration(currentTime)}`,
+      title: chapter?.title || `${t("viewer.bookmark")} @ ${formatDuration(currentTime)}`,
       createdAt: new Date().toISOString(),
     };
     
@@ -839,7 +841,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
           <div className="w-80 border-r border-border bg-card flex flex-col">
             <div className="flex items-center justify-between border-b border-border p-3">
               <h3 className="font-semibold">
-                {showChapters ? "Chapters" : "Bookmarks"}
+                {showChapters ? t("viewer.chapters") : t("viewer.bookmarks")}
               </h3>
               <button
                 onClick={() => {
@@ -855,7 +857,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
             {/* Part selector for multi-part books */}
             {showChapters && multiPartInfo && (
               <div className="border-b border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-2">Select Part:</p>
+                <p className="text-xs text-muted-foreground mb-2">{t("viewer.selectPart")}</p>
                 <div className="grid grid-cols-5 gap-1">
                   {multiPartInfo.partFiles.map((_, idx) => (
                     <button
@@ -896,7 +898,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <>
                   {bookmarks.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      No bookmarks yet
+                      {t("viewer.noBookmarksYet")}
                     </div>
                   ) : (
                     bookmarks.map(bookmark => (
@@ -945,7 +947,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePlay(); } }}
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isPlaying ? t("viewer.pause") : t("viewer.play")}
               >
                 {localCoverUrl ? (
                   <img
@@ -994,7 +996,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
               {multiPartInfo && (
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <span className="text-xs text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                    Part {currentPartIndex + 1} of {multiPartInfo.partFiles.length}
+                    {t("viewer.partOf", { current: currentPartIndex + 1, total: multiPartInfo.partFiles.length })}
                   </span>
                 </div>
               )}
@@ -1051,7 +1053,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     "p-2 rounded-lg transition-colors",
                     showChapters ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   )}
-                  title="Chapters (C)"
+                  title={t("viewer.chapters")}
                 >
                   <List className="h-5 w-5" />
                 </button>
@@ -1066,7 +1068,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     "p-2 rounded-lg transition-colors",
                     showBookmarks ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   )}
-                  title="Bookmarks (B)"
+                  title={t("viewer.bookmarks")}
                 >
                   <Bookmark className="h-5 w-5" />
                 </button>
@@ -1075,7 +1077,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={addBookmark}
                   className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  title="Add bookmark"
+                  title={t("viewer.addBookmark")}
                 >
                   <BookmarkPlus className="h-5 w-5" />
                 </button>
@@ -1086,7 +1088,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={() => skip(-30)}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                  title="Skip back 30s"
+                  title={t("viewer.skipBack30s")}
                 >
                   <SkipBack className="h-5 w-5" />
                 </button>
@@ -1094,7 +1096,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={togglePlay}
                   className="p-4 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity"
-                  title="Play/Pause (Space)"
+                  title={t("viewer.playPause")}
                 >
                   {isPlaying ? (
                     <Pause className="h-6 w-6" />
@@ -1106,7 +1108,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={() => skip(30)}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                  title="Skip forward 30s"
+                  title={t("viewer.skipForward30s")}
                 >
                   <SkipForward className="h-5 w-5" />
                 </button>
@@ -1119,7 +1121,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                   <button
                     onClick={cancelSleepTimer}
                     className="flex items-center gap-1 px-2 py-1 text-xs text-amber-500 bg-amber-500/10 rounded-lg hover:bg-amber-500/20"
-                    title="Cancel sleep timer"
+                    title={t("viewer.cancelSleepTimer")}
                   >
                     <Moon className="h-3 w-3" />
                     {formatDuration(Math.max(0, (sleepTimer.endTime - Date.now()) / 1000))}
@@ -1133,7 +1135,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     "p-2 rounded-lg transition-colors relative",
                     showSleepTimer ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   )}
-                  title="Sleep timer"
+                  title={t("viewer.sleepTimer")}
                 >
                   <Clock className="h-5 w-5" />
                 </button>
@@ -1142,7 +1144,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={cyclePlaybackRate}
                   className="px-2 py-1 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
-                  title="Playback speed (S)"
+                  title={t("viewer.playbackSpeed")}
                 >
                   {playbackRate}x
                 </button>
@@ -1152,7 +1154,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                   <button
                     onClick={toggleMute}
                     className="p-2 hover:bg-muted rounded-lg transition-colors"
-                    title="Mute (M)"
+                    title={t("viewer.mute")}
                   >
                     {isMuted || volume === 0 ? (
                       <VolumeX className="h-5 w-5" />
@@ -1178,7 +1180,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     "p-2 rounded-lg transition-colors",
                     showTranscript ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                   )}
-                  title="Transcript (T)"
+                  title={t("viewer.transcript")}
                 >
                   <FileText className="h-5 w-5" />
                 </button>
@@ -1187,7 +1189,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  title="Fullscreen (F)"
+                  title={t("viewer.fullscreen")}
                 >
                   {isFullscreen ? (
                     <Minimize2 className="h-5 w-5" />
@@ -1204,7 +1206,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         {showTranscript && (
           <div className="w-96 border-l border-border bg-card flex flex-col">
             <div className="flex items-center justify-between border-b border-border p-3">
-              <h3 className="font-semibold">Transcript</h3>
+              <h3 className="font-semibold">{t("viewer.transcript")}</h3>
               <button
                 onClick={() => setShowTranscript(false)}
                 className="p-1 hover:bg-muted rounded"
@@ -1230,7 +1232,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                         onClick={createExtractFromSelection}
                         className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90"
                       >
-                        Extract
+                        {t("viewer.extractButton")}
                       </button>
                     </div>
                   )}
@@ -1270,7 +1272,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
               ) : (
                 <div className="text-center text-muted-foreground py-8">
                   <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No transcript available</p>
+                  <p className="font-medium">{t("viewer.noTranscriptAvailable")}</p>
                   
                   <div className="mt-6 space-y-4">
                     <button
@@ -1282,12 +1284,12 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                         {isCurrentTranscribing ? (
                           <>
                             <Loader2 className="w-5 h-5 animate-spin" />
-                            Transcribing...
+                            {t("viewer.transcribing")}
                           </>
                         ) : (
                           <>
                             <Mic className="w-5 h-5" />
-                            Start Local Transcription
+                            {t("viewer.startLocalTranscription")}
                           </>
                         )}
                       </div>
@@ -1295,7 +1297,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                       {isCurrentTranscribing && (
                         <div className="w-full mt-2 px-1">
                           <div className="flex justify-between text-[10px] mb-1 opacity-90">
-                            <span>Overall Progress</span>
+                            <span>{t("viewer.overallProgress")}</span>
                             <span>{transcriptionProgress}%</span>
                           </div>
                           <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
@@ -1307,9 +1309,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                         </div>
                       )}
                     </button>
-                    <p className="text-xs">
-                      Uses <strong>Whisper</strong> for high-accuracy offline transcription.
-                    </p>
+                    <p className="text-xs" dangerouslySetInnerHTML={{ __html: t("viewer.usesWhisper") }} />
                   </div>
                 </div>
               )}
@@ -1321,7 +1321,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       {/* Sleep timer popup */}
       {showSleepTimer && (
         <div className="absolute bottom-20 right-4 bg-card border border-border rounded-lg shadow-lg p-4 z-50">
-          <h4 className="font-medium mb-3">Sleep Timer</h4>
+          <h4 className="font-medium mb-3">{t("viewer.sleepTimerTitle")}</h4>
           <div className="grid grid-cols-3 gap-2">
             {[15, 30, 45, 60, 90, 120].map(minutes => (
               <button

@@ -83,6 +83,7 @@ pub async fn create_learning_item(
     answer: Option<String>,
     prerequisite_item_ids: Option<Vec<String>>,
     image_asset_ids: Option<Vec<String>>,
+    interaction_metadata: Option<serde_json::Value>,
     allow_duplicate: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<LearningItem> {
@@ -107,6 +108,7 @@ pub async fn create_learning_item(
     let mut item = LearningItem::new(item_type, question);
     item.answer = answer;
     item.image_asset_ids = image_asset_ids.unwrap_or_default();
+    item.interaction_metadata = interaction_metadata;
     let created = repo.create_learning_item(&item).await?;
     if let Some(prerequisites) = prerequisite_item_ids {
         store_learning_item_prerequisites(&created.id, &prerequisites, &repo).await?;

@@ -22,6 +22,7 @@ import { useSettingsStore } from "../../stores";
 import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { ShareMessageDialog } from "./ShareMessageDialog";
 import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessage } from "../../api/integrations";
+import { useI18n } from "../../lib/i18n";
 
 export interface AssistantContext {
   type: "document" | "web" | "video" | "general";
@@ -153,6 +154,7 @@ export function AssistantPanel({
   onProviderChange,
   appendContextMessages = true,
 }: AssistantPanelProps) {
+  const { t } = useI18n();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem(ASSISTANT_WIDTH_KEY);

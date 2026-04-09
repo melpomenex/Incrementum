@@ -13,6 +13,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { cn } from "../../utils";
+import { useI18n } from "../../lib/i18n";
 
 export interface MinimapSegment {
   start: number; // 0-1 percentage
@@ -53,6 +54,7 @@ export function DocumentMinimap({
   onSegmentClick,
   onSegmentHover,
 }: DocumentMinimapProps) {
+  const { t } = useI18n();
   const minimapRef = useRef<HTMLDivElement>(null);
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -195,7 +197,7 @@ export function useDocumentMinimap(
           end: Math.min(1, pos + 0.02),
           type: "extracted",
           id: extract.id,
-          label: "Extracted",
+          label: t("viewer.extracted"),
         });
       }
     }

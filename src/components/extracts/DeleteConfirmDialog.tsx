@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { deleteExtract } from "../../api/extracts";
 import { Extract } from "../../api/extracts";
+import { useI18n } from "../../lib/i18n";
 
 interface DeleteConfirmDialogProps {
   extract: Extract | null;
@@ -16,6 +17,7 @@ export function DeleteConfirmDialog({
   onClose,
   onDelete,
 }: DeleteConfirmDialogProps) {
+  const { t } = useI18n();
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export function DeleteConfirmDialog({
       onDelete?.(extract.id);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete extract");
+      setError(err instanceof Error ? err.message : t("extracts.failedToDelete"));
     } finally {
       setIsDeleting(false);
     }
@@ -46,7 +48,7 @@ export function DeleteConfirmDialog({
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-destructive" />
             <h2 className="text-lg font-semibold text-foreground">
-              Delete Extract
+              {t("extracts.deleteTitle")}
             </h2>
           </div>
           <button
@@ -60,7 +62,7 @@ export function DeleteConfirmDialog({
         {/* Content */}
         <div className="p-4">
           <p className="text-foreground mb-4">
-            Are you sure you want to delete this extract?
+            {t("extracts.deleteConfirm")}
           </p>
 
           {/* Extract Preview */}
@@ -88,8 +90,7 @@ export function DeleteConfirmDialog({
           {/* Warning */}
           <div className="p-3 bg-destructive/10 border border-destructive rounded-md">
             <p className="text-sm text-destructive">
-              <strong>Warning:</strong> This action cannot be undone. Any learning cards
-              generated from this extract will not be deleted.
+              <strong>{t("extracts.warning")}:</strong> {t("extracts.deleteWarning")}
             </p>
           </div>
 
@@ -108,14 +109,14 @@ export function DeleteConfirmDialog({
             disabled={isDeleting}
             className="px-4 py-2 bg-card border border-border text-foreground rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleDelete}
             disabled={isDeleting}
             className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-opacity disabled:opacity-50"
           >
-            {isDeleting ? "Deleting..." : "Delete Extract"}
+            {isDeleting ? t("extracts.deleting") : t("extracts.deleteTitle")}
           </button>
         </div>
       </div>

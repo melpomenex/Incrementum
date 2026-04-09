@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface TextSelectionProps {
   onExtract: (text: string) => void;
@@ -7,6 +8,7 @@ interface TextSelectionProps {
 }
 
 export function TextSelection({ onExtract, containerRef }: TextSelectionProps) {
+  const { t } = useI18n();
   const [showTooltip, setShowTooltip] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -75,7 +77,7 @@ export function TextSelection({ onExtract, containerRef }: TextSelectionProps) {
       }}
     >
       <Plus className="w-4 h-4" />
-      <span className="text-sm font-medium">Create Extract</span>
+      <span className="text-sm font-medium">{t("extracts.createTitle")}</span>
       <button
         onClick={handleExtract}
         className="ml-2 px-2 py-1 bg-primary-foreground text-primary rounded text-xs font-semibold hover:opacity-90 transition-opacity"

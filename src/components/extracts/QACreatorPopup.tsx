@@ -3,6 +3,7 @@ import { MessageSquare, X, Check } from "lucide-react";
 import { createQAFromExtract } from "../../api/extract-review";
 import type { LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
+import { useI18n } from "../../lib/i18n";
 
 interface QACreatorPopupProps {
     extractId: string;
@@ -11,6 +12,7 @@ interface QACreatorPopupProps {
 }
 
 export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopupProps) {
+    const { t } = useI18n();
     const [question, setQuestion] = useState("");
     const [answer, setAnswer] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,8 +65,8 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                             <MessageSquare className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-foreground">Create Q&A Card</h3>
-                            <p className="text-sm text-muted-foreground">Create a question and answer pair from this extract</p>
+                            <h3 className="text-lg font-semibold text-foreground">{t("extracts.createQACard")}</h3>
+                            <p className="text-sm text-muted-foreground">{t("extracts.createQADesc")}</p>
                         </div>
                     </div>
                     <button
@@ -78,7 +80,7 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                 {/* Content */}
                 <div className="p-6 flex flex-col gap-6 overflow-y-auto">
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Question</label>
+                        <label className="text-sm font-medium text-foreground">{t("review.question")}</label>
                         <textarea
                             ref={questionRef}
                             value={question}
@@ -89,7 +91,7 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-foreground">Answer</label>
+                        <label className="text-sm font-medium text-foreground">{t("review.answer")}</label>
                         <textarea
                             value={answer}
                             onChange={(e) => setAnswer(e.target.value)}
@@ -102,14 +104,14 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                 {/* Footer */}
                 <div className="p-6 border-t border-border bg-muted/10 rounded-b-xl flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                        Press <span className="font-medium text-foreground">Ctrl+Enter</span> to save
+                        <span className="font-medium text-foreground">Ctrl+Enter</span> {t("extracts.toSave")}
                     </div>
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onCancel}
                             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </button>
                         <button
                             onClick={handleSubmit}
@@ -120,7 +122,7 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                             )}
                         >
                             <Check className="w-4 h-4" />
-                            {isSubmitting ? "Creating..." : "Create Card"}
+                            {isSubmitting ? t("extracts.creating") : t("extracts.createCardBtn")}
                         </button>
                     </div>
                 </div>

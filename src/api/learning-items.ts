@@ -1,4 +1,5 @@
 import { invokeCommand } from "../lib/tauri";
+import type { LearningItemInteractionMetadata } from "../types/learningItemInteractions";
 
 export interface LearningItem {
   id: string;
@@ -22,6 +23,7 @@ export interface LearningItem {
   is_suspended: boolean;
   tags: string[];
   image_asset_ids?: string[];
+  interaction_metadata?: LearningItemInteractionMetadata;
   memory_state?: {
     stability: number;
     difficulty: number;
@@ -34,6 +36,7 @@ export interface CreateLearningItemInput {
   answer?: string;
   prerequisite_item_ids?: string[];
   image_asset_ids?: string[];
+  interaction_metadata?: LearningItemInteractionMetadata;
   allow_duplicate?: boolean;
 }
 
@@ -94,6 +97,7 @@ export async function createLearningItem(input: CreateLearningItemInput): Promis
     answer: input.answer,
     prerequisiteItemIds: input.prerequisite_item_ids,
     imageAssetIds: input.image_asset_ids,
+    interactionMetadata: input.interaction_metadata,
     allowDuplicate: input.allow_duplicate,
   });
 }

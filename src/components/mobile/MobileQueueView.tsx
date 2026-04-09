@@ -29,6 +29,7 @@ import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { SwipeableItem } from "./SwipeableItem";
 import { bulkSuspendItems, bulkUnsuspendItems, postponeItem } from "../../api/queue";
+import { useI18n } from "../../lib/i18n";
 
 interface MobileQueueViewProps {
   onStartReview?: (itemId?: string) => void;
@@ -63,6 +64,7 @@ export function MobileQueueView({
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"reading" | "review">("reading");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("today");
+  const { t } = useI18n();
   const toast = useToast();
 
   // Undo toast state
@@ -258,7 +260,7 @@ export function MobileQueueView({
       <div className="px-4 py-3 border-b border-border bg-card">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-semibold text-foreground">
-            {activeTab === "reading" ? "Reading Queue" : "Review"}
+            {activeTab === "reading" ? t("mobileQueue.readingQueue") : t("mobileQueue.review")}
           </h1>
           <div className="flex items-center gap-2">
             {activeTab === "reading" && (
@@ -288,7 +290,7 @@ export function MobileQueueView({
             )}
           >
             <BookOpen className="w-4 h-4" />
-            Reading
+            {t("mobileQueue.reading")}
             {dueCount > 0 && (
               <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
                 {dueCount}
@@ -305,7 +307,7 @@ export function MobileQueueView({
             )}
           >
             <Brain className="w-4 h-4" />
-            Review
+            {t("mobileQueue.review")}
           </button>
         </div>
       </div>
@@ -324,7 +326,7 @@ export function MobileQueueView({
               )}
             >
               <Clock className="w-3.5 h-3.5" />
-              Due Today
+              {t("mobileQueue.dueToday")}
               {dueCount > 0 && <span className="ml-0.5">({dueCount})</span>}
             </button>
             <button
@@ -336,7 +338,7 @@ export function MobileQueueView({
                   : "bg-muted text-foreground"
               )}
             >
-              New
+              {t("mobileQueue.new")}
               {newCount > 0 && <span className="ml-0.5">({newCount})</span>}
             </button>
             <button
@@ -348,7 +350,7 @@ export function MobileQueueView({
                   : "bg-muted text-foreground"
               )}
             >
-              All Items
+              {t("mobileQueue.allItems")}
             </button>
           </div>
         </div>
@@ -364,7 +366,7 @@ export function MobileQueueView({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search titles or tags..."
+              placeholder={t("mobileQueue.searchPlaceholder")}
               className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {searchQuery && (
@@ -388,7 +390,7 @@ export function MobileQueueView({
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
           >
             <Play className="w-5 h-5" />
-            {activeTab === "reading" ? "Start Reading" : "Start Review"}
+            {activeTab === "reading" ? t("mobileQueue.startReading") : t("mobileQueue.startReview")}
           </button>
           {activeTab === "reading" && onOpenScrollMode && (
             <button
@@ -407,7 +409,7 @@ export function MobileQueueView({
         {isLoading ? (
           <div className="flex items-center justify-center h-32 text-muted-foreground">
             <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mr-2" />
-            Loading...
+            {t("mobileQueue.loading")}
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
@@ -416,13 +418,13 @@ export function MobileQueueView({
             </div>
             <p className="text-muted-foreground mb-2">
               {activeTab === "reading"
-                ? "No documents ready to read"
-                : "No cards due for review"}
+                ? t("mobileQueue.noDocumentsReady")
+                : t("mobileQueue.noCardsDueReview")}
             </p>
             <p className="text-sm text-muted-foreground/70">
               {activeTab === "reading"
-                ? "Import books, articles, or RSS feeds to get started"
-                : "You're all caught up!"}
+                ? t("mobileQueue.importToStart")
+                : t("mobileQueue.allCaughtUp")}
             </p>
           </div>
         ) : (
@@ -512,7 +514,7 @@ export function MobileQueueView({
 
       {/* Stats Footer */}
       <div className="px-4 py-2 border-t border-border bg-card/30 text-center text-xs text-muted-foreground">
-        {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} ready
+        {t("mobileQueue.itemsReady", { count: filteredItems.length })}
       </div>
 
       {/* Undo Toast */}
@@ -538,11 +540,11 @@ export function MobileQueueView({
           <div className="undo-toast-message">
             <span>{undoState.itemTitle}</span>
             <span className="text-xs text-muted-foreground">
-              {undoState.action === "suspend" ? " suspended" : " postponed"}
+              {undoState.action === "suspend" ? ` ${t("mobileQueue.suspended")}` : ` ${t("mobileQueue.postponed")}`}
             </span>
           </div>
           <button onClick={handleUndo} className="undo-toast-action">
-            Undo
+            {t("mobileQueue.undo")}
           </button>
           <div className="undo-toast-progress">
             <div

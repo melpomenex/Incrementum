@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { t } from "../../lib/i18n";
 
 /**
  * Navigation mode
@@ -880,7 +881,7 @@ export function VimiumFindBar({
             onClose();
           }
         }}
-        placeholder="Find in page..."
+        placeholder={t("vimium.findPlaceholder")}
         className="bg-transparent border-none outline-none w-64 text-foreground"
         autoFocus
       />
@@ -933,7 +934,7 @@ export function VimiumCommandBar({
               onClose();
             }
           }}
-          placeholder="Type a command..."
+          placeholder={t("vimium.commandPlaceholder")}
           className="bg-transparent border-none outline-none w-full text-foreground"
           autoFocus
         />
@@ -941,7 +942,7 @@ export function VimiumCommandBar({
       </div>
       <div className="max-h-64 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="px-3 py-3 text-sm text-muted-foreground">No commands found</div>
+          <div className="px-3 py-3 text-sm text-muted-foreground">{t("vimium.noCommandsFound")}</div>
         ) : (
           filtered.slice(0, 8).map((cmd) => (
             <button
@@ -970,7 +971,7 @@ export function VimiumHelpOverlay({
     <div className="fixed inset-0 z-[999998] bg-black/50 flex items-center justify-center">
       <div className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Vimium Help</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("vimium.helpTitle")}</h2>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors"

@@ -101,7 +101,7 @@ interface ReviewState {
     typedSimilarity?: number;
     typedProvider?: "local" | "cloud" | "heuristic";
     handwritingCaptured?: boolean;
-    interactionType?: "ordering" | "matching";
+    interactionType?: "ordering" | "matching" | "multiple-choice" | "image-occlusion";
     interactionCorrect?: boolean;
   } | null;
   reviewEventLog: Array<{
@@ -115,7 +115,7 @@ interface ReviewState {
       typedSimilarity?: number;
       typedProvider?: "local" | "cloud" | "heuristic";
       handwritingCaptured?: boolean;
-      interactionType?: "ordering" | "matching";
+      interactionType?: "ordering" | "matching" | "multiple-choice" | "image-occlusion";
       interactionCorrect?: boolean;
     };
   }>;

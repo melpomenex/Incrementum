@@ -4,6 +4,7 @@
  */
 
 import { RefreshCw, Filter, Brain, Calendar } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface SmartQueuesSettingsProps {
   settings: {
@@ -18,18 +19,18 @@ interface SmartQueuesSettingsProps {
 const QUEUE_MODES = [
   {
     value: 'normal' as const,
-    label: 'Normal',
-    description: 'Standard queue showing all due items in order',
+    labelKey: 'settings.queueModeNormal',
+    descKey: 'settings.queueModeNormalDesc',
   },
   {
     value: 'filtered' as const,
-    label: 'Filtered',
-    description: 'Queue filtered by tags, categories, or priority',
+    labelKey: 'settings.queueModeFiltered',
+    descKey: 'settings.queueModeFilteredDesc',
   },
   {
     value: 'intelligent' as const,
-    label: 'Intelligent',
-    description: 'AI-powered queue optimization based on performance',
+    labelKey: 'settings.queueModeIntelligent',
+    descKey: 'settings.queueModeIntelligentDesc',
   },
 ];
 
@@ -37,6 +38,7 @@ export function SmartQueuesSettings({
   settings,
   onUpdateSettings,
 }: SmartQueuesSettingsProps) {
+  const { t } = useI18n();
   return (
     <div className="p-6 max-w-2xl">
       <div className="flex items-center gap-3 mb-6">
@@ -44,9 +46,9 @@ export function SmartQueuesSettings({
           <Brain className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Smart Queues</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("settings.smartQueues")}</h3>
           <p className="text-sm text-muted-foreground">
-            Configure intelligent learning queue behavior
+            {t("settings.smartQueuesDesc")}
           </p>
         </div>
       </div>
@@ -58,9 +60,9 @@ export function SmartQueuesSettings({
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-foreground">FSRS-Based Queue Scheduling</div>
+                <div className="text-sm font-medium text-foreground">{t("settings.fsrsScheduling")}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Use FSRS (Free Spaced Repetition Scheduler) algorithm to optimize document review timing based on memory retention
+                  {t("settings.fsrsSchedulingDesc")}
                 </div>
               </div>
             </div>
@@ -85,9 +87,9 @@ export function SmartQueuesSettings({
             <div className="flex items-start gap-3">
               <RefreshCw className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
-                <div className="text-sm font-medium text-foreground">Auto-Refresh</div>
+                <div className="text-sm font-medium text-foreground">{t("settings.autoRefresh")}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Automatically refresh the queue when items become due
+                  {t("settings.autoRefreshDesc")}
                 </div>
               </div>
             </div>
@@ -112,9 +114,9 @@ export function SmartQueuesSettings({
             <div className="flex items-center gap-3 mb-3">
               <RefreshCw className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm font-medium text-foreground">Refresh Interval</div>
+                <div className="text-sm font-medium text-foreground">{t("settings.refreshInterval")}</div>
                 <div className="text-xs text-muted-foreground">
-                  How often to check for new due items
+                  {t("settings.refreshIntervalDesc")}
                 </div>
               </div>
             </div>
@@ -150,9 +152,9 @@ export function SmartQueuesSettings({
           <div className="flex items-center gap-3 mb-3">
             <Filter className="w-5 h-5 text-muted-foreground" />
             <div>
-              <div className="text-sm font-medium text-foreground">Queue Mode</div>
+              <div className="text-sm font-medium text-foreground">{t("settings.queueMode")}</div>
               <div className="text-xs text-muted-foreground">
-                Select how items are organized in your learning queue
+                {t("settings.queueModeDesc")}
               </div>
             </div>
           </div>
@@ -171,10 +173,10 @@ export function SmartQueuesSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="text-sm font-medium text-foreground">
-                      {mode.label}
+                      {t(mode.labelKey)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {mode.description}
+                      {t(mode.descKey)}
                     </div>
                   </div>
                   {settings.mode === mode.value && (
@@ -189,19 +191,19 @@ export function SmartQueuesSettings({
         {/* FSRS Info */}
         {settings.useFsrsScheduling && (
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
-            <p className="text-sm font-medium text-primary">FSRS-Based Scheduling Enabled</p>
+            <p className="text-sm font-medium text-primary">{t("settings.fsrsEnabledTitle")}</p>
             <ul className="text-sm text-primary space-y-2">
               <li>
-                Documents are scheduled based on <strong>next_reading_date</strong> calculated by FSRS for optimal memory retention
+                {t("settings.fsrsInfo1")}
               </li>
               <li>
-                New documents (never read) appear first, ordered by user-set priority
+                {t("settings.fsrsInfo2")}
               </li>
               <li>
-                Due documents (next_reading_date ≤ now) appear before future-dated documents
+                {t("settings.fsrsInfo3")}
               </li>
               <li>
-                Your priority_rating acts as a multiplier (0.5x to 2.0x) on FSRS-calculated priority
+                {t("settings.fsrsInfo4")}
               </li>
             </ul>
           </div>
@@ -209,16 +211,16 @@ export function SmartQueuesSettings({
 
         {/* Mode Descriptions */}
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-medium text-primary">Queue Mode Details:</p>
+          <p className="text-sm font-medium text-primary">{t("settings.queueModeDetails")}</p>
           <ul className="text-sm text-primary space-y-2">
             <li>
-              <strong>Normal:</strong> Shows all items in their scheduled order. Best for focused review sessions.
+              <strong>{t("settings.queueModeNormal")}:</strong> {t("settings.queueModeNormalDetail")}
             </li>
             <li>
-              <strong>Filtered:</strong> Apply filters like tags, categories, or priority ranges. Useful for targeted study.
+              <strong>{t("settings.queueModeFiltered")}:</strong> {t("settings.queueModeFilteredDetail")}
             </li>
             <li>
-              <strong>Intelligent:</strong> Uses AI to optimize queue order based on your performance patterns and learning goals.
+              <strong>{t("settings.queueModeIntelligent")}:</strong> {t("settings.queueModeIntelligentDetail")}
             </li>
           </ul>
         </div>
@@ -226,8 +228,7 @@ export function SmartQueuesSettings({
         {/* Performance Note */}
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">
-            <strong>Tip:</strong> For best performance, use auto-refresh with intervals of 30 seconds or more.
-            Shorter intervals may impact battery life on portable devices.
+            <strong>{t("settings.tip")}:</strong> {t("settings.autoRefreshTip")}
           </p>
         </div>
       </div>

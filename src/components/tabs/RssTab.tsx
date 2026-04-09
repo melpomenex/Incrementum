@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../lib/i18n";
 
 interface RssFeed {
   id: string;
@@ -20,6 +21,7 @@ export function RssTab() {
   const [items, setItems] = useState<RssItem[]>([]);
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [selectedFeed, setSelectedFeed] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const handleAddFeed = async () => {
     if (!newFeedUrl.trim()) return;
@@ -62,7 +64,7 @@ export function RssTab() {
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border">
-        <h2 className="text-2xl font-bold text-foreground mb-4">RSS Feeds</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-4">{t("toolbar.rssFeeds")}</h2>
 
         <div className="flex gap-2">
           <input
@@ -77,7 +79,7 @@ export function RssTab() {
             onClick={handleAddFeed}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
-            Add Feed
+            {t("tabs.addFeed")}
           </button>
         </div>
       </div>
@@ -87,11 +89,11 @@ export function RssTab() {
         <div className="w-80 border-r border-border overflow-auto">
           <div className="p-4">
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-              Your Feeds ({feeds.length})
+              {t("tabs.yourFeeds")} ({feeds.length})
             </h3>
             {feeds.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No feeds yet. Add your first RSS feed above.
+                {t("tabs.noFeedsYet")}
               </p>
             ) : (
               <div className="space-y-2">
@@ -136,16 +138,15 @@ export function RssTab() {
           {selectedFeed ? (
             <div className="p-4">
               <h3 className="text-lg font-semibold text-foreground mb-4">
-                Feed Items
+                {t("tabs.feedItems")}
               </h3>
               {items.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
-                    RSS feed parsing is not yet fully implemented.
+                    {t("tabs.rssNotImplemented")}
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    This feature will allow you to subscribe to RSS feeds and
-                    import articles into your reading queue.
+                    {t("tabs.rssFeatureDesc")}
                   </p>
                 </div>
               ) : (
@@ -169,7 +170,7 @@ export function RssTab() {
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
                       >
-                        Read more
+                        {t("tabs.readMore")}
                       </a>
                     </div>
                   ))}
@@ -179,7 +180,7 @@ export function RssTab() {
           ) : (
             <div className="h-full flex items-center justify-center">
               <p className="text-muted-foreground">
-                Select a feed to view its items
+                {t("tabs.selectFeedToView")}
               </p>
             </div>
           )}

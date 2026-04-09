@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 /// FSRS Memory State (stability and difficulty)
@@ -56,6 +57,7 @@ pub struct LearningItem {
     pub is_suspended: bool,
     pub tags: Vec<String>,
     pub image_asset_ids: Vec<String>,
+    pub interaction_metadata: Option<Value>,
     /// FSRS Memory State (stability and difficulty)
     pub memory_state: Option<MemoryState>,
     /// Algorithm type used for scheduling (e.g., "fsrs", "sm2", "sm18")
@@ -105,6 +107,7 @@ impl LearningItem {
             is_suspended: false,
             tags: Vec::new(),
             image_asset_ids: Vec::new(),
+            interaction_metadata: None,
             memory_state: None,
             algorithm_type: "fsrs".to_string(),
             algorithm_state: None,

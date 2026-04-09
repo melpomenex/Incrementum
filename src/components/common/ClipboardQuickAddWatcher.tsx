@@ -3,6 +3,7 @@ import { createDocument, getDocuments } from "../../api/documents";
 import { createExtract } from "../../api/extracts";
 import { createLearningItem } from "../../api/learning-items";
 import { useToast } from "./Toast";
+import { useI18n } from "../../lib/i18n";
 
 const ENABLED_KEY = "incrementum.clipboardWatcher.enabled";
 const POLL_MS = 1400;
@@ -24,6 +25,7 @@ export function getClipboardWatcherEnabled(): boolean {
 }
 
 export function ClipboardQuickAddWatcher() {
+  const { t } = useI18n();
   const [capturedText, setCapturedText] = useState<string | null>(null);
   const lastClipboardRef = useRef("");
   const dismissedRef = useRef(new Set<string>());
@@ -56,7 +58,7 @@ export function ClipboardQuickAddWatcher() {
 
   return (
     <div className="fixed bottom-4 left-4 z-[120] w-[min(420px,calc(100vw-2rem))] rounded-lg border border-border bg-card p-3 shadow-2xl">
-      <p className="text-xs font-semibold text-foreground">Clipboard quick add</p>
+      <p className="text-xs font-semibold text-foreground">{t("clipboardWatcher.clipboardQuickAdd")}</p>
       <p className="mt-1 text-xs text-muted-foreground">{preview}</p>
       <div className="mt-3 flex items-center gap-2">
         <button
@@ -68,22 +70,22 @@ export function ClipboardQuickAddWatcher() {
               answer: "",
               allow_duplicate: true,
             });
-            toast.success("Card created", "Clipboard text saved as a flashcard.");
+            toast.success(t("clipboardWatcher.cardCreated"), t("clipboardWatcher.cardCreatedDesc"));
             setCapturedText(null);
           }}
         >
-          Create Card
+          {t("clipboardWatcher.createCard")}
         </button>
         <button
           className="rounded border border-border px-2.5 py-1.5 text-xs text-foreground"
           onClick={async () => {
             const docId = await ensureClipboardInboxDocument();
             await createExtract({ document_id: docId, content: capturedText, tags: ["clipboard"] });
-            toast.success("Extract created", "Clipboard text saved as an extract.");
+            toast.success(t("clipboardWatcher.extractCreated"), t("clipboardWatcher.extractCreatedDesc"));
             setCapturedText(null);
           }}
         >
-          Create Extract
+          {t("clipboardWatcher.createExtract")}
         </button>
         <button
           className="rounded border border-border px-2.5 py-1.5 text-xs text-muted-foreground"
@@ -92,7 +94,7 @@ export function ClipboardQuickAddWatcher() {
             setCapturedText(null);
           }}
         >
-          Dismiss
+          {t("clipboardWatcher.dismiss")}
         </button>
       </div>
     </div>

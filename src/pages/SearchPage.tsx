@@ -11,6 +11,7 @@ import {
   Folder,
   ChevronRight,
 } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 
 type SearchResultType = "document" | "extract" | "flashcard";
 
@@ -27,6 +28,7 @@ interface SearchResult {
 }
 
 export function SearchPage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);

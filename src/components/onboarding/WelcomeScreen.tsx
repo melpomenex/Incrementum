@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Zap,
 } from 'lucide-react';
+import { useI18n } from '../../lib/i18n';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -21,6 +22,7 @@ interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) {
+  const { t } = useI18n();
   const [showOptions, setShowOptions] = useState(false);
 
   const handleGetStarted = () => {
@@ -48,10 +50,10 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
               <Sparkles className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              How would you like to start?
+              {t("onboarding.howToStart")}
             </h1>
             <p className="text-muted-foreground">
-              Choose an option to begin your learning journey
+              {t("onboarding.howToStartDesc")}
             </p>
           </div>
 
@@ -68,22 +70,21 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-foreground">Try with Demo Content</h3>
+                    <h3 className="font-semibold text-foreground">{t("onboarding.tryDemo")}</h3>
                     <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs rounded-full">
-                      Recommended
+                      {t("onboarding.recommended")}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Start with sample documents and flashcards to see how Incrementum works.
-                    Perfect for exploring the features before adding your own content.
+                    {t("onboarding.demoDescLong")}
                   </p>
                   <div className="flex items-center gap-2 mt-3 text-xs text-primary">
                     <FileText className="w-3 h-3" />
-                    <span>Sample PDF</span>
+                    <span>{t("onboarding.samplePdf")}</span>
                     <BookOpen className="w-3 h-3 ml-2" />
-                    <span>Sample EPUB</span>
+                    <span>{t("onboarding.sampleEpub")}</span>
                     <Zap className="w-3 h-3 ml-2" />
-                    <span>10 Demo Cards</span>
+                    <span>{t("onboarding.demoCards")}</span>
                   </div>
                 </div>
                 <ArrowRight className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -100,10 +101,9 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
                   <FileText className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-foreground mb-1">Start Fresh</h3>
+                  <h3 className="font-semibold text-foreground mb-1">{t("onboarding.startFresh")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Begin with an empty library. Import your own documents and create
-                    your personalized learning materials from scratch.
+                    {t("onboarding.startFreshDescLong")}
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -114,7 +114,7 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
           {/* Footer */}
           <div className="p-6 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
-              You can always add more content later from the Documents page
+              {t("onboarding.addContentLater")}
             </p>
           </div>
         </div>
@@ -131,10 +131,10 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
             <BookOpen className="w-10 h-10 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Welcome to Incrementum
+            {t("onboarding.welcomeTitle")}
           </h1>
           <p className="text-muted-foreground">
-            Your incremental reading and spaced repetition companion
+            {t("onboarding.welcomeSubtitle")}
           </p>
         </div>
 
@@ -146,9 +146,9 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
               <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
                 <BookOpen className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="text-foreground font-medium mb-2">Import Documents</h3>
+              <h3 className="text-foreground font-medium mb-2">{t("onboarding.importDocuments")}</h3>
               <p className="text-sm text-muted-foreground">
-                Add PDFs, EPUBs, YouTube videos, and more
+                {t("onboarding.importDocumentsDesc")}
               </p>
             </div>
 
@@ -156,9 +156,9 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
               <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Layers className="w-6 h-6 text-green-500" />
               </div>
-              <h3 className="text-foreground font-medium mb-2">Create Extracts</h3>
+              <h3 className="text-foreground font-medium mb-2">{t("onboarding.createExtracts")}</h3>
               <p className="text-sm text-muted-foreground">
-                Highlight key passages and create notes
+                {t("onboarding.createExtractsDesc")}
               </p>
             </div>
 
@@ -166,34 +166,34 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
               <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Brain className="w-6 h-6 text-purple-500" />
               </div>
-              <h3 className="text-foreground font-medium mb-2">Learn Efficiently</h3>
+              <h3 className="text-foreground font-medium mb-2">{t("onboarding.learnEfficiently")}</h3>
               <p className="text-sm text-muted-foreground">
-                Spaced repetition for long-term retention
+                {t("onboarding.learnEfficientlyDesc")}
               </p>
             </div>
           </div>
 
           {/* How it works */}
           <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">How it works</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">{t("onboarding.howItWorks")}</h2>
             <ol className="space-y-3">
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
                   1
                 </span>
-                <p className="text-foreground">Import your documents (PDFs, EPUBs, videos, articles)</p>
+                <p className="text-foreground">{t("onboarding.step1Full")}</p>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
                   2
                 </span>
-                <p className="text-foreground">Create extracts and learning items as you read</p>
+                <p className="text-foreground">{t("onboarding.step2Full")}</p>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
                   3
                 </span>
-                <p className="text-foreground">Review with spaced repetition to remember what you learn</p>
+                <p className="text-foreground">{t("onboarding.step3Full")}</p>
               </li>
             </ol>
           </div>
@@ -202,7 +202,7 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
           <div className="bg-muted/30 rounded-xl p-4 border border-border">
             <p className="text-muted-foreground text-sm flex items-center gap-2">
               <span className="px-2 py-1 bg-muted rounded text-foreground text-xs font-mono">Ctrl/⌘ + K</span>
-              <span>Open the command palette anytime to navigate quickly</span>
+              <span>{t("onboarding.commandPaletteHint")}</span>
             </p>
           </div>
         </div>
@@ -212,9 +212,9 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
           <button
             onClick={handleGetStarted}
             className="px-6 py-2.5 min-h-[44px] bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none flex items-center gap-2"
-            aria-label="Get started with Incrementum"
+            aria-label={t("onboarding.getStarted")}
           >
-            Get Started
+            {t("onboarding.getStarted")}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -9,31 +9,44 @@ import { IntegrationSettings } from "../components/settings/IntegrationSettings"
 import { AudioTranscriptionSettings } from "../components/settings/AudioTranscriptionSettings";
 import { SmartQueuesSettings } from "../components/settings/SmartQueuesSettings";
 import { TTSSettings } from "../components/settings/TTSSettings";
+import { useI18n } from "../lib/i18n";
 
 type SettingsTab = "profile" | "general" | "ai" | "sync" | "integrations" | "audio-transcription" | "tts" | "smart-queues" | "about";
 
+const LOCALE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "zh", label: "中文" },
+  { value: "es", label: "Español" },
+  { value: "de", label: "Deutsch" },
+  { value: "fr", label: "Français" },
+  { value: "ja", label: "日本語" },
+] as const;
+
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const { t } = useI18n();
+
+  const tabs = [
+    { id: "profile" as const, label: t("settings.profile"), icon: "👤" },
+    { id: "general" as const, label: t("settings.general"), icon: "⚙️" },
+    { id: "ai" as const, label: t("settings.ai"), icon: "🤖" },
+    { id: "sync" as const, label: t("settings.sync"), icon: "☁️" },
+    { id: "integrations" as const, label: t("settings.integrations"), icon: "🔗" },
+    { id: "audio-transcription" as const, label: t("settings.audioTranscription"), icon: "🎤" },
+    { id: "tts" as const, label: t("settings.tts"), icon: "🗣️" },
+    { id: "smart-queues" as const, label: t("settings.smartQueues"), icon: "🧠" },
+    { id: "about" as const, label: t("settings.about"), icon: "ℹ️" },
+  ];
 
   return (
     <div className="h-full flex bg-cream">
       {/* Settings Sidebar */}
       <div className="w-56 border-r border-border bg-card">
         <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Settings</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t("settings.title")}</h2>
         </div>
         <div className="p-2">
-          {[
-            { id: "profile" as const, label: "Profile", icon: "👤" },
-            { id: "general" as const, label: "General", icon: "⚙️" },
-            { id: "ai" as const, label: "AI", icon: "🤖" },
-            { id: "sync" as const, label: "Sync", icon: "☁️" },
-            { id: "integrations" as const, label: "Integrations", icon: "🔗" },
-            { id: "audio-transcription" as const, label: "Audio Transcription", icon: "🎤" },
-            { id: "tts" as const, label: "Text To Speech", icon: "🗣️" },
-            { id: "smart-queues" as const, label: "Smart Queues", icon: "🧠" },
-            { id: "about" as const, label: "About", icon: "ℹ️" },
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -54,7 +67,7 @@ export function SettingsPage() {
       <div className="flex-1 overflow-auto">
         {activeTab === "profile" && (
           <div className="p-6 max-w-2xl">
-            <h3 className="text-lg font-semibold text-foreground mb-4">User Profile</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{t("settings.userProfile")}</h3>
             <UserProfilePanel />
           </div>
         )}
@@ -73,6 +86,7 @@ export function SettingsPage() {
 
 function GeneralSettings() {
   const { settings, updateSettings } = useSettingsStore();
+  const { t } = useI18n();
   const collections = useCollectionStore((state) => state.collections);
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
   const setActiveCollectionId = useCollectionStore((state) => state.setActiveCollectionId);
@@ -83,18 +97,18 @@ function GeneralSettings() {
 
   return (
     <div className="p-6 max-w-2xl">
-      <h3 className="text-lg font-semibold text-foreground mb-4">General Settings</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">{t("settings.generalSettings")}</h3>
 
       <div className="space-y-6">
         {/* Collections */}
         <div className="bg-card border border-border rounded p-4">
-          <h4 className="text-sm font-medium text-foreground mb-3">Collections</h4>
+          <h4 className="text-sm font-medium text-foreground mb-3">{t("settings.collections")}</h4>
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm text-foreground">Active Collection</div>
+                <div className="text-sm text-foreground">{t("settings.activeCollection")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Scope your queue, documents, and graph
+                  {t("settings.scopeQueue")}
                 </div>
               </div>
               <select
@@ -114,7 +128,7 @@ function GeneralSettings() {
               <input
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
-                placeholder="New collection name"
+                placeholder={t("settings.newCollectionName")}
                 className="flex-1 px-3 py-1.5 bg-background border border-border rounded text-sm"
               />
               <button
@@ -125,7 +139,7 @@ function GeneralSettings() {
                 }}
                 className="px-3 py-1.5 bg-primary-100 text-primary-700 rounded text-sm hover:opacity-90 transition-opacity"
               >
-                Create
+                {t("common.create")}
               </button>
             </div>
 
@@ -133,21 +147,21 @@ function GeneralSettings() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    const nextName = window.prompt("Rename collection:", "");
+                    const nextName = window.prompt(`${t("common.rename")}:`, "");
                     if (nextName) {
                       renameCollection(activeCollectionId, nextName);
                     }
                   }}
                   className="px-3 py-1.5 bg-muted text-foreground rounded text-sm hover:bg-muted/80 transition-colors"
                 >
-                  Rename Active
+                  {t("settings.renamedActive")}
                 </button>
                 {collections.length > 1 && (
                   <button
                     onClick={() => removeCollection(activeCollectionId)}
                     className="px-3 py-1.5 bg-destructive/10 text-destructive rounded text-sm hover:bg-destructive/20 transition-colors"
                   >
-                    Delete Active
+                    {t("settings.deleteActive")}
                   </button>
                 )}
               </div>
@@ -157,13 +171,34 @@ function GeneralSettings() {
 
         {/* Appearance */}
         <div className="bg-card border border-border rounded p-4">
-          <h4 className="text-sm font-medium text-foreground mb-3">Appearance</h4>
+          <h4 className="text-sm font-medium text-foreground mb-3">{t("settings.appearance")}</h4>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Theme</div>
+                <div className="text-sm text-foreground">{t("settings.language")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Choose your preferred color scheme
+                  {t("settings.languageHelp")}
+                </div>
+              </div>
+              <select
+                value={settings.general.language}
+                onChange={(e) =>
+                  updateSettings({ general: { ...settings.general, language: e.target.value } })
+                }
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm min-w-[140px]"
+              >
+                {LOCALE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-foreground">{t("settings.theme")}</div>
+                <div className="text-xs text-foreground-secondary">
+                  {t("settings.themeDesc")}
                 </div>
               </div>
               <select
@@ -178,9 +213,9 @@ function GeneralSettings() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Font Size</div>
+                <div className="text-sm text-foreground">{t("settings.fontSize")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Adjust the base font size
+                  {t("settings.fontSizeDesc")}
                 </div>
               </div>
               <input
@@ -197,13 +232,13 @@ function GeneralSettings() {
 
         {/* Review Settings */}
         <div className="bg-card border border-border rounded p-4">
-          <h4 className="text-sm font-medium text-foreground mb-3">Review Settings</h4>
+          <h4 className="text-sm font-medium text-foreground mb-3">{t("settings.reviewSettings")}</h4>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Algorithm</div>
+                <div className="text-sm text-foreground">{t("settings.algorithm")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Spaced repetition algorithm
+                  {t("settings.algorithmDesc")}
                 </div>
               </div>
               <select
@@ -211,7 +246,7 @@ function GeneralSettings() {
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
-                <option value="fsrs">FSRS-5 (Recommended)</option>
+                <option value="fsrs">{t("settings.fsrs5Recommended")}</option>
                 <option value="sm18">SuperMemo 18</option>
                 <option value="sm15">SuperMemo 15</option>
                 <option value="sm8">SuperMemo 8</option>
@@ -221,9 +256,9 @@ function GeneralSettings() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">New Cards per Day</div>
+                <div className="text-sm text-foreground">{t("settings.newCardsPerDay")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Maximum new cards to show daily
+                  {t("settings.newCardsPerDayDesc")}
                 </div>
               </div>
               <input
@@ -239,9 +274,9 @@ function GeneralSettings() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Reviews per Day</div>
+                <div className="text-sm text-foreground">{t("settings.reviewsPerDay")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Maximum reviews to show daily
+                  {t("settings.reviewsPerDayDesc")}
                 </div>
               </div>
               <input
@@ -260,13 +295,13 @@ function GeneralSettings() {
 
         {/* Import Settings */}
         <div className="bg-card border border-border rounded p-4">
-          <h4 className="text-sm font-medium text-foreground mb-3">Import Settings</h4>
+          <h4 className="text-sm font-medium text-foreground mb-3">{t("settings.importSettings")}</h4>
           <div className="space-y-3">
             <label className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Auto-import</div>
+                <div className="text-sm text-foreground">{t("settings.autoImport")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Automatically import from watched folders
+                  {t("settings.autoImportDesc")}
                 </div>
               </div>
               <input
@@ -278,9 +313,9 @@ function GeneralSettings() {
             </label>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-foreground">Default Category</div>
+                <div className="text-sm text-foreground">{t("settings.defaultCategory")}</div>
                 <div className="text-xs text-foreground-secondary">
-                  Category for imported documents
+                  {t("settings.defaultCategoryDesc")}
                 </div>
               </div>
               <input
@@ -300,20 +335,20 @@ function GeneralSettings() {
 }
 
 function AboutSettings() {
+  const { t } = useI18n();
+
   return (
     <div className="p-6 max-w-2xl">
-      <h3 className="text-lg font-semibold text-foreground mb-4">About Incrementum</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">{t("settings.aboutIncrementum")}</h3>
 
       <div className="bg-card border border-border rounded p-6 text-center">
         <div className="text-5xl mb-4">📚</div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Incrementum</h2>
         <p className="text-sm text-foreground-secondary mb-4">
-          Version {APP_VERSION}
+          {t("settings.version")} {APP_VERSION}
         </p>
         <p className="text-sm text-foreground mb-6 max-w-md">
-          Incrementum is your companion for incremental reading and spaced
-          repetition learning. Import documents, create extracts, and master
-          knowledge through intelligent flashcard reviews.
+          {t("settings.aboutDesc")}
         </p>
         <div className="flex justify-center gap-4 text-sm">
           <a
@@ -322,7 +357,7 @@ function AboutSettings() {
             rel="noopener noreferrer"
             className="text-primary-600 hover:underline"
           >
-            GitHub
+            {t("settings.github")}
           </a>
           <a
             href="https://docs.incrementum.app"
@@ -330,7 +365,7 @@ function AboutSettings() {
             rel="noopener noreferrer"
             className="text-primary-600 hover:underline"
           >
-            Documentation
+            {t("settings.documentation")}
           </a>
           <a
             href="https://discord.gg/incrementum"
@@ -338,7 +373,7 @@ function AboutSettings() {
             rel="noopener noreferrer"
             className="text-primary-600 hover:underline"
           >
-            Discord
+            {t("settings.discord")}
           </a>
         </div>
       </div>

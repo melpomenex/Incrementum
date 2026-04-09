@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTabsStore, normalizePane } from "../../stores";
 import { useDocumentStore } from "../../stores";
 import { useSettingsStore } from "../../stores";
+import { useI18n } from "../../lib/i18n";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
 import { VimiumNavigationProvider, useVimiumEnabled, type VimiumCommand } from "../common/VimiumNavigation";
@@ -30,6 +31,7 @@ export function MainLayout() {
   const reopenLastClosedTab = useTabsStore((state) => state.reopenLastClosedTab);
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const initializedRef = useRef(false);
+  const { t } = useI18n();
   const [vimiumEnabled] = useVimiumEnabled();
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
@@ -146,21 +148,21 @@ export function MainLayout() {
     {
       id: "vimium-open",
       name: "open",
-      description: "Open a URL in the current tab",
+      description: t("toolbar.openUrl"),
       action: (args) => openWebUrl(args.join(" "), false),
       aliases: ["o"],
     },
     {
       id: "vimium-tab",
       name: "tab",
-      description: "Open a URL in a new tab",
+      description: t("toolbar.openUrlNewTab"),
       action: (args) => openWebUrl(args.join(" "), true),
       aliases: ["t"],
     },
     {
       id: "vimium-dashboard",
       name: "dashboard",
-      description: "Go to Dashboard",
+      description: t("toolbar.goToDashboard"),
       action: (_args) => {
         addTab({
           title: "Dashboard",
@@ -174,7 +176,7 @@ export function MainLayout() {
     {
       id: "vimium-documents",
       name: "documents",
-      description: "Go to Documents",
+      description: t("toolbar.goToDocuments"),
       action: (_args) => {
         addTab({
           title: "Documents",
@@ -188,7 +190,7 @@ export function MainLayout() {
     {
       id: "vimium-queue",
       name: "queue",
-      description: "Go to Queue",
+      description: t("toolbar.goToQueue"),
       action: (_args) => {
         addTab({
           title: "Queue",
@@ -202,7 +204,7 @@ export function MainLayout() {
     {
       id: "vimium-review",
       name: "review",
-      description: "Start Review",
+      description: t("toolbar.startReviewCmd"),
       action: (_args) => {
         addTab({
           title: "Review",
@@ -216,7 +218,7 @@ export function MainLayout() {
     {
       id: "vimium-analytics",
       name: "analytics",
-      description: "Open Statistics",
+      description: t("toolbar.openStats"),
       action: (_args) => {
         addTab({
           title: "Statistics",
@@ -230,7 +232,7 @@ export function MainLayout() {
     {
       id: "vimium-settings",
       name: "settings",
-      description: "Open Settings",
+      description: t("toolbar.openSettings"),
       action: (_args) => {
         addTab({
           title: "Settings",
@@ -244,7 +246,7 @@ export function MainLayout() {
     {
       id: "vimium-close-tab",
       name: "close-tab",
-      description: "Close the active tab",
+      description: t("toolbar.closeTab"),
       action: () => {
         if (activePaneTabId) closeTab(activePaneTabId);
       },
@@ -253,14 +255,14 @@ export function MainLayout() {
     {
       id: "vimium-restore-tab",
       name: "restore-tab",
-      description: "Reopen the last closed tab",
+      description: t("toolbar.reopenClosedTab"),
       action: () => reopenLastClosedTab(),
       aliases: ["reopen"],
     },
     {
       id: "vimium-next-tab",
       name: "next-tab",
-      description: "Switch to the next tab",
+      description: t("toolbar.switchNextTab"),
       action: () => {
         // Find first tab pane and cycle through its tabs
         const paneIds = useTabsStore.getState().getTabPaneIds();
@@ -278,7 +280,7 @@ export function MainLayout() {
     {
       id: "vimium-prev-tab",
       name: "prev-tab",
-      description: "Switch to the previous tab",
+      description: t("toolbar.switchPrevTab"),
       action: () => {
         // Find first tab pane and cycle through its tabs
         const paneIds = useTabsStore.getState().getTabPaneIds();

@@ -43,6 +43,7 @@ import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { summarizeContent } from "../../api/ai";
 import { isTauri, openExternal } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
 
@@ -135,6 +136,7 @@ function calculateEngagementScore(item: RSSScrollItem): number {
 }
 
 export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
+  const { t } = useI18n();
   const { documents, addDocument, updateDocument } = useDocumentStore();
   const { settings } = useSettingsStore();
   const toast = useToast();
@@ -985,7 +987,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const content = htmlToText(rawContent);
 
     if (!content.trim()) {
-      toast.error("No content to summarize");
+      toast.error(t("queueScroll.noContentToSummarize"));
       return;
     }
 
@@ -1014,7 +1016,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       setSummaryText(summary);
     } catch (error) {
       console.error("Failed to summarize:", error);
-      toast.error("Failed to generate summary", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("queueScroll.failedSummarize"), error instanceof Error ? error.message : "Unknown error");
       setShowSummary(false);
     } finally {
       setIsSummarizing(false);
@@ -1092,26 +1094,26 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           <Newspaper className="w-16 h-16 mb-4 opacity-50" />
         )}
         <p className="text-lg mb-2">
-          {favoritesOnly ? "No favorite articles yet" : "No articles to read"}
+          {favoritesOnly ? t("queueScroll.noFavoriteArticles") : t("queueScroll.noArticles")}
         </p>
         <p className="text-sm mb-4">
           {favoritesOnly
-            ? "Star articles in scroll mode to see them here"
-            : "Add RSS feeds to get started"}
+            ? t("queueScroll.starToSee")
+            : t("queueScroll.loadArticles")}
         </p>
         {favoritesOnly && (
           <button
             onClick={() => setFavoritesOnly(false)}
             className="px-4 py-2 mb-3 bg-muted text-foreground rounded-lg hover:opacity-90 transition-opacity"
           >
-            Show All Articles
+            {t("queueScroll.showAll")}
           </button>
         )}
         <button
           onClick={onExit}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
         >
-          Back to RSS Reader
+          {t("queueScroll.exit")}
         </button>
       </div>
     );
@@ -1162,7 +1164,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               )}
               title={favoritesOnly ? "Showing favorites only" : "Show favorites only"}
             >
-              {favoritesOnly ? "Favorites Only" : "All Articles"}
+              {favoritesOnly ? t("queueScroll.favorites") : t("queueScroll.allArticles")}
             </button>
           </div>
 
