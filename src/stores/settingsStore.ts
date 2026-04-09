@@ -152,9 +152,9 @@ interface InterfaceSettings {
   showStats: boolean;
   compactMode: boolean;
   animationsEnabled: boolean;
-  /** Particle density / count multiplier for animated theme backdrops (0.25–2). */
+  /** Particle density / count multiplier for animated theme backdrops (0.25–8). */
   animationFrequency: number;
-  /** Global brightness multiplier for animated theme backdrops (1–20). */
+  /** Brightness gain stored in tenths, where 10 = 1.0x and 100 = 10.0x. */
   animationBrightness: number;
   reviewZenMode: boolean;
   conversationalReviewEnabled: boolean;
