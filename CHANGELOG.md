@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.3] - 2026-04-09
+
+### Changed
+- Migrated the app's configurable UI/theme font loading to an offline-first model by bundling local font assets and removing the runtime Google Fonts dependency.
+- Aligned scheduling terminology and defaults across the app with FSRS-6, including updated labels and canonical 21-parameter profile handling for existing personalized weights.
+
+### Fixed
+- Fixed browser/PWA Anki package (`.apkg`) imports so imported learning items stay linked to the correct created deck documents and preserve tags needed by downstream review/deck flows.
+
 ## [1.18.0] - 2026-04-09
 
 ### Changed
@@ -607,6 +616,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.3...HEAD
+[1.18.3]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.0...v1.18.3
 [1.2.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/melpomenex/incrementum-tauri/releases/tag/v1.0.0
