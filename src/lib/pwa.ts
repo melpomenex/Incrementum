@@ -171,10 +171,24 @@ export async function registerServiceWorker(): Promise<boolean> {
 
     console.log('[PWA] Service worker registered:', registration.scope);
 
-    // Listen for updates
-    registration.addEventListener('update', () => {
-      console.log('[PWA] New service worker available');
-    });
+    if (registration.waiting) {
+      console.log('[PWA] Waiting service worker detected');
+    }
+
+    const logInstallingWorker = () => {
+      const installingWorker = registration.installing;
+      if (!installingWorker) return;
+
+      installingWorker.addEventListener('statechange', () => {
+        console.log('[PWA] Service worker state:', installingWorker.state);
+        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('[PWA] New service worker available');
+        }
+      });
+    };
+
+    registration.addEventListener('updatefound', logInstallingWorker);
+    logInstallingWorker();
 
     return true;
   } catch (error) {
@@ -353,6 +367,23 @@ export function initializePWA(): void {
       console.log('[PWA] PWA initialized successfully');
     }
   });
+
+  if ('serviceWorker' in navigator) {
+    const refreshRegistration = () => {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        registration?.update().catch((error) => {
+          console.warn('[PWA] Failed to refresh service worker registration:', error);
+        });
+      });
+    };
+
+    window.addEventListener('focus', refreshRegistration);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshRegistration();
+      }
+    });
+  }
 
   // Log initial online status
   console.log('[PWA] Initial online status:', isOnline() ? 'online' : 'offline');

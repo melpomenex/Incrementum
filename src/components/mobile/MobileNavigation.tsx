@@ -20,10 +20,15 @@ import {
   Newspaper,
   Maximize2,
   Minimize2,
+  Menu,
+  Search,
+  Download,
+  BookOpen,
 } from "lucide-react";
 import { toggleFullscreen, isFullscreen, isFullscreenSupported, isPWA } from "../../lib/pwa";
 import { useTabsStore } from "../../stores";
 import type { TabType } from "../../stores/tabsStore";
+import { usePWAStatus } from "../pwa";
 import {
   DashboardTab,
   QueueTab,
@@ -83,7 +88,7 @@ const primaryNavItems: NavItem[] = [
   {
     id: "documents",
     label: "Library",
-    icon: FileText,
+    icon: BookOpen,
     tabType: "documents",
     tabTitle: "Documents",
     tabIcon: "📂",
@@ -91,8 +96,8 @@ const primaryNavItems: NavItem[] = [
     closable: true,
   },
   {
-    id: "more",
-    label: "More",
+    id: "settings",
+    label: "Settings",
     icon: Settings,
     tabType: "settings",
     tabTitle: "Settings",
@@ -152,6 +157,12 @@ export function MobileNavigation({
   const { tabs, rootPane, addTab, setActiveTab } = useTabsStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [fullscreenState, setFullscreenState] = useState(isFullscreen());
+  const [showIosInstallHelp, setShowIosInstallHelp] = useState(false);
+  const { canInstall, install, isStandalone } = usePWAStatus();
+  const isIOSDevice =
+    typeof navigator !== "undefined" &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const showInstallCta = !isStandalone && (canInstall || isIOSDevice);
   
   // Listen for fullscreen changes
   useEffect(() => {
@@ -203,6 +214,12 @@ export function MobileNavigation({
     [tabs, activeTabId]
   );
 
+  const moreItems = useMemo(
+    () => allNavItems.filter((item) => !primaryNavItems.find((primary) => primary.id === item.id)),
+    []
+  );
+  const moreMenuActive = moreItems.some((item) => item.tabType === activeTab?.type);
+
   const openTab = (item: NavItem) => {
     const existing = tabs.find((tab) => tab.type === item.tabType);
     if (existing) {
@@ -233,6 +250,16 @@ export function MobileNavigation({
     });
   };
 
+  const handleInstall = async () => {
+    if (isIOSDevice) {
+      setShowIosInstallHelp((prev) => !prev);
+      return;
+    }
+
+    await install();
+    setShowMoreMenu(false);
+  };
+
   return (
     <>
     <nav className={`mobile-bottom-nav ${hidden ? "hidden" : ""}`} aria-hidden={hidden}>
@@ -250,16 +277,15 @@ export function MobileNavigation({
             key={item.id}
             type="button"
             onClick={() => {
-              if (item.id === "more") {
-                setShowMoreMenu(true);
-              } else {
-                openTab(item);
-              }
+              openTab(item);
+              setShowMoreMenu(false);
+              setShowIosInstallHelp(false);
             }}
             className={`mobile-nav-item ${active ? 'active' : ''}`}
             aria-label={item.label}
             aria-current={active ? "page" : undefined}
           >
+            <span className="mobile-nav-item-background" aria-hidden="true" />
             <div className="mobile-nav-icon">
               <item.icon className="w-6 h-6" />
               {badge > 0 && (
@@ -272,23 +298,56 @@ export function MobileNavigation({
           </button>
         );
       })}
+      <button
+        type="button"
+        onClick={() => {
+          setShowMoreMenu(true);
+          setShowIosInstallHelp(false);
+        }}
+        className={`mobile-nav-item ${showMoreMenu || moreMenuActive ? 'active' : ''}`}
+        aria-label="More sections and actions"
+        aria-expanded={showMoreMenu}
+      >
+        <span className="mobile-nav-item-background" aria-hidden="true" />
+        <div className="mobile-nav-icon">
+          <Menu className="w-6 h-6" />
+        </div>
+        <span className="mobile-nav-label">More</span>
+      </button>
     </nav>
 
       {/* More Menu Overlay */}
       {showMoreMenu && (
         <div 
-          className="fixed inset-0 z-50 bg-black/50"
-          onClick={() => setShowMoreMenu(false)}
+          className="mobile-more-overlay"
+          onClick={() => {
+            setShowMoreMenu(false);
+            setShowIosInstallHelp(false);
+          }}
         >
           <div 
-            className="absolute bottom-20 left-4 right-4 bg-card rounded-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto"
+            className="mobile-more-sheet"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold text-foreground">More Options</h3>
+            <div className="mobile-more-header">
+              <div>
+                <p className="mobile-more-eyebrow">More</p>
+                <h3 className="mobile-more-title">Sections and actions</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setShowIosInstallHelp(false);
+                }}
+                className="mobile-more-close"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="p-2">
-              {allNavItems.filter(item => !primaryNavItems.find(p => p.id === item.id)).map((item) => {
+            <div className="mobile-more-section">
+              {moreItems.map((item) => {
                 const Icon = item.icon;
                 const badge =
                   item.badge === "review"
@@ -302,11 +361,12 @@ export function MobileNavigation({
                     onClick={() => {
                       openTab(item);
                       setShowMoreMenu(false);
+                      setShowIosInstallHelp(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                    className={`mobile-more-item ${activeTab?.type === item.tabType ? "mobile-more-item-active" : ""}`}
                   >
-                    <Icon className="w-5 h-5 text-muted-foreground" />
-                    <span className="flex-1 text-left text-foreground">{item.label}</span>
+                    <Icon className="w-5 h-5" />
+                    <span className="flex-1 text-left">{item.label}</span>
                     {badge > 0 && (
                       <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
                         {badge}
@@ -315,30 +375,63 @@ export function MobileNavigation({
                   </button>
                 );
               })}
-              
-              {/* Divider */}
-              <div className="my-2 border-t border-border" />
-              
-              {/* Fullscreen Toggle */}
+            </div>
+
+            <div className="mobile-more-section">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("command-palette-open"));
+                  setShowMoreMenu(false);
+                  setShowIosInstallHelp(false);
+                }}
+                className="mobile-more-item"
+              >
+                <Search className="w-5 h-5" />
+                <span className="flex-1 text-left">Search</span>
+              </button>
+
+              {showInstallCta && (
+                <button
+                  type="button"
+                  onClick={handleInstall}
+                  className="mobile-more-item"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="flex-1 text-left">
+                    {isIOSDevice ? "Add to Home Screen" : "Install App"}
+                  </span>
+                </button>
+              )}
+
               {showFullscreenOption && (
                 <button
                   onClick={handleFullscreenToggle}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                  className="mobile-more-item"
                 >
                   {fullscreenState ? (
                     <>
-                      <Minimize2 className="w-5 h-5 text-muted-foreground" />
-                      <span className="flex-1 text-left text-foreground">Exit Fullscreen</span>
+                      <Minimize2 className="w-5 h-5" />
+                      <span className="flex-1 text-left">Exit Fullscreen</span>
                     </>
                   ) : (
                     <>
-                      <Maximize2 className="w-5 h-5 text-muted-foreground" />
-                      <span className="flex-1 text-left text-foreground">Enter Fullscreen</span>
+                      <Maximize2 className="w-5 h-5" />
+                      <span className="flex-1 text-left">Enter Fullscreen</span>
                     </>
                   )}
                 </button>
               )}
             </div>
+
+            {showInstallCta && isIOSDevice && showIosInstallHelp && (
+              <div className="mobile-more-tip">
+                <p className="mobile-more-tip-title">Add this app to your home screen</p>
+                <p className="mobile-more-tip-copy">
+                  Open the browser share menu, then choose <strong>Add to Home Screen</strong>.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

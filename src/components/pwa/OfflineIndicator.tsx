@@ -389,32 +389,92 @@ export function useServiceWorkerStatus() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        setIsRegistered(true);
-        setRegistration(reg);
-      });
-
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg) {
-          setIsRegistered(true);
-          setRegistration(reg);
-
-          // Check for updates
-          reg.addEventListener("updatefound", () => {
-            setHasUpdate(true);
-          });
-        }
-      });
+    if (!("serviceWorker" in navigator)) {
+      return;
     }
+
+    let disposed = false;
+
+    const attachRegistration = (reg: ServiceWorkerRegistration | null) => {
+      if (!reg || disposed) return;
+
+      setIsRegistered(true);
+      setRegistration(reg);
+      setHasUpdate(Boolean(reg.waiting));
+
+      const handleUpdateFound = () => {
+        const installingWorker = reg.installing;
+        if (!installingWorker) return;
+
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+            setHasUpdate(true);
+          }
+        });
+      };
+
+      reg.addEventListener("updatefound", handleUpdateFound);
+
+      return () => {
+        reg.removeEventListener("updatefound", handleUpdateFound);
+      };
+    };
+
+    let detachRegistrationListener: (() => void) | undefined;
+
+    navigator.serviceWorker.ready.then((reg) => {
+      if (disposed) return;
+      detachRegistrationListener = attachRegistration(reg);
+    });
+
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (disposed || !reg) return;
+      detachRegistrationListener?.();
+      detachRegistrationListener = attachRegistration(reg);
+    });
+
+    return () => {
+      disposed = true;
+      detachRegistrationListener?.();
+    };
   }, []);
 
   const update = useCallback(async () => {
-    if (registration) {
-      await registration.update();
-      setHasUpdate(false);
-      window.location.reload();
+    if (!registration) {
+      return;
     }
+
+    await registration.update();
+
+    const waitingWorker = registration.waiting;
+    if (waitingWorker) {
+      await new Promise<void>((resolve) => {
+        let reloaded = false;
+
+        const handleControllerChange = () => {
+          if (reloaded) return;
+          reloaded = true;
+          navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+          setHasUpdate(false);
+          window.location.reload();
+          resolve();
+        };
+
+        navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+        waitingWorker.postMessage({ action: "skipWaiting" });
+
+        window.setTimeout(() => {
+          if (reloaded) return;
+          navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+          setHasUpdate(false);
+          window.location.reload();
+          resolve();
+        }, 4000);
+      });
+      return;
+    }
+
+    window.location.reload();
   }, [registration]);
 
   return { isRegistered, hasUpdate, update };
