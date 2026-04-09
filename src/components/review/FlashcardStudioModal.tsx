@@ -26,6 +26,7 @@ import React, {
   useCallback,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { useLatexPreview } from "../../hooks/useLatexPreview";
 import {
   Check,
   ChevronDown,
@@ -64,6 +65,10 @@ import {
   ImagePlus,
   ClipboardPaste,
 } from "lucide-react";
+import {
+  createLearningItem,
+  type CreateLearningItemInput,
+} from "../../api/learning-items";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
 import {
   notebooklmGenerateArtifact,
@@ -73,7 +78,6 @@ import {
   notebooklmSelectNotebook,
   type NotebookSummary,
 } from "../../api/integrations";
-import { callIncrementumMCPTool } from "../../api/mcp";
 import { deleteImageAsset, ingestImageBlob, ingestImageFile, listImageAssets, type ImageAsset } from "../../api/image-registry";
 import { getVideoTranscript } from "../../api/video-extracts";
 import { extractYouTubeID, fetchYouTubeTranscript } from "../../api/youtube";
@@ -83,12 +87,13 @@ import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 import { buildChapterQAContext, getChapterTitles } from "../../utils/chapterUtils";
+import type { ImageOcclusionRegion, MultipleChoiceOption } from "../../types/learningItemInteractions";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-type DraftCardType = "qa" | "cloze";
+type DraftCardType = "qa" | "cloze" | "multiple-choice" | "image-occlusion";
 type ViewMode = "chat" | "templates" | "history";
 type ContextMode = "full" | "chapters" | "pages" | "excerpt" | "search";
 
@@ -98,6 +103,10 @@ interface DraftCard {
   question?: string;
   answer?: string;
   text?: string;
+  multipleChoiceOptions?: MultipleChoiceOption[];
+  multipleChoiceCorrectOptionId?: string;
+  imageOcclusionAssetId?: string;
+  imageOcclusionRegions?: ImageOcclusionRegion[];
   selected: boolean;
   sourceMessageId?: string;
   createdAt: number;
@@ -194,7 +203,17 @@ When creating flashcards, return them as JSON in a code block using this exact s
 {
   "cards": [
     { "type": "qa", "question": "...", "answer": "..." },
-    { "type": "cloze", "text": "The {{c1::term}} is important because {{c2::reason}}." }
+    { "type": "cloze", "text": "The {{c1::term}} is important because {{c2::reason}}." },
+    {
+      "type": "multiple-choice",
+      "question": "...",
+      "answer": "Optional explanation shown after reveal",
+      "options": [
+        { "id": "a", "text": "Choice A" },
+        { "id": "b", "text": "Choice B" }
+      ],
+      "correctOptionId": "b"
+    }
   ]
 }
 \`\`\`
@@ -204,6 +223,7 @@ Return ONLY the JSON code block (no other text) when the user is asking you to c
 Rules for excellent flashcards:
 - Use "qa" for conceptual questions that benefit from detailed explanations
 - Use "cloze" for factual recall with {{c1::}} or {{::}} deletions
+- Use "multiple-choice" when plausible distractors will improve recall
 - Keep cards atomic: one fact per card
 - Use clear, specific questions
 - Answers should be concise but complete
@@ -282,6 +302,12 @@ function normalizeCardType(value?: string): DraftCardType | null {
   }
   if (normalized === "cloze" || normalized === "cloze_deletion" || normalized === "cloze-deletion") {
     return "cloze";
+  }
+  if (normalized === "multiple-choice" || normalized === "multiple_choice" || normalized === "mcq") {
+    return "multiple-choice";
+  }
+  if (normalized === "image-occlusion" || normalized === "image_occlusion") {
+    return "image-occlusion";
   }
   return null;
 }
@@ -405,12 +431,20 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
   const cardsFromParsedList = (list: unknown[], sourceId: string): DraftCard[] => {
     const cards: DraftCard[] = [];
     list.forEach((entry: unknown) => {
-      const e = entry as { type?: string; question?: string; answer?: string; text?: string };
+      const e = entry as {
+        type?: string;
+        question?: string;
+        answer?: string;
+        text?: string;
+        options?: Array<string | MultipleChoiceOption>;
+        correctOptionId?: string;
+      };
       let type = normalizeCardType(e?.type);
 
       // If the model forgot "type", infer from fields.
       if (!type) {
         if (typeof e?.question === "string" && typeof e?.answer === "string") type = "qa";
+        else if (typeof e?.question === "string" && Array.isArray(e?.options)) type = "multiple-choice";
         else if (typeof e?.text === "string") type = "cloze";
       }
       if (!type) return;
@@ -429,10 +463,37 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
         const answer = typeof e?.answer === "string" ? e.answer.trim() : "";
         if (!question || !answer) return;
         cards.push({ ...baseCard, question, answer });
-      } else {
+      } else if (type === "cloze") {
         const text = typeof e?.text === "string" ? e.text.trim() : "";
         if (!text) return;
         cards.push({ ...baseCard, text });
+      } else if (type === "multiple-choice") {
+        const question = typeof e?.question === "string" ? e.question.trim() : "";
+        const options = (Array.isArray(e?.options) ? e.options : [])
+          .map((option, index): MultipleChoiceOption => {
+            if (typeof option === "string") {
+              return { id: `choice-${index + 1}`, text: option };
+            }
+            return {
+              id: option.id || `choice-${index + 1}`,
+              text: option.text,
+              isCorrect: option.isCorrect,
+              feedback: option.feedback,
+            };
+          })
+          .filter((option) => typeof option.text === "string" && option.text.trim().length > 0);
+        const correctOptionId =
+          (typeof e.correctOptionId === "string" ? e.correctOptionId : undefined) ||
+          options.find((option) => option.isCorrect)?.id;
+        if (!question || options.length < 2 || !correctOptionId) return;
+        cards.push({
+          ...baseCard,
+          type: "multiple-choice",
+          question,
+          answer: typeof e.answer === "string" ? e.answer.trim() : "",
+          multipleChoiceOptions: options,
+          multipleChoiceCorrectOptionId: correctOptionId,
+        });
       }
     });
     return cards;
@@ -1046,6 +1107,8 @@ function CardPreview({
   isEditing,
   onEdit,
   onSaveEdit,
+  imageAssets,
+  defaultImageAssetId,
 }: {
   card: DraftCard;
   isFlipped: boolean;
@@ -1053,22 +1116,102 @@ function CardPreview({
   isEditing: boolean;
   onEdit: () => void;
   onSaveEdit: (updates: Partial<DraftCard>) => void;
+  imageAssets: ImageAsset[];
+  defaultImageAssetId?: string;
 }) {
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<Partial<DraftCard>>({
+    type: card.type,
     question: card.question || "",
     answer: card.answer || "",
     text: card.text || "",
+    multipleChoiceOptions: card.multipleChoiceOptions || [
+      { id: "choice-1", text: "" },
+      { id: "choice-2", text: "" },
+    ],
+    multipleChoiceCorrectOptionId: card.multipleChoiceCorrectOptionId,
+    imageOcclusionAssetId: card.imageOcclusionAssetId || defaultImageAssetId,
+    imageOcclusionRegions: card.imageOcclusionRegions || [],
   });
+
+  useEffect(() => {
+    setEditForm({
+      type: card.type,
+      question: card.question || "",
+      answer: card.answer || "",
+      text: card.text || "",
+      multipleChoiceOptions: card.multipleChoiceOptions || [
+        { id: "choice-1", text: "" },
+        { id: "choice-2", text: "" },
+      ],
+      multipleChoiceCorrectOptionId: card.multipleChoiceCorrectOptionId,
+      imageOcclusionAssetId: card.imageOcclusionAssetId || defaultImageAssetId,
+      imageOcclusionRegions: card.imageOcclusionRegions || [],
+    });
+  }, [card, defaultImageAssetId]);
+
+  const activeType = (editForm.type as DraftCardType | undefined) || card.type;
+  const previewContent = activeType === "qa"
+    ? `${editForm.question || ""}\n---\n${editForm.answer || ""}`
+    : activeType === "cloze"
+    ? (editForm.text || "")
+    : activeType === "multiple-choice"
+    ? `${editForm.question || ""}\n${(editForm.multipleChoiceOptions || []).map((option) => option.text).join("\n")}\n${editForm.answer || ""}`
+    : `${editForm.question || ""}\n${editForm.answer || ""}`;
+  const { html: previewHtml, isPending: previewPending } = useLatexPreview(previewContent);
+  const previewAssetId = (editForm.imageOcclusionAssetId as string | undefined) || defaultImageAssetId;
+  const previewAsset = imageAssets.find((asset) => asset.id === previewAssetId) || null;
+
+  const setType = (type: DraftCardType) => {
+    setEditForm((form) => ({
+      ...form,
+      type,
+      question: type === "cloze" ? undefined : (form.question as string) || "",
+      answer: type === "cloze" ? undefined : (form.answer as string) || "",
+      text: type === "cloze" ? (form.text as string) || "" : undefined,
+      multipleChoiceOptions:
+        type === "multiple-choice"
+          ? (Array.isArray(form.multipleChoiceOptions) && form.multipleChoiceOptions.length > 0
+              ? form.multipleChoiceOptions
+              : [{ id: "choice-1", text: "" }, { id: "choice-2", text: "" }])
+          : undefined,
+      multipleChoiceCorrectOptionId:
+        type === "multiple-choice"
+          ? (form.multipleChoiceCorrectOptionId as string | undefined) || "choice-1"
+          : undefined,
+      imageOcclusionAssetId:
+        type === "image-occlusion"
+          ? ((form.imageOcclusionAssetId as string | undefined) || defaultImageAssetId)
+          : undefined,
+      imageOcclusionRegions:
+        type === "image-occlusion"
+          ? (Array.isArray(form.imageOcclusionRegions) ? form.imageOcclusionRegions : [])
+          : undefined,
+    }));
+  };
 
   if (isEditing) {
     return (
       <div className="space-y-3 p-3">
-        {card.type === "qa" ? (
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Card Type</label>
+          <select
+            value={activeType}
+            onChange={(e) => setType(e.target.value as DraftCardType)}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <option value="qa">Q&amp;A</option>
+            <option value="cloze">Cloze</option>
+            <option value="multiple-choice">Multiple Choice</option>
+            <option value="image-occlusion">Image Occlusion</option>
+          </select>
+        </div>
+
+        {activeType === "qa" ? (
           <>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Question</label>
               <textarea
-                value={editForm.question}
+                value={(editForm.question as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 rows={2}
@@ -1077,21 +1220,151 @@ function CardPreview({
             <div>
               <label className="text-xs font-medium text-muted-foreground">Answer</label>
               <textarea
-                value={editForm.answer}
+                value={(editForm.answer as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 rows={3}
               />
             </div>
           </>
-        ) : (
+        ) : activeType === "cloze" ? (
           <div>
             <label className="text-xs font-medium text-muted-foreground">Cloze Text (use {'{{'}...{'}}'} for deletions)</label>
             <textarea
-              value={editForm.text}
+              value={(editForm.text as string) || ""}
               onChange={(e) => setEditForm((f) => ({ ...f, text: e.target.value }))}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               rows={4}
+            />
+          </div>
+        ) : activeType === "multiple-choice" ? (
+          <>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Question</label>
+              <textarea
+                value={(editForm.question as string) || ""}
+                onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">Choices</label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditForm((form) => ({
+                      ...form,
+                      multipleChoiceOptions: [
+                        ...(form.multipleChoiceOptions || []),
+                        {
+                          id: `choice-${(form.multipleChoiceOptions?.length || 0) + 1}`,
+                          text: "",
+                        },
+                      ],
+                    }))
+                  }
+                  className="text-xs text-primary hover:opacity-80"
+                >
+                  Add choice
+                </button>
+              </div>
+              {(editForm.multipleChoiceOptions || []).map((option, index) => (
+                <div key={option.id || index} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`correct-${card.id}`}
+                    checked={editForm.multipleChoiceCorrectOptionId === option.id}
+                    onChange={() =>
+                      setEditForm((form) => ({
+                        ...form,
+                        multipleChoiceCorrectOptionId: option.id,
+                      }))
+                    }
+                  />
+                  <input
+                    value={option.text}
+                    onChange={(e) =>
+                      setEditForm((form) => ({
+                        ...form,
+                        multipleChoiceOptions: (form.multipleChoiceOptions || []).map((entry, entryIndex) =>
+                          entryIndex === index ? { ...entry, text: e.target.value } : entry
+                        ),
+                      }))
+                    }
+                    placeholder={`Choice ${index + 1}`}
+                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Explanation (optional)</label>
+              <textarea
+                value={(editForm.answer as string) || ""}
+                onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                rows={2}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Prompt</label>
+              <textarea
+                value={(editForm.question as string) || ""}
+                onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                rows={2}
+                placeholder="What should be identified on the image?"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Reveal / explanation</label>
+              <textarea
+                value={(editForm.answer as string) || ""}
+                onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                rows={2}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Source Image</label>
+              <select
+                value={(editForm.imageOcclusionAssetId as string | undefined) || ""}
+                onChange={(e) =>
+                  setEditForm((form) => ({
+                    ...form,
+                    imageOcclusionAssetId: e.target.value || undefined,
+                  }))
+                }
+                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">Select an imported image</option>
+                {imageAssets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.file_name || asset.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ImageOcclusionEditor
+              asset={previewAsset}
+              regions={(editForm.imageOcclusionRegions as ImageOcclusionRegion[] | undefined) || []}
+              onChange={(regions) => setEditForm((form) => ({ ...form, imageOcclusionRegions: regions }))}
+            />
+          </>
+        )}
+        {previewHtml && (
+          <div className="rounded-md border border-border/50 bg-muted/30 p-2 text-sm">
+            <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Preview {previewPending && <span className="opacity-50">...</span>}
+            </div>
+            <div
+              className="prose prose-sm max-w-none [&_.math-expression-block]:my-1 [&_.math-expression-block]:flex [&_.math-expression-block]:justify-center"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>
         )}
@@ -1141,6 +1414,57 @@ function CardPreview({
                   {isFlipped ? "Click to see question" : "Click to reveal answer"}
                 </div>
               </div>
+            ) : card.type === "multiple-choice" ? (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-foreground">{card.question}</div>
+                <div className="space-y-1.5">
+                  {(card.multipleChoiceOptions || []).map((option) => (
+                    <div
+                      key={option.id}
+                      className={cn(
+                        "rounded-md border px-2.5 py-2 text-sm",
+                        isFlipped && card.multipleChoiceCorrectOptionId === option.id
+                          ? "border-green-500/40 bg-green-500/10"
+                          : "border-border bg-background"
+                      )}
+                    >
+                      {option.text}
+                    </div>
+                  ))}
+                </div>
+                {isFlipped && card.answer && (
+                  <div className="text-xs text-muted-foreground">{card.answer}</div>
+                )}
+              </div>
+            ) : card.type === "image-occlusion" ? (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-foreground">{card.question || "Image occlusion card"}</div>
+                {previewAsset ? (
+                  <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+                    <img src={previewAsset.data_url} alt={previewAsset.file_name || "Occlusion source"} className="w-full object-contain" />
+                    {!isFlipped &&
+                      (card.imageOcclusionRegions || []).map((region, index) => (
+                        <div
+                          key={region.id || `${region.x}-${region.y}-${index}`}
+                          className="absolute rounded border border-white/30 bg-slate-950/80"
+                          style={{
+                            left: `${region.x}%`,
+                            top: `${region.y}%`,
+                            width: `${region.width}%`,
+                            height: `${region.height}%`,
+                          }}
+                        />
+                      ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+                    Select an image to define occlusion regions.
+                  </div>
+                )}
+                {isFlipped && card.answer && (
+                  <div className="text-xs text-muted-foreground">{card.answer}</div>
+                )}
+              </div>
             ) : (
               <div className="text-sm text-foreground/90 leading-relaxed">
                 {highlightCloze(card.text || "")}
@@ -1157,6 +1481,107 @@ function CardPreview({
             <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ImageOcclusionEditor({
+  asset,
+  regions,
+  onChange,
+}: {
+  asset: ImageAsset | null;
+  regions: ImageOcclusionRegion[];
+  onChange: (regions: ImageOcclusionRegion[]) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [draftRegion, setDraftRegion] = useState<ImageOcclusionRegion | null>(null);
+
+  const clamp = (value: number) => Math.max(0, Math.min(100, value));
+
+  const getPoint = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: clamp(((event.clientX - rect.left) / rect.width) * 100),
+      y: clamp(((event.clientY - rect.top) / rect.height) * 100),
+    };
+  };
+
+  const commitDraft = () => {
+    if (draftRegion && draftRegion.width > 1 && draftRegion.height > 1) {
+      onChange([...regions, draftRegion]);
+    }
+    setOrigin(null);
+    setDraftRegion(null);
+  };
+
+  if (!asset) {
+    return (
+      <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+        Import and select an image, then drag across it to create hidden regions.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div
+        ref={containerRef}
+        className="relative overflow-hidden rounded-lg border border-border bg-muted/20 touch-none"
+        onPointerDown={(event) => {
+          const point = getPoint(event);
+          if (!point) return;
+          setOrigin(point);
+          setDraftRegion({
+            id: `region-${Date.now()}`,
+            x: point.x,
+            y: point.y,
+            width: 0,
+            height: 0,
+          });
+        }}
+        onPointerMove={(event) => {
+          if (!origin) return;
+          const point = getPoint(event);
+          if (!point) return;
+          setDraftRegion({
+            id: `region-${Date.now()}`,
+            x: Math.min(origin.x, point.x),
+            y: Math.min(origin.y, point.y),
+            width: Math.abs(point.x - origin.x),
+            height: Math.abs(point.y - origin.y),
+          });
+        }}
+        onPointerUp={commitDraft}
+        onPointerLeave={commitDraft}
+      >
+        <img src={asset.data_url} alt={asset.file_name || "Occlusion editor"} className="w-full object-contain select-none" />
+        {[...regions, ...(draftRegion ? [draftRegion] : [])].map((region, index) => (
+          <div
+            key={region.id || `${region.x}-${region.y}-${index}`}
+            className="absolute rounded border border-white/40 bg-slate-950/75"
+            style={{
+              left: `${region.x}%`,
+              top: `${region.y}%`,
+              width: `${region.width}%`,
+              height: `${region.height}%`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Drag to add a hidden region.</span>
+        <button
+          type="button"
+          onClick={() => onChange(regions.slice(0, -1))}
+          disabled={regions.length === 0}
+          className="text-primary hover:opacity-80 disabled:opacity-40"
+        >
+          Undo region
+        </button>
       </div>
     </div>
   );
@@ -1195,6 +1620,7 @@ function DocumentSelector({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1752,8 +2178,47 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       selected: selected.length,
       qa: selected.filter((c) => c.type === "qa").length,
       cloze: selected.filter((c) => c.type === "cloze").length,
+      multipleChoice: selected.filter((c) => c.type === "multiple-choice").length,
+      imageOcclusion: selected.filter((c) => c.type === "image-occlusion").length,
     };
   }, [draftCards]);
+
+  const createBlankDraftCard = useCallback((type: DraftCardType): DraftCard => {
+    const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const base: DraftCard = {
+      id,
+      type,
+      selected: true,
+      createdAt: Date.now(),
+      tags: [],
+    };
+
+    if (type === "qa") {
+      return { ...base, question: "", answer: "" };
+    }
+    if (type === "cloze") {
+      return { ...base, text: "" };
+    }
+    if (type === "multiple-choice") {
+      return {
+        ...base,
+        question: "",
+        answer: "",
+        multipleChoiceOptions: [
+          { id: "choice-1", text: "" },
+          { id: "choice-2", text: "" },
+        ],
+        multipleChoiceCorrectOptionId: "choice-1",
+      };
+    }
+    return {
+      ...base,
+      question: "",
+      answer: "",
+      imageOcclusionAssetId: selectedImageAssetIds[0],
+      imageOcclusionRegions: [],
+    };
+  }, [selectedImageAssetIds]);
 
   const handleSend = async (customPrompt?: string) => {
     const promptText = customPrompt || input;
@@ -1959,23 +2424,70 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     const results = await Promise.all(
       selected.map(async (card) => {
         try {
-          const baseArgs: Record<string, unknown> = {};
-          if (selectedDocument?.id) baseArgs.document_id = selectedDocument.id;
-          if (deckTags.length > 0) baseArgs.tags = [...deckTags, ...card.tags];
-          if (selectedImageAssetIds.length > 0) baseArgs.image_asset_ids = selectedImageAssetIds;
+          const baseInput: CreateLearningItemInput = {
+            item_type: card.type === "cloze" ? "cloze" : "qa",
+            question:
+              card.type === "cloze"
+                ? (card.text || "").trim()
+                : (card.question || "").trim(),
+            answer:
+              card.type === "qa"
+                ? (card.answer || "").trim()
+                : card.type === "multiple-choice"
+                ? ((card.multipleChoiceOptions || []).find((option) => option.id === card.multipleChoiceCorrectOptionId)?.text || "").trim()
+                : (card.answer || "").trim(),
+            cloze_text: card.type === "cloze" ? (card.text || "").trim() : undefined,
+            document_id: selectedDocument?.id,
+            tags: [...deckTags, ...card.tags],
+            image_asset_ids:
+              card.type === "image-occlusion"
+                ? [card.imageOcclusionAssetId || selectedImageAssetIds[0]].filter(Boolean) as string[]
+                : selectedImageAssetIds,
+            interaction_metadata:
+              card.type === "multiple-choice"
+                ? {
+                    interactionType: "multiple-choice",
+                    multipleChoiceOptions: card.multipleChoiceOptions || [],
+                    multipleChoiceCorrectOptionId: card.multipleChoiceCorrectOptionId,
+                    multipleChoiceExplanation: card.answer || undefined,
+                  }
+                : card.type === "image-occlusion"
+                ? {
+                    interactionType: "image-occlusion",
+                    imageOcclusionAssetId: card.imageOcclusionAssetId || selectedImageAssetIds[0],
+                    imageOcclusionRegions: card.imageOcclusionRegions || [],
+                    imageOcclusionPrompt: card.question || undefined,
+                  }
+                : undefined,
+          };
 
-          if (card.type === "qa") {
-            await callIncrementumMCPTool("create_qa_card", {
-              ...baseArgs,
-              question: card.question,
-              answer: card.answer,
-            });
-          } else {
-            await callIncrementumMCPTool("create_cloze_card", {
-              ...baseArgs,
-              text: card.text,
-            });
+          if (card.type === "qa" && (!baseInput.question || !baseInput.answer)) {
+            throw new Error("Q&A cards require both a question and an answer.");
           }
+          if (card.type === "cloze" && !baseInput.cloze_text) {
+            throw new Error("Cloze cards require cloze text.");
+          }
+          if (
+            card.type === "multiple-choice" &&
+            (
+              !baseInput.question ||
+              (card.multipleChoiceOptions || []).filter((option) => option.text.trim().length > 0).length < 2 ||
+              !card.multipleChoiceCorrectOptionId
+            )
+          ) {
+            throw new Error("Multiple choice cards require a question, at least two options, and a correct answer.");
+          }
+          if (
+            card.type === "image-occlusion" &&
+            (
+              !((card.imageOcclusionAssetId || selectedImageAssetIds[0])) ||
+              (card.imageOcclusionRegions || []).length === 0
+            )
+          ) {
+            throw new Error("Image occlusion cards require an image and at least one hidden region.");
+          }
+
+          await createLearningItem(baseInput);
           return { id: card.id, success: true };
         } catch (error) {
           console.error("Failed to create card", error);
@@ -2616,10 +3128,34 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   {stats.qa > 0 && `${stats.qa} Q&A`}
                   {stats.qa > 0 && stats.cloze > 0 && " · "}
                   {stats.cloze > 0 && `${stats.cloze} Cloze`}
+                  {(stats.multipleChoice > 0 || stats.imageOcclusion > 0) && (stats.qa > 0 || stats.cloze > 0) && " · "}
+                  {stats.multipleChoice > 0 && `${stats.multipleChoice} MC`}
+                  {stats.multipleChoice > 0 && stats.imageOcclusion > 0 && " · "}
+                  {stats.imageOcclusion > 0 && `${stats.imageOcclusion} Image`}
                   {stats.selected === 0 && "No cards selected"}
                 </p>
               </div>
               <div className="flex items-center gap-1">
+                {([
+                  ["qa", "Q&A"],
+                  ["cloze", "Cloze"],
+                  ["multiple-choice", "MC"],
+                  ["image-occlusion", "Image"],
+                ] as const).map(([type, label]) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      const nextCard = createBlankDraftCard(type);
+                      setDraftCards((prev) => [nextCard, ...prev]);
+                      setEditingCardId(nextCard.id);
+                    }}
+                    className="hidden rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-muted md:inline-flex"
+                    title={`Add ${label} card`}
+                  >
+                    + {label}
+                  </button>
+                ))}
                 <button
                   onClick={() => toggleSelectAll(true)}
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -2738,10 +3274,20 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                           "text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded",
                           card.type === "qa"
                             ? "bg-blue-500/10 text-blue-600"
-                            : "bg-purple-500/10 text-purple-600"
+                            : card.type === "cloze"
+                            ? "bg-purple-500/10 text-purple-600"
+                            : card.type === "multiple-choice"
+                            ? "bg-emerald-500/10 text-emerald-600"
+                            : "bg-amber-500/10 text-amber-700"
                         )}
                       >
-                        {card.type === "qa" ? "Q&A" : "Cloze"}
+                        {card.type === "qa"
+                          ? "Q&A"
+                          : card.type === "cloze"
+                          ? "Cloze"
+                          : card.type === "multiple-choice"
+                          ? "Multiple Choice"
+                          : "Image Occlusion"}
                       </span>
                       {card.tags.length > 0 && (
                         <div className="flex items-center gap-1">
@@ -2798,6 +3344,8 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                       isEditing={editingCardId === card.id}
                       onEdit={() => setEditingCardId(card.id)}
                       onSaveEdit={(updates) => handleEditCard(card.id, updates)}
+                      imageAssets={imageAssets}
+                      defaultImageAssetId={selectedImageAssetIds[0]}
                     />
                   </div>
                 ))
