@@ -828,6 +828,33 @@ export function ThemeBackdrop() {
   const animation = theme.effects?.backgroundAnimation;
   const density = settings.animationFrequency;
 
+  const applyBrightnessGain = (
+    ctx: CanvasRenderingContext2D,
+    cv: HTMLCanvasElement,
+    brightnessSetting: number
+  ) => {
+    const gain = Math.max(0.1, brightnessSetting / 10);
+    const wholePasses = Math.floor(gain);
+    const partialPass = gain - wholePasses;
+    const prevOp = ctx.globalCompositeOperation;
+    const prevA = ctx.globalAlpha;
+
+    ctx.globalCompositeOperation = "lighter";
+
+    for (let i = 0; i < wholePasses; i += 1) {
+      ctx.globalAlpha = 1;
+      ctx.drawImage(cv, 0, 0);
+    }
+
+    if (partialPass > 0.001) {
+      ctx.globalAlpha = partialPass;
+      ctx.drawImage(cv, 0, 0);
+    }
+
+    ctx.globalAlpha = prevA;
+    ctx.globalCompositeOperation = prevOp;
+  };
+
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv || !animation) return;
@@ -869,14 +896,9 @@ export function ThemeBackdrop() {
       timer(id: number) { timersRef.current.push(id); },
       onResize(fn: () => void) { resizeFnRef.current = fn; },
       frame(id: number) {
-        // Amplify: redraw canvas onto itself with additive blending using user brightness
-        const prevOp = ctx.globalCompositeOperation;
-        const prevA = ctx.globalAlpha;
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = brightnessRef.current;
-        ctx.drawImage(cv, 0, 0);
-        ctx.globalAlpha = prevA;
-        ctx.globalCompositeOperation = prevOp;
+        // Brightness is stored in tenths (10 = 1.0x). Apply multiple additive passes
+        // so values above 1.0x actually become visible instead of being clamped by canvas.
+        applyBrightnessGain(ctx, cv, brightnessRef.current);
         animIdRef.current = id;
       },
     });
