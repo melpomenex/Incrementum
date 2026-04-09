@@ -49,10 +49,10 @@ export function LearningSettings() {
             </p>
           </div>
 
-          {settings.learning.algorithm === "fsrs" && (
+          {(settings.learning.algorithm === "fsrs" || settings.learning.algorithm === "sm18") && (
           <div>
             <label htmlFor="fsrs-retention" className="block text-sm font-medium text-foreground mb-2">
-              Desired Retention: {Math.round(settings.learning.fsrsParams.desiredRetention * 100)}%
+              {settings.learning.algorithm === "sm18" ? "Forgetting Index" : "Desired Retention"}: {Math.round(settings.learning.fsrsParams.desiredRetention * 100)}%
             </label>
             <input
               type="range"
@@ -74,51 +74,55 @@ export function LearningSettings() {
               className="w-full"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Higher retention = more frequent reviews
+              {settings.learning.algorithm === "sm18"
+                ? "Lower = more frequent reviews (default 90%)"
+                : "Higher retention = more frequent reviews"}
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                onClick={async () => {
-                  try {
-                    setIsOptimizing(true);
-                    setOptimizerMessage(null);
-                    const result = await optimizeAlgorithmParams({
-                      min_ease_factor: 1.3,
-                      initial_ease_factor: 2.5,
-                      desired_retention: settings.learning.fsrsParams.desiredRetention,
-                    });
-                    updateSettings({
-                      learning: {
-                        ...settings.learning,
-                        fsrsParams: {
-                          ...settings.learning.fsrsParams,
-                          personalizedWeights: result.fsrs_weights,
-                          lastOptimizationAt: new Date().toISOString(),
-                          optimizedReviewCount: result.history_count,
+            {settings.learning.algorithm === "fsrs" && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      setIsOptimizing(true);
+                      setOptimizerMessage(null);
+                      const result = await optimizeAlgorithmParams({
+                        min_ease_factor: 1.3,
+                        initial_ease_factor: 2.5,
+                        desired_retention: settings.learning.fsrsParams.desiredRetention,
+                      });
+                      updateSettings({
+                        learning: {
+                          ...settings.learning,
+                          fsrsParams: {
+                            ...settings.learning.fsrsParams,
+                            personalizedWeights: result.fsrs_weights,
+                            lastOptimizationAt: new Date().toISOString(),
+                            optimizedReviewCount: result.history_count,
+                          },
                         },
-                      },
-                    });
-                    const quality = result.history_count >= result.minimum_history_required
-                      ? "Personalized weights applied."
-                      : "Applied provisional weights (limited history).";
-                    setOptimizerMessage(
-                      `${quality} Reviews used: ${result.history_count}/${result.minimum_history_required}.`
-                    );
-                  } catch (error) {
-                    setOptimizerMessage(error instanceof Error ? error.message : "Failed to run optimizer");
-                  } finally {
-                    setIsOptimizing(false);
-                  }
-                }}
-                disabled={isOptimizing}
-                className="px-3 py-2 rounded-md border border-border text-sm text-foreground disabled:opacity-50"
-              >
-                {isOptimizing ? "Optimizing..." : "Run Personal FSRS Optimizer"}
-              </button>
-              {settings.learning.fsrsParams.personalizedWeights?.length === CANONICAL_FSRS_PARAMETER_LENGTH && (
-                <span className="text-xs text-green-500">FSRS-6 profile active (21 params)</span>
-              )}
-            </div>
+                      });
+                      const quality = result.history_count >= result.minimum_history_required
+                        ? "Personalized weights applied."
+                        : "Applied provisional weights (limited history).";
+                      setOptimizerMessage(
+                        `${quality} Reviews used: ${result.history_count}/${result.minimum_history_required}.`
+                      );
+                    } catch (error) {
+                      setOptimizerMessage(error instanceof Error ? error.message : "Failed to run optimizer");
+                    } finally {
+                      setIsOptimizing(false);
+                    }
+                  }}
+                  disabled={isOptimizing}
+                  className="px-3 py-2 rounded-md border border-border text-sm text-foreground disabled:opacity-50"
+                >
+                  {isOptimizing ? "Optimizing..." : "Run Personal FSRS Optimizer"}
+                </button>
+                {settings.learning.fsrsParams.personalizedWeights?.length === CANONICAL_FSRS_PARAMETER_LENGTH && (
+                  <span className="text-xs text-green-500">FSRS-6 profile active (21 params)</span>
+                )}
+              </div>
+            )}
             {optimizerMessage && (
               <p className="mt-2 text-xs text-muted-foreground">{optimizerMessage}</p>
             )}
