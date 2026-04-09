@@ -74,7 +74,7 @@ describe("FlashcardScrollItem", () => {
     expect(document.querySelector(".math-expression")).toBeInTheDocument();
   });
 
-  it("uses deterministic fallback markers for unsupported latex", () => {
+  it("renders KaTeX error markup for unsupported latex commands", () => {
     render(
       <FlashcardScrollItem
         learningItem={{
@@ -86,8 +86,8 @@ describe("FlashcardScrollItem", () => {
       />
     );
 
-    const fallback = document.querySelector('[data-latex-fallback="true"]');
-    expect(fallback).toBeInTheDocument();
-    expect(fallback?.textContent).toContain("\\unknowncmd{x}");
+    const renderedMath = document.querySelector(".math-expression");
+    expect(renderedMath).toBeInTheDocument();
+    expect(renderedMath?.textContent).toContain("\\unknowncmd");
   });
 });

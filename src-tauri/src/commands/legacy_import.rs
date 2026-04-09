@@ -492,7 +492,7 @@ fn parse_document_row(row: &sqlx::sqlite::SqliteRow) -> Result<Document> {
         .unwrap_or_else(|_| "[]".to_string());
     let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
     let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
-    let interaction_metadata = interaction_metadata_json
+    let interaction_metadata: Option<serde_json::Value> = interaction_metadata_json
         .as_deref()
         .and_then(|value| serde_json::from_str(value).ok());
     let metadata_json: Option<String> = row.try_get("metadata").ok();
@@ -600,6 +600,10 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
         .try_get("image_asset_ids")
         .unwrap_or_else(|_| "[]".to_string());
     let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+    let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+    let interaction_metadata: Option<serde_json::Value> = interaction_metadata_json
+        .as_deref()
+        .and_then(|value| serde_json::from_str(value).ok());
 
     let stability: Option<f64> = row.try_get("memory_state_stability").ok();
     let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
