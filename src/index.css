@@ -573,6 +573,96 @@
     transform: translateX(0.04rem);
   }
 
+  .settings-menu-item {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 44px;
+    border-radius: calc(var(--radius-lg) + 0.25rem);
+    transition:
+      transform 180ms ease-out,
+      box-shadow 180ms ease-out,
+      color 180ms ease-out,
+      background-color 180ms ease-out;
+  }
+
+  .settings-menu-item-background {
+    position: absolute;
+    inset: 0.2rem;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 14%, transparent),
+      color-mix(in srgb, var(--color-secondary, var(--color-primary)) 8%, transparent)
+    );
+    opacity: 0;
+    transform: scale(0.96);
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+
+  .settings-menu-item-indicator {
+    position: absolute;
+    left: 0.35rem;
+    top: 50%;
+    width: 0.18rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, white 18%, var(--color-primary)),
+      var(--color-primary)
+    );
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, white 16%, transparent),
+      0 0 14px color-mix(in srgb, var(--color-primary) 28%, transparent);
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0.35);
+    transition:
+      opacity 180ms ease-out,
+      transform 180ms ease-out;
+    pointer-events: none;
+  }
+
+  .settings-menu-item-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    transition: transform 180ms ease-out;
+  }
+
+  .settings-menu-item:hover,
+  .settings-menu-item.settings-menu-item-active {
+    transform: translateX(2px);
+  }
+
+  .settings-menu-item:hover .settings-menu-item-background,
+  .settings-menu-item.settings-menu-item-active .settings-menu-item-background {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .settings-menu-item:hover .settings-menu-item-indicator,
+  .settings-menu-item.settings-menu-item-active .settings-menu-item-indicator {
+    opacity: 1;
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  .settings-menu-item:hover .settings-menu-item-content,
+  .settings-menu-item.settings-menu-item-active .settings-menu-item-content {
+    transform: translateX(0.12rem);
+  }
+
+  .settings-menu-item:hover:not(.settings-menu-item-active) {
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  }
+
   .glass-button:hover {
     background: var(--color-glass-300);
     border-color: var(--color-glass-border-light);

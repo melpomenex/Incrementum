@@ -221,6 +221,59 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
 ];
 
+function SettingsMenuItem({
+  icon: Icon,
+  label,
+  description,
+  isActive,
+  isMobile,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  description?: string;
+  isActive: boolean;
+  isMobile: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "settings-menu-item w-full text-left text-foreground",
+        isActive && "settings-menu-item-active"
+      )}
+    >
+      <span className="settings-menu-item-background" aria-hidden="true" />
+      <span className="settings-menu-item-indicator" aria-hidden="true" />
+      <span className="settings-menu-item-content">
+        <Icon className={cn("w-4 h-4 flex-shrink-0", description && "mt-0.5")} />
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium">{label}</span>
+          {description && (
+            <span
+              className={cn(
+                "block text-xs mt-0.5 line-clamp-1",
+                isActive ? "text-primary-foreground/80" : "text-muted-foreground"
+              )}
+            >
+              {description}
+            </span>
+          )}
+        </span>
+        {isMobile && !description && (
+          <ChevronRight
+            className={cn(
+              "w-4 h-4 ml-auto",
+              isActive ? "opacity-100" : "opacity-40"
+            )}
+          />
+        )}
+      </span>
+    </button>
+  );
+}
+
 /**
  * Settings page component
  */
@@ -353,33 +406,16 @@ export function SettingsPage() {
                   Search Results
                 </div>
                 {searchResults.map((tab) => {
-                  const Icon = tab.icon;
                   return (
-                    <button
+                    <SettingsMenuItem
                       key={tab.id}
+                      icon={tab.icon}
+                      label={tab.label}
+                      description={tab.description}
+                      isActive={activeTab === tab.id}
+                      isMobile={isMobile}
                       onClick={() => handleTabChange(tab.id)}
-                      className={cn(
-                        "w-full flex items-start gap-3 px-3 py-3 rounded-lg transition-colors text-left",
-                        activeTab === tab.id
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted text-foreground"
-                      )}
-                    >
-                      <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium">{tab.label}</div>
-                        <div
-                          className={cn(
-                            "text-xs mt-0.5 line-clamp-1",
-                            activeTab === tab.id
-                              ? "text-primary-foreground/80"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {tab.description}
-                        </div>
-                      </div>
-                    </button>
+                    />
                   );
                 })}
               </>
@@ -393,29 +429,15 @@ export function SettingsPage() {
           ) : (
             // Normal Tab List
             SETTINGS_TABS.map((tab) => {
-              const Icon = tab.icon;
               return (
-                <button
+                <SettingsMenuItem
                   key={tab.id}
+                  icon={tab.icon}
+                  label={tab.label}
+                  isActive={activeTab === tab.id}
+                  isMobile={isMobile}
                   onClick={() => handleTabChange(tab.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors min-h-[44px]",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted text-foreground"
-                  )}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-medium">{tab.label}</span>
-                  {isMobile && (
-                    <ChevronRight
-                      className={cn(
-                        "w-4 h-4 ml-auto",
-                        activeTab === tab.id ? "opacity-100" : "opacity-40"
-                      )}
-                    />
-                  )}
-                </button>
+                />
               );
             })
           )}
@@ -748,7 +770,7 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
             <input
               type="range"
               min="0.25"
-              max="2"
+              max="8"
               step="0.25"
               value={settings.interface.animationFrequency}
               onChange={(e) => {
@@ -759,18 +781,31 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
               }}
               className="w-32"
             />
+            <input
+              type="number"
+              min="0.25"
+              max="8"
+              step="0.25"
+              value={settings.interface.animationFrequency}
+              onChange={(e) => {
+                const value = Math.min(8, Math.max(0.25, parseFloat(e.target.value) || 0.25));
+                updateSettingsCategory("interface", { animationFrequency: value });
+                onChange();
+              }}
+              className="w-20 px-2 py-1 rounded border bg-input text-sm"
+            />
             <span className="text-sm text-muted-foreground w-12">
               {Math.round(settings.interface.animationFrequency * 100)}%
             </span>
           </div>
         </SettingsRow>
 
-        <SettingsRow label="Brightness" description="How visible the animations are">
+        <SettingsRow label="Brightness" description="How strongly the particles glow and accumulate">
           <div className="flex items-center gap-3">
             <input
               type="range"
               min="1"
-              max="20"
+              max="100"
               step="1"
               value={settings.interface.animationBrightness}
               onChange={(e) => {
@@ -781,11 +816,28 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
               }}
               className="w-32"
             />
+            <input
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value={settings.interface.animationBrightness}
+              onChange={(e) => {
+                const value = Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1));
+                updateSettingsCategory("interface", { animationBrightness: value });
+                onChange();
+              }}
+              className="w-20 px-2 py-1 rounded border bg-input text-sm"
+            />
             <span className="text-sm text-muted-foreground w-12">
-              {settings.interface.animationBrightness}x
+              {(settings.interface.animationBrightness / 10).toFixed(1)}x
             </span>
           </div>
         </SettingsRow>
+
+        <div className="text-xs text-muted-foreground">
+          Extreme values are now allowed. High density and brightness can noticeably increase GPU usage.
+        </div>
       </SettingsSection>
 
       <SettingsSection title="Typography" description="Font settings">
