@@ -22,6 +22,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 
 interface RSSCustomizationPanelProps {
   feedId?: string;
@@ -82,6 +83,7 @@ export function RSSCustomizationPanel({
   onClose,
   onSave,
 }: RSSCustomizationPanelProps) {
+  const { t } = useI18n();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<TabType>("display");
   const [preferences, setPreferences] = useState<RSSUserPreferenceUpdate>({});
@@ -115,7 +117,7 @@ export function RSSCustomizationPanel({
   const handleSave = () => {
     onSave(preferences);
     setHasChanges(false);
-    toast.success("Preferences saved!", "Your RSS customization has been updated.");
+    toast.success(t("rssCustomization.preferencesSaved"), t("rssCustomization.preferencesSavedDesc"));
   };
 
   const updatePreference = <K extends keyof RSSUserPreferenceUpdate>(
@@ -135,7 +137,7 @@ export function RSSCustomizationPanel({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-orange-500" />
-            <h2 className="text-lg font-semibold text-foreground">RSS Customization</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("rssCustomization.title")}</h2>
           </div>
           <div className="flex items-center gap-2">
             {hasChanges && (
@@ -144,7 +146,7 @@ export function RSSCustomizationPanel({
                 className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset
+                {t("rssCustomization.reset")}
               </button>
             )}
             <button
@@ -170,31 +172,31 @@ export function RSSCustomizationPanel({
             <TabButton
               active={activeTab === "filters"}
               icon={Filter}
-              label="Filters"
+              label={t("rssCustomization.filters")}
               onClick={() => setActiveTab("filters")}
             />
             <TabButton
               active={activeTab === "display"}
               icon={Eye}
-              label="Display"
+              label={t("rssCustomization.display")}
               onClick={() => setActiveTab("display")}
             />
             <TabButton
               active={activeTab === "layout"}
               icon={LayoutGrid}
-              label="Layout"
+              label={t("rssCustomization.layout")}
               onClick={() => setActiveTab("layout")}
             />
             <TabButton
               active={activeTab === "sorting"}
               icon={ArrowUpDown}
-              label="Sorting"
+              label={t("rssCustomization.sorting")}
               onClick={() => setActiveTab("sorting")}
             />
             <TabButton
               active={activeTab === "reader"}
               icon={BookOpen}
-              label="Reader"
+              label={t("rssCustomization.reader")}
               onClick={() => setActiveTab("reader")}
             />
           </div>

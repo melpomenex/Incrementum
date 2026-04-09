@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useI18n } from "../../lib/i18n";
 import {
   Wand2,
   Loader2,
@@ -40,56 +41,56 @@ interface NotebookLMStudioProps {
 const ARTIFACT_TYPES = [
   {
     id: "flashcards",
-    label: "Flashcards",
-    description: "Study cards with Q&A",
+    labelKey: "notebooklmStudio.flashcards",
+    descKey: "notebooklmStudio.flashcardsDesc",
     icon: Layers,
     color: "bg-blue-500",
     canImport: true,
   },
   {
     id: "quiz",
-    label: "Quiz",
-    description: "Test your knowledge",
+    labelKey: "notebooklmStudio.quiz",
+    descKey: "notebooklmStudio.quizDesc",
     icon: BrainCircuit,
     color: "bg-purple-500",
     canImport: true,
   },
   {
     id: "audio",
-    label: "Audio Overview",
-    description: "AI-generated podcast",
+    labelKey: "notebooklmStudio.audioOverview",
+    descKey: "notebooklmStudio.audioOverviewDesc",
     icon: Headphones,
     color: "bg-emerald-500",
     canImport: false,
   },
   {
     id: "video",
-    label: "Video Overview",
-    description: "Visual presentation",
+    labelKey: "notebooklmStudio.videoOverview",
+    descKey: "notebooklmStudio.videoOverviewDesc",
     icon: Video,
     color: "bg-pink-500",
     canImport: false,
   },
   {
     id: "report",
-    label: "Study Guide",
-    description: "Comprehensive summary",
+    labelKey: "notebooklmStudio.studyGuide",
+    descKey: "notebooklmStudio.studyGuideDesc",
     icon: FileText,
     color: "bg-amber-500",
     canImport: false,
   },
   {
     id: "mind-map",
-    label: "Mind Map",
-    description: "Visual concept map",
+    labelKey: "notebooklmStudio.mindMap",
+    descKey: "notebooklmStudio.mindMapDesc",
     icon: Map,
     color: "bg-cyan-500",
     canImport: false,
   },
   {
     id: "data-table",
-    label: "Data Table",
-    description: "Structured comparison",
+    labelKey: "notebooklmStudio.dataTable",
+    descKey: "notebooklmStudio.dataTableDesc",
     icon: Table,
     color: "bg-indigo-500",
     canImport: false,
@@ -97,6 +98,7 @@ const ARTIFACT_TYPES = [
 ];
 
 export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifact }: NotebookLMStudioProps) {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<NotebookLMJob[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
@@ -220,7 +222,8 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
 
   const getArtifactTypeInfo = (type: string) => {
     return ARTIFACT_TYPES.find((t) => t.id === type) || {
-      label: type,
+      labelKey: type,
+      descKey: "",
       icon: Sparkles,
       color: "bg-gray-500",
       canImport: false,
@@ -240,8 +243,8 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
             <Wand2 className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Studio</h3>
-            <p className="text-xs text-muted-foreground">Generate study materials</p>
+            <h3 className="font-semibold text-foreground">{t("notebooklmStudio.title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("notebooklmStudio.generateStudyMaterials")}</p>
           </div>
         </div>
       </div>
@@ -250,7 +253,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
       <div className="flex-1 overflow-y-auto">
         {/* Generate Section */}
         <div className="p-4">
-          <h4 className="text-sm font-medium text-foreground mb-3">Create</h4>
+          <h4 className="text-sm font-medium text-foreground mb-3">{t("notebooklmStudio.create")}</h4>
           <div className="grid grid-cols-2 gap-2">
             {ARTIFACT_TYPES.map((type) => {
               const Icon = type.icon;
@@ -270,8 +273,8 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                     )}
                   </div>
                   <div className="text-center">
-                    <p className="text-xs font-medium text-foreground">{type.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{type.description}</p>
+                    <p className="text-xs font-medium text-foreground">{t(type.labelKey)}</p>
+                    <p className="text-[10px] text-muted-foreground">{type.descKey ? t(type.descKey) : ""}</p>
                   </div>
                 </button>
               );
@@ -286,7 +289,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
             className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">Recent Jobs</span>
+              <span className="text-sm font-medium text-foreground">{t("notebooklmStudio.recentJobs")}</span>
               {jobs.length > 0 && (
                 <span className="px-1.5 py-0.5 text-xs bg-muted text-muted-foreground rounded-full">
                   {jobs.length}
@@ -316,7 +319,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
             <div className="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
               {jobs.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No jobs yet. Generate your first artifact!
+                  {t("notebooklmStudio.noJobsYet")}
                 </p>
               ) : (
                 jobs.map((job) => {
@@ -342,7 +345,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">
-                            {typeInfo.label}
+                            {t(typeInfo.labelKey)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(job.updatedAt).toLocaleDateString()}
@@ -355,7 +358,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                           <button
                             onClick={() => onViewArtifact?.(job)}
                             className="p-1.5 hover:bg-background rounded-md transition-colors"
-                            title="View artifact"
+                            title={t("notebooklmStudio.viewArtifact")}
                           >
                             <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
@@ -373,7 +376,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
         {selectedJob && (
           <div className="border-t border-border p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-foreground">Preview</h4>
+              <h4 className="text-sm font-medium text-foreground">{t("notebooklmStudio.preview")}</h4>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleExport("json")}
@@ -403,7 +406,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                         type="text"
                         value={deckName}
                         onChange={(e) => setDeckName(e.target.value)}
-                        placeholder="Deck name"
+                        placeholder={t("notebooklmStudio.deckNamePlaceholder")}
                         className="w-full px-2.5 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
                     </div>
@@ -434,7 +437,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                       className="w-full mt-3 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                     >
                       <Upload className="w-4 h-4" />
-                      Sync to Incrementum
+                      {t("notebooklmStudio.syncToIncrementum")}
                     </button>
 
                     {syncResult && (
@@ -445,21 +448,21 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No preview items available for this job.
+                    {t("notebooklmStudio.noPreviewItems")}
                   </p>
                 )}
               </>
             ) : (
               <div className="text-center py-6">
                 <p className="text-sm text-muted-foreground mb-2">
-                  This artifact type has a dedicated viewer.
+                  {t("notebooklmStudio.dedicatedViewer")}
                 </p>
                 <button
                   onClick={() => onViewArtifact?.(selectedJob)}
                   className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 mx-auto"
                 >
                   <Eye className="w-4 h-4" />
-                  View Artifact
+                  {t("notebooklmStudio.viewArtifact")}
                 </button>
               </div>
             )}

@@ -33,6 +33,7 @@ import {
   Eye,
 } from "lucide-react";
 import { isTauri } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import { createExtract, type CreateExtractInput } from "../../api/extracts";
 import { createLearningItem } from "../../api/learning-items";
 import { createDocument } from "../../api/documents";
@@ -40,6 +41,7 @@ import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPan
 import { useToast } from "../common/Toast";
 import { formatRelativeTime } from "../../utils/date";
 import { WEBVIEW_EXTRACT_BRIDGE_SCRIPT, SELECTION_STORAGE_KEY } from "../../lib/webview-extract-bridge";
+import { useI18n } from "../../lib/i18n";
 
 // Type definitions for lazy loading
 type WebviewType = import("@tauri-apps/api/webview").Webview;
@@ -63,6 +65,7 @@ interface ExtractDialogProps {
 
 function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
   const toast = useToast();
+  const { t } = useI18n();
   const [content, setContent] = useState(extract.content || "");
   const [note, setNote] = useState(extract.note || "");
   const [tags, setTags] = useState<string[]>(extract.tags || []);
@@ -135,8 +138,8 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
               <HighlighterIcon className="w-5 h-5 text-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Create Extract</h3>
-              <p className="text-xs text-muted-foreground">From: {extract.pageTitle}</p>
+              <h3 className="text-lg font-semibold text-foreground">{t("extracts.createTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("viewer.from")}: {extract.pageTitle}</p>
             </div>
           </div>
           <button
@@ -153,7 +156,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-muted-foreground" />
-              {isManualMode ? "Extract Content" : "Selected Content"}
+              {isManualMode ? t("viewer.extractContent") : t("viewer.selectedContent")}
               {extract.htmlContent && !isManualMode && (
                 <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                   Rich formatting preserved
@@ -221,7 +224,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
           {/* Color selection */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Highlight Color
+              {t("extracts.highlightColor")}
             </label>
             <div className="flex items-center gap-3">
               {colors.map((c) => (
@@ -240,7 +243,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
           {/* Note */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              {t("extracts.notes")} <span className="text-muted-foreground font-normal">({t("extracts.optional").toLowerCase()})</span>
             </label>
             <textarea
               value={note}
@@ -318,7 +321,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
             ) : (
               <>
                 <BookmarkPlus className="w-4 h-4" />
-                {isManualMode ? "Save Extract" : "Save as Extract"}
+                {isManualMode ? t("extracts.saveExtract") : t("extracts.saveAsExtract")}
               </>
             )}
           </button>
@@ -335,7 +338,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
               onClick={onClose}
               className="px-4 py-2 bg-card border border-border text-foreground rounded-lg hover:bg-muted transition-colors text-sm"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -345,6 +348,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
 }
 
 export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [url, setUrl] = useState("");
   const [currentUrl, setCurrentUrl] = useState("");
@@ -1073,16 +1077,16 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
               title="Create extract from selected text (Ctrl/Cmd + Shift + E)"
             >
               <HighlighterIcon className="w-4 h-4" />
-              Create Extract
+              {t("extracts.createTitle")}
             </button>
             <span className="text-xs text-muted-foreground">
-              Select text on this page, then click button or press
+              {t("viewer.selectTextHint")}
               <kbd className="ml-1 px-1.5 py-0.5 bg-muted rounded text-xs font-mono">Ctrl+Shift+E</kbd>
             </span>
             {savedExtracts.length > 0 && (
               <span className="ml-auto text-xs text-primary bg-primary/10 px-2 py-1 rounded-full flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
-                {savedExtracts.length} extract{savedExtracts.length > 1 ? 's' : ''} saved
+                {savedExtracts.length} {t("extracts.extractSaved", { count: savedExtracts.length })}
               </span>
             )}
           </div>
@@ -1102,7 +1106,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
               >
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
                   <HighlighterIcon className="w-4 h-4 text-primary" />
-                  Recent Extracts
+                  {t("extracts.recentExtracts")}
                   <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                     {savedExtracts.length}
                   </span>
@@ -1117,9 +1121,9 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                   {savedExtracts.length === 0 ? (
                     <div className="text-center py-6 bg-muted/30 rounded-lg">
                       <HighlighterIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                      <p className="text-sm text-muted-foreground">No extracts yet</p>
+                      <p className="text-sm text-muted-foreground">{t("extracts.noExtractsYet")}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Select text and click "Create Extract"
+                        {t("extracts.selectAndCreate")}
                       </p>
                     </div>
                   ) : (
@@ -1182,10 +1186,10 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             <div className="p-4">
               <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                 <BookmarkPlus className="w-4 h-4 text-primary" />
-                Bookmarks
+                {t("viewer.bookmarks")}
               </h3>
               {bookmarks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No bookmarks yet</p>
+                <p className="text-sm text-muted-foreground">{t("viewer.noBookmarksYet")}</p>
               ) : (
                 <div className="space-y-2">
                   {bookmarks.map((bookmark, index) => (

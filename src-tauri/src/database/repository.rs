@@ -987,6 +987,7 @@ impl Repository {
         let state_str = format!("{:?}", item.state).to_lowercase();
         let tags_json = serde_json::to_string(&item.tags)?;
         let image_asset_ids_json = serde_json::to_string(&item.image_asset_ids)?;
+        let interaction_metadata_json = item.interaction_metadata.as_ref().map(serde_json::to_string).transpose()?;
 
         let (stability, difficulty) = item.memory_state.as_ref()
             .map(|s| (Some(s.stability), Some(s.difficulty)))
@@ -999,9 +1000,9 @@ impl Repository {
                 answer, cloze_text, difficulty, interval,
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
-                is_suspended, tags, image_asset_ids, memory_state_stability, memory_state_difficulty,
+                is_suspended, tags, image_asset_ids, interaction_metadata, memory_state_stability, memory_state_difficulty,
                 algorithm_type, algorithm_state
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
             "#,
         )
         .bind(&item.id)
@@ -1024,6 +1025,7 @@ impl Repository {
         .bind(item.is_suspended)
         .bind(&tags_json)
         .bind(&image_asset_ids_json)
+        .bind(&interaction_metadata_json)
         .bind(stability)
         .bind(difficulty)
         .bind(&item.algorithm_type)
@@ -1048,6 +1050,10 @@ impl Repository {
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
             let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
             let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+            let interaction_metadata = interaction_metadata_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1078,6 +1084,7 @@ impl Repository {
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
                 image_asset_ids,
+                interaction_metadata,
                 memory_state,
                 algorithm_type,
                 algorithm_state,
@@ -1101,6 +1108,10 @@ impl Repository {
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
             let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
             let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+            let interaction_metadata = interaction_metadata_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1131,6 +1142,7 @@ impl Repository {
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
                 image_asset_ids,
+                interaction_metadata,
                 memory_state,
                 algorithm_type,
                 algorithm_state,
@@ -1154,6 +1166,10 @@ impl Repository {
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
             let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
             let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+            let interaction_metadata = interaction_metadata_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1184,6 +1200,7 @@ impl Repository {
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
                 image_asset_ids,
+                interaction_metadata,
                 memory_state,
                 algorithm_type,
                 algorithm_state,
@@ -1197,6 +1214,7 @@ impl Repository {
         let _item_type_str = format!("{:?}", item.item_type).to_lowercase();
         let state_str = format!("{:?}", item.state).to_lowercase();
         let _tags_json = serde_json::to_string(&item.tags)?;
+        let interaction_metadata_json = item.interaction_metadata.as_ref().map(serde_json::to_string).transpose()?;
 
         let (stability, difficulty) = item.memory_state.as_ref()
             .map(|s| (Some(s.stability), Some(s.difficulty)))
@@ -1209,7 +1227,7 @@ impl Repository {
                 state = ?4, review_count = ?5, lapses = ?6,
                 last_review_date = ?7, date_modified = ?8,
                 memory_state_stability = ?9, memory_state_difficulty = ?10,
-                algorithm_type = ?12, algorithm_state = ?13
+                interaction_metadata = ?12, algorithm_type = ?13, algorithm_state = ?14
             WHERE id = ?11
             "#,
         )
@@ -1224,6 +1242,7 @@ impl Repository {
         .bind(stability)
         .bind(difficulty)
         .bind(&item.id)
+        .bind(&interaction_metadata_json)
         .bind(&item.algorithm_type)
         .bind(&item.algorithm_state)
         .execute(&self.pool)
@@ -1245,6 +1264,10 @@ impl Repository {
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
             let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
             let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+            let interaction_metadata = interaction_metadata_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
 
             let stability: Option<f64> = row.try_get("memory_state_stability").ok();
             let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
@@ -1275,6 +1298,7 @@ impl Repository {
                 is_suspended: row.try_get("is_suspended")?,
                 tags,
                 image_asset_ids,
+                interaction_metadata,
                 memory_state,
                 algorithm_type,
                 algorithm_state,

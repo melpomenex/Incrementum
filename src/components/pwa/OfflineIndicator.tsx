@@ -15,6 +15,7 @@ import {
   RefreshCcw,
   Loader2,
 } from "lucide-react";
+import { t } from "../../lib/i18n";
 
 interface OfflineStatus {
   isOnline: boolean;
@@ -115,7 +116,7 @@ export function OfflineIndicator({
       {isOnline ? (
         <>
           <CloudDownload className="w-3.5 h-3.5" />
-          {showLabel && <span>Pending sync</span>}
+          {showLabel && <span>{t("offline.pendingSync")}</span>}
           {pendingChanges > 0 && (
             <span className="font-medium">{pendingChanges}</span>
           )}
@@ -123,7 +124,7 @@ export function OfflineIndicator({
       ) : (
         <>
           <WifiOff className="w-3.5 h-3.5" />
-          {showLabel && <span>Offline</span>}
+          {showLabel && <span>{t("offline.offline")}</span>}
         </>
       )}
     </div>
@@ -161,7 +162,7 @@ export function ContentAvailability({
     return (
       <div
         className={`inline-flex items-center gap-1 text-primary ${className}`}
-        title="Downloading..."
+        title={t("offline.downloading")}
       >
         <Loader2 className={`${iconSize} animate-spin`} />
       </div>
@@ -172,7 +173,7 @@ export function ContentAvailability({
     return (
       <div
         className={`inline-flex items-center gap-1 text-green-600 ${className}`}
-        title="Available offline"
+        title={t("offline.availableOffline")}
       >
         <Check className={iconSize} />
       </div>
@@ -184,7 +185,7 @@ export function ContentAvailability({
       <button
         onClick={onDownload}
         className={`inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors ${className}`}
-        title="Download for offline"
+        title={t("offline.downloadForOffline")}
       >
         <Download className={iconSize} />
       </button>
@@ -194,7 +195,7 @@ export function ContentAvailability({
   return (
     <div
       className={`inline-flex items-center gap-1 text-muted-foreground ${className}`}
-      title="Online only"
+      title={t("offline.onlineOnly")}
     >
       <Cloud className={iconSize} />
     </div>
@@ -234,9 +235,9 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
           <WifiOff className="w-5 h-5 text-red-600" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-600">You're offline</h3>
+          <h3 className="text-sm font-medium text-red-600">{t("offline.youreOffline")}</h3>
           <p className="text-xs text-red-500/80">
-            Some features may be limited. Your changes will sync when you're back online.
+            {t("offline.offlineDescription")}
           </p>
         </div>
       </div>
@@ -253,10 +254,10 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-medium text-amber-600">
-            {pendingChanges} changes pending sync
+            {t("offline.changesPendingSync", { count: pendingChanges })}
           </h3>
           <p className="text-xs text-amber-500/80">
-            Sync now to update your data across devices.
+            {t("offline.syncNowDescription")}
           </p>
         </div>
         <button
@@ -269,7 +270,7 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
           ) : (
             <RefreshCcw className="w-4 h-4" />
           )}
-          Sync
+          {t("offline.sync")}
         </button>
       </div>
     );
@@ -283,9 +284,9 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
         <CloudCheck className="w-5 h-5 text-green-600" />
       </div>
       <div className="flex-1">
-        <h3 className="text-sm font-medium text-green-600">All synced</h3>
+        <h3 className="text-sm font-medium text-green-600">{t("offline.allSynced")}</h3>
         <p className="text-xs text-green-500/80">
-          Your data is up to date and available offline.
+          {t("offline.allSyncedDescription")}
         </p>
       </div>
     </div>
@@ -312,7 +313,7 @@ export function OfflineBadge({
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-medium ${className}`}
       >
         <CloudDownload className="w-2.5 h-2.5" />
-        Syncing
+        {t("offline.syncing")}
       </span>
     );
   }
@@ -321,10 +322,10 @@ export function OfflineBadge({
     return (
       <span
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded text-[10px] font-medium ${className}`}
-        title="Available offline"
+        title={t("offline.availableOffline")}
       >
         <Check className="w-2.5 h-2.5" />
-        Offline
+        {t("offline.offline")}
       </span>
     );
   }
@@ -359,7 +360,7 @@ export function StorageUsage({
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">Offline storage</span>
+        <span className="text-muted-foreground">{t("offline.offlineStorage")}</span>
         <span className="text-foreground font-medium">
           {usedMB} / {totalMB} MB
         </span>
@@ -373,7 +374,7 @@ export function StorageUsage({
       {percentage >= 90 && (
         <p className="text-xs text-red-500 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
-          Storage almost full. Remove some offline content.
+          {t("offline.storageAlmostFull")}
         </p>
       )}
     </div>
@@ -502,16 +503,16 @@ export function UpdateNotification({
         <RefreshCcw className="w-5 h-5 text-primary" />
       </div>
       <div className="flex-1">
-        <h3 className="text-sm font-medium text-foreground">Update available</h3>
+        <h3 className="text-sm font-medium text-foreground">{t("offline.updateAvailable")}</h3>
         <p className="text-xs text-muted-foreground">
-          A new version is ready to install.
+          {t("offline.updateReady")}
         </p>
       </div>
       <button
         onClick={update}
         className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
       >
-        Update
+        {t("offline.update")}
       </button>
     </div>
   );

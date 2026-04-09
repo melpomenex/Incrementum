@@ -1,4 +1,5 @@
 import { invokeCommand } from "../lib/tauri";
+import type { LearningItemInteractionMetadata } from "../types/learningItemInteractions";
 
 export interface PreviewIntervals {
   again: number;
@@ -129,7 +130,7 @@ export interface LearningItem {
   };
   algorithm_type?: string;
   algorithm_state?: string;
-  interaction_metadata?: Record<string, unknown>;
+  interaction_metadata?: LearningItemInteractionMetadata;
   source_anchor?: {
     document_id?: string;
     extract_id?: string;

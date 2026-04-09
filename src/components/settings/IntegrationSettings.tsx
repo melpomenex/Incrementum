@@ -48,6 +48,7 @@ import {
   validateYouTubeCookies,
   type YouTubeCookie,
 } from "../../utils/youtubeCookies";
+import { useI18n } from "../../lib/i18n";
 
 type IntegrationType =
   | "obsidian"
@@ -58,6 +59,7 @@ type IntegrationType =
   | "notebooklm";
 
 export function IntegrationSettings() {
+  const { t } = useI18n();
   const [settings, setSettings] = useState(getIntegrationSettings());
   const [activeTab, setActiveTab] = useState<IntegrationType>("obsidian");
 
@@ -165,7 +167,7 @@ export function IntegrationSettings() {
       dataviewFolder: obsidianDataview || undefined,
     };
     updateObsidianConfig(config);
-    showResult(true, "Obsidian configuration saved");
+    showResult(true, t("integrations.obsidianConfigurationSaved"));
   };
 
   // Test Anki connection
@@ -183,13 +185,13 @@ export function IntegrationSettings() {
         ]);
         setAnkiDecks(decks);
         setAnkiModels(models);
-        showResult(true, "Connected to Anki successfully");
+        showResult(true, t("integrations.connectedToAnki"));
       } else {
-        showResult(false, "Failed to connect to Anki. Make sure Anki is running.");
+        showResult(false, t("integrations.failedConnectToAnki"));
       }
     } catch {
       setAnkiConnected(false);
-      showResult(false, "Failed to test Anki connection");
+      showResult(false, t("integrations.failedTestAnkiConnection"));
     } finally {
       setIsOperating(false);
     }
@@ -203,7 +205,7 @@ export function IntegrationSettings() {
       modelName: ankiModel,
     };
     updateAnkiConfig(config);
-    showResult(true, "Anki configuration saved");
+    showResult(true, t("integrations.ankiConfigurationSaved"));
   };
 
   // Toggle extension server
@@ -212,14 +214,14 @@ export function IntegrationSettings() {
     try {
       if (extensionStatus.running) {
         await stopBrowserSyncServer();
-        showResult(true, "Extension server stopped");
+        showResult(true, t("integrations.extensionServerStopped"));
       } else {
         await startBrowserSyncServer(extensionPort);
-        showResult(true, "Extension server started");
+        showResult(true, t("integrations.extensionServerStarted"));
       }
       loadExtensionStatus();
     } catch {
-      showResult(false, "Failed to toggle extension server");
+      showResult(false, t("integrations.failedToggleExtensionServer"));
     } finally {
       setIsOperating(false);
     }
@@ -243,14 +245,14 @@ export function IntegrationSettings() {
   // YouTube Cookies handlers
   const handleSaveCookies = () => {
     if (!cookieInput.trim()) {
-      showResult(false, "Please enter cookies");
+      showResult(false, t("integrations.pleaseEnterCookies"));
       return;
     }
 
     try {
       const parsed = parseCookiesFromString(cookieInput);
       if (parsed.length === 0) {
-        showResult(false, "No valid cookies found. Please check the format.");
+        showResult(false, t("integrations.noValidCookiesFound"));
         return;
       }
 
@@ -272,17 +274,17 @@ export function IntegrationSettings() {
         );
       }
     } catch (error) {
-      showResult(false, error instanceof Error ? error.message : "Failed to parse cookies");
+      showResult(false, error instanceof Error ? error.message : t("integrations.failedParseCookies"));
     }
   };
 
   const handleTestCookies = async () => {
     if (youtubeCookies.length === 0) {
-      showResult(false, "No cookies to test");
+      showResult(false, t("integrations.noCookiesToTest"));
       return;
     }
 
-    setCookieTestStatus({ status: "testing", message: "Testing cookies..." });
+    setCookieTestStatus({ status: "testing", message: t("integrations.testingCookies") });
 
     const result = await testYouTubeCookies(youtubeCookies);
 
@@ -303,7 +305,7 @@ export function IntegrationSettings() {
     clearYouTubeCookies();
     setYoutubeCookies([]);
     setCookieTestStatus({ status: "idle", message: "" });
-    showResult(true, "Cookies cleared");
+    showResult(true, t("integrations.cookiesCleared"));
   };
 
   const showResult = (success: boolean, message: string) => {
@@ -316,7 +318,7 @@ export function IntegrationSettings() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Plug className="w-6 h-6 text-primary" />
-        <h2 className="text-2xl font-bold text-foreground">Integrations</h2>
+        <h2 className="text-2xl font-bold text-foreground">{t("integrations.title")}</h2>
       </div>
 
       {/* Tabs */}
@@ -330,7 +332,7 @@ export function IntegrationSettings() {
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          Obsidian
+          {t("integrations.obsidian")}
         </button>
         <button
           onClick={() => setActiveTab("anki")}
@@ -341,7 +343,7 @@ export function IntegrationSettings() {
           }`}
         >
           <Brain className="w-4 h-4" />
-          Anki
+          {t("integrations.anki")}
         </button>
         <button
           onClick={() => setActiveTab("extension")}
@@ -352,7 +354,7 @@ export function IntegrationSettings() {
           }`}
         >
           <Globe className="w-4 h-4" />
-          Browser Extension
+          {t("integrations.browserExtension")}
         </button>
         <button
           onClick={() => setActiveTab("notebooklm")}
@@ -363,7 +365,7 @@ export function IntegrationSettings() {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          NotebookLM
+          {t("integrations.notebooklm")}
         </button>
         <button
           onClick={() => setActiveTab("youtube")}
@@ -374,7 +376,7 @@ export function IntegrationSettings() {
           }`}
         >
           <ListVideo className="w-4 h-4" />
-          YouTube Playlists
+          {t("integrations.youtubePlaylists")}
         </button>
         <button
           onClick={() => setActiveTab("youtube-cookies")}
@@ -385,7 +387,7 @@ export function IntegrationSettings() {
           }`}
         >
           <Cookie className="w-4 h-4" />
-          YouTube Cookies
+          {t("integrations.youtubeCookies")}
         </button>
       </div>
 
@@ -413,14 +415,14 @@ export function IntegrationSettings() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <BookOpen className="w-5 h-5 text-purple-500" />
-              <h3 className="text-lg font-semibold text-foreground">Obsidian Integration</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("integrations.obsidianIntegration")}</h3>
             </div>
 
             <div className="space-y-4">
               {/* Vault path */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Vault Path
+                  {t("integrations.vaultPath")}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -434,20 +436,20 @@ export function IntegrationSettings() {
                     onClick={async () => {
                       try {
                         const folder = await openFolderPicker({
-                          title: "Select Obsidian Vault Folder",
+                          title: t("integrations.selectObsidianVaultFolder"),
                         });
                         if (folder) {
                           setObsidianVault(folder);
                         }
                       } catch (error) {
                         console.error("Failed to open folder picker:", error);
-                        showResult(false, "Failed to open folder picker");
+                        showResult(false, t("integrations.failedOpenFolderPicker"));
                       }
                     }}
                     className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
                   >
                     <FolderOpen className="w-4 h-4" />
-                    Browse
+                    {t("integrations.browse")}
                   </button>
                 </div>
               </div>
@@ -455,7 +457,7 @@ export function IntegrationSettings() {
               {/* Notes folder */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Notes Folder
+                  {t("integrations.notesFolder")}
                 </label>
                 <input
                   type="text"
@@ -469,7 +471,7 @@ export function IntegrationSettings() {
               {/* Attachments folder */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Attachments Folder
+                  {t("integrations.attachmentsFolder")}
                 </label>
                 <input
                   type="text"
@@ -483,7 +485,7 @@ export function IntegrationSettings() {
               {/* Dataview folder */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Dataview Folder (Optional)
+                  {t("integrations.dataviewFolderOptional")}
                 </label>
                 <input
                   type="text"
@@ -499,37 +501,36 @@ export function IntegrationSettings() {
                 onClick={handleSaveObsidian}
                 className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
               >
-                Save Obsidian Configuration
+                {t("integrations.saveObsidianConfiguration")}
               </button>
             </div>
           </div>
 
           {/* AI Conversation Export Info */}
           <div className="bg-card border border-border rounded-lg p-6">
-            <h4 className="font-semibold text-foreground mb-2">AI Conversation Export</h4>
+            <h4 className="font-semibold text-foreground mb-2">{t("integrations.aiConversationExport")}</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              You can now export AI assistant conversations directly to your Obsidian vault.
-              Look for the share button on assistant messages or in the conversation header.
+              {t("integrations.aiConversationExportDesc")}
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="w-4 h-4 text-blue-500" />
-              <span>Conversations are exported as Markdown with Obsidian-compatible formatting</span>
+              <span>{t("integrations.conversationsExportedAsMarkdown")}</span>
             </div>
           </div>
 
           {/* Sync actions */}
           {settings.obsidian && (
             <div className="bg-card border border-border rounded-lg p-6">
-              <h4 className="font-semibold text-foreground mb-4">Sync Actions</h4>
+              <h4 className="font-semibold text-foreground mb-4">{t("integrations.syncActions")}</h4>
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
                     setIsOperating(true);
                     try {
                       await syncToObsidian(settings.obsidian);
-                      showResult(true, "Synced to Obsidian successfully");
+                      showResult(true, t("integrations.syncedToObsidian"));
                     } catch {
-                      showResult(false, "Failed to sync to Obsidian");
+                      showResult(false, t("integrations.failedSyncToObsidian"));
                     } finally {
                       setIsOperating(false);
                     }
@@ -538,16 +539,16 @@ export function IntegrationSettings() {
                   className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
-                  Sync All to Obsidian
+                  {t("integrations.syncAllToObsidian")}
                 </button>
                 <button
                   onClick={async () => {
                     setIsOperating(true);
                     try {
                       await syncFromObsidian(settings.obsidian);
-                      showResult(true, "Synced from Obsidian successfully");
+                      showResult(true, t("integrations.syncedFromObsidian"));
                     } catch {
-                      showResult(false, "Failed to sync from Obsidian");
+                      showResult(false, t("integrations.failedSyncFromObsidian"));
                     } finally {
                       setIsOperating(false);
                     }
@@ -556,7 +557,7 @@ export function IntegrationSettings() {
                   className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  Sync From Obsidian
+                  {t("integrations.syncFromObsidian")}
                 </button>
               </div>
             </div>
@@ -570,11 +571,11 @@ export function IntegrationSettings() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <Brain className="w-5 h-5 text-blue-500" />
-              <h3 className="text-lg font-semibold text-foreground">Anki Integration</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("integrations.ankiIntegration")}</h3>
               {ankiConnected && (
                 <span className="ml-auto px-2 py-1 bg-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
                   <Check className="w-3 h-3" />
-                  Connected
+                  {t("common.connected")}
                 </span>
               )}
             </div>
@@ -583,7 +584,7 @@ export function IntegrationSettings() {
               {/* Anki URL */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  AnkiConnect URL
+                  {t("integrations.ankiConnectUrl")}
                 </label>
                 <input
                   type="text"
@@ -601,7 +602,7 @@ export function IntegrationSettings() {
                 className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <RefreshCw className={`w-4 h-4 ${isOperating ? "animate-spin" : ""}`} />
-                Test Connection
+                {t("integrations.testConnection")}
               </button>
 
               {/* Deck selection */}
@@ -609,7 +610,7 @@ export function IntegrationSettings() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Target Deck
+                      {t("integrations.targetDeck")}
                     </label>
                     <select
                       value={ankiDeck}
@@ -627,7 +628,7 @@ export function IntegrationSettings() {
                   {/* Model selection */}
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Card Model
+                      {t("integrations.cardModel")}
                     </label>
                     <select
                       value={ankiModel}
@@ -647,7 +648,7 @@ export function IntegrationSettings() {
                     onClick={handleSaveAnki}
                     className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
                   >
-                    Save Anki Configuration
+                    {t("integrations.saveAnkiConfiguration")}
                   </button>
                 </>
               )}
@@ -657,9 +658,9 @@ export function IntegrationSettings() {
           {/* Sync actions */}
           {settings.anki && ankiConnected && (
             <div className="bg-card border border-border rounded-lg p-6">
-              <h4 className="font-semibold text-foreground mb-4">Sync Actions</h4>
+              <h4 className="font-semibold text-foreground mb-4">{t("integrations.syncActions")}</h4>
               <p className="text-sm text-muted-foreground mb-4">
-                Sync flashcards from Incrementum to Anki
+                {t("integrations.syncFlashcardsFromIncrementumToAnki")}
               </p>
               <button
                 onClick={async () => {
@@ -671,7 +672,7 @@ export function IntegrationSettings() {
                       `Synced ${result.added} cards to Anki${result.failed > 0 ? ` (${result.failed} failed)` : ""}`
                     );
                   } catch {
-                    showResult(false, "Failed to sync to Anki");
+                    showResult(false, t("integrations.failedSyncToAnki"));
                   } finally {
                     setIsOperating(false);
                   }
@@ -680,7 +681,7 @@ export function IntegrationSettings() {
                 className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Sync Flashcards to Anki
+                {t("integrations.syncFlashcardsToAnki")}
               </button>
             </div>
           )}
@@ -693,11 +694,11 @@ export function IntegrationSettings() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <Globe className="w-5 h-5 text-green-500" />
-              <h3 className="text-lg font-semibold text-foreground">Browser Extension Server</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("integrations.browserExtensionServer")}</h3>
               {extensionStatus.running && (
                 <span className="ml-auto px-2 py-1 bg-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
                   <Server className="w-3 h-3" />
-                  Running
+                  {t("integrations.running")}
                 </span>
               )}
             </div>
@@ -706,7 +707,7 @@ export function IntegrationSettings() {
               {/* Port */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  HTTP Server Port
+                  {t("integrations.httpServerPort")}
                 </label>
                 <input
                   type="number"
@@ -715,7 +716,7 @@ export function IntegrationSettings() {
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Default: 8766 (change if port is in use)
+                  {t("integrations.defaultPortHint")}
                 </p>
               </div>
 
@@ -723,10 +724,10 @@ export function IntegrationSettings() {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="block text-sm font-medium text-foreground">
-                    Auto-start on app launch
+                    {t("integrations.autoStartOnAppLaunch")}
                   </label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Automatically start the server when Incrementum opens
+                    {t("integrations.autoStartDesc")}
                   </p>
                 </div>
                 <button
@@ -747,15 +748,15 @@ export function IntegrationSettings() {
               {extensionStatus.running && (
                 <div className="p-3 bg-muted/30 rounded-lg">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Status:</span>
-                    <span className="text-green-500">Running</span>
+                    <span className="text-muted-foreground">{t("integrations.status")}</span>
+                    <span className="text-green-500">{t("integrations.running")}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Port:</span>
+                    <span className="text-muted-foreground">{t("integrations.port")}</span>
                     <span className="text-foreground">{extensionStatus.port}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Connections:</span>
+                    <span className="text-muted-foreground">{t("integrations.connections")}</span>
                     <span className="text-foreground">{extensionStatus.connections}</span>
                   </div>
                 </div>
@@ -772,7 +773,7 @@ export function IntegrationSettings() {
                 }`}
               >
                 <Server className="w-4 h-4" />
-                {extensionStatus.running ? "Stop Server" : "Start Server"}
+                {extensionStatus.running ? t("integrations.stopServer") : t("integrations.startServer")}
               </button>
             </div>
           </div>
@@ -780,9 +781,7 @@ export function IntegrationSettings() {
           {/* Info */}
           <div className="p-4 bg-muted/30 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              The browser extension server allows the Incrementum web clipper extension to communicate
-              with the desktop application via HTTP. Start the server to enable web clipping functionality.
-              Configure the extension to connect to http://127.0.0.1:{extensionPort}.
+              {t("integrations.browserExtensionInfo", { port: extensionPort })}
             </p>
           </div>
         </div>
@@ -806,11 +805,11 @@ export function IntegrationSettings() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <Cookie className="w-5 h-5 text-red-500" />
-              <h3 className="text-lg font-semibold text-foreground">YouTube Authentication Cookies</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("integrations.youtubeAuthCookies")}</h3>
               {youtubeCookies.length > 0 && (
                 <span className="ml-auto px-2 py-1 bg-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
                   <Check className="w-3 h-3" />
-                  {youtubeCookies.length} cookies
+                  {t("integrations.cookiesCount", { count: youtubeCookies.length })}
                 </span>
               )}
             </div>
@@ -820,11 +819,9 @@ export function IntegrationSettings() {
               <div className="p-4 bg-muted/30 rounded-lg flex gap-3">
                 <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Why upload cookies?</p>
+                  <p className="font-medium text-foreground mb-1">{t("integrations.whyUploadCookies")}</p>
                   <p>
-                    YouTube may block transcript requests due to bot detection. By uploading your own YouTube cookies,
-                    the server can make authenticated requests on your behalf. Your cookies are stored locally in your
-                    browser and sent directly to the server.
+                    {t("integrations.whyUploadCookiesDesc")}
                   </p>
                 </div>
               </div>
@@ -833,8 +830,8 @@ export function IntegrationSettings() {
               {youtubeCookies.length > 0 ? (
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-foreground">Cookies stored</span>
-                    <span className="text-sm text-green-500">{youtubeCookies.length} cookies</span>
+                    <span className="text-sm font-medium text-foreground">{t("integrations.cookiesStored")}</span>
+                    <span className="text-sm text-green-500">{t("integrations.cookiesCount", { count: youtubeCookies.length })}</span>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -843,14 +840,14 @@ export function IntegrationSettings() {
                       className="flex-1 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                     >
                       <RefreshCw className={`w-4 h-4 ${cookieTestStatus.status === "testing" ? "animate-spin" : ""}`} />
-                      {cookieTestStatus.status === "testing" ? "Testing..." : "Test Cookies"}
+                      {cookieTestStatus.status === "testing" ? t("integrations.testingCookies") : t("integrations.testCookies")}
                     </button>
                     <button
                       onClick={handleClearCookies}
                       className="px-3 py-2 bg-destructive/20 text-destructive rounded-lg hover:opacity-90 flex items-center justify-center gap-2 text-sm"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Clear
+                      {t("common.clear")}
                     </button>
                   </div>
                   {cookieTestStatus.status !== "idle" && (
@@ -869,7 +866,7 @@ export function IntegrationSettings() {
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm">No cookies stored</span>
+                    <span className="text-sm">{t("integrations.noCookiesStored")}</span>
                   </div>
                 </div>
               )}
@@ -881,13 +878,13 @@ export function IntegrationSettings() {
                   className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center justify-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
-                  Upload Cookies
+                  {t("integrations.uploadCookies")}
                 </button>
               ) : (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Paste your YouTube cookies (JSON format)
+                      {t("integrations.pasteYoutubeCookies")}
                     </label>
                     <textarea
                       value={cookieInput}
@@ -902,7 +899,7 @@ export function IntegrationSettings() {
                       onClick={handleSaveCookies}
                       className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
                     >
-                      Save Cookies
+                      {t("integrations.saveCookies")}
                     </button>
                     <button
                       onClick={() => {
@@ -911,7 +908,7 @@ export function IntegrationSettings() {
                       }}
                       className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90"
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </button>
                   </div>
                 </div>
@@ -919,16 +916,15 @@ export function IntegrationSettings() {
 
               {/* Instructions */}
               <div className="p-4 bg-muted/30 rounded-lg">
-                <p className="text-sm font-medium text-foreground mb-2">How to get your cookies:</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("integrations.howToGetCookies")}</p>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Install a cookie exporter extension (e.g., "Get cookies.txt" for Chrome/Firefox)</li>
-                  <li>Go to YouTube.com and make sure you're logged in</li>
-                  <li>Export cookies for youtube.com in JSON format</li>
-                  <li>Paste the JSON above and click "Save Cookies"</li>
+                  <li>{t("integrations.cookieInstruction1")}</li>
+                  <li>{t("integrations.cookieInstruction2")}</li>
+                  <li>{t("integrations.cookieInstruction3")}</li>
+                  <li>{t("integrations.cookieInstruction4")}</li>
                 </ol>
                 <p className="text-xs text-muted-foreground mt-3">
-                  <strong>Important:</strong> Cookies contain authentication tokens. Only share them with services you trust.
-                  Your cookies are stored locally in your browser.
+                  {t("integrations.cookieImportantNote")}
                 </p>
               </div>
             </div>

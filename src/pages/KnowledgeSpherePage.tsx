@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invokeCommand } from "../lib/tauri";
 import { KnowledgeSphereTab } from "../components/tabs/knowledge/KnowledgeSphereTab";
 import { useCollectionStore } from "../stores/collectionStore";
+import { useI18n } from "../lib/i18n";
 
 interface Node {
   id: string;
@@ -11,6 +12,7 @@ interface Node {
 }
 
 export function KnowledgeSpherePage() {
+  const { t } = useI18n();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -107,7 +109,7 @@ export function KnowledgeSpherePage() {
       <div className="h-full flex items-center justify-center bg-cream">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-300 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-foreground-secondary">Loading knowledge sphere...</p>
+          <p className="text-foreground-secondary">{t("knowledgeSpherePage.loading")}</p>
         </div>
       </div>
     );

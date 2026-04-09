@@ -33,6 +33,7 @@ import {
   getRatingColor,
 } from '../../api/video-extracts';
 import { useToast } from '../common/Toast';
+import { useI18n } from '../../lib/i18n';
 
 // ============================================================================
 // Create Video Extract Dialog
@@ -70,6 +71,7 @@ export function CreateVideoExtractDialog({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useI18n();
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -108,20 +110,20 @@ export function CreateVideoExtractDialog({
   const handleCreate = async () => {
     // Validate
     if (startTime < 0) {
-      setError('Start time cannot be negative');
+      setError(t('videoExtract.startTimeNegative'));
       return;
     }
     if (endTime <= startTime) {
-      setError('End time must be greater than start time');
+      setError(t('videoExtract.endTimeAfterStart'));
       return;
     }
     const duration = endTime - startTime;
     if (duration > 600) {
-      setError('Extract duration cannot exceed 10 minutes (600 seconds)');
+      setError(t('videoExtract.exceedsLimit'));
       return;
     }
     if (!title.trim()) {
-      setError('Title is required');
+      setError(t('videoExtract.titleRequiredError'));
       return;
     }
 
@@ -165,7 +167,7 @@ export function CreateVideoExtractDialog({
           <div className="flex items-center gap-2">
             <Scissors className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">
-              Create Video Extract
+              {t("videoExtract.createVideoExtract")}
             </h2>
           </div>
           <button
@@ -364,7 +366,7 @@ export function CreateVideoExtractDialog({
             disabled={isCreating}
             className="px-4 py-2 bg-card border border-border text-foreground rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t('videoExtract.cancel')}
           </button>
           <button
             onClick={handleCreate}
@@ -374,12 +376,12 @@ export function CreateVideoExtractDialog({
             {isCreating ? (
               <>
                 <span className="animate-spin">⏳</span>
-                Creating...
+                {t('videoExtract.creating')}
               </>
             ) : (
               <>
                 <Scissors className="w-4 h-4" />
-                Create Extract
+                {t('videoExtract.createExtractBtn')}
               </>
             )}
           </button>
@@ -409,6 +411,7 @@ export function VideoExtractsList({
   const [extracts, setExtracts] = useState<VideoExtract[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { t } = useI18n();
 
   const loadExtracts = useCallback(async () => {
     setLoading(true);
@@ -427,7 +430,7 @@ export function VideoExtractsList({
   }, [loadExtracts]);
 
   const handleDelete = async (extractId: string) => {
-    if (!confirm('Are you sure you want to delete this extract?')) return;
+    if (!confirm(t('delete.deleteExtractConfirm'))) return;
 
     try {
       await deleteVideoExtract(extractId);

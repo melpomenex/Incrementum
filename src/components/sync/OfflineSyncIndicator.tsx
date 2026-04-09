@@ -24,12 +24,14 @@ import {
   type ConnectionMode,
   type OfflineQueueState,
 } from '../../lib/offline-queue';
+import { useI18n } from '../../lib/i18n';
 
 interface SyncStatusIndicatorProps {
   className?: string;
 }
 
 export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps) {
+  const { t } = useI18n();
   const [state, setState] = useState<OfflineQueueState | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -56,7 +58,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
   };
 
   const handleClearQueue = () => {
-    if (confirm('Clear all pending sync items?')) {
+    if (confirm(t('delete.clearSyncItems'))) {
       clearOfflineQueue();
       setShowMenu(false);
     }
@@ -66,7 +68,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
     return (
       <div className={`flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-lg ${className}`}>
         <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-        <span className="text-xs text-muted-foreground">Loading...</span>
+        <span className="text-xs text-muted-foreground">{t("common.loading")}</span>
       </div>
     );
   }
@@ -91,14 +93,14 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
 
         {/* Status Text */}
         <span className="text-sm text-foreground">
-          {isOnline ? 'Connected' : 'Offline'}
+          {isOnline ? t('syncIndicator.connected') : t('syncIndicator.offline')}
         </span>
 
         {/* Queue Badge */}
         {hasPendingItems && (
           <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
             <span className="font-medium">{queueStats.total}</span>
-            <span className="hidden sm:inline">pending</span>
+            <span className="hidden sm:inline">{t('syncIndicator.pending')}</span>
           </span>
         )}
 
@@ -119,43 +121,43 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
           <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-lg shadow-xl z-20 overflow-hidden">
             {/* Connection Mode */}
             <div className="p-3 border-b border-border">
-              <div className="text-xs font-semibold text-foreground mb-2">Connection Mode</div>
+              <div className="text-xs font-semibold text-foreground mb-2">{t('syncIndicator.connectionMode')}</div>
               <div className="space-y-1">
                 <ConnectionModeOption
                   mode="dual"
                   currentMode={state.connectionMode}
                   onSelect={handleModeChange}
-                  label="Dual (Local + Cloud)"
-                  description="Try local first, fallback to cloud"
+                  label={t('syncIndicator.dualMode')}
+                  description={t('syncIndicator.dualModeDesc')}
                 />
                 <ConnectionModeOption
                   mode="local-only"
                   currentMode={state.connectionMode}
                   onSelect={handleModeChange}
-                  label="Local Only"
-                  description="Use local server only"
+                  label={t('syncIndicator.localOnly')}
+                  description={t('syncIndicator.localOnlyDesc')}
                 />
                 <ConnectionModeOption
                   mode="cloud-only"
                   currentMode={state.connectionMode}
                   onSelect={handleModeChange}
-                  label="Cloud Only"
-                  description="Use readsync.org cloud API"
+                  label={t('syncIndicator.cloudOnly')}
+                  description={t('syncIndicator.cloudOnlyDesc')}
                 />
               </div>
             </div>
 
             {/* Server Status */}
             <div className="p-3 border-b border-border">
-              <div className="text-xs font-semibold text-foreground mb-2">Server Status</div>
+              <div className="text-xs font-semibold text-foreground mb-2">{t('syncIndicator.serverStatus')}</div>
               <div className="space-y-2">
                 <ServerStatusItem
-                  name="Local Server"
+                  name={t('syncIndicator.localServer')}
                   available={state.localServerAvailable}
                   icon={<Server className="w-4 h-4" />}
                 />
                 <ServerStatusItem
-                  name="Cloud API"
+                  name={t('syncIndicator.cloudApi')}
                   available={state.cloudAvailable}
                   icon={<Cloud className="w-4 h-4" />}
                 />
@@ -167,7 +169,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
               <div className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold text-foreground">
-                    Offline Queue ({queueStats.total})
+                    {t('syncIndicator.offlineQueue', { count: queueStats.total })}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -177,24 +179,24 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded hover:opacity-90 disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3 h-3 ${isProcessing ? 'animate-spin' : ''}`} />
-                    Sync Now
+                    {t('syncIndicator.syncNow')}
                   </button>
                   <button
                     onClick={handleClearQueue}
                     className="px-3 py-1.5 bg-muted text-foreground text-sm rounded hover:bg-muted/80"
                   >
-                    Clear
+                    {t('syncIndicator.clear')}
                   </button>
                 </div>
                 <div className="mt-2 text-xs text-muted-foreground">
                   {queueStats.byPriority.high > 0 && (
-                    <div>High priority: {queueStats.byPriority.high}</div>
+                    <div>{t('syncIndicator.highPriority', { count: queueStats.byPriority.high })}</div>
                   )}
                   {queueStats.byPriority.normal > 0 && (
-                    <div>Normal: {queueStats.byPriority.normal}</div>
+                    <div>{t('syncIndicator.normal', { count: queueStats.byPriority.normal })}</div>
                   )}
                   {queueStats.byPriority.low > 0 && (
-                    <div>Low: {queueStats.byPriority.low}</div>
+                    <div>{t('syncIndicator.low', { count: queueStats.byPriority.low })}</div>
                   )}
                 </div>
               </div>
@@ -203,7 +205,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
             {/* Last Sync */}
             <div className="p-3">
               <div className="text-xs text-muted-foreground">
-                Changes sync automatically when you're online
+                {t('syncIndicator.changesSyncAuto')}
               </div>
             </div>
           </div>

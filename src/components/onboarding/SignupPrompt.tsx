@@ -3,6 +3,7 @@
  */
 
 import { Cloud, CheckCircle, ArrowRight } from 'lucide-react';
+import { useI18n } from '../../lib/i18n';
 
 interface SignupPromptProps {
   onSignup: () => void;
@@ -10,6 +11,8 @@ interface SignupPromptProps {
 }
 
 export function SignupPrompt({ onSignup, onContinueDemo }: SignupPromptProps) {
+  const { t } = useI18n();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-w-lg w-full">
@@ -19,10 +22,10 @@ export function SignupPrompt({ onSignup, onContinueDemo }: SignupPromptProps) {
             <Cloud className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">
-            Ready to sync across devices?
+            {t("onboarding.signupTitle")}
           </h2>
           <p className="text-zinc-400 text-sm">
-            Create an account to access your data from anywhere
+            {t("onboarding.signupDesc")}
           </p>
         </div>
 
@@ -31,23 +34,22 @@ export function SignupPrompt({ onSignup, onContinueDemo }: SignupPromptProps) {
           <ul className="space-y-3 mb-6">
             <li className="flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-              <span className="text-zinc-300">Access your documents and progress from any device</span>
+              <span className="text-zinc-300">{t("onboarding.signupBenefit1")}</span>
             </li>
             <li className="flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-              <span className="text-zinc-300">Automatic backup - never lose your learning data</span>
+              <span className="text-zinc-300">{t("onboarding.signupBenefit2")}</span>
             </li>
             <li className="flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-              <span className="text-zinc-300">Seamless sync between desktop, tablet, and phone</span>
+              <span className="text-zinc-300">{t("onboarding.signupBenefit3")}</span>
             </li>
           </ul>
 
           {/* Demo mode notice */}
           <div className="bg-zinc-800/50 rounded-lg p-4 text-center">
             <p className="text-sm text-zinc-400">
-              Or continue in <span className="text-white font-medium">Demo Mode</span> with local storage.
-              You can sign up anytime later.
+              {t("onboarding.demoModeNote", { demoMode: t("onboarding.demoMode") })}
             </p>
           </div>
         </div>
@@ -58,14 +60,14 @@ export function SignupPrompt({ onSignup, onContinueDemo }: SignupPromptProps) {
             onClick={onSignup}
             className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
           >
-            Create Account
+            {t("onboarding.createAccount")}
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={onContinueDemo}
             className="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-lg transition-colors"
           >
-            Continue with Demo Mode
+            {t("onboarding.continueDemo")}
           </button>
         </div>
       </div>

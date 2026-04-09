@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useI18n } from "../../lib/i18n";
 import {
   Send,
   Loader2,
@@ -63,6 +64,7 @@ const buildMarkdownBlock = (params: {
 };
 
 export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProps) {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -304,7 +306,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
     if (message.role !== "assistant") return;
     if (savingMessageIds.has(message.id)) return;
     if (savedMessageIds.has(message.id)) {
-      toast.info("Already saved", "This response has already been extracted.");
+      toast.info(t("notebooklmChat.alreadySaved"), t("notebooklmChat.alreadySavedAsExtract"));
       return;
     }
 
@@ -318,7 +320,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
       const selectedText = getSelectedTextForMessage(message.id);
       const extractContent = selectedText || message.content;
       if (!extractContent.trim()) {
-        toast.warning("Nothing to save", "The response is empty.");
+        toast.warning(t("notebooklmChat.nothingToSave"), t("notebooklmChat.nothingToSave"));
         return;
       }
 
@@ -379,8 +381,8 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
       }
 
       toast.success(
-        "Saved to Incrementum",
-        "Response extract is now available in reviewable extracts."
+        t("notebooklmChat.savedTitle"),
+        t("notebooklmChat.savedDesc")
       );
       setSavedMessageIds((prev) => {
         const next = new Set(prev);
@@ -389,7 +391,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
       });
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Failed to save response extract";
-      toast.error("Save failed", messageText);
+      toast.error(t("notebooklmChat.saveFailedTitle"), messageText);
     } finally {
       setSavingMessageIds((prev) => {
         const next = new Set(prev);
@@ -412,13 +414,13 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-foreground">NotebookLM</h2>
-            <p className="text-xs text-muted-foreground">Chat with {notebookTitle}</p>
+            <h2 className="font-semibold text-foreground">{t("notebooklm.title")}</h2>
+            <p className="text-xs text-muted-foreground">{t("notebooklmChat.chatWith", { title: notebookTitle })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded-full">
-            {messages.length} message{messages.length !== 1 ? "s" : ""}
+            {t("notebooklmChat.messages", { count: messages.length })}
           </span>
         </div>
       </div>
@@ -431,15 +433,15 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
               <MessageSquare className="w-8 h-8 text-emerald-600" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              Start a conversation
+              {t("notebooklmChat.startConversation")}
             </h3>
             <p className="text-muted-foreground text-center mb-8 max-w-md">
-              Ask questions about your sources, request summaries, or explore connections between documents.
+              {t("notebooklmChat.askAboutSources")}
             </p>
 
             {showSuggestions && (
               <div className="w-full">
-                <p className="text-sm text-muted-foreground mb-3 text-center">Try asking:</p>
+                <p className="text-sm text-muted-foreground mb-3 text-center">{t("notebooklmChat.tryAsking")}:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {SUGGESTED_PROMPTS.map((prompt) => (
                     <button
@@ -531,14 +533,14 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                       <button
                         onClick={() => copyToClipboard(message.content)}
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                        title="Copy to clipboard"
+                        title={t("notebooklmChat.copyToClipboard")}
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => {
                           if (savedMessageIds.has(message.id)) {
-                            toast.info("Already saved", "This response has already been extracted.");
+                            toast.info(t("notebooklmChat.alreadySaved"), t("notebooklmChat.alreadySavedAsExtract"));
                             return;
                           }
                           handleSaveResponseExtract(message);
@@ -549,7 +551,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                             ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
                             : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         }`}
-                        title={savedMessageIds.has(message.id) ? "Already saved as extract" : "Save as extract in Incrementum"}
+                        title={savedMessageIds.has(message.id) ? t("notebooklmChat.alreadySavedAsExtract") : t("notebooklmChat.saveAsExtract")}
                       >
                         {savingMessageIds.has(message.id) ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -561,13 +563,13 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                       </button>
                       <button
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                        title="Helpful"
+                        title={t("notebooklmChat.helpful")}
                       >
                         <ThumbsUp className="w-3.5 h-3.5" />
                       </button>
                       <button
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                        title="Not helpful"
+                        title={t("notebooklmChat.notHelpful")}
                       >
                         <ThumbsDown className="w-3.5 h-3.5" />
                       </button>
@@ -605,7 +607,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your sources..."
+              placeholder={t("notebooklmChat.placeholder")}
               disabled={isLoading}
               className="w-full px-4 py-3 pr-24 bg-background border border-border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 min-h-[56px] max-h-[200px] text-foreground placeholder:text-muted-foreground"
               rows={1}
@@ -621,7 +623,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                 onClick={handleResearch}
                 disabled={isLoading || !input.trim()}
                 className="p-2 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors disabled:opacity-50"
-                title="Run research query"
+                title={t("notebooklmChat.runResearchQuery")}
               >
                 <BookOpen className="w-4 h-4" />
               </button>
@@ -639,7 +641,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Press Enter to send, Shift+Enter for new line. Use the book icon for research mode.
+            {t("notebooklmChat.pressEnterToSend")}
           </p>
         </div>
       </div>

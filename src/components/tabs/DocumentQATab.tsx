@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { renderMarkdown } from "../../utils/markdown";
 import { detectChapterReference, buildChapterQAContext, getChapterTitles, type ChapterReference } from "../../utils/chapterUtils";
+import { useI18n } from "../../lib/i18n";
 
 // Re-export types with simpler names for local use
 type Message = QAMessage;
@@ -96,6 +97,7 @@ export function DocumentQATab() {
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
   const notebookFeatureEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
   const analyticsEnabled = useSettingsStore((state) => state.settings.privacy.analyticsEnabled);
+  const { t } = useI18n();
 
   const brainstormingPrompts = useMemo(() => [
     "Summarize the key concepts from this document and explain them simply.",
@@ -793,12 +795,12 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">No Documents Yet</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t("tabs.noDocumentsYet")}</h2>
           <p className="text-muted-foreground mb-4">
-            Import some documents first to start asking questions about them.
+            {t("tabs.importDocumentsFirst")}
           </p>
           <p className="text-sm text-muted-foreground">
-            Use the "Import File" button in the toolbar to add documents.
+            {t("tabs.useImportButton")}
           </p>
         </div>
       </div>
@@ -811,7 +813,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Document Q&A</h2>
+          <h2 className="text-xl font-bold text-foreground">{t("toolbar.documentQA")}</h2>
         </div>
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
@@ -821,7 +823,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
               title="Clear conversation"
             >
               <Trash2 className="w-4 h-4" />
-              Clear Chat
+              {t("tabs.clearChat")}
             </button>
           )}
         </div>
@@ -1009,10 +1011,10 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
             <div className="text-center max-w-md">
               <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
               <h2 className="text-2xl font-bold text-foreground mb-2">
-                Ask Your Documents
+                {t("tabs.askYourDocuments")}
               </h2>
               <p className="text-muted-foreground mb-4">
-                Type @ to mention documents and ask questions about them.
+                {t("tabs.typeAtToMention")}
               </p>
               <div className="text-sm text-muted-foreground text-left">
                 <p className="font-semibold mb-2">Example questions:</p>

@@ -29,6 +29,7 @@ import {
 import type { FocusTimerState, FocusTimerConfig, TimerPhase } from '../../types/focus-timer';
 import { DEFAULT_TIMER_CONFIG } from '../../types/focus-timer';
 import { useToast } from '../common/Toast';
+import { t } from '../../lib/i18n';
 
 // Format time as MM:SS
 const formatTime = (seconds: number): string => {
@@ -37,11 +38,11 @@ const formatTime = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Phase labels and colors
-const phaseConfig: Record<TimerPhase, { label: string; color: string; bgColor: string; icon: typeof Brain }> = {
-  work: { label: 'Focus', color: 'text-primary-400', bgColor: 'bg-primary-400/20', icon: Brain },
-  shortbreak: { label: 'Short Break', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', icon: Coffee },
-  longbreak: { label: 'Long Break', color: 'text-amber-400', bgColor: 'bg-amber-400/20', icon: Sunset },
+// Phase colors and icons (labels are translated via t() at usage sites)
+const phaseConfig: Record<TimerPhase, { labelKey: string; color: string; bgColor: string; icon: typeof Brain }> = {
+  work: { labelKey: 'focusTimer.focus', color: 'text-primary-400', bgColor: 'bg-primary-400/20', icon: Brain },
+  shortbreak: { labelKey: 'focusTimer.shortBreak', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', icon: Coffee },
+  longbreak: { labelKey: 'focusTimer.longBreak', color: 'text-amber-400', bgColor: 'bg-amber-400/20', icon: Sunset },
 };
 
 // Circular Progress Component
@@ -136,12 +137,12 @@ function SettingsPanel({
 
   return (
     <div className="glass-panel p-6 animate-glass-scale-in">
-      <h3 className="text-lg font-semibold text-foreground mb-4">Timer Settings</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">{t("focusTimer.timerSettings")}</h3>
 
       <div className="space-y-4">
         {/* Work Duration */}
         <div>
-          <label className="text-sm text-muted-foreground block mb-1">Work Duration (minutes)</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t("focusTimer.workDuration")}</label>
           <input
             type="number"
             min={1}
@@ -154,7 +155,7 @@ function SettingsPanel({
 
         {/* Short Break Duration */}
         <div>
-          <label className="text-sm text-muted-foreground block mb-1">Short Break (minutes)</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t("focusTimer.shortBreakDuration")}</label>
           <input
             type="number"
             min={1}
@@ -167,7 +168,7 @@ function SettingsPanel({
 
         {/* Long Break Duration */}
         <div>
-          <label className="text-sm text-muted-foreground block mb-1">Long Break (minutes)</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t("focusTimer.longBreakDuration")}</label>
           <input
             type="number"
             min={1}
@@ -180,7 +181,7 @@ function SettingsPanel({
 
         {/* Sessions before long break */}
         <div>
-          <label className="text-sm text-muted-foreground block mb-1">Sessions before Long Break</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t("focusTimer.sessionsBeforeLongBreak")}</label>
           <input
             type="number"
             min={1}
@@ -202,7 +203,7 @@ function SettingsPanel({
             />
             <span className="text-sm text-foreground flex items-center gap-1">
               {localConfig.sound_enabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              Sound notifications
+              {t("focusTimer.soundNotifications")}
             </span>
           </label>
 
@@ -215,7 +216,7 @@ function SettingsPanel({
             />
             <span className="text-sm text-foreground flex items-center gap-1">
               {localConfig.notifications_enabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-              Desktop notifications
+              {t("focusTimer.desktopNotifications")}
             </span>
           </label>
 
@@ -226,7 +227,7 @@ function SettingsPanel({
               onChange={(e) => setLocalConfig({ ...localConfig, auto_start_breaks: e.target.checked })}
               className="rounded border-border"
             />
-            <span className="text-sm text-foreground">Auto-start breaks</span>
+            <span className="text-sm text-foreground">{t("focusTimer.autoStartBreaks")}</span>
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer">
@@ -236,7 +237,7 @@ function SettingsPanel({
               onChange={(e) => setLocalConfig({ ...localConfig, auto_start_work: e.target.checked })}
               className="rounded border-border"
             />
-            <span className="text-sm text-foreground">Auto-start work sessions</span>
+            <span className="text-sm text-foreground">{t("focusTimer.autoStartWork")}</span>
           </label>
         </div>
       </div>
@@ -247,7 +248,7 @@ function SettingsPanel({
           onClick={onClose}
           className="px-4 py-2 glass-button text-muted-foreground hover:text-foreground"
         >
-          Cancel
+          {t("focusTimer.cancel")}
         </button>
         <button
           onClick={() => {
@@ -256,7 +257,7 @@ function SettingsPanel({
           }}
           className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
         >
-          Save
+          {t("focusTimer.save")}
         </button>
       </div>
     </div>
@@ -328,13 +329,13 @@ export function FocusTimer() {
   };
 
   const handleTimerComplete = useCallback((state: FocusTimerState) => {
-    const phaseLabel = phaseConfig[state.phase].label;
+    const phaseLabel = t(phaseConfig[state.phase].labelKey);
 
     toast.success(
-      `${phaseLabel} Complete!`,
+      t("focusTimer.phaseComplete", { phase: phaseLabel }),
       state.phase === 'work'
-        ? 'Time for a break!'
-        : 'Ready to focus again?'
+        ? t("focusTimer.timeForBreak")
+        : t("focusTimer.readyToFocus")
     );
 
     // Play sound if enabled
@@ -344,8 +345,8 @@ export function FocusTimer() {
 
     // Show notification if enabled
     if (state.config.notifications_enabled && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(`${phaseLabel} Complete!`, {
-        body: state.phase === 'work' ? 'Time for a break!' : 'Ready to focus again?',
+      new Notification(t("focusTimer.phaseComplete", { phase: phaseLabel }), {
+        body: state.phase === 'work' ? t("focusTimer.timeForBreak") : t("focusTimer.readyToFocus"),
         icon: '/favicon.ico',
       });
     }
@@ -357,7 +358,7 @@ export function FocusTimer() {
       setTimerState(state);
     } catch (error) {
       console.error('Failed to start timer:', error);
-      toast.error('Error', 'Failed to start timer');
+      toast.error(t("focusTimer.error"), t("focusTimer.failedToStart"));
     }
   };
 
@@ -367,7 +368,7 @@ export function FocusTimer() {
       setTimerState(state);
     } catch (error) {
       console.error('Failed to pause timer:', error);
-      toast.error('Error', 'Failed to pause timer');
+      toast.error(t("focusTimer.error"), t("focusTimer.failedToPause"));
     }
   };
 
@@ -377,7 +378,7 @@ export function FocusTimer() {
       setTimerState(state);
     } catch (error) {
       console.error('Failed to reset timer:', error);
-      toast.error('Error', 'Failed to reset timer');
+      toast.error(t("focusTimer.error"), t("focusTimer.failedToReset"));
     }
   };
 
@@ -387,7 +388,7 @@ export function FocusTimer() {
       setTimerState(state);
     } catch (error) {
       console.error('Failed to skip phase:', error);
-      toast.error('Error', 'Failed to skip phase');
+      toast.error(t("focusTimer.error"), t("focusTimer.failedToSkip"));
     }
   };
 
@@ -395,10 +396,10 @@ export function FocusTimer() {
     try {
       const state = await updateFocusTimerConfig(config);
       setTimerState(state);
-      toast.success('Settings Saved', 'Timer configuration updated');
+      toast.success(t("focusTimer.settingsSaved"), t("focusTimer.timerConfigUpdated"));
     } catch (error) {
       console.error('Failed to update config:', error);
-      toast.error('Error', 'Failed to update settings');
+      toast.error(t("focusTimer.error"), t("focusTimer.failedToUpdateSettings"));
     }
   };
 
@@ -428,16 +429,16 @@ export function FocusTimer() {
             <PhaseIcon className={`w-5 h-5 ${currentPhase.color}`} />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">{currentPhase.label}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t(currentPhase.labelKey)}</h2>
             <p className="text-xs text-muted-foreground">
-              Session {completed_sessions + 1}
+              {t("focusTimer.session", { count: completed_sessions + 1 })}
             </p>
           </div>
         </div>
         <button
           onClick={() => setShowSettings(!showSettings)}
           className="p-2 glass-button rounded-lg"
-          title="Settings"
+          title={t("focusTimer.settings")}
         >
           <Settings className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -467,7 +468,7 @@ export function FocusTimer() {
               {formatTime(remaining_seconds)}
             </span>
             <span className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
-              {state === 'running' ? 'In Progress' : state === 'paused' ? 'Paused' : state === 'completed' ? 'Done!' : 'Ready'}
+              {state === 'running' ? t("focusTimer.inProgress") : state === 'paused' ? t("focusTimer.paused") : state === 'completed' ? t("focusTimer.done") : t("focusTimer.ready")}
             </span>
           </div>
         </CircularProgress>
@@ -479,7 +480,7 @@ export function FocusTimer() {
           <button
             onClick={handlePause}
             className="p-4 glass-button rounded-full hover:scale-105 transition-transform"
-            title="Pause"
+            title={t("focusTimer.pause")}
           >
             <Pause className="w-6 h-6 text-foreground" />
           </button>
@@ -487,7 +488,7 @@ export function FocusTimer() {
           <button
             onClick={handleStart}
             className="p-4 bg-primary-500 rounded-full hover:bg-primary-600 hover:scale-105 transition-all"
-            title="Start"
+            title={t("focusTimer.start")}
           >
             <Play className="w-6 h-6 text-white" />
           </button>
@@ -496,7 +497,7 @@ export function FocusTimer() {
         <button
           onClick={handleReset}
           className="p-3 glass-button rounded-full"
-          title="Reset"
+          title={t("focusTimer.reset")}
         >
           <RotateCcw className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -504,7 +505,7 @@ export function FocusTimer() {
         <button
           onClick={handleSkip}
           className="p-3 glass-button rounded-full"
-          title="Skip"
+          title={t("focusTimer.skip")}
         >
           <SkipForward className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -515,13 +516,13 @@ export function FocusTimer() {
         <div className="grid grid-cols-2 gap-4 text-center">
           <div>
             <div className="text-2xl font-bold text-foreground">{completed_sessions}</div>
-            <div className="text-xs text-muted-foreground">Sessions Today</div>
+            <div className="text-xs text-muted-foreground">{t("focusTimer.sessionsToday")}</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-foreground">
               {Math.floor(total_focus_time / 60)}m
             </div>
-            <div className="text-xs text-muted-foreground">Focus Time</div>
+            <div className="text-xs text-muted-foreground">{t("focusTimer.focusTime")}</div>
           </div>
         </div>
       </div>

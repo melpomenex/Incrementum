@@ -17,6 +17,7 @@ import { useState, useCallback } from "react";
 import { cn } from "../../utils";
 import { Flag, ChevronUp, ChevronDown } from "lucide-react";
 import { updateDocumentPriority } from "../../api/documents";
+import { useI18n } from "../../lib/i18n";
 
 interface PriorityControlProps {
   documentId: string;
@@ -29,11 +30,11 @@ interface PriorityControlProps {
 
 // Priority presets with labels and colors
 const PRIORITY_PRESETS = [
-  { value: 10, label: "Lowest", color: "#6B7280", description: "Review rarely" },
-  { value: 30, label: "Low", color: "#9CA3AF", description: "Review occasionally" },
-  { value: 50, label: "Normal", color: "#3B82F6", description: "Standard frequency" },
-  { value: 70, label: "High", color: "#F59E0B", description: "Review frequently" },
-  { value: 90, label: "Highest", color: "#EF4444", description: "Review often" },
+  { value: 10, labelKey: "priority.lowest", descKey: "priority.lowestDesc", color: "#6B7280" },
+  { value: 30, labelKey: "priority.low", descKey: "priority.lowDesc", color: "#9CA3AF" },
+  { value: 50, labelKey: "priority.normal", descKey: "priority.normalDesc", color: "#3B82F6" },
+  { value: 70, labelKey: "priority.high", descKey: "priority.highDesc", color: "#F59E0B" },
+  { value: 90, labelKey: "priority.highest", descKey: "priority.highestDesc", color: "#EF4444" },
 ];
 
 function getPriorityInfo(slider: number) {
@@ -64,6 +65,7 @@ export function PriorityControl({
   const [slider, setSlider] = useState(prioritySlider);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { t } = useI18n();
 
   const currentInfo = getPriorityInfo(slider);
 
@@ -101,14 +103,14 @@ export function PriorityControl({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             isExpanded && "bg-muted/80 ring-1 ring-border"
           )}
-          title={`Priority: ${currentInfo.label} - ${currentInfo.description}`}
+          title={`Priority: ${t(currentInfo.labelKey)} - ${t(currentInfo.descKey)}`}
         >
-          <Flag 
-            className="h-4 w-4" 
+          <Flag
+            className="h-4 w-4"
             style={{ color: currentInfo.color }}
             fill={currentInfo.color}
           />
-          <span className="text-foreground">{currentInfo.label}</span>
+          <span className="text-foreground">{t(currentInfo.labelKey)}</span>
           {isExpanded ? (
             <ChevronUp className="h-3 w-3 text-muted-foreground" />
           ) : (
@@ -125,9 +127,9 @@ export function PriorityControl({
             <div className="absolute top-full right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg z-50 p-3 animate-in fade-in zoom-in-95 duration-100">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Set Priority</span>
+                  <span className="text-sm font-medium">{t("priority.setTitle")}</span>
                   {isSaving && (
-                    <span className="text-xs text-muted-foreground">Saving...</span>
+                    <span className="text-xs text-muted-foreground">{t("priority.saving")}</span>
                   )}
                 </div>
                 
@@ -143,15 +145,15 @@ export function PriorityControl({
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         slider === preset.value && "bg-primary/10 ring-1 ring-primary/30"
                       )}
-                      title={preset.description}
+                      title={t(preset.descKey)}
                     >
-                      <Flag 
-                        className="h-4 w-4" 
+                      <Flag
+                        className="h-4 w-4"
                         style={{ color: preset.color }}
                         fill={preset.color}
                       />
                       <span className="text-[10px] text-muted-foreground leading-none">
-                        {preset.label}
+                        {t(preset.labelKey)}
                       </span>
                     </button>
                   ))}
@@ -160,7 +162,7 @@ export function PriorityControl({
                 {/* Fine-tune slider */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Fine-tune</span>
+                    <span className="text-muted-foreground">{t("priority.fineTune")}</span>
                     <span className="font-medium" style={{ color: currentInfo.color }}>
                       {slider}%
                     </span>
@@ -178,7 +180,7 @@ export function PriorityControl({
 
                 {/* Description */}
                 <p className="text-xs text-muted-foreground text-center">
-                  {currentInfo.description}
+                  {t(currentInfo.descKey)}
                 </p>
               </div>
             </div>
@@ -193,9 +195,9 @@ export function PriorityControl({
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center gap-2">
         <Flag className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Reading Priority</span>
+        <span className="text-sm font-medium">{t("priority.readingPriority")}</span>
         {isSaving && (
-          <span className="text-xs text-muted-foreground ml-auto">Saving...</span>
+          <span className="text-xs text-muted-foreground ml-auto">{t("priority.saving")}</span>
         )}
       </div>
 
@@ -218,7 +220,7 @@ export function PriorityControl({
               style={{ color: preset.color }}
               fill={preset.color}
             />
-            <span className="text-xs font-medium">{preset.label}</span>
+            <span className="text-xs font-medium">{t(preset.labelKey)}</span>
           </button>
         ))}
       </div>
@@ -226,7 +228,7 @@ export function PriorityControl({
       {/* Slider */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Adjust</span>
+          <span className="text-muted-foreground">{t("priority.adjust")}</span>
           <span className="font-medium" style={{ color: currentInfo.color }}>
             {slider}%
           </span>
@@ -243,7 +245,7 @@ export function PriorityControl({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {currentInfo.description}. Higher priority items appear more frequently in your queue.
+        {t(currentInfo.descKey)}. {t("priority.higherPriorityNote")}
       </p>
     </div>
   );

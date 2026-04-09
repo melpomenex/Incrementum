@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId, ThemeVariant } from '../../types/theme';
 import { X, Palette, RotateCcw } from 'lucide-react';
+import { useI18n } from '../../lib/i18n';
 
 interface ColorPickerProps {
   label: string;
@@ -44,6 +45,7 @@ interface ThemeCustomizerProps {
 }
 
 export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerProps) {
+  const { t } = useI18n();
   const { themes } = useTheme();
 
   const [themeName, setThemeName] = useState('');
@@ -70,7 +72,7 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
   const handleSave = () => {
     const newTheme: Theme = {
       id: `custom-${Date.now()}`,
-      name: themeName || 'Custom Theme',
+      name: themeName || t("themeCustomizer.customTheme"),
       variant,
       colors,
       typography: themes[0].typography,
@@ -145,9 +147,9 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
         <div className="flex items-center gap-3">
           <Palette className="w-6 h-6 text-primary" />
           <div>
-            <h2 className="text-2xl font-bold">Customize Theme</h2>
+            <h2 className="text-2xl font-bold">{t("themeCustomizer.customizeTheme")}</h2>
             <p className="text-sm text-muted-foreground">
-              Create your own color scheme
+              {t("themeCustomizer.createColorScheme")}
             </p>
           </div>
         </div>
@@ -162,7 +164,7 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
       {/* Theme Name and Variant */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium">Theme Name</label>
+          <label className="text-sm font-medium">{t("themeCustomizer.themeName")}</label>
           <input
             type="text"
             value={themeName}
@@ -173,7 +175,7 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">Variant</label>
+          <label className="text-sm font-medium">{t("themeCustomizer.variant")}</label>
           <select
             value={variant}
             onChange={(e) => setVariant(e.target.value as ThemeVariant)}
@@ -213,7 +215,7 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
           className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-muted transition-colors"
         >
           <RotateCcw className="w-4 h-4" />
-          Reset to Base
+          {t("themeCustomizer.resetToBase")}
         </button>
 
         <div className="flex items-center gap-2">
@@ -221,14 +223,14 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
             onClick={onClose}
             className="px-4 py-2 rounded-lg border hover:bg-muted transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
             disabled={!themeName}
             className="px-6 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Theme
+            {t("themeCustomizer.saveTheme")}
           </button>
         </div>
       </div>

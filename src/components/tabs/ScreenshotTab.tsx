@@ -4,8 +4,10 @@ import { Camera, Download, Trash2, Calendar, Check } from "lucide-react";
 import { downloadScreenshot } from "../../utils/screenshotCapture";
 import { captureScreenshotWithOverlay } from "../../utils/screenshotCaptureFlow";
 import { invokeCommand } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 
 export function ScreenshotTab() {
+  const { t } = useI18n();
   const { documents, loadDocuments, deleteDocument } = useDocumentStore();
   const [selectedScreenshot, setSelectedScreenshot] = useState<any | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -32,7 +34,7 @@ export function ScreenshotTab() {
       }
     } catch (error) {
       console.error("Failed to capture screenshot:", error);
-      alert("Failed to capture screenshot. Please try again.");
+      alert(t("screenshotTab.failedCapture"));
       setIsCapturing(false);
     }
   };
@@ -78,7 +80,7 @@ export function ScreenshotTab() {
       await loadDocuments();
     } catch (error) {
       console.error("Failed to save screenshot:", error);
-      alert("Failed to save screenshot. Please try again.");
+      alert(t("screenshotTab.failedSave"));
     } finally {
       setIsCapturing(false);
     }
@@ -100,7 +102,7 @@ export function ScreenshotTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this screenshot?")) {
+    if (confirm(t("screenshotTab.deleteScreenshotConfirm"))) {
       try {
         await deleteDocument(id);
         await loadDocuments();
@@ -109,7 +111,7 @@ export function ScreenshotTab() {
         }
       } catch (error) {
         console.error("Failed to delete screenshot:", error);
-        alert("Failed to delete screenshot. Please try again.");
+        alert(t("screenshotTab.failedDelete"));
       }
     }
   };
@@ -134,18 +136,18 @@ export function ScreenshotTab() {
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">Screenshots</h2>
+          <h2 className="text-2xl font-bold text-foreground">{t("screenshotTab.screenshots")}</h2>
           <button
             onClick={handleCapture}
             disabled={isCapturing || previewImage !== null}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Camera className="w-4 h-4" />
-            {isCapturing ? "Capturing..." : "Capture Screenshot"}
+            {isCapturing ? t("screenshotTab.capturing") : t("screenshotTab.captureScreenshot")}
           </button>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          Capture and manage screenshots. Screenshots are automatically saved to your document library.
+          {t("screenshotTab.screenshotDescription")}
         </p>
       </div>
 
@@ -154,7 +156,7 @@ export function ScreenshotTab() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Screenshot Preview</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("screenshotTab.screenshotPreview")}</h3>
               <button
                 onClick={handleDiscardScreenshot}
                 className="text-muted-foreground hover:text-foreground"
@@ -175,13 +177,13 @@ export function ScreenshotTab() {
                 className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
               >
                 <Check className="w-4 h-4" />
-                Save Screenshot
+                {t("screenshotTab.saveScreenshot")}
               </button>
               <button
                 onClick={handleDiscardScreenshot}
                 className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
               >
-                Discard
+                {t("screenshotTab.discard")}
               </button>
             </div>
           </div>
@@ -194,13 +196,13 @@ export function ScreenshotTab() {
         <div className="w-80 border-r border-border overflow-auto">
           <div className="p-4">
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-              Captured Screenshots ({screenshots.length})
+              {t("screenshotTab.capturedScreenshots", { count: screenshots.length })}
             </h3>
             {screenshots.length === 0 ? (
               <div className="text-center py-8">
                 <Camera className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  No screenshots yet. Click "Capture Screenshot" to capture one.
+                  {t("screenshotTab.noScreenshotsYet")}
                 </p>
               </div>
             ) : (
@@ -279,14 +281,14 @@ export function ScreenshotTab() {
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
                     >
                       <Download className="w-4 h-4" />
-                      Download
+                      {t("screenshotTab.download")}
                     </button>
                     <button
                       onClick={() => handleDelete(selectedScreenshot.id)}
                       className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors flex items-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Delete
+                      {t("screenshotTab.delete")}
                     </button>
                   </div>
                 </div>
@@ -298,8 +300,8 @@ export function ScreenshotTab() {
                 <Camera className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">
                   {screenshots.length === 0
-                    ? "Capture your first screenshot to get started"
-                    : "Select a screenshot to view it"}
+                    ? t("screenshotTab.captureFirst")
+                    : t("screenshotTab.selectToView")}
                 </p>
               </div>
             </div>

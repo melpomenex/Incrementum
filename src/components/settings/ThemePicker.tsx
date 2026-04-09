@@ -10,6 +10,7 @@ import { Check, Palette, Download, Upload, Trash2, Eye, Sparkles } from 'lucide-
 import { invokeCommand } from '../../lib/tauri';
 import { ThemeGallery } from './ThemeGallery';
 import { builtInThemes as registeredBuiltInThemes } from '../../themes/builtin';
+import { useI18n } from '../../lib/i18n';
 
 interface ThemeCardProps {
   theme: Theme;
@@ -115,6 +116,7 @@ interface ThemePickerProps {
 }
 
 export function ThemePicker({ onClose }: ThemePickerProps) {
+  const { t } = useI18n();
   const { theme, themes, setTheme, exportTheme, importTheme, removeCustomTheme } =
     useTheme();
 
@@ -187,7 +189,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
   };
 
   const handleDeleteCustomTheme = (themeId: ThemeId) => {
-    if (confirm('Are you sure you want to delete this custom theme?')) {
+    if (confirm(t('theme.deleteCustomConfirm'))) {
       removeCustomTheme(themeId);
     }
   };
@@ -205,9 +207,9 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
         <div className="flex items-center gap-3">
           <Palette className="w-6 h-6 text-primary" />
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Theme Picker</h2>
+            <h2 className="text-2xl font-bold text-foreground">{t("settings.theme")}</h2>
             <p className="text-sm text-muted-foreground">
-              Choose a theme or create your own
+              {t("settings.themeDesc")}
             </p>
           </div>
         </div>
@@ -216,10 +218,10 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
           <button
             onClick={() => setShowGallery(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-muted transition-colors text-foreground"
-            title="View all themes in gallery"
+            title={t("theme.viewGallery")}
           >
             <Eye className="w-4 h-4" />
-            Gallery
+            {t("theme.gallery")}
           </button>
           <button
             onClick={handleImportTheme}
@@ -227,7 +229,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
             title="Import theme"
           >
             <Upload className="w-4 h-4" />
-            Import
+            {t("common.import")}
           </button>
           <button
             onClick={() => handleExportTheme(theme.id)}
@@ -235,14 +237,14 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
             title="Export current theme"
           >
             <Download className="w-4 h-4" />
-            Export
+            {t("common.export")}
           </button>
           {onClose && (
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Done
+              {t("common.done")}
             </button>
           )}
         </div>
@@ -250,7 +252,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
 
       {/* Built-in Themes (including custom) */}
       <section>
-        <h3 className="text-lg font-semibold mb-4 text-foreground">Built-in Themes</h3>
+        <h3 className="text-lg font-semibold mb-4 text-foreground">{t("theme.builtInThemes")}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {orderedThemes.map((t) => {
             const isCustom = !builtinThemeIdSet.has(t.id);
@@ -298,7 +300,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
           className="flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-dashed hover:border-primary transition-colors text-foreground"
         >
           <Palette className="w-5 h-5" />
-          <span className="font-semibold">Create Custom Theme</span>
+          <span className="font-semibold">{t("theme.createCustom")}</span>
         </button>
       </div>
 

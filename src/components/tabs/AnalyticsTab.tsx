@@ -24,10 +24,12 @@ import {
 import { getEnergyLogs, calculateEnergyCorrelation } from "../../utils/energyTracker";
 import { getReadingSpeedByType } from "../../utils/readingSpeed";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useI18n } from "../../lib/i18n";
 
 export function AnalyticsTab() {
   const { addTab } = useTabsStore();
   const documents = useDocumentStore((state) => state.documents);
+  const { t } = useI18n();
   const {
     dashboardStats,
     memoryStats,
@@ -99,7 +101,7 @@ export function AnalyticsTab() {
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <span>Loading analytics...</span>
+          <span>{t("dashboard.loadingAnalytics")}</span>
         </div>
       </div>
     );
@@ -108,7 +110,7 @@ export function AnalyticsTab() {
   if (error) {
     return (
       <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-        Failed to load analytics: {error}
+        {t("dashboard.failedLoadAnalytics")}: {error}
       </div>
     );
   }
@@ -117,9 +119,9 @@ export function AnalyticsTab() {
     <div className="h-full overflow-auto p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t("nav.dashboard")}</h1>
         <p className="text-muted-foreground mt-1">
-          Track your learning progress and performance
+          {t("analytics.subtitle")}
         </p>
       </div>
 
@@ -132,36 +134,36 @@ export function AnalyticsTab() {
       {dashboardStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Cards Due Today"
+            title={t("dashboard.cardsDueToday")}
             value={dashboardStats.cards_due_today}
             icon={Clock}
             color="orange"
-            description="Ready to review"
+            description={t("dashboard.readyToReview")}
           />
           <StatCard
-            title="Total Cards"
+            title={t("dashboard.totalCards")}
             value={dashboardStats.total_cards}
             icon={Brain}
             color="blue"
             description={
               memoryStats
-                ? `${memoryStats.new_cards} new, ${memoryStats.young_cards} learning`
+                ? `${memoryStats.new_cards} ${t("analytics.new")}, ${memoryStats.young_cards} ${t("analytics.learning")}`
                 : undefined
             }
           />
           <StatCard
-            title="Cards Learned"
+            title={t("dashboard.cardsLearned")}
             value={dashboardStats.cards_learned}
             icon={CheckCircle2}
             color="green"
-            description="Reviewed at least once"
+            description={t("dashboard.reviewedAtLeastOnce")}
           />
           <StatCard
-            title="Retention Rate"
+            title={t("dashboard.retentionRate")}
             value={formatPercent(dashboardStats.retention_rate, 1)}
             icon={TrendingUp}
             color="purple"
-            description="Average across all cards"
+            description={t("dashboard.averageRetention")}
           />
         </div>
       )}
@@ -170,13 +172,13 @@ export function AnalyticsTab() {
       {dashboardStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatCard
-            title="Documents"
+            title={t("dashboard.documents")}
             value={dashboardStats.total_documents}
             icon={BookOpen}
             color="blue"
           />
           <StatCard
-            title="Extracts"
+            title={t("dashboard.extracts")}
             value={dashboardStats.total_extracts}
             icon={FileText}
             color="green"
@@ -200,33 +202,33 @@ export function AnalyticsTab() {
       {memoryStats && (
         <div className="p-4 bg-card border border-border rounded-lg">
           <h3 className="text-lg font-semibold text-foreground mb-4">
-            Memory Statistics
+            {t("dashboard.memoryStatistics")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-3xl font-bold text-foreground">
                 {memoryStats.mature_cards}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">Mature Cards</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("dashboard.matureCards")}</p>
               <p className="text-xs text-muted-foreground">
-                Interval ≥ 21 days
+                {t("dashboard.matureCardsDesc")}
               </p>
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-3xl font-bold text-foreground">
                 {memoryStats.young_cards}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">Young Cards</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("dashboard.youngCards")}</p>
               <p className="text-xs text-muted-foreground">
-                Learning but not mature
+                {t("dashboard.youngCardsDesc")}
               </p>
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-3xl font-bold text-foreground">
                 {memoryStats.new_cards}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">New Cards</p>
-              <p className="text-xs text-muted-foreground">Never reviewed</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("dashboard.newCards")}</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.newCardsDesc")}</p>
             </div>
           </div>
 
@@ -238,7 +240,7 @@ export function AnalyticsTab() {
                   {formatNumber(memoryStats.average_stability, 2)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Avg Stability (days)
+                  {t("dashboard.avgStability")}
                 </p>
               </div>
               <div className="text-center">
@@ -246,7 +248,7 @@ export function AnalyticsTab() {
                   {formatNumber(memoryStats.average_difficulty, 2)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Avg Difficulty (1-10)
+                  {t("dashboard.avgDifficulty")}
                 </p>
               </div>
             </div>
@@ -338,9 +340,9 @@ export function AnalyticsTab() {
           >
             <Sparkles className="w-5 h-5 text-primary" />
             <div>
-              <p className="font-medium text-foreground">Start Review</p>
+              <p className="font-medium text-foreground">{t("dashboard.startReview")}</p>
               <p className="text-sm text-muted-foreground">
-                {dashboardStats?.cards_due_today || 0} cards due
+                {dashboardStats?.cards_due_today || 0} {t("dashboard.cardsDue")}
               </p>
             </div>
           </button>
@@ -356,9 +358,9 @@ export function AnalyticsTab() {
           >
             <BookOpen className="w-5 h-5 text-foreground" />
             <div>
-              <p className="font-medium text-foreground">Browse Documents</p>
+              <p className="font-medium text-foreground">{t("dashboard.browseDocumentsLabel")}</p>
               <p className="text-sm text-muted-foreground">
-                {dashboardStats?.total_documents || 0} documents
+                {dashboardStats?.total_documents || 0} {t("dashboard.documentsLabel")}
               </p>
             </div>
           </button>

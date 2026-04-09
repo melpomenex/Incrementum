@@ -17,12 +17,14 @@ import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils
 import { analyzeCardQuality } from "../../utils/cardQuality";
 import { printFlashcards } from "../../utils/printFlashcards";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 
 interface LearningCardsListProps {
   documentId: string;
 }
 
 export function LearningCardsList({ documentId }: LearningCardsListProps) {
+  const { t } = useI18n();
   const toast = useToast();
   const [cards, setCards] = useState<LearningItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +102,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading learning cards...</div>
+        <div className="text-muted-foreground">{t("learningCards.loadingCards")}</div>
       </div>
     );
   }
@@ -108,7 +110,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
   if (error) {
     return (
       <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-        Failed to load cards: {error}
+        {t("learningCards.failedLoadCards")}: {error}
       </div>
     );
   }
@@ -118,10 +120,10 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
       <div className="text-center py-12">
         <Brain className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          No learning cards yet
+          {t("learningCards.noCardsYet")}
         </h3>
         <p className="text-muted-foreground">
-          Generate cards from your extracts to start spaced repetition learning
+          {t("learningCards.generateCardsDesc")}
         </p>
       </div>
     );
@@ -131,17 +133,17 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
     <div className="space-y-4 h-full flex flex-col">
       <div className="flex items-center justify-between flex-shrink-0">
         <h2 className="text-2xl font-bold text-foreground">
-          Learning Cards ({cards.length})
+          {t("learningCards.cards", { count: cards.length })}
         </h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => printFlashcards(cards, `Flashcards (${cards.length})`)}
             className="px-3 py-1.5 text-sm border border-border text-foreground rounded-md hover:bg-muted transition-colors"
           >
-            Print
+            {t("learningCards.print")}
           </button>
           <button className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity">
-            Study Now
+            {t("learningCards.studyNow")}
           </button>
         </div>
       </div>
@@ -185,7 +187,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                     toast.success("Card updated");
                   }}
                   className="p-1.5 rounded hover:bg-muted transition-colors"
-                  title="Edit card"
+                  title={t("learningCards.editCard")}
                 >
                   <Edit className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
@@ -216,15 +218,15 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                     toast.success("Card reverted to selected revision");
                   }}
                   className="px-2 py-1 text-xs rounded border border-border text-foreground hover:bg-muted"
-                  title="Version history"
+                  title={t("learningCards.versionHistory")}
                 >
-                  History
+                  {t("learningCards.history")}
                 </button>
                 <button
                   onClick={async () => {
                     const current = prereqByCard[card.id] || [];
                     const nextValue = prompt(
-                      "Enter prerequisite card IDs (comma-separated)",
+                      t("learningCards.prerequisites"),
                       current.join(",")
                     );
                     if (nextValue === null) return;
@@ -237,9 +239,9 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                     toast.success("Prerequisites updated");
                   }}
                   className="px-2 py-1 text-xs rounded border border-border text-foreground hover:bg-muted"
-                  title="Prerequisites"
+                  title={t("learningCards.prerequisites")}
                 >
-                  Prereq
+                  {t("learningCards.prereq")}
                 </button>
                 <button
                   onClick={() =>
@@ -249,13 +251,13 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                     }))
                   }
                   className="px-2 py-1 text-xs rounded border border-border text-foreground hover:bg-muted"
-                  title="Analyze quality"
+                  title={t("learningCards.analyzeQuality")}
                 >
-                  Analyze
+                  {t("learningCards.analyze")}
                 </button>
                 <button
                   className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
-                  title="Delete card"
+                  title={t("learningCards.deleteCard")}
                 >
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </button>
@@ -265,7 +267,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
             {/* Question */}
             <div className="mb-3">
               <div className="text-xs font-medium text-muted-foreground mb-1">
-                Question
+                {t("learningCards.question")}
               </div>
               <div 
                 className="text-foreground" 
@@ -278,7 +280,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-xs font-medium text-muted-foreground">
-                    Answer
+                    {t("learningCards.answer")}
                   </div>
                   <button
                     onClick={() => toggleAnswer(card.id)}
@@ -286,11 +288,11 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                   >
                     {showAnswers[card.id] ? (
                       <span className="flex items-center gap-1">
-                        <EyeOff className="w-3 h-3" /> Hide
+                        <EyeOff className="w-3 h-3" /> {t("learningCards.hide")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Show
+                        <Eye className="w-3 h-3" /> {t("learningCards.show")}
                       </span>
                     )}
                   </button>
@@ -302,7 +304,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                   />
                 ) : (
                   <p className="text-muted-foreground italic text-sm">
-                    Answer hidden - click to reveal
+                    {t("learningCards.answerHidden")}
                   </p>
                 )}
               </div>

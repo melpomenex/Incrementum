@@ -5,8 +5,10 @@ import type { QueueItem } from "../types/queue";
 import { ReviewTab } from "../components/tabs/TabRegistry";
 import { QueueScrollPage } from "./QueueScrollPage";
 import { Brain, FileText, Layers } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 
 export function QueuePage() {
+  const { t } = useI18n();
   const { addTab } = useTabsStore();
 
   const handleStartReview = (itemId?: string) => {
@@ -35,7 +37,7 @@ export function QueuePage() {
 
   const handleOpenScrollMode = () => {
     addTab({
-      title: "Scroll Mode",
+      title: t("queue.scrollMode"),
       icon: <Layers className="w-4 h-4" />,
       type: "queue-scroll",
       content: QueueScrollPage,

@@ -21,6 +21,7 @@ import { bulkDeleteItems, bulkSuspendItems } from "../../api/queue";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
+import { useI18n } from "../../lib/i18n";
 
 interface ReviewSessionProps {
   onExit: () => void;
@@ -85,6 +86,13 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   } = useReviewStore();
   const [isQueueListOpen, setIsQueueListOpen] = useState(false);
   const queueListRef = useRef<HTMLDivElement | null>(null);
+  const [interactionResult, setInteractionResult] = useState<{
+    interactionType: "multiple-choice" | "image-occlusion";
+    correct?: boolean;
+    selectedOptionId?: string;
+    selectedOptionText?: string;
+  } | null>(null);
+  const { t } = useI18n();
   
   // Zen mode state
   const [isZenMode, setIsZenMode] = useState(false);
@@ -131,6 +139,13 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
   const handleRating = async (rating: ReviewRating) => {
     const beforeId = currentCard?.id;
+    if (interactionResult) {
+      useReviewStore.getState().setPendingReviewMetadata({
+        hintsUsed: 0,
+        interactionType: interactionResult.interactionType,
+        interactionCorrect: interactionResult.correct,
+      });
+    }
     
     // Check for milestones before submitting
     const currentStreak = streak;
@@ -213,6 +228,10 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       setIsAnkiImporting(false);
     }
   };
+
+  useEffect(() => {
+    setInteractionResult(null);
+  }, [currentCard?.id]);
 
   useEffect(() => {
     if (!isQueueListOpen) return;
@@ -340,7 +359,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             onClick={onExit}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
-            Back to Review Home
+            {t("review.backToHome")}
           </button>
         </div>
       </div>
@@ -356,7 +375,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             All Caught Up!
           </h3>
           <p className="text-muted-foreground mb-6">
-            No items are due for review right now. Check back later!
+            {t("review.emptyState")}
           </p>
           <button
             onClick={handleImportAnkiDeck}
@@ -364,14 +383,14 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             className="mb-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Upload className="h-4 w-4" />
-            {isAnkiImporting ? "Importing..." : "Import Anki (.apkg)"}
+            {isAnkiImporting ? t("review.importing") : t("review.importAnki")}
           </button>
           <br />
           <button
             onClick={onExit}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
           >
-            Back to Review Home
+            {t("review.backToHome")}
           </button>
         </div>
       </div>
@@ -392,7 +411,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           onClick={onExit}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
         >
-          Back to Review Home
+          {t("review.backToHome")}
         </button>
       </div>
     );
@@ -425,9 +444,9 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             <ArrowLeft className="h-4 w-4 md:h-3 md:w-3" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl md:text-3xl font-bold text-foreground">Review</h1>
+            <h1 className="text-xl md:text-3xl font-bold text-foreground">{t("review.title")}</h1>
             <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
-              Focused session with clear time and retention feedback
+              {t("review.subtitle")}
             </p>
           </div>
         </div>
@@ -441,7 +460,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                 ? "bg-primary/10 text-primary border border-primary/30" 
                 : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
-            title={isZenMode ? "Exit Zen Mode" : "Enter Zen Mode (minimal UI)"}
+              title={isZenMode ? t("review.exitZen") : t("review.enterZen")}
           >
             <Sparkles className="w-3.5 h-3.5" />
             Zen
@@ -465,7 +484,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             title="Import Anki .apkg deck"
           >
             <Upload className="w-3.5 h-3.5" />
-            {isAnkiImporting ? "Importing..." : "Import"}
+            {isAnkiImporting ? t("review.importing") : t("review.import")}
           </button>
 
           {queue.length > 0 && (
@@ -487,7 +506,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                 className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-lg shadow-lg z-50"
               >
                 <div className="px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground border-b border-border">
-                  Review Queue
+                  {t("review.queue")}
                 </div>
                 <div className="max-h-80 overflow-auto">
                   {queue.map((item, index) => (
@@ -531,16 +550,16 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         <div className="flex flex-col gap-6">
           <div className="bg-card border border-border rounded-lg p-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div>
-              Time remaining: <span className="text-foreground font-semibold">{minMinutes}-{maxMinutes} min</span>
+              {t("review.timeRemaining")}: <span className="text-foreground font-semibold">{minMinutes}-{maxMinutes} min</span>
             </div>
             <div>
-              Items remaining: <span className="text-foreground font-semibold">{remainingItems}</span>
+              {t("review.itemsRemaining")}: <span className="text-foreground font-semibold">{remainingItems}</span>
             </div>
             <div>
-              Safe stop after: <span className="text-foreground font-semibold">{safeStopCount} items</span>
+              {t("review.safeStopAfter")}: <span className="text-foreground font-semibold">{safeStopCount} {t("review.items")}</span>
             </div>
             <div>
-              Session goal: <span className="text-foreground font-semibold">Retention maintenance</span>
+              {t("review.sessionGoal")}: <span className="text-foreground font-semibold">{t("review.retentionMaintenance")}</span>
             </div>
           </div>
 
@@ -567,7 +586,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                     {SWIPE_RATINGS[swipeDirection].label}
                   </div>
                   <div className="text-sm text-muted-foreground mt-2">
-                    Release to rate
+                    {t("review.releaseToRate")}
                   </div>
                 </div>
               </div>
@@ -591,6 +610,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                   card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
                   showAnswer={true}
                   onShowAnswer={() => {}}
+                  onInteractionResultChange={setInteractionResult}
                 />
 
                 {/* Rating Buttons */}
@@ -603,7 +623,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                   {/* Swipe hint for mobile */}
                   <div className="mt-3 text-center text-xs text-muted-foreground md:hidden">
                     <span className="inline-flex items-center gap-1">
-                      Swipe ← Again • ↑ Good • ↓ Hard • → Easy
+                      {t("review.swipeHint")}
                     </span>
                   </div>
                 </div>
@@ -615,6 +635,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                   card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
                   showAnswer={false}
                   onShowAnswer={showAnswer}
+                  onInteractionResultChange={setInteractionResult}
                 />
               </>
             )}
@@ -629,7 +650,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             />
           )}
           <div className="bg-card border border-border rounded-lg p-4 text-xs text-muted-foreground">
-            Session cut-off guarantee: you can stop after item {safeStopCount} without penalty.
+            {t("review.cutoffGuarantee", { count: safeStopCount })}
           </div>
         </div>
       </div>

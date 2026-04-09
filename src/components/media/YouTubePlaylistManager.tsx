@@ -32,6 +32,7 @@ import {
 } from "../../api/youtubePlaylist";
 import { getYouTubeThumbnail } from "../../api/youtube";
 import { isTauri } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
   isYouTubeApiEnabled,
@@ -45,6 +46,7 @@ interface YouTubePlaylistManagerProps {
 export function YouTubePlaylistManager({
   onImportVideo,
 }: YouTubePlaylistManagerProps) {
+  const { t } = useI18n();
   const isDesktop = isTauri();
   const { settings: appSettings, updateSettingsCategory } = useSettingsStore();
   const [subscriptions, setSubscriptions] = useState<PlaylistSubscription[]>(
@@ -125,7 +127,7 @@ export function YouTubePlaylistManager({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this subscription?")) return;
+    if (!confirm(t("delete.unsubscribeConfirm"))) return;
 
     try {
       await deletePlaylistSubscription(id);

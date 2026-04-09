@@ -32,6 +32,7 @@ import { exportAppState, downloadExport, estimateExportSize } from "../../utils/
 import type { ImportProgress, ImportResult, ImportOptions } from "../../utils/appStateImport";
 import { importAppState, readExportFile, validateExportFile, previewExport } from "../../utils/appStateImport";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useI18n } from "../../lib/i18n";
 
 type DialogMode = "menu" | "export" | "import" | "exporting" | "importing" | "success" | "error";
 
@@ -41,6 +42,7 @@ interface AppStateBackupDialogProps {
 }
 
 export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogProps) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<DialogMode>("menu");
   const [error, setError] = useState<string | null>(null);
   
@@ -83,7 +85,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
       await downloadExport(exportData);
       setMode("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      setError(err instanceof Error ? err.message : t("backup.exportFailed"));
       setMode("error");
     }
   }, [exportLabel, includeFiles]);
@@ -100,7 +102,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
       const validation = validateExportFile(exportData);
       
       if (!validation.valid) {
-        setError(validation.error || "Invalid export file");
+        setError(validation.error || t("backup.invalidExportFile"));
         setMode("error");
         return;
       }
@@ -114,7 +116,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
       
       setMode("import");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to read file");
+      setError(err instanceof Error ? err.message : t("backup.failedReadFile"));
       setMode("error");
     }
   }, []);
@@ -138,11 +140,11 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
       if (result.success) {
         setMode("success");
       } else {
-        setError(result.error || "Import failed");
+        setError(result.error || t("backup.importFailed"));
         setMode("error");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
+      setError(err instanceof Error ? err.message : t("backup.importFailed"));
       setMode("error");
     }
   }, [selectedFile, importOptions]);
@@ -190,9 +192,9 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               <Database className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Backup & Restore</h2>
+              <h2 className="text-lg font-semibold">{t("backup.title")}</h2>
               <p className="text-sm text-muted-foreground">
-                Export or import your complete app state
+                {t("backup.subtitle")}
               </p>
             </div>
           </div>
@@ -218,20 +220,19 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                     <Download className="w-6 h-6 text-blue-500" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">Export Backup</h3>
+                    <h3 className="font-semibold text-foreground mb-1">{t("backup.exportBackup")}</h3>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Save all your data including documents, extracts, learning items, 
-                      settings, and study progress to a file.
+                      {t("backup.exportBackupDesc")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground">
-                        {documents.length} documents
+                        {documents.length} {t("backup.documents").toLowerCase()}
                       </span>
                       <span className="text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground">
-                        All settings
+                        {t("backup.allSettings")}
                       </span>
                       <span className="text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground">
-                        Study progress
+                        {t("backup.studyProgress")}
                       </span>
                     </div>
                   </div>
@@ -248,10 +249,9 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                     <Upload className="w-6 h-6 text-green-500" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">Import Backup</h3>
+                    <h3 className="font-semibold text-foreground mb-1">{t("backup.importBackup")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Restore your data from a previously exported backup file. 
-                      Your study scheduling and progress will be preserved.
+                      {t("backup.importBackupDesc")}
                     </p>
                   </div>
                 </div>
@@ -269,8 +269,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
                 <p className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
-                  <strong>Note:</strong> Export files include metadata and scheduling info. 
-                  Document files are optional and significantly increase file size.
+                  <strong>{t("backup.note")}</strong> {t("backup.exportFilesNote")}
                 </p>
               </div>
             </div>
@@ -281,17 +280,17 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               {/* Export Label */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Backup Label <span className="text-muted-foreground">(optional)</span>
+                  {t("backup.backupLabel")} <span className="text-muted-foreground">{t("backup.optional")}</span>
                 </label>
                 <input
                   type="text"
                   value={exportLabel}
                   onChange={(e) => setExportLabel(e.target.value)}
-                  placeholder="e.g., Before reformatting PC"
+                  placeholder={t("backup.backupLabelPlaceholder")}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  This will be included in the filename for easy identification
+                  {t("backup.backupLabelHint")}
                 </p>
               </div>
 
@@ -305,13 +304,12 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="font-medium">Include document files</div>
+                    <div className="font-medium">{t("backup.includeDocFiles")}</div>
                     <p className="text-sm text-muted-foreground">
-                      Also save the actual PDFs, EPUBs, etc. Makes the backup much larger 
-                      but allows complete restoration without re-uploading files.
+                      {t("backup.includeDocumentFilesDesc")}
                     </p>
                     <div className="mt-2 text-xs text-muted-foreground">
-                      Estimated size: <strong>{estimateExportSize(documents, includeFiles)}</strong>
+                      {t("backup.estimatedSize")} <strong>{estimateExportSize(documents, includeFiles)}</strong>
                     </div>
                   </div>
                 </label>
@@ -319,31 +317,31 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
 
               {/* What's Included */}
               <div className="space-y-2">
-                <div className="text-sm font-medium">What's included:</div>
+                <div className="text-sm font-medium">{t("backup.whatsIncluded")}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Settings className="w-4 h-4" />
-                    All settings & preferences
+                    {t("backup.allSettingsAndPrefs")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <BookOpen className="w-4 h-4" />
-                    Documents & metadata
+                    {t("backup.documentsAndMetadata")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <FileText className="w-4 h-4" />
-                    Extracts & highlights
+                    {t("backup.extractsAndHighlights")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Layers className="w-4 h-4" />
-                    Learning items & scheduling
+                    {t("backup.learningItemsAndScheduling")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Tag className="w-4 h-4" />
-                    Collections & tags
+                    {t("backup.collectionsAndTags")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <HardDrive className="w-4 h-4" />
-                    {includeFiles ? "Document files (included)" : "Document files (not included)"}
+                    {includeFiles ? t("backup.docFilesIncluded") : t("backup.docFilesNotIncluded")}
                   </div>
                 </div>
               </div>
@@ -373,38 +371,38 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               {/* Preview */}
               <div className="p-4 bg-muted/50 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Backup Label</span>
-                  <span className="font-medium">{exportPreview.label || "Unlabeled"}</span>
+                  <span className="text-sm text-muted-foreground">{t("backup.backupLabel")}</span>
+                  <span className="font-medium">{exportPreview.label || t("backup.unlabeled")}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Exported</span>
+                  <span className="text-sm text-muted-foreground">{t("backup.exported")}</span>
                   <span className="font-medium">
                     {new Date(exportPreview.exportedAt).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Includes Files</span>
+                  <span className="text-sm text-muted-foreground">{t("backup.includesFiles")}</span>
                   <span className={exportPreview.includesFiles ? "text-green-500" : "text-muted-foreground"}>
-                    {exportPreview.includesFiles ? "Yes" : "No"}
+                    {exportPreview.includesFiles ? t("backup.yes") : t("backup.no")}
                   </span>
                 </div>
                 <div className="border-t border-border pt-3 mt-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-muted-foreground" />
-                      {exportPreview.stats.documentCount} documents
+                      {exportPreview.stats.documentCount} {t("backup.documents").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-muted-foreground" />
-                      {exportPreview.stats.extractCount} extracts
+                      {exportPreview.stats.extractCount} {t("backup.extracts").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
                       <Layers className="w-4 h-4 text-muted-foreground" />
-                      {exportPreview.stats.learningItemCount} learning items
+                      {exportPreview.stats.learningItemCount} {t("backup.learningItems").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-muted-foreground" />
-                      {exportPreview.stats.collectionCount} collections
+                      {exportPreview.stats.collectionCount} {t("backup.collections").toLowerCase()}
                     </div>
                   </div>
                 </div>
@@ -417,7 +415,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                   className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
                 >
                   {showAdvancedOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  Import Options
+                  {t("backup.importOptions")}
                 </button>
                 
                 {showAdvancedOptions && (
@@ -447,7 +445,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                     {/* Duplicate strategy */}
                     <div className="pt-3 border-t border-border">
                       <label className="text-sm font-medium mb-2 block">
-                        Duplicate Handling
+                        {t("backup.duplicateHandling")}
                       </label>
                       <select
                         value={importOptions.duplicateStrategy}
@@ -459,9 +457,9 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                         }
                         className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
                       >
-                        <option value="skip">Skip duplicates</option>
-                        <option value="replace">Replace existing</option>
-                        <option value="merge">Merge (create new copies)</option>
+                        <option value="skip">{t("backup.skipDuplicates")}</option>
+                        <option value="replace">{t("backup.replaceExisting")}</option>
+                        <option value="merge">{t("backup.mergeCreateNew")}</option>
                       </select>
                     </div>
                   </div>
@@ -471,8 +469,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               {/* Warning */}
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600">
                 <AlertCircle className="w-4 h-4 inline mr-2" />
-                Importing will add data to your current library. Duplicate handling 
-                settings apply when items with the same content already exist.
+                {t("backup.importWarning")}
               </div>
             </div>
           )}
@@ -502,17 +499,17 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               </div>
               <div>
                 <div className="font-medium text-lg">
-                  {importResult ? "Import Complete!" : "Export Complete!"}
+                  {importResult ? t("backup.importComplete") : t("backup.exportComplete")}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {importResult
-                    ? `Successfully imported ${importResult.stats.documentsImported} documents, ${importResult.stats.extractsImported} extracts, and ${importResult.stats.learningItemsImported} learning items.`
-                    : "Your backup has been saved."}
+                    ? t("backup.importCompleteDesc", { documents: importResult.stats.documentsImported, extracts: importResult.stats.extractsImported, learningItems: importResult.stats.learningItemsImported })
+                    : t("backup.yourBackupSaved")}
                 </p>
               </div>
               {importResult && importResult.warnings.length > 0 && (
                 <div className="text-left p-4 bg-amber-500/10 rounded-lg max-h-40 overflow-y-auto">
-                  <div className="text-sm font-medium text-amber-600 mb-2">Warnings:</div>
+                  <div className="text-sm font-medium text-amber-600 mb-2">{t("backup.warnings")}</div>
                   <ul className="text-xs text-amber-600 space-y-1">
                     {importResult.warnings.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -529,7 +526,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                 <AlertCircle className="w-8 h-8 text-destructive" />
               </div>
               <div>
-                <div className="font-medium text-lg">Operation Failed</div>
+                <div className="font-medium text-lg">{t("backup.operationFailed")}</div>
                 <p className="text-sm text-muted-foreground">{error}</p>
               </div>
             </div>
@@ -543,7 +540,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               onClick={handleClose}
               className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
             >
-              Close
+              {t("common.close")}
             </button>
           )}
 
@@ -553,14 +550,14 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                 onClick={() => setMode("menu")}
                 className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                Back
+                {t("common.back")}
               </button>
               <button
                 onClick={handleStartExport}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                Export Backup
+                {t("backup.exportBackup")}
               </button>
             </>
           )}
@@ -575,14 +572,14 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                 }}
                 className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
               >
-                Back
+                {t("common.back")}
               </button>
               <button
                 onClick={handleStartImport}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Import Backup
+                {t("backup.importBackup")}
               </button>
             </>
           )}
@@ -592,7 +589,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               onClick={resetDialog}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
             >
-              {mode === "success" ? "Done" : "Try Again"}
+              {mode === "success" ? t("common.done") : t("backup.tryAgain")}
             </button>
           )}
 
@@ -601,7 +598,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               disabled
               className="px-4 py-2 bg-muted text-muted-foreground rounded-lg cursor-not-allowed"
             >
-              Processing...
+              {t("backup.processing")}
             </button>
           )}
         </div>

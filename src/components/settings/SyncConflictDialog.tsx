@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { invokeCommand as invoke } from "../../lib/tauri";
+import { useI18n } from "../../lib/i18n";
 import {
   AlertTriangle,
   X,
@@ -25,32 +26,32 @@ interface SyncConflictDialogProps {
 
 const RESOLUTION_OPTIONS: {
   value: ConflictResolution;
-  label: string;
-  description: string;
+  labelKey: string;
+  descKey: string;
   icon: React.ReactNode;
 }[] = [
     {
       value: "keep-local",
-      label: "Keep Local",
-      description: "Use your local version and overwrite the remote",
+      labelKey: "syncConflict.keepLocal",
+      descKey: "syncConflict.keepLocalDesc",
       icon: <Monitor className="w-4 h-4" />,
     },
     {
       value: "keep-remote",
-      label: "Keep Remote",
-      description: "Use the cloud version and overwrite your local data",
+      labelKey: "syncConflict.keepRemote",
+      descKey: "syncConflict.keepRemoteDesc",
       icon: <Cloud className="w-4 h-4" />,
     },
     {
       value: "keep-newest",
-      label: "Keep Newest",
-      description: "Automatically keep whichever version was modified more recently",
+      labelKey: "syncConflict.keepNewest",
+      descKey: "syncConflict.keepNewestDesc",
       icon: <Calendar className="w-4 h-4" />,
     },
     {
       value: "keep-both",
-      label: "Keep Both",
-      description: "Create a duplicate so you don't lose either version",
+      labelKey: "syncConflict.keepBoth",
+      descKey: "syncConflict.keepBothDesc",
       icon: <FileText className="w-4 h-4" />,
     },
   ];
@@ -61,6 +62,7 @@ export function SyncConflictDialog({
   onClose,
   onResolveComplete,
 }: SyncConflictDialogProps) {
+  const { t } = useI18n();
   const [resolutions, setResolutions] = useState<Map<number, ConflictResolution>>(
     new Map()
   );
@@ -129,10 +131,10 @@ export function SyncConflictDialog({
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
-                  Sync Conflicts Detected
+                  {t("syncConflict.conflictsDetected")}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {conflicts.length} conflict{conflicts.length > 1 ? "s" : ""} found. Choose how to resolve each one.
+                  {t("syncConflict.conflictsFound", { count: conflicts.length })}
                 </p>
               </div>
             </div>
@@ -150,7 +152,7 @@ export function SyncConflictDialog({
         {!applied && (
           <div className="px-6 py-3 bg-muted/30 border-b border-border">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Apply to all:</span>
+              <span className="text-sm text-muted-foreground">{t("syncConflict.applyToAll")}</span>
               {RESOLUTION_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -158,7 +160,7 @@ export function SyncConflictDialog({
                   disabled={applying}
                   className="px-2 py-1 text-xs bg-background hover:bg-muted border border-border rounded transition-colors disabled:opacity-50"
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
@@ -172,9 +174,9 @@ export function SyncConflictDialog({
               <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-full mb-3">
                 <Check className="w-6 h-6 text-green-600 dark:text-green-300" />
               </div>
-              <p className="text-foreground font-medium">Conflicts resolved!</p>
+              <p className="text-foreground font-medium">{t("syncConflict.conflictsResolved")}</p>
               <p className="text-sm text-muted-foreground">
-                Your data has been synchronized.
+                {t("syncConflict.dataSynchronized")}
               </p>
             </div>
           ) : (
@@ -196,12 +198,12 @@ export function SyncConflictDialog({
                         {conflict.item_type}: {conflict.item_id.slice(0, 8)}...
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Modified on both devices
+                        {t("syncConflict.modifiedBothDevices")}
                       </div>
                     </div>
                     {isNewerLocal && (
                       <span className="text-xs px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded">
-                        Local is newer
+                        {t("syncConflict.localNewer")}
                       </span>
                     )}
                   </div>
@@ -211,7 +213,7 @@ export function SyncConflictDialog({
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                         <Monitor className="w-3 h-3" />
-                        Your Version
+                        {t("syncConflict.yourVersion")}
                       </div>
                       <div className="text-sm text-foreground">
                         {formatDate(conflict.local_modified)}
@@ -220,7 +222,7 @@ export function SyncConflictDialog({
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                         <Cloud className="w-3 h-3" />
-                        Cloud Version
+                        {t("syncConflict.cloudVersion")}
                       </div>
                       <div className="text-sm text-foreground">
                         {formatDate(conflict.remote_modified)}
@@ -251,11 +253,11 @@ export function SyncConflictDialog({
                             {option.icon}
                           </div>
                           <span className="text-sm font-medium text-foreground">
-                            {option.label}
+                            {t(option.labelKey)}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {option.description}
+                          {t(option.descKey)}
                         </div>
                       </button>
                     ))}
@@ -271,7 +273,7 @@ export function SyncConflictDialog({
           <div className="p-4 border-t border-border bg-muted/30">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {resolutions.size} of {conflicts.length} resolved
+                {t("syncConflict.resolved", { resolved: resolutions.size, total: conflicts.length })}
               </div>
               <div className="flex gap-3">
                 <button
@@ -279,7 +281,7 @@ export function SyncConflictDialog({
                   disabled={applying}
                   className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={handleResolveConflicts}
@@ -289,12 +291,12 @@ export function SyncConflictDialog({
                   {applying ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Applying...
+                      {t("syncConflict.applying")}
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      Apply Resolutions
+                      {t("syncConflict.applyResolutions")}
                     </>
                   )}
                 </button>

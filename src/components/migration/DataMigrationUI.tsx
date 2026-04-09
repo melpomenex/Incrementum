@@ -21,6 +21,7 @@ import {
   createMigrationBackup,
   rollbackMigration,
 } from "../../api/migration";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Migration stage
@@ -48,6 +49,7 @@ interface MigrationProgress {
  * Migration UI Component
  */
 export function DataMigrationUI() {
+  const { t } = useI18n();
   const [dbPath, setDbPath] = useState("");
   const [dbInfo, setDbInfo] = useState<{
     exists: boolean;
@@ -240,7 +242,7 @@ export function DataMigrationUI() {
       return;
     }
 
-    if (!confirm("Are you sure you want to rollback? This will undo all changes from the migration.")) {
+    if (!confirm(t("migration.rollbackConfirm"))) {
       return;
     }
 
@@ -304,14 +306,14 @@ export function DataMigrationUI() {
       <div className="flex items-center gap-3 mb-6">
         <Database className="w-8 h-8 text-primary" />
         <div>
-          <h2 className="text-2xl font-bold">Data Migration</h2>
-          <p className="text-sm text-muted-foreground">Migrate data from the C++ version</p>
+          <h2 className="text-2xl font-bold">{t("migration.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("migration.migrateFromCpp")}</p>
         </div>
       </div>
 
       {/* Database Selection */}
       <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Select C++ Database</h3>
+        <h3 className="text-lg font-semibold mb-4">{t("migration.selectCppDatabase")}</h3>
 
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -327,7 +329,7 @@ export function DataMigrationUI() {
               className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted"
             >
               <FolderOpen className="w-4 h-4" />
-              Browse
+              {t("common.browse")}
             </button>
           </div>
 
@@ -338,7 +340,7 @@ export function DataMigrationUI() {
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
             >
               <Upload className="w-4 h-4" />
-              Detect Database
+              {t("migration.detectDatabase")}
             </button>
 
             <button
@@ -347,7 +349,7 @@ export function DataMigrationUI() {
               className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted disabled:opacity-50"
             >
               <CheckCircle className="w-4 h-4" />
-              Validate
+              {t("migration.validate")}
             </button>
           </div>
         </div>
@@ -356,27 +358,27 @@ export function DataMigrationUI() {
       {/* Database Info */}
       {dbInfo && dbInfo.exists && (
         <div className="bg-card border border-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Database Information</h3>
+          <h3 className="text-lg font-semibold mb-4">{t("migration.databaseInformation")}</h3>
 
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <dt className="text-sm text-muted-foreground">Version</dt>
+              <dt className="text-sm text-muted-foreground">{t("migration.version")}</dt>
               <dd className="text-lg font-semibold">{dbInfo.version}</dd>
             </div>
             <div>
-              <dt className="text-sm text-muted-foreground">Documents</dt>
+              <dt className="text-sm text-muted-foreground">{t("migration.documents")}</dt>
               <dd className="text-lg font-semibold">{dbInfo.documentCount}</dd>
             </div>
             <div>
-              <dt className="text-sm text-muted-foreground">Flashcards</dt>
+              <dt className="text-sm text-muted-foreground">{t("migration.flashcards")}</dt>
               <dd className="text-lg font-semibold">{dbInfo.flashcardCount}</dd>
             </div>
             <div>
-              <dt className="text-sm text-muted-foreground">Extracts</dt>
+              <dt className="text-sm text-muted-foreground">{t("migration.extracts")}</dt>
               <dd className="text-lg font-semibold">{dbInfo.extractCount}</dd>
             </div>
             <div className="col-span-2 md:col-span-4">
-              <dt className="text-sm text-muted-foreground">File Size</dt>
+              <dt className="text-sm text-muted-foreground">{t("migration.fileSize")}</dt>
               <dd className="text-lg font-semibold">{formatFileSize(dbInfo.fileSize)}</dd>
             </div>
           </dl>
@@ -396,12 +398,12 @@ export function DataMigrationUI() {
             ) : (
               <XCircle className="w-5 h-5 text-destructive" />
             )}
-            <h3 className="text-lg font-semibold">Validation Results</h3>
+            <h3 className="text-lg font-semibold">{t("migration.validationResults")}</h3>
           </div>
 
           {validation.errors.length > 0 && (
             <div className="mb-4">
-              <h4 className="text-sm font-medium text-destructive mb-2">Errors:</h4>
+              <h4 className="text-sm font-medium text-destructive mb-2">{t("migration.errors")}</h4>
               <ul className="space-y-1">
                 {validation.errors.map((error, i) => (
                   <li key={i} className="text-sm text-destructive/80 flex items-start gap-2">
@@ -415,7 +417,7 @@ export function DataMigrationUI() {
 
           {validation.warnings.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-yellow-500 mb-2">Warnings:</h4>
+              <h4 className="text-sm font-medium text-yellow-500 mb-2">{t("migration.warnings")}</h4>
               <ul className="space-y-1">
                 {validation.warnings.map((warning, i) => (
                   <li key={i} className="text-sm text-yellow-500/80 flex items-start gap-2">
@@ -433,7 +435,7 @@ export function DataMigrationUI() {
       {migrationProgress.stage !== "idle" && (
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Migration Progress</h3>
+            <h3 className="text-lg font-semibold">{t("migration.migrationProgress")}</h3>
 
             {migrationProgress.stage === "migrating" && (
               <RefreshCw className="w-5 h-5 text-primary animate-spin" />
@@ -461,30 +463,30 @@ export function DataMigrationUI() {
 
           {migrationProgress.stage === "complete" && migrationResult && (
             <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <h4 className="text-sm font-semibold text-green-500 mb-2">Migration Complete!</h4>
+              <h4 className="text-sm font-semibold text-green-500 mb-2">{t("migration.migrationComplete")}</h4>
               <dl className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                 <div>
-                  <dt className="text-muted-foreground">Documents</dt>
+                  <dt className="text-muted-foreground">{t("migration.documents")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.documents}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Extracts</dt>
+                  <dt className="text-muted-foreground">{t("migration.extracts")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.extracts}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Flashcards</dt>
+                  <dt className="text-muted-foreground">{t("migration.flashcards")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.flashcards}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Scheduling Data</dt>
+                  <dt className="text-muted-foreground">{t("migration.schedulingData")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.scheduling}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Review Logs</dt>
+                  <dt className="text-muted-foreground">{t("migration.reviewLogs")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.reviewLogs}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Categories</dt>
+                  <dt className="text-muted-foreground">{t("migration.categories")}</dt>
                   <dd className="font-semibold">{migrationResult.imported.categories}</dd>
                 </div>
               </dl>
@@ -506,7 +508,7 @@ export function DataMigrationUI() {
 
           {migrationProgress.stage === "error" && migrationResult?.errors && (
             <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <h4 className="text-sm font-semibold text-destructive mb-2">Migration Errors</h4>
+              <h4 className="text-sm font-semibold text-destructive mb-2">{t("migration.migrationErrors")}</h4>
               <ul className="space-y-1">
                 {migrationResult.errors.map((error, i) => (
                   <li key={i} className="text-sm text-destructive/80">{error}</li>
@@ -533,7 +535,7 @@ export function DataMigrationUI() {
             ) : (
               <>
                 <Upload className="w-4 h-4" />
-                Start Migration
+                {t("migration.startMigration")}
               </>
             )}
           </button>
@@ -545,7 +547,7 @@ export function DataMigrationUI() {
               className="flex items-center gap-2 px-6 py-3 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
             >
               <Archive className="w-4 h-4" />
-              Rollback
+              {t("migration.rollback")}
             </button>
           )}
         </div>
@@ -556,12 +558,12 @@ export function DataMigrationUI() {
         <div className="flex items-start gap-3">
           <FileText className="w-5 h-5 text-primary mt-0.5" />
           <div className="text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Migration Information</p>
+            <p className="font-medium text-foreground mb-1">{t("migration.migrationInfo")}</p>
             <ul className="space-y-1">
-              <li>• A backup will be automatically created before migration</li>
-              <li>• All data including documents, extracts, flashcards, and review progress will be migrated</li>
-              <li>• The original C++ database will not be modified</li>
-              <li>• You can rollback to the backup if needed</li>
+              <li>• {t("migration.backupCreated")}</li>
+              <li>• {t("migration.allDataMigrated")}</li>
+              <li>• {t("migration.cppNotModified")}</li>
+              <li>• {t("migration.canRollback")}</li>
             </ul>
           </div>
         </div>

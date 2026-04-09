@@ -13,6 +13,7 @@ import {
   PROGRESS_GROUPS,
   type ProgressGroup,
 } from '../types/position';
+import { useI18n } from '../lib/i18n';
 
 interface GroupedDocuments {
   group: ProgressGroup;
@@ -22,6 +23,7 @@ interface GroupedDocuments {
 
 export function ContinueReadingPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [documents, setDocuments] = useState<DocumentWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function ContinueReadingPage() {
       // Include documents with no progress (not started) so users can start reading anything
       setDocuments(docs.filter((d) => d.progress < 100));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
+      setError(err instanceof Error ? err.message : t("continueReading.failed"));
       console.error('Failed to load documents:', err);
     } finally {
       setLoading(false);
@@ -91,7 +93,7 @@ export function ContinueReadingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading continue reading...</div>
+        <div className="text-gray-500">{t("continueReading.loading")}</div>
       </div>
     );
   }
@@ -99,12 +101,12 @@ export function ContinueReadingPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <div className="text-red-500 mb-4">Failed to load documents</div>
+        <div className="text-red-500 mb-4">{t("continueReading.failed")}</div>
         <button
           onClick={loadDocuments}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          Retry
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -114,8 +116,8 @@ export function ContinueReadingPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-500">
         <div className="text-6xl mb-4">📚</div>
-        <div className="text-lg font-medium">No items available</div>
-        <div className="text-sm mt-2">Add documents or notes to see them here</div>
+        <div className="text-lg font-medium">{t("continueReading.noItems")}</div>
+        <div className="text-sm mt-2">{t("continueReading.addDocuments")}</div>
       </div>
     );
   }
@@ -123,8 +125,8 @@ export function ContinueReadingPage() {
   return (
     <div className="continue-reading-page">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Continue Reading</h1>
-        <p className="text-gray-600 mt-1">Pick up where you left off</p>
+        <h1 className="text-2xl font-bold">{t("continueReading.title")}</h1>
+        <p className="text-gray-600 mt-1">{t("continueReading.subtitle")}</p>
       </div>
 
       {groups.map(
@@ -164,9 +166,9 @@ export function ContinueReadingPage() {
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          {formatProgress(doc.progress)} complete
+                          {formatProgress(doc.progress)} {t("continueReading.complete")}
                         </span>
-                        <span className="text-blue-500 font-medium">Resume →</span>
+                        <span className="text-blue-500 font-medium">{t("continueReading.resume")} →</span>
                       </div>
                     </div>
                   </button>

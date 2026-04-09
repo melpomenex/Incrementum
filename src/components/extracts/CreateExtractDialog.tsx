@@ -7,6 +7,7 @@ import { ClozeCreatorPopup } from "./ClozeCreatorPopup";
 import { QACreatorPopup } from "./QACreatorPopup";
 import { useToast } from "../common/Toast";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useI18n } from "../../lib/i18n";
 
 interface CreateExtractDialogProps {
   documentId: string;
@@ -72,6 +73,7 @@ export function CreateExtractDialog({
   const [creationMode, setCreationMode] = useState<"edit" | "cloze" | "qa">("edit");
   const [savedExtractId, setSavedExtractId] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useI18n();
   const { documents } = useDocumentStore();
 
   // Get the current document for context display
@@ -152,7 +154,7 @@ export function CreateExtractDialog({
 
   const handleCreate = async (action: "extract" | "generate" | "cloze" | "qa") => {
     if (!content.trim()) {
-      setError("Content is required");
+      setError(t("extracts.contentRequired"));
       return;
     }
 
@@ -173,7 +175,7 @@ export function CreateExtractDialog({
       };
 
       const extract = await createExtract(input);
-      toast.success("Extract created");
+      toast.success(t("extracts.extractCreated"));
 
       if (action === "generate") {
         setIsGenerating(true);
@@ -188,7 +190,7 @@ export function CreateExtractDialog({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create extract");
+      setError(err instanceof Error ? err.message : t("extracts.failedToCreate"));
     } finally {
       setIsCreating(false);
       setIsGenerating(false);
@@ -227,7 +229,7 @@ export function CreateExtractDialog({
           <div className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">
-              Create Extract
+              {t("extracts.createTitle")}
             </h2>
           </div>
           <button
@@ -246,13 +248,13 @@ export function CreateExtractDialog({
               <div className="text-sm font-medium text-foreground truncate">{currentDocument.title}</div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs text-muted-foreground">
-                  {pageNumber > 0 ? `Page ${pageNumber}` : 'Selected text'}
+                  {pageNumber > 0 ? `${t("extracts.page")} ${pageNumber}` : t("extracts.selectedText")}
                 </span>
                 {currentDocument.progressPercent !== undefined && currentDocument.progressPercent > 0 && (
                   <>
                     <span className="text-muted-foreground">•</span>
                     <span className="text-xs text-muted-foreground">
-                      {Math.round(currentDocument.progressPercent)}% complete
+                      {Math.round(currentDocument.progressPercent)}% {t("continueReading.complete")}
                     </span>
                   </>
                 )}
@@ -267,14 +269,14 @@ export function CreateExtractDialog({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-foreground">
-                Content <span className="text-destructive">*</span>
+                {t("extracts.content")} <span className="text-destructive">*</span>
               </label>
               <button
                 onClick={() => setShowPreview(!showPreview)}
                 className="px-2 py-1 text-xs bg-muted hover:bg-muted/80 text-muted-foreground rounded transition-colors flex items-center gap-1"
               >
                 <Eye className="w-3 h-3" />
-                {showPreview ? "Edit" : "Preview"}
+                {showPreview ? t("extracts.edit") : t("extracts.preview")}
               </button>
             </div>
 
@@ -293,7 +295,7 @@ export function CreateExtractDialog({
                 ))}
                 <div className="flex-1" />
                 <span className="text-xs text-muted-foreground">
-                  Select text to format
+                  {t("extracts.selectTextToFormat")}
                 </span>
               </div>
             )}
@@ -311,7 +313,7 @@ export function CreateExtractDialog({
                 {content ? (
                   <div dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
                 ) : (
-                  <span className="text-muted-foreground">Preview will appear here...</span>
+                  <span className="text-muted-foreground">{t("extracts.previewHint")}</span>
                 )}
               </div>
             )}
@@ -320,7 +322,7 @@ export function CreateExtractDialog({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Notes
+              {t("extracts.notes")}
             </label>
             <textarea
               value={notes}
@@ -335,7 +337,7 @@ export function CreateExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <FolderOpen className="w-4 h-4 inline mr-1" />
-              Category
+              {t("extracts.category")}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {COMMON_CATEGORIES.map((cat) => (
@@ -365,7 +367,7 @@ export function CreateExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <TagIcon className="w-4 h-4 inline mr-1" />
-              Tags
+              {t("extracts.tags")}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
@@ -396,7 +398,7 @@ export function CreateExtractDialog({
                 onClick={handleAddTag}
                 className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md transition-colors"
               >
-                Add
+                {t("extracts.add")}
               </button>
             </div>
           </div>
@@ -404,7 +406,7 @@ export function CreateExtractDialog({
           {/* Highlight Color */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Highlight Color
+              {t("extracts.highlightColor")}
             </label>
             <div className="flex flex-wrap gap-2">
               {HIGHLIGHT_COLORS.map((color) => (
@@ -427,10 +429,10 @@ export function CreateExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <Layers className="w-4 h-4 inline mr-1" />
-              Progressive Disclosure Level
+              {t("extracts.progressiveDisclosure")}
             </label>
             <p className="text-xs text-muted-foreground mb-3">
-              Set how many levels of difficulty this extract should be revealed across (0 = disabled)
+              {t("extracts.progressiveDisclosureHint")}
             </p>
             <div className="flex items-center gap-2">
               {[0, 1, 2, 3, 4, 5].map((level) => (
@@ -442,7 +444,7 @@ export function CreateExtractDialog({
                       ? "bg-primary text-primary-foreground scale-105"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
-                  title={`Level ${level}`}
+                  title={`${t("extracts.level")} ${level}`}
                 >
                   {level}
                 </button>
@@ -470,14 +472,14 @@ export function CreateExtractDialog({
             disabled={isCreating}
             className="px-4 py-2 bg-card border border-border text-foreground rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={() => handleCreate("extract")}
             disabled={isCreating || isGenerating}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isCreating ? "Creating..." : "Create Extract"}
+            {isCreating ? t("extracts.creating") : t("extracts.createExtract")}
           </button>
           <button
             onClick={() => handleCreate("generate")}
@@ -487,11 +489,11 @@ export function CreateExtractDialog({
             {isGenerating ? (
               <>
                 <span className="animate-spin">⏳</span>
-                Generating Cards...
+                {t("extracts.generatingCards")}
               </>
             ) : (
               <>
-                <span>Create & Generate Cards</span>
+                <span>{t("extracts.createAndGenerate")}</span>
               </>
             )}
           </button>
@@ -500,14 +502,14 @@ export function CreateExtractDialog({
             disabled={isCreating || isGenerating}
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Create & Cloze
+            {t("extracts.createAndCloze")}
           </button>
           <button
             onClick={() => handleCreate("qa")}
             disabled={isCreating || isGenerating}
             className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80 transition-colors disabled:opacity-50"
           >
-            Create & Q&A
+            {t("extracts.createAndQA")}
           </button>
         </div>
       </div>

@@ -15,6 +15,7 @@ import {
 } from "../../types/position";
 import { useTabsStore } from "../../stores";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useI18n } from "../../lib/i18n";
 
 const DocumentViewer = lazy(() =>
   import("../viewer/DocumentViewerWrapper").then((m) => ({ default: m.DocumentViewer }))
@@ -37,6 +38,7 @@ function formatTimeAgo(timestamp: number) {
 
 export function ContinueReadingTab() {
   const addTab = useTabsStore((state) => state.addTab);
+  const { t } = useI18n();
   const documentsInStore = useDocumentStore((state) => state.documents);
 
   const [documents, setDocuments] = useState<DocumentWithProgress[]>([]);
@@ -106,7 +108,7 @@ export function ContinueReadingTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading continue reading...</div>
+        <div className="text-muted-foreground">{t("continueReading.loading")}</div>
       </div>
     );
   }
@@ -114,12 +116,12 @@ export function ContinueReadingTab() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <div className="text-destructive mb-4">Failed to load documents</div>
+        <div className="text-destructive mb-4">{t("continueReading.failed")}</div>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
-          Retry
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -129,8 +131,8 @@ export function ContinueReadingTab() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <div className="text-6xl mb-4">📚</div>
-        <div className="text-lg font-medium text-foreground">No items available</div>
-        <div className="text-sm mt-2">Add documents or notes to see them here</div>
+        <div className="text-lg font-medium text-foreground">{t("continueReading.noItems")}</div>
+        <div className="text-sm mt-2">{t("continueReading.addDocuments")}</div>
       </div>
     );
   }
@@ -138,8 +140,8 @@ export function ContinueReadingTab() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Continue Reading</h1>
-        <p className="text-muted-foreground mt-1">Pick up where you left off</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("continueReading.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("continueReading.subtitle")}</p>
       </div>
 
       {groups.map(({ group, info, documents }) => (
@@ -177,9 +179,9 @@ export function ContinueReadingTab() {
 
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {Math.round(doc.progress)}% complete
+                        {Math.round(doc.progress)}% {t("continueReading.complete")}
                       </span>
-                      <span className="text-primary font-medium">Resume →</span>
+                      <span className="text-primary font-medium">{t("continueReading.resume")} →</span>
                     </div>
                   </div>
                 </button>

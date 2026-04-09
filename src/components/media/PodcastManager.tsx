@@ -25,12 +25,14 @@ import {
   isValidPodcastUrl,
   discoverPodcasts,
 } from "../../api/podcast";
+import { useI18n } from "../../lib/i18n";
 
 interface PodcastManagerProps {
   onPlayEpisode?: (feed: PodcastFeed, episode: PodcastEpisode) => void;
 }
 
 export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
+  const { t } = useI18n();
   const [subscriptions, setSubscriptions] = useState<PodcastFeed[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<PodcastFeed | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,7 +81,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Remove subscription
   const handleRemoveSubscription = (feedId: string) => {
-    if (confirm("Are you sure you want to unsubscribe from this podcast?")) {
+    if (confirm(t("podcastManager.unsubscribeConfirm"))) {
       unsubscribeFromPodcast(feedId);
       loadSubscriptions();
       if (selectedFeed?.id === feedId) {
