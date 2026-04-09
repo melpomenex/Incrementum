@@ -197,7 +197,7 @@ export function SyncSettings() {
             <CloudOff className="w-8 h-8 text-muted-foreground" />
           )}
           <div>
-            <h2 className="text-2xl font-bold text-foreground">t("syncSettings.title")</h2>
+            <h2 className="text-2xl font-bold text-foreground">{t("syncSettings.title")}</h2>
             <p className="text-sm text-muted-foreground">
               {config?.enabled ? "Cloud sync enabled" : "Cloud sync disabled"}
             </p>
@@ -243,14 +243,14 @@ export function SyncSettings() {
       {viewMode === "status" && (
         <div className="space-y-4">
           <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">t("syncSettings.deviceSync")</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">{t("syncSettings.deviceSync")}</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Use this sync code to connect your own devices. Anyone with the code can sync the
               same data.
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">t("syncSettings.yourSyncCode")</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.yourSyncCode")}</label>
                 <div className="flex gap-2">
                   <input
                     className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
@@ -280,7 +280,7 @@ export function SyncSettings() {
                 </div>
               )}
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">t("syncSettings.joinCode")</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.joinCode")}</label>
                 <div className="flex gap-2">
                   <input
                     className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
@@ -324,7 +324,7 @@ export function SyncSettings() {
           {/* Sync status card */}
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">t("syncSettings.syncStatus")</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.syncStatus")}</h3>
               {config?.enabled && (
                 <div className={`flex items-center gap-2 ${getSyncStatusColor(status)}`}>
                   {status === SyncStatus.Syncing && (
@@ -339,14 +339,14 @@ export function SyncSettings() {
               <div className="space-y-4">
                 {/* Last sync info */}
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-muted-foreground">t("syncSettings.lastSync")</span>
+                  <span className="text-muted-foreground">{t("syncSettings.lastSync")}</span>
                   <span className="text-foreground">{formatLastSync(config)}</span>
                 </div>
 
                 {autoSync && nextSyncTime && (
                   <div className="flex items-center gap-4 text-sm">
                     <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">t("syncSettings.nextSync")</span>
+                    <span className="text-muted-foreground">{t("syncSettings.nextSync")}</span>
                     <span className="text-foreground">{nextSyncTime.toLocaleString()}</span>
                   </div>
                 )}
@@ -354,14 +354,14 @@ export function SyncSettings() {
                 {/* Device ID */}
                 <div className="flex items-center gap-4 text-sm">
                   <Shield className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">t("syncSettings.deviceId")</span>
+                  <span className="text-muted-foreground">{t("syncSettings.deviceId")}</span>
                   <span className="text-foreground font-mono text-xs">{config.device_id}</span>
                 </div>
 
                 {/* Encryption status */}
                 <div className="flex items-center gap-4 text-sm">
                   <Lock className="w-4 h-4 text-green-500" />
-                  <span className="text-muted-foreground">t("syncSettings.encryption")</span>
+                  <span className="text-muted-foreground">{t("syncSettings.encryption")}</span>
                   <span className="text-foreground">
                     {config.encryption_enabled ? "End-to-end enabled" : "Disabled"}
                   </span>
@@ -394,15 +394,15 @@ export function SyncSettings() {
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
                         <div className="text-2xl font-bold text-foreground">{lastResult.uploaded}</div>
-                        <div className="text-xs text-muted-foreground">t("syncSettings.uploaded")</div>
+                        <div className="text-xs text-muted-foreground">{t("syncSettings.uploaded")}</div>
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-foreground">{lastResult.downloaded}</div>
-                        <div className="text-xs text-muted-foreground">t("syncSettings.downloaded")</div>
+                        <div className="text-xs text-muted-foreground">{t("syncSettings.downloaded")}</div>
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-foreground">{lastResult.conflicts}</div>
-                        <div className="text-xs text-muted-foreground">t("syncSettings.conflicts")</div>
+                        <div className="text-xs text-muted-foreground">{t("syncSettings.conflicts")}</div>
                       </div>
                     </div>
                   </div>
@@ -411,7 +411,7 @@ export function SyncSettings() {
             ) : (
               <div className="text-center py-8">
                 <CloudOff className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground mb-4">t("syncSettings.cloudSyncDisabled")</p>
+                <p className="text-muted-foreground mb-4">{t("syncSettings.cloudSyncDisabled")}</p>
                 <button
                   onClick={() => setViewMode("config")}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
@@ -425,12 +425,12 @@ export function SyncSettings() {
           {/* Quick settings */}
           {config?.enabled && (
             <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">t("syncSettings.quickSettings")</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">{t("syncSettings.quickSettings")}</h3>
               <div className="space-y-3">
                 <label className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-medium text-foreground">t("syncSettings.autoSync")</span>
-                    <p className="text-xs text-muted-foreground">t("syncSettings.autoSyncDesc")</p>
+                    <span className="text-sm font-medium text-foreground">{t("syncSettings.autoSync")}</span>
+                    <p className="text-xs text-muted-foreground">{t("syncSettings.autoSyncDesc")}</p>
                   </div>
                   <input
                     type="checkbox"
@@ -448,7 +448,7 @@ export function SyncSettings() {
 
                 {autoSync && (
                   <div className="flex items-center gap-4">
-                    <label className="text-sm text-muted-foreground">t("syncSettings.syncInterval")</label>
+                    <label className="text-sm text-muted-foreground">{t("syncSettings.syncInterval")}</label>
                     <select
                       value={syncInterval}
                       onChange={(e) => {
@@ -486,7 +486,7 @@ export function SyncSettings() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
               <HardDrive className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">t("syncSettings.fileSync")</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.fileSync")}</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Files are streamed directly between your devices in real-time. Devices must be online
@@ -553,12 +553,12 @@ export function SyncSettings() {
       {viewMode === "config" && (
         <div className="space-y-4">
           <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">t("syncSettings.configuration")</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{t("syncSettings.configuration")}</h3>
 
             {config?.enabled ? (
               <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500 mb-4">
                 <Check className="w-4 h-4" />
-                <span className="text-sm">t("syncSettings.syncIsEnabled")</span>
+                <span className="text-sm">{t("syncSettings.syncIsEnabled")}</span>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground mb-4">
@@ -606,7 +606,7 @@ export function SyncSettings() {
                   disabled={config?.enabled}
                   className="rounded disabled:opacity-50"
                 />
-                <span className="text-sm text-foreground">t("syncSettings.enableAutoSync")</span>
+                <span className="text-sm text-foreground">{t("syncSettings.enableAutoSync")}</span>
               </label>
 
               {/* Enable button */}
@@ -627,7 +627,7 @@ export function SyncSettings() {
             <div className="flex items-start gap-2">
               <Shield className="w-4 h-4 text-primary mt-0.5" />
               <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">t("syncSettings.e2eEncryption")</p>
+                <p className="font-medium text-foreground mb-1">{t("syncSettings.e2eEncryption")}</p>
                 <p>
                   Your data is encrypted locally before syncing. The encryption key never leaves
                   your device, ensuring your privacy even if the sync server is compromised.
@@ -642,14 +642,14 @@ export function SyncSettings() {
       {viewMode === "log" && (
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">t("syncSettings.syncLog")</h3>
+            <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.syncLog")}</h3>
             <History className="w-5 h-5 text-muted-foreground" />
           </div>
 
           {syncLog.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>t("syncSettings.noSyncHistory")</p>
+              <p>{t("syncSettings.noSyncHistory")}</p>
             </div>
           ) : (
             <div className="space-y-2">

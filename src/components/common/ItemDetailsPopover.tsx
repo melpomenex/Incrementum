@@ -7,6 +7,7 @@ import { getLearningItem } from "../../api/learning-items";
 import { getAlgorithmParams } from "../../api/algorithm";
 import { previewReviewIntervals, formatInterval, type PreviewIntervals } from "../../api/review";
 import { cn } from "../../utils";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 export type ItemDetailsTarget =
   | {
@@ -48,6 +49,7 @@ interface ItemDetailsData {
   previewIntervals?: PreviewIntervals | null;
   raw?: Record<string, unknown> | null;
   isDismissed?: boolean;
+  algorithmType?: string | null;
 }
 
 interface ItemDetailsPopoverProps {
@@ -67,6 +69,7 @@ const EMPTY_DETAILS: ItemDetailsData = {
   lapses: null,
   previewIntervals: null,
   raw: null,
+  algorithmType: null,
 };
 
 function formatMaybeNumber(value?: number | null, suffix?: string): string {
@@ -113,6 +116,7 @@ async function loadItemDetails(target: ItemDetailsTarget): Promise<ItemDetailsDa
       lapses: item?.lapses ?? null,
       previewIntervals,
       raw: item ? { ...item } : null,
+      algorithmType: item?.algorithm_type ?? null,
     };
   }
 
@@ -164,6 +168,7 @@ export function ItemDetailsPopover({
   const [isUpdatingDismiss, setIsUpdatingDismiss] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const { settings } = useSettingsStore();
 
   const targetKey = useMemo(() => {
     if (target.type === "rss") return `rss:${target.title}`;
@@ -314,7 +319,9 @@ export function ItemDetailsPopover({
             )}
 
             <div className="border-t border-border pt-3 space-y-2">
-              <div className="text-xs text-muted-foreground">Scheduling / FSRS</div>
+              <div className="text-xs text-muted-foreground">
+                Scheduling / {details.algorithmType === "sm18" || (details.algorithmType !== "fsrs" && settings.learning.algorithm === "sm18") ? "SuperMemo 18" : "FSRS-6"}
+              </div>
               {isLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -211,7 +211,7 @@ export function LLMProviderSettings({
       {/* Provider List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">t("llmProvider.configuredProviders")</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("llmProvider.configuredProviders")}</h3>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
@@ -224,7 +224,7 @@ export function LLMProviderSettings({
         {providers.length === 0 ? (
           <div className="text-center py-12 bg-muted rounded-lg border-2 border-dashed border-muted-foreground">
             <Key className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">t("llmProvider.noApiKeysConfigured")</p>
+            <p className="text-muted-foreground">{t("llmProvider.noApiKeysConfigured")}</p>
             <p className="text-sm text-muted-foreground mt-2">
               Add your OpenAI, Anthropic, Ollama, or OpenRouter API keys to get started
             </p>
@@ -327,7 +327,7 @@ export function LLMProviderSettings({
       {/* Add Provider Form */}
       {showAddForm && (
         <div className="p-4 bg-card border rounded-lg space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">t("llmProvider.addNewProvider")</h3>
+          <h3 className="text-lg font-semibold text-foreground">{t("llmProvider.addNewProvider")}</h3>
 
           {/* Provider Type Selection */}
           <div>
@@ -458,30 +458,30 @@ export function LLMProviderSettings({
                 <div className="mt-2 p-2 bg-muted/50 rounded-lg text-xs">
                   <div className="flex items-center gap-1 text-muted-foreground mb-1">
                     <DollarSign className="w-3 h-3" />
-                    <span className="font-medium">t("llmProvider.pricingPer1k")</span>
+                    <span className="font-medium">{t("llmProvider.pricingPer1k")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {selectedModel.pricing.prompt !== undefined && (
                       <div>
-                        <span className="text-muted-foreground">t("llmProvider.input")</span>{" "}
+                        <span className="text-muted-foreground">{t("llmProvider.input")}</span>{" "}
                         <span className="font-medium">{formatPrice(selectedModel.pricing.prompt)}</span>
                       </div>
                     )}
                     {selectedModel.pricing.completion !== undefined && (
                       <div>
-                        <span className="text-muted-foreground">t("llmProvider.output")</span>{" "}
+                        <span className="text-muted-foreground">{t("llmProvider.output")}</span>{" "}
                         <span className="font-medium">{formatPrice(selectedModel.pricing.completion)}</span>
                       </div>
                     )}
                     {selectedModel.pricing.cache_read !== undefined && (
                       <div>
-                        <span className="text-muted-foreground">t("llmProvider.cacheRead")</span>{" "}
+                        <span className="text-muted-foreground">{t("llmProvider.cacheRead")}</span>{" "}
                         <span className="font-medium">{formatPrice(selectedModel.pricing.cache_read)}</span>
                       </div>
                     )}
                     {selectedModel.pricing.cache_write !== undefined && (
                       <div>
-                        <span className="text-muted-foreground">t("llmProvider.cacheWrite")</span>{" "}
+                        <span className="text-muted-foreground">{t("llmProvider.cacheWrite")}</span>{" "}
                         <span className="font-medium">{formatPrice(selectedModel.pricing.cache_write)}</span>
                       </div>
                     )}

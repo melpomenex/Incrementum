@@ -164,11 +164,13 @@ pub async fn submit_review(
         desired_retention.unwrap_or(DEFAULT_DESIRED_RETENTION),
         fsrs_weights.as_deref(),
         no_schedule_update.unwrap_or(false),
+        algorithm.as_deref(),
     )
     .await
 }
 
-/// Main review dispatcher — routes to the correct algorithm based on item's algorithm_type.
+/// Main review dispatcher — routes to the correct algorithm based on the caller's algorithm parameter,
+/// falling back to the item's stored algorithm_type.
 pub async fn apply_review(
     repo: &Repository,
     item_id: &str,
@@ -178,6 +180,7 @@ pub async fn apply_review(
     desired_retention: f32,
     fsrs_weights: Option<&[f32]>,
     no_schedule_update: bool,
+    algorithm: Option<&str>,
 ) -> Result<LearningItem> {
     // Get the current item
     let mut item = repo.get_learning_item(item_id).await?
@@ -190,7 +193,13 @@ pub async fn apply_review(
     }
 
     let now = Utc::now();
-    let algo = AlgorithmType::from_str_lossy(&item.algorithm_type);
+
+    // Use the caller's algorithm parameter if provided, otherwise fall back to item's stored type
+    let effective_algorithm = algorithm.unwrap_or(&item.algorithm_type);
+    let algo = AlgorithmType::from_str_lossy(effective_algorithm);
+
+    // Update the item's algorithm_type to match the effective algorithm
+    item.algorithm_type = effective_algorithm.to_string();
 
     match algo {
         AlgorithmType::Fsrs => {
