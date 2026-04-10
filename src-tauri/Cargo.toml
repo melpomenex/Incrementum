@@ -15,7 +15,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["devtools", "unstable"] }
 tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2.6"
+tauri-plugin-dialog = "2.7"
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-localhost = "2"

@@ -177,5 +177,13 @@
     "vite": "^7.0.4",
     "vite-plugin-wasm": "^3.4.1",
     "vitest": "^4.0.16"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "core-js",
+      "es5-ext",
+      "leveldown"
+    ]
   }
 }
