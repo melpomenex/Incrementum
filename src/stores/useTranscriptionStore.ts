@@ -64,35 +64,50 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
 }));
 
 // Setup event listeners (Tauri only - transcription backend events)
+// We save unlisten promises so listeners can be properly cleaned up,
+// and we wrap each registration to silently handle Tauri v2's
+// "listeners[eventId].handlerId" unlisten race condition.
 if (isTauri()) {
-  listen("transcription://progress", (event: any) => {
-    const { progress } = event.payload;
-    useTranscriptionStore.getState().setTranscriptionProgress(progress);
+  const transcriptionListeners: Promise<() => void>[] = [];
+
+  function safeListen<T>(event: string, handler: (event: { payload: T }) => void) {
+    transcriptionListeners.push(
+      listen(event, handler).catch((err) => {
+        console.warn(`[TranscriptionStore] Failed to register listener for "${event}":`, err);
+        return () => {};
+      })
+    );
+  }
+
+  safeListen<number>("transcription://progress", (event) => {
+    useTranscriptionStore.getState().setTranscriptionProgress(event.payload);
   });
 
-  listen("transcription://download-progress", (event: any) => {
+  safeListen<{ id: string; progress: number }>("transcription://download-progress", (event) => {
     const { id, progress } = event.payload;
     useTranscriptionStore.getState().setDownloadProgress(id, progress);
     useTranscriptionStore.getState().setStatus('downloading');
   });
 
-  listen("transcription://download-complete", () => {
+  safeListen<void>("transcription://download-complete", () => {
     useTranscriptionStore.getState().setStatus('idle');
   });
 
-  listen("transcription://status-change", (event: any) => {
+  safeListen<{ book_id: string; chapter_id: string }>("transcription://status-change", (event) => {
     const job = event.payload;
     useTranscriptionStore.setState({ activeJob: { bookId: job.book_id, chapterId: job.chapter_id } });
     useTranscriptionStore.getState().setStatus('processing');
   });
 
-  listen("transcription://segment", (event: any) => {
-    const segment = event.payload as TranscriptSegment;
-    useTranscriptionStore.getState().addSegment(segment);
+  safeListen<TranscriptSegment>("transcription://segment", (event) => {
+    useTranscriptionStore.getState().addSegment(event.payload);
   });
 
-  listen("transcription://idle", () => {
+  safeListen<void>("transcription://idle", () => {
     useTranscriptionStore.getState().setStatus('idle');
     useTranscriptionStore.setState({ activeJob: null });
   });
+
+  // Expose cleanup for hot-reload / app shutdown
+  (globalThis as any).__transcriptionListeners = transcriptionListeners;
 }

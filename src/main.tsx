@@ -1,5 +1,20 @@
 // Early error handler - must be first
 if (typeof window !== 'undefined') {
+  // Defensive patch for Tauri v2 event plugin bug (fallback — primary fix is in lib.rs init script):
+  // https://github.com/tauri-apps/tauri/issues/8916
+  // The unlisten JS injected by Tauri's Rust backend accesses listeners[eventId].handlerId
+  // without null-checking, causing a TypeError. We suppress this specific error at the
+  // window level since it's benign (the listener is already gone).
+  try {
+    window.addEventListener("error", (e) => {
+      if (e.message && e.message.includes("listeners[eventId].handlerId")) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    }, true); // capture phase to intercept before React's handler
+  } catch {}
+
   window.addEventListener('error', (e) => {
     const root = document.getElementById('root');
 
