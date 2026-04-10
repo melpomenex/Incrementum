@@ -1,4 +1,4 @@
-import { invokeCommand } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 import type { LearningItemInteractionMetadata } from "../types/learningItemInteractions";
 
 export interface LearningItem {
@@ -125,6 +125,7 @@ export async function checkSemanticDuplicateCandidates(
  * This automatically creates cloze deletions and Q&A pairs from the extract content
  */
 export async function generateLearningItemsFromExtract(extractId: string): Promise<LearningItem[]> {
+  if (!isTauri()) return Promise.reject(new Error("This feature requires the desktop app"));
   return await invokeCommand<LearningItem[]>("generate_learning_items_from_extract", {
     extractId,
   });

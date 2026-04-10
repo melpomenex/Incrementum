@@ -1,4 +1,4 @@
-import { invokeCommand } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 
 /**
  * AI Provider types
@@ -215,6 +215,7 @@ export interface ProgressiveSummaryEntry {
 export async function generateProgressiveSummaries(
   extractId: string
 ): Promise<ProgressiveSummaryEntry[]> {
+  if (!isTauri()) return Promise.reject(new Error("This feature requires the desktop app"));
   return await invokeCommand<ProgressiveSummaryEntry[]>(
     "generate_progressive_summaries",
     { extractId }
