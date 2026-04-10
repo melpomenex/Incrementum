@@ -100,6 +100,20 @@ export function DragDropUpload({
   const unlistenFnsRef = useRef<(() => void)[]>([]);
   const isMountedRef = useRef(true);
 
+  const safelyCleanupListener = useCallback((unlisten?: (() => void) | null) => {
+    if (typeof unlisten !== "function") return;
+    try {
+      const result = unlisten();
+      if (result && typeof (result as Promise<unknown>).then === "function") {
+        void (result as Promise<unknown>).catch(() => {
+          // Ignore cleanup failures if the listener was already removed internally.
+        });
+      }
+    } catch {
+      // Ignore cleanup failures if the listener was already removed internally.
+    }
+  }, []);
+
   // Handle drag enter
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -499,15 +513,25 @@ export function DragDropUpload({
             console.log("[DragDropUpload] Tauri drag-enter");
             setIsDragging(true);
           });
-          if (!isMountedRef.current) { unlistenDragEnter(); return; }
-          unlistenFnsRef.current.push(unlistenDragEnter);
+          if (!isMountedRef.current) {
+            safelyCleanupListener(unlistenDragEnter);
+            return;
+          }
+          if (typeof unlistenDragEnter === "function") {
+            unlistenFnsRef.current.push(unlistenDragEnter);
+          }
 
           const unlistenDragOver = await appWindow.listen("tauri://drag-over", () => {
             console.log("[DragDropUpload] Tauri drag-over");
             setIsDragOver(true);
           });
-          if (!isMountedRef.current) { unlistenDragOver(); return; }
-          unlistenFnsRef.current.push(unlistenDragOver);
+          if (!isMountedRef.current) {
+            safelyCleanupListener(unlistenDragOver);
+            return;
+          }
+          if (typeof unlistenDragOver === "function") {
+            unlistenFnsRef.current.push(unlistenDragOver);
+          }
 
           const unlistenDragLeave = await appWindow.listen("tauri://drag-leave", () => {
             console.log("[DragDropUpload] Tauri drag-leave");
@@ -515,8 +539,13 @@ export function DragDropUpload({
             setIsDragging(false);
             setIsDragOver(false);
           });
-          if (!isMountedRef.current) { unlistenDragLeave(); return; }
-          unlistenFnsRef.current.push(unlistenDragLeave);
+          if (!isMountedRef.current) {
+            safelyCleanupListener(unlistenDragLeave);
+            return;
+          }
+          if (typeof unlistenDragLeave === "function") {
+            unlistenFnsRef.current.push(unlistenDragLeave);
+          }
 
           const unlistenDrop = await appWindow.listen("tauri://drop", (event: any) => {
             console.log("[DragDropUpload] Tauri drop:", event.payload);
@@ -532,8 +561,13 @@ export function DragDropUpload({
               onFilesImported?.(paths);
             }
           });
-          if (!isMountedRef.current) { unlistenDrop(); return; }
-          unlistenFnsRef.current.push(unlistenDrop);
+          if (!isMountedRef.current) {
+            safelyCleanupListener(unlistenDrop);
+            return;
+          }
+          if (typeof unlistenDrop === "function") {
+            unlistenFnsRef.current.push(unlistenDrop);
+          }
 
           console.log("[DragDropUpload] Tauri drag-drop listeners registered");
         } catch (err) {
@@ -558,14 +592,10 @@ export function DragDropUpload({
       unlistenFnsRef.current = [];
 
       listenersToCleanup.forEach((unlisten) => {
-        try {
-          unlisten();
-        } catch (err) {
-          // Ignore errors during cleanup - component may have unmounted before listeners were set up
-        }
+        safelyCleanupListener(unlisten);
       });
     };
-  }, [processFiles, traverseDirectory, onFilesImported]);
+  }, [processFiles, safelyCleanupListener, traverseDirectory, onFilesImported]);
 
   // Format file size
   const formatFileSize = (bytes: number): string => {
