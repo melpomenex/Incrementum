@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getDashboardStats, type DashboardStats } from "../api/analytics";
+import { useI18n } from "../lib/i18n";
 
 export function Index() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,10 +26,10 @@ export function Index() {
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold text-foreground mb-4">
-        Welcome to Incrementum
+        {t("home.welcome")}
       </h1>
       <p className="text-muted-foreground mb-6">
-        Your incremental reading and spaced repetition companion.
+        {t("home.subtitle")}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -36,9 +38,9 @@ export function Index() {
           className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
         >
           <div className="text-3xl mb-2">📚</div>
-          <h3 className="font-semibold text-foreground mb-1">Queue</h3>
+          <h3 className="font-semibold text-foreground mb-1">{t("nav.queue")}</h3>
           <p className="text-sm text-muted-foreground">
-            Review your reading queue
+            {t("home.queueDesc")}
           </p>
         </Link>
 
@@ -47,9 +49,9 @@ export function Index() {
           className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
         >
           <div className="text-3xl mb-2">🎴</div>
-          <h3 className="font-semibold text-foreground mb-1">Review</h3>
+          <h3 className="font-semibold text-foreground mb-1">{t("review.title")}</h3>
           <p className="text-sm text-muted-foreground">
-            Practice with flashcards
+            {t("home.reviewDesc")}
           </p>
         </Link>
 
@@ -58,9 +60,9 @@ export function Index() {
           className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
         >
           <div className="text-3xl mb-2">📄</div>
-          <h3 className="font-semibold text-foreground mb-1">Documents</h3>
+          <h3 className="font-semibold text-foreground mb-1">{t("nav.documents")}</h3>
           <p className="text-sm text-muted-foreground">
-            Browse your documents
+            {t("home.documentsDesc")}
           </p>
         </Link>
 
@@ -69,15 +71,15 @@ export function Index() {
           className="p-6 bg-card border border-border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
         >
           <div className="text-3xl mb-2">📊</div>
-          <h3 className="font-semibold text-foreground mb-1">Analytics</h3>
+          <h3 className="font-semibold text-foreground mb-1">{t("nav.analytics")}</h3>
           <p className="text-sm text-muted-foreground">
-            Track your progress
+            {t("home.analyticsDesc")}
           </p>
         </Link>
       </div>
 
       <div className="mt-8 p-6 bg-muted/50 border border-border rounded-lg">
-        <h2 className="text-xl font-semibold text-foreground mb-2">Quick Stats</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-2">{t("home.quickStats")}</h2>
         <div className="grid grid-cols-3 gap-4">
           <div>
             <div className="text-2xl font-bold text-foreground">
@@ -87,7 +89,7 @@ export function Index() {
                 stats?.total_documents ?? 0
               )}
             </div>
-            <div className="text-sm text-muted-foreground">Documents</div>
+            <div className="text-sm text-muted-foreground">{t("nav.documents")}</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-foreground">
@@ -97,7 +99,7 @@ export function Index() {
                 stats?.cards_due_today ?? 0
               )}
             </div>
-            <div className="text-sm text-muted-foreground">Due Today</div>
+            <div className="text-sm text-muted-foreground">{t("layout.dueToday")}</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-foreground">
@@ -107,7 +109,7 @@ export function Index() {
                 stats?.cards_learned ?? 0
               )}
             </div>
-            <div className="text-sm text-muted-foreground">Cards Learned</div>
+            <div className="text-sm text-muted-foreground">{t("home.cardsLearned")}</div>
           </div>
         </div>
       </div>

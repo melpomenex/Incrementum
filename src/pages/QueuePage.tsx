@@ -16,7 +16,7 @@ export function QueuePage() {
       void useReviewStore.getState().startReviewAtItem(itemId);
     }
     addTab({
-      title: "Review",
+      title: t("review.title"),
       icon: <Brain className="w-4 h-4" />,
       type: "review",
       content: ReviewTab,

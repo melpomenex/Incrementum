@@ -413,12 +413,12 @@ export function Review() {
         </div>
         {reviewMode === "cram" && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Cram mode does not update long-term scheduling. {/* TODO: i18n */}
+            {t("reviewLegacy.cramNoSchedule")}
           </p>
         )}
         {lastUndoError && <p className="mt-2 text-xs text-destructive">{lastUndoError}</p>}
         <div className="mt-3 flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">Energy</label>
+          <label className="text-xs text-muted-foreground">{t("reviewLegacy.energy")}</label>
           <select
             value={energyLevel}
             onChange={(event) => setEnergyLevel(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}
@@ -492,7 +492,7 @@ export function Review() {
                 </div>
                 {typedFeedback && (
                   <p className={`mt-2 text-sm ${typedFeedback.correct ? "text-green-500" : "text-orange-500"}`}>
-                    {typedFeedback.correct ? "Looks correct." : "Not quite."} Similarity:{" "}
+                    {typedFeedback.correct ? t("reviewLegacy.looksCorrect") : t("reviewLegacy.notQuite")} {t("reviewLegacy.similarity")}{" "}
                     {Math.round(typedFeedback.similarity * 100)}%
                     {typedFeedback.provider ? ` (${typedFeedback.provider})` : ""}
                   </p>
@@ -501,7 +501,7 @@ export function Review() {
             )}
             {interactionType === "ordering" && orderingData.expected.length > 0 && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-medium text-foreground mb-2">Ordering</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("reviewLegacy.ordering")}</p>
                 <div className="space-y-2">
                   {orderingSubmission.map((item, index) => (
                     <div key={`${item}-${index}`} className="flex items-center gap-2">
@@ -546,13 +546,13 @@ export function Review() {
                     }}
                     className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
                   >
-                    Check Order
+                    {t("reviewLegacy.checkOrder")}
                   </button>
                   {orderingFeedback && (
                     <p className={`text-sm ${orderingFeedback.correct ? "text-green-500" : "text-orange-500"}`}>
                       {orderingFeedback.correct
-                        ? "Order is correct."
-                        : `${orderingFeedback.correctPositions}/${orderingFeedback.total} positions correct.`}
+                        ? t("reviewLegacy.orderCorrect")
+                        : t("reviewLegacy.positionsCorrect", { correct: orderingFeedback.correctPositions, total: orderingFeedback.total })}
                     </p>
                   )}
                 </div>
@@ -560,7 +560,7 @@ export function Review() {
             )}
             {interactionType === "matching" && matchingData.pairs.length > 0 && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-medium text-foreground mb-2">Matching</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("reviewLegacy.matching")}</p>
                 <div className="space-y-2">
                   {matchingData.pairs.map((pair) => (
                     <div key={pair.left} className="grid grid-cols-2 gap-2 items-center">
@@ -575,7 +575,7 @@ export function Review() {
                         }
                         className="rounded border border-border bg-background px-2 py-2 text-sm"
                       >
-                        <option value="">Select match</option>
+                        <option value="">{t("reviewLegacy.selectMatch")}</option>
                         {matchingData.pairs.map((option) => (
                           <option key={`${pair.left}-${option.right}`} value={option.right}>
                             {option.right}
@@ -599,13 +599,13 @@ export function Review() {
                     }}
                     className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
                   >
-                    Check Matches
+                    {t("reviewLegacy.checkMatches")}
                   </button>
                   {matchingFeedback && (
                     <p className={`text-sm ${matchingFeedback.correct ? "text-green-500" : "text-orange-500"}`}>
                       {matchingFeedback.correct
-                        ? "All matches are correct."
-                        : `${matchingFeedback.correctPairs}/${matchingFeedback.totalPairs} correct.`}
+                        ? t("reviewLegacy.allMatchesCorrect")
+                        : t("reviewLegacy.matchesCorrect", { correct: matchingFeedback.correctPairs, total: matchingFeedback.totalPairs })}
                     </p>
                   )}
                 </div>
@@ -663,42 +663,42 @@ export function Review() {
                   }}
                 />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {handwritingCaptured ? "Canvas input captured." : "Write/draw before revealing answer."}
+                  {handwritingCaptured ? t("reviewLegacy.canvasCaptured") : t("reviewLegacy.writeBeforeReveal")}
                 </p>
               </div>
             )}
             {hintStages.length > 0 && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-foreground">Hints</p>
+                  <p className="text-sm font-medium text-foreground">{t("reviewLegacy.hints")}</p>
                   <button
                     onClick={() => setRevealedHintCount((count) => Math.min(count + 1, hintStages.length))}
                     disabled={revealedHintCount >= hintStages.length}
                     className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground disabled:opacity-50"
                   >
-                    Reveal hint {Math.min(revealedHintCount + 1, hintStages.length)}
+                    {t("reviewLegacy.revealHint", { count: Math.min(revealedHintCount + 1, hintStages.length) })}
                   </button>
                 </div>
                 <div className="mt-3 space-y-2">
                   {hintStages.slice(0, revealedHintCount).map((hint, index) => (
                     <p key={`${index}-${hint}`} className="rounded bg-muted/60 px-3 py-2 text-sm text-foreground">
-                      Hint {index + 1}: {hint}
+                      {t("reviewLegacy.hintNumber", { count: index + 1 })}: {hint}
                     </p>
                   ))}
                   {revealedHintCount === 0 && (
-                    <p className="text-xs text-muted-foreground">No hints revealed yet.</p>
+                    <p className="text-xs text-muted-foreground">{t("reviewLegacy.noHints")}</p>
                   )}
                 </div>
               </div>
             )}
             {conversationalEnabled && (
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-medium text-foreground mb-2">Conversational Review</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("reviewLegacy.conversationalReview")}</p>
                 <div className="flex gap-2">
                   <input
                     value={conversationInput}
                     onChange={(event) => setConversationInput(event.target.value)}
-                    placeholder="Explain your answer in your own words..."
+                    placeholder={t("reviewLegacy.explainOwnWords")}
                     className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                   />
                   <button
@@ -724,14 +724,14 @@ export function Review() {
                     }}
                     className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
                   >
-                    {isConversationLoading ? "Thinking..." : "Tutor"}
+                    {isConversationLoading ? t("reviewLegacy.thinking") : t("reviewLegacy.tutor")}
                   </button>
                 </div>
                 {conversationResult && (
                   <div className="mt-3 rounded bg-muted/60 p-3">
-                    <p className="text-sm text-foreground">Follow-up: {conversationResult.question}</p>
+                    <p className="text-sm text-foreground">{t("reviewLegacy.followUp")}: {conversationResult.question}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Score: {conversationResult.score}/100 • {conversationResult.feedback}
+                      {t("reviewLegacy.score")}: {conversationResult.score}/100 • {conversationResult.feedback}
                     </p>
                   </div>
                 )}

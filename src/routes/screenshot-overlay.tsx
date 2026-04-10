@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { t } from "../lib/i18n";
 // Dynamic imports used instead of static imports to prevent PWA crash
 type CaptureMode = "region" | "screen" | "app";
 
@@ -159,7 +160,7 @@ export default function ScreenshotOverlay() {
             }`}
           onClick={() => setMode("region")}
         >
-          Region
+          {t("screenshotOverlay.region")}
         </button>
         <button
           className={`px-3 py-1 rounded-full text-xs uppercase tracking-wide ${mode === "app" ? "bg-white text-black" : "bg-white/10"
@@ -169,7 +170,7 @@ export default function ScreenshotOverlay() {
             finalizeSelection("app");
           }}
         >
-          App Window
+          {t("screenshotOverlay.appWindow")}
         </button>
         <button
           className={`px-3 py-1 rounded-full text-xs uppercase tracking-wide ${mode === "screen" ? "bg-white text-black" : "bg-white/10"
@@ -179,22 +180,22 @@ export default function ScreenshotOverlay() {
             finalizeSelection("screen");
           }}
         >
-          Full Screen
+          {t("screenshotOverlay.fullScreen")}
         </button>
         <button
           className="px-3 py-1 rounded-full text-xs uppercase tracking-wide bg-white/10"
           onClick={cancel}
         >
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs uppercase tracking-wide text-white/80">
         {mode === "region"
-          ? "Drag to select a region"
+          ? t("screenshotOverlay.dragSelectRegion")
           : mode === "app"
-            ? "Capture the Incrementum window"
-            : "Capture the full screen"}
+            ? t("screenshotOverlay.captureAppWindow")
+            : t("screenshotOverlay.captureFullScreen")}
       </div>
 
       {selectionStyle && (

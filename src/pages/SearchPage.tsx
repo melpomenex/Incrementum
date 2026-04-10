@@ -155,6 +155,17 @@ export function SearchPage() {
     }
   };
 
+  const getFilterLabel = (filter: SearchResultType) => {
+    switch (filter) {
+      case "document":
+        return t("search.filterDocument");
+      case "extract":
+        return t("search.filterExtract");
+      case "flashcard":
+        return t("search.filterFlashcard");
+    }
+  };
+
   const toggleFilter = (filter: SearchResultType) => {
     const newFilters = new Set(selectedFilters);
     if (newFilters.has(filter)) {
@@ -194,7 +205,7 @@ export function SearchPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search documents, extracts, and flashcards..."
+              placeholder={t("search.placeholder")}
               className="w-full pl-12 pr-12 py-4 bg-background border border-border rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-primary-300"
               autoFocus
             />
@@ -210,7 +221,7 @@ export function SearchPage() {
 
           {/* Filters */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-foreground-secondary">Search in:</span>
+            <span className="text-sm text-foreground-secondary">{t("search.searchIn")}</span>
             {(["document", "extract", "flashcard"] as SearchResultType[]).map(
               (filter) => (
                 <button
@@ -221,7 +232,7 @@ export function SearchPage() {
                       : "bg-background border border-border hover:bg-muted"
                     }`}
                 >
-                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  {getFilterLabel(filter)}
                 </button>
               )
             )}
@@ -234,29 +245,29 @@ export function SearchPage() {
         <div className="max-w-3xl mx-auto">
           {isSearching ? (
             <div className="text-center py-12 text-foreground-secondary">
-              Searching...
+              {t("search.searching")}
             </div>
           ) : query && results.length === 0 ? (
             <div className="text-center py-12">
               <SearchIcon className="w-16 h-16 mx-auto mb-4 text-foreground-secondary opacity-50" />
               <p className="text-foreground-secondary mb-2">
-                No results found for "{query}"
+                {t("search.noResults", { query })}
               </p>
               <p className="text-sm text-foreground-secondary">
-                Try different keywords or adjust your filters
+                {t("search.tryDifferent")}
               </p>
             </div>
           ) : !query ? (
             <div className="text-center py-12">
               <SearchIcon className="w-16 h-16 mx-auto mb-4 text-foreground-secondary opacity-50" />
               <p className="text-foreground-secondary">
-                Enter a search query to find content
+                {t("search.enterQuery")}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="text-sm text-foreground-secondary mb-4">
-                Found {results.length} result{results.length !== 1 ? "s" : ""}
+                {t("search.foundResults", { count: results.length })}
               </div>
 
               {results.map((result, index) => (

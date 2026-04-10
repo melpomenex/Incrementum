@@ -1658,15 +1658,15 @@ export function QueueScrollPage() {
       <div className="h-full w-full flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="text-6xl mb-4">📚</div>
-          <h2 className="text-2xl font-semibold text-foreground mb-2">Nothing to Read</h2>
+          <h2 className="text-2xl font-semibold text-foreground mb-2">{t("queueScroll.nothingToRead")}</h2>
           <p className="text-muted-foreground">
-            Add some documents or subscribe to RSS feeds to start your incremental reading journey
+            {t("queueScroll.nothingToReadDesc")}
           </p>
           <button
             onClick={handleExit}
             className="mt-6 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
           >
-            Back to Queue
+            {t("queueScroll.backToQueue")}
           </button>
         </div>
       </div>
@@ -1682,7 +1682,7 @@ export function QueueScrollPage() {
       {smartStartInfo && smartStartInfo.isResuming && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-full text-sm shadow-lg animate-pulse">
-            Resumed from position {currentIndex + 1}
+            {t("queueScroll.resumedFromPosition", { position: currentIndex + 1 })}
           </div>
         </div>
       )}
@@ -1755,7 +1755,7 @@ export function QueueScrollPage() {
                 embedded={true}
                 disableHoverRating={true}
                 onExtractCreated={() => {
-                  toast.success("Extract created", "Saved in scroll mode.");
+                  toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"));
                 }}
               />
             );
@@ -1791,7 +1791,7 @@ export function QueueScrollPage() {
                       className="flex items-center gap-1 hover:text-foreground transition-colors mobile-density-tap"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      Open original
+                      {t("queueScroll.openOriginal")}
                     </a>
                   </div>
                 </div>
@@ -1804,7 +1804,7 @@ export function QueueScrollPage() {
                   />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    <p>No content available for this article.</p>
+                    <p>{t("queueScroll.noArticleContent")}</p>
                     <a
                       href={renderedItem.rssItem?.link}
                       target="_blank"
@@ -1812,7 +1812,7 @@ export function QueueScrollPage() {
                       className="inline-flex items-center gap-1 mt-4 text-primary hover:underline"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Read on original site
+                      {t("queueScroll.readOnOriginalSite")}
                     </a>
                   </div>
                 )}
@@ -1831,7 +1831,7 @@ export function QueueScrollPage() {
           ) : (
             // Fallback for no item
             <div className="h-full flex items-center justify-center">
-              <div className="text-muted-foreground">Loading...</div>
+              <div className="text-muted-foreground">{t("common.loading")}</div>
             </div>
           )}
 
@@ -2119,25 +2119,25 @@ export function QueueScrollPage() {
               <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
                 {currentItem.type === "document" && (
                   <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-blue-500/30 rounded text-xs shrink-0">DOC</span>
+                    <span className="px-1.5 py-0.5 bg-blue-500/30 rounded text-xs shrink-0">{t("queueScroll.docShort")}</span>
                     <span className="truncate">{currentItem.documentTitle}</span>
                   </span>
                 )}
                 {currentItem.type === "flashcard" && (
                   <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-purple-500/30 rounded text-xs shrink-0">CARD</span>
+                    <span className="px-1.5 py-0.5 bg-purple-500/30 rounded text-xs shrink-0">{t("queueScroll.cardShort")}</span>
                     <span className="truncate">{currentItem.documentTitle}</span>
                   </span>
                 )}
                 {currentItem.type === "rss" && (
                   <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-orange-500/30 rounded text-xs shrink-0">RSS</span>
+                    <span className="px-1.5 py-0.5 bg-orange-500/30 rounded text-xs shrink-0">{t("queueScroll.rssShort")}</span>
                     <span className="truncate">{currentItem.documentTitle}</span>
                   </span>
                 )}
                 {currentItem.type === "extract" && (
                   <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-yellow-500/30 rounded text-xs shrink-0">EXTRACT</span>
+                    <span className="px-1.5 py-0.5 bg-yellow-500/30 rounded text-xs shrink-0">{t("queueScroll.extractShort")}</span>
                     <span className="truncate">{currentItem.documentTitle}</span>
                   </span>
                 )}

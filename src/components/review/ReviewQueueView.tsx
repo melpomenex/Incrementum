@@ -126,7 +126,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     setSessionStats(getSessionStats());
     // Reload queue to show all items again
     loadQueue();
-    toast.success("Session cleared", "All items are now available in the queue again");
+    toast.success(t("queue.sessionCleared"), t("queue.allItemsAvailableAgain"));
   };
 
   // Debug: Check if scroll mode is available
@@ -270,7 +270,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
       toast.success(label, "Updated review schedule.");
       await refreshQueue();
     } catch (error) {
-      toast.error(label, error instanceof Error ? error.message : "Failed to update schedule.");
+      toast.error(label, error instanceof Error ? error.message : t("queue.failedToUpdateSchedule"));
     }
   };
 
@@ -278,37 +278,37 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     if (!selectedItem) return;
     const daysUntil = Math.abs(getDaysUntilDue(selectedItem));
     const deltaDays = -Math.max(1, Math.round(daysUntil * 0.5));
-    await applyScheduleShift("Compress intervals", deltaDays);
+    await applyScheduleShift(t("queue.compressIntervals"), deltaDays);
   };
 
   const handleRescheduleIntelligently = async () => {
     if (!selectedItem) return;
     const deltaDays = -getDaysUntilDue(selectedItem);
-    await applyScheduleShift("Reschedule intelligently", deltaDays);
+    await applyScheduleShift(t("queue.rescheduleIntelligently"), deltaDays);
   };
 
   const handleDowngradeFrequency = async () => {
     if (!selectedItem) return;
     const daysUntil = Math.max(1, getDaysUntilDue(selectedItem));
     const deltaDays = Math.max(1, Math.round(daysUntil * 0.5));
-    await applyScheduleShift("Downgrade frequency", deltaDays);
+    await applyScheduleShift(t("queue.downgradeFrequency"), deltaDays);
   };
 
   const handleDismissDocument = async (item: QueueItem) => {
     if (item.itemType !== "document") {
-      toast.info("Dismiss not available", "Only documents can be dismissed");
+      toast.info(t("queueScroll.dismissNotAvailable"), t("queueScroll.onlyDocuments"));
       return;
     }
 
     try {
       await dismissDocument(item.documentId, true);
-      toast.success("Document dismissed", "Item hidden from queue. You can still find it via search.");
+      toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
       await refreshQueue();
     } catch (error) {
       console.error("Failed to dismiss document:", error);
       toast.error(
-        "Dismiss failed",
-        error instanceof Error ? error.message : "Please try again"
+        t("queueScroll.dismissFailed"),
+        error instanceof Error ? error.message : t("queueScroll.pleaseTryAgain")
       );
     }
   };
@@ -566,8 +566,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
               {queueMode === "reading"
-                ? "Imported books, articles, and RSS feeds scheduled for incremental reading"
-                : "Flashcards and learning items scheduled for review"}
+                ? t("queue.readingSubtitle")
+                : t("queue.reviewSubtitle")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -576,24 +576,24 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               className="flex-1 md:flex-none px-3 md:px-4 py-2 md:py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 flex items-center justify-center gap-2 min-h-[44px] text-sm md:text-base"
             >
               <Play className="w-4 h-4" />
-              <span className="hidden sm:inline">Start Optimal Session</span>
-              <span className="sm:hidden">Start</span>
+              <span className="hidden sm:inline">{t("queue.startOptimalSession")}</span>
+              <span className="sm:hidden">{t("common.start")}</span>
             </button>
             {queueMode === "reading" && onOpenScrollMode && (
               <button
                 onClick={onOpenScrollMode}
                 className="flex-1 md:flex-none px-3 md:px-4 py-2 md:py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-md hover:opacity-90 flex items-center justify-center gap-2 min-h-[44px] text-sm md:text-base"
-                title="TikTok-style vertical scrolling through documents"
+                title={t("queue.scrollModeTooltip")}
               >
                 <Smartphone className="w-4 h-4" />
-                Scroll Mode
+                {t("queue.scrollMode")}
               </button>
             )}
             <button
               onClick={() => setCustomizeModalOpen(true)}
               className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80"
             >
-              Customize Session
+              {t("queue.customizeSession")}
             </button>
             <button
               onClick={() => {
@@ -613,7 +613,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 isManualBrowseActive ? "bg-primary/10 border-primary/40" : "bg-background hover:bg-muted/60"
               }`}
             >
-              Manual Browse
+              {t("queue.manualBrowse")}
             </button>
           </div>
         </div>
@@ -625,14 +625,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               className={`px-3 py-1 text-sm rounded ${queueMode === "reading" ? "bg-background shadow text-foreground" : "text-muted-foreground"
                 }`}
             >
-              Reading Queue
+              {t("dashboard.readingQueue")}
             </button>
             <button
               onClick={() => setQueueMode("review")}
               className={`px-3 py-1 text-sm rounded ${queueMode === "review" ? "bg-background shadow text-foreground" : "text-muted-foreground"
                 }`}
             >
-              Review Queue
+              {t("review.queue")}
             </button>
           </div>
           <div className="flex-1 min-w-[220px] relative">
@@ -641,7 +641,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search tags, titles, or focus areas"
+              placeholder={t("queue.searchPlaceholder")}
               className="w-full pl-4 pr-10 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -652,37 +652,37 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 onClick={() => setQueueFilterMode("due-today")}
                 className={`px-3 py-1 text-xs rounded flex items-center gap-1.5 ${queueFilterMode === "due-today" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
-                title="Documents scheduled for today (FSRS)"
+                title={t("queue.filterDueTodayDesc")}
               >
                 <Clock className="w-3 h-3" />
-                Due Today
+                {t("queue.filterDueToday")}
               </button>
               <button
                 onClick={() => setQueueFilterMode("all-items")}
                 className={`px-3 py-1 text-xs rounded flex items-center gap-1.5 ${queueFilterMode === "all-items" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
-                title="All documents in your library"
+                title={t("queue.filterAllItemsDesc")}
               >
                 <LayoutList className="w-3 h-3" />
-                All Items
+                {t("queue.filterAllItems")}
               </button>
               <button
                 onClick={() => setQueueFilterMode("new-only")}
                 className={`px-3 py-1 text-xs rounded flex items-center gap-1.5 ${queueFilterMode === "new-only" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
-                title="Documents that have never been read"
+                title={t("queue.filterNewOnlyDesc")}
               >
                 <Sparkles className="w-3 h-3" />
-                New Only
+                {t("queue.filterNewOnly")}
               </button>
               <button
                 onClick={() => setQueueFilterMode("due-all")}
                 className={`px-3 py-1 text-xs rounded flex items-center gap-1.5 ${queueFilterMode === "due-all" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
-                title="All due items (documents, extracts, flashcards)"
+                title={t("queue.filterDueAllDesc")}
               >
                 <Target className="w-3 h-3" />
-                Due All
+                {t("queue.filterDueAll")}
               </button>
             </div>
           )}
@@ -691,13 +691,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           {sessionStats.totalViewed > 0 && queueMode === "reading" && queueFilterMode === "due-today" && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-md">
               <span className="text-xs text-amber-700">
-                {sessionStats.totalViewed} viewed this session
-                {sessionStats.unratedCount > 0 && ` (${sessionStats.unratedCount} unrated)`}
+                {t("queue.viewedThisSession", { count: sessionStats.totalViewed })}
+                {sessionStats.unratedCount > 0 && ` (${t("queue.unratedCount", { count: sessionStats.unratedCount })})`}
               </span>
               <button
                 onClick={handleClearSession}
                 className="p-1 hover:bg-amber-500/20 rounded transition-colors"
-                title="Clear session to see all items again"
+                title={t("queue.clearSession")}
               >
                 <RotateCcw className="w-3 h-3 text-amber-700" />
               </button>
@@ -712,7 +712,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               onChange={(event) => setSelectedFileType(event.target.value)}
               className="px-3 py-2 bg-background border border-border rounded-md text-sm"
             >
-              <option value="all">All Types</option>
+              <option value="all">{t("mediaLibrary.allTypes")}</option>
               {availableFileTypes.map((type) => (
                 <option key={type} value={type}>
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -725,17 +725,17 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             onChange={(event) => setPreset(event.target.value as PriorityPreset)}
             className="px-3 py-2 bg-background border border-border rounded-md text-sm"
           >
-            <option value="maximize-retention">Maximize Retention</option>
-            <option value="minimize-time">Minimize Daily Time</option>
-            <option value="aggressive-catchup">Aggressive Catch-Up</option>
-            <option value="exploratory">Exploratory Learning</option>
-            <option value="project-focused">Project-Focused</option>
+            <option value="maximize-retention">{t("queuePreset.maximizeRetention")}</option>
+            <option value="minimize-time">{t("queuePreset.minimizeTime")}</option>
+            <option value="aggressive-catchup">{t("queuePreset.aggressiveCatchUp")}</option>
+            <option value="exploratory">{t("queuePreset.exploratoryLearning")}</option>
+            <option value="project-focused">{t("queuePreset.projectFocused")}</option>
           </select>
           <button
             onClick={() => setInspectorOpen((prev) => !prev)}
             className="px-3 py-2 bg-muted text-foreground rounded-md text-sm hover:bg-muted/80"
           >
-            {isInspectorOpen ? "Hide Inspector" : "Show Inspector"}
+            {isInspectorOpen ? t("queue.hideInspector") : t("queue.showInspector")}
           </button>
         </div>
       </div>
@@ -751,13 +751,16 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           {bulkOperationResult && (
             <div className="p-3 bg-muted border border-border rounded-lg text-sm text-foreground flex items-center justify-between">
               <span>
-                Bulk update: {bulkOperationResult.succeeded.length} succeeded, {bulkOperationResult.failed.length} failed
+                {t("queue.bulkUpdateResult", {
+                  succeeded: bulkOperationResult.succeeded.length,
+                  failed: bulkOperationResult.failed.length,
+                })}
               </span>
               <button
                 onClick={clearBulkResult}
                 className="px-2 py-1 text-xs bg-background border border-border rounded"
               >
-                Dismiss
+                {t("queue.dismiss")}
               </button>
             </div>
           )}
@@ -765,7 +768,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           {selectedIds.size > 0 && (
             <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
               <span className="text-sm text-primary">
-                {selectedIds.size} selected
+                {t("queue.selectedCount", { count: selectedIds.size })}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -773,14 +776,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   disabled={bulkOperationLoading}
                   className="px-3 py-1.5 bg-background border border-border rounded text-sm"
                 >
-                  Suspend
+                  {t("queue.suspend")}
                 </button>
                 <button
                   onClick={handleBulkUnsuspend}
                   disabled={bulkOperationLoading}
                   className="px-3 py-1.5 bg-background border border-border rounded text-sm"
                 >
-                  Unsuspend
+                  {t("queue.unsuspend")}
                 </button>
                 <button
                   onClick={handleBulkDelete}
@@ -794,12 +797,12 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           )}
 
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading queue...</div>
+            <div className="text-center py-12 text-muted-foreground">{t("queue.loading")}</div>
           ) : visibleItems.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               {queueMode === "reading"
-                ? "No documents in the reading queue. Import books, articles, or RSS feeds to get started."
-                : "No learning items scheduled for review."}
+                ? t("queue.emptyReading")
+                : t("queue.emptyReview")}
             </div>
           ) : (
             <>
@@ -813,7 +816,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mb-3">
-                      Safe stop after item {block.safeStopCount}
+                      {t("queue.safeStopAfterItem", { count: block.safeStopCount })}
                     </div>
                     <div className="space-y-2">
                       {block.items?.slice(0, 3).map((item) => (
@@ -824,7 +827,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                       ))}
                       {(block.items?.length ?? 0) > 3 && (
                         <div className="text-xs text-muted-foreground">
-                          +{(block.items?.length ?? 0) - 3} more
+                          {t("queue.moreCount", { count: (block.items?.length ?? 0) - 3 })}
                         </div>
                       )}
                     </div>
@@ -835,37 +838,42 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Clock className="w-4 h-4" />
                 <span>
-                  Session estimate: {visibleItems?.[0] ? formatMinutesRange(getTimeEstimateRange(visibleItems[0])) : 'N/A'} per item
+                  {t("queue.sessionEstimatePerItem", {
+                    estimate: visibleItems?.[0] ? formatMinutesRange(getTimeEstimateRange(visibleItems[0])) : "N/A",
+                  })}
                 </span>
                 <span>•</span>
-                <span>{isManualBrowseActive ? "Use Up/Down or J/K to browse, Enter to open" : "Enable Manual Browse to keyboard-navigate items"}</span>
+                <span>{isManualBrowseActive ? t("queue.manualBrowseHintActive") : t("queue.manualBrowseHintInactive")}</span>
               </div>
 
               {isManualBrowseActive && (
                 <div className="p-3 border border-primary/20 bg-primary/5 rounded-lg flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">
-                    Browsing {visibleItems.length === 0 ? "0 / 0" : `${Math.max(1, selectedBrowseIndex + 1)} / ${visibleItems.length}`}
+                    {t("queue.browsingPosition", {
+                      position: visibleItems.length === 0 ? 0 : Math.max(1, selectedBrowseIndex + 1),
+                      total: visibleItems.length,
+                    })}
                   </span>
                   <button
                     onClick={() => moveBrowseSelection(-1)}
                     disabled={visibleItems.length === 0 || selectedBrowseIndex <= 0}
                     className="px-3 py-1.5 bg-background border border-border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Previous
+                    {t("common.previous")}
                   </button>
                   <button
                     onClick={() => moveBrowseSelection(1)}
                     disabled={visibleItems.length === 0 || selectedBrowseIndex === -1 || selectedBrowseIndex >= visibleItems.length - 1}
                     className="px-3 py-1.5 bg-background border border-border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Next
+                    {t("common.next")}
                   </button>
                   <button
                     onClick={activateSelectedItem}
                     disabled={!selectedItem}
                     className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Open Selected
+                    {t("queue.openSelected")}
                   </button>
                 </div>
               )}
@@ -978,11 +986,11 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 void handleDismissDocument(item);
                               }}
                               className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
-                              title="Dismiss - Hide from queue (still searchable)"
+                              title={t("queueScroll.dismissTitle")}
                             >
                               <EyeOff className="w-4 h-4 text-white" />
                               <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                Dismiss
+                                {t("queue.dismiss")}
                               </span>
                             </button>
                           )}
@@ -997,7 +1005,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 }}
                                 className={`p-2 rounded-md border border-border bg-background hover:bg-muted/60 ${isOpen ? "text-foreground" : "text-muted-foreground"
                                   }`}
-                                title="Item details"
+                                title={t("queue.itemDetails")}
                               >
                                 <Info className="w-4 h-4" />
                               </button>
@@ -1051,7 +1059,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         {isInspectorOpen && (
           <aside className="w-80 border-l border-border bg-card p-4 overflow-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-foreground">Inspector</h2>
+              <h2 className="text-sm font-semibold text-foreground">{t("queue.inspector")}</h2>
               <button
                 onClick={() => setInspectorOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
@@ -1060,24 +1068,24 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               </button>
             </div>
             {!selectedItem ? (
-              <div className="text-sm text-muted-foreground">Select an item to inspect.</div>
+              <div className="text-sm text-muted-foreground">{t("queue.selectItemToInspect")}</div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">Title</div>
+                  <div className="text-xs text-muted-foreground mb-1">{t("common.title")}</div>
                   <div className="text-sm font-semibold text-foreground">{selectedItem.documentTitle}</div>
                   <div className="text-xs text-muted-foreground mt-1">{selectedItem.itemType}</div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Scheduling rationale</div>
+                  <div className="text-xs text-muted-foreground">{t("queue.schedulingRationale")}</div>
                   <div className="text-xs text-muted-foreground">
                     Priority {getPriorityScore(selectedItem, preset)} • {getStatusLabel(getQueueStatus(selectedItem))}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">FSRS Snapshot</div>
+                  <div className="text-xs text-muted-foreground">{t("queue.fsrsSnapshot")}</div>
                   <div className="text-xs text-muted-foreground">
                     Stability {getFsrsMetrics(selectedItem).stability} • Difficulty {getFsrsMetrics(selectedItem).difficulty} • Retrievability{" "}
                     {Math.round(getFsrsMetrics(selectedItem).retrievability * 100)}%
@@ -1085,14 +1093,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Next interval</div>
+                  <div className="text-xs text-muted-foreground">{t("queue.nextInterval")}</div>
                   <div className="text-sm font-semibold text-foreground">
                     {getFsrsMetrics(selectedItem).nextIntervalDays} days
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Conversion pathway</div>
+                  <div className="text-xs text-muted-foreground">{t("queue.conversionPathway")}</div>
                   <div className="text-xs text-muted-foreground">
                     Reading → Extract → Cloze → Review
                   </div>
@@ -1102,28 +1110,28 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Recovery actions</div>
+                  <div className="text-xs text-muted-foreground">{t("queue.recoveryActions")}</div>
                   <div className="flex flex-col gap-2">
                     <button
                       onClick={handleCompressIntervals}
                       disabled={!selectedItem || selectedItem.itemType !== "learning-item"}
                       className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Compress intervals
+                      {t("queue.compressIntervals")}
                     </button>
                     <button
                       onClick={handleRescheduleIntelligently}
                       disabled={!selectedItem || selectedItem.itemType !== "learning-item"}
                       className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Reschedule intelligently
+                      {t("queue.rescheduleIntelligently")}
                     </button>
                     <button
                       onClick={handleDowngradeFrequency}
                       disabled={!selectedItem || selectedItem.itemType !== "learning-item"}
                       className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Downgrade frequency
+                      {t("queue.downgradeFrequency")}
                     </button>
                   </div>
                 </div>
@@ -1134,7 +1142,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     className="px-3 py-2 bg-muted rounded text-sm flex items-center gap-2 text-foreground"
                   >
                     <Keyboard className="w-4 h-4" />
-                    {showAdvanced ? "Hide advanced" : "Show advanced"}
+                    {showAdvanced ? t("queue.hideAdvanced") : t("queue.showAdvanced")}
                   </button>
                   {showAdvanced && (
                     <div className="space-y-2 text-xs text-muted-foreground">
@@ -1144,7 +1152,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                         onClick={() => setShowRawJson((prev) => !prev)}
                         className="px-3 py-1 bg-background border border-border rounded"
                       >
-                        {showRawJson ? "Hide JSON" : "Show JSON"}
+                        {showRawJson ? t("queue.hideJson") : t("queue.showJson")}
                       </button>
                       {showRawJson && (
                         <pre className="text-[10px] whitespace-pre-wrap bg-background border border-border rounded p-2">

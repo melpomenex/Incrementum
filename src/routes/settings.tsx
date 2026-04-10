@@ -1,7 +1,9 @@
 import { useSettingsStore } from "../stores";
 import { useEffect } from "react";
+import { useI18n } from "../lib/i18n";
 
 export function Settings() {
+  const { t } = useI18n();
   const { settings, updateSettings } = useSettingsStore();
 
   useEffect(() => {
@@ -17,23 +19,23 @@ export function Settings() {
   return (
     <div className="max-w-3xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t("settings.title")}</h1>
         <p className="text-muted-foreground">
-          Customize your Incrementum experience
+          {t("settingsLegacy.customizeExperience")}
         </p>
       </div>
 
       <div className="space-y-6">
         {/* Appearance */}
         <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Appearance</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">{t("settings.appearance")}</h2>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Theme</div>
+                <div className="font-medium text-foreground">{t("settings.theme")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Choose your preferred color scheme
+                  {t("settingsLegacy.chooseColorScheme")}
                 </div>
               </div>
               <select
@@ -41,17 +43,17 @@ export function Settings() {
                 onChange={(e) => updateSettings({ theme: e.target.value as any })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
+                <option value="light">{t("settingsLegacy.light")}</option>
+                <option value="dark">{t("settingsLegacy.dark")}</option>
+                <option value="system">{t("settingsLegacy.system")}</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Font Size</div>
+                <div className="font-medium text-foreground">{t("settings.fontSize")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Adjust the base font size
+                  {t("settings.fontSizeDesc")}
                 </div>
               </div>
               <input
@@ -68,14 +70,14 @@ export function Settings() {
 
         {/* Review Settings */}
         <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Review Settings</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">{t("settingsLegacy.reviewSettings")}</h2>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Algorithm</div>
+                <div className="font-medium text-foreground">{t("settings.algorithm")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Spaced repetition algorithm
+                  {t("settingsLegacy.spacedRepetitionAlgorithm")}
                 </div>
               </div>
               <select
@@ -83,7 +85,7 @@ export function Settings() {
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
-                <option value="fsrs">FSRS-6 (Recommended)</option>
+                <option value="fsrs">{t("settingsLegacy.fsrsRecommended")}</option>
                 <option value="sm18">SuperMemo 18</option>
                 <option value="sm15">SuperMemo 15</option>
                 <option value="sm8">SuperMemo 8</option>
@@ -94,9 +96,9 @@ export function Settings() {
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">New Cards per Day</div>
+                <div className="font-medium text-foreground">{t("settingsLegacy.newCardsPerDay")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Maximum new cards to show daily
+                  {t("settingsLegacy.maxNewCards")}
                 </div>
               </div>
               <input
@@ -111,9 +113,9 @@ export function Settings() {
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Reviews per Day</div>
+                <div className="font-medium text-foreground">{t("settingsLegacy.reviewsPerDay")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Maximum reviews to show daily
+                  {t("settingsLegacy.maxReviews")}
                 </div>
               </div>
               <input
@@ -130,14 +132,14 @@ export function Settings() {
 
         {/* Import Settings */}
         <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Import Settings</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">{t("settingsLegacy.importSettings")}</h2>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Auto-import</div>
+                <div className="font-medium text-foreground">{t("settingsLegacy.autoImport")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Automatically import from watched folders
+                  {t("settingsLegacy.autoImportDesc")}
                 </div>
               </div>
               <button
@@ -158,9 +160,9 @@ export function Settings() {
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-foreground">Default Category</div>
+                <div className="font-medium text-foreground">{t("settingsLegacy.defaultCategory")}</div>
                 <div className="text-sm text-muted-foreground">
-                  Category for imported documents
+                  {t("settingsLegacy.defaultCategoryDesc")}
                 </div>
               </div>
               <input

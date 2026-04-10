@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import { Film, Upload, X, FileVideo } from 'lucide-react';
 import { invokeCommand, openFilePicker, isTauri } from '../../lib/tauri';
+import { useI18n } from '../../lib/i18n';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { enqueueVideoTranscription } from '../../lib/videoTranscriptionQueue';
 import type { Document } from '../../types/document';
@@ -17,6 +18,7 @@ interface VideoImportProps {
 
 export function VideoImport({ onImport, onCancel }: VideoImportProps) {
   const { settings } = useSettingsStore();
+  const { t } = useI18n();
   const [filePath, setFilePath] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [title, setTitle] = useState('');
@@ -25,16 +27,16 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
 
   const handleFileSelect = useCallback(async () => {
     if (!isTauri()) {
-      setError('Video import is only available in the desktop app');
+      setError(t('videoImport.desktopOnly'));
       return;
     }
 
     try {
       const paths = await openFilePicker({
-        title: 'Select Video File',
+        title: t('videoImport.selectVideoFile'),
         multiple: false,
         filters: [
-          { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v'] }
+          { name: t('videoImport.videoFilter'), extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v'] }
         ],
       });
 
@@ -48,18 +50,18 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         setError(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to select file');
+      setError(err instanceof Error ? err.message : t('videoImport.failedSelect'));
     }
-  }, []);
+  }, [t]);
 
   const handleImport = async () => {
     if (!filePath) {
-      setError('Please select a file');
+      setError(t('videoImport.selectFileError'));
       return;
     }
 
     if (!title.trim()) {
-      setError('Please enter a title');
+      setError(t('videoImport.enterTitleError'));
       return;
     }
 
@@ -85,7 +87,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
 
       onImport?.(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import video');
+      setError(err instanceof Error ? err.message : t('videoImport.failedImport'));
     } finally {
       setProcessing(false);
     }
@@ -96,7 +98,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Film className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold">Import Video</h3>
+          <h3 className="text-lg font-semibold">{t('emptyState.importVideo')}</h3>
         </div>
         {onCancel && (
           <button
@@ -112,7 +114,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         {/* File Selection */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Video File
+            {t('videoImport.videoFile')}
           </label>
           <div className="flex items-center gap-4">
             <div
@@ -129,7 +131,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
               ) : (
                 <>
                   <Upload className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm">Choose file...</span>
+                  <span className="text-sm">{t('videoImport.chooseFile')}</span>
                 </>
               )}
             </div>
@@ -140,10 +142,10 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         {filePath && (
           <div className="p-3 bg-muted/30 rounded-lg space-y-1">
             <div className="text-sm text-foreground">
-              <span className="font-medium">File:</span> {fileName}
+              <span className="font-medium">{t('videoImport.file')}:</span> {fileName}
             </div>
             <div className="text-sm text-foreground">
-              <span className="font-medium">Path:</span> {filePath}
+              <span className="font-medium">{t('videoImport.path')}:</span> {filePath}
             </div>
           </div>
         )}
@@ -151,13 +153,13 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
         {/* Title Input */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
-            Title
+            {t('common.title')}
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Video title"
+            placeholder={t('videoImport.videoTitle')}
             className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -176,7 +178,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
               onClick={onCancel}
               className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           )}
           <button
@@ -187,12 +189,12 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
             {processing ? (
               <>
                 <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                Importing...
+                {t('review.importing')}
               </>
             ) : (
               <>
                 <Film className="w-4 h-4" />
-                Import Video
+                {t('emptyState.importVideo')}
               </>
             )}
           </button>

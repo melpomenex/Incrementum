@@ -143,11 +143,11 @@ export function CreateVideoExtractDialog({
       };
 
       const extract = await createVideoExtract(input);
-      toast.success('Video extract created successfully');
+      toast.success(t('videoExtract.created'));
       onCreate?.(extract);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create video extract');
+      setError(err instanceof Error ? err.message : t('videoExtract.failedCreate'));
     } finally {
       setIsCreating(false);
     }
@@ -191,12 +191,12 @@ export function CreateVideoExtractDialog({
           {/* Time Range */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Time Range (seconds)
+              {t('videoExtract.timeRange')}
             </label>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">
-                  Start Time
+                  {t('videoExtract.startTime')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -214,7 +214,7 @@ export function CreateVideoExtractDialog({
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">
-                  End Time
+                  {t('videoExtract.endTime')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -245,10 +245,10 @@ export function CreateVideoExtractDialog({
                   <CheckCircle2 className="w-4 h-4" />
                 )}
                 <span>
-                  Duration: {formatSeconds(duration)}
-                  {isTooLong && ' - Exceeds 10 minute limit!'}
-                  {isLong && !isTooLong && ' - Longer than recommended (5 min)'}
-                  {!isLong && ' - Good length'}
+                  {t('videoExtract.duration', { duration: formatSeconds(duration) })}
+                  {isTooLong && t('videoExtract.exceedsLimitWarn')}
+                  {isLong && !isTooLong && t('videoExtract.longerThanRecommended')}
+                  {!isLong && t('videoExtract.goodLength')}
                 </span>
               </div>
             )}
@@ -257,13 +257,13 @@ export function CreateVideoExtractDialog({
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Title <span className="text-destructive">*</span>
+              {t('common.title')} <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Introduction to Recursion"
+              placeholder={t('videoExtract.titlePlaceholder')}
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
@@ -272,7 +272,7 @@ export function CreateVideoExtractDialog({
           {transcriptText && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Transcript (auto-filled)
+                {t('videoExtract.transcript')}
               </label>
               <div className="w-full px-3 py-2 bg-muted/50 border border-border rounded-md text-foreground text-sm max-h-32 overflow-y-auto">
                 {transcriptText}
@@ -283,12 +283,12 @@ export function CreateVideoExtractDialog({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Notes
+              {t('videoExtract.notes')}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add your thoughts, context, or explanations..."
+              placeholder={t('videoExtract.notesPlaceholder')}
               rows={3}
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -298,7 +298,7 @@ export function CreateVideoExtractDialog({
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <TagIcon className="w-4 h-4 inline mr-1" />
-              Tags
+              {t('videoExtract.tags')}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
@@ -322,14 +322,14 @@ export function CreateVideoExtractDialog({
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Add a tag..."
+                placeholder={t('videoExtract.addTag')}
                 className="flex-1 px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button
                 onClick={handleAddTag}
                 className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md transition-colors"
               >
-                Add
+                {t('videoExtract.addBtn')}
               </button>
             </div>
           </div>
@@ -344,9 +344,9 @@ export function CreateVideoExtractDialog({
               className="w-4 h-4 rounded border-border"
             />
             <label htmlFor="addToQueue" className="flex-1 text-sm text-foreground cursor-pointer">
-              <div className="font-medium">Add to Review Queue</div>
+              <div className="font-medium">{t('videoExtract.addToQueue')}</div>
               <div className="text-xs text-muted-foreground">
-                Schedule this extract for spaced repetition review
+                {t('videoExtract.addToQueueDesc')}
               </div>
             </label>
           </div>
@@ -419,7 +419,7 @@ export function VideoExtractsList({
       const data = await getVideoExtracts(documentId);
       setExtracts(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load extracts');
+      toast.error(err instanceof Error ? err.message : t('videoExtract.failedLoad'));
     } finally {
       setLoading(false);
     }
@@ -435,16 +435,16 @@ export function VideoExtractsList({
     try {
       await deleteVideoExtract(extractId);
       setExtracts((prev) => prev.filter((e) => e.id !== extractId));
-      toast.success('Extract deleted');
+      toast.success(t('videoExtract.deleted'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete extract');
+      toast.error(err instanceof Error ? err.message : t('videoExtract.failedDelete'));
     }
   };
 
   if (loading) {
     return (
       <div className={`flex items-center justify-center py-8 ${className}`}>
-        <div className="text-sm text-muted-foreground">Loading extracts...</div>
+        <div className="text-sm text-muted-foreground">{t('videoExtract.loadingExtracts')}</div>
       </div>
     );
   }
@@ -454,7 +454,7 @@ export function VideoExtractsList({
       <div className={`text-center py-8 ${className}`}>
         <Scissors className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
         <p className="text-sm text-foreground-secondary">
-          No video extracts yet. Create one to add timestamp-linked segments for review.
+          {t('videoExtract.noVideoExtracts')}
         </p>
       </div>
     );
@@ -496,6 +496,7 @@ export function VideoExtractCard({
   onRate,
   showRating = false,
 }: VideoExtractCardProps) {
+  const { t } = useI18n();
   const [rating, setRating] = useState<number | null>(null);
   const [ratingResult, setRatingResult] = useState<string | null>(null);
 
@@ -536,7 +537,7 @@ export function VideoExtractCard({
             <button
               onClick={() => onEdit(extract)}
               className="p-1 hover:bg-muted rounded transition-colors"
-              title="Edit extract"
+              title={t('videoExtract.editExtract')}
             >
               <Edit className="w-3 h-3 text-muted-foreground" />
             </button>
@@ -545,7 +546,7 @@ export function VideoExtractCard({
             <button
               onClick={() => onDelete(extract.id)}
               className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-              title="Delete extract"
+              title={t('videoExtract.deleteExtract')}
             >
               <Trash2 className="w-3 h-3 text-red-500" />
             </button>
@@ -569,7 +570,11 @@ export function VideoExtractCard({
           }`}>
             <Calendar className="w-3 h-3" />
             <span>
-              {isDue ? 'Due now' : `Due ${new Date(extract.next_review_date).toLocaleDateString()}`}
+              {isDue
+                ? t('videoExtract.dueNow')
+                : t('videoExtract.due', {
+                    date: new Date(extract.next_review_date).toLocaleDateString(),
+                  })}
             </span>
           </div>
         )}
@@ -599,14 +604,14 @@ export function VideoExtractCard({
       {/* Review Stats */}
       {extract.review_count > 0 && (
         <div className="text-xs text-muted-foreground">
-          Reviewed {extract.review_count} time{extract.review_count !== 1 ? 's' : ''}
+          {t('videoExtract.reviewedTimes', { count: extract.review_count })}
         </div>
       )}
 
       {/* Rating Buttons */}
       {showRating && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-          <span className="text-xs text-muted-foreground">Rate:</span>
+          <span className="text-xs text-muted-foreground">{t('videoExtract.rate')}</span>
           {[1, 2, 3, 4].map((r) => (
             <button
               key={r}
@@ -650,6 +655,7 @@ export function DueVideoExtractsReview({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { t } = useI18n();
 
   useEffect(() => {
     loadDueExtracts();
@@ -670,7 +676,7 @@ export function DueVideoExtractsReview({
 
       setExtracts(due);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load due extracts');
+      toast.error(err instanceof Error ? err.message : t('videoExtract.failedLoadDue'));
     } finally {
       setLoading(false);
     }
@@ -690,14 +696,14 @@ export function DueVideoExtractsReview({
         onComplete?.();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to rate extract');
+      toast.error(err instanceof Error ? err.message : t('videoExtract.failedRate'));
     }
   };
 
   if (loading) {
     return (
       <div className={`flex items-center justify-center py-8 ${className}`}>
-        <div className="text-sm text-muted-foreground">Loading due extracts...</div>
+        <div className="text-sm text-muted-foreground">{t('videoExtract.loadingDueExtracts')}</div>
       </div>
     );
   }
@@ -707,7 +713,7 @@ export function DueVideoExtractsReview({
       <div className={`text-center py-8 ${className}`}>
         <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
         <p className="text-sm text-foreground-secondary">
-          No video extracts due for review!
+          {t('videoExtract.noDueExtracts')}
         </p>
       </div>
     );

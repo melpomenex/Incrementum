@@ -202,8 +202,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
-          LIBSQLITE3_SYS_USE_PKG_CONFIG: ${{ matrix.os == 'windows' && '0' || '1' }}
-          SQLITE3_STATIC: ${{ matrix.os == 'windows' && '1' || '0' }}
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: ${{ matrix.os == 'linux' && '1' || '0' }}
+          SQLITE3_STATIC: ${{ matrix.os == 'linux' && '0' || '1' }}
           VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
           SQLX_OFFLINE: "true"
 

@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 
 export interface QueueNavigationControlsProps {
@@ -20,12 +21,14 @@ export function QueueNavigationControls({
   onPreviousDocument,
   onNextDocument,
   onNextChunk,
-  listButtonLabel = "Next Chunk",
+  listButtonLabel,
   disabled = false,
   className,
 }: QueueNavigationControlsProps) {
+  const { t } = useI18n();
   const isAtFirstDocument = currentDocumentIndex <= 0;
   const isAtLastDocument = currentDocumentIndex >= totalDocuments - 1;
+  const resolvedListButtonLabel = listButtonLabel ?? t("queueNav.nextChunk");
 
   return (
     <div
@@ -50,7 +53,7 @@ export function QueueNavigationControls({
         onClick={onPreviousDocument}
         disabled={isAtFirstDocument || disabled}
         className="p-2 rounded-md hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-        title="Previous Document"
+        title={t("queueNav.previousDocument")}
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -60,7 +63,7 @@ export function QueueNavigationControls({
         onClick={onNextDocument}
         disabled={isAtLastDocument || disabled}
         className="p-2 rounded-md hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-        title="Next Document"
+        title={t("queueNav.nextDocument")}
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -72,8 +75,8 @@ export function QueueNavigationControls({
         onClick={onNextChunk}
         disabled={!hasMoreChunks || disabled}
         className="p-2 rounded-md hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-        title={listButtonLabel}
-        aria-label={listButtonLabel}
+        title={resolvedListButtonLabel}
+        aria-label={resolvedListButtonLabel}
       >
         <List className="w-4 h-4" />
       </button>

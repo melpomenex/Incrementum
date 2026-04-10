@@ -47,11 +47,11 @@ export function AnalyticsPage() {
               onChange={(e) => setTimeRange(e.target.value)}
               className="px-3 py-1.5 bg-background border border-border rounded text-sm"
             >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="365d">Last year</option>
-              <option value="all">All time</option>
+              <option value="7d">{t("analyticsLegacy.last7Days")}</option>
+              <option value="30d">{t("analyticsLegacy.last30Days")}</option>
+              <option value="90d">{t("analyticsLegacy.last90Days")}</option>
+              <option value="365d">{t("analyticsLegacy.lastYear")}</option>
+              <option value="all">{t("analyticsLegacy.allTime")}</option>
             </select>
             <button
               onClick={exportStats}
@@ -122,7 +122,7 @@ export function AnalyticsPage() {
                     />
                   </div>
                   <div className="mt-2 text-sm font-medium text-foreground">
-                    {state.name}
+                    {t(state.name)}
                   </div>
                   <div className="text-xs text-foreground-secondary">
                     {state.count}
@@ -215,6 +215,8 @@ function StatCard({
   icon: React.ReactNode;
   trend?: number;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="bg-card border border-border rounded p-4">
       <div className="flex items-center justify-between mb-2">
@@ -236,7 +238,7 @@ function StatCard({
           >
             {Math.abs(trend)}
           </span>
-          <span className="text-foreground-secondary">vs last period</span>
+          <span className="text-foreground-secondary">{t("analyticsLegacy.vsLastPeriod")}</span>
         </div>
       )}
     </div>
@@ -244,9 +246,9 @@ function StatCard({
 }
 
 const memoryStates = [
-  { name: "New", count: 0, color: "#3b82f6" },
-  { name: "Learning", count: 0, color: "#f59e0b" },
-  { name: "Young", count: 0, color: "#10b981" },
-  { name: "Mature", count: 0, color: "#8b5cf6" },
-  { name: "Relearning", count: 0, color: "#ef4444" },
+  { name: "analyticsLegacy.stateNew", count: 0, color: "#3b82f6" },
+  { name: "analyticsLegacy.stateLearning", count: 0, color: "#f59e0b" },
+  { name: "analyticsLegacy.stateYoung", count: 0, color: "#10b981" },
+  { name: "analyticsLegacy.stateMature", count: 0, color: "#8b5cf6" },
+  { name: "analyticsLegacy.stateRelearning", count: 0, color: "#ef4444" },
 ];
