@@ -733,6 +733,7 @@ async fn handle_extract_request(
         notes,
         progressive_disclosure_level: 0,
         max_disclosure_level: 3,
+        progressive_summaries: None,
         date_created: chrono::Utc::now(),
         date_modified: chrono::Utc::now(),
         tags: payload.tags.clone().unwrap_or_default(),
