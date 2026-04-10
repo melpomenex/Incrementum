@@ -628,16 +628,17 @@ impl Repository {
             Some(value) => Some(serde_json::to_string(value)?),
             None => None,
         };
+        let progressive_summaries_json = extract.progressive_summaries.as_ref().map(serde_json::to_string).transpose()?;
 
         sqlx::query(
             r#"
             INSERT INTO extracts (
                 id, document_id, content, html_content, source_url, page_title, page_number,
                 selection_context, highlight_color, notes, progressive_disclosure_level,
-                max_disclosure_level, date_created, date_modified,
+                max_disclosure_level, progressive_summaries, date_created, date_modified,
                 tags, category, memory_state_stability, memory_state_difficulty,
                 next_review_date, last_review_date, review_count, reps
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
             "#,
         )
         .bind(&extract.id)
@@ -652,6 +653,7 @@ impl Repository {
         .bind(&extract.notes)
         .bind(extract.progressive_disclosure_level)
         .bind(extract.max_disclosure_level)
+        .bind(&progressive_summaries_json)
         .bind(extract.date_created)
         .bind(extract.date_modified)
         .bind(&tags_json)
@@ -699,6 +701,9 @@ impl Repository {
                     notes: row.try_get("notes")?,
                     progressive_disclosure_level: row.try_get("progressive_disclosure_level")?,
                     max_disclosure_level: row.try_get("max_disclosure_level")?,
+                    progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
+                        .flatten()
+                        .and_then(|s| serde_json::from_str(&s).ok()),
                     date_created: row.try_get("date_created")?,
                     date_modified: row.try_get("date_modified")?,
                     tags,
@@ -754,6 +759,9 @@ impl Repository {
                 last_review_date: row.try_get("last_review_date").ok(),
                 review_count: row.try_get("review_count").unwrap_or(0),
                 reps: row.try_get("reps").unwrap_or(0),
+                progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
+                    .flatten()
+                    .and_then(|s| serde_json::from_str(&s).ok()),
             });
         }
 
@@ -799,6 +807,9 @@ impl Repository {
                 last_review_date: row.try_get("last_review_date").ok(),
                 review_count: row.try_get("review_count").unwrap_or(0),
                 reps: row.try_get("reps").unwrap_or(0),
+                progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
+                    .flatten()
+                    .and_then(|s| serde_json::from_str(&s).ok()),
             });
         }
 
@@ -810,6 +821,7 @@ impl Repository {
         let (stability, difficulty) = extract.memory_state.as_ref()
             .map(|s| (Some(s.stability), Some(s.difficulty)))
             .unwrap_or((None, None));
+        let progressive_summaries_json = extract.progressive_summaries.as_ref().map(serde_json::to_string).transpose()?;
 
         sqlx::query(
             r#"
@@ -819,8 +831,10 @@ impl Repository {
                 tags = ?6, category = ?7, date_modified = ?8,
                 memory_state_stability = ?9, memory_state_difficulty = ?10,
                 next_review_date = ?11, last_review_date = ?12,
-                review_count = ?13, reps = ?14
-            WHERE id = ?15
+                review_count = ?13, reps = ?14,
+                progressive_disclosure_level = ?15, max_disclosure_level = ?16,
+                progressive_summaries = ?17
+            WHERE id = ?18
             "#,
         )
         .bind(&extract.content)
@@ -837,11 +851,35 @@ impl Repository {
         .bind(extract.last_review_date)
         .bind(extract.review_count)
         .bind(extract.reps)
+        .bind(extract.progressive_disclosure_level)
+        .bind(extract.max_disclosure_level)
+        .bind(&progressive_summaries_json)
         .bind(&extract.id)
         .execute(&self.pool)
         .await?;
 
         Ok(extract.clone())
+    }
+
+    pub async fn update_extract_disclosure_level(
+        &self,
+        id: &str,
+        level: i32,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE extracts SET
+                progressive_disclosure_level = ?1,
+                date_modified = ?2
+            WHERE id = ?3
+            "#,
+        )
+        .bind(level)
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     pub async fn delete_extract(&self, id: &str) -> Result<()> {
@@ -892,6 +930,9 @@ impl Repository {
                 last_review_date: row.try_get("last_review_date").ok(),
                 review_count: row.try_get("review_count").unwrap_or(0),
                 reps: row.try_get("reps").unwrap_or(0),
+                progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
+                    .flatten()
+                    .and_then(|s| serde_json::from_str(&s).ok()),
             });
         }
 
@@ -938,6 +979,9 @@ impl Repository {
                 last_review_date: row.try_get("last_review_date").ok(),
                 review_count: row.try_get("review_count").unwrap_or(0),
                 reps: row.try_get("reps").unwrap_or(0),
+                progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
+                    .flatten()
+                    .and_then(|s| serde_json::from_str(&s).ok()),
             });
         }
 
@@ -988,6 +1032,7 @@ impl Repository {
         let tags_json = serde_json::to_string(&item.tags)?;
         let image_asset_ids_json = serde_json::to_string(&item.image_asset_ids)?;
         let interaction_metadata_json = item.interaction_metadata.as_ref().map(serde_json::to_string).transpose()?;
+        let cloze_ranges_json = item.cloze_ranges.as_ref().map(serde_json::to_string).transpose()?;
 
         let (stability, difficulty) = item.memory_state.as_ref()
             .map(|s| (Some(s.stability), Some(s.difficulty)))
@@ -997,12 +1042,12 @@ impl Repository {
             r#"
             INSERT INTO learning_items (
                 id, extract_id, document_id, item_type, question,
-                answer, cloze_text, difficulty, interval,
+                answer, cloze_text, cloze_ranges, difficulty, interval,
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
                 is_suspended, tags, image_asset_ids, interaction_metadata, memory_state_stability, memory_state_difficulty,
                 algorithm_type, algorithm_state
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
             "#,
         )
         .bind(&item.id)
@@ -1012,6 +1057,7 @@ impl Repository {
         .bind(&item.question)
         .bind(&item.answer)
         .bind(&item.cloze_text)
+        .bind(&cloze_ranges_json)
         .bind(item.difficulty)
         .bind(item.interval)
         .bind(item.ease_factor)
@@ -1062,6 +1108,11 @@ impl Repository {
             let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
             let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
 
+            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
+            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1070,7 +1121,7 @@ impl Repository {
                 question: row.try_get("question")?,
                 answer: row.try_get("answer")?,
                 cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges: None,
+                cloze_ranges,
                 difficulty: row.try_get("difficulty")?,
                 interval: row.try_get("interval")?,
                 ease_factor: row.try_get("ease_factor")?,
@@ -1120,6 +1171,11 @@ impl Repository {
             let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
             let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
 
+            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
+            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1128,7 +1184,7 @@ impl Repository {
                 question: row.try_get("question")?,
                 answer: row.try_get("answer")?,
                 cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges: None,
+                cloze_ranges,
                 difficulty: row.try_get("difficulty")?,
                 interval: row.try_get("interval")?,
                 ease_factor: row.try_get("ease_factor")?,
@@ -1178,6 +1234,11 @@ impl Repository {
             let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
             let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
 
+            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
+            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1186,7 +1247,7 @@ impl Repository {
                 question: row.try_get("question")?,
                 answer: row.try_get("answer")?,
                 cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges: None,
+                cloze_ranges,
                 difficulty: row.try_get("difficulty")?,
                 interval: row.try_get("interval")?,
                 ease_factor: row.try_get("ease_factor")?,
@@ -1276,6 +1337,11 @@ impl Repository {
             let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
             let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
 
+            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
+            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok());
+
             items.push(LearningItem {
                 id: row.try_get("id")?,
                 extract_id: row.try_get("extract_id")?,
@@ -1284,7 +1350,7 @@ impl Repository {
                 question: row.try_get("question")?,
                 answer: row.try_get("answer")?,
                 cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges: None,
+                cloze_ranges,
                 difficulty: row.try_get("difficulty")?,
                 interval: row.try_get("interval")?,
                 ease_factor: row.try_get("ease_factor")?,

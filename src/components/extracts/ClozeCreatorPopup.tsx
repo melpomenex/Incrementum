@@ -61,13 +61,38 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
 
     useEffect(() => {
         textareaRef.current?.focus();
-
-        // If text doesn't have {{}}, wrap the whole thing? No, that's weird.
-        // If the user selected a word, we probably want the Context.
-        // But we don't have context passed easily yet.
-        // Let's assume the user copies the context or we improve ExtractScrollItem later.
-        // For now, let's just let them edit the text.
     }, []);
+
+    const wrapSelection = () => {
+        const textarea = textareaRef.current;
+        if (!textarea || textarea.selectionStart === textarea.selectionEnd) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = text.substring(start, end);
+        const wrapped = `{{${selectedText}}}`;
+        const newText = text.substring(0, start) + wrapped + text.substring(end);
+        setText(newText);
+        requestAnimationFrame(() => {
+            textarea.selectionStart = start;
+            textarea.selectionEnd = start + wrapped.length;
+            textarea.focus();
+        });
+    };
+
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+                e.preventDefault();
+                wrapSelection();
+            }
+        };
+
+        textarea.addEventListener("keydown", handleKeyDown);
+        return () => textarea.removeEventListener("keydown", handleKeyDown);
+    }, [text]);
 
     const handleSubmit = async () => {
         if (!text.trim() || isSubmitting) return;
@@ -154,9 +179,20 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
                             placeholder="e.g. The {{capital}} of France is Paris."
                             className="w-full min-h-[150px] p-4 bg-muted/30 border border-input rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-secondary/50 text-foreground placeholder:text-muted-foreground font-mono text-sm leading-relaxed"
                         />
-                        <p className="text-xs text-muted-foreground">
-                            Tip: Select text and press <strong>Ctrl+B</strong> to wrap in brackets (todo)
-                        </p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                                Select text and press{" "}
+                                <kbd className="px-1.5 py-0.5 bg-muted rounded border border-border text-[10px] font-mono">Ctrl+B</kbd>{" "}
+                                to mark as blank
+                            </p>
+                            <button
+                                type="button"
+                                onClick={wrapSelection}
+                                className="text-xs px-2 py-1 bg-secondary/20 text-secondary-foreground rounded hover:bg-secondary/30 transition-colors"
+                            >
+                                Wrap as blank
+                            </button>
+                        </div>
                     </div>
                 </div>
 

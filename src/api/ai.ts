@@ -201,3 +201,22 @@ export async function listOllamaModels(baseUrl?: string): Promise<string[]> {
 export async function testAIConnection(providerType: LLMProviderType): Promise<string> {
   return await invokeCommand<string>("test_ai_connection", { providerType });
 }
+
+export interface ProgressiveSummaryEntry {
+  level: number;
+  summary: string;
+  word_count: number;
+}
+
+/**
+ * Generate progressive disclosure summaries for an extract.
+ * Summaries are cached in the database after generation.
+ */
+export async function generateProgressiveSummaries(
+  extractId: string
+): Promise<ProgressiveSummaryEntry[]> {
+  return await invokeCommand<ProgressiveSummaryEntry[]>(
+    "generate_progressive_summaries",
+    { extractId }
+  );
+}

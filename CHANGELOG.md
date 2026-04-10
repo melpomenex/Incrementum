@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.7] - 2026-04-10
+
+### Added
+- **Progressive disclosure for extract review** — extracts with progressive disclosure enabled now gradually reveal content across multiple review sessions. AI-generated summaries are shown at early levels, then progressively more of the original text, and finally the full content at the max level. Good/Easy ratings advance the disclosure level by one.
+- **Ctrl+B shortcut in Cloze Creator** — select text in the cloze creation popup and press Ctrl+B (or Cmd+B) to wrap it in `{{ }}` blanks. A "Wrap as blank" button is also available.
+- **Range-based cloze rendering in ReviewCard and ZenReviewMode** — cloze cards created with character ranges (from the Cloze Creator) now render correctly in all review modes, not just scroll mode.
+
+### Fixed
+- **cloze_ranges never persisted** — the `cloze_ranges` column existed in the schema but was omitted from the INSERT statement and all four read methods. Range-based cloze data was silently lost after creation.
+- **update_extract SQL missing disclosure fields** — `progressive_disclosure_level`, `max_disclosure_level`, and the new `progressive_summaries` column were not in the UPDATE statement, so edits to these fields were silently lost.
+- **createExtract/updateExtract API dropped maxDisclosureLevel** — the TypeScript API layer accepted the parameter but never passed it to the Tauri backend.
+
 ## [1.18.6] - 2026-04-10
 
 ### Changed

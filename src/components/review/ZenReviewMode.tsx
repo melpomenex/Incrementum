@@ -58,6 +58,64 @@ function ZenCard({
   // Render cloze text by parsing [[cN::content]] markers
   const renderQuestion = () => {
     const clozeText = card.cloze_text;
+
+    // Range-based cloze rendering (preferred when ranges are available)
+    if (clozeText && card.cloze_ranges && card.cloze_ranges.length > 0) {
+      const text = clozeText as string;
+      const ranges = card.cloze_ranges as [number, number][];
+      let lastIndex = 0;
+      const parts: React.ReactNode[] = [];
+
+      ranges.forEach(([start, end], index) => {
+        if (start > lastIndex) {
+          parts.push(
+            <span
+              key={`text-${index}`}
+              dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex, start)) }}
+            />
+          );
+        }
+        const clozeContent = text.slice(start, end);
+        if (showAnswer) {
+          parts.push(
+            <span
+              key={`cloze-${index}`}
+              className="bg-primary/20 px-1 rounded font-semibold"
+              dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(clozeContent) }}
+            />
+          );
+        } else {
+          parts.push(
+            <span key={`cloze-${index}`} className="bg-muted px-2 py-0.5 rounded text-foreground font-bold border border-border/50">
+              [...]
+            </span>
+          );
+        }
+        lastIndex = end;
+      });
+
+      if (lastIndex < text.length) {
+        parts.push(
+          <span
+            key="text-end"
+            dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex)) }}
+          />
+        );
+      }
+
+      return (
+        <div
+          className={cn(
+            "prose prose-xl dark:prose-invert max-w-none transition-opacity duration-75",
+            showAnswer && "opacity-60"
+          )}
+        >
+          {parts}
+        </div>
+      );
+    }
+
+    // Fallback: regex-based cloze rendering for [[cN::content]] markers
     if (clozeText && /\[\[c\d+::/.test(clozeText)) {
       const parts = clozeText.split(/\[\[c(\d+)::(.*?)\]\]/g);
       return (
