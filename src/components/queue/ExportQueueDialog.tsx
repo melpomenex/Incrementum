@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2 } from "lucide-react";
 import { exportQueue, type QueueExportItem } from "../../api/queue";
+import { useI18n } from "../../lib/i18n";
 
 interface ExportQueueDialogProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ExportQueueDialogProps {
 }
 
 export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
+  const { t } = useI18n();
   const [exportData, setExportData] = useState<QueueExportItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
       const data = await exportQueue();
       setExportData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to export queue");
+      setError(err instanceof Error ? err.message : t("exportQueue.failed"));
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +47,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setExportSuccess("Downloaded as JSON");
+    setExportSuccess(t("exportQueue.downloadedJson"));
     setTimeout(() => setExportSuccess(null), 2000);
   };
 
@@ -53,15 +55,15 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
     if (exportData.length === 0) return;
 
     const headers = [
-      "Document Title",
-      "Type",
-      "Question",
-      "Answer",
-      "Due Date",
-      "State",
-      "Interval",
-      "Tags",
-      "Category",
+      t("exportQueue.documentTitle"),
+      t("exportQueue.type"),
+      t("review.question"),
+      t("review.answer"),
+      t("exportQueue.dueDate"),
+      t("exportQueue.state"),
+      t("exportQueue.interval"),
+      t("videoExtract.tags"),
+      t("exportQueue.category"),
     ];
 
     const rows = exportData.map((item) => [
@@ -86,12 +88,12 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setExportSuccess("Downloaded as CSV");
+    setExportSuccess(t("exportQueue.downloadedCsv"));
     setTimeout(() => setExportSuccess(null), 2000);
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return t("exportQueue.notAvailable");
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -120,7 +122,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
           <div className="flex items-center gap-2">
             <Download className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">
-              Export Queue
+              {t("exportQueue.title")}
             </h2>
           </div>
           <button
@@ -137,21 +139,21 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-muted-foreground">Exporting queue data...</p>
+                <p className="text-muted-foreground">{t("exportQueue.exporting")}</p>
               </div>
             </div>
           ) : error ? (
             <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-              Failed to export queue: {error}
+              {t("exportQueue.failedInline")}: {error}
             </div>
           ) : exportData.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📋</div>
               <h3 className="text-xl font-semibold text-foreground mb-2">
-                Queue is empty
+                {t("exportQueue.emptyTitle")}
               </h3>
               <p className="text-muted-foreground">
-                There are no items in your queue to export
+                {t("exportQueue.emptyDesc")}
               </p>
             </div>
           ) : (
@@ -160,14 +162,14 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
               <div className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Total items</p>
+                    <p className="text-sm text-muted-foreground">{t("exportQueue.totalItems")}</p>
                     <p className="text-2xl font-bold text-foreground">{exportData.length}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={downloadAsJson}
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
-                      title="Download as JSON"
+                      title={t("exportQueue.downloadJson")}
                     >
                       <FileJson className="w-4 h-4" />
                       JSON
@@ -175,7 +177,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
                     <button
                       onClick={downloadAsCsv}
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
-                      title="Download as CSV"
+                      title={t("exportQueue.downloadCsv")}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
                       CSV
@@ -196,11 +198,11 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
                   <table className="w-full text-sm">
                     <thead className="bg-muted">
                       <tr>
-                        <th className="px-4 py-2 text-left font-medium text-foreground">Document</th>
-                        <th className="px-4 py-2 text-left font-medium text-foreground">Type</th>
-                        <th className="px-4 py-2 text-left font-medium text-foreground">Question</th>
-                        <th className="px-4 py-2 text-left font-medium text-foreground">State</th>
-                        <th className="px-4 py-2 text-left font-medium text-foreground">Due</th>
+                        <th className="px-4 py-2 text-left font-medium text-foreground">{t("exportQueue.document")}</th>
+                        <th className="px-4 py-2 text-left font-medium text-foreground">{t("exportQueue.type")}</th>
+                        <th className="px-4 py-2 text-left font-medium text-foreground">{t("review.question")}</th>
+                        <th className="px-4 py-2 text-left font-medium text-foreground">{t("exportQueue.state")}</th>
+                        <th className="px-4 py-2 text-left font-medium text-foreground">{t("exportQueue.due")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -235,25 +237,25 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
               {/* Statistics */}
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">New</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("analytics.new")}</p>
                   <p className="text-lg font-semibold text-blue-500">
                     {exportData.filter((i) => i.state === "New").length}
                   </p>
                 </div>
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Learning</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("analytics.learning")}</p>
                   <p className="text-lg font-semibold text-yellow-500">
                     {exportData.filter((i) => i.state === "Learning").length}
                   </p>
                 </div>
                 <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Review</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("queue.review")}</p>
                   <p className="text-lg font-semibold text-green-500">
                     {exportData.filter((i) => i.state === "Review").length}
                   </p>
                 </div>
                 <div className="p-3 bg-gray-500/10 border border-gray-500/20 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Suspended</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("queue.suspend")}</p>
                   <p className="text-lg font-semibold text-gray-500">
                     {exportData.filter((i) => i.state === "Suspended").length}
                   </p>

@@ -1,5 +1,6 @@
 import { Clock, TrendingUp, BookOpen, Brain, Pause } from "lucide-react";
 import type { QueueStats } from "../../api/queue";
+import { useI18n } from "../../lib/i18n";
 
 interface QueueStatsDisplayProps {
   stats: QueueStats | null;
@@ -7,6 +8,7 @@ interface QueueStatsDisplayProps {
 }
 
 export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) {
+  const { t } = useI18n();
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -29,7 +31,7 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <Clock className="w-4 h-4 text-orange-500" />
-          <span className="text-sm text-muted-foreground">Due Today</span>
+          <span className="text-sm text-muted-foreground">{t("layout.dueToday")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.due_today}</div>
       </div>
@@ -37,7 +39,7 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp className="w-4 h-4 text-red-500" />
-          <span className="text-sm text-muted-foreground">Overdue</span>
+          <span className="text-sm text-muted-foreground">{t("queueLegacy.overdue")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.overdue}</div>
       </div>
@@ -45,7 +47,7 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <BookOpen className="w-4 h-4 text-blue-500" />
-          <span className="text-sm text-muted-foreground">Learning</span>
+          <span className="text-sm text-muted-foreground">{t("queueStats.learning")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.learning_items}</div>
       </div>
@@ -53,7 +55,7 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <Brain className="w-4 h-4 text-green-500" />
-          <span className="text-sm text-muted-foreground">Review</span>
+          <span className="text-sm text-muted-foreground">{t("review.title")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.review_items}</div>
       </div>
@@ -61,28 +63,28 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <Pause className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Suspended</span>
+          <span className="text-sm text-muted-foreground">{t("queueStats.suspended")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.suspended}</div>
       </div>
 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm text-muted-foreground">Total Items</span>
+          <span className="text-sm text-muted-foreground">{t("queueStats.totalItems")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.total_items}</div>
       </div>
 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm text-muted-foreground">New Items</span>
+          <span className="text-sm text-muted-foreground">{t("queueStats.newItems")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.new_items}</div>
       </div>
 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm text-muted-foreground">Est. Time</span>
+          <span className="text-sm text-muted-foreground">{t("queueStats.estimatedTime")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">
           {stats.total_estimated_time}m

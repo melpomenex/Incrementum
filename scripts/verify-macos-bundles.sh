@@ -43,6 +43,33 @@ verify_resources() {
   return 0
 }
 
+verify_binary_links() {
+  local app_bundle="$1"
+  local main_binary="$app_bundle/Contents/MacOS/incrementum-tauri"
+
+  if [[ ! -f "$main_binary" ]]; then
+    echo "Missing main binary: $main_binary"
+    return 1
+  fi
+
+  echo "Inspecting linked libraries for: $main_binary"
+  local linked_libraries
+  linked_libraries="$(otool -L "$main_binary")"
+  echo "$linked_libraries"
+
+  if grep -Eq '/opt/homebrew|/usr/local/opt/sqlite' <<<"$linked_libraries"; then
+    echo "Homebrew SQLite dependency detected in bundle binary"
+    return 1
+  fi
+
+  if grep -Eq 'libsqlite3[.]dylib' <<<"$linked_libraries"; then
+    echo "Dynamic SQLite dependency detected in bundle binary"
+    return 1
+  fi
+
+  return 0
+}
+
 # First, try to find .app bundles directly (when building with --bundles app)
 # Bash 3 compatible alternative to mapfile
 resource_dirs=()
@@ -60,9 +87,11 @@ if [[ ${#resource_dirs[@]} -gt 0 ]]; then
     # Check MacOS directory for external binaries first
     if [[ -d "$macos_dir" ]]; then
       verify_resources "$macos_dir"
+      verify_binary_links "$app_dir"
     else
       # Fallback to Resources
       verify_resources "$resources"
+      verify_binary_links "$app_dir"
     fi
   done
   echo "macOS bundle verification passed."
@@ -128,6 +157,10 @@ for dmg in "${dmg_files[@]}"; do
     verify_resources "$resources"
   fi
   result=$?
+  if [[ $result -eq 0 ]]; then
+    verify_binary_links "$app_bundle"
+    result=$?
+  fi
 
   # Unmount the DMG
   echo "Unmounting DMG"

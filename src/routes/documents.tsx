@@ -7,8 +7,10 @@ import type { ImportSource } from "../components/documents/EnhancedFilePicker";
 import { TranscriptionButton } from "../components/transcription";
 import { isTranscribableFileType } from "../components/transcription/TranscriptionQueueActions";
 import type { Document } from "../types/document";
+import { useI18n } from "../lib/i18n";
 
 export function Documents() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromUrl, importFromArxiv } = useDocumentStore();
   const [isDragging, setIsDragging] = useState(false);
@@ -121,9 +123,9 @@ export function Documents() {
     >
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Documents</h1>
+          <h1 className="text-3xl font-bold text-foreground">{t("nav.documents")}</h1>
           <p className="text-muted-foreground">
-            Browse and manage your documents
+            {t("documentsLegacy.browseManage")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -133,14 +135,14 @@ export function Documents() {
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Link2 className="w-4 h-4" />
-            {isImporting ? "Importing..." : "Import from URL"}
+            {isImporting ? t("review.importing") : t("documentsLegacy.importFromUrl")}
           </button>
           <button
             onClick={handleImport}
             disabled={isImporting}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Import Document
+            {t("documentsLegacy.importDocument")}
           </button>
         </div>
       </div>
@@ -155,7 +157,9 @@ export function Documents() {
         <div className="mb-4 p-4 bg-muted rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">
-              {importProgress.fileName ? `Importing ${importProgress.fileName}...` : "Importing documents..."}
+              {importProgress.fileName
+                ? t("documentsLegacy.importingFile", { name: importProgress.fileName })
+                : t("documentsLegacy.importingDocuments")}
             </span>
             <span className="text-sm text-muted-foreground">
               {importProgress.current} / {importProgress.total}
@@ -175,10 +179,10 @@ export function Documents() {
           <div className="text-center p-8 bg-card border-2 border-primary rounded-lg shadow-lg">
             <div className="text-6xl mb-4">📄</div>
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              Drop files to import
+              {t("documentsLegacy.dropFiles")}
             </h3>
             <p className="text-muted-foreground">
-              Release to import documents
+              {t("documentsLegacy.releaseToImport")}
             </p>
           </div>
         </div>
@@ -186,23 +190,23 @@ export function Documents() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading documents...</div>
+          <div className="text-muted-foreground">{t("documentsLegacy.loading")}</div>
         </div>
       ) : documents.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📄</div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            No documents yet
+            {t("documentsLegacy.noDocuments")}
           </h3>
           <p className="text-muted-foreground mb-6">
-            Import your first document to get started
+            {t("documentsLegacy.importFirst")}
           </p>
           <button
             onClick={handleImport}
             disabled={isImporting}
             className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isImporting ? "Importing..." : "Import Your First Document"}
+            {isImporting ? t("review.importing") : t("documentsLegacy.importFirstButton")}
           </button>
         </div>
       ) : (
@@ -235,6 +239,7 @@ export function Documents() {
  * Displays a document with optional transcription action
  */
 function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) {
+  const { t } = useI18n();
   const [showTranscription, setShowTranscription] = useState(false);
   
   const isTranscribable = isTranscribableFileType(doc.fileType as any);
@@ -276,8 +281,8 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
         )}
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>{doc.extractCount} extracts</span>
-          <span>{doc.learningItemCount} cards</span>
+          <span>{t("documentsLegacy.extractCount", { count: doc.extractCount })}</span>
+          <span>{t("documentsLegacy.cardCount", { count: doc.learningItemCount })}</span>
         </div>
 
         {doc.tags.length > 0 && (
@@ -311,7 +316,7 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             >
               <Mic className="w-4 h-4" />
-              <span>Transcribe</span>
+              <span>{t("documentsLegacy.transcribe")}</span>
             </button>
           ) : (
             <div 
@@ -328,7 +333,7 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
               <button
                 onClick={() => setShowTranscription(false)}
                 className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
-                title="Hide"
+                title={t("queue.hideInspector")}
               >
                 <span className="text-xs">✕</span>
               </button>
@@ -342,7 +347,7 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
         onClick={onClick}
         className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground cursor-pointer"
       >
-        <span>Added {new Date(doc.dateAdded).toLocaleDateString()}</span>
+        <span>{t("documentsLegacy.addedOn", { date: new Date(doc.dateAdded).toLocaleDateString() })}</span>
         {doc.isFavorite && <span>⭐</span>}
       </div>
     </div>

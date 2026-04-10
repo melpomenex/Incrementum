@@ -10,8 +10,10 @@ import { DynamicVirtualList } from "../components/common/VirtualList";
 import type { QueueItem } from "../types/queue";
 import { updateDocumentPriority } from "../api/documents";
 import { TranscriptionQueueActions, TranscriptionQueueIndicator, isTranscribableFileType } from "../components/transcription/TranscriptionQueueActions";
+import { useI18n } from "../lib/i18n";
 
 export function Queue() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const {
     filteredItems,
@@ -159,10 +161,10 @@ export function Queue() {
     const now = new Date();
     const daysUntilDue = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (daysUntilDue < 0) return "Overdue";
-    if (daysUntilDue === 0) return "Today";
-    if (daysUntilDue === 1) return "Tomorrow";
-    if (daysUntilDue <= 7) return `In ${daysUntilDue} days`;
+    if (daysUntilDue < 0) return t("queueLegacy.overdue");
+    if (daysUntilDue === 0) return t("queueLegacy.today");
+    if (daysUntilDue === 1) return t("queueLegacy.tomorrow");
+    if (daysUntilDue <= 7) return t("queueLegacy.inDays", { count: daysUntilDue });
     return date.toLocaleDateString();
   };
 
@@ -170,9 +172,9 @@ export function Queue() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Reading Queue</h1>
+        <h1 className="text-3xl font-bold text-foreground">{t("dashboard.readingQueue")}</h1>
         <p className="text-muted-foreground">
-          Manage your incremental reading queue ({filteredItems.length} items)
+          {t("queueLegacy.manageQueue", { count: filteredItems.length })}
         </p>
       </div>
 
@@ -185,7 +187,7 @@ export function Queue() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <input
             type="text"
-            placeholder="Search items..."
+            placeholder={t("queueLegacy.searchItems")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -195,7 +197,7 @@ export function Queue() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors"
-          title="Toggle filters"
+          title={t("queueLegacy.toggleFilters")}
         >
           <Filter className="w-4 h-4" />
         </button>
@@ -208,7 +210,10 @@ export function Queue() {
             })
           }
           className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors"
-          title={`Sort by ${sortOptions.field === "priority" ? "title" : "priority"} (${sortOptions.direction})`}
+          title={t("queueLegacy.sortBy", {
+            field: sortOptions.field === "priority" ? t("common.title") : t("queueLegacy.priority"),
+            direction: sortOptions.direction,
+          })}
         >
           <ArrowUpDown className="w-4 h-4" />
         </button>
@@ -216,7 +221,7 @@ export function Queue() {
         <button
           onClick={() => setShowExportDialog(true)}
           className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors"
-          title="Export queue"
+          title={t("queueLegacy.exportQueue")}
         >
           <Download className="w-4 h-4" />
         </button>
@@ -226,7 +231,7 @@ export function Queue() {
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
         >
           <Play className="w-4 h-4" />
-          Start Review
+          {t("queueLegacy.startReview")}
         </button>
       </div>
 
@@ -240,9 +245,9 @@ export function Queue() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">
-                {bulkOperationResult.succeeded.length} succeeded
+                {t("queueLegacy.bulkSucceeded", { count: bulkOperationResult.succeeded.length })}
                 {bulkOperationResult.failed.length > 0 && (
-                  <>, {bulkOperationResult.failed.length} failed</>
+                  <>, {t("queueLegacy.bulkFailedInline", { count: bulkOperationResult.failed.length })}</>
                 )}
               </p>
               {bulkOperationResult.failed.length > 0 && (
@@ -281,25 +286,25 @@ export function Queue() {
       {/* Queue Items */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading queue...</div>
+          <div className="text-muted-foreground">{t("queue.loading")}</div>
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">📚</div>
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            {searchQuery ? "No items match your search" : "Your queue is empty"}
+            {searchQuery ? t("queueLegacy.noSearchMatches") : t("queueLegacy.emptyQueue")}
           </h3>
           <p className="text-muted-foreground mb-6">
             {searchQuery
-              ? "Try adjusting your search or filters"
-              : "Import documents to start your incremental reading journey"}
+              ? t("queueLegacy.tryAdjusting")
+              : t("queueLegacy.importToStart")}
           </p>
           {!searchQuery && (
             <button
               onClick={() => navigate("/documents")}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
             >
-              Import Documents
+              {t("queueLegacy.importDocuments")}
             </button>
           )}
         </div>
@@ -310,7 +315,7 @@ export function Queue() {
             <button
               onClick={handleToggleSelectAll}
               className="p-2 hover:bg-muted rounded transition-colors"
-              title={allSelected ? "Deselect all" : "Select all"}
+              title={allSelected ? t("queueLegacy.deselectAll") : t("queueLegacy.selectAll")}
             >
               {allSelected ? (
                 <CheckSquare className="w-4 h-4 text-primary" />
@@ -319,7 +324,7 @@ export function Queue() {
               )}
             </button>
             <span className="text-sm text-muted-foreground">
-              {allSelected ? "All selected" : "Select all"}
+              {allSelected ? t("queueLegacy.allSelected") : t("queueLegacy.selectAll")}
             </span>
           </div>
 
@@ -344,8 +349,8 @@ export function Queue() {
                     className={`pt-1 ${item.itemType !== "learning-item" ? "opacity-50 cursor-not-allowed" : ""}`}
                     title={
                       item.itemType !== "learning-item"
-                        ? "Selection is available for learning items only"
-                        : "Select item"
+                        ? t("queueLegacy.selectionLearningOnly")
+                        : t("queueLegacy.selectItem")
                     }
                   >
                     {selectedIds.has(item.id) ? (
@@ -411,7 +416,7 @@ export function Queue() {
                         <div className={`text-lg font-bold ${getPriorityColor(item.priority)}`}>
                           {item.priority.toFixed(1)}
                         </div>
-                      <div className="text-xs text-muted-foreground">Priority</div>
+                      <div className="text-xs text-muted-foreground">{t("queueLegacy.priority")}</div>
                     </div>
                   </div>
 
@@ -431,7 +436,7 @@ export function Queue() {
                       <div className="flex flex-wrap items-center gap-4">
                         <div>
                           <div className="text-xs font-medium text-muted-foreground mb-2">
-                            Rating
+                            {t("queueLegacy.rating")}
                           </div>
                           <div className="flex items-center gap-2">
                             {[1, 2, 3, 4].map((rating) => {
@@ -457,7 +462,7 @@ export function Queue() {
                                       ? "bg-primary text-primary-foreground"
                                       : "bg-background text-foreground border border-border"
                                   } ${isUpdating ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/10"}`}
-                                  title={`Rate ${rating}`}
+                                  title={t("queueLegacy.rateNumber", { count: rating })}
                                 >
                                   {rating}
                                 </button>
@@ -468,7 +473,7 @@ export function Queue() {
 
                         <div className="flex-1 min-w-[200px]">
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                            <span>Priority slider</span>
+                            <span>{t("queueLegacy.prioritySlider")}</span>
                             <span>{getDraftPriority(item).slider}</span>
                           </div>
                           <input
@@ -519,10 +524,10 @@ export function Queue() {
                         <button
                           onClick={() => handleStartReview(item)}
                           className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-1.5 text-sm"
-                          title="Start"
+                          title={t("common.start")}
                         >
                           <Play className="w-3.5 h-3.5" />
-                          Start
+                          {t("common.start")}
                         </button>
 
                         <QueueContextMenu

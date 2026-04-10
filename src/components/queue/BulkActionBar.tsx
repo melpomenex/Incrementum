@@ -1,4 +1,5 @@
 import { Loader2, Pause, Play, Trash2, X } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -17,6 +18,7 @@ export function BulkActionBar({
   onDelete,
   onClearSelection,
 }: BulkActionBarProps) {
+  const { t } = useI18n();
   if (selectedCount === 0) {
     return null;
   }
@@ -26,13 +28,13 @@ export function BulkActionBar({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-foreground">
-            {selectedCount} item{selectedCount !== 1 ? "s" : ""} selected
+            {t("queue.selectedCount", { count: selectedCount })}
           </span>
 
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Processing...</span>
+              <span>{t("common.processing")}</span>
             </div>
           )}
         </div>
@@ -42,37 +44,37 @@ export function BulkActionBar({
             onClick={onSuspend}
             disabled={isLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50 text-sm"
-            title="Suspend selected items"
+            title={t("bulkAction.suspendSelected")}
           >
             <Pause className="w-3.5 h-3.5" />
-            Suspend
+            {t("queue.suspend")}
           </button>
 
           <button
             onClick={onUnsuspend}
             disabled={isLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50 text-sm"
-            title="Unsuspend selected items"
+            title={t("bulkAction.unsuspendSelected")}
           >
             <Play className="w-3.5 h-3.5" />
-            Unsuspend
+            {t("queue.unsuspend")}
           </button>
 
           <button
             onClick={onDelete}
             disabled={isLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/30 rounded-md hover:bg-destructive/20 transition-colors disabled:opacity-50 text-sm"
-            title="Delete selected items"
+            title={t("bulkAction.deleteSelected")}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Delete
+            {t("common.delete")}
           </button>
 
           <button
             onClick={onClearSelection}
             disabled={isLoading}
             className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-            title="Clear selection"
+            title={t("bulkAction.clearSelection")}
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>

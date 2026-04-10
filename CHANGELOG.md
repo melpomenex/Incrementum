@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.6] - 2026-04-10
+
+### Changed
+- Expanded Chinese localization coverage across the remaining queue, review, import, analytics, settings, mobile navigation, and shared dialog surfaces. This pass removes additional hardcoded English strings from screen-level and shared UI components, adds the missing locale keys to both `en` and `zh`, and keeps locale parity at 100% (`missing 0`, `extra 0`).
+
+### Fixed
+- **macOS SQLite linkage fix** — documented the earlier macOS desktop fix where the system SQLite was missing symbols required by `sqlx`. The workaround added explicit macOS build-time linkage to Homebrew SQLite (`/opt/homebrew/opt/sqlite` on Apple Silicon, `/usr/local/opt/sqlite` on Intel) and preferred the static `libsqlite3.a` when present, preventing the startup/build failures caused by relying on the incomplete system SQLite.
+- **Screenshot overlay runtime stability** — the screenshot overlay now lazy-loads Tauri window and event APIs instead of importing them eagerly at module load time. This avoids initializing Tauri-only bindings in the wrong runtime and prevents the overlay from crashing when opened outside the expected desktop context.
+
 ## [1.18.5] - 2026-04-09
 
 ### Added
@@ -649,7 +658,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.5...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.6...HEAD
+[1.18.6]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.5...v1.18.6
 [1.18.5]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.4...v1.18.5
 [1.18.4]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.3...v1.18.4
 [1.18.3]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.0...v1.18.3
