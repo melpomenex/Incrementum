@@ -407,6 +407,7 @@ pub fn run() {
             commands::generate_questions,
             commands::list_ollama_models,
             commands::test_ai_connection,
+            commands::generate_progressive_summaries,
             // Analytics commands
             commands::get_dashboard_stats,
             commands::get_memory_stats,

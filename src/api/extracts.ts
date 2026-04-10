@@ -17,6 +17,11 @@ export interface Extract {
   notes?: string;
   progressive_disclosure_level: number;
   max_disclosure_level: number;
+  progressive_summaries?: Array<{
+    level: number;
+    summary: string;
+    word_count: number;
+  }>;
   date_created: string;
   date_modified: string;
   tags: string[];
@@ -86,6 +91,7 @@ export async function createExtract(input: CreateExtractInput): Promise<Extract>
     color: input.color,
     pageNumber: input.page_number,
     selectionContext: input.selection_context,
+    maxDisclosureLevel: input.max_disclosure_level,
   });
 }
 
@@ -100,6 +106,7 @@ export async function updateExtract(input: UpdateExtractInput): Promise<Extract>
     tags: input.tags,
     category: input.category,
     color: input.color,
+    maxDisclosureLevel: input.max_disclosure_level,
   });
 }
 

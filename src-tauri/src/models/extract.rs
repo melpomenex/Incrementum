@@ -9,6 +9,13 @@ use uuid::Uuid;
 pub use super::learning_item::MemoryState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgressiveSummaryEntry {
+    pub level: u32,
+    pub summary: String,
+    pub word_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Extract {
     pub id: String,
     pub document_id: String,
@@ -25,6 +32,8 @@ pub struct Extract {
     pub notes: Option<String>,
     pub progressive_disclosure_level: i32,
     pub max_disclosure_level: i32,
+    /// Cached AI-generated progressive disclosure summaries
+    pub progressive_summaries: Option<Vec<ProgressiveSummaryEntry>>,
     pub date_created: DateTime<Utc>,
     pub date_modified: DateTime<Utc>,
     pub tags: Vec<String>,
@@ -56,6 +65,7 @@ impl Extract {
             notes: None,
             progressive_disclosure_level: 0,
             max_disclosure_level: 3,
+            progressive_summaries: None,
             date_created: Utc::now(),
             date_modified: Utc::now(),
             tags: Vec::new(),

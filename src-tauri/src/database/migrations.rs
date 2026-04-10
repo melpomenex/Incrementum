@@ -1224,6 +1224,12 @@ pub const MIGRATIONS: &[Migration] = &[
         ALTER TABLE learning_items ADD COLUMN interaction_metadata TEXT;
         "#,
     ),
+    Migration::new(
+        "036_add_progressive_summaries",
+        r#"
+        ALTER TABLE extracts ADD COLUMN progressive_summaries TEXT;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

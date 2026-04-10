@@ -196,7 +196,58 @@ export function ReviewCard({
 
   const renderQuestion = () => {
     if ((itemType === "cloze" || itemType === "Cloze") && card.cloze_text) {
-      // For cloze cards, hide the clozed portion
+      // Range-based cloze rendering (preferred when ranges are available)
+      if (card.cloze_ranges && card.cloze_ranges.length > 0) {
+        const text = card.cloze_text as string;
+        const ranges = card.cloze_ranges as [number, number][];
+        let lastIndex = 0;
+        const parts: React.ReactNode[] = [];
+
+        ranges.forEach(([start, end], index) => {
+          if (start > lastIndex) {
+            parts.push(
+              <span
+                key={`text-${index}`}
+                dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex, start)) }}
+              />
+            );
+          }
+          const clozeContent = text.slice(start, end);
+          if (showAnswer) {
+            parts.push(
+              <span
+                key={`cloze-${index}`}
+                className="bg-primary/20 px-1 rounded font-semibold"
+                dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(clozeContent) }}
+              />
+            );
+          } else {
+            parts.push(
+              <span key={`cloze-${index}`} className="bg-muted px-2 py-0.5 rounded text-foreground font-bold border border-border/50">
+                [...]
+              </span>
+            );
+          }
+          lastIndex = end;
+        });
+
+        if (lastIndex < text.length) {
+          parts.push(
+            <span
+              key="text-end"
+              dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(text.slice(lastIndex)) }}
+            />
+          );
+        }
+
+        return (
+          <div className="text-lg leading-relaxed text-foreground">
+            {parts}
+          </div>
+        );
+      }
+
+      // Fallback: regex-based cloze rendering for [[cN::content]] markers
       const parts = card.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
       return (
         <div className="text-lg leading-relaxed text-foreground">

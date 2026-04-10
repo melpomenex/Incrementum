@@ -388,3 +388,74 @@ pub async fn test_ai_connection(
 
     Ok(response.content)
 }
+
+/// Generate progressive disclosure summaries for an extract.
+/// Summaries are cached on the extract after generation.
+#[tauri::command]
+pub async fn generate_progressive_summaries(
+    extract_id: String,
+    repo: State<'_, Repository>,
+    ai_state: State<'_, AIState>,
+) -> Result<Vec<crate::models::extract::ProgressiveSummaryEntry>> {
+    let mut extract = repo
+        .get_extract(&extract_id)
+        .await?
+        .ok_or_else(|| {
+            IncrementumError::NotFound(format!("Extract {} not found", extract_id))
+        })?;
+
+    // Return cached summaries if already generated
+    if let Some(ref summaries) = extract.progressive_summaries {
+        if !summaries.is_empty() {
+            return Ok(summaries.clone());
+        }
+    }
+
+    let config = get_ai_config_clone(&ai_state)?;
+
+    let provider = AIProvider::from_config(
+        config.default_provider,
+        &config.api_keys,
+        &config.models,
+        &config.local_settings,
+    )
+    .map_err(IncrementumError::Internal)?;
+
+    let summarizer = Summarizer::new(provider);
+
+    let max_level = extract.max_disclosure_level;
+    if max_level <= 0 {
+        return Err(IncrementumError::InvalidInput(
+            "Progressive disclosure is not enabled for this extract".to_string(),
+        ));
+    }
+
+    // AI summaries cover the first half of levels
+    let num_ai_levels = ((max_level as f64) / 2.0).ceil() as u32;
+    let levels: Vec<u32> = (1..=num_ai_levels).collect();
+
+    let summaries = summarizer
+        .progressive_summary(&extract.content, &levels)
+        .await
+        .map_err(|e| {
+            IncrementumError::Internal(format!(
+                "Failed to generate progressive summaries: {}",
+                e
+            ))
+        })?;
+
+    let entries: Vec<crate::models::extract::ProgressiveSummaryEntry> = summaries
+        .into_iter()
+        .map(|s| crate::models::extract::ProgressiveSummaryEntry {
+            level: s.level,
+            summary: s.summary,
+            word_count: s.word_count,
+        })
+        .collect();
+
+    // Cache on the extract
+    extract.progressive_summaries = Some(entries.clone());
+    repo.update_extract(&extract).await?;
+
+    Ok(entries)
+}

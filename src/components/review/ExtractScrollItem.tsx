@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2 } from "lucide-react";
+import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2, Eye } from "lucide-react";
 import type { Extract } from "../../api/extracts";
 import { updateExtract } from "../../api/extracts";
+import { generateProgressiveSummaries } from "../../api/ai";
 import { cn } from "../../utils";
 
 interface ExtractScrollItemProps {
@@ -33,6 +34,37 @@ export function ExtractScrollItem({
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isMountedRef = useRef(true);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [summaryError, setSummaryError] = useState<string | null>(null);
+    const [summaries, setSummaries] = useState(extract.progressive_summaries ?? []);
+
+    // Generate progressive summaries on mount if needed
+    useEffect(() => {
+        if (
+            extract.max_disclosure_level > 0 &&
+            (!extract.progressive_summaries || extract.progressive_summaries.length === 0)
+        ) {
+            setIsGeneratingSummary(true);
+            setSummaryError(null);
+            generateProgressiveSummaries(extract.id)
+                .then((result) => {
+                    if (isMountedRef.current) {
+                        setSummaries(result);
+                    }
+                })
+                .catch((err) => {
+                    console.error("Failed to generate progressive summaries:", err);
+                    if (isMountedRef.current) {
+                        setSummaryError("Could not generate summary. Showing full content.");
+                    }
+                })
+                .finally(() => {
+                    if (isMountedRef.current) {
+                        setIsGeneratingSummary(false);
+                    }
+                });
+        }
+    }, [extract.id, extract.max_disclosure_level]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -130,6 +162,62 @@ export function ExtractScrollItem({
         };
     }, []);
 
+    const getDisplayContent = (): { text: string; isSummary: boolean; levelLabel: string | null } => {
+        const maxLevel = extract.max_disclosure_level;
+        const currentLevel = extract.progressive_disclosure_level;
+
+        // Progressive disclosure disabled
+        if (maxLevel <= 0) {
+            return { text: extract.content, isSummary: false, levelLabel: null };
+        }
+
+        // Already at or past max level - show full content
+        if (currentLevel >= maxLevel) {
+            return { text: extract.content, isSummary: false, levelLabel: "Full content" };
+        }
+
+        // First half of levels use AI summaries
+        const numAiLevels = Math.ceil(maxLevel / 2);
+
+        if (currentLevel < numAiLevels) {
+            if (summaries.length > 0) {
+                const summaryIndex = Math.min(currentLevel, summaries.length - 1);
+                const summary = summaries[summaryIndex];
+                return {
+                    text: summary.summary,
+                    isSummary: true,
+                    levelLabel: `AI Summary — Level ${currentLevel + 1}/${maxLevel}`,
+                };
+            }
+            // No summaries yet (still generating or failed) - fall through to text reveal
+            if (isGeneratingSummary) {
+                return { text: "", isSummary: true, levelLabel: null };
+            }
+            if (summaryError) {
+                return { text: extract.content, isSummary: false, levelLabel: null };
+            }
+        }
+
+        // Progressive text reveal phase (second half of levels)
+        const textLevels = maxLevel - numAiLevels;
+        const textLevelIndex = currentLevel - numAiLevels;
+        const fraction = (textLevelIndex + 1) / (textLevels + 1);
+        const charCount = Math.floor(extract.content.length * fraction);
+        let cutoff = charCount;
+        if (cutoff < extract.content.length) {
+            const nextSpace = extract.content.indexOf(" ", cutoff);
+            if (nextSpace !== -1 && nextSpace < cutoff + 50) {
+                cutoff = nextSpace;
+            }
+        }
+        const isFull = cutoff >= extract.content.length;
+        return {
+            text: isFull ? extract.content : extract.content.slice(0, cutoff) + "...",
+            isSummary: false,
+            levelLabel: isFull ? "Full content" : `Revealing ${Math.round(fraction * 100)}%`,
+        };
+    };
+
     const handleCreateCloze = () => {
         const textarea = contentRef.current;
         if (!textarea) return;
@@ -200,6 +288,12 @@ export function ExtractScrollItem({
                         Reviewed {extract.review_count}x
                     </span>
                 )}
+                {extract.max_disclosure_level > 0 && (
+                    <span className="px-2 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Eye className="w-3 h-3" />
+                        Level {extract.progressive_disclosure_level}/{extract.max_disclosure_level}
+                    </span>
+                )}
             </div>
 
             <div className="absolute top-6 right-6 text-sm text-muted-foreground max-w-md flex items-center gap-4">
@@ -232,15 +326,70 @@ export function ExtractScrollItem({
                     </button>
                 </div>
 
-                {/* Content Editor */}
-                <div className="bg-card border border-border rounded-2xl shadow-xl min-h-[300px] max-h-[60vh] overflow-y-auto">
-                    <textarea
-                        ref={contentRef}
-                        value={content}
-                        onChange={(event) => setContent(event.target.value)}
-                        placeholder="Edit extract content in markdown..."
-                        className="w-full min-h-[300px] p-10 bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
-                    />
+                {/* Content Editor / Progressive Disclosure */}
+                <div className="bg-card border border-border rounded-2xl shadow-xl min-h-[300px] max-h-[60vh] overflow-y-auto relative">
+                    {(() => {
+                        const { text, isSummary, levelLabel } = getDisplayContent();
+
+                        // Disclosure disabled or at max level — show editable textarea
+                        if (!levelLabel || levelLabel === "Full content") {
+                            return (
+                                <textarea
+                                    ref={contentRef}
+                                    value={content}
+                                    onChange={(event) => setContent(event.target.value)}
+                                    placeholder="Edit extract content in markdown..."
+                                    className="w-full min-h-[300px] p-10 bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
+                                />
+                            );
+                        }
+
+                        // Loading state while generating AI summary
+                        if (isGeneratingSummary && isSummary) {
+                            return (
+                                <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground gap-3">
+                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <span className="text-sm">Generating summary...</span>
+                                </div>
+                            );
+                        }
+
+                        // Error fallback
+                        if (summaryError && isSummary) {
+                            return (
+                                <div className="p-10">
+                                    <div className="text-xs text-amber-400 mb-2">{summaryError}</div>
+                                    <textarea
+                                        ref={contentRef}
+                                        value={content}
+                                        onChange={(event) => setContent(event.target.value)}
+                                        placeholder="Edit extract content in markdown..."
+                                        className="w-full min-h-[300px] bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
+                                    />
+                                </div>
+                            );
+                        }
+
+                        // Show level badge
+                        return (
+                            <>
+                                {levelLabel && (
+                                    <div className={cn(
+                                        "absolute top-3 right-3 z-10 px-3 py-1 rounded-lg text-xs font-medium",
+                                        isSummary
+                                            ? "bg-amber-500/20 text-amber-400"
+                                            : "bg-blue-500/20 text-blue-400"
+                                    )}>
+                                        {isSummary && <Sparkles className="w-3 h-3 inline mr-1" />}
+                                        {levelLabel}
+                                    </div>
+                                )}
+                                <div className="p-10 text-lg leading-relaxed text-foreground">
+                                    {text}
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 {/* Notes Editor */}
