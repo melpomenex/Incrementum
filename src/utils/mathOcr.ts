@@ -8,15 +8,6 @@ import katex from "katex";
 import "katex/dist/contrib/mhchem";
 import { MacroExpander } from "./latexMacros";
 
-// Inject KaTeX CSS once
-if (typeof document !== "undefined" && !document.getElementById("katex-css-injected")) {
-  const link = document.createElement("link");
-  link.id = "katex-css-injected";
-  link.rel = "stylesheet";
-  link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-  document.head.appendChild(link);
-}
-
 /**
  * Math OCR model types
  */
