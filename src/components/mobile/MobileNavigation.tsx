@@ -57,20 +57,20 @@ interface NavItem {
 const primaryNavItems: NavItem[] = [
   {
     id: "dashboard",
-    label: "Home",
+    label: "nav.dashboard",
     icon: Home,
     tabType: "dashboard",
-    tabTitle: "Dashboard",
+    tabTitle: "nav.dashboard",
     tabIcon: "📊",
     tabContent: DashboardTab,
     closable: false,
   },
   {
     id: "queue",
-    label: "Queue",
+    label: "nav.queue",
     icon: FileText,
     tabType: "queue",
-    tabTitle: "Queue",
+    tabTitle: "nav.queue",
     tabIcon: "📚",
     tabContent: QueueTab,
     closable: true,
@@ -78,30 +78,30 @@ const primaryNavItems: NavItem[] = [
   },
   {
     id: "review",
-    label: "Review",
+    label: "review.title",
     icon: Brain,
     tabType: "review",
-    tabTitle: "Review",
+    tabTitle: "review.title",
     tabIcon: "🧠",
     tabContent: ReviewTab,
     closable: true,
   },
   {
     id: "documents",
-    label: "Library",
+    label: "nav.documents",
     icon: BookOpen,
     tabType: "documents",
-    tabTitle: "Documents",
+    tabTitle: "nav.documents",
     tabIcon: "📂",
     tabContent: DocumentsTab,
     closable: true,
   },
   {
     id: "settings",
-    label: "Settings",
+    label: "nav.settings",
     icon: Settings,
     tabType: "settings",
-    tabTitle: "Settings",
+    tabTitle: "nav.settings",
     tabIcon: "⚙️",
     tabContent: SettingsTab,
     closable: true,
@@ -113,10 +113,10 @@ const allNavItems: NavItem[] = [
   ...primaryNavItems,
   {
     id: "rss",
-    label: "RSS",
+    label: "rssReader.title",
     icon: Rss,
     tabType: "rss",
-    tabTitle: "RSS Feeds",
+    tabTitle: "rssReader.title",
     tabIcon: "📰",
     tabContent: RSSReader,
     closable: true,
@@ -124,20 +124,20 @@ const allNavItems: NavItem[] = [
   },
   {
     id: "newsletter",
-    label: "Newsletters",
+    label: "newsletterDirectory.title",
     icon: Newspaper,
     tabType: "newsletter",
-    tabTitle: "Newsletter Directory",
+    tabTitle: "newsletterDirectory.title",
     tabIcon: "📬",
     tabContent: NewsletterDirectoryTab,
     closable: true,
   },
   {
     id: "analytics",
-    label: "Stats",
+    label: "nav.analytics",
     icon: BarChart3,
     tabType: "analytics",
-    tabTitle: "Statistics",
+    tabTitle: "nav.analytics",
     tabIcon: "📈",
     tabContent: AnalyticsTab,
     closable: true,
@@ -244,7 +244,7 @@ export function MobileNavigation({
     }
 
     addTab({
-      title: item.tabTitle,
+      title: t(item.tabTitle),
       icon: item.tabIcon,
       type: item.tabType,
       content: item.tabContent,
@@ -284,7 +284,7 @@ export function MobileNavigation({
               setShowIosInstallHelp(false);
             }}
             className={`mobile-nav-item ${active ? 'active' : ''}`}
-            aria-label={item.label}
+            aria-label={t(item.label)}
             aria-current={active ? "page" : undefined}
           >
             <span className="mobile-nav-item-background" aria-hidden="true" />
@@ -296,7 +296,7 @@ export function MobileNavigation({
                 </span>
               )}
             </div>
-            <span className="mobile-nav-label">{item.label}</span>
+            <span className="mobile-nav-label">{t(item.label)}</span>
           </button>
         );
       })}
@@ -307,7 +307,7 @@ export function MobileNavigation({
           setShowIosInstallHelp(false);
         }}
         className={`mobile-nav-item ${showMoreMenu || moreMenuActive ? 'active' : ''}`}
-        aria-label="More sections and actions"
+        aria-label={t("mobileNav.moreSections")}
         aria-expanded={showMoreMenu}
       >
         <span className="mobile-nav-item-background" aria-hidden="true" />
@@ -343,7 +343,7 @@ export function MobileNavigation({
                   setShowIosInstallHelp(false);
                 }}
                 className="mobile-more-close"
-                aria-label="Close menu"
+                aria-label={t("mobileNav.closeMenu")}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -368,7 +368,7 @@ export function MobileNavigation({
                     className={`mobile-more-item ${activeTab?.type === item.tabType ? "mobile-more-item-active" : ""}`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className="flex-1 text-left">{t(item.label)}</span>
                     {badge > 0 && (
                       <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
                         {badge}
@@ -390,7 +390,7 @@ export function MobileNavigation({
                 className="mobile-more-item"
               >
                 <Search className="w-5 h-5" />
-                <span className="flex-1 text-left">Search</span>
+                <span className="flex-1 text-left">{t("mobileNav.search")}</span>
               </button>
 
               {showInstallCta && (
@@ -449,6 +449,7 @@ export function MobileSettingsPanel({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [settings, setSettings] = useState({
     autoSync: true,
     offlineMode: true,
@@ -464,11 +465,11 @@ export function MobileSettingsPanel({
       <div className="mobile-settings-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="mobile-settings-header">
-          <h2 className="mobile-settings-title">Settings</h2>
+          <h2 className="mobile-settings-title">{t("mobileNav.settings")}</h2>
           <button
             onClick={onClose}
             className="mobile-settings-close"
-            aria-label="Close settings"
+            aria-label={t("mobileNav.closeSettings")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -476,21 +477,21 @@ export function MobileSettingsPanel({
 
         {/* PWA Status */}
         <div className="mobile-settings-section">
-          <h3 className="mobile-settings-section-title">App Status</h3>
+          <h3 className="mobile-settings-section-title">{t("mobileNav.appStatus")}</h3>
           <PWastatusIndicator />
         </div>
 
         {/* Sync Settings */}
         <div className="mobile-settings-section">
-          <h3 className="mobile-settings-section-title">Sync & Offline</h3>
+          <h3 className="mobile-settings-section-title">{t("mobileNav.syncOffline")}</h3>
           <ToggleSetting
-            label="Auto-sync content"
+            label={t("mobileNav.autoSyncContent")}
             checked={settings.autoSync}
             onChange={(checked) => setSettings({ ...settings, autoSync: checked })}
           />
           <ToggleSetting
-            label="Offline reading mode"
-            description="Download content for offline access"
+            label={t("mobileNav.offlineReadingMode")}
+            description={t("mobileNav.offlineReadingModeDesc")}
             checked={settings.offlineMode}
             onChange={(checked) => setSettings({ ...settings, offlineMode: checked })}
           />
@@ -498,14 +499,14 @@ export function MobileSettingsPanel({
 
         {/* Reading Settings */}
         <div className="mobile-settings-section">
-          <h3 className="mobile-settings-section-title">Reading</h3>
+          <h3 className="mobile-settings-section-title">{t("mobileNav.reading")}</h3>
           <SelectSetting
-            label="Font size"
+            label={t("settings.fontSize")}
             value={settings.fontSize}
             options={[
-              { value: "small", label: "Small" },
-              { value: "medium", label: "Medium" },
-              { value: "large", label: "Large" },
+              { value: "small", label: t("mobileNav.fontSmall") },
+              { value: "medium", label: t("mobileNav.fontMedium") },
+              { value: "large", label: t("mobileNav.fontLarge") },
             ]}
             onChange={(value) => setSettings({ ...settings, fontSize: value })}
           />
@@ -513,15 +514,15 @@ export function MobileSettingsPanel({
 
         {/* Interface Settings */}
         <div className="mobile-settings-section">
-          <h3 className="mobile-settings-section-title">Interface</h3>
+          <h3 className="mobile-settings-section-title">{t("mobileNav.interface")}</h3>
           <ToggleSetting
-            label="Notifications"
-            description="Learning reminders and updates"
+            label={t("settings.notifications")}
+            description={t("mobileNav.notificationsDesc")}
             checked={settings.notifications}
             onChange={(checked) => setSettings({ ...settings, notifications: checked })}
           />
           <ToggleSetting
-            label="Vibration feedback"
+            label={t("mobileNav.vibrationFeedback")}
             checked={settings.vibration}
             onChange={(checked) => setSettings({ ...settings, vibration: checked })}
           />
@@ -529,18 +530,18 @@ export function MobileSettingsPanel({
 
         {/* Cache Management */}
         <div className="mobile-settings-section">
-          <h3 className="mobile-settings-section-title">Storage</h3>
+          <h3 className="mobile-settings-section-title">{t("mobileNav.storage")}</h3>
           <ButtonSetting
-            label="Clear offline data"
-            description="Free up storage used by offline content"
+            label={t("mobileNav.clearOfflineData")}
+            description={t("mobileNav.clearOfflineDataDesc")}
             onClick={() => {
               // Implement clear cache
               console.log("Clearing offline data");
             }}
           />
           <ButtonSetting
-            label="Download for offline"
-            description="Download current document for offline reading"
+            label={t("mobileNav.downloadForOffline")}
+            description={t("mobileNav.downloadForOfflineDesc")}
             onClick={() => {
               // Implement offline download
               console.log("Downloading for offline");
@@ -558,7 +559,7 @@ export function MobileSettingsPanel({
             }}
             className="mobile-settings-save"
           >
-            Save Settings
+            {t("mobileNav.saveSettings")}
           </button>
         </div>
       </div>
@@ -570,6 +571,7 @@ export function MobileSettingsPanel({
  * PWA Status indicator
  */
 export function PWastatusIndicator() {
+  const { t } = useI18n();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isPWA, setIsPWA] = useState(false);
 
@@ -602,13 +604,13 @@ export function PWastatusIndicator() {
       <div className={`pwa-status-item ${isPWA ? "installed" : ""}`}>
         <span className="pwa-status-dot" />
         <span className="text-xs text-muted-foreground">
-          {isPWA ? "Installed as app" : "Install as app"}
+          {isPWA ? t("mobileNav.installedAsApp") : t("mobileNav.installAsApp")}
         </span>
       </div>
       <div className={`pwa-status-item ${isOnline ? "online" : "offline"}`}>
         <span className="pwa-status-dot" />
         <span className="text-xs text-muted-foreground">
-          {isOnline ? "Online" : "Offline"}
+          {isOnline ? t("mobileNav.online") : t("mobileNav.offline")}
         </span>
       </div>
     </div>

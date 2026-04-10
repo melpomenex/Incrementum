@@ -206,9 +206,9 @@ function GeneralSettings() {
                 onChange={(e) => updateSettings({ theme: e.target.value as any })}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
+                <option value="light">{t("settingsLegacy.light")}</option>
+                <option value="dark">{t("settingsLegacy.dark")}</option>
+                <option value="system">{t("settingsLegacy.system")}</option>
               </select>
             </div>
             <div className="flex items-center justify-between">
@@ -247,11 +247,11 @@ function GeneralSettings() {
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
                 <option value="fsrs">{t("settings.fsrs6Recommended")}</option>
-                <option value="sm18">SuperMemo 18</option>
-                <option value="sm15">SuperMemo 15</option>
-                <option value="sm8">SuperMemo 8</option>
-                <option value="sm5">SuperMemo 5</option>
-                <option value="sm2">SuperMemo 2</option>
+                <option value="sm18">{t("settingsLegacy.supermemo18")}</option>
+                <option value="sm15">{t("settingsLegacy.supermemo15")}</option>
+                <option value="sm8">{t("settingsLegacy.supermemo8")}</option>
+                <option value="sm5">{t("settingsLegacy.supermemo5")}</option>
+                <option value="sm2">{t("settingsLegacy.supermemo2")}</option>
               </select>
             </div>
             <div className="flex items-center justify-between">

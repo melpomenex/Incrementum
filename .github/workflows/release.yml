@@ -159,6 +159,10 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
           POCKET_TTS_BUNDLE_RUNTIME: "1"
+          LIBSQLITE3_SYS_USE_PKG_CONFIG: ${{ matrix.os == 'linux' && '1' || '0' }}
+          SQLITE3_STATIC: ${{ matrix.os == 'linux' && '0' || '1' }}
+          VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
+          SQLX_OFFLINE: "true"
         with:
           tagName: ${{ steps.get_version.outputs.VERSION }}
           releaseName: 'Incrementum ${{ steps.get_version.outputs.VERSION }}'

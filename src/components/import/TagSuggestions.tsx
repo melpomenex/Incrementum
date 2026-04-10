@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAITagSuggestions, generateBasicTags, type TagSuggestion } from "../../hooks/useAITagSuggestions";
+import { useI18n } from "../../lib/i18n";
 
 interface TagSuggestionsProps {
   content: string;
@@ -46,6 +47,7 @@ export function TagSuggestions({
   enableAI = true,
   className = "",
 }: TagSuggestionsProps) {
+  const { t } = useI18n();
   const {
     suggestions: aiSuggestions,
     isLoading,
@@ -100,11 +102,11 @@ export function TagSuggestions({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Tag className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Tags</span>
+          <span className="text-sm font-medium text-foreground">{t("videoExtract.tags")}</span>
           {isLoading && (
             <span className="text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
-              Analyzing...
+              {t("tagSuggestions.analyzing")}
             </span>
           )}
         </div>
@@ -114,7 +116,7 @@ export function TagSuggestions({
               onClick={handleRefresh}
               disabled={isLoading}
               className="p-1.5 hover:bg-muted rounded transition-colors disabled:opacity-50"
-              title="Refresh suggestions"
+              title={t("tagSuggestions.refreshSuggestions")}
             >
               <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
             </button>
@@ -122,7 +124,7 @@ export function TagSuggestions({
           <button
             onClick={() => setShowInput(!showInput)}
             className="p-1.5 hover:bg-muted rounded transition-colors"
-            title="Add custom tag"
+            title={t("tagSuggestions.addCustomTag")}
           >
             <Plus className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
@@ -157,7 +159,7 @@ export function TagSuggestions({
             value={customTag}
             onChange={(e) => setCustomTag(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCustomTag()}
-            placeholder="Add custom tag..."
+            placeholder={t("tagSuggestions.addCustomTagPlaceholder")}
             className="flex-1 px-3 py-1.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             autoFocus
           />
@@ -166,7 +168,7 @@ export function TagSuggestions({
             disabled={!customTag.trim()}
             className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm disabled:opacity-50"
           >
-            Add
+            {t("videoExtract.addBtn")}
           </button>
         </div>
       )}
@@ -184,7 +186,7 @@ export function TagSuggestions({
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Sparkles className="w-3 h-3" />
-            <span>Suggested tags</span>
+            <span>{t("tagSuggestions.suggestedTags")}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((suggestion) => {
@@ -198,7 +200,10 @@ export function TagSuggestions({
                       ? "bg-primary/20 text-primary border-primary/50"
                       : CONFIDENCE_COLORS[suggestion.confidence]
                   }`}
-                  title={`${suggestion.category} • ${suggestion.confidence} confidence`}
+                  title={t("tagSuggestions.suggestionTitle", {
+                    category: t(`tagSuggestions.category.${suggestion.category}`),
+                    confidence: t(`tagSuggestions.confidence.${suggestion.confidence}`),
+                  })}
                 >
                   <span>{CATEGORY_ICONS[suggestion.category]}</span>
                   <span>{suggestion.tag}</span>
@@ -213,7 +218,7 @@ export function TagSuggestions({
       {/* No suggestions */}
       {!isLoading && suggestions.length === 0 && selectedTags.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          No tag suggestions available. Add your own tags above.
+          {t("tagSuggestions.noSuggestions")}
         </p>
       )}
     </div>

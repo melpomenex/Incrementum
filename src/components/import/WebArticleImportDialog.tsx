@@ -27,6 +27,7 @@ import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useToast } from "../common/Toast";
+import { useI18n } from "../../lib/i18n";
 import type { Document } from "../../types/document";
 import { isTauri } from "../../lib/tauri";
 
@@ -53,6 +54,7 @@ interface ArticlePreview {
 }
 
 export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebArticleImportDialogProps) {
+  const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -276,7 +278,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
 
   const handleFetch = useCallback(async () => {
     if (!url.trim()) {
-      setError("Please enter a URL");
+      setError(t("webImport.enterUrl"));
       return;
     }
 
@@ -359,23 +361,23 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       }
 
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch article";
+      const message = err instanceof Error ? err.message : t("webImport.failedFetch");
       setError(message);
       
       // Provide helpful error details based on error type
       if (message.includes('CORS') || message.includes('Failed to fetch')) {
         setErrorDetails(
           isTauri() 
-            ? "The website may be blocking automated requests. Try a different URL."
-            : "Browser security (CORS) is preventing direct access. The app tried multiple proxy servers but couldn't retrieve the content. Try using the desktop app for better compatibility."
+            ? t("webImport.blockingRequests")
+            : t("webImport.corsBlocked")
         );
       } else if (message.includes('404')) {
-        setErrorDetails("The page was not found. Please check the URL and try again.");
+        setErrorDetails(t("webImport.notFound"));
       } else if (message.includes('403')) {
-        setErrorDetails("Access to this page is forbidden. The site may require authentication.");
+        setErrorDetails(t("webImport.forbidden"));
       }
       
-      showError("Fetch failed", message);
+      showError(t("webImport.fetchFailedTitle"), message);
     } finally {
       setIsLoading(false);
     }
@@ -437,7 +439,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       await loadDocuments();
 
       setImportSuccess(true);
-      showSuccess("Article imported", `"${preview.title.substring(0, 50)}..." has been added to your library`);
+      showSuccess(t("webImport.articleImported"), t("webImport.articleImportedDesc", {
+        title: `${preview.title.substring(0, 50)}...`,
+      }));
 
       // Close dialog and open the document
       setTimeout(() => {
@@ -447,9 +451,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
         }
       }, 800);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Import failed";
+      const message = err instanceof Error ? err.message : t("webImport.importFailed");
       setError(message);
-      showError("Import failed", message);
+      showError(t("webImport.importFailedTitle"), message);
     } finally {
       setIsImporting(false);
     }
@@ -474,9 +478,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               <Globe className="h-5 w-5 text-blue-500" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Import Web Article</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("webImport.title")}</h2>
               <p className="text-sm text-muted-foreground">
-                Save articles from the web to your library
+                {t("webImport.subtitle")}
               </p>
             </div>
           </div>
@@ -496,7 +500,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               {/* URL Input */}
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-medium text-foreground">
-                  Article URL
+                  {t("webImport.articleUrl")}
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -506,7 +510,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="https://example.com/article"
+                      placeholder={t("webImport.urlPlaceholder")}
                       className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                   </div>
@@ -520,11 +524,11 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    Fetch
+                    {t("webImport.fetch")}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Enter a URL to fetch the article content. Supports most websites.
+                  {t("webImport.fetchHelp")}
                 </p>
               </div>
 
@@ -534,9 +538,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   <div className="flex items-start gap-2">
                     <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <div className="text-xs text-amber-800 dark:text-amber-200">
-                      <strong>CORS Proxy Used</strong>
+                      <strong>{t("webImport.corsProxyUsed")}</strong>
                       <p className="mt-0.5">
-                        This page was fetched through a CORS proxy. Some resources like images may not load properly.
+                        {t("webImport.corsProxyDesc")}
                       </p>
                     </div>
                   </div>
@@ -546,7 +550,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               {/* Tags */}
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-medium text-foreground">
-                  Tags
+                  {t("videoExtract.tags")}
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {tags.map((tag) => (
@@ -570,7 +574,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
                     onKeyDown={handleTagKeyDown}
-                    placeholder="Add tag..."
+                    placeholder={t("webImport.addTag")}
                     className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                   <button
@@ -578,7 +582,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     disabled={!newTag.trim()}
                     className="rounded-lg bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/80 disabled:opacity-50"
                   >
-                    Add
+                    {t("videoExtract.addBtn")}
                   </button>
                 </div>
               </div>
@@ -586,7 +590,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               {/* Quick tags */}
               <div className="mb-6">
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Quick Tags
+                  {t("webImport.quickTags")}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {["article", "blog", "tutorial", "research", "news", "video"].map((tag) => (
@@ -623,7 +627,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     className="mt-2 flex items-center gap-1 text-xs text-destructive hover:underline"
                   >
                     <RefreshCw className="h-3 w-3" />
-                    Try Again
+                    {t("common.retry")}
                   </button>
                 </div>
               )}
@@ -645,17 +649,17 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   {isImporting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Importing...
+                      {t("review.importing")}
                     </>
                   ) : importSuccess ? (
                     <>
                       <CheckCircle2 className="h-4 w-4" />
-                      Imported Successfully
+                      {t("webImport.importedSuccessfully")}
                     </>
                   ) : (
                     <>
                       <BookOpen className="h-4 w-4" />
-                      Import to Library
+                      {t("webImport.importToLibrary")}
                     </>
                   )}
                 </button>
@@ -668,9 +672,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
             {isLoading ? (
               <div className="flex h-full flex-col items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                <p className="text-sm text-muted-foreground">Fetching article...</p>
+                <p className="text-sm text-muted-foreground">{t("webImport.fetchingArticle")}</p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Trying direct fetch, then CORS proxies if needed
+                  {t("webImport.fetchingHelp")}
                 </p>
               </div>
             ) : !preview ? (
@@ -679,21 +683,20 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   <Globe className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="mb-2 text-lg font-medium text-foreground">
-                  Import Web Articles
+                  {t("webImport.emptyTitle")}
                 </h3>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  Enter a URL to fetch article content. The page will be saved to your library for reading and extracting.
+                  {t("webImport.emptyDesc")}
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   <span className="rounded bg-muted px-2 py-1">Medium</span>
                   <span className="rounded bg-muted px-2 py-1">Substack</span>
                   <span className="rounded bg-muted px-2 py-1">Wikipedia</span>
-                  <span className="rounded bg-muted px-2 py-1">+ more</span>
+                  <span className="rounded bg-muted px-2 py-1">{t("webImport.moreExamples")}</span>
                 </div>
                 {!isTauri() && (
                   <div className="mt-4 text-xs text-amber-600 dark:text-amber-400 max-w-sm">
-                    <strong>Note:</strong> In browser mode, some websites may not be accessible due to CORS restrictions. 
-                    For best results, use the desktop app.
+                    <strong>{t("webImport.note")}</strong> {t("webImport.browserModeNote")}
                   </div>
                 )}
               </div>
@@ -708,7 +711,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       </h3>
                       {preview.author && (
                         <p className="mb-2 text-sm text-muted-foreground">
-                          By {preview.author}
+                          {t("webImport.byAuthor", { author: preview.author })}
                         </p>
                       )}
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -719,19 +722,19 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          {preview.wordCount.toLocaleString()} words
+                          {t("webImport.wordCount", { count: preview.wordCount.toLocaleString() })}
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {preview.readingTime} min read
+                          {t("webImport.minRead", { count: preview.readingTime })}
                         </span>
                         {preview.fetchMethod === 'proxy' && (
                           <>
                             <span>•</span>
                             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <ShieldAlert className="h-3 w-3" />
-                              Via Proxy
+                              {t("webImport.viaProxy")}
                             </span>
                           </>
                         )}
@@ -742,7 +745,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      title="Open original"
+                      title={t("webImport.openOriginal")}
                     >
                       <ExternalLink className="h-4 w-4" />
                     </a>
@@ -768,7 +771,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
 
                   {/* Preview mode toggle */}
                   <div className="mt-4 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Preview mode:</span>
+                    <span className="text-xs text-muted-foreground">{t("webImport.previewMode")}</span>
                     <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
                       <button
                         onClick={() => setPreviewMode('rendered')}
@@ -780,7 +783,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                         )}
                       >
                         <Eye className="h-3 w-3" />
-                        Rendered
+                        {t("webImport.rendered")}
                       </button>
                       <button
                         onClick={() => setPreviewMode('text')}
@@ -792,7 +795,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                         )}
                       >
                         <Code className="h-3 w-3" />
-                        Text
+                        {t("webImport.text")}
                       </button>
                     </div>
                   </div>
@@ -806,7 +809,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       srcDoc={preview.processedHtml}
                       className="w-full h-full border-0"
                       sandbox="allow-same-origin allow-scripts"
-                      title="Article Preview"
+                      title={t("webImport.articlePreview")}
                     />
                   ) : (
                     <div className="h-full overflow-y-auto p-5">
@@ -816,13 +819,13 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                             {preview.text.substring(0, 5000)}
                             {preview.text.length > 5000 && (
                               <span className="text-muted-foreground/50">
-                                {"\n\n"}... (content truncated in preview)
+                                {`\n\n`}... {t("webImport.contentTruncated")}
                               </span>
                             )}
                           </div>
                         ) : (
                           <p className="text-muted-foreground italic">
-                            No text content available for preview.
+                            {t("webImport.noTextPreview")}
                           </p>
                         )}
                       </div>
