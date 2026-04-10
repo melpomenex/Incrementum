@@ -1,6 +1,8 @@
-import { invokeCommand } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 import type { Extract } from "./extracts";
 import type { LearningItem } from "./learning-items";
+
+const desktopOnly = () => Promise.reject(new Error("This feature requires the desktop app"));
 
 /**
  * Submit a review for an extract
@@ -13,6 +15,7 @@ export async function submitExtractReview(
     rating: number,
     timeTaken: number
 ): Promise<Extract> {
+    if (!isTauri()) return desktopOnly();
     return await invokeCommand<Extract>("submit_extract_review", {
         extractId,
         rating,
@@ -28,6 +31,7 @@ export async function createClozeFromExtract(
     clozeText: string,
     clozeRanges: [number, number][]
 ): Promise<LearningItem> {
+    if (!isTauri()) return desktopOnly();
     return await invokeCommand<LearningItem>("create_cloze_from_extract", {
         extractId,
         clozeText,
@@ -43,6 +47,7 @@ export async function createQAFromExtract(
     question: string,
     answer: string
 ): Promise<LearningItem> {
+    if (!isTauri()) return desktopOnly();
     return await invokeCommand<LearningItem>("create_qa_from_extract", {
         extractId,
         question,
