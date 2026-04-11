@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-04-11
+
+### Added
+- **SuperMemo 20 scheduling** — added SM-20 as a first-class algorithm option across desktop and browser-backed review flows, with native Rust and TypeScript implementations based on the reverse-engineered SM-20 V2 interval-growth core.
+- **SuperMemo 20 transparency** — review transparency, inspector, preview-interval, item-detail, and zen-review surfaces now understand SM-20 state and display SM-20-specific stability, difficulty, retrievability, repetitions, lapses, and forget-curve behavior when SM-20 is active.
+
+### Changed
+- Expanded internationalization coverage across review, queue, keyboard shortcut, graph, mobile, document, settings, and shared UI surfaces. This pass removes additional hardcoded English strings, broadens locale-key usage across `en`, `zh`, `es`, `de`, `fr`, and `ja`, and keeps the release aligned with the current i18n audit work.
+- Updated app, package, Tauri, and Rust crate version metadata to `1.19.0`.
+
+### Fixed
+- Restored native Rust test/build health by updating the stale `Extract` test helper in `src-tauri/src/generator/mod.rs` to include the current `progressive_summaries` field.
+
 ## [1.18.7] - 2026-04-10
 
 ### Added
@@ -670,7 +683,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.6...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.7...v1.19.0
+[1.18.7]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.6...v1.18.7
 [1.18.6]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.5...v1.18.6
 [1.18.5]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.4...v1.18.5
 [1.18.4]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.3...v1.18.4

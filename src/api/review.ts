@@ -27,7 +27,7 @@ export async function submitReview(
   options?: {
     desiredRetention?: number;
     fsrsWeights?: number[];
-    algorithm?: "fsrs" | "sm2" | "sm18";
+    algorithm?: "fsrs" | "sm2" | "sm18" | "sm20";
     noScheduleUpdate?: boolean;
   }
 ): Promise<LearningItem> {

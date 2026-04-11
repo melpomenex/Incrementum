@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTabsStore } from "../../../stores";
+import { useI18n } from "../../../lib/i18n";
 
 interface TabContextMenuProps {
   tabId: string;
@@ -14,6 +15,7 @@ export function TabContextMenu({
   y,
   onClose,
 }: TabContextMenuProps) {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
   const { closeTab, closeOtherTabs, closeTabsToRight, tabs } = useTabsStore();
 
@@ -76,7 +78,7 @@ export function TabContextMenu({
           flex items-center justify-between gap-4
         `}
       >
-        <span>Close</span>
+        <span>{t("tabContextMenu.close")}</span>
         <span className="text-xs text-muted-foreground">Ctrl+W</span>
       </button>
 
@@ -90,7 +92,7 @@ export function TabContextMenu({
           disabled:opacity-50 disabled:cursor-not-allowed
         `}
       >
-        Close Others
+        {t("tabContextMenu.closeOthers")}
       </button>
 
       {/* Close to Right */}
@@ -103,7 +105,7 @@ export function TabContextMenu({
           disabled:opacity-50 disabled:cursor-not-allowed
         `}
       >
-        Close Tabs to Right
+        {t("tabContextMenu.closeTabsToRight")}
       </button>
 
       <div className="my-1 border-t border-border" />
@@ -120,7 +122,7 @@ export function TabContextMenu({
           flex items-center justify-between gap-4
         "
       >
-        <span>Close All Tabs</span>
+        <span>{t("tabContextMenu.closeAllTabs")}</span>
       </button>
     </div>
   );

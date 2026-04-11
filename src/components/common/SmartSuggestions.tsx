@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { getExtracts, type Extract } from "../../api/extracts";
+import { useI18n } from "../../lib/i18n";
 
 interface SmartSuggestion {
   id: string;
@@ -41,6 +42,7 @@ export function SmartSuggestions({
   onStartReview,
   className = "",
 }: SmartSuggestionsProps) {
+  const { t } = useI18n();
   const [extracts, setExtracts] = useState<Extract[]>([]);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -77,8 +79,8 @@ export function SmartSuggestions({
       result.push({
         id: "flashcards",
         type: "flashcards",
-        title: "Create Flashcards",
-        description: `You have ${unprocessedCount} extract${unprocessedCount > 1 ? "s" : ""} ready to be converted into flashcards.`,
+        title: t("smartSuggestions.createFlashcards"),
+        description: t("smartSuggestions.extractsReady", { count: unprocessedCount }),
         count: unprocessedCount,
         action: async () => {
           if (onCreateFlashcards) {
@@ -90,7 +92,7 @@ export function SmartSuggestions({
             }
           }
         },
-        actionLabel: isCreating ? "Creating..." : "Create Now",
+        actionLabel: isCreating ? t("smartSuggestions.creating") : t("smartSuggestions.createNow"),
         icon: Zap,
         color: "text-amber-500",
         bgColor: "bg-amber-500/10",
@@ -102,11 +104,11 @@ export function SmartSuggestions({
       result.push({
         id: "review",
         type: "review",
-        title: "Review Your Cards",
-        description: "You have cards due for review. Spaced repetition works best with daily practice.",
+        title: t("smartSuggestions.reviewYourCards"),
+        description: t("smartSuggestions.reviewDescription"),
         count: 0,
         action: () => onStartReview?.(),
-        actionLabel: "Start Review",
+        actionLabel: t("smartSuggestions.startReview"),
         icon: Target,
         color: "text-blue-500",
         bgColor: "bg-blue-500/10",
@@ -136,7 +138,7 @@ export function SmartSuggestions({
             <button
               onClick={() => handleDismiss(suggestion.id)}
               className="absolute top-2 right-2 p-1 hover:bg-black/10 rounded-full transition-colors"
-              aria-label="Dismiss suggestion"
+              aria-label={t("smartSuggestions.dismissSuggestion")}
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -150,7 +152,7 @@ export function SmartSuggestions({
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-medium text-foreground">{suggestion.title}</h4>
                   <span className="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
-                    Suggested
+                    {t("smartSuggestions.suggested")}
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">{suggestion.description}</p>
@@ -171,7 +173,7 @@ export function SmartSuggestions({
                       ))}
                       {extracts.length > 3 && (
                         <span className="px-2 py-1 text-xs text-muted-foreground">
-                          +{extracts.length - 3} more
+                          {t("smartSuggestions.moreCount", { count: extracts.length - 3 })}
                         </span>
                       )}
                     </div>
@@ -215,18 +217,19 @@ export function InlineSuggestion({
   onDismiss,
   type = "flashcards",
 }: InlineSuggestionProps) {
+  const { t } = useI18n();
   if (count === 0) return null;
 
   const config = {
     flashcards: {
       icon: Zap,
-      label: "Create flashcards",
+      label: t("smartSuggestions.createFlashcards"),
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
     },
     review: {
       icon: Target,
-      label: "Start review",
+      label: t("smartSuggestions.startReview"),
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
     },
@@ -241,7 +244,9 @@ export function InlineSuggestion({
       <div className="flex items-center gap-2">
         <Icon className={`w-4 h-4 ${color}`} />
         <span className="text-sm text-foreground">
-          <strong>{count}</strong> {type === "flashcards" ? "extracts" : "cards"} ready
+          {type === "flashcards"
+            ? t("smartSuggestions.extractsReadyCompact", { count })
+            : t("smartSuggestions.cardsReadyCompact", { count })}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -255,7 +260,7 @@ export function InlineSuggestion({
           <button
             onClick={onDismiss}
             className="p-1 hover:bg-black/10 rounded transition-colors"
-            aria-label="Dismiss"
+            aria-label={t("smartSuggestions.dismiss")}
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -285,6 +290,7 @@ export function SuggestionBanner({
   icon: Icon = Sparkles,
   variant = "info",
 }: SuggestionBannerProps) {
+  const { t } = useI18n();
   const variantStyles = {
     info: "bg-blue-500/10 border-blue-500/20 text-blue-600",
     success: "bg-green-500/10 border-green-500/20 text-green-600",
@@ -310,7 +316,7 @@ export function SuggestionBanner({
           <button
             onClick={onDismiss}
             className="p-1.5 hover:bg-black/10 rounded-lg transition-colors"
-            aria-label="Dismiss"
+            aria-label={t("smartSuggestions.dismiss")}
           >
             <X className="w-4 h-4" />
           </button>

@@ -5,17 +5,9 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useI18n } from "../../lib/i18n";
 import { GraphNodeType, type GraphNode, type GraphEdge } from "./KnowledgeGraph";
-import {
-  RotateCcw,
-  ZoomIn,
-  ZoomOut,
-  Move3d,
-  Sparkles,
-  Grid3x3,
-  Focus,
-  Info,
-} from "lucide-react";
+import { RotateCcw, ZoomIn, ZoomOut, Move3d, Sparkles, Grid3x3, Focus, Info } from "lucide-react";
 
 export interface ObsidianSphereProps {
   nodes: GraphNode[];
@@ -73,6 +65,7 @@ export function ObsidianSphere({
   onNodeHover,
   showHeader = true,
 }: ObsidianSphereProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -212,8 +205,12 @@ export function ObsidianSphere({
 
     // Clear with gradient background
     const bgGradient = ctx.createRadialGradient(
-      width / 2, height / 2, 0,
-      width / 2, height / 2, Math.max(width, height) / 2
+      width / 2,
+      height / 2,
+      0,
+      width / 2,
+      height / 2,
+      Math.max(width, height) / 2
     );
     bgGradient.addColorStop(0, isDark ? "#0a0f1a" : "#f8fafc");
     bgGradient.addColorStop(1, isDark ? "#050810" : "#e2e8f0");
@@ -246,7 +243,8 @@ export function ObsidianSphere({
         const opacity = Math.max(0.05, depth * 0.4);
 
         // Check if edge is connected to selected/hovered node
-        const isHighlighted = selectedNode && (edge.source === selectedNode || edge.target === selectedNode);
+        const isHighlighted =
+          selectedNode && (edge.source === selectedNode || edge.target === selectedNode);
         const isDimmed = selectedNode && !isHighlighted;
 
         ctx.beginPath();
@@ -285,15 +283,23 @@ export function ObsidianSphere({
       const opacity = isDimmed ? 0.2 : baseOpacity;
 
       // Pulse effect
-      const pulse = isSelected ? 1.3 : isHovered ? 1.2 : 1 + Math.sin(time * config.pulseSpeed + node.theta) * 0.1;
+      const pulse = isSelected
+        ? 1.3
+        : isHovered
+          ? 1.2
+          : 1 + Math.sin(time * config.pulseSpeed + node.theta) * 0.1;
       const size = config.size * projected.scale * pulse;
 
       // Glow effect
       if (!isDimmed) {
         const glowSize = config.glow * projected.scale * (isSelected ? 1.5 : isHovered ? 1.3 : 1);
         const glowGradient = ctx.createRadialGradient(
-          projected.x, projected.y, 0,
-          projected.x, projected.y, glowSize
+          projected.x,
+          projected.y,
+          0,
+          projected.x,
+          projected.y,
+          glowSize
         );
         glowGradient.addColorStop(0, config.color + (isSelected ? "60" : "30"));
         glowGradient.addColorStop(0.5, config.color + (isSelected ? "20" : "10"));
@@ -313,8 +319,12 @@ export function ObsidianSphere({
 
       // Inner highlight
       const highlightGradient = ctx.createRadialGradient(
-        projected.x - size * 0.3, projected.y - size * 0.3, 0,
-        projected.x, projected.y, size
+        projected.x - size * 0.3,
+        projected.y - size * 0.3,
+        0,
+        projected.x,
+        projected.y,
+        size
       );
       highlightGradient.addColorStop(0, "rgba(255,255,255,0.6)");
       highlightGradient.addColorStop(1, "rgba(255,255,255,0)");
@@ -338,10 +348,10 @@ export function ObsidianSphere({
         ctx.font = `${isSelected ? "bold " : ""}${Math.max(10, 12 * projected.scale)}px ${theme.typography.fontFamily}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        
+
         let label = node.label;
         if (label.length > 20) label = label.substring(0, 17) + "...";
-        
+
         ctx.globalAlpha = opacity;
         ctx.fillText(label, projected.x, projected.y + size + 8);
         ctx.globalAlpha = 1;
@@ -350,8 +360,12 @@ export function ObsidianSphere({
 
     // Draw center glow
     const centerGradient = ctx.createRadialGradient(
-      width / 2, height / 2, 0,
-      width / 2, height / 2, 100 * zoom
+      width / 2,
+      height / 2,
+      0,
+      width / 2,
+      height / 2,
+      100 * zoom
     );
     centerGradient.addColorStop(0, isDark ? "rgba(59,130,246,0.1)" : "rgba(59,130,246,0.05)");
     centerGradient.addColorStop(1, "rgba(59,130,246,0)");
@@ -359,7 +373,19 @@ export function ObsidianSphere({
     ctx.beginPath();
     ctx.arc(width / 2, height / 2, 100 * zoom, 0, Math.PI * 2);
     ctx.fill();
-  }, [sphereNodes, edges, project, rotation, zoom, hoveredNode, selectedNode, showGrid, showConstellations, isDark, theme]);
+  }, [
+    sphereNodes,
+    edges,
+    project,
+    rotation,
+    zoom,
+    hoveredNode,
+    selectedNode,
+    showGrid,
+    showConstellations,
+    isDark,
+    theme,
+  ]);
 
   // Check if two nodes are connected
   const isConnected = (nodeId1: string, nodeId2: string, edges: GraphEdge[]): boolean => {
@@ -498,10 +524,10 @@ export function ObsidianSphere({
           <div className="pointer-events-auto">
             <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              Knowledge Sphere
+              {t("graph.knowledgeSphere")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {nodes.length} nodes orbiting your knowledge universe
+              {t("graph.nodesOrbiting", { count: nodes.length })}
             </p>
           </div>
         ) : (
@@ -519,37 +545,37 @@ export function ObsidianSphere({
       {/* Info panel */}
       {showInfo && (
         <div className="absolute top-20 left-6 w-72 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-5 pointer-events-auto">
-          <h3 className="font-semibold mb-3">About Knowledge Sphere</h3>
+          <h3 className="font-semibold mb-3">{t("graph.aboutKnowledgeSphere")}</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Your knowledge visualized as a 3D constellation. Each node represents a piece of your learning journey.
+            {t("graph.knowledgeSphereDescription")}
           </p>
-          
+
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-              <span className="text-sm">Documents</span>
+              <span className="text-sm">{t("graph.documents")}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-              <span className="text-sm">Extracts</span>
+              <span className="text-sm">{t("graph.extracts")}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-              <span className="text-sm">Flashcards</span>
+              <span className="text-sm">{t("graph.flashcards")}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-              <span className="text-sm">Categories</span>
+              <span className="text-sm">{t("graph.categories")}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-              <span className="text-sm">Tags</span>
+              <span className="text-sm">{t("graph.tags")}</span>
             </div>
           </div>
 
           <div className="mt-4 pt-4 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              🖱️ Drag to rotate · Scroll to zoom · Click to select
+              {t("graph.dragRotateScrollZoomClickSelect")}
             </p>
           </div>
         </div>
@@ -580,14 +606,14 @@ export function ObsidianSphere({
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground mb-3">
-                  {node.connections} connection{node.connections !== 1 ? "s" : ""}
+                  {t("graph.connectionsCount", { count: node.connections })}
                 </div>
                 <button
                   onClick={focusOnNode}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors"
                 >
                   <Focus className="w-4 h-4" />
-                  Focus View
+                  {t("graph.focusView")}
                 </button>
               </>
             );
@@ -600,14 +626,14 @@ export function ObsidianSphere({
         <button
           onClick={() => setShowGrid(!showGrid)}
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all ${showGrid ? "text-primary" : ""}`}
-          title="Toggle grid"
+          title={t("graph.toggleGrid")}
         >
           <Grid3x3 className="w-5 h-5" />
         </button>
         <button
           onClick={() => setShowConstellations(!showConstellations)}
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all ${showConstellations ? "text-primary" : ""}`}
-          title="Toggle connections"
+          title={t("graph.toggleConnections")}
         >
           <Move3d className="w-5 h-5" />
         </button>
@@ -615,21 +641,21 @@ export function ObsidianSphere({
         <button
           onClick={() => setZoom((z) => Math.min(3, z * 1.2))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
-          title="Zoom in"
+          title={t("graph.zoomIn")}
         >
           <ZoomIn className="w-5 h-5" />
         </button>
         <button
           onClick={() => setZoom((z) => Math.max(0.3, z * 0.8))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
-          title="Zoom out"
+          title={t("graph.zoomOut")}
         >
           <ZoomOut className="w-5 h-5" />
         </button>
         <button
           onClick={resetView}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
-          title="Reset view"
+          title={t("graph.resetView")}
         >
           <RotateCcw className="w-5 h-5" />
         </button>
@@ -637,9 +663,7 @@ export function ObsidianSphere({
 
       {/* Zoom indicator */}
       <div className="absolute bottom-6 left-6 bg-card/80 backdrop-blur border border-border rounded-xl shadow-lg px-4 py-2">
-        <div className="text-xs text-muted-foreground">
-          Zoom: {Math.round(zoom * 100)}%
-        </div>
+        <div className="text-xs text-muted-foreground">Zoom: {Math.round(zoom * 100)}%</div>
       </div>
     </div>
   );

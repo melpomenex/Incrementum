@@ -785,6 +785,7 @@ function CostEstimator({
   isVisible: boolean;
   pricing?: { prompt?: number; completion?: number };
 }) {
+  const { t } = useI18n();
   const tokens = useMemo(() => estimateTokens(inputText), [inputText]);
   const cost = useMemo(() => estimateCost(tokens, 500, pricing), [tokens, pricing]);
   
@@ -794,22 +795,25 @@ function CostEstimator({
     <div className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg text-xs">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <BarChart3 className="w-3.5 h-3.5" />
-        <span>{formatTokenCount(tokens)} tokens</span>
+        <span>{t("flashcardStudio.tokensWithCount", { count: formatTokenCount(tokens) })}</span>
       </div>
       <div className="w-px h-3 bg-border" />
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <DollarSign className="w-3.5 h-3.5" />
-        <span>Est. cost: {cost}</span>
+        <span>{t("flashcardStudio.estimatedCost", { cost })}</span>
       </div>
       {pricing && (
-        <div className="text-muted-foreground" title="Using model's actual pricing">
-          ({formatModelPrice(pricing.prompt)} / {formatModelPrice(pricing.completion)} per 1K)
+        <div className="text-muted-foreground" title={t("flashcardStudio.modelPricingTitle")}>
+          {t("flashcardStudio.modelPricingValue", {
+            prompt: formatModelPrice(pricing.prompt),
+            completion: formatModelPrice(pricing.completion),
+          })}
         </div>
       )}
       {tokens > 4000 && (
         <div className="flex items-center gap-1 text-amber-500">
           <AlertCircle className="w-3.5 h-3.5" />
-          <span>Large context</span>
+          <span>{t("flashcardStudio.largeContext")}</span>
         </div>
       )}
     </div>
@@ -827,6 +831,7 @@ function ContextControlPanel({
   onChange: (selection: ContextSelection) => void;
   maxTokens: number;
 }) {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageStart, setPageStart] = useState("");
@@ -888,7 +893,7 @@ function ContextControlPanel({
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-600">
         <AlertCircle className="w-3.5 h-3.5" />
-        <span>Select a document to enable granular context control</span>
+        <span>{t("flashcardStudio.selectDocumentForContext")}</span>
       </div>
     );
   }
@@ -904,15 +909,15 @@ function ContextControlPanel({
             <Scissors className="w-4 h-4" />
           </div>
           <div className="text-left">
-            <div className="text-sm font-medium text-foreground">Context Control</div>
+            <div className="text-sm font-medium text-foreground">{t("flashcardStudio.contextControlTitle")}</div>
             <div className="text-xs text-muted-foreground">
-              {selection.mode === "full" && "Using full document"}
-              {selection.mode === "chapters" && `${selectedChapters.length} chapter(s) selected`}
-              {selection.mode === "pages" && "Page range selected"}
-              {selection.mode === "excerpt" && "Custom excerpt"}
-              {selection.mode === "search" && "Search results"}
+              {selection.mode === "full" && t("flashcardStudio.contextModeFullSummary")}
+              {selection.mode === "chapters" && t("flashcardStudio.contextModeChaptersSummary", { count: selectedChapters.length })}
+              {selection.mode === "pages" && t("flashcardStudio.contextModePagesSummary")}
+              {selection.mode === "excerpt" && t("flashcardStudio.contextModeExcerptSummary")}
+              {selection.mode === "search" && t("flashcardStudio.contextModeSearchSummary")}
               {" · "}
-              {formatTokenCount(estimatedTokens)} tokens
+              {t("flashcardStudio.tokensWithCount", { count: formatTokenCount(estimatedTokens) })}
             </div>
           </div>
         </div>
@@ -924,11 +929,11 @@ function ContextControlPanel({
           {/* Mode Selection */}
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "full", label: "Full Document", icon: FileText },
-              { id: "chapters", label: "Chapters", icon: BookOpen },
-              { id: "pages", label: "Page Range", icon: ScrollText },
-              { id: "excerpt", label: "Excerpt", icon: Highlighter },
-              { id: "search", label: "Search", icon: Search },
+              { id: "full", label: t("flashcardStudio.contextModeFull"), icon: FileText },
+              { id: "chapters", label: t("flashcardStudio.contextModeChapters"), icon: BookOpen },
+              { id: "pages", label: t("flashcardStudio.contextModePages"), icon: ScrollText },
+              { id: "excerpt", label: t("flashcardStudio.contextModeExcerpt"), icon: Highlighter },
+              { id: "search", label: t("flashcardStudio.contextModeSearch"), icon: Search },
             ].map((mode) => (
               <button
                 key={mode.id}
@@ -949,7 +954,7 @@ function ContextControlPanel({
           {/* Chapter Selection */}
           {selection.mode === "chapters" && chapters.length > 0 && (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Select chapters:</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.selectChapters")}</div>
               <div className="max-h-48 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
                 {chapters.map((chapter) => (
                   <label
@@ -967,7 +972,7 @@ function ContextControlPanel({
                       }}
                       className="rounded"
                     />
-                    <span className="text-xs text-muted-foreground w-16">Chapter {chapter.number}</span>
+                    <span className="text-xs text-muted-foreground w-16">{t("flashcardStudio.chapterNumber", { count: chapter.number })}</span>
                     <span className="text-sm text-foreground truncate">{chapter.title}</span>
                   </label>
                 ))}
@@ -978,21 +983,21 @@ function ContextControlPanel({
           {/* Page Range */}
           {selection.mode === "pages" && (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Enter page range:</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.enterPageRange")}</div>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   value={pageStart}
                   onChange={(e) => setPageStart(e.target.value)}
-                  placeholder="Start"
+                  placeholder={t("flashcardStudio.start")}
                   className="w-24 px-3 py-2 text-sm border border-border rounded-lg bg-background"
                 />
-                <span className="text-muted-foreground">to</span>
+                <span className="text-muted-foreground">{t("flashcardStudio.to")}</span>
                 <input
                   type="number"
                   value={pageEnd}
                   onChange={(e) => setPageEnd(e.target.value)}
-                  placeholder="End"
+                  placeholder={t("flashcardStudio.end")}
                   className="w-24 px-3 py-2 text-sm border border-border rounded-lg bg-background"
                 />
                 <button
@@ -1005,11 +1010,11 @@ function ContextControlPanel({
                   }}
                   className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90"
                 >
-                  Apply
+                  {t("flashcardStudio.apply")}
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Note: Page numbers are approximate based on document structure
+                {t("flashcardStudio.pageRangeNote")}
               </p>
             </div>
           )}
@@ -1017,17 +1022,17 @@ function ContextControlPanel({
           {/* Excerpt */}
           {selection.mode === "excerpt" && (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Paste or type the excerpt:</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.pasteExcerptPrompt")}</div>
               <textarea
                 value={excerptText}
                 onChange={(e) => setExcerptText(e.target.value)}
-                placeholder="Paste the text you want to use as context..."
+                placeholder={t("flashcardStudio.excerptPlaceholder")}
                 rows={5}
                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background resize-none"
               />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  {formatTokenCount(estimateTokens(excerptText))} tokens
+                  {t("flashcardStudio.tokensWithCount", { count: formatTokenCount(estimateTokens(excerptText)) })}
                 </span>
                 <button
                   onClick={() => {
@@ -1037,7 +1042,7 @@ function ContextControlPanel({
                   disabled={!excerptText.trim()}
                   className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
-                  Use Excerpt
+                  {t("flashcardStudio.useExcerpt")}
                 </button>
               </div>
             </div>
@@ -1046,14 +1051,14 @@ function ContextControlPanel({
           {/* Search */}
           {selection.mode === "search" && (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground">Search within document:</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.searchWithinDocument")}</div>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="Search for theorems, terms, etc..."
+                  placeholder={t("flashcardStudio.searchWithinDocumentPlaceholder")}
                   className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background"
                 />
                 <button
@@ -1083,15 +1088,15 @@ function ContextControlPanel({
           {/* Token Estimation */}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <div className="text-xs text-muted-foreground">
-              Estimated: <span className="font-medium text-foreground">{formatTokenCount(estimatedTokens)}</span> tokens
+              {t("flashcardStudio.estimatedTokensPrefix")} <span className="font-medium text-foreground">{formatTokenCount(estimatedTokens)}</span> {t("flashcardStudio.tokens")}
               {selection.mode !== "full" && (
                 <span className="text-green-600 ml-2">
-                  (saves {formatTokenCount(estimateTokens(document.content) - estimatedTokens)} tokens)
+                  {t("flashcardStudio.savesTokens", { count: formatTokenCount(estimateTokens(document.content) - estimatedTokens) })}
                 </span>
               )}
             </div>
             <div className="text-xs text-muted-foreground">
-              Max: {formatTokenCount(maxTokens)}
+              {t("flashcardStudio.maxTokens", { count: formatTokenCount(maxTokens) })}
             </div>
           </div>
         </div>
@@ -1119,6 +1124,7 @@ function CardPreview({
   imageAssets: ImageAsset[];
   defaultImageAssetId?: string;
 }) {
+  const { t } = useI18n();
   const [editForm, setEditForm] = useState<Partial<DraftCard>>({
     type: card.type,
     question: card.question || "",
@@ -1193,23 +1199,23 @@ function CardPreview({
     return (
       <div className="space-y-3 p-3">
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Card Type</label>
+          <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.cardTypeLabel")}</label>
           <select
             value={activeType}
             onChange={(e) => setType(e.target.value as DraftCardType)}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            <option value="qa">Q&amp;A</option>
-            <option value="cloze">Cloze</option>
-            <option value="multiple-choice">Multiple Choice</option>
-            <option value="image-occlusion">Image Occlusion</option>
+            <option value="qa">{t("flashcardStudio.cardTypeQaShort")}</option>
+            <option value="cloze">{t("flashcardStudio.cardTypeCloze")}</option>
+            <option value="multiple-choice">{t("flashcardStudio.cardTypeMultipleChoice")}</option>
+            <option value="image-occlusion">{t("flashcardStudio.cardTypeImageOcclusion")}</option>
           </select>
         </div>
 
         {activeType === "qa" ? (
           <>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Question</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.question")}</label>
               <textarea
                 value={(editForm.question as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
@@ -1218,7 +1224,7 @@ function CardPreview({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Answer</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.answer")}</label>
               <textarea
                 value={(editForm.answer as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
@@ -1229,7 +1235,7 @@ function CardPreview({
           </>
         ) : activeType === "cloze" ? (
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Cloze Text (use {'{{'}...{'}}'} for deletions)</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.clozeTextLabel")}</label>
             <textarea
               value={(editForm.text as string) || ""}
               onChange={(e) => setEditForm((f) => ({ ...f, text: e.target.value }))}
@@ -1240,7 +1246,7 @@ function CardPreview({
         ) : activeType === "multiple-choice" ? (
           <>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Question</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.question")}</label>
               <textarea
                 value={(editForm.question as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
@@ -1250,7 +1256,7 @@ function CardPreview({
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground">Choices</label>
+                <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.choices")}</label>
                 <button
                   type="button"
                   onClick={() =>
@@ -1267,7 +1273,7 @@ function CardPreview({
                   }
                   className="text-xs text-primary hover:opacity-80"
                 >
-                  Add choice
+                  {t("flashcardStudio.addChoice")}
                 </button>
               </div>
               {(editForm.multipleChoiceOptions || []).map((option, index) => (
@@ -1293,14 +1299,14 @@ function CardPreview({
                         ),
                       }))
                     }
-                    placeholder={`Choice ${index + 1}`}
+                    placeholder={t("flashcardStudio.choiceNumber", { count: index + 1 })}
                     className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
               ))}
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Explanation (optional)</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.explanationOptional")}</label>
               <textarea
                 value={(editForm.answer as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
@@ -1312,17 +1318,17 @@ function CardPreview({
         ) : (
           <>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Prompt</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.prompt")}</label>
               <textarea
                 value={(editForm.question as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, question: e.target.value }))}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 rows={2}
-                placeholder="What should be identified on the image?"
+                placeholder={t("flashcardStudio.imagePromptPlaceholder")}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Reveal / explanation</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.revealExplanation")}</label>
               <textarea
                 value={(editForm.answer as string) || ""}
                 onChange={(e) => setEditForm((f) => ({ ...f, answer: e.target.value }))}
@@ -1331,7 +1337,7 @@ function CardPreview({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Source Image</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.sourceImage")}</label>
               <select
                 value={(editForm.imageOcclusionAssetId as string | undefined) || ""}
                 onChange={(e) =>
@@ -1342,7 +1348,7 @@ function CardPreview({
                 }
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
-                <option value="">Select an imported image</option>
+                <option value="">{t("flashcardStudio.selectImportedImage")}</option>
                 {imageAssets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
                     {asset.file_name || asset.id}
@@ -1360,7 +1366,7 @@ function CardPreview({
         {previewHtml && (
           <div className="rounded-md border border-border/50 bg-muted/30 p-2 text-sm">
             <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Preview {previewPending && <span className="opacity-50">...</span>}
+              {t("flashcardStudio.preview")} {previewPending && <span className="opacity-50">...</span>}
             </div>
             <div
               className="prose prose-sm max-w-none [&_.math-expression-block]:my-1 [&_.math-expression-block]:flex [&_.math-expression-block]:justify-center"
@@ -1373,13 +1379,13 @@ function CardPreview({
             onClick={() => onSaveEdit({})}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
-            Cancel
+            {t("flashcardStudio.cancel")}
           </button>
           <button
             onClick={() => onSaveEdit(editForm)}
             className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:opacity-90"
           >
-            Save Changes
+            {t("flashcardStudio.saveChanges")}
           </button>
         </div>
       </div>
@@ -1403,7 +1409,7 @@ function CardPreview({
             {card.type === "qa" ? (
               <div className="space-y-2">
                 <div className="text-sm font-medium text-foreground">
-                  {isFlipped ? "Answer:" : "Question:"}
+                  {isFlipped ? t("flashcardStudio.answerLabel") : t("flashcardStudio.questionLabel")}
                 </div>
                 <div className="text-sm text-foreground/90 leading-relaxed">
                   {isFlipped
@@ -1411,7 +1417,7 @@ function CardPreview({
                     : card.question}
                 </div>
                 <div className="text-xs text-muted-foreground mt-2">
-                  {isFlipped ? "Click to see question" : "Click to reveal answer"}
+                  {isFlipped ? t("flashcardStudio.clickToSeeQuestion") : t("flashcardStudio.clickToRevealAnswer")}
                 </div>
               </div>
             ) : card.type === "multiple-choice" ? (
@@ -1438,10 +1444,10 @@ function CardPreview({
               </div>
             ) : card.type === "image-occlusion" ? (
               <div className="space-y-3">
-                <div className="text-sm font-medium text-foreground">{card.question || "Image occlusion card"}</div>
+                <div className="text-sm font-medium text-foreground">{card.question || t("flashcardStudio.imageOcclusionCard")}</div>
                 {previewAsset ? (
                   <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-                    <img src={previewAsset.data_url} alt={previewAsset.file_name || "Occlusion source"} className="w-full object-contain" />
+                    <img src={previewAsset.data_url} alt={previewAsset.file_name || t("flashcardStudio.occlusionSource")} className="w-full object-contain" />
                     {!isFlipped &&
                       (card.imageOcclusionRegions || []).map((region, index) => (
                         <div
@@ -1458,7 +1464,7 @@ function CardPreview({
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-                    Select an image to define occlusion regions.
+                    {t("flashcardStudio.selectImageForOcclusion")}
                   </div>
                 )}
                 {isFlipped && card.answer && (
@@ -1495,6 +1501,7 @@ function ImageOcclusionEditor({
   regions: ImageOcclusionRegion[];
   onChange: (regions: ImageOcclusionRegion[]) => void;
 }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
   const [draftRegion, setDraftRegion] = useState<ImageOcclusionRegion | null>(null);
@@ -1521,7 +1528,7 @@ function ImageOcclusionEditor({
   if (!asset) {
     return (
       <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-        Import and select an image, then drag across it to create hidden regions.
+        {t("flashcardStudio.importImageForOcclusion")}
       </div>
     );
   }
@@ -1558,7 +1565,7 @@ function ImageOcclusionEditor({
         onPointerUp={commitDraft}
         onPointerLeave={commitDraft}
       >
-        <img src={asset.data_url} alt={asset.file_name || "Occlusion editor"} className="w-full object-contain select-none" />
+        <img src={asset.data_url} alt={asset.file_name || t("flashcardStudio.occlusionEditor")} className="w-full object-contain select-none" />
         {[...regions, ...(draftRegion ? [draftRegion] : [])].map((region, index) => (
           <div
             key={region.id || `${region.x}-${region.y}-${index}`}
@@ -1573,14 +1580,14 @@ function ImageOcclusionEditor({
         ))}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Drag to add a hidden region.</span>
+        <span>{t("flashcardStudio.dragHiddenRegion")}</span>
         <button
           type="button"
           onClick={() => onChange(regions.slice(0, -1))}
           disabled={regions.length === 0}
           className="text-primary hover:opacity-80 disabled:opacity-40"
         >
-          Undo region
+          {t("flashcardStudio.undoRegion")}
         </button>
       </div>
     </div>
@@ -1668,7 +1675,7 @@ function DocumentSelector({
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search documents..."
+                placeholder={t("flashcardStudio.searchDocuments")}
                 className="w-full pl-9 pr-3 py-2 text-sm bg-muted/50 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
@@ -1686,7 +1693,7 @@ function DocumentSelector({
             >
               <span className="flex items-center gap-2">
                 <X className="w-4 h-4" />
-                No document (general knowledge)
+                {t("flashcardStudio.noDocument")}
               </span>
             </button>
             {filteredDocs.map((doc) => (
@@ -1706,7 +1713,7 @@ function DocumentSelector({
             ))}
             {filteredDocs.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No documents found
+                {t("flashcardStudio.noDocumentsFound")}
               </div>
             )}
           </div>
@@ -1725,6 +1732,7 @@ function DeckSelector({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const selectedDeck = decks.find((d) => d.id === selectedId);
@@ -1752,7 +1760,7 @@ function DeckSelector({
       >
         <FolderOpen className="w-4 h-4" />
         <span className="max-w-[120px] truncate">
-          {selectedDeck?.name || "Select deck..."}
+          {selectedDeck?.name || t("flashcardStudio.selectDeck")}
         </span>
         <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
       </button>
@@ -1772,7 +1780,7 @@ function DeckSelector({
             >
               <span className="flex items-center gap-2">
                 <X className="w-4 h-4" />
-                No deck
+                {t("flashcardStudio.noDeck")}
               </span>
             </button>
             {decks.map((deck) => (
@@ -2224,11 +2232,11 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     const promptText = customPrompt || input;
     if (!promptText.trim() || isSending) return;
     if (!isNotebookProviderSelected && !currentProvider) {
-      toast.error("No LLM provider configured", "Add or enable a provider in Settings → AI Providers.");
+      toast.error(t("flashcardStudio.noLlmProvider"), t("flashcardStudio.noLlmProviderDesc"));
       return;
     }
     if (isNotebookProviderSelected && !selectedNotebookId) {
-      toast.error("No NotebookLM notebook selected", "Choose a NotebookLM notebook in the provider bar.");
+      toast.error(t("flashcardStudio.noNotebookSelected"), t("flashcardStudio.noNotebookSelectedDesc"));
       return;
     }
 
@@ -2307,7 +2315,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
 
         if (cards.length > 0) {
           setDraftCards((prev) => [...cards, ...prev]);
-          toast.success(`${cards.length} cards generated`, "Review and save the cards you want to keep.");
+          toast.success(t("flashcardStudio.cardsGenerated", { count: cards.length }), t("flashcardStudio.cardsGeneratedDesc"));
           const historyItem: GenerationHistoryItem = {
             id: assistantId,
             prompt: promptText.trim(),
@@ -2388,7 +2396,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       
       if (cards.length > 0) {
         setDraftCards((prev) => [...cards, ...prev]);
-        toast.success(`${cards.length} cards generated`, "Review and save the cards you want to keep.");
+        toast.success(t("flashcardStudio.cardsGenerated", { count: cards.length }), t("flashcardStudio.cardsGeneratedDesc"));
         
         const historyItem: GenerationHistoryItem = {
           id: assistantId,
@@ -2401,7 +2409,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
         localStorage.setItem(HISTORY_KEY, JSON.stringify([historyItem, ...generationHistory.slice(0, 19)]));
       }
     } catch (error) {
-      toast.error("Generation failed", error instanceof Error ? error.message : "Failed to reach the LLM");
+      toast.error(t("flashcardStudio.generationFailed"), error instanceof Error ? error.message : t("flashcardStudio.failedReachLlm"));
       setMessages((prev) => [
         ...prev,
         {
@@ -2502,9 +2510,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     setDraftCards((prev) => prev.filter((c) => failedIds.includes(c.id)));
     
     if (failedIds.length > 0) {
-      toast.error("Some cards failed to save", `${savedCount} saved, ${failedIds.length} failed.`);
+      toast.error(t("flashcardStudio.someCardsFailed"), t("flashcardStudio.someCardsFailedDesc", { saved: savedCount, failed: failedIds.length }));
     } else {
-      toast.success("Cards saved!", `${savedCount} card${savedCount === 1 ? "" : "s"} added to your collection.`);
+      toast.success(t("flashcardStudio.cardsSaved"), t("flashcardStudio.cardsSavedDesc", { count: savedCount }));
     }
     setIsSaving(false);
   };
@@ -2527,9 +2535,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       });
       const importedIds = imported.map((asset) => asset.id);
       setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
-      toast.success("Images imported", `${imported.length} image${imported.length === 1 ? "" : "s"} added to registry.`);
+      toast.success(t("flashcardStudio.imagesImported"), t("flashcardStudio.imagesImportedDesc", { count: imported.length }));
     } catch (error) {
-      toast.error("Image import failed", error instanceof Error ? error.message : "Unable to import image.");
+      toast.error(t("flashcardStudio.imageImportFailed"), error instanceof Error ? error.message : t("flashcardStudio.unableImportImage"));
     } finally {
       setIsImageImporting(false);
       event.target.value = "";
@@ -2568,9 +2576,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       });
       const importedIds = imported.map((asset) => asset.id);
       setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
-      toast.success("Image pasted", `${imported.length} image${imported.length === 1 ? "" : "s"} added from clipboard.`);
+      toast.success(t("flashcardStudio.imagePasted"), t("flashcardStudio.imagePastedDesc", { count: imported.length }));
     } catch (error) {
-      toast.error("Paste failed", error instanceof Error ? error.message : "Unable to paste clipboard image.");
+      toast.error(t("flashcardStudio.pasteFailed"), error instanceof Error ? error.message : t("flashcardStudio.unablePasteImage"));
     } finally {
       setIsImageImporting(false);
     }
@@ -2598,15 +2606,15 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       }
 
       if (blockedReasons.length > 0) {
-        toast.warning("Some images could not be deleted", blockedReasons.join(" "));
+        toast.warning(t("flashcardStudio.someImagesFailedDelete"), blockedReasons.join(" "));
       }
       if (deletedIds.length > 0) {
-        toast.success("Images deleted", `${deletedIds.length} image${deletedIds.length === 1 ? "" : "s"} removed from registry.`);
+        toast.success(t("flashcardStudio.imagesDeleted"), t("flashcardStudio.imagesDeletedDesc", { count: deletedIds.length }));
       }
 
       setSelectedImageAssetIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
     } catch (error) {
-      toast.error("Delete failed", error instanceof Error ? error.message : "Unable to delete selected images.");
+      toast.error(t("flashcardStudio.deleteFailed"), error instanceof Error ? error.message : t("flashcardStudio.unableDeleteImages"));
     } finally {
       setIsImageImporting(false);
     }
@@ -2618,7 +2626,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     setViewMode("chat");
     
     if (!selectedDocument) {
-      toast.info("Select a document first", "Choose a document to apply this template.");
+      toast.info(t("flashcardStudio.selectDocumentFirst"), t("flashcardStudio.selectDocumentFirstDesc"));
     }
   };
 
@@ -2636,12 +2644,12 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     );
     setBulkTagInput("");
     setIsTagInputVisible(false);
-    toast.success("Tags added", `Added ${tags.length} tag${tags.length === 1 ? "" : "s"} to selected cards.`);
+    toast.success(t("flashcardStudio.tagsAdded"), t("flashcardStudio.tagsAddedDesc", { count: tags.length }));
   };
 
   const handleDeleteSelected = () => {
     setDraftCards((prev) => prev.filter((c) => !c.selected));
-    toast.success("Cards removed", "Selected cards have been discarded.");
+    toast.success(t("flashcardStudio.cardsRemoved"), t("flashcardStudio.cardsRemovedDesc"));
   };
 
   const handleEditCard = (cardId: string, updates: Partial<DraftCard>) => {
@@ -2653,7 +2661,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       prev.map((c) => (c.id === cardId ? { ...c, ...updates, isEditing: false } : c))
     );
     setEditingCardId(null);
-    toast.success("Card updated", "Your changes have been saved.");
+    toast.success(t("flashcardStudio.cardUpdated"), t("flashcardStudio.cardUpdatedDesc"));
   };
 
   const duplicateCard = (card: DraftCard) => {
@@ -2664,7 +2672,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       selected: true,
     };
     setDraftCards((prev) => [newCard, ...prev]);
-    toast.success("Card duplicated", "A copy has been added to your drafts.");
+    toast.success(t("flashcardStudio.cardDuplicated"), t("flashcardStudio.cardDuplicatedDesc"));
   };
 
   const handleInputKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -2682,7 +2690,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
     try {
       await notebooklmSelectNotebook(id);
     } catch (error) {
-      toast.error("Notebook selection failed", error instanceof Error ? error.message : "Unable to select notebook.");
+      toast.error(t("flashcardStudio.notebookSelectionFailed"), error instanceof Error ? error.message : t("flashcardStudio.unableSelectNotebook"));
     }
   };
 
@@ -2879,7 +2887,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 );
               })}
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {selectedImageAssetIds.length} selected
+                {t("flashcardStudio.selectedCount", { count: selectedImageAssetIds.length })}
               </span>
             </div>
           )}
@@ -2922,9 +2930,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         {t("flashcardStudio.welcome")}
                       </h3>
                       <p className="text-sm text-muted-foreground max-w-md mb-4">
-                        Describe what you want to learn, or select a template. 
-                        Use the <strong>Context Control</strong> above to select specific chapters, 
-                        page ranges, or excerpts to save on API costs.
+                        {t("flashcardStudio.welcomeBodyPrefix")}{" "}
+                        {t("flashcardStudio.welcomeBodyUse")} <strong>{t("flashcardStudio.contextControlTitle")}</strong>{" "}
+                        {t("flashcardStudio.welcomeBodySuffix")}
                       </p>
                       <div className="flex flex-wrap justify-center gap-2">
                         {QUICK_TEMPLATES.slice(0, 3).map((t) => (
@@ -2972,7 +2980,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                           </span>
                           {message.cardsGenerated && message.cardsGenerated > 0 && (
                             <span className="text-[11px] text-primary font-medium">
-                              +{message.cardsGenerated} cards
+                              {t("flashcardStudio.generatedCardsShort", { count: message.cardsGenerated })}
                             </span>
                           )}
                         </div>
@@ -2991,8 +2999,8 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleInputKeyDown}
                       placeholder={selectedDocument 
-                        ? "What flashcards should I create from the selected context?" 
-                        : "Ask me to create flashcards on any topic..."}
+                        ? t("flashcardStudio.contextPromptPlaceholder")
+                        : t("flashcardStudio.generalPromptPlaceholder")}
                       rows={3}
                       className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
@@ -3024,10 +3032,10 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             {viewMode === "templates" && (
               <div className="flex-1 min-h-0 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Quick Templates</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{t("flashcardStudio.quickTemplates")}</h3>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Select a template to quickly generate cards with a specific focus. 
-                    Use <strong>Context Control</strong> to limit which parts of the document are sent.
+                    {t("flashcardStudio.quickTemplatesDesc")}{" "}
+                    {t("flashcardStudio.contextControlHintPrefix")} <strong>{t("flashcardStudio.contextControlTitle")}</strong> {t("flashcardStudio.contextControlHintSuffix")}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {QUICK_TEMPLATES.map((template) => (
@@ -3047,9 +3055,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 <div className="max-w-2xl mx-auto">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">Generation History</h3>
+                      <h3 className="text-lg font-semibold text-foreground">{t("flashcardStudio.generationHistory")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Reuse previous prompts to generate more cards
+                        {t("flashcardStudio.generationHistoryDesc")}
                       </p>
                     </div>
                     {generationHistory.length > 0 && (
@@ -3057,11 +3065,11 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         onClick={() => {
                           setGenerationHistory([]);
                           localStorage.removeItem(HISTORY_KEY);
-                          toast.success("History cleared");
+                          toast.success(t("flashcardStudio.historyCleared"));
                         }}
                         className="text-xs text-muted-foreground hover:text-destructive"
                       >
-                        Clear all
+                        {t("flashcardStudio.clearAll")}
                       </button>
                     )}
                   </div>
@@ -3069,7 +3077,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   {generationHistory.length === 0 ? (
                     <div className="text-center py-12">
                       <History className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No generation history yet</p>
+                      <p className="text-sm text-muted-foreground">{t("flashcardStudio.noGenerationHistory")}</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -3089,13 +3097,13 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                               </p>
                               {item.documentName && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  from "{item.documentName}"
+                                  {t("flashcardStudio.historyFromDocument", { name: item.documentName })}
                                 </p>
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-1">
                               <span className="text-xs font-medium text-primary">
-                                {item.cardCount} cards
+                                {t("flashcardStudio.cardsWithCount", { count: item.cardCount })}
                               </span>
                               <span className="text-[10px] text-muted-foreground">
                                 {formatRelativeTime(item.timestamp)}
@@ -3117,7 +3125,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
-                  Draft Cards
+                  {t("flashcardStudio.draftCards")}
                   {stats.total > 0 && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground">
                       ({stats.selected}/{stats.total})
@@ -3125,14 +3133,14 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   )}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {stats.qa > 0 && `${stats.qa} Q&A`}
+                  {stats.qa > 0 && `${stats.qa} ${t("flashcardStudio.cardTypeQaShort")}`}
                   {stats.qa > 0 && stats.cloze > 0 && " · "}
-                  {stats.cloze > 0 && `${stats.cloze} Cloze`}
+                  {stats.cloze > 0 && `${stats.cloze} ${t("flashcardStudio.cardTypeCloze")}`}
                   {(stats.multipleChoice > 0 || stats.imageOcclusion > 0) && (stats.qa > 0 || stats.cloze > 0) && " · "}
-                  {stats.multipleChoice > 0 && `${stats.multipleChoice} MC`}
+                  {stats.multipleChoice > 0 && `${stats.multipleChoice} ${t("flashcardStudio.cardTypeMcShort")}`}
                   {stats.multipleChoice > 0 && stats.imageOcclusion > 0 && " · "}
-                  {stats.imageOcclusion > 0 && `${stats.imageOcclusion} Image`}
-                  {stats.selected === 0 && "No cards selected"}
+                  {stats.imageOcclusion > 0 && `${stats.imageOcclusion} ${t("flashcardStudio.cardTypeImageShort")}`}
+                  {stats.selected === 0 && t("flashcardStudio.noCardsSelected")}
                 </p>
               </div>
               <div className="flex items-center gap-1">
@@ -3151,7 +3159,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                       setEditingCardId(nextCard.id);
                     }}
                     className="hidden rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-muted md:inline-flex"
-                    title={`Add ${label} card`}
+                    title={t("flashcardStudio.addCardTitle", { label })}
                   >
                     + {label}
                   </button>
@@ -3159,14 +3167,14 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 <button
                   onClick={() => toggleSelectAll(true)}
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                  title="Select all"
+                  title={t("flashcardStudio.selectAll")}
                 >
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => toggleSelectAll(false)}
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                  title="Deselect all"
+                  title={t("flashcardStudio.deselectAll")}
                 >
                   <AlertCircle className="w-4 h-4" />
                 </button>
@@ -3174,7 +3182,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                 <button
                   onClick={() => setDraftCards([])}
                   className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                  title="Clear all"
+                  title={t("flashcardStudio.clearAll")}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -3195,14 +3203,14 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         if (e.key === "Enter") handleAddTagToSelected();
                         if (e.key === "Escape") setIsTagInputVisible(false);
                       }}
-                      placeholder="tags, separated, by, commas"
+                      placeholder={t("flashcardStudio.tagsPlaceholder")}
                       className="flex-1 text-xs bg-transparent outline-none"
                     />
                     <button
                       onClick={handleAddTagToSelected}
                       className="text-xs text-primary font-medium hover:opacity-80"
                     >
-                      Add
+                      {t("reviewHome.add")}
                     </button>
                   </div>
                 ) : (
@@ -3212,14 +3220,14 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                       className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80"
                     >
                       <Tag className="w-3.5 h-3.5" />
-                      Tag {stats.selected}
+                      {t("flashcardStudio.tagSelected", { count: stats.selected })}
                     </button>
                     <button
                       onClick={handleDeleteSelected}
                       className="flex items-center gap-1.5 text-xs text-destructive hover:opacity-80"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Delete
+                      {t("queue.delete")}
                     </button>
                   </>
                 )}
@@ -3233,9 +3241,9 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
                     <Sparkles className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground mb-1">No draft cards yet</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t("flashcardStudio.noDraftCards")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Generate cards using chat or templates
+                    {t("flashcardStudio.generateCardsHint")}
                   </p>
                 </div>
               ) : (
@@ -3284,10 +3292,10 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         {card.type === "qa"
                           ? "Q&A"
                           : card.type === "cloze"
-                          ? "Cloze"
+                          ? t("flashcardStudio.cardTypeCloze")
                           : card.type === "multiple-choice"
-                          ? "Multiple Choice"
-                          : "Image Occlusion"}
+                          ? t("flashcardStudio.cardTypeMultipleChoice")
+                          : t("flashcardStudio.cardTypeImageOcclusion")}
                       </span>
                       {card.tags.length > 0 && (
                         <div className="flex items-center gap-1">
@@ -3311,14 +3319,14 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                         <button
                           onClick={() => duplicateCard(card)}
                           className="p-1 rounded hover:bg-muted text-muted-foreground"
-                          title="Duplicate"
+                          title={t("flashcardStudio.duplicate")}
                         >
                           <Copy className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setEditingCardId(card.id)}
                           className="p-1 rounded hover:bg-muted text-muted-foreground"
-                          title="Edit"
+                          title={t("flashcardStudio.edit")}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -3327,7 +3335,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                             setDraftCards((prev) => prev.filter((c) => c.id !== card.id))
                           }
                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                          title="Delete"
+                          title={t("queue.delete")}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -3365,10 +3373,10 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  Save {stats.selected} Card{stats.selected === 1 ? "" : "s"}
+                  {t("flashcardStudio.saveSelectedCards", { count: stats.selected })}
                 </button>
                 <p className="text-center text-[10px] text-muted-foreground mt-2">
-                  Ctrl+S to save · Cards will be added to your collection
+                  {t("flashcardStudio.saveShortcutHint")}
                 </p>
               </div>
             )}
@@ -3387,7 +3395,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("flashcardStudio.keyboardShortcuts")}</h3>
               <button
                 onClick={() => setShowShortcuts(false)}
                 className="p-1 rounded hover:bg-muted"
@@ -3397,24 +3405,24 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Send message</span>
+                <span className="text-muted-foreground">{t("flashcardStudio.shortcutSendMessage")}</span>
                 <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl + Enter</kbd>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Save selected cards</span>
+                <span className="text-muted-foreground">{t("flashcardStudio.shortcutSaveSelected")}</span>
                 <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl + S</kbd>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Close / Cancel</span>
+                <span className="text-muted-foreground">{t("flashcardStudio.shortcutClose")}</span>
                 <kbd className="px-2 py-1 bg-muted rounded text-xs">Esc</kbd>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Show shortcuts</span>
+                <span className="text-muted-foreground">{t("flashcardStudio.shortcutShow")}</span>
                 <kbd className="px-2 py-1 bg-muted rounded text-xs">?</kbd>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Flip card preview</span>
-                <kbd className="px-2 py-1 bg-muted rounded text-xs">Click card</kbd>
+                <span className="text-muted-foreground">{t("flashcardStudio.shortcutFlip")}</span>
+                <kbd className="px-2 py-1 bg-muted rounded text-xs">{t("flashcardStudio.clickCard")}</kbd>
               </div>
             </div>
           </div>

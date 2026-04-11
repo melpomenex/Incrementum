@@ -3,7 +3,9 @@ import { FlaskConical, Info } from "lucide-react";
 import type { LearningItem, PreviewIntervals } from "../../api/review";
 import { formatInterval } from "../../api/review";
 import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
+import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
 import type { SM18State } from "../../lib/sm18";
+import type { SM20State } from "../../lib/sm20";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface ReviewTransparencyPanelProps {
@@ -14,6 +16,7 @@ interface ReviewTransparencyPanelProps {
 const ALGORITHM_LABELS: Record<string, string> = {
   fsrs: "FSRS-6 Transparency",
   sm18: "SuperMemo 18 Transparency",
+  sm20: "SuperMemo 20 Transparency",
 };
 
 function getAlgorithmLabel(algorithmType?: string): string {
@@ -28,16 +31,29 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
   // Use card's algorithm_type if set, otherwise fall back to user's setting
   const effectiveAlgorithm = card.algorithm_type || settings.learning.algorithm;
   const isSm18 = effectiveAlgorithm === "sm18";
+  const isSm20 = effectiveAlgorithm === "sm20";
   const sm18State: SM18State | null = isSm18 ? parseSm18State(card.algorithm_state) : null;
+  const sm20State: SM20State | null = isSm20 ? parseSm20State(card.algorithm_state) : null;
 
   const stability = isSm18 && sm18State
     ? sm18State.stability
+    : isSm20 && sm20State
+    ? sm20State.stability
     : card.memory_state?.stability;
   const difficulty = isSm18 && sm18State
     ? sm18State.difficulty
+    : isSm20 && sm20State
+    ? sm20State.difficulty
     : card.memory_state?.difficulty;
   const retrievability = isSm18 && sm18State && sm18State.stability > 0
     ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
+    : isSm20 && sm20State && sm20State.stability > 0
+    ? sm20Retrievability(
+        sm20State.stability,
+        card.last_review_date
+          ? (Date.now() - new Date(card.last_review_date).getTime()) / (86400 * 1000)
+          : 0
+      )
     : (card.memory_state as any)?.retrievability;
 
   return (
@@ -66,6 +82,11 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
       {isSm18 && sm18State && (
         <div className="text-xs text-muted-foreground">
           Reps {sm18State.repetition} • Lapses {sm18State.lapses}
+        </div>
+      )}
+      {isSm20 && sm20State && (
+        <div className="text-xs text-muted-foreground">
+          Reps {sm20State.repetition} • Lapses {sm20State.lapses}
         </div>
       )}
 

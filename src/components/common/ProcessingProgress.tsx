@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export interface ProcessingStep {
   id: string;
@@ -22,11 +23,13 @@ interface ProcessingProgressProps {
 
 export function ProcessingProgress({
   steps,
-  title = "Processing Document...",
+  title,
   onComplete,
   onClose,
 }: ProcessingProgressProps) {
+  const { t } = useI18n();
   const [isComplete, setIsComplete] = useState(false);
+  const resolvedTitle = title ?? t("processingProgress.processingDocument");
 
   useEffect(() => {
     // Find the first processing step
@@ -77,7 +80,7 @@ export function ProcessingProgress({
             ) : (
               <Loader2 className="w-5 h-5 text-primary animate-spin" />
             )}
-            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{resolvedTitle}</h3>
           </div>
           {allComplete && onClose && (
             <button
@@ -100,7 +103,10 @@ export function ProcessingProgress({
             />
           </div>
           <div className="mt-2 text-sm text-muted-foreground text-center">
-            {steps.filter((s) => s.status === "completed" || s.status === "error").length} of {steps.length} steps completed
+            {t("processingProgress.stepsCompleted", {
+              completed: steps.filter((s) => s.status === "completed" || s.status === "error").length,
+              total: steps.length,
+            })}
           </div>
         </div>
 
@@ -123,13 +129,13 @@ export function ProcessingProgress({
                   {step.label}
                 </p>
                 {step.status === "processing" && (
-                  <p className="text-xs text-muted-foreground mt-1">Processing...</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("processingProgress.processing")}</p>
                 )}
                 {step.status === "error" && step.error && (
                   <p className="text-xs text-destructive mt-1">{step.error}</p>
                 )}
                 {step.status === "completed" && (
-                  <p className="text-xs text-green-500 mt-1">Complete</p>
+                  <p className="text-xs text-green-500 mt-1">{t("processingProgress.complete")}</p>
                 )}
               </div>
             </div>
@@ -140,10 +146,10 @@ export function ProcessingProgress({
         {allComplete && onClose && (
           <div className="mt-4 pt-4 border-t border-border">
             <button
-              onClick={onClose}
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              {hasErrors ? "Close (Some Steps Failed)" : "Done"}
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+              {hasErrors ? t("processingProgress.closeSomeFailed") : t("processingProgress.done")}
             </button>
           </div>
         )}

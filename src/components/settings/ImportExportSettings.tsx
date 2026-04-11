@@ -183,9 +183,11 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       link.click();
       URL.revokeObjectURL(url);
 
-      setArchiveStatus("Archive export created successfully.");
+      setArchiveStatus(t("importExport.archiveExportCreated"));
     } catch (error) {
-      setArchiveStatus(`Archive export failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setArchiveStatus(t("importExport.archiveExportFailed", {
+        error: error instanceof Error ? error.message : t("importExport.unknownError"),
+      }));
     } finally {
       setArchiveInProgress(false);
     }
@@ -193,7 +195,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
 
   const handleImport = async () => {
     if (!importFile) {
-      alert("Please select a file to import");
+      alert(t("importExport.selectFile"));
       return;
     }
 
@@ -215,7 +217,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             alert(result);
           } else {
             await restoreBrowserArchive(parsed);
-            alert("Archive import complete. Reload the app to finish restoring your data.");
+            alert(t("importExport.archiveCompleteReload"));
           }
 
           restoreLocalStorage(parsed.payload.localStorage);
@@ -345,19 +347,19 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   return (
     <>
       <SettingsSection
-        title="Complete App Backup"
-        description="Backup or restore your entire app state including all documents, study progress, settings, and preferences"
+        title={t("importExport.completeBackup")}
+        description={t("importExport.completeBackupDesc")}
       >
         <div className="space-y-4">
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-2 text-foreground">What&apos;s included</h4>
+            <h4 className="text-sm font-medium mb-2 text-foreground">{t("importExport.whatsIncluded")}</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• All documents with metadata and reading positions</li>
-              <li>• Extracts and highlights</li>
-              <li>• Flashcards with FSRS scheduling data</li>
-              <li>• Collections and document assignments</li>
-              <li>• All settings and preferences</li>
-              <li>• Optional: Actual document files (PDFs, EPUBs, etc.)</li>
+              <li>• {t("importExport.allDocumentsWithPositions")}</li>
+              <li>• {t("importExport.extractsHighlights")}</li>
+              <li>• {t("importExport.flashcardsFsrsScheduling")}</li>
+              <li>• {t("importExport.collectionsAssignments")}</li>
+              <li>• {t("importExport.allSettingsPreferences")}</li>
+              <li>• {t("importExport.optionalDocumentFiles")}</li>
             </ul>
           </div>
 
@@ -366,7 +368,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
             <Database className="w-4 h-4" />
-            Open Backup & Restore
+            {t("importExport.openBackupRestore")}
           </button>
         </div>
       </SettingsSection>
@@ -377,12 +379,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       />
 
       <SettingsSection
-        title="Collection Archive (Recommended)"
-        description="Create a portable backup that includes data, files, settings, and Anki .apkg"
+        title={t("importExport.collectionArchive")}
+        description={t("importExport.collectionArchiveDesc")}
       >
         <div className="space-y-4">
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-3 text-foreground">Scope</h4>
+            <h4 className="text-sm font-medium mb-3 text-foreground">{t("importExport.scope")}</h4>
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -392,7 +394,9 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   onChange={() => setArchiveScope("current")}
                 />
                 <span className="text-sm text-foreground">
-                  Current collection ({collections.find((c) => c.id === activeCollectionId)?.name || "None"})
+                  {t("importExport.currentCollection", {
+                    name: collections.find((c) => c.id === activeCollectionId)?.name || t("importExport.none"),
+                  })}
                 </span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
@@ -402,7 +406,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   checked={archiveScope === "all"}
                   onChange={() => setArchiveScope("all")}
                 />
-                <span className="text-sm text-foreground">All collections</span>
+                <span className="text-sm text-foreground">{t("importExport.allCollections")}</span>
               </label>
             </div>
           </div>
@@ -415,12 +419,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             {archiveInProgress ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Preparing archive...
+                {t("importExport.preparingArchive")}
               </>
             ) : (
               <>
                 <PackageCheck className="w-4 h-4" />
-                Export Collection Archive (.zip)
+                {t("importExport.exportArchive")}
               </>
             )}
           </button>
@@ -432,13 +436,13 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       </SettingsSection>
 
       <SettingsSection
-        title="Export Data (Legacy Formats)"
-        description="Choose what to include in your export"
+        title={t("importExport.exportLegacy")}
+        description={t("importExport.exportLegacyDesc")}
       >
         <div className="space-y-4">
           {/* Export options */}
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-3 text-foreground">Data to Export</h4>
+            <h4 className="text-sm font-medium mb-3 text-foreground">{t("importExport.dataToExport")}</h4>
             <div className="space-y-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -450,7 +454,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Documents</span>
+                <span className="text-sm text-foreground">{t("graph.documents")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -463,7 +467,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Extracts</span>
+                <span className="text-sm text-foreground">{t("graph.extracts")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -476,7 +480,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Flashcards & Progress</span>
+                <span className="text-sm text-foreground">{t("importExport.flashcardsAndProgress")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -489,7 +493,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Settings</span>
+                <span className="text-sm text-foreground">{t("importExport.settings")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -502,7 +506,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Statistics & Analytics</span>
+                <span className="text-sm text-foreground">{t("importExport.statisticsAnalytics")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -515,14 +519,14 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   }}
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Media Files (PDFs, images, etc.)</span>
+                <span className="text-sm text-foreground">{t("importExport.mediaFiles")}</span>
               </label>
             </div>
           </div>
 
           {/* Export format selection */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-foreground">Format:</span>
+            <span className="text-sm font-medium text-foreground">{t("importExport.format")}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => handleExport("json")}
@@ -530,7 +534,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
-                Export as JSON
+                {t("importExport.exportJson")}
               </button>
               <button
                 onClick={() => handleExport("csv")}
@@ -538,7 +542,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted disabled:opacity-50"
               >
                 <FileDown className="w-4 h-4" />
-                Export as CSV
+                {t("importExport.exportCsv")}
               </button>
               <button
                 onClick={() => handleExport("incrementum")}
@@ -546,7 +550,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted disabled:opacity-50"
               >
                 <FileUp className="w-4 h-4" />
-                Incrementum Package
+                {t("importExport.incrementumPackage")}
               </button>
             </div>
           </div>
@@ -554,13 +558,13 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       </SettingsSection>
 
       <SettingsSection
-        title="Import Data"
-        description="Import data from a backup or other sources"
+        title={t("importExport.importData")}
+        description={t("importExport.importDataDesc")}
       >
         <div className="space-y-4">
           {/* File selection */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Select Import File</label>
+            <label className="block text-sm font-medium text-foreground mb-2">{t("importExport.selectImportFile")}</label>
             <div className="flex items-center gap-3">
               <input
                 type="file"
@@ -573,20 +577,23 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   onClick={() => setImportFile(null)}
                   className="p-2 hover:bg-muted rounded text-foreground"
                 >
-                  Clear
+                  {t("importExport.clear")}
                 </button>
               )}
             </div>
             {importFile && (
               <p className="text-xs text-muted-foreground mt-1">
-                Selected: {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+                {t("importExport.selectedFile", {
+                  name: importFile.name,
+                  size: (importFile.size / 1024).toFixed(1),
+                })}
               </p>
             )}
           </div>
 
           {/* Import options */}
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-3 text-foreground">Import Options</h4>
+            <h4 className="text-sm font-medium mb-3 text-foreground">{t("importExport.importOptions")}</h4>
             <div className="space-y-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -594,7 +601,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   defaultChecked
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Skip duplicates (based on ID)</span>
+                <span className="text-sm text-foreground">{t("importExport.skipDuplicates")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -603,7 +610,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   defaultChecked
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Merge with existing data</span>
+                <span className="text-sm text-foreground">{t("importExport.mergeExisting")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -611,7 +618,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   type="checkbox"
                   className="rounded"
                 />
-                <span className="text-sm text-foreground">Create backup before import</span>
+                <span className="text-sm text-foreground">{t("importExport.createBackupBeforeImport")}</span>
               </label>
             </div>
           </div>
@@ -625,12 +632,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             {isProcessing ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Importing...
+                {t("documentsView.importing")}
               </>
             ) : (
               <>
                 <Upload className="w-4 h-4" />
-                Import Data
+                {t("importExport.importDataBtn")}
               </>
             )}
           </button>
@@ -638,23 +645,23 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       </SettingsSection>
 
       <SettingsSection
-        title="Migrate from C++ Version"
-        description="Import your data from the original C++ application"
+        title={t("importExport.migrateFromCpp")}
+        description={t("importExport.migrateFromCppDesc")}
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Import your documents, extracts, flashcards, and progress from the C++ version of Incrementum.
+            {t("importExport.migrateDesc")}
           </p>
 
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-2 text-foreground">What will be imported:</h4>
+            <h4 className="text-sm font-medium mb-2 text-foreground">{t("importExport.whatWillBeImported")}</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• All documents with metadata</li>
-              <li>• Extracts and highlights</li>
-              <li>• Flashcards with scheduling data</li>
-              <li>• Categories and tags</li>
-              <li>• Review history and statistics</li>
-              <li>• Application settings</li>
+              <li>• {t("importExport.allDocumentsMetadata")}</li>
+              <li>• {t("importExport.extractsHighlights")}</li>
+              <li>• {t("importExport.flashcardsScheduling")}</li>
+              <li>• {t("importExport.categoriesTags")}</li>
+              <li>• {t("importExport.reviewHistory")}</li>
+              <li>• {t("importExport.appSettings")}</li>
             </ul>
           </div>
 
@@ -664,20 +671,20 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90"
             >
               <RefreshCw className="w-4 h-4" />
-              Start Migration
+              {t("importExport.startMigration")}
             </button>
           </div>
         </div>
       </SettingsSection>
 
       <SettingsSection
-        title="Scheduled Backups"
-        description="Configure automatic backup settings"
+        title={t("importExport.scheduledBackups")}
+        description={t("importExport.scheduledBackupsDesc")}
       >
         <div className="space-y-1">
           <SettingsRow
-            label="Auto Backup"
-            description="Automatically create backups at regular intervals"
+            label={t("importExport.autoBackup")}
+            description={t("importExport.autoBackupDesc")}
           >
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" onChange={onChange} defaultChecked />
@@ -686,24 +693,24 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
           </SettingsRow>
 
           <SettingsRow
-            label="Backup Frequency"
-            description="How often to create automatic backups"
+            label={t("importExport.backupFrequency")}
+            description={t("importExport.backupFrequencyDesc")}
           >
             <select
               className="px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
               onChange={onChange}
               defaultValue="daily"
             >
-              <option value="hourly" className="text-foreground">Hourly</option>
-              <option value="daily" className="text-foreground">Daily</option>
-              <option value="weekly" className="text-foreground">Weekly</option>
-              <option value="monthly" className="text-foreground">Monthly</option>
+              <option value="hourly" className="text-foreground">{t("importExport.hourly")}</option>
+              <option value="daily" className="text-foreground">{t("importExport.daily")}</option>
+              <option value="weekly" className="text-foreground">{t("importExport.weekly")}</option>
+              <option value="monthly" className="text-foreground">{t("importExport.monthly")}</option>
             </select>
           </SettingsRow>
 
           <SettingsRow
-            label="Backup Location"
-            description="Folder where backups are stored"
+            label={t("importExport.backupLocation")}
+            description={t("importExport.backupLocationDesc")}
           >
             <div className="flex items-center gap-2">
               <input
@@ -713,14 +720,14 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 className="w-48 px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button className="px-3 py-2 bg-background border border-border rounded-md hover:bg-muted text-foreground">
-                Browse
+                {t("importExport.browse")}
               </button>
             </div>
           </SettingsRow>
 
           <SettingsRow
-            label="Max Backups"
-            description="Maximum number of backups to keep"
+            label={t("importExport.maxBackups")}
+            description={t("importExport.maxBackupsDesc")}
           >
             <input
               type="number"
@@ -735,16 +742,16 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       </SettingsSection>
 
       <SettingsSection
-        title="Demo Content"
-        description="Manage demo content for trying out the application"
+        title={t("importExport.demoContent")}
+        description={t("importExport.demoContentDesc")}
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Demo content is automatically imported on first run so you can try the application immediately.
+            {t("importExport.demoContentAutoImport")}
           </p>
 
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-2 text-foreground">Demo Content Status</h4>
+            <h4 className="text-sm font-medium mb-2 text-foreground">{t("importExport.demoContentStatus")}</h4>
             <p className="text-xs text-muted-foreground">
               {demoContentStatus}
             </p>
@@ -763,27 +770,27 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90"
             >
               <RefreshCw className="w-4 h-4" />
-              Check Demo Content
+              {t("importExport.checkDemoContent")}
             </button>
           </div>
 
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-2 text-foreground">Environment Variables</h4>
+            <h4 className="text-sm font-medium mb-2 text-foreground">{t("importExport.environmentVariables")}</h4>
             <ul className="text-xs text-muted-foreground space-y-1">
-              <li><code>DEMO_CONTENT_DIR</code> - Custom demo content directory path</li>
-              <li><code>SKIP_DEMO_IMPORT=1</code> - Disable demo content auto-import</li>
+              <li><code>DEMO_CONTENT_DIR</code> - {t("importExport.demoContentDirHelp")}</li>
+              <li><code>SKIP_DEMO_IMPORT=1</code> - {t("importExport.skipDemoImportHelp")}</li>
             </ul>
           </div>
         </div>
       </SettingsSection>
 
       <SettingsSection
-        title="Wave 3 Ingestion"
-        description="Podcast import, PDF highlight extraction, clipboard watcher, and reference manager imports"
+        title={t("importExport.wave3Ingestion")}
+        description={t("importExport.wave3IngestionDesc")}
       >
         <div className="space-y-4">
           <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Podcast / Audio Import (Whisper)</h4>
+            <h4 className="text-sm font-medium text-foreground">{t("importExport.podcastImport")}</h4>
             <div className="flex items-center gap-2">
               <input
                 type="file"
@@ -798,28 +805,28 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 placeholder="en"
               />
               <button onClick={handlePodcastImport} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
-                Import
+                {t("documentsView.import")}
               </button>
             </div>
           </div>
 
           <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Pre-highlighted PDF Extraction</h4>
+            <h4 className="text-sm font-medium text-foreground">{t("importExport.pdfHighlightExtraction")}</h4>
             <div className="flex items-center gap-2">
               <input
                 value={pdfHighlightDocumentId}
                 onChange={(e) => setPdfHighlightDocumentId(e.target.value)}
-                placeholder="Document ID"
+                placeholder={t("importExport.documentId")}
                 className="flex-1 px-2 py-1 border border-border rounded bg-background text-sm"
               />
               <button onClick={handleImportPdfHighlights} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
-                Import Highlights
+                {t("importExport.importHighlights")}
               </button>
             </div>
           </div>
 
           <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Clipboard Watcher Quick Add</h4>
+            <h4 className="text-sm font-medium text-foreground">{t("importExport.clipboardWatcher")}</h4>
             <label className="flex items-center gap-3 text-sm text-foreground">
               <input
                 type="checkbox"
@@ -829,12 +836,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                   setClipboardWatcherEnabled(e.target.checked);
                 }}
               />
-              Enable clipboard watcher and quick-add popup
+              {t("importExport.enableClipboardWatcher")}
             </label>
           </div>
 
           <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Zotero / Mendeley Import</h4>
+            <h4 className="text-sm font-medium text-foreground">{t("importExport.zoteroMendeley")}</h4>
             <div className="flex items-center gap-2">
               <select
                 value={referenceSource}
@@ -851,7 +858,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 className="flex-1 text-sm"
               />
               <button onClick={handleReferenceImport} className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm">
-                Import
+                {t("documentsView.import")}
               </button>
             </div>
           </div>

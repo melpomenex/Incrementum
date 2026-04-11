@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Graph node types
@@ -100,6 +101,7 @@ export function KnowledgeGraph({
   showLabels = true,
   edgeThreshold: _edgeThreshold = 0,
 }: KnowledgeGraphProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -120,12 +122,14 @@ export function KnowledgeGraph({
   }, [data.nodes, layout]);
 
   // Physics simulation
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(
-    () =>
-      laidOutNodes.reduce((acc, node) => {
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() =>
+    laidOutNodes.reduce(
+      (acc, node) => {
         acc[node.id] = { x: node.x, y: node.y };
         return acc;
-      }, {} as Record<string, { x: number; y: number }>)
+      },
+      {} as Record<string, { x: number; y: number }>
+    )
   );
 
   // Force simulation
@@ -513,55 +517,70 @@ export function KnowledgeGraph({
         <button
           onClick={() => setTransform({ x: 0, y: 0, k: 1 })}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Reset view"
+          title={t("graph.resetView")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
           </svg>
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.min(maxZoom, t.k * 1.2) }))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Zoom in"
+          title={t("graph.zoomIn")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
+            />
           </svg>
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.max(minZoom, t.k * 0.8) }))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Zoom out"
+          title={t("graph.zoomOut")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
+            />
           </svg>
         </button>
       </div>
 
       {/* Legend */}
       <div className="absolute top-4 left-4 bg-card border border-border rounded-lg shadow p-3">
-        <h3 className="text-sm font-semibold mb-2">Legend</h3>
+        <h3 className="text-sm font-semibold mb-2">{t("graph.legend")}</h3>
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: theme.colors.primary }} />
-            <span>Documents</span>
+            <span>{t("graph.documents")}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: accentColor }} />
-            <span>Extracts</span>
+            <span>{t("graph.extracts")}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: theme.colors.success }} />
-            <span>Flashcards</span>
+            <span>{t("graph.flashcards")}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: theme.colors.warning }} />
-            <span>Categories</span>
+            <span>{t("graph.categories")}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: infoColor }} />
-            <span>Tags</span>
+            <span>{t("graph.tags")}</span>
           </div>
         </div>
       </div>
@@ -592,7 +611,7 @@ function applyLayout(nodes: GraphNode[], algorithm: LayoutAlgorithm): GraphNode[
     case LayoutAlgorithm.Hierarchical: {
       const levels: Record<string, GraphNode[]> = {};
       result.forEach((node) => {
-        const level = node.metadata?.level as number || 0;
+        const level = (node.metadata?.level as number) || 0;
         if (!levels[level]) levels[level] = [];
         levels[level].push(node);
       });

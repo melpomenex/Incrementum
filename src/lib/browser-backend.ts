@@ -18,6 +18,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { resolveFsrsParamsForScope } from '../utils/fsrsScope';
 import { getDefaultFsrsParameters, normalizeFsrsParameters } from '../utils/fsrsParameters';
 import { parseSm18State, sm18Review, ratingToSm18Grade } from './sm18';
+import { parseSm20State, sm20PreviewIntervals, sm20Review } from './sm20';
 import { v4 as uuidv4 } from 'uuid';
 import { getPositionProgress, type DocumentPosition } from '../types/position';
 import {
@@ -338,6 +339,40 @@ async function applySm18ReviewBrowser(item: db.LearningItem, rating: number, alg
         difficulty: result.state.difficulty * 10.0,
         algorithm_state: JSON.stringify(result.state),
         algorithm_type: algorithmType || 'sm18',
+    });
+}
+
+async function applySm20ReviewBrowser(item: db.LearningItem, rating: number, algorithmType?: string): Promise<db.LearningItem> {
+    const state = parseSm20State(item.algorithm_state);
+    const now = new Date();
+
+    let elapsedDays = 0;
+    if (item.last_review_date) {
+        elapsedDays = (now.getTime() - new Date(item.last_review_date).getTime()) / (86400 * 1000);
+    }
+
+    const result = sm20Review(state, rating, elapsedDays);
+    const intervalMs = result.interval_days * 86400 * 1000;
+    const nextDue = new Date(now.getTime() + intervalMs);
+    const failed = rating <= 1;
+    const nextState = failed ? 'relearning'
+        : result.interval_days >= 1.0 ? 'review'
+        : item.state === 'new' ? 'learning' : item.state;
+
+    return db.updateLearningItem(item.id, {
+        due_date: nextDue.toISOString(),
+        interval: result.interval_days,
+        last_review_date: now.toISOString(),
+        review_count: (item.review_count || 0) + 1,
+        lapses: result.state.lapses,
+        state: nextState,
+        memory_state: {
+            stability: result.state.stability,
+            difficulty: result.state.difficulty,
+        },
+        difficulty: result.state.difficulty * 10.0,
+        algorithm_state: JSON.stringify(result.state),
+        algorithm_type: algorithmType || 'sm20',
     });
 }
 
@@ -1577,6 +1612,10 @@ const commandHandlers: Record<string, CommandHandler> = {
             return toCamelCase(await applySm18ReviewBrowser(item, rating, algorithmType));
         }
 
+        if (algorithmType === 'sm20') {
+            return toCamelCase(await applySm20ReviewBrowser(item, rating, algorithmType));
+        }
+
         // FSRS-6 (default)
         const now = new Date();
         const scheduler = createFsrsScheduler({
@@ -1631,6 +1670,15 @@ const commandHandlers: Record<string, CommandHandler> = {
                 previewIntervals[name] = result.new_interval;
             }
             return previewIntervals;
+        }
+
+        if (algorithmType === 'sm20') {
+            const now = new Date();
+            let elapsedDays = 0;
+            if (item.last_review_date) {
+                elapsedDays = (now.getTime() - new Date(item.last_review_date).getTime()) / (86400 * 1000);
+            }
+            return sm20PreviewIntervals(parseSm20State(item.algorithm_state), elapsedDays);
         }
 
         const now = new Date();

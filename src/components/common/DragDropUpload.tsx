@@ -11,6 +11,7 @@ import { Upload, FileText, BookOpen, X, CheckCircle2, AlertCircle, Loader2 } fro
 import { cn } from "../../utils";
 import { isTauri } from "../../lib/tauri";
 import { storeBrowserFile } from "../../lib/browser-file-store";
+import { useI18n } from "../../lib/i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { detectMarkdownBundle, type MarkdownBundle } from "../../utils/markdownBundleImport";
 
@@ -90,6 +91,7 @@ export function DragDropUpload({
   className,
   children,
 }: DragDropUploadProps) {
+  const { t } = useI18n();
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadFile[]>([]);
@@ -237,7 +239,7 @@ export function DragDropUpload({
           "error",
           0,
           undefined,
-          error instanceof Error ? error.message : "Import failed"
+          error instanceof Error ? error.message : t("dragDropUpload.importFailed")
         );
       }
     }
@@ -659,11 +661,10 @@ export function DragDropUpload({
               <Upload className="w-10 h-10" />
             </div>
             <h3 className="text-xl font-semibold mb-2">
-              {isDragOver ? "Drop to import" : "Drag files or folders here"}
+              {isDragOver ? t("dragDropUpload.dropToImport") : t("dragDropUpload.dragFilesOrFoldersHere")}
             </h3>
             <p className="text-muted-foreground text-center max-w-md">
-              Supports PDF, EPUB, Markdown, TXT, HTML, Anki packages (.apkg), audio, and video files.
-              You can also drop entire folders!
+              {t("dragDropUpload.supportedTypes")}
             </p>
             <div className="flex flex-wrap justify-center gap-2 mt-6">
               {["PDF", "EPUB", "MD", "APKG", "MP3", "MP4", "Folders"].map((type) => (
@@ -686,9 +687,9 @@ export function DragDropUpload({
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <Upload className="w-4 h-4 text-primary" />
-              <span className="font-medium">File Import</span>
+              <span className="font-medium">{t("dragDropUpload.fileImport")}</span>
               {pendingCount > 0 && (
-                <span className="text-xs text-muted-foreground">({pendingCount} pending)</span>
+                <span className="text-xs text-muted-foreground">{t("dragDropUpload.pendingCount", { count: pendingCount })}</span>
               )}
             </div>
             <div className="flex items-center gap-1">
@@ -697,7 +698,7 @@ export function DragDropUpload({
                   onClick={clearCompleted}
                   className="text-xs text-primary hover:underline px-2"
                 >
-                  Clear completed
+                  {t("dragDropUpload.clearCompleted")}
                 </button>
               )}
               <button
@@ -728,7 +729,7 @@ export function DragDropUpload({
                     <p className="text-sm font-medium truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatFileSize(file.size)}
-                      {file.status === "uploading" && " • Uploading..."}
+                      {file.status === "uploading" && ` • ${t("dragDropUpload.uploading")}`}
                       {file.status === "error" && file.error && (
                         <span className="text-destructive"> • {file.error}</span>
                       )}
@@ -770,7 +771,7 @@ export function DragDropUpload({
               className="w-full py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <Upload className="w-4 h-4" />
-              Add more files
+              {t("dragDropUpload.addMoreFiles")}
             </button>
           </div>
         </div>
@@ -792,6 +793,7 @@ interface DropZoneProps {
 }
 
 export function DropZone({ onFilesDropped, className, children }: DropZoneProps) {
+  const { t } = useI18n();
   const [isDragOver, setIsDragOver] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -850,7 +852,7 @@ export function DropZone({ onFilesDropped, className, children }: DropZoneProps)
         <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm z-10 rounded-lg">
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-8 h-8 text-primary" />
-            <span className="text-sm font-medium text-primary">Drop files to import</span>
+            <span className="text-sm font-medium text-primary">{t("dragDropUpload.dropFilesToImport")}</span>
           </div>
         </div>
       )}

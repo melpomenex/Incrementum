@@ -1,4 +1,5 @@
 import { Clock, CheckCircle2, TrendingUp, Flame, Timer } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface ReviewProgressProps {
   currentIndex: number;
@@ -20,6 +21,7 @@ export function ReviewProgress({
   estimatedTimeRemaining,
   streak,
 }: ReviewProgressProps) {
+  const { t } = useI18n();
   const remainingCards = totalCards - currentIndex;
   const accuracy = reviewsCompleted > 0
     ? Math.round((correctCount / reviewsCompleted) * 100)
@@ -39,11 +41,11 @@ export function ReviewProgress({
         <div className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
           <Flame className="w-4 h-4 text-orange-500" />
           <span className="text-sm font-medium text-orange-500">
-            {streak.current_streak} day streak
+            {t("reviewProgress.dayStreak", { count: streak.current_streak })}
           </span>
           {streak.longest_streak > 1 && (
             <span className="text-xs text-muted-foreground">
-              (best: {streak.longest_streak} days)
+              {t("reviewProgress.bestStreak", { count: streak.longest_streak })}
             </span>
           )}
         </div>
@@ -62,23 +64,23 @@ export function ReviewProgress({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            <span>{remainingCards} left</span>
+            <span>{t("reviewProgress.remainingLeft", { count: remainingCards })}</span>
           </div>
           {estimatedTimeRemaining !== undefined && remainingCards > 0 && (
-            <div className="flex items-center gap-1" title="Estimated time remaining">
+            <div className="flex items-center gap-1" title={t("reviewProgress.estimatedTimeRemaining")}>
               <Timer className="w-4 h-4" />
               <span>{formatTime(estimatedTimeRemaining)}</span>
             </div>
           )}
           <div className="flex items-center gap-1">
             <CheckCircle2 className="w-4 h-4" />
-            <span>{reviewsCompleted} done</span>
+            <span>{t("reviewProgress.completedDone", { count: reviewsCompleted })}</span>
           </div>
         </div>
         {reviewsCompleted > 0 && (
           <div className="flex items-center gap-1">
             <TrendingUp className="w-4 h-4" />
-            <span>{accuracy}% correct</span>
+            <span>{t("reviewProgress.correctRate", { count: accuracy })}</span>
           </div>
         )}
       </div>

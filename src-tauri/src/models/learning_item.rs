@@ -60,7 +60,7 @@ pub struct LearningItem {
     pub interaction_metadata: Option<Value>,
     /// FSRS Memory State (stability and difficulty)
     pub memory_state: Option<MemoryState>,
-    /// Algorithm type used for scheduling (e.g., "fsrs", "sm2", "sm18")
+    /// Algorithm type used for scheduling (e.g., "fsrs", "sm2", "sm18", "sm20")
     pub algorithm_type: String,
     /// Algorithm-specific state as JSON (e.g., SM-18 state, SM-2 params)
     pub algorithm_state: Option<String>,
