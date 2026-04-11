@@ -4,7 +4,7 @@
 //! - FSRS-6 (Free Spaced Repetition Scheduler)
 //! - SM-2, SM-5, SM-8, SM-15 (SuperMemo algorithms)
 //! - SM-18 (Latest SuperMemo algorithm)
-//! - SM-20 (Python-backed canonical implementation)
+//! - SM-20 (native Rust implementation, mirrored in TypeScript)
 //! - Queue selector with weighted randomization
 //! - Document scheduler for incremental reading
 

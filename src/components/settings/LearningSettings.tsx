@@ -47,7 +47,7 @@ export function LearningSettings() {
                 : settings.learning.algorithm === "sm18"
                 ? "SuperMemo 18 — uses stability increase matrix for interval calculation"
                 : settings.learning.algorithm === "sm20"
-                ? "SuperMemo 20 — Python-backed DSR scheduler based on the reverse-engineered SM-20 core"
+                ? "SuperMemo 20 — Rust and TypeScript DSR scheduler based on the reverse-engineered SM-20 core"
                 : `SuperMemo ${settings.learning.algorithm.toUpperCase().replace("SM", "")}`}
             </p>
           </div>
