@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback } from "react";
 import { X, Command, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface ShortcutGroup {
   name: string;
@@ -14,63 +15,65 @@ interface ShortcutGroup {
   }[];
 }
 
-const shortcutGroups: ShortcutGroup[] = [
-  {
-    name: "Global",
-    shortcuts: [
-      { keys: ["Ctrl/⌘", "K"], description: "Open command palette" },
-      { keys: ["Ctrl/⌘", "P"], description: "Quick navigation" },
-      { keys: ["Ctrl/⌘", ","], description: "Open Settings" },
-      { keys: ["Ctrl/⌘", "D"], description: "Go to Dashboard" },
-      { keys: ["Ctrl/⌘", "Q"], description: "Go to Queue" },
-      { keys: ["Ctrl/⌘", "R"], description: "Start review" },
-      { keys: ["Ctrl/⌘", "O"], description: "Open document import" },
-      { keys: ["Ctrl/⌘", "N"], description: "New item" },
-      { keys: ["Ctrl/⌘", "/"], description: "Show keyboard shortcuts" },
-      { keys: ["?"], description: "Show this help" },
-    ],
-  },
-  {
-    name: "Review",
-    shortcuts: [
-      { keys: ["Space"], description: "Show answer" },
-      { keys: ["1"], description: "Rate: Again" },
-      { keys: ["2"], description: "Rate: Hard" },
-      { keys: ["3"], description: "Rate: Good" },
-      { keys: ["4"], description: "Rate: Easy" },
-      { keys: ["Ctrl/⌘", "Enter"], description: "Show answer (alternative)" },
-      { keys: ["Ctrl/⌘", "1/2/3/4"], description: "Rate without showing answer" },
-      { keys: ["Esc"], description: "End session" },
-      { keys: ["Ctrl/⌘", "E"], description: "Edit current card" },
-      { keys: ["Ctrl/⌘", "D"], description: "Delete current card" },
-      { keys: ["Ctrl/⌘", "S"], description: "Suspend card" },
-      { keys: ["Ctrl/⌘", "H"], description: "Card history" },
-    ],
-  },
-  {
-    name: "Queue",
-    shortcuts: [
-      { keys: ["Ctrl/⌘", "F"], description: "Focus search" },
-      { keys: ["Ctrl/⌘", "A"], description: "Select all" },
-      { keys: ["Delete"], description: "Delete selected" },
-      { keys: ["Ctrl/⌘", "Click"], description: "Multi-select" },
-      { keys: ["Shift", "Click"], description: "Range select" },
-    ],
-  },
-  {
-    name: "Document Viewer",
-    shortcuts: [
-      { keys: ["Ctrl/⌘", "F"], description: "Search in document" },
-      { keys: ["Ctrl/⌘", "C"], description: "Copy selected text" },
-      { keys: ["Ctrl/⌘", "E"], description: "Create extract from selection" },
-      { keys: ["Ctrl/⌘", "H"], description: "Highlight selection" },
-      { keys: ["Ctrl/⌘", "+"], description: "Zoom in" },
-      { keys: ["Ctrl/⌘", "-"], description: "Zoom out" },
-      { keys: ["Ctrl/⌘", "0"], description: "Reset zoom" },
-      { keys: ["F11"], description: "Full screen" },
-    ],
-  },
-];
+function getShortcutGroups(t: (key: string) => string): ShortcutGroup[] {
+  return [
+    {
+      name: t("keyboardShortcutsHelp.global"),
+      shortcuts: [
+        { keys: ["Ctrl/⌘", "K"], description: t("keyboardShortcutsHelp.openCommandPalette") },
+        { keys: ["Ctrl/⌘", "P"], description: t("keyboardShortcutsHelp.quickNavigation") },
+        { keys: ["Ctrl/⌘", ","], description: t("keyboardShortcutsHelp.openSettings") },
+        { keys: ["Ctrl/⌘", "D"], description: t("keyboardShortcutsHelp.goToDashboard") },
+        { keys: ["Ctrl/⌘", "Q"], description: t("keyboardShortcutsHelp.goToQueue") },
+        { keys: ["Ctrl/⌘", "R"], description: t("keyboardShortcutsHelp.startReview") },
+        { keys: ["Ctrl/⌘", "O"], description: t("keyboardShortcutsHelp.openDocumentImport") },
+        { keys: ["Ctrl/⌘", "N"], description: t("keyboardShortcutsHelp.newItem") },
+        { keys: ["Ctrl/⌘", "/"], description: t("keyboardShortcutsHelp.showKeyboardShortcuts") },
+        { keys: ["?"], description: t("keyboardShortcutsHelp.showThisHelp") },
+      ],
+    },
+    {
+      name: t("keyboardShortcutsHelp.review"),
+      shortcuts: [
+        { keys: ["Space"], description: t("keyboardShortcutsHelp.showAnswer") },
+        { keys: ["1"], description: t("keyboardShortcutsHelp.rateAgain") },
+        { keys: ["2"], description: t("keyboardShortcutsHelp.rateHard") },
+        { keys: ["3"], description: t("keyboardShortcutsHelp.rateGood") },
+        { keys: ["4"], description: t("keyboardShortcutsHelp.rateEasy") },
+        { keys: ["Ctrl/⌘", "Enter"], description: t("keyboardShortcutsHelp.showAnswerAlternative") },
+        { keys: ["Ctrl/⌘", "1/2/3/4"], description: t("keyboardShortcutsHelp.rateWithoutShowingAnswer") },
+        { keys: ["Esc"], description: t("keyboardShortcutsHelp.endSession") },
+        { keys: ["Ctrl/⌘", "E"], description: t("keyboardShortcutsHelp.editCurrentCard") },
+        { keys: ["Ctrl/⌘", "D"], description: t("keyboardShortcutsHelp.deleteCurrentCard") },
+        { keys: ["Ctrl/⌘", "S"], description: t("keyboardShortcutsHelp.suspendCard") },
+        { keys: ["Ctrl/⌘", "H"], description: t("keyboardShortcutsHelp.cardHistory") },
+      ],
+    },
+    {
+      name: t("keyboardShortcutsHelp.queue"),
+      shortcuts: [
+        { keys: ["Ctrl/⌘", "F"], description: t("keyboardShortcutsHelp.focusSearch") },
+        { keys: ["Ctrl/⌘", "A"], description: t("keyboardShortcutsHelp.selectAll") },
+        { keys: ["Delete"], description: t("keyboardShortcutsHelp.deleteSelected") },
+        { keys: ["Ctrl/⌘", "Click"], description: t("keyboardShortcutsHelp.multiSelect") },
+        { keys: ["Shift", "Click"], description: t("keyboardShortcutsHelp.rangeSelect") },
+      ],
+    },
+    {
+      name: t("keyboardShortcutsHelp.documentViewer"),
+      shortcuts: [
+        { keys: ["Ctrl/⌘", "F"], description: t("keyboardShortcutsHelp.searchInDocument") },
+        { keys: ["Ctrl/⌘", "C"], description: t("keyboardShortcutsHelp.copySelectedText") },
+        { keys: ["Ctrl/⌘", "E"], description: t("keyboardShortcutsHelp.createExtractFromSelection") },
+        { keys: ["Ctrl/⌘", "H"], description: t("keyboardShortcutsHelp.highlightSelection") },
+        { keys: ["Ctrl/⌘", "+"], description: t("keyboardShortcutsHelp.zoomIn") },
+        { keys: ["Ctrl/⌘", "-"], description: t("keyboardShortcutsHelp.zoomOut") },
+        { keys: ["Ctrl/⌘", "0"], description: t("keyboardShortcutsHelp.resetZoom") },
+        { keys: ["F11"], description: t("keyboardShortcutsHelp.fullScreen") },
+      ],
+    },
+  ];
+}
 
 interface KeyboardShortcutsHelpProps {
   isOpen: boolean;
@@ -78,6 +81,8 @@ interface KeyboardShortcutsHelpProps {
 }
 
 export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelpProps) {
+  const { t } = useI18n();
+  const shortcutGroups = getShortcutGroups(t);
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -145,17 +150,17 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
                 id="shortcuts-title"
                 className="text-lg font-semibold text-foreground"
               >
-                Keyboard Shortcuts
+                {t("keyboardShortcutsHelp.title")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Master these shortcuts to work faster
+                {t("keyboardShortcutsHelp.subtitle")}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 min-w-[44px] min-h-[44px] hover:bg-muted rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
-            aria-label="Close keyboard shortcuts help"
+            aria-label={t("keyboardShortcutsHelp.closeHelp")}
           >
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -211,7 +216,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
           {/* Pro tip */}
           <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-xl">
             <p className="text-sm text-primary">
-              <strong>Pro tip:</strong> Press <kbd className="px-1.5 py-0.5 text-xs bg-background border border-primary/30 rounded">Ctrl/⌘</kbd> + <kbd className="px-1.5 py-0.5 text-xs bg-background border border-primary/30 rounded">K</kbd> anytime to access the command palette for quick navigation.
+              <strong>{t("keyboardShortcutsHelp.proTipLabel")}</strong> {t("keyboardShortcutsHelp.proTipBody")}
             </p>
           </div>
         </div>
@@ -219,7 +224,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
         {/* Footer */}
         <div className="px-6 py-3 border-t border-border bg-muted/30">
           <p className="text-xs text-center text-muted-foreground">
-            Press <kbd className="px-1.5 py-0.5 bg-background border border-border rounded">Esc</kbd> to close
+            {t("keyboardShortcutsHelp.pressEscToClose")}
           </p>
         </div>
       </div>

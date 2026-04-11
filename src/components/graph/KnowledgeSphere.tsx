@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * 3D point
@@ -55,6 +56,7 @@ export function KnowledgeSphere({
   showLabels = true,
   connectionDistance: _connectionDistance = 150,
 }: KnowledgeSphereProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -126,7 +128,7 @@ export function KnowledgeSphere({
 
       // Perspective projection
       const fov = 500;
-      const scale = fov / (fov + z) * zoom;
+      const scale = (fov / (fov + z)) * zoom;
       const projectedX = centerX + x * scale;
       const projectedY = centerY + y * scale;
 
@@ -412,34 +414,49 @@ export function KnowledgeSphere({
         <button
           onClick={() => setRotation({ x: 0, y: 0 })}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Reset rotation"
+          title={t("graph.resetRotation")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
         <button
           onClick={() => setZoom((z) => Math.min(5, z * 1.2))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Zoom in"
+          title={t("graph.zoomIn")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"
+            />
           </svg>
         </button>
         <button
           onClick={() => setZoom((z) => Math.max(0.1, z * 0.8))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Zoom out"
+          title={t("graph.zoomOut")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"
+            />
           </svg>
         </button>
         <button
           onClick={() => setRotation((r) => ({ ...r, x: r.x + 0.1 }))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Tilt up"
+          title={t("graph.tiltUp")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -448,7 +465,7 @@ export function KnowledgeSphere({
         <button
           onClick={() => setRotation((r) => ({ ...r, x: r.x - 0.1 }))}
           className="p-2 bg-card border border-border rounded-lg shadow hover:bg-muted"
-          title="Tilt down"
+          title={t("graph.tiltDown")}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -458,13 +475,11 @@ export function KnowledgeSphere({
 
       {/* Info */}
       <div className="absolute top-4 left-4 bg-card/80 backdrop-blur border border-border rounded-lg shadow p-3">
-        <h3 className="text-sm font-semibold mb-1">Knowledge Sphere</h3>
+        <h3 className="text-sm font-semibold mb-1">{t("graph.knowledgeSphere")}</h3>
         <p className="text-xs text-muted-foreground">
-          {nodes.length} nodes • {edges.length} connections
+          {t("graph.nodesConnections", { nodes: nodes.length, connections: edges.length })}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Drag to rotate • Scroll to zoom
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">{t("graph.dragRotateScrollZoom")}</p>
       </div>
     </div>
   );

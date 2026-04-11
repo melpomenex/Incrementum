@@ -115,7 +115,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
       setDueItems(items);
       await loadStreak();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load review stats");
+      setError(err instanceof Error ? err.message : t("reviewHome.failedToLoadStats"));
     } finally {
       setIsLoading(false);
     }
@@ -172,9 +172,9 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
     setIsAnkiImporting(true);
     try {
       const selected = await openFilePicker({
-        title: "Import Anki Deck",
+        title: t("reviewSession.importAnkiDialogTitle"),
         multiple: false,
-        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+        filters: [{ name: t("reviewSession.importAnkiPackage"), extensions: ["apkg"] }],
       });
       if (!selected || selected.length === 0) return;
 
@@ -190,13 +190,13 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
 
       await loadStats();
       toast.success(
-        "Anki import complete",
-        `Imported ${imported.length} card(s) into ${deckNames.length || 1} deck(s).`
+        t("reviewSession.ankiImportComplete"),
+        t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
       );
     } catch (error) {
       toast.error(
-        "Anki import failed",
-        error instanceof Error ? error.message : "Unknown import error"
+        t("reviewSession.ankiImportFailed"),
+        error instanceof Error ? error.message : t("reviewSession.unknownImportError")
       );
     } finally {
       setIsAnkiImporting(false);
@@ -220,21 +220,21 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
                 <Layers className="h-4 w-4" />
-                View Decks
+                {t("reviewHome.viewDecks")}
               </button>
               <button
                 onClick={loadStats}
                 className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
                 <RefreshCw className="h-4 w-4" />
-                Refresh
+                {t("common.refresh")}
               </button>
               <button
                 onClick={() => setIsFlashcardStudioOpen(true)}
                 className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary/15"
               >
                 <Sparkles className="h-4 w-4" />
-                Create Flashcards
+                {t("extracts.createFlashcards")}
               </button>
               <button
                 onClick={handleImportAnkiDeck}
@@ -250,13 +250,13 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
               >
                 <Zap className="h-4 w-4" />
-                Start Review
+                {t("dashboard.startReview")}
               </button>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            In-session tools: <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+I</kbd> FSRS Inspector,{" "}
-            <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+Shift+Z</kbd> Zen Mode.
+            {t("reviewHome.inSessionTools")} <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+I</kbd> {t("reviewHome.fsrsInspector")},{" "}
+            <kbd className="px-1 py-0.5 rounded bg-muted">Ctrl/⌘+Shift+Z</kbd> {t("reviewHome.zenMode")}.
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -266,7 +266,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 !activeDeck ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
-              All Decks
+              {t("reviewHome.allDecks")}
             </button>
             {decks?.map((deck) => (
               <button
@@ -289,48 +289,50 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
             </div>
           )}
           {isLoading && (
-            <div className="text-xs text-muted-foreground">Refreshing review stats...</div>
+            <div className="text-xs text-muted-foreground">{t("reviewHome.refreshingStats")}</div>
           )}
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                <span>Total Due</span>
+                <span>{t("reviewHome.totalDue")}</span>
                 <BarChart3 className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-semibold text-foreground">{scopedItems.length}</div>
-              <p className="mt-1 text-xs text-muted-foreground">Across flashcards and learning items</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("reviewHome.totalDueDesc")}</p>
             </div>
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                <span>Due Today</span>
+                <span>{t("reviewHome.dueToday")}</span>
                 <Compass className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-semibold text-foreground">{dueToday.length}</div>
-              <p className="mt-1 text-xs text-muted-foreground">Ready to tackle right now</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("reviewHome.dueTodayDesc")}</p>
             </div>
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                <span>New vs Review</span>
+                <span>{t("reviewHome.newVsReview")}</span>
                 <Layers className="h-4 w-4" />
               </div>
               <div className="mt-2 text-lg font-semibold text-foreground">
-                {newCount} new · {learningCount} learning · {reviewCount} review
+                {t("reviewHome.newVsReviewValue", { newCount, learningCount, reviewCount })}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Balanced workload snapshot</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("reviewHome.newVsReviewDesc")}</p>
             </div>
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                <span>Estimated Time</span>
+                <span>{t("reviewHome.estimatedTime")}</span>
                 <Zap className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-semibold text-foreground">{formatMinutes(estimatedSeconds)}</div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Streak: {streakLoading ? "..." : streak?.current_streak ?? 0} days · Longest:{" "}
-                {streakLoading ? "..." : streak?.longest_streak ?? 0} days
+                {t("reviewHome.streakSummary", {
+                  streak: streakLoading ? "..." : streak?.current_streak ?? 0,
+                  longest: streakLoading ? "..." : streak?.longest_streak ?? 0,
+                })}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Total reviews: {streakLoading ? "..." : streak?.total_reviews ?? 0}
+                {t("reviewHome.totalReviews", { count: streakLoading ? "..." : streak?.total_reviews ?? 0 })}
               </p>
             </div>
           </div>
@@ -340,21 +342,21 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">Decks</h2>
-                <p className="text-sm text-muted-foreground">Pick a deck to focus your next session.</p>
+                <h2 className="text-xl font-semibold text-foreground">{t("reviewHome.decksTitle")}</h2>
+                <p className="text-sm text-muted-foreground">{t("reviewHome.decksDesc")}</p>
               </div>
               <button
                 onClick={() => setActiveDeckId(null)}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Reset selection
+                {t("reviewHome.resetSelection")}
               </button>
             </div>
 
             <div className="mt-4 grid gap-3">
               {!decks || decks.length === 0 && (
                 <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  No decks yet. Import an Anki `.apkg` file or create a deck below.
+                  {t("reviewHome.noDecks")}
                 </div>
               )}
               {deckStats?.map(({ deck, count }) => (
@@ -369,7 +371,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-base font-semibold text-foreground">{deck.name}</span>
-                    <span className="text-xs text-muted-foreground">{count} due</span>
+                    <span className="text-xs text-muted-foreground">{t("reviewHome.countDue", { count })}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {deck.tagFilters.map((tag) => (
@@ -387,16 +389,16 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
             <div className="flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Deck Tag Manager</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("reviewHome.tagManagerTitle")}</h2>
                 <p className="text-xs text-muted-foreground">
-                  Add tags to match non-Anki items into each deck.
+                  {t("reviewHome.tagManagerDesc")}
                 </p>
               </div>
             </div>
 
             <div className="mt-4 space-y-4">
               {!decks || decks.length === 0 && (
-                <p className="text-sm text-muted-foreground">Create a deck to start tagging.</p>
+                <p className="text-sm text-muted-foreground">{t("reviewHome.createDeckPrompt")}</p>
               )}
               {decks?.map((deck) => (
                 <div key={deck.id} className="rounded-lg border border-border bg-background p-3">
@@ -410,7 +412,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                       onClick={() => removeDeck(deck.id)}
                       className="text-xs text-muted-foreground hover:text-destructive"
                     >
-                      Remove
+                      {t("reviewHome.remove")}
                     </button>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -419,7 +421,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                         key={`${deck.id}-${tag}`}
                         onClick={() => handleRemoveTag(deck, tag)}
                         className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        title="Remove tag"
+                        title={t("reviewHome.removeTag")}
                       >
                         {tag}
                       </button>
@@ -427,7 +429,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <input
-                      placeholder="Add tag"
+                      placeholder={t("reviewHome.addTag")}
                       className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
@@ -450,7 +452,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                       }}
                       className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
                     >
-                      Add
+                      {t("reviewHome.add")}
                     </button>
                   </div>
                 </div>
@@ -460,26 +462,26 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
             <div className="mt-4 rounded-lg border border-dashed border-border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Plus className="h-3 w-3" />
-                Create a new deck
+                {t("reviewHome.createNewDeck")}
               </div>
               <div className="mt-2 space-y-2">
                 <input
                   value={newDeckName}
                   onChange={(e) => setNewDeckName(e.target.value)}
-                  placeholder="Deck name"
+                  placeholder={t("reviewHome.deckName")}
                   className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                 />
                 <input
                   value={newDeckTags}
                   onChange={(e) => setNewDeckTags(e.target.value)}
-                  placeholder="Tags (comma separated)"
+                  placeholder={t("reviewHome.tagsCommaSeparated")}
                   className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                 />
                 <button
                   onClick={handleAddDeck}
                   className="w-full rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90"
                 >
-                  Create deck
+                  {t("reviewHome.createDeck")}
                 </button>
               </div>
             </div>

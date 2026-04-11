@@ -6,6 +6,7 @@ use crate::database::Repository;
 use crate::error::Result;
 use crate::models::{LearningItem, ReviewRating, MemoryState, ItemState};
 use crate::algorithms::AlgorithmType;
+use crate::algorithms::sm20::{self, SM20State};
 
 /// Default desired retention rate (0.9 = 90% retention)
 const DEFAULT_DESIRED_RETENTION: f32 = 0.9;
@@ -219,6 +220,9 @@ pub async fn apply_review(
         }
         AlgorithmType::Sm18 => {
             apply_sm18_review(&mut item, review_rating, now)?;
+        }
+        AlgorithmType::Sm20 => {
+            apply_sm20_review(&mut item, review_rating, now)?;
         }
     }
 
@@ -602,6 +606,63 @@ fn apply_sm18_review(
     Ok(())
 }
 
+fn parse_sm20_state(item: &LearningItem) -> SM20State {
+    item.algorithm_state
+        .as_deref()
+        .and_then(|state| serde_json::from_str::<SM20State>(state).ok())
+        .unwrap_or_else(|| SM20State {
+            version: 2,
+            stability: item.memory_state.as_ref().map(|ms| ms.stability).unwrap_or(1.0).max(1.0),
+            difficulty: item.memory_state.as_ref().map(|ms| ms.difficulty).unwrap_or(0.3).clamp(0.0, 1.0),
+            repetition: item.review_count.max(0) as u32,
+            lapses: item.lapses.max(0) as u32,
+            interval: item.interval.max(1.0),
+            last_quality: 0.75,
+        })
+}
+
+fn apply_sm20_review(
+    item: &mut LearningItem,
+    review_rating: ReviewRating,
+    now: chrono::DateTime<Utc>,
+) -> Result<()> {
+    let state = parse_sm20_state(item);
+    let elapsed_days = item.last_review_date
+        .map(|lr| (now - lr).num_seconds() as f64 / 86400.0)
+        .unwrap_or(0.0)
+        .max(0.0);
+
+    let response = sm20::review(&state, review_rating as i32, elapsed_days);
+
+    let interval_seconds = (response.interval_days * 86400.0).round().max(60.0) as i64;
+    item.due_date = now + Duration::seconds(interval_seconds);
+    item.interval = response.interval_days;
+    item.review_count += 1;
+    item.last_review_date = Some(now);
+    item.date_modified = now;
+    item.lapses = response.state.lapses as i32;
+    item.algorithm_state = Some(serde_json::to_string(&response.state)?);
+    item.memory_state = Some(MemoryState {
+        stability: response.state.stability,
+        difficulty: response.state.difficulty,
+    });
+    item.difficulty = (response.state.difficulty * 10.0).round() as i32;
+
+    if review_rating == ReviewRating::Again {
+        item.state = ItemState::Relearning;
+    } else if response.interval_days >= GRADUATION_INTERVAL_DAYS {
+        item.state = ItemState::Review;
+    } else {
+        item.state = match item.state {
+            ItemState::New => ItemState::Learning,
+            ItemState::Relearning => ItemState::Relearning,
+            _ => ItemState::Learning,
+        };
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct RestoreLearningItemStateRequest {
     pub item_id: String,
@@ -700,6 +761,25 @@ pub async fn preview_review_intervals(
     repo: State<'_, Repository>,
 ) -> Result<PreviewIntervals> {
     let algo = algorithm.as_deref().unwrap_or("fsrs");
+
+    if algo == "sm20" {
+        let item = repo.get_learning_item(&item_id).await?
+            .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", item_id)))?;
+        let now = Utc::now();
+        let elapsed_days = item.last_review_date
+            .map(|lr| (now - lr).num_seconds() as f64 / 86400.0)
+            .unwrap_or(0.0)
+            .max(0.0);
+        let state = parse_sm20_state(&item);
+        let preview = sm20::preview(&state, elapsed_days);
+
+        return Ok(PreviewIntervals {
+            again: preview.again,
+            hard: preview.hard,
+            good: preview.good,
+            easy: preview.easy,
+        });
+    }
 
     if algo == "sm18" {
         let item = repo.get_learning_item(&item_id).await?

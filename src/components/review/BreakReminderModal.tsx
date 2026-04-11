@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { Coffee, X, Timer, Brain, RefreshCw } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface BreakReminderModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function BreakReminderModal({
   onContinue,
   sessionMinutes,
 }: BreakReminderModalProps) {
+  const { t } = useI18n();
   const [countdown, setCountdown] = useState(30);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function BreakReminderModal({
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-muted rounded-full transition-colors"
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -60,10 +62,10 @@ export function BreakReminderModal({
           </div>
 
           <h2 className="text-2xl font-bold text-foreground mb-1">
-            Time for a Break!
+            {t("breakReminder.title")}
           </h2>
           <p className="text-muted-foreground">
-            You've been reviewing for {sessionMinutes} minutes
+            {t("breakReminder.reviewingFor", { count: sessionMinutes })}
           </p>
         </div>
 
@@ -76,38 +78,38 @@ export function BreakReminderModal({
                 <Timer className="w-6 h-6 text-amber-500" />
               </div>
               <div className="text-2xl font-bold text-foreground">{sessionMinutes}</div>
-              <div className="text-xs text-muted-foreground">minutes</div>
+              <div className="text-xs text-muted-foreground">{t("breakReminder.minutes")}</div>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-2">
                 <Brain className="w-6 h-6 text-blue-500" />
               </div>
-              <div className="text-2xl font-bold text-foreground">Focus</div>
-              <div className="text-xs text-muted-foreground">great job!</div>
+              <div className="text-2xl font-bold text-foreground">{t("breakReminder.focus")}</div>
+              <div className="text-xs text-muted-foreground">{t("breakReminder.greatJob")}</div>
             </div>
           </div>
 
           {/* Benefits */}
           <div className="bg-muted/30 rounded-xl p-4 mb-6 border border-border">
             <h3 className="text-sm font-medium text-foreground mb-3">
-              Why take a break?
+              {t("breakReminder.whyTakeBreak")}
             </h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
-                <span>Rest your eyes and reduce eye strain</span>
+                <span>{t("breakReminder.benefitEyes")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
-                <span>Improve memory consolidation</span>
+                <span>{t("breakReminder.benefitMemory")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
-                <span>Maintain focus and prevent burnout</span>
+                <span>{t("breakReminder.benefitFocus")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-500 mt-0.5">✓</span>
-                <span>Stretch and improve posture</span>
+                <span>{t("breakReminder.benefitStretch")}</span>
               </li>
             </ul>
           </div>
@@ -115,14 +117,14 @@ export function BreakReminderModal({
           {/* Suggestion */}
           <div className="text-center mb-4">
             <p className="text-sm text-muted-foreground">
-              Consider taking a <strong>5-minute break</strong> to stretch, hydrate, or rest your eyes.
+              {t("breakReminder.considerTaking")} <strong>{t("breakReminder.fiveMinuteBreak")}</strong> {t("breakReminder.considerSuffix")}
             </p>
           </div>
 
           {/* Countdown for suggested break */}
           <div className="flex items-center justify-center gap-2 text-amber-500 mb-4">
             <RefreshCw className="w-4 h-4 animate-spin" style={{ animationDuration: "3s" }} />
-            <span className="text-sm">Break suggested for: {formatTime(countdown)}</span>
+            <span className="text-sm">{t("breakReminder.suggestedFor", { time: formatTime(countdown) })}</span>
           </div>
         </div>
 
@@ -132,7 +134,7 @@ export function BreakReminderModal({
             onClick={onClose}
             className="flex-1 px-4 py-2.5 min-h-[44px] border border-border rounded-lg text-foreground hover:bg-muted transition-colors"
           >
-            Take a Break
+            {t("breakReminder.takeBreak")}
           </button>
           <button
             onClick={() => {
@@ -141,7 +143,7 @@ export function BreakReminderModal({
             }}
             className="flex-1 px-4 py-2.5 min-h-[44px] bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
-            Continue Reviewing
+            {t("breakReminder.continueReviewing")}
           </button>
         </div>
       </div>

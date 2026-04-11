@@ -32,7 +32,7 @@ export interface FSRSScopeOverride {
  * Learning Settings
  */
 export interface LearningSettings {
-  algorithm: "fsrs" | "sm2" | "sm18";
+  algorithm: "fsrs" | "sm2" | "sm18" | "sm20";
   newCardsPerDay: number;
   reviewsPerDay: number;
   initialInterval: number;

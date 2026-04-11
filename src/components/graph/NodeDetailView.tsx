@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
+import { useI18n } from "../../lib/i18n";
 
 export interface NodeDetailViewProps {
   node: GraphNode;
@@ -47,7 +48,7 @@ const NODE_CONFIG = {
     borderColor: "border-blue-500/30",
     textColor: "text-blue-500",
     gradient: "from-blue-500/20 to-blue-600/5",
-    label: "Document",
+    labelKey: "graph.document",
   },
   [GraphNodeType.Extract]: {
     icon: Quote,
@@ -56,7 +57,7 @@ const NODE_CONFIG = {
     borderColor: "border-green-500/30",
     textColor: "text-green-500",
     gradient: "from-green-500/20 to-green-600/5",
-    label: "Extract",
+    labelKey: "graph.extract",
   },
   [GraphNodeType.Flashcard]: {
     icon: BrainCircuit,
@@ -65,7 +66,7 @@ const NODE_CONFIG = {
     borderColor: "border-purple-500/30",
     textColor: "text-purple-500",
     gradient: "from-purple-500/20 to-purple-600/5",
-    label: "Flashcard",
+    labelKey: "graph.flashcard",
   },
   [GraphNodeType.Category]: {
     icon: Folder,
@@ -74,7 +75,7 @@ const NODE_CONFIG = {
     borderColor: "border-amber-500/30",
     textColor: "text-amber-500",
     gradient: "from-amber-500/20 to-amber-600/5",
-    label: "Category",
+    labelKey: "graph.categorySingular",
   },
   [GraphNodeType.Tag]: {
     icon: Tag,
@@ -83,16 +84,16 @@ const NODE_CONFIG = {
     borderColor: "border-cyan-500/30",
     textColor: "text-cyan-500",
     gradient: "from-cyan-500/20 to-cyan-600/5",
-    label: "Tag",
+    labelKey: "graph.tag",
   },
 };
 
-const EDGE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  reference: { label: "References", color: "text-blue-400" },
-  contains: { label: "Contains", color: "text-slate-400" },
-  related: { label: "Related", color: "text-green-400" },
-  derived: { label: "Derived from", color: "text-purple-400" },
-  tagged: { label: "Tagged with", color: "text-cyan-400" },
+const EDGE_TYPE_LABELS: Record<string, { labelKey: string; color: string }> = {
+  reference: { labelKey: "graph.edgeReferences", color: "text-blue-400" },
+  contains: { labelKey: "graph.edgeContains", color: "text-slate-400" },
+  related: { labelKey: "graph.edgeRelated", color: "text-green-400" },
+  derived: { labelKey: "graph.edgeDerivedFrom", color: "text-purple-400" },
+  tagged: { labelKey: "graph.edgeTaggedWith", color: "text-cyan-400" },
 };
 
 export function NodeDetailView({
@@ -105,6 +106,7 @@ export function NodeDetailView({
   onSaveDetails,
   onDelete,
 }: NodeDetailViewProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"connections" | "metadata">("connections");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showActions, setShowActions] = useState(false);
@@ -192,7 +194,7 @@ export function NodeDetailView({
       });
       setIsEditing(false);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to save changes");
+      setSaveError(error instanceof Error ? error.message : t("graph.failedToSaveChanges"));
     } finally {
       setIsSaving(false);
     }
@@ -231,7 +233,7 @@ export function NodeDetailView({
 
           <div className="mb-2">
             <span className={`text-xs font-medium uppercase tracking-wider ${config.textColor}`}>
-              {config.label}
+              {t(config.labelKey)}
             </span>
           </div>
           <h2 className="text-xl font-semibold leading-tight mb-1">{node.label}</h2>
@@ -244,13 +246,13 @@ export function NodeDetailView({
             <div className="flex items-center gap-1.5 text-sm">
               <Link2 className="w-4 h-4 text-muted-foreground" />
               <span>{totalConnections}</span>
-              <span className="text-muted-foreground">connections</span>
+              <span className="text-muted-foreground">{t("graph.connections")}</span>
             </div>
             {node.tags && (
               <div className="flex items-center gap-1.5 text-sm">
                 <Hash className="w-4 h-4 text-muted-foreground" />
                 <span>{node.tags.length}</span>
-                <span className="text-muted-foreground">tags</span>
+                <span className="text-muted-foreground">{t("graph.tags")}</span>
               </div>
             )}
           </div>
@@ -268,7 +270,7 @@ export function NodeDetailView({
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
-                Open
+                {t("graph.open")}
               </button>
             )}
             {onEdit && (
@@ -280,7 +282,7 @@ export function NodeDetailView({
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
               >
                 <Edit3 className="w-4 h-4" />
-                Edit
+                {t("graph.edit")}
               </button>
             )}
             <button
@@ -291,7 +293,7 @@ export function NodeDetailView({
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
             >
               <Share2 className="w-4 h-4" />
-              Share
+              {t("graph.share")}
             </button>
             {onDelete && (
               <button
@@ -302,7 +304,7 @@ export function NodeDetailView({
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                Delete
+                {t("graph.delete")}
               </button>
             )}
           </div>
@@ -317,7 +319,7 @@ export function NodeDetailView({
             activeTab === "connections" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Connections
+          {t("graph.connectionsTab")}
           {activeTab === "connections" && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
           )}
@@ -328,7 +330,7 @@ export function NodeDetailView({
             activeTab === "metadata" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Details
+          {t("graph.details")}
           {activeTab === "metadata" && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
           )}
@@ -344,15 +346,15 @@ export function NodeDetailView({
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                   <Link2 className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-muted-foreground">No connections yet</p>
+                <p className="text-muted-foreground">{t("graph.noConnectionsYet")}</p>
                 <p className="text-sm text-muted-foreground/60 mt-1">
-                  This node is isolated in your knowledge graph
+                  {t("graph.isolatedNode")}
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {Object.entries(groupedConnections).map(([type, data]) => {
-                  const edgeConfig = EDGE_TYPE_LABELS[type] || { label: type, color: "text-slate-400" };
+                  const edgeConfig = EDGE_TYPE_LABELS[type] || { labelKey: "", color: "text-slate-400" };
                   const isExpanded = expandedGroups.has(type);
 
                   return (
@@ -366,7 +368,7 @@ export function NodeDetailView({
                       >
                         <div className="flex items-center gap-2">
                           <span className={`text-sm font-medium ${edgeConfig.color}`}>
-                            {edgeConfig.label}
+                            {edgeConfig.labelKey ? t(edgeConfig.labelKey) : type}
                           </span>
                           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {data.nodes.length}
@@ -401,7 +403,7 @@ export function NodeDetailView({
                                     {relatedNode.label}
                                   </p>
                                   <p className="text-xs text-muted-foreground capitalize">
-                                    {relatedNode.type}
+                                    {t(NODE_CONFIG[relatedNode.type].labelKey)}
                                   </p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -420,9 +422,9 @@ export function NodeDetailView({
           <div className="p-4 space-y-4">
             {isEditing && (
               <div className="bg-muted/50 rounded-xl p-4 space-y-3">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">Edit details</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("graph.editDetails")}</div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Title</label>
+                  <label className="text-xs text-muted-foreground">{t("graph.title")}</label>
                   <input
                     value={editLabel}
                     onChange={(e) => setEditLabel(e.target.value)}
@@ -431,7 +433,7 @@ export function NodeDetailView({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">
-                    {node.type === GraphNodeType.Extract ? "Content" : "Description"}
+                    {node.type === GraphNodeType.Extract ? t("graph.content") : t("graph.description")}
                   </label>
                   <textarea
                     value={editDescription}
@@ -441,7 +443,7 @@ export function NodeDetailView({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Category</label>
+                  <label className="text-xs text-muted-foreground">{t("graph.category")}</label>
                   <input
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
@@ -449,7 +451,7 @@ export function NodeDetailView({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Tags (comma-separated)</label>
+                  <label className="text-xs text-muted-foreground">{t("graph.tagsCommaSeparated")}</label>
                   <input
                     value={editTags}
                     onChange={(e) => setEditTags(e.target.value)}
@@ -465,7 +467,7 @@ export function NodeDetailView({
                     disabled={isSaving}
                     className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    {isSaving ? t("graph.saving") : t("graph.save")}
                   </button>
                   <button
                     onClick={() => {
@@ -479,7 +481,7 @@ export function NodeDetailView({
                     disabled={isSaving}
                     className="px-3 py-2 rounded-lg border border-border text-sm"
                   >
-                    Cancel
+                    {t("graph.cancel")}
                   </button>
                 </div>
               </div>
@@ -490,7 +492,7 @@ export function NodeDetailView({
               <div className="bg-muted/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-2">
                   <Folder className="w-4 h-4" />
-                  <span className="text-xs font-medium uppercase tracking-wider">Category</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{t("graph.category")}</span>
                 </div>
                 <span className="inline-flex items-center px-3 py-1.5 bg-card border border-border rounded-lg text-sm">
                   {node.category}
@@ -503,7 +505,7 @@ export function NodeDetailView({
               <div className="bg-muted/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-2">
                   <Hash className="w-4 h-4" />
-                  <span className="text-xs font-medium uppercase tracking-wider">Tags</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{t("graph.tags")}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {node.tags.map((tag) => (
@@ -523,7 +525,7 @@ export function NodeDetailView({
               <div className="bg-muted/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-3">
                   <Sparkles className="w-4 h-4" />
-                  <span className="text-xs font-medium uppercase tracking-wider">Metadata</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{t("graph.metadata")}</span>
                 </div>
                 <dl className="space-y-2">
                   {Object.entries(node.metadata).map(([key, value]) => (
@@ -544,7 +546,7 @@ export function NodeDetailView({
             {/* ID */}
             <div className="bg-muted/50 rounded-xl p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                <span className="text-xs font-medium uppercase tracking-wider">Node ID</span>
+                <span className="text-xs font-medium uppercase tracking-wider">{t("graph.nodeId")}</span>
               </div>
               <code className="text-xs bg-card px-2 py-1 rounded border border-border font-mono">
                 {node.id}
@@ -563,7 +565,7 @@ export function NodeDetailView({
               className={`flex items-center justify-center gap-2 px-4 py-2.5 ${config.bgColor} ${config.textColor} rounded-xl font-medium transition-all hover:brightness-110`}
             >
               <ExternalLink className="w-4 h-4" />
-              Open
+              {t("graph.open")}
             </button>
           )}
           {onEdit && (
@@ -572,7 +574,7 @@ export function NodeDetailView({
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl font-medium hover:bg-muted transition-colors"
             >
               <Edit3 className="w-4 h-4" />
-              Edit
+              {t("graph.edit")}
             </button>
           )}
         </div>
@@ -593,6 +595,7 @@ export function NodePreviewCard({
   onClick?: () => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const config = NODE_CONFIG[node.type];
   const Icon = config.icon;
 
@@ -609,7 +612,7 @@ export function NodePreviewCard({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{node.label}</p>
-          <p className={`text-xs ${config.textColor} capitalize`}>{node.type}</p>
+          <p className={`text-xs ${config.textColor} capitalize`}>{t(config.labelKey)}</p>
         </div>
       </div>
 
@@ -644,6 +647,7 @@ export function NodePreviewCard({
  * Node tooltip for hover
  */
 export function NodeTooltip({ node }: { node: GraphNode }) {
+  const { t } = useI18n();
   const config = NODE_CONFIG[node.type];
   const Icon = config.icon;
 
@@ -654,7 +658,7 @@ export function NodeTooltip({ node }: { node: GraphNode }) {
           <Icon className={`w-3 h-3 ${config.textColor}`} />
         </div>
         <span className={`text-xs font-medium uppercase tracking-wider ${config.textColor}`}>
-          {config.label}
+          {t(config.labelKey)}
         </span>
       </div>
       <p className="font-medium text-sm">{node.label}</p>

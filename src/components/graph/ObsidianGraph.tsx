@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useI18n } from "../../lib/i18n";
 import { GraphNodeType, type GraphNode, type GraphData } from "./KnowledgeGraph";
 import {
   FileText,
@@ -42,31 +43,31 @@ const NODE_CONFIG = {
     icon: FileText,
     size: 24,
     color: "#3b82f6",
-    label: "Document",
+    labelKey: "graph.document",
   },
   [GraphNodeType.Extract]: {
     icon: Quote,
     size: 16,
     color: "#22c55e",
-    label: "Extract",
+    labelKey: "graph.extract",
   },
   [GraphNodeType.Flashcard]: {
     icon: BrainCircuit,
     size: 12,
     color: "#a855f7",
-    label: "Flashcard",
+    labelKey: "graph.flashcard",
   },
   [GraphNodeType.Category]: {
     icon: Folder,
     size: 20,
     color: "#f59e0b",
-    label: "Category",
+    labelKey: "graph.categorySingular",
   },
   [GraphNodeType.Tag]: {
     icon: Tag,
     size: 14,
     color: "#06b6d4",
-    label: "Tag",
+    labelKey: "graph.tag",
   },
 };
 
@@ -88,6 +89,7 @@ export function ObsidianGraph({
   enablePhysics = true,
   showLabels = true,
 }: ObsidianGraphProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -495,28 +497,28 @@ export function ObsidianGraph({
         <button
           onClick={fitToView}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
-          title="Fit to view"
+          title={t("graph.fitToView")}
         >
           <Maximize2 className="w-5 h-5" />
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.min(5, t.k * 1.2) }))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
-          title="Zoom in"
+          title={t("graph.zoomIn")}
         >
           <ZoomIn className="w-5 h-5" />
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.max(0.1, t.k * 0.8) }))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
-          title="Zoom out"
+          title={t("graph.zoomOut")}
         >
           <ZoomOut className="w-5 h-5" />
         </button>
         <button
           onClick={() => setShowSettings(!showSettings)}
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105 ${showSettings ? "text-primary" : ""}`}
-          title="Settings"
+          title={t("graph.settings")}
         >
           <Settings2 className="w-5 h-5" />
         </button>
@@ -526,7 +528,7 @@ export function ObsidianGraph({
       {showSettings && (
         <div className="absolute bottom-6 right-20 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium">Graph Settings</span>
+            <span className="text-sm font-medium">{t("graph.graphSettings")}</span>
             <button
               onClick={() => setShowSettings(false)}
               className="p-1 hover:bg-muted rounded-lg"
@@ -543,7 +545,7 @@ export function ObsidianGraph({
                 onChange={(e) => setLocalShowLabels(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm">Show labels</span>
+              <span className="text-sm">{t("graph.showLabels")}</span>
             </label>
 
             <label className="flex items-center gap-2 cursor-pointer">
@@ -553,11 +555,11 @@ export function ObsidianGraph({
                 onChange={(e) => setPhysicsEnabled(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-sm">Physics simulation</span>
+              <span className="text-sm">{t("graph.physicsSimulation")}</span>
             </label>
 
             <div>
-              <span className="text-sm text-muted-foreground">Link distance</span>
+              <span className="text-sm text-muted-foreground">{t("graph.linkDistance")}</span>
               <input
                 type="range"
                 min="50"
@@ -569,7 +571,7 @@ export function ObsidianGraph({
             </div>
 
             <div>
-              <span className="text-sm text-muted-foreground">Repel force</span>
+              <span className="text-sm text-muted-foreground">{t("graph.repelForce")}</span>
               <input
                 type="range"
                 min="100"
@@ -586,10 +588,10 @@ export function ObsidianGraph({
       {/* Stats */}
       <div className="absolute top-6 left-6 bg-card/80 backdrop-blur border border-border rounded-xl shadow-lg px-4 py-2">
         <div className="text-xs text-muted-foreground">
-          {data.nodes.length} nodes · {data.edges.length} links
+          {t("graph.nodesAndLinks", { nodes: data.nodes.length, links: data.edges.length })}
         </div>
         <div className="text-xs text-muted-foreground">
-          Zoom: {Math.round(transform.k * 100)}%
+          {t("graph.zoomPercent", { count: Math.round(transform.k * 100) })}
         </div>
       </div>
     </div>

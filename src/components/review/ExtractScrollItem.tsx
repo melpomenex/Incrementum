@@ -3,6 +3,7 @@ import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, File
 import type { Extract } from "../../api/extracts";
 import { updateExtract } from "../../api/extracts";
 import { generateProgressiveSummaries } from "../../api/ai";
+import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 
 interface ExtractScrollItemProps {
@@ -26,6 +27,7 @@ export function ExtractScrollItem({
     onCreateQA,
     onUpdate
 }: ExtractScrollItemProps) {
+    const { t } = useI18n();
     const [content, setContent] = useState(extract.content);
     const [notes, setNotes] = useState(extract.notes ?? "");
     const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
@@ -55,7 +57,7 @@ export function ExtractScrollItem({
                 .catch((err) => {
                     console.error("Failed to generate progressive summaries:", err);
                     if (isMountedRef.current) {
-                        setSummaryError("Could not generate summary. Showing full content.");
+                        setSummaryError(t("extractScrollItem.summaryError"));
                     }
                 })
                 .finally(() => {
@@ -64,7 +66,7 @@ export function ExtractScrollItem({
                     }
                 });
         }
-    }, [extract.id, extract.max_disclosure_level]);
+    }, [extract.id, extract.max_disclosure_level, t]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -173,7 +175,7 @@ export function ExtractScrollItem({
 
         // Already at or past max level - show full content
         if (currentLevel >= maxLevel) {
-            return { text: extract.content, isSummary: false, levelLabel: "Full content" };
+            return { text: extract.content, isSummary: false, levelLabel: t("extractScrollItem.fullContent") };
         }
 
         // First half of levels use AI summaries
@@ -186,7 +188,7 @@ export function ExtractScrollItem({
                 return {
                     text: summary.summary,
                     isSummary: true,
-                    levelLabel: `AI Summary — Level ${currentLevel + 1}/${maxLevel}`,
+                    levelLabel: t("extractScrollItem.aiSummaryLevel", { current: currentLevel + 1, total: maxLevel }),
                 };
             }
             // No summaries yet (still generating or failed) - fall through to text reveal
@@ -214,7 +216,7 @@ export function ExtractScrollItem({
         return {
             text: isFull ? extract.content : extract.content.slice(0, cutoff) + "...",
             isSummary: false,
-            levelLabel: isFull ? "Full content" : `Revealing ${Math.round(fraction * 100)}%`,
+            levelLabel: isFull ? t("extractScrollItem.fullContent") : t("extractScrollItem.revealingPercent", { count: Math.round(fraction * 100) }),
         };
     };
 
@@ -233,15 +235,15 @@ export function ExtractScrollItem({
     };
 
     const stateLabel = extract.review_count === 0
-        ? "New Extract"
-        : "Review";
+        ? t("extractScrollItem.newExtract")
+        : t("extractScrollItem.review");
 
     const renderSaveStatus = () => {
         if (saveStatus === "saving") {
             return (
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Saving...
+                    {t("extractScrollItem.saving")}
                 </span>
             );
         }
@@ -249,7 +251,7 @@ export function ExtractScrollItem({
             return (
                 <span className="flex items-center gap-2 text-xs text-emerald-500">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    Saved
+                    {t("extractScrollItem.saved")}
                 </span>
             );
         }
@@ -257,7 +259,7 @@ export function ExtractScrollItem({
             return (
                 <span className="flex items-center gap-2 text-xs text-red-500">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    Save failed
+                    {t("extractScrollItem.saveFailed")}
                 </span>
             );
         }
@@ -265,7 +267,7 @@ export function ExtractScrollItem({
             return (
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
                     <PencilLine className="w-3.5 h-3.5" />
-                    Unsaved
+                    {t("extractScrollItem.unsaved")}
                 </span>
             );
         }
@@ -278,28 +280,28 @@ export function ExtractScrollItem({
             <div className="absolute top-6 left-6 flex items-center gap-2">
                 <span className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    Extract
+                    {t("extractScrollItem.extract")}
                 </span>
                 <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium">
                     {stateLabel}
                 </span>
                 {extract.review_count > 0 && (
                     <span className="px-2 py-1 text-xs text-muted-foreground">
-                        Reviewed {extract.review_count}x
+                        {t("extractScrollItem.reviewedCount", { count: extract.review_count })}
                     </span>
                 )}
                 {extract.max_disclosure_level > 0 && (
                     <span className="px-2 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
                         <Eye className="w-3 h-3" />
-                        Level {extract.progressive_disclosure_level}/{extract.max_disclosure_level}
+                        {t("extractScrollItem.level", { current: extract.progressive_disclosure_level, total: extract.max_disclosure_level })}
                     </span>
                 )}
             </div>
 
             <div className="absolute top-6 right-6 text-sm text-muted-foreground max-w-md flex items-center gap-4">
                 <span className="truncate">
-                    From: <span className="font-medium text-foreground">{documentTitle}</span>
-                    {extract.page_number && <span className="ml-2 opacity-70">Pg. {extract.page_number}</span>}
+                    {t("extractScrollItem.from")} <span className="font-medium text-foreground">{documentTitle}</span>
+                    {extract.page_number && <span className="ml-2 opacity-70">{t("extractScrollItem.pageShort", { count: extract.page_number })}</span>}
                 </span>
                 {renderSaveStatus()}
             </div>
@@ -311,18 +313,18 @@ export function ExtractScrollItem({
                     <button
                         onClick={handleCreateCloze}
                         className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
-                        title="Select text and press C"
+                        title={t("extractScrollItem.createClozeHint")}
                     >
                         <Scissors className="w-4 h-4" />
-                        Create Cloze (C)
+                        {t("extractScrollItem.createCloze")}
                     </button>
                     <button
                         onClick={onCreateQA}
                         className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
-                        title="Press Q"
+                        title={t("extractScrollItem.createQaHint")}
                     >
                         <MessageSquare className="w-4 h-4" />
-                        Create Q&A (Q)
+                        {t("extractScrollItem.createQa")}
                     </button>
                 </div>
 
@@ -338,7 +340,7 @@ export function ExtractScrollItem({
                                     ref={contentRef}
                                     value={content}
                                     onChange={(event) => setContent(event.target.value)}
-                                    placeholder="Edit extract content in markdown..."
+                                    placeholder={t("extractScrollItem.editContentPlaceholder")}
                                     className="w-full min-h-[300px] p-10 bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
                                 />
                             );
@@ -349,7 +351,7 @@ export function ExtractScrollItem({
                             return (
                                 <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground gap-3">
                                     <Loader2 className="w-6 h-6 animate-spin" />
-                                    <span className="text-sm">Generating summary...</span>
+                                    <span className="text-sm">{t("extractScrollItem.generatingSummary")}</span>
                                 </div>
                             );
                         }
@@ -363,7 +365,7 @@ export function ExtractScrollItem({
                                         ref={contentRef}
                                         value={content}
                                         onChange={(event) => setContent(event.target.value)}
-                                        placeholder="Edit extract content in markdown..."
+                                        placeholder={t("extractScrollItem.editContentPlaceholder")}
                                         className="w-full min-h-[300px] bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
                                     />
                                 </div>
@@ -397,11 +399,11 @@ export function ExtractScrollItem({
                     "bg-muted/50 border border-border/50 rounded-xl p-4",
                     "text-sm text-muted-foreground"
                 )}>
-                    <div className="font-semibold text-xs uppercase tracking-wider mb-2 opacity-70">Notes</div>
+                    <div className="font-semibold text-xs uppercase tracking-wider mb-2 opacity-70">{t("extractScrollItem.notes")}</div>
                     <textarea
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
-                        placeholder="Add notes for future review..."
+                        placeholder={t("extractScrollItem.notesPlaceholder")}
                         className="w-full min-h-[90px] bg-transparent text-sm text-foreground outline-none resize-none"
                     />
                 </div>
@@ -413,34 +415,34 @@ export function ExtractScrollItem({
                         className="flex-1 py-4 bg-red-500/90 text-white rounded-xl font-medium hover:bg-red-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
                         <AlertCircle className="w-5 h-5" />
-                        Again
+                        {t("extractScrollItem.again")}
                     </button>
                     <button
                         onClick={() => onRate(2)}
                         className="flex-1 py-4 bg-orange-500/90 text-white rounded-xl font-medium hover:bg-orange-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
                         <Star className="w-5 h-5" />
-                        Hard
+                        {t("extractScrollItem.hard")}
                     </button>
                     <button
                         onClick={() => onRate(3)}
                         className="flex-1 py-4 bg-blue-500/90 text-white rounded-xl font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
                         <CheckCircle className="w-5 h-5" />
-                        Good
+                        {t("extractScrollItem.good")}
                     </button>
                     <button
                         onClick={() => onRate(4)}
                         className="flex-1 py-4 bg-green-500/90 text-white rounded-xl font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
                         <Sparkles className="w-5 h-5" />
-                        Easy
+                        {t("extractScrollItem.easy")}
                     </button>
                 </div>
 
                 {/* Keyboard hints */}
                 <div className="text-center text-xs text-muted-foreground">
-                    Press 1-4 to rate • Select text + C to create Cloze • Q for Q&A
+                    {t("extractScrollItem.keyboardHints")}
                 </div>
             </div>
         </div>

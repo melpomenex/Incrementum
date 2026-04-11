@@ -169,29 +169,29 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
   const handleDeleteCurrent = async () => {
     if (!currentCard || isDocumentItem(currentCard)) {
-      toast.info("Delete is only available for learning cards.");
+      toast.info(t("queue.delete"), t("reviewSession.deleteOnlyLearning"));
       return;
     }
     try {
       await bulkDeleteItems([currentCard.id]);
-      toast.success("Card deleted");
+      toast.success(t("reviewSession.cardDeleted"));
       await loadQueue();
     } catch (error) {
-      toast.error("Failed to delete card", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("reviewSession.deleteFailed"), error instanceof Error ? error.message : t("reviewSession.unknownError"));
     }
   };
 
   const handleSuspendCurrent = async () => {
     if (!currentCard || isDocumentItem(currentCard)) {
-      toast.info("Suspend is only available for learning cards.");
+      toast.info(t("queue.suspend"), t("reviewSession.suspendOnlyLearning"));
       return;
     }
     try {
       await bulkSuspendItems([currentCard.id]);
-      toast.success("Card suspended");
+      toast.success(t("reviewSession.cardSuspended"));
       await loadQueue();
     } catch (error) {
-      toast.error("Failed to suspend card", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("reviewSession.suspendFailed"), error instanceof Error ? error.message : t("reviewSession.unknownError"));
     }
   };
 
@@ -200,9 +200,9 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     setIsAnkiImporting(true);
     try {
       const selected = await openFilePicker({
-        title: "Import Anki Deck",
+        title: t("reviewSession.importAnkiDialogTitle"),
         multiple: false,
-        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+        filters: [{ name: t("reviewSession.importAnkiPackage"), extensions: ["apkg"] }],
       });
       if (!selected || selected.length === 0) return;
 
@@ -216,13 +216,13 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       }
       await loadQueue();
       toast.success(
-        "Anki import complete",
-        `Imported ${imported.length} card(s) into ${deckNames.length || 1} deck(s).`
+        t("reviewSession.ankiImportComplete"),
+        t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
       );
     } catch (error) {
       toast.error(
-        "Anki import failed",
-        error instanceof Error ? error.message : "Unknown import error"
+        t("reviewSession.ankiImportFailed"),
+        error instanceof Error ? error.message : t("reviewSession.unknownImportError")
       );
     } finally {
       setIsAnkiImporting(false);
@@ -307,10 +307,10 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       // Review actions that are currently placeholders in the session UI.
       if (mod && (lowerKey === "e" || lowerKey === "d" || lowerKey === "s" || lowerKey === "h")) {
         e.preventDefault();
-        if (lowerKey === "e") toast.info("Edit card is not available yet.");
+        if (lowerKey === "e") toast.info(t("reviewSession.editUnavailable"));
         if (lowerKey === "d") void handleDeleteCurrent();
         if (lowerKey === "s") void handleSuspendCurrent();
-        if (lowerKey === "h") toast.info("Card history is not available yet.");
+        if (lowerKey === "h") toast.info(t("reviewSession.historyUnavailable"));
         return;
       }
 
@@ -352,7 +352,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
-            Error Loading Review
+            {t("reviewSession.errorLoading")}
           </h2>
           <p className="text-muted-foreground mb-4">{error}</p>
           <button
@@ -372,7 +372,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         <div className="text-center">
           <div className="text-6xl mb-4">🎉</div>
           <h3 className="text-2xl font-bold text-foreground mb-2">
-            All Caught Up!
+            {t("reviewSession.allCaughtUp")}
           </h3>
           <p className="text-muted-foreground mb-6">
             {t("review.emptyState")}
@@ -463,7 +463,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
               title={isZenMode ? t("review.exitZen") : t("review.enterZen")}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Zen
+            {t("reviewSession.zenShort")}
           </button>
           
           <button
@@ -473,7 +473,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                 ? "bg-primary/10 text-primary border border-primary/30" 
                 : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
-            title="Toggle FSRS Inspector (Cmd+I)"
+            title={t("reviewSession.toggleInspector")}
           >
             <span className="font-mono text-[10px]">FSRS</span>
           </button>
@@ -481,7 +481,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             onClick={handleImportAnkiDeck}
             disabled={isAnkiImporting}
             className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Import Anki .apkg deck"
+            title={t("reviewSession.importAnkiTooltip")}
           >
             <Upload className="w-3.5 h-3.5" />
             {isAnkiImporting ? t("review.importing") : t("review.import")}
@@ -496,7 +496,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
               onPreviousDocument={() => goToIndex(currentIndex - 1)}
               onNextDocument={() => goToIndex(currentIndex + 1)}
               onNextChunk={() => setIsQueueListOpen((prev) => !prev)}
-              listButtonLabel="Review Queue"
+              listButtonLabel={t("review.queue")}
               disabled={isSubmitting}
             />
 
@@ -527,11 +527,11 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
                       </div>
                       <div className="line-clamp-2">
                         {"documentTitle" in item ? (
-                          item.documentTitle || "Untitled document"
+                          item.documentTitle || t("reviewSession.untitledDocument")
                         ) : (
                           <span
                             dangerouslySetInnerHTML={{
-                              __html: renderAnkiHtmlWithLatex(item.question || item.cloze_text || "Untitled card"),
+                              __html: renderAnkiHtmlWithLatex(item.question || item.cloze_text || t("reviewSession.untitledCard")),
                             }}
                           />
                         )}

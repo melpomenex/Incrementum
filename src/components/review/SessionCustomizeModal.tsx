@@ -1,4 +1,5 @@
 import { X, Clock, Tag, Sliders, Target, Layers } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export interface SessionCustomization {
   sessionDurationMinutes: number;
@@ -63,6 +64,7 @@ export function SessionCustomizeModal({
   availableTags = [],
   availableCategories = [],
 }: SessionCustomizeModalProps) {
+  const { t } = useI18n();
   if (!isOpen) return null;
 
   const updateCustomization = (updates: Partial<SessionCustomization>) => {
@@ -108,10 +110,11 @@ export function SessionCustomizeModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-card border border-border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto m-4">
         <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Customize Session</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t("sessionCustomize.title")}</h2>
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+            aria-label={t("common.close")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -122,7 +125,7 @@ export function SessionCustomizeModal({
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Session Duration</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.sessionDuration")}</h3>
             </div>
             <div className="flex items-center gap-4">
               <input
@@ -137,7 +140,7 @@ export function SessionCustomizeModal({
                 className="flex-1"
               />
               <div className="min-w-[80px] text-sm text-foreground/80 text-right">
-                {customization.sessionDurationMinutes} min
+                {t("sessionCustomize.minutesShort", { count: customization.sessionDurationMinutes })}
               </div>
             </div>
             <div className="flex gap-2">
@@ -151,7 +154,7 @@ export function SessionCustomizeModal({
                       : "bg-background border-border hover:bg-muted/60"
                   }`}
                 >
-                  {duration}m
+                  {t("sessionCustomize.minutesCompact", { count: duration })}
                 </button>
               ))}
             </div>
@@ -161,7 +164,7 @@ export function SessionCustomizeModal({
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Maximum Items</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.maximumItems")}</h3>
             </div>
             <div className="flex items-center gap-4">
               <input
@@ -174,7 +177,7 @@ export function SessionCustomizeModal({
                 className="flex-1"
               />
               <div className="min-w-[80px] text-sm text-foreground/80 text-right">
-                {customization.maxItems} items
+                {t("sessionCustomize.itemsCount", { count: customization.maxItems })}
               </div>
             </div>
           </section>
@@ -183,11 +186,11 @@ export function SessionCustomizeModal({
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Block Time Budgets</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.blockTimeBudgets")}</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-foreground/80 font-medium">Overdue Rescue (min)</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.overdueRescue")}</label>
                 <input
                   type="number"
                   min="5"
@@ -200,7 +203,7 @@ export function SessionCustomizeModal({
                 />
               </div>
               <div>
-                <label className="text-xs text-foreground/80 font-medium">Maintenance Block (min)</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.maintenanceBlock")}</label>
                 <input
                   type="number"
                   min="5"
@@ -213,7 +216,7 @@ export function SessionCustomizeModal({
                 />
               </div>
               <div>
-                <label className="text-xs text-foreground/80 font-medium">Exploration Block (min)</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.explorationBlock")}</label>
                 <input
                   type="number"
                   min="5"
@@ -226,7 +229,7 @@ export function SessionCustomizeModal({
                 />
               </div>
               <div>
-                <label className="text-xs text-foreground/80 font-medium">Focus Block (min)</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.focusBlock")}</label>
                 <input
                   type="number"
                   min="5"
@@ -245,7 +248,7 @@ export function SessionCustomizeModal({
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Item Types</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.itemTypes")}</h3>
             </div>
             <div className="flex flex-wrap gap-3">
               <label className="flex items-center gap-2 text-sm text-foreground">
@@ -255,7 +258,7 @@ export function SessionCustomizeModal({
                   onChange={(e) => updateItemTypes({ documents: e.target.checked })}
                   className="rounded"
                 />
-                Documents
+                {t("sessionCustomize.documents")}
               </label>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
@@ -264,7 +267,7 @@ export function SessionCustomizeModal({
                   onChange={(e) => updateItemTypes({ extracts: e.target.checked })}
                   className="rounded"
                 />
-                Extracts
+                {t("sessionCustomize.extracts")}
               </label>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
@@ -273,7 +276,7 @@ export function SessionCustomizeModal({
                   onChange={(e) => updateItemTypes({ learningItems: e.target.checked })}
                   className="rounded"
                 />
-                Learning Items
+                {t("sessionCustomize.learningItems")}
               </label>
             </div>
           </section>
@@ -282,11 +285,11 @@ export function SessionCustomizeModal({
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Priority Range</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.priorityRange")}</h3>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <label className="text-xs text-foreground/80 font-medium">Minimum Priority</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.minimumPriority")}</label>
                 <input
                   type="range"
                   min="0"
@@ -307,7 +310,7 @@ export function SessionCustomizeModal({
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-xs text-foreground/80 font-medium">Maximum Priority</label>
+                <label className="text-xs text-foreground/80 font-medium">{t("sessionCustomize.maximumPriority")}</label>
                 <input
                   type="range"
                   min="0"
@@ -335,7 +338,7 @@ export function SessionCustomizeModal({
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Filter by Tags</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.filterByTags")}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 {availableTags.map((tag) => (
@@ -360,7 +363,7 @@ export function SessionCustomizeModal({
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Filter by Category</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.filterByCategory")}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 {availableCategories.map((category) => (
@@ -382,7 +385,7 @@ export function SessionCustomizeModal({
 
           {/* Exclude Suspended */}
           <section className="flex items-center justify-between p-3 bg-muted/30 rounded border border-border">
-            <span className="text-sm text-foreground">Exclude suspended items</span>
+            <span className="text-sm text-foreground">{t("sessionCustomize.excludeSuspended")}</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
@@ -401,20 +404,20 @@ export function SessionCustomizeModal({
             onClick={() => onChange(DEFAULT_CUSTOMIZATION)}
             className="px-4 py-2 text-sm text-foreground/70 hover:text-foreground"
           >
-            Reset to Defaults
+            {t("sessionCustomize.resetToDefaults")}
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm bg-background border border-border rounded hover:bg-muted/60 text-foreground"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={onApply}
               className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium shadow-sm dark:bg-blue-500 dark:hover:bg-blue-600"
             >
-              Apply Customization
+              {t("sessionCustomize.applyCustomization")}
             </button>
           </div>
         </div>

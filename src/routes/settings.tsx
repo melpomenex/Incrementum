@@ -87,6 +87,7 @@ export function Settings() {
               >
                 <option value="fsrs">{t("settingsLegacy.fsrsRecommended")}</option>
                 <option value="sm18">SuperMemo 18</option>
+                <option value="sm20">SuperMemo 20</option>
                 <option value="sm15">SuperMemo 15</option>
                 <option value="sm8">SuperMemo 8</option>
                 <option value="sm5">SuperMemo 5</option>

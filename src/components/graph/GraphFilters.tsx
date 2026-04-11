@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import {
   GraphNode,
   GraphEdge,
@@ -48,35 +49,35 @@ export interface GraphFilterControlsProps {
 
 const NODE_TYPE_CONFIG = {
   [GraphNodeType.Document]: {
-    label: "Documents",
+    labelKey: "graph.documents",
     color: "bg-blue-500",
     borderColor: "border-blue-500",
     textColor: "text-blue-500",
     icon: "📄",
   },
   [GraphNodeType.Extract]: {
-    label: "Extracts",
+    labelKey: "graph.extracts",
     color: "bg-green-500",
     borderColor: "border-green-500",
     textColor: "text-green-500",
     icon: "💬",
   },
   [GraphNodeType.Flashcard]: {
-    label: "Flashcards",
+    labelKey: "graph.flashcards",
     color: "bg-purple-500",
     borderColor: "border-purple-500",
     textColor: "text-purple-500",
     icon: "🧠",
   },
   [GraphNodeType.Category]: {
-    label: "Categories",
+    labelKey: "graph.categories",
     color: "bg-amber-500",
     borderColor: "border-amber-500",
     textColor: "text-amber-500",
     icon: "📁",
   },
   [GraphNodeType.Tag]: {
-    label: "Tags",
+    labelKey: "graph.tags",
     color: "bg-cyan-500",
     borderColor: "border-cyan-500",
     textColor: "text-cyan-500",
@@ -93,6 +94,7 @@ export function GraphFilterControls({
   onLayoutChange,
   nodeCounts,
 }: GraphFilterControlsProps) {
+  const { t } = useI18n();
   const [activeSection, setActiveSection] = useState<string | null>("types");
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -159,7 +161,7 @@ export function GraphFilterControls({
             <Filter className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <span className="font-semibold text-sm">Filters</span>
+            <span className="font-semibold text-sm">{t("graph.filters")}</span>
             {activeFiltersCount > 0 && (
               <span className="ml-2 px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
                 {activeFiltersCount}
@@ -172,7 +174,7 @@ export function GraphFilterControls({
             <button
               onClick={clearAll}
               className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-              title="Clear all filters"
+              title={t("graph.clearAllFilters")}
             >
               <X className="w-4 h-4" />
             </button>
@@ -198,7 +200,7 @@ export function GraphFilterControls({
                 type="text"
                 value={filters.searchQuery}
                 onChange={(e) => updateSearchQuery(e.target.value)}
-                placeholder="Search knowledge..."
+                placeholder={t("graph.searchKnowledge")}
                 className="w-full pl-10 pr-9 py-2.5 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:bg-card transition-all"
               />
               {filters.searchQuery && (
@@ -220,7 +222,7 @@ export function GraphFilterControls({
             >
               <div className="flex items-center gap-2">
                 <LayoutGrid className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-sm">Node Types</span>
+                <span className="font-medium text-sm">{t("graph.nodeTypes")}</span>
               </div>
               <ChevronDown
                 className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "types" ? "" : "-rotate-90"}`}
@@ -234,13 +236,13 @@ export function GraphFilterControls({
                     onClick={selectAllTypes}
                     className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors"
                   >
-                    Select All
+                    {t("graph.selectAll")}
                   </button>
                   <button
                     onClick={clearAllTypes}
                     className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md transition-colors"
                   >
-                    Clear All
+                    {t("graph.clearAll")}
                   </button>
                 </div>
 
@@ -268,7 +270,7 @@ export function GraphFilterControls({
                           >
                             {config.icon}
                           </div>
-                          <span className="text-sm">{config.label}</span>
+                          <span className="text-sm">{t(config.labelKey)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">{count}</span>
@@ -294,7 +296,7 @@ export function GraphFilterControls({
             >
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-sm">Layout</span>
+                <span className="font-medium text-sm">{t("graph.layout")}</span>
               </div>
               <ChevronDown
                 className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "layout" ? "" : "-rotate-90"}`}
@@ -308,17 +310,17 @@ export function GraphFilterControls({
                   onChange={(e) => onLayoutChange(e.target.value as LayoutAlgorithm)}
                   className="w-full px-3 py-2.5 bg-muted border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 transition-all"
                 >
-                  <option value={LayoutAlgorithm.Force}>Force Directed</option>
-                  <option value={LayoutAlgorithm.Circular}>Circular</option>
-                  <option value={LayoutAlgorithm.Hierarchical}>Hierarchical</option>
-                  <option value={LayoutAlgorithm.Grid}>Grid</option>
+                  <option value={LayoutAlgorithm.Force}>{t("graph.layoutForceDirected")}</option>
+                  <option value={LayoutAlgorithm.Circular}>{t("graph.layoutCircular")}</option>
+                  <option value={LayoutAlgorithm.Hierarchical}>{t("graph.layoutHierarchical")}</option>
+                  <option value={LayoutAlgorithm.Grid}>{t("graph.layoutGrid")}</option>
                 </select>
 
                 <div className="mt-4 space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">Node Size</span>
-                      <span className="font-medium">Auto</span>
+                      <span className="text-muted-foreground">{t("graph.nodeSize")}</span>
+                      <span className="font-medium">{t("graph.auto")}</span>
                     </div>
                     <input
                       type="range"
@@ -332,7 +334,7 @@ export function GraphFilterControls({
 
                   <div>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">Link Distance</span>
+                      <span className="text-muted-foreground">{t("graph.linkDistance")}</span>
                       <span className="font-medium">120px</span>
                     </div>
                     <input
@@ -357,7 +359,7 @@ export function GraphFilterControls({
               >
                 <div className="flex items-center gap-2">
                   <Circle className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">Categories</span>
+                  <span className="font-medium text-sm">{t("graph.categories")}</span>
                   {filters.categories.length > 0 && (
                     <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-md">
                       {filters.categories.length}
@@ -403,7 +405,7 @@ export function GraphFilterControls({
               >
                 <div className="flex items-center gap-2">
                   <Tags className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">Tags</span>
+                  <span className="font-medium text-sm">{t("graph.tags")}</span>
                   {filters.tags.length > 0 && (
                     <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-md">
                       {filters.tags.length}
@@ -445,7 +447,7 @@ export function GraphFilterControls({
       {/* Footer stats */}
       <div className="px-4 py-3 border-t border-border bg-muted/30">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Total Nodes</span>
+          <span>{t("graph.totalNodes")}</span>
           <span className="font-medium text-foreground">
             {Object.values(nodeCounts).reduce((a, b) => a + b, 0)}
           </span>

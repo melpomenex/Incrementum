@@ -3,7 +3,7 @@
  */
 
 export const APP_NAME = "Incrementum";
-export const APP_VERSION = "1.18.0";
+export const APP_VERSION = "1.19.0";
 
 export const KEYBOARD_SHORTCUTS = {
   COMMAND_PALETTE: "Cmd+Shift+P",
@@ -22,6 +22,8 @@ export const KEYBOARD_SHORTCUTS = {
 export const ALGORITHM_NAMES = {
   fsrs: "FSRS-6",
   sm2: "SuperMemo 2",
+  sm18: "SuperMemo 18",
+  sm20: "SuperMemo 20",
 } as const;
 
 export const FILE_TYPE_ICONS = {
