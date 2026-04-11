@@ -1,5 +1,6 @@
 import { ReviewRating, PreviewIntervals, formatInterval } from "../../api/review";
 import { RotateCcw, ThumbsDown, ThumbsUp, Zap } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 interface RatingButtonsProps {
   onSelectRating: (rating: ReviewRating) => void;
@@ -12,6 +13,7 @@ export function RatingButtons({
   disabled = false,
   previewIntervals,
 }: RatingButtonsProps) {
+  const { t } = useI18n();
   const ratings: {
     value: ReviewRating;
     label: string;
@@ -21,31 +23,31 @@ export function RatingButtons({
   }[] = [
     {
       value: 1,
-      label: "Again",
+      label: t("review.again"),
       icon: RotateCcw,
       color: "bg-red-500 hover:bg-red-600",
-      description: "Forgot, will see again soon",
+      description: t("ratingButtons.againDescription"),
     },
     {
       value: 2,
-      label: "Hard",
+      label: t("review.hard"),
       icon: ThumbsDown,
       color: "bg-orange-500 hover:bg-orange-600",
-      description: "Difficult, barely remembered",
+      description: t("ratingButtons.hardDescription"),
     },
     {
       value: 3,
-      label: "Good",
+      label: t("review.good"),
       icon: ThumbsUp,
       color: "bg-blue-500 hover:bg-blue-600",
-      description: "Remembered correctly",
+      description: t("ratingButtons.goodDescription"),
     },
     {
       value: 4,
-      label: "Easy",
+      label: t("review.easy"),
       icon: Zap,
       color: "bg-green-500 hover:bg-green-600",
-      description: "Easy, knew it well",
+      description: t("ratingButtons.easyDescription"),
     },
   ];
 
@@ -83,13 +85,21 @@ export function RatingButtons({
                 focus-visible:ring-4 focus-visible:ring-white/50 focus-visible:outline-none
                 focus-visible:scale-[1.02]
               `}
-              title={`${rating.label}: ${rating.description}`}
-              aria-label={`Rate as ${rating.label}. ${rating.description}${interval ? `. Next review: ${interval}` : ""}`}
+              title={t("ratingButtons.rateAsTitle", { label: rating.label, description: rating.description })}
+              aria-label={
+                interval
+                  ? t("ratingButtons.rateAsWithInterval", {
+                      label: rating.label,
+                      description: rating.description,
+                      interval,
+                    })
+                  : t("ratingButtons.rateAs", { label: rating.label, description: rating.description })
+              }
             >
               <Icon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
               <span className="font-semibold text-sm md:text-base">{rating.label}</span>
               {interval && (
-                <span className="text-xs opacity-90" aria-label={`Next review in ${interval}`}>{interval}</span>
+                <span className="text-xs opacity-90" aria-label={t("ratingButtons.nextReviewIn", { interval })}>{interval}</span>
               )}
             </button>
           );
@@ -98,11 +108,11 @@ export function RatingButtons({
 
       {/* Keyboard shortcuts hint - hide on mobile */}
       <div className="mt-4 text-center text-sm text-muted-foreground hidden md:block">
-        Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">1</kbd>
+        {t("ratingButtons.press")} <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">1</kbd>
         <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">2</kbd>
         <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">3</kbd>
         <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">4</kbd>
-        to rate
+        {" "}{t("ratingButtons.toRate")}
       </div>
     </div>
   );

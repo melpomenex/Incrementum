@@ -38,6 +38,7 @@ export function LearningSettings() {
             >
               <option value="fsrs">FSRS-6 (Recommended)</option>
               <option value="sm18">SuperMemo 18</option>
+              <option value="sm20">SuperMemo 20</option>
               <option value="sm2">SuperMemo 2</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
@@ -45,6 +46,8 @@ export function LearningSettings() {
                 ? "Free Spaced Repetition Scheduler — optimal retention-based scheduling"
                 : settings.learning.algorithm === "sm18"
                 ? "SuperMemo 18 — uses stability increase matrix for interval calculation"
+                : settings.learning.algorithm === "sm20"
+                ? "SuperMemo 20 — Python-backed DSR scheduler based on the reverse-engineered SM-20 core"
                 : `SuperMemo ${settings.learning.algorithm.toUpperCase().replace("SM", "")}`}
             </p>
           </div>

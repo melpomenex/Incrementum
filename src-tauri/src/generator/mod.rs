@@ -205,6 +205,7 @@ mod tests {
             notes: None,
             progressive_disclosure_level: 0,
             max_disclosure_level: 3,
+            progressive_summaries: None,
             date_created: Utc::now(),
             date_modified: Utc::now(),
             tags: vec![],

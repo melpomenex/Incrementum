@@ -17,7 +17,9 @@ import { X, Activity, Brain, Clock, Database, TrendingDown } from "lucide-react"
 import { cn } from "../../utils";
 import type { LearningItem } from "../../api/review";
 import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
+import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
 import type { SM18State } from "../../lib/sm18";
+import type { SM20State } from "../../lib/sm20";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface FSRSInspectorProps {
@@ -33,7 +35,7 @@ function calculateForgetCurve(
   algorithmType?: string,
   elapsedDays?: number
 ): { day: number; retrievability: number }[] {
-  if (algorithmType === "sm18") {
+  if (algorithmType === "sm18" || algorithmType === "sm20") {
     return days.map((day) => ({
       day,
       retrievability: Math.pow(0.9, day / stability),
@@ -177,19 +179,32 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
   // Use card's algorithm_type if set, otherwise fall back to user's setting
   const effectiveAlgorithm = card.algorithm_type || settings.learning.algorithm;
   const isSm18 = effectiveAlgorithm === "sm18";
+  const isSm20 = effectiveAlgorithm === "sm20";
   const sm18State: SM18State | null = isSm18 ? parseSm18State(card.algorithm_state) : null;
+  const sm20State: SM20State | null = isSm20 ? parseSm20State(card.algorithm_state) : null;
 
   const stability = isSm18 && sm18State
     ? sm18State.stability
+    : isSm20 && sm20State
+    ? sm20State.stability
     : card.memory_state?.stability ?? 0;
   const difficulty = isSm18 && sm18State
     ? sm18State.difficulty
+    : isSm20 && sm20State
+    ? sm20State.difficulty
     : card.memory_state?.difficulty ?? 0;
   const retrievability = isSm18 && sm18State && sm18State.stability > 0
     ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
+    : isSm20 && sm20State && sm20State.stability > 0
+    ? sm20Retrievability(
+        sm20State.stability,
+        card.last_review_date
+          ? (Date.now() - new Date(card.last_review_date).getTime()) / (86400 * 1000)
+          : 0
+      )
     : (card.memory_state as any)?.retrievability ?? 0;
 
-  const inspectorTitle = isSm18 ? "SM18 Inspector" : "FSRS-6 Inspector";
+  const inspectorTitle = isSm18 ? "SM18 Inspector" : isSm20 ? "SM20 Inspector" : "FSRS-6 Inspector";
 
   // Calculate forget curve data
   const curveDays = [0, 1, 3, 7, 14, 30, 60, 90];
@@ -208,8 +223,12 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
   // Algorithm-specific descriptions
   const stabilityDesc = isSm18
     ? "Days until retrievability drops to 90%"
+    : isSm20
+    ? "Days until retrievability drops to 90%"
     : "Days until retrievability drops to ~37%";
   const difficultyDesc = isSm18
+    ? "0-1 scale. Higher = harder to remember"
+    : isSm20
     ? "0-1 scale. Higher = harder to remember"
     : "1-10 scale. Higher = harder to remember";
 
@@ -291,6 +310,22 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
               />
             </>
           )}
+          {isSm20 && sm20State && (
+            <>
+              <ParameterRow
+                label="Reps"
+                value={sm20State.repetition}
+                description="Successful repetitions completed"
+                icon={Activity}
+              />
+              <ParameterRow
+                label="Lapses"
+                value={sm20State.lapses}
+                description="Total failed reviews"
+                icon={Activity}
+              />
+            </>
+          )}
         </div>
 
         {/* Forget Curve */}
@@ -304,7 +339,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground">
             Projected retrievability over time based on current stability.
-            {isSm18 ? " R = 0.9^(t/S)" : " R = exp(-t/S)"}
+            {isSm18 || isSm20 ? " R = 0.9^(t/S)" : " R = exp(-t/S)"}
           </div>
         </div>
 

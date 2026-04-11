@@ -8,6 +8,7 @@ import { getAlgorithmParams } from "../../api/algorithm";
 import { previewReviewIntervals, formatInterval, type PreviewIntervals } from "../../api/review";
 import { cn } from "../../utils";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useI18n } from "../../lib/i18n";
 
 export type ItemDetailsTarget =
   | {
@@ -73,15 +74,15 @@ const EMPTY_DETAILS: ItemDetailsData = {
 };
 
 function formatMaybeNumber(value?: number | null, suffix?: string): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return "n/a";
+  if (value === null || value === undefined || Number.isNaN(value)) return "--";
   const formatted = Math.round(value * 100) / 100;
   return suffix ? `${formatted}${suffix}` : `${formatted}`;
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) return "n/a";
+  if (!value) return "--";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "n/a";
+  if (Number.isNaN(date.getTime())) return "--";
   return date.toLocaleString();
 }
 
@@ -160,6 +161,7 @@ export function ItemDetailsPopover({
   align = "right",
   className,
 }: ItemDetailsPopoverProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [details, setDetails] = useState<ItemDetailsData>(EMPTY_DETAILS);
   const [isLoading, setIsLoading] = useState(false);
@@ -190,7 +192,7 @@ export function ItemDetailsPopover({
       .catch((err) => {
         if (!active) return;
         console.error("Failed to load item details", err);
-        setError("Failed to load details");
+        setError(t("itemDetails.failedToLoad"));
       })
       .finally(() => {
         if (!active) return;
@@ -246,16 +248,16 @@ export function ItemDetailsPopover({
       await dismissDocument(target.id, newDismissedState);
       setDetails((prev) => ({ ...prev, isDismissed: newDismissedState }));
       toast.success(
-        newDismissedState ? "Document dismissed" : "Document restored",
+        newDismissedState ? t("itemDetails.documentDismissed") : t("itemDetails.documentRestored"),
         newDismissedState 
-          ? "Item hidden from queue. You can still find it via search."
-          : "Item will appear in queue again."
+          ? t("itemDetails.hiddenFromQueue")
+          : t("itemDetails.appearsInQueue")
       );
     } catch (error) {
       console.error("Failed to update dismiss status:", error);
       toast.error(
-        "Update failed",
-        error instanceof Error ? error.message : "Please try again"
+        t("itemDetails.updateFailed"),
+        error instanceof Error ? error.message : t("itemDetails.pleaseTryAgain")
       );
     } finally {
       setIsUpdatingDismiss(false);
@@ -277,12 +279,12 @@ export function ItemDetailsPopover({
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Info className="h-4 w-4" />
-              Item details
+              {t("queue.itemDetails")}
             </div>
             <button
               onClick={() => setIsOpen(false)}
               className="text-muted-foreground hover:text-foreground"
-              aria-label="Close details"
+              aria-label={t("itemDetails.closeDetails")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -290,18 +292,18 @@ export function ItemDetailsPopover({
 
           <div className="px-4 py-3 space-y-3 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Title</div>
+              <div className="text-xs text-muted-foreground">{t("common.title")}</div>
               <div className="font-semibold text-foreground truncate">{target.title}</div>
-              <div className="text-xs text-muted-foreground capitalize">{target.type.replace("-", " ")}</div>
+              <div className="text-xs text-muted-foreground capitalize">{t(`itemDetails.type.${target.type.replace("-", "")}`)}</div>
               {target.type === "rss" && target.source && (
-                <div className="text-xs text-muted-foreground">Source: {target.source}</div>
+                <div className="text-xs text-muted-foreground">{t("itemDetails.source")}: {target.source}</div>
               )}
             </div>
 
             {(tags.length > 0 || target.category) && (
               <div className="space-y-1">
                 {target.category && (
-                  <div className="text-xs text-foreground/80">Category: {target.category}</div>
+                  <div className="text-xs text-foreground/80">{t("itemDetails.category")}: {target.category}</div>
                 )}
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
@@ -320,12 +322,18 @@ export function ItemDetailsPopover({
 
             <div className="border-t border-border pt-3 space-y-2">
               <div className="text-xs text-muted-foreground">
-                Scheduling / {details.algorithmType === "sm18" || (details.algorithmType !== "fsrs" && settings.learning.algorithm === "sm18") ? "SuperMemo 18" : "FSRS-6"}
+                {t("itemDetails.scheduling")} / {
+                  details.algorithmType === "sm18" || (details.algorithmType !== "fsrs" && settings.learning.algorithm === "sm18")
+                    ? "SuperMemo 18"
+                    : details.algorithmType === "sm20" || (details.algorithmType !== "fsrs" && settings.learning.algorithm === "sm20")
+                    ? "SuperMemo 20"
+                    : "FSRS-6"
+                }
               </div>
               {isLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Loading scheduling data...
+                  {t("itemDetails.loadingScheduling")}
                 </div>
               ) : error ? (
                 <div className="text-xs text-destructive">{error}</div>
@@ -333,48 +341,48 @@ export function ItemDetailsPopover({
                 <>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <div className="text-muted-foreground">Stability</div>
+                      <div className="text-muted-foreground">{t("itemDetails.stability")}</div>
                       <div className="font-semibold text-foreground">{formatMaybeNumber(details.stability)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Difficulty</div>
+                      <div className="text-muted-foreground">{t("itemDetails.difficulty")}</div>
                       <div className="font-semibold text-foreground">{formatMaybeNumber(details.difficulty)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Retrievability</div>
+                      <div className="text-muted-foreground">{t("itemDetails.retrievability")}</div>
                       <div className="font-semibold text-foreground">{formatMaybeNumber(details.retrievability)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Next interval</div>
+                      <div className="text-muted-foreground">{t("itemDetails.nextInterval")}</div>
                       <div className="font-semibold text-foreground">
                         {details.nextIntervalDays === null || details.nextIntervalDays === undefined
-                          ? "n/a"
-                          : `${details.nextIntervalDays} days`}
+                          ? t("itemDetails.notAvailable")
+                          : t("itemDetails.daysValue", { count: details.nextIntervalDays })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Due date</div>
+                      <div className="text-muted-foreground">{t("itemDetails.dueDate")}</div>
                       <div className="font-semibold text-foreground">{formatDate(details.dueDate)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Reps</div>
+                      <div className="text-muted-foreground">{t("itemDetails.reps")}</div>
                       <div className="font-semibold text-foreground">{formatMaybeNumber(details.reps)}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Lapses</div>
+                      <div className="text-muted-foreground">{t("itemDetails.lapses")}</div>
                       <div className="font-semibold text-foreground">{formatMaybeNumber(details.lapses)}</div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">Preview intervals</div>
+                    <div className="text-xs text-muted-foreground">{t("itemDetails.previewIntervals")}</div>
                     {details.previewIntervals ? (
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {([
-                          ["again", "Again"],
-                          ["hard", "Hard"],
-                          ["good", "Good"],
-                          ["easy", "Easy"],
+                          ["again", t("queue.again")],
+                          ["hard", t("queue.hard")],
+                          ["good", t("queue.good")],
+                          ["easy", t("queue.easy")],
                         ] as const).map(([key, label]) => (
                           <div key={key} className="rounded-md bg-muted/60 p-2">
                             <div className="text-muted-foreground">{label}</div>
@@ -385,7 +393,7 @@ export function ItemDetailsPopover({
                         ))}
                       </div>
                     ) : (
-                      <div className="text-xs text-muted-foreground">Unavailable</div>
+                      <div className="text-xs text-muted-foreground">{t("itemDetails.unavailable")}</div>
                     )}
                   </div>
                 </>
@@ -398,7 +406,7 @@ export function ItemDetailsPopover({
                   onClick={() => setShowRaw((prev) => !prev)}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  {showRaw ? "Hide raw data" : "Show raw data"}
+                  {showRaw ? t("itemDetails.hideRawData") : t("itemDetails.showRawData")}
                 </button>
                 {showRaw && (
                   <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-border bg-background p-2 text-[10px] text-foreground">
@@ -425,19 +433,19 @@ export function ItemDetailsPopover({
                   ) : details.isDismissed ? (
                     <>
                       <Eye className="w-4 h-4" />
-                      Undismiss (restore to queue)
+                      {t("itemDetails.undismiss")}
                     </>
                   ) : (
                     <>
                       <EyeOff className="w-4 h-4" />
-                      Dismiss (hide from queue)
+                      {t("itemDetails.dismiss")}
                     </>
                   )}
                 </button>
                 <p className="mt-1 text-xs text-muted-foreground text-center">
                   {details.isDismissed
-                    ? "This item is hidden from the queue but remains searchable"
-                    : "Dismissed items remain in the database and are searchable"}
+                    ? t("itemDetails.hiddenButSearchable")
+                    : t("itemDetails.dismissedRemainSearchable")}
                 </p>
               </div>
             )}

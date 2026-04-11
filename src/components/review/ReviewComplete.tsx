@@ -1,5 +1,6 @@
 import { CheckCircle2, Home, Flame, Trophy, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../../lib/i18n";
 
 interface ReviewCompleteProps {
   reviewsCompleted: number;
@@ -18,6 +19,7 @@ export function ReviewComplete({
   streak,
 }: ReviewCompleteProps) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const accuracy = reviewsCompleted > 0
     ? Math.round((correctCount / reviewsCompleted) * 100)
     : 0;
@@ -34,10 +36,10 @@ export function ReviewComplete({
 
       {/* Heading */}
       <h2 className="text-2xl font-bold text-foreground mb-2">
-        Review Complete!
+        {t("reviewComplete.title")}
       </h2>
       <p className="text-muted-foreground mb-8">
-        Great job! You've reviewed all your due cards.
+        {t("reviewComplete.subtitle")}
       </p>
 
       {/* Streak Achievement */}
@@ -45,10 +47,10 @@ export function ReviewComplete({
         <div className="mb-6 px-4 py-3 bg-orange-500/10 border border-orange-500/20 rounded-lg inline-flex items-center gap-2">
           <Flame className="w-5 h-5 text-orange-500" />
           <span className="text-sm font-medium text-orange-500">
-            {streak.current_streak} day streak!
+            {t("reviewComplete.dayStreak", { count: streak.current_streak })}
           </span>
           {streak.current_streak === streak.longest_streak && streak.longest_streak > 1 && (
-            <Trophy className="w-4 h-4 text-yellow-500 ml-1" title="New personal best!" />
+            <Trophy className="w-4 h-4 text-yellow-500 ml-1" title={t("reviewComplete.personalBest")} />
           )}
         </div>
       )}
@@ -60,19 +62,19 @@ export function ReviewComplete({
             <div className="text-2xl font-bold text-foreground">
               {reviewsCompleted}
             </div>
-            <div className="text-sm text-muted-foreground">Cards</div>
+            <div className="text-sm text-muted-foreground">{t("reviewComplete.cards")}</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-500">
               {accuracy}%
             </div>
-            <div className="text-sm text-muted-foreground">Accuracy</div>
+            <div className="text-sm text-muted-foreground">{t("reviewComplete.accuracy")}</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-500">
               {duration}m
             </div>
-            <div className="text-sm text-muted-foreground">Duration</div>
+            <div className="text-sm text-muted-foreground">{t("reviewComplete.duration")}</div>
           </div>
         </div>
 
@@ -82,13 +84,13 @@ export function ReviewComplete({
             <div className="text-lg font-semibold text-foreground">
               {correctCount}
             </div>
-            <div className="text-xs text-muted-foreground">Correct</div>
+            <div className="text-xs text-muted-foreground">{t("reviewComplete.correct")}</div>
           </div>
           <div className="text-center">
             <div className="text-lg font-semibold text-foreground">
               {reviewsCompleted - correctCount}
             </div>
-            <div className="text-xs text-muted-foreground">Needs Review</div>
+            <div className="text-xs text-muted-foreground">{t("reviewComplete.needsReview")}</div>
           </div>
         </div>
 
@@ -97,8 +99,8 @@ export function ReviewComplete({
           <Clock className="w-4 h-4" />
           <span>
             {reviewsCompleted > 0
-              ? `${Math.round(duration * 60 / reviewsCompleted)}s per card`
-              : "--"
+              ? t("reviewComplete.secondsPerCard", { seconds: Math.round((duration * 60) / reviewsCompleted) })
+              : t("reviewComplete.notAvailable")
             }
           </span>
         </div>
@@ -110,14 +112,14 @@ export function ReviewComplete({
           onClick={() => navigate("/queue")}
           className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium"
         >
-          Back to Queue
+          {t("reviewComplete.backToQueue")}
         </button>
         <button
           onClick={() => navigate("/")}
           className="px-6 py-3 bg-card border border-border text-foreground rounded-lg hover:bg-muted transition-colors font-medium flex items-center justify-center gap-2"
         >
           <Home className="w-4 h-4" />
-          Go to Dashboard
+          {t("reviewComplete.goToDashboard")}
         </button>
       </div>
     </div>

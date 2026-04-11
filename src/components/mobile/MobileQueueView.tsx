@@ -145,7 +145,7 @@ export function MobileQueueView({
     if (firstDue) {
       onOpenDocument?.(firstDue);
     } else {
-      toast.info("No items ready", "Add documents to start reading");
+      toast.info(t("mobileQueue.noItemsReady"), t("mobileQueue.noItemsReadyDesc"));
     }
   };
 
@@ -155,16 +155,16 @@ export function MobileQueueView({
     const now = new Date();
     const daysDiff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (daysDiff <= 0) return { label: "Due", color: "bg-red-500" };
-    if (daysDiff <= 3) return { label: `${daysDiff}d`, color: "bg-orange-500" };
-    return { label: `${daysDiff}d`, color: "bg-blue-500" };
+    if (daysDiff <= 0) return { label: t("mobileQueue.dueNow"), color: "bg-red-500" };
+    if (daysDiff <= 3) return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-orange-500" };
+    return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-blue-500" };
   };
 
   // Swipe handlers
   const handleSuspend = useCallback(async (item: QueueItem) => {
     try {
       await bulkSuspendItems([item.id]);
-      toast.success("Item suspended", "Removed from queue");
+      toast.success(t("mobileQueue.itemSuspended"), t("mobileQueue.removedFromQueue"));
       loadQueue(); // Refresh the queue
 
       // Show undo toast
@@ -195,14 +195,14 @@ export function MobileQueueView({
 
       requestAnimationFrame(animate);
     } catch (error) {
-      toast.error("Failed to suspend", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("mobileQueue.failedToSuspend"), error instanceof Error ? error.message : t("reviewSession.unknownError"));
     }
   }, [loadQueue, toast, undoState?.visible]);
 
   const handlePostpone = useCallback(async (item: QueueItem) => {
     try {
       await postponeItem(item.id, 1); // Postpone by 1 day
-      toast.success("Item postponed", "Rescheduled for tomorrow");
+      toast.success(t("mobileQueue.itemPostponed"), t("mobileQueue.rescheduledForTomorrow"));
       loadQueue(); // Refresh the queue
 
       // Show undo toast (for postpone, we'd need to store the original due date to undo)
@@ -233,7 +233,7 @@ export function MobileQueueView({
 
       requestAnimationFrame(animate);
     } catch (error) {
-      toast.error("Failed to postpone", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("mobileQueue.failedToPostpone"), error instanceof Error ? error.message : t("reviewSession.unknownError"));
     }
   }, [loadQueue, toast, undoState?.visible]);
 
@@ -243,12 +243,12 @@ export function MobileQueueView({
     try {
       if (undoState.action === "suspend") {
         await bulkUnsuspendItems([undoState.itemId]);
-        toast.success("Item restored", "Back in queue");
+        toast.success(t("mobileQueue.itemRestored"), t("mobileQueue.backInQueue"));
       }
       // Postpone undo would require storing the original due date
       loadQueue();
     } catch (error) {
-      toast.error("Failed to undo", error instanceof Error ? error.message : "Unknown error");
+      toast.error(t("mobileQueue.failedToUndo"), error instanceof Error ? error.message : t("reviewSession.unknownError"));
     } finally {
       setUndoState(null);
     }
@@ -270,7 +270,7 @@ export function MobileQueueView({
                   "p-2 rounded-full transition-colors",
                   showFilters ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                 )}
-                aria-label="Toggle filters"
+                aria-label={t("mobileQueue.toggleFilters")}
               >
                 <SlidersHorizontal className="w-5 h-5" />
               </button>
@@ -436,13 +436,13 @@ export function MobileQueueView({
                   key={item.id}
                   leftAction={{
                     icon: <Calendar className="w-5 h-5" />,
-                    label: "Postpone",
+                    label: t("mobileQueue.postpone"),
                     color: "#6366f1",
                     bgColor: "rgba(99, 102, 241, 0.15)",
                   }}
                   rightAction={{
                     icon: <Archive className="w-5 h-5" />,
-                    label: "Suspend",
+                    label: t("mobileQueue.suspend"),
                     color: "#6366f1",
                     bgColor: "rgba(99, 102, 241, 0.15)",
                   }}

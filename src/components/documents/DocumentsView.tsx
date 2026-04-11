@@ -53,7 +53,11 @@ import {
   parseDocumentSearch,
   sortDocuments,
 } from "../../utils/documentsView";
-import { importYouTubeVideo, resolveDocumentCover, updateDocument as updateDocumentApi } from "../../api/documents";
+import {
+  importYouTubeVideo,
+  resolveDocumentCover,
+  updateDocument as updateDocumentApi,
+} from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { getDeviceInfo } from "../../lib/pwa";
 import { invokeCommand, isTauri } from "../../lib/tauri";
@@ -254,13 +258,13 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   }, [showYouTubeImport]);
 
   const searchTokens = useMemo(() => parseDocumentSearch(debouncedSearch), [debouncedSearch]);
-  
+
   // Get unique file types for filter dropdown
   const availableFileTypes = useMemo(() => {
     const types = new Set(documents.map((doc) => doc.fileType));
     return Array.from(types).sort();
   }, [documents]);
-  
+
   const filteredDocuments = useMemo(() => {
     let base = documents.filter((doc) => matchesDocumentSearch(doc, searchTokens));
     if (activeCollectionId) {
@@ -343,7 +347,8 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     };
 
     window.addEventListener("import-document", handleImportShortcut as EventListener);
-    return () => window.removeEventListener("import-document", handleImportShortcut as EventListener);
+    return () =>
+      window.removeEventListener("import-document", handleImportShortcut as EventListener);
   }, [handleImport]);
 
   // Handle files from drag and drop upload component
@@ -379,15 +384,12 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   );
 
   // Handle markdown bundle detection
-  const handleBundleDetected = useCallback(
-    (bundle: MarkdownBundle, files: File[]) => {
-      console.log("[DocumentsView] Markdown bundle detected:", bundle);
-      setDetectedBundle(bundle);
-      setBundleFiles(files);
-      setShowMarkdownBundlePreview(true);
-    },
-    []
-  );
+  const handleBundleDetected = useCallback((bundle: MarkdownBundle, files: File[]) => {
+    console.log("[DocumentsView] Markdown bundle detected:", bundle);
+    setDetectedBundle(bundle);
+    setBundleFiles(files);
+    setShowMarkdownBundlePreview(true);
+  }, []);
 
   // Handle markdown bundle import
   const handleBundleImport = useCallback(
@@ -415,11 +417,11 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
 
   const handleYouTubeImport = async () => {
     if (!youtubeUrl.trim()) {
-      setYoutubeError("Please enter a YouTube URL");
+      setYoutubeError(t("documentsView.pleaseEnterYoutubeUrl"));
       return;
     }
     if (isTauri() && ytdlpAvailable === false) {
-      setYoutubeError("yt-dlp is not installed. Please install it first.");
+      setYoutubeError(t("documentsView.ytdlpNotInstalled"));
       return;
     }
     setYoutubeLoading(true);
@@ -484,14 +486,14 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const handleBulkArchive = () => {
     if (selectedIds.size === 0) return;
 
-    const selectedDocs = documents.filter(d => selectedIds.has(d.id));
-    const docTitles = selectedDocs.map(d => d.title || "Untitled");
+    const selectedDocs = documents.filter((d) => selectedIds.has(d.id));
+    const docTitles = selectedDocs.map((d) => d.title || "Untitled");
 
     confirmDialog.confirm({
-      title: "Archive Documents",
-      message: `Archive ${selectedIds.size} document${selectedIds.size > 1 ? "s" : ""}? Archived documents are hidden from the main view but can be restored later.`,
+      title: t("documentsView.archiveTitle"),
+      message: t("documentsView.archiveMessage", { count: selectedIds.size }),
       variant: "warning",
-      confirmLabel: "Archive",
+      confirmLabel: t("documentsView.archiveConfirmLabel"),
       itemName: "document",
       itemCount: selectedIds.size,
       details: docTitles,
@@ -507,14 +509,14 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
 
-    const selectedDocs = documents.filter(d => selectedIds.has(d.id));
-    const docTitles = selectedDocs.map(d => d.title || "Untitled");
+    const selectedDocs = documents.filter((d) => selectedIds.has(d.id));
+    const docTitles = selectedDocs.map((d) => d.title || "Untitled");
 
     confirmDialog.confirm({
-      title: "Delete Documents",
-      message: `Are you sure you want to delete ${selectedIds.size} document${selectedIds.size > 1 ? "s" : ""}? All extracts and flashcards will also be removed.`,
+      title: t("documentsView.deleteTitle"),
+      message: t("documentsView.deleteMessage", { count: selectedIds.size }),
       variant: "danger",
-      confirmLabel: "Delete",
+      confirmLabel: t("documentsView.deleteConfirmLabel"),
       itemName: "document",
       itemCount: selectedIds.size,
       details: docTitles,
@@ -529,7 +531,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   };
 
   const handleDeleteDocument = async (doc: Document) => {
-    const confirmed = window.confirm(`Are you sure you want to delete "${doc.title}"? This cannot be undone.`);
+    const confirmed = window.confirm(t("documentsView.deleteSingleMessage", { title: doc.title }));
     if (!confirmed) return;
     await deleteDocument(doc.id);
     if (activeId === doc.id) {
@@ -539,7 +541,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
 
   const handleBulkTag = () => {
     if (selectedIds.size === 0) return;
-    const tag = window.prompt("Add tag to selected documents:");
+    const tag = window.prompt(t("documentsView.addTagPrompt"));
     if (!tag) return;
     selectedIds.forEach((id) => {
       const doc = documents.find((item) => item.id === id);
@@ -552,7 +554,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
 
   const handleBulkReprioritize = () => {
     if (selectedIds.size === 0) return;
-    const value = window.prompt("Set priority rating (0-5) for selected documents:");
+    const value = window.prompt(t("documentsView.setPriorityPrompt"));
     if (!value) return;
     const nextRating = Number(value);
     if (Number.isNaN(nextRating)) return;
@@ -564,9 +566,11 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const handleBulkMoveCollection = () => {
     if (selectedIds.size === 0) return;
     const names = collections.map((collection) => collection.name).join(", ");
-    const targetName = window.prompt(`Move to collection (available: ${names}):`);
+    const targetName = window.prompt(t("documentsView.moveCollectionPrompt", { names }));
     if (!targetName) return;
-    const existing = collections.find((collection) => collection.name.toLowerCase() === targetName.toLowerCase());
+    const existing = collections.find(
+      (collection) => collection.name.toLowerCase() === targetName.toLowerCase()
+    );
     const target = existing ?? createCollection(targetName);
     selectedIds.forEach((id) => {
       assignDocument(id, target.id);
@@ -612,7 +616,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         if (sortedDocuments.length === 0) return;
         const currentIndex = sortedDocuments.findIndex((doc) => doc.id === activeId);
         const delta = event.key.toLowerCase() === "j" ? 1 : -1;
-        const nextIndex = currentIndex === -1 ? 0 : Math.min(sortedDocuments.length - 1, Math.max(0, currentIndex + delta));
+        const nextIndex =
+          currentIndex === -1
+            ? 0
+            : Math.min(sortedDocuments.length - 1, Math.max(0, currentIndex + delta));
         const nextDoc = sortedDocuments[nextIndex];
         setActiveId(nextDoc.id);
         setSelectedIds(new Set([nextDoc.id]));
@@ -631,7 +638,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   }, [activeDocument, activeId, mode, onOpenDocument, sortedDocuments]);
 
   const handleSaveView = () => {
-    const name = window.prompt("Name this view:");
+    const name = window.prompt(t("documentsView.nameViewPrompt"));
     if (!name) return;
     const view: SavedView = {
       id: `${Date.now()}`,
@@ -676,838 +683,940 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       onBundleDetected={handleBundleDetected}
       className="h-full"
     >
-    <div className="h-full flex flex-col bg-cream">
-      {/* Header */}
-      <div className="border-b border-border bg-card p-3 sm:p-4">
-        {/* Title and Import Actions - Single Row on Mobile */}
-        <div className="flex items-start justify-between gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Documents</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {sortedDocuments.length} documents • prioritize your next action
-            </p>
-          </div>
-          
-          {/* Desktop Import Buttons */}
-          <div className="hidden sm:flex flex-wrap items-center gap-2 justify-end">
-            {enableYouTubeImport && (
-              <button
-                onClick={() => setShowYouTubeImport(true)}
-                className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-                title="Import YouTube video"
-              >
-                <Youtube className="w-4 h-4" />
-                Import YouTube
-              </button>
-            )}
-            <button
-              onClick={() => setShowArxivImport(true)}
-              className="px-3 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-              title="Import research papers from ArXiv"
-            >
-              <FileTextIcon className="w-4 h-4" />
-              ArXiv
-            </button>
-            <button
-              onClick={() => setShowWebArticleImport(true)}
-              className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-              title="Import web articles"
-            >
-              <Globe className="w-4 h-4" />
-              Web Article
-            </button>
-            <button
-              onClick={() => setShowAudiobookImport(true)}
-              className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-              title="Import audiobooks with transcripts"
-            >
-              <BookAudio className="w-4 h-4" />
-              Audiobook
-            </button>
-            {isTauri() && (
-              <button
-                onClick={() => setShowAnnaArchiveSearch(true)}
-                className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-                title="Search and download books from Anna's Archive (LibGen.li)"
-              >
-                <BookOpen className="w-4 h-4" />
-                Anna's Archive
-              </button>
-            )}
-            <button
-              onClick={handleImport}
-              disabled={isImporting}
-              data-tutorial="import-button"
-              className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
-            >
-              {isImporting ? "Importing..." : "Import Document"}
-            </button>
-          </div>
+      <div className="h-full flex flex-col bg-cream">
+        {/* Header */}
+        <div className="border-b border-border bg-card p-3 sm:p-4">
+          {/* Title and Import Actions - Single Row on Mobile */}
+          <div className="flex items-start justify-between gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
+                {t("documentsView.title")}
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {t("documentsView.headerSummary", { count: sortedDocuments.length })}
+              </p>
+            </div>
 
-          {/* Mobile Import Actions - Top Right */}
-          <div className="flex sm:hidden items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={handleImport}
-              disabled={isImporting}
-              className="px-3 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px] min-h-[44px]"
-              aria-label={isImporting ? "Importing..." : "Import document"}
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-            <MobileImportMenu
-              enableYouTubeImport={enableYouTubeImport}
-              onYouTubeClick={() => setShowYouTubeImport(true)}
-              onArxivClick={() => setShowArxivImport(true)}
-              onWebArticleClick={() => setShowWebArticleImport(true)}
-              onAudiobookClick={() => setShowAudiobookImport(true)}
-              onAnnaArchiveClick={() => setShowAnnaArchiveSearch(true)}
-            />
-          </div>
-        </div>
-
-        {/* Controls Bar */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          {/* Search */}
-          <div className="relative flex-1 min-w-0 order-1 sm:min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search or use tag:History"
-              className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-            />
-          </div>
-
-          {/* Mobile Controls Row - View Toggle + Views + Filter */}
-          <div className="flex sm:hidden items-center gap-2 order-2">
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
+            {/* Desktop Import Buttons */}
+            <div className="hidden sm:flex flex-wrap items-center gap-2 justify-end">
+              {enableYouTubeImport && (
+                <button
+                  onClick={() => setShowYouTubeImport(true)}
+                  className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+                  title={t("documentsView.importYouTubeVideo")}
+                >
+                  <Youtube className="w-4 h-4" />
+                  {t("documentsView.importYouTube")}
+                </button>
+              )}
               <button
-                onClick={() => setMode("grid")}
-                className={`p-2 rounded-md transition-all ${
-                  mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label="Grid view"
+                onClick={() => setShowArxivImport(true)}
+                className="px-3 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+                title={t("documentsView.importArxivTitle")}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <FileTextIcon className="w-4 h-4" />
+                {t("documentsView.arxiv")}
               </button>
               <button
-                onClick={() => setMode("list")}
-                className={`p-2 rounded-md transition-all ${
-                  mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label="List view"
+                onClick={() => setShowWebArticleImport(true)}
+                className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+                title={t("documentsView.importWebArticles")}
               >
-                <List className="w-4 h-4" />
+                <Globe className="w-4 h-4" />
+                {t("documentsView.webArticle")}
+              </button>
+              <button
+                onClick={() => setShowAudiobookImport(true)}
+                className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+                title={t("documentsView.importAudiobooks")}
+              >
+                <BookAudio className="w-4 h-4" />
+                {t("documentsView.audiobook")}
+              </button>
+              {isTauri() && (
+                <button
+                  onClick={() => setShowAnnaArchiveSearch(true)}
+                  className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+                  title={t("documentsView.annasArchiveTooltip")}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  {t("documentsView.annasArchive")}
+                </button>
+              )}
+              <button
+                onClick={handleImport}
+                disabled={isImporting}
+                data-tutorial="import-button"
+                className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
+              >
+                {isImporting ? t("documentsView.importing") : t("documentsView.importDocument")}
               </button>
             </div>
 
-            {/* Type Filter */}
-            <div className="relative">
-              <select
-                value={selectedFileType}
-                onChange={(event) => setSelectedFileType(event.target.value)}
-                className="pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            {/* Mobile Import Actions - Top Right */}
+            <div className="flex sm:hidden items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={handleImport}
+                disabled={isImporting}
+                className="px-3 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[44px] min-h-[44px]"
+                aria-label={
+                  isImporting ? t("documentsView.importing") : t("documentsView.importDocument")
+                }
               >
-                <option value="all">All</option>
-                {availableFileTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                <Plus className="w-5 h-5" />
+              </button>
+              <MobileImportMenu
+                enableYouTubeImport={enableYouTubeImport}
+                onYouTubeClick={() => setShowYouTubeImport(true)}
+                onArxivClick={() => setShowArxivImport(true)}
+                onWebArticleClick={() => setShowWebArticleImport(true)}
+                onAudiobookClick={() => setShowAudiobookImport(true)}
+                onAnnaArchiveClick={() => setShowAnnaArchiveSearch(true)}
+              />
+            </div>
+          </div>
+
+          {/* Controls Bar */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-0 order-1 sm:min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder={t("documentsView.searchPlaceholder")}
+                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
+              />
+            </div>
+
+            {/* Mobile Controls Row - View Toggle + Views + Filter */}
+            <div className="flex sm:hidden items-center gap-2 order-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
+                <button
+                  onClick={() => setMode("grid")}
+                  className={`p-2 rounded-md transition-all ${
+                    mode === "grid"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label={t("documentsView.gridView")}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setMode("list")}
+                  className={`p-2 rounded-md transition-all ${
+                    mode === "list"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label={t("documentsView.listView")}
+                >
+                  <List className="w-4 h-4" />
+                </button>
               </div>
-            </div>
 
-            {/* Saved Views */}
-            <MobileSavedViewsMenu
-              savedViews={savedViews}
-              activeViewId={activeViewId}
-              onApplyView={handleApplyView}
-              onSaveView={handleSaveView}
-            />
-          </div>
-
-          {/* Desktop Controls */}
-          <div className="hidden sm:flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-2 bg-muted/40 rounded-lg p-1">
-              <button
-                onClick={() => setMode("grid")}
-                className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
-                  mode === "grid" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-                Grid
-              </button>
-              <button
-                onClick={() => setMode("list")}
-                className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
-                  mode === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <List className="w-4 h-4" />
-                List
-              </button>
-            </div>
-
-            <button
-              onClick={() => setInspectorOpen((prev) => !prev)}
-              className="px-3 py-2 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
-            >
-              {isInspectorOpen ? "Hide Inspector" : "Show Inspector"}
-            </button>
-
-            {/* Type Filter */}
-            <div className="relative">
-              <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <select
-                value={selectedFileType}
-                onChange={(event) => setSelectedFileType(event.target.value)}
-                className="pl-8 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="all">All Types</option>
-                {availableFileTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Saved Views */}
-            <div className="flex items-center gap-2">
+              {/* Type Filter */}
               <div className="relative">
                 <select
-                  value={activeViewId ?? ""}
-                  onChange={(event) => handleApplyView(event.target.value)}
-                  className="pl-3 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={selectedFileType}
+                  onChange={(event) => setSelectedFileType(event.target.value)}
+                  className="pl-3 pr-8 py-2 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
-                  <option value="">Saved Views</option>
-                  {savedViews.map((view) => (
-                    <option key={view.id} value={view.id}>
-                      {view.name}
+                  <option value="all">{t("documentsView.all")}</option>
+                  {availableFileTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
                     </option>
                   ))}
                 </select>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Saved Views */}
+              <MobileSavedViewsMenu
+                savedViews={savedViews}
+                activeViewId={activeViewId}
+                onApplyView={handleApplyView}
+                onSaveView={handleSaveView}
+              />
+            </div>
+
+            {/* Desktop Controls */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-2 bg-muted/40 rounded-lg p-1">
+                <button
+                  onClick={() => setMode("grid")}
+                  className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                    mode === "grid"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  {t("documentsView.grid")}
+                </button>
+                <button
+                  onClick={() => setMode("list")}
+                  className={`px-2.5 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-all ${
+                    mode === "list"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  {t("documentsView.list")}
+                </button>
+              </div>
+
+              <button
+                onClick={() => setInspectorOpen((prev) => !prev)}
+                className="px-3 py-2 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
+              >
+                {isInspectorOpen
+                  ? t("documentsView.hideInspector")
+                  : t("documentsView.showInspector")}
+              </button>
+
+              {/* Type Filter */}
+              <div className="relative">
+                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <select
+                  value={selectedFileType}
+                  onChange={(event) => setSelectedFileType(event.target.value)}
+                  className="pl-8 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="all">{t("documentsView.allTypes")}</option>
+                  {availableFileTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-muted-foreground"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
-              <button
-                onClick={handleSaveView}
-                className="px-3 py-2.5 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
-              >
-                Save View
-              </button>
+
+              {/* Saved Views */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <select
+                    value={activeViewId ?? ""}
+                    onChange={(event) => handleApplyView(event.target.value)}
+                    className="pl-3 pr-7 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="">{t("documentsView.savedViews")}</option>
+                    {savedViews.map((view) => (
+                      <option key={view.id} value={view.id}>
+                        {view.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-muted-foreground"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSaveView}
+                  className="px-3 py-2.5 bg-muted text-foreground rounded-lg text-sm hover:bg-muted/80 transition-colors"
+                >
+                  {t("documentsView.saveView")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {error && (
-        <div className="mx-4 mt-4 p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {isImporting && importProgress.total > 0 && (
-        <div className="mx-4 mt-4">
-          <ImportProgressIndicator
-            fileName={importProgress.fileName}
-            importType="unknown"
-            current={importProgress.current}
-            total={importProgress.total}
-            status="processing"
-            statusMessage={importProgress.fileName ? `Processing ${importProgress.fileName}` : "Importing documents..."}
-          />
-        </div>
-      )}
-
-      {selectedIds.size > 0 && (
-        <div className="mx-4 mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center justify-between">
-          <span className="text-sm text-primary">
-            {selectedIds.size} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleBulkTag}
-              className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
-            >
-              Tag
-            </button>
-            <button
-              onClick={handleBulkMoveCollection}
-              className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
-            >
-              Move
-            </button>
-            <button
-              onClick={handleBulkReprioritize}
-              className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
-            >
-              Reprioritize
-            </button>
-            <button
-              onClick={handleBulkArchive}
-              className="px-3 py-1.5 bg-muted text-foreground rounded text-sm hover:bg-muted/80"
-            >
-              Archive
-            </button>
-            <button
-              onClick={handleBulkDelete}
-              className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center gap-1"
-            >
-              <Trash2 className="w-3 h-3" />
-              Delete
-            </button>
+        {error && (
+          <div className="mx-4 mt-4 p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
+            {error}
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex-1 flex overflow-hidden documents-layout">
-        <div className="flex-1 overflow-auto p-4 documents-content">
-          {isLoading ? (
-            mode === "list" ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <DocumentCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : (
-              <DocumentGridSkeleton count={8} />
-            )
-          ) : sortedDocuments.length === 0 ? (
-            debouncedSearch ? (
-              <EmptySearch 
-                query={debouncedSearch} 
-                onClear={() => setSearchInput("")} 
-              />
-            ) : (
-              <EmptyDocuments onImport={handleImport} />
-            )
-          ) : mode === "list" ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground px-3">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => handleSort("priority")} className="hover:text-foreground">
-                    Priority
-                  </button>
-                  <button onClick={() => handleSort("title")} className="hover:text-foreground">
-                    Title
-                  </button>
-                  <button onClick={() => handleSort("added")} className="hover:text-foreground">
-                    Added
-                  </button>
-                  <button onClick={() => handleSort("type")} className="hover:text-foreground">
-                    Type
-                  </button>
-                  <button onClick={() => handleSort("extracts")} className="hover:text-foreground">
-                    Extracts
-                  </button>
-                  <button onClick={() => handleSort("cards")} className="hover:text-foreground">
-                    Cards
-                  </button>
-                  <button onClick={() => handleSort("lastTouched")} className="hover:text-foreground">
-                    Last Touched
-                  </button>
+        {isImporting && importProgress.total > 0 && (
+          <div className="mx-4 mt-4">
+            <ImportProgressIndicator
+              fileName={importProgress.fileName}
+              importType="unknown"
+              current={importProgress.current}
+              total={importProgress.total}
+              status="processing"
+              statusMessage={
+                importProgress.fileName
+                  ? t("documentsView.processingFile", { name: importProgress.fileName })
+                  : t("documentsView.importingDocuments")
+              }
+            />
+          </div>
+        )}
+
+        {selectedIds.size > 0 && (
+          <div className="mx-4 mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center justify-between">
+            <span className="text-sm text-primary">
+              {t("documentsView.selectedCount", { count: selectedIds.size })}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkTag}
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
+              >
+                {t("documentsView.tag")}
+              </button>
+              <button
+                onClick={handleBulkMoveCollection}
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
+              >
+                {t("documentsView.move")}
+              </button>
+              <button
+                onClick={handleBulkReprioritize}
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
+              >
+                {t("documentsView.reprioritize")}
+              </button>
+              <button
+                onClick={handleBulkArchive}
+                className="px-3 py-1.5 bg-muted text-foreground rounded text-sm hover:bg-muted/80"
+              >
+                {t("documentsView.archive")}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                {t("documentsView.delete")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 flex overflow-hidden documents-layout">
+          <div className="flex-1 overflow-auto p-4 documents-content">
+            {isLoading ? (
+              mode === "list" ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <DocumentCardSkeleton key={i} />
+                  ))}
                 </div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={showNextAction}
-                    onChange={(event) => setShowNextAction(event.target.checked)}
-                  />
-                  Next Action
-                </label>
-              </div>
-
+              ) : (
+                <DocumentGridSkeleton count={8} />
+              )
+            ) : sortedDocuments.length === 0 ? (
+              debouncedSearch ? (
+                <EmptySearch query={debouncedSearch} onClear={() => setSearchInput("")} />
+              ) : (
+                <EmptyDocuments onImport={handleImport} />
+              )
+            ) : mode === "list" ? (
               <div className="space-y-2">
-                {sortedDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    onClick={(event) => {
-                      if (isMobile) {
-                        onOpenDocument?.(doc);
-                        return;
-                      }
-                      handleSelectRow(doc, event.metaKey || event.ctrlKey);
-                      if (event.detail > 1) {
-                        onOpenDocument?.(doc);
-                      }
-                    }}
-                    className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                      selectedIds.has(doc.id) ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/40"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(doc.id)}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          handleSelectRow(doc, true);
-                        }}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <PriorityBadge doc={doc} />
-                            <div className="min-w-0">
-                              <div className="font-semibold text-foreground truncate">{doc.title}</div>
-                              <div className="text-xs text-muted-foreground truncate">{getPriorityReason(doc)}</div>
-                            </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{formatRelativeTime(getLastTouched(doc))}</span>
-                        </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-3">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleSort("priority")}
+                      className="hover:text-foreground"
+                    >
+                      {t("documentsView.sortPriority")}
+                    </button>
+                    <button onClick={() => handleSort("title")} className="hover:text-foreground">
+                      {t("documentsView.sortTitle")}
+                    </button>
+                    <button onClick={() => handleSort("added")} className="hover:text-foreground">
+                      {t("documentsView.sortAdded")}
+                    </button>
+                    <button onClick={() => handleSort("type")} className="hover:text-foreground">
+                      {t("documentsView.sortType")}
+                    </button>
+                    <button
+                      onClick={() => handleSort("extracts")}
+                      className="hover:text-foreground"
+                    >
+                      {t("documentsView.sortExtracts")}
+                    </button>
+                    <button onClick={() => handleSort("cards")} className="hover:text-foreground">
+                      {t("documentsView.sortCards")}
+                    </button>
+                    <button
+                      onClick={() => handleSort("lastTouched")}
+                      className="hover:text-foreground"
+                    >
+                      {t("documentsView.sortLastTouched")}
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showNextAction}
+                      onChange={(event) => setShowNextAction(event.target.checked)}
+                    />
+                    {t("documentsView.nextAction")}
+                  </label>
+                </div>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">{doc.fileType}</span>
-                          <ProgressBar doc={doc} />
-                          {showNextAction && (
-                            <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">{getNextAction(doc)}</span>
-                          )}
-                          <TagsInline tags={doc.tags} />
-                        </div>
-                        {isMobile && (
-                          <div className="mt-3">
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onOpenDocument?.(doc);
-                              }}
-                              className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs mobile-density-tap"
-                            >
-                              Open / Read
-                            </button>
+                <div className="space-y-2">
+                  {sortedDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      onClick={(event) => {
+                        if (isMobile) {
+                          onOpenDocument?.(doc);
+                          return;
+                        }
+                        handleSelectRow(doc, event.metaKey || event.ctrlKey);
+                        if (event.detail > 1) {
+                          onOpenDocument?.(doc);
+                        }
+                      }}
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        selectedIds.has(doc.id)
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-card hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(doc.id)}
+                          onChange={(event) => {
+                            event.stopPropagation();
+                            handleSelectRow(doc, true);
+                          }}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <PriorityBadge doc={doc} />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-foreground truncate">
+                                  {doc.title}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {getPriorityReason(doc)}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {formatRelativeTime(getLastTouched(doc))}
+                            </span>
                           </div>
-                        )}
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">
+                              {doc.fileType}
+                            </span>
+                            <ProgressBar doc={doc} />
+                            {showNextAction && (
+                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">
+                                {getNextAction(doc)}
+                              </span>
+                            )}
+                            <TagsInline tags={doc.tags} />
+                          </div>
+                          {isMobile && (
+                            <div className="mt-3">
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onOpenDocument?.(doc);
+                                }}
+                                className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs mobile-density-tap"
+                              >
+                                {t("documentsView.openRead")}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {Object.entries(SMART_SECTION_LABELS).map(([sectionId, label]) => {
-                const docs = sectionedDocuments[sectionId] ?? [];
-                if (docs.length === 0) return null;
-                const isCollapsed = collapsedSections[sectionId];
-                return (
-                  <div key={sectionId} className="bg-card border border-border rounded-lg">
-                    <button
-                      onClick={() => toggleSection(sectionId)}
-                      className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-foreground"
-                    >
-                      <span>{label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {isCollapsed ? "Show" : "Hide"} ({docs.length})
-                      </span>
-                    </button>
-                    {!isCollapsed && (
-                      <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-                        {docs.map((doc) => {
-                          const coverUrl = getDocumentCoverUrl(doc);
-                          const CoverIcon = getCoverFallbackIcon(doc.fileType);
-                          return (
-                            <div
-                              key={doc.id}
-                              onClick={(event) => {
-                                if (isMobile) {
-                                  onOpenDocument?.(doc);
-                                  return;
-                                }
-                                handleSelectRow(doc, event.metaKey || event.ctrlKey);
-                                if (event.detail > 1) {
-                                  onOpenDocument?.(doc);
-                                }
-                              }}
-                              className={`p-2 rounded-md border transition-shadow cursor-pointer ${
-                                selectedIds.has(doc.id)
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border bg-background hover:shadow-md"
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedIds.has(doc.id)}
-                                  onChange={(event) => {
-                                    event.stopPropagation();
-                                    handleSelectRow(doc, true);
-                                  }}
-                                />
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(getLastTouched(doc))}</span>
-                              </div>
-                              <div className="mt-2 overflow-hidden rounded border border-border/60 bg-muted/40">
-                                <div className="aspect-[2/3] w-full">
-                                  {coverUrl ? (
-                                    <img
-                                      src={coverUrl}
-                                      alt={doc.title}
-                                      className="h-full w-full object-cover"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="h-full w-full bg-gradient-to-br from-muted to-muted/40 flex items-center justify-center">
-                                      <CoverIcon className="w-6 h-6 text-muted-foreground/70" />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="mt-2 flex items-center gap-2">
-                                <PriorityBadge doc={doc} />
-                                <span className="text-[10px] text-muted-foreground">{getPriorityReason(doc)}</span>
-                              </div>
-                              <h3 className="mt-1 text-xs font-semibold text-foreground line-clamp-2">{doc.title}</h3>
-                              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                <span className="px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">{doc.fileType}</span>
-                                <ProgressBar doc={doc} />
-                              </div>
-                              <div className="mt-1">
-                                <TagsInline tags={doc.tags} />
-                              </div>
-                              {isMobile && (
-                                <div className="mt-3">
-                                  <button
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      onOpenDocument?.(doc);
-                                    }}
-                                    className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs mobile-density-tap"
-                                  >
-                                    Open / Read
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {isInspectorOpen && (
-          <aside className="w-80 border-l border-border bg-card p-4 overflow-auto documents-inspector">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-foreground">Inspector</h2>
-              <button
-                onClick={() => setInspectorOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {!activeDocument ? (
-              <div className="text-sm text-muted-foreground">
-                Select a document to see details.
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Title</div>
-                  <div className="text-sm font-semibold text-foreground">{activeDocument.title}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{activeDocument.fileType}</div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <PriorityBadge doc={activeDocument} />
-                  <span className="text-xs text-muted-foreground">{getPriorityReason(activeDocument)}</span>
-                </div>
-
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <div>Added: {formatRelativeTime(activeDocument.dateAdded)}</div>
-                  <div>Last touched: {formatRelativeTime(getLastTouched(activeDocument))}</div>
-                  <div>Created: {formatRelativeTime(activeDocument.metadata?.createdAt)}</div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Reading Progress</div>
-                  <DocumentProgressIndicator doc={activeDocument} />
-                  <div className="mt-3">
-                    <div className="text-xs text-muted-foreground mb-2">Learning Progress</div>
-                    <ProgressBar doc={activeDocument} />
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {activeDocument.extractCount} extracts • {activeDocument.learningItemCount} cards
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Tags</div>
-                  <div className="flex flex-wrap gap-2">
-                    {activeDocument.tags.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">No tags</span>
-                    ) : (
-                      activeDocument.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
-                        >
-                          {tag}
+                {Object.entries(SMART_SECTION_LABELS).map(([sectionId, label]) => {
+                  const docs = sectionedDocuments[sectionId] ?? [];
+                  if (docs.length === 0) return null;
+                  const isCollapsed = collapsedSections[sectionId];
+                  return (
+                    <div key={sectionId} className="bg-card border border-border rounded-lg">
+                      <button
+                        onClick={() => toggleSection(sectionId)}
+                        className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-foreground"
+                      >
+                        <span>{label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {isCollapsed ? t("documentsView.show") : t("documentsView.hide")} (
+                          {docs.length})
                         </span>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Actions</div>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => onOpenDocument?.(activeDocument)}
-                      className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
-                    >
-                      Open / Read
-                    </button>
-                    <button
-                      onClick={() => onOpenDocument?.(activeDocument)}
-                      className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground"
-                    >
-                      Extract
-                    </button>
-                    <button
-                      onClick={() =>
-                        updateDocument(activeDocument.id, {
-                          priorityRating: (activeDocument.priorityRating ?? 0) + 1,
-                          priorityScore: (activeDocument.priorityScore ?? 0) + 10,
-                        })
-                      }
-                      className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground"
-                    >
-                      Reprioritize
-                    </button>
-                    <button
-                      onClick={() => updateDocument(activeDocument.id, { isArchived: true })}
-                      className="px-3 py-2 bg-muted text-foreground rounded text-sm hover:bg-muted/80"
-                    >
-                      Archive
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDocument(activeDocument)}
-                      className="px-3 py-2 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center justify-center gap-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Related items</div>
-                  <div className="text-xs text-muted-foreground">No related items available.</div>
-                </div>
-              </div>
-            )}
-          </aside>
-        )}
-      </div>
-
-      {enableYouTubeImport && showYouTubeImport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Youtube className="w-5 h-5 text-red-500" />
-                <h2 className="text-lg font-semibold text-foreground">Import YouTube Video</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowYouTubeImport(false);
-                  setYoutubeUrl("");
-                  setYoutubeError(null);
-                }}
-                className="p-1 text-muted-foreground hover:text-foreground rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  YouTube URL
-                </label>
-                <input
-                  type="url"
-                  value={youtubeUrl}
-                  onChange={(event) => setYoutubeUrl(event.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={youtubeLoading}
-                />
-              </div>
-
-              {youtubeError && (
-                <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-lg text-sm">
-                  {youtubeError}
-                </div>
-              )}
-
-              {ytdlpAvailable === false && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 mt-0.5" />
-                    <div className="text-sm">
-                      <div>yt-dlp is not installed. Install it to enable YouTube imports.</div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={handleInstallYtdlp}
-                          disabled={!isTauri() || ytdlpInstalling}
-                          className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {ytdlpInstalling ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4" />
-                          )}
-                          {ytdlpInstalling ? "Installing..." : "Install yt-dlp"}
-                        </button>
-                        <a
-                          href="https://github.com/yt-dlp/yt-dlp#installation"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline text-sm"
-                        >
-                          Manual install guide
-                        </a>
-                      </div>
-                      {!isTauri() && (
-                        <div className="mt-2 text-xs text-destructive/80">
-                          One-click install is available in the desktop app (Windows, macOS, Linux).
+                      </button>
+                      {!isCollapsed && (
+                        <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+                          {docs.map((doc) => {
+                            const coverUrl = getDocumentCoverUrl(doc);
+                            const CoverIcon = getCoverFallbackIcon(doc.fileType);
+                            return (
+                              <div
+                                key={doc.id}
+                                onClick={(event) => {
+                                  if (isMobile) {
+                                    onOpenDocument?.(doc);
+                                    return;
+                                  }
+                                  handleSelectRow(doc, event.metaKey || event.ctrlKey);
+                                  if (event.detail > 1) {
+                                    onOpenDocument?.(doc);
+                                  }
+                                }}
+                                className={`p-2 rounded-md border transition-shadow cursor-pointer ${
+                                  selectedIds.has(doc.id)
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border bg-background hover:shadow-md"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIds.has(doc.id)}
+                                    onChange={(event) => {
+                                      event.stopPropagation();
+                                      handleSelectRow(doc, true);
+                                    }}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {formatRelativeTime(getLastTouched(doc))}
+                                  </span>
+                                </div>
+                                <div className="mt-2 overflow-hidden rounded border border-border/60 bg-muted/40">
+                                  <div className="aspect-[2/3] w-full">
+                                    {coverUrl ? (
+                                      <img
+                                        src={coverUrl}
+                                        alt={doc.title}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <div className="h-full w-full bg-gradient-to-br from-muted to-muted/40 flex items-center justify-center">
+                                        <CoverIcon className="w-6 h-6 text-muted-foreground/70" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <PriorityBadge doc={doc} />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {getPriorityReason(doc)}
+                                  </span>
+                                </div>
+                                <h3 className="mt-1 text-xs font-semibold text-foreground line-clamp-2">
+                                  {doc.title}
+                                </h3>
+                                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                  <span className="px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">
+                                    {doc.fileType}
+                                  </span>
+                                  <ProgressBar doc={doc} />
+                                </div>
+                                <div className="mt-1">
+                                  <TagsInline tags={doc.tags} />
+                                </div>
+                                {isMobile && (
+                                  <div className="mt-3">
+                                    <button
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        onOpenDocument?.(doc);
+                                      }}
+                                      className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs mobile-density-tap"
+                                    >
+                                      {t("documentsView.openRead")}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {isInspectorOpen && (
+            <aside className="w-80 border-l border-border bg-card p-4 overflow-auto documents-inspector">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-foreground">
+                  {t("documentsView.inspector")}
+                </h2>
+                <button
+                  onClick={() => setInspectorOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {!activeDocument ? (
+                <div className="text-sm text-muted-foreground">
+                  {t("documentsView.selectDocumentDetails")}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {t("documentsView.sortTitle")}
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {activeDocument.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {activeDocument.fileType}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <PriorityBadge doc={activeDocument} />
+                    <span className="text-xs text-muted-foreground">
+                      {getPriorityReason(activeDocument)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <div>
+                      {t("documentsView.added")}: {formatRelativeTime(activeDocument.dateAdded)}
+                    </div>
+                    <div>
+                      {t("documentsView.lastTouched")}:{" "}
+                      {formatRelativeTime(getLastTouched(activeDocument))}
+                    </div>
+                    <div>
+                      {t("documentsView.created")}:{" "}
+                      {formatRelativeTime(activeDocument.metadata?.createdAt)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {t("documentsView.readingProgress")}
+                    </div>
+                    <DocumentProgressIndicator doc={activeDocument} />
+                    <div className="mt-3">
+                      <div className="text-xs text-muted-foreground mb-2">
+                        {t("documentsView.learningProgress")}
+                      </div>
+                      <ProgressBar doc={activeDocument} />
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {t("documentsView.extractsCards", {
+                          extracts: activeDocument.extractCount,
+                          cards: activeDocument.learningItemCount,
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">{t("graph.tags")}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {activeDocument.tags.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">
+                          {t("documentsView.noTags")}
+                        </span>
+                      ) : (
+                        activeDocument.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {t("documentsView.actions")}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => onOpenDocument?.(activeDocument)}
+                        className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+                      >
+                        {t("documentsView.openRead")}
+                      </button>
+                      <button
+                        onClick={() => onOpenDocument?.(activeDocument)}
+                        className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground"
+                      >
+                        {t("documentsView.extract")}
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateDocument(activeDocument.id, {
+                            priorityRating: (activeDocument.priorityRating ?? 0) + 1,
+                            priorityScore: (activeDocument.priorityScore ?? 0) + 10,
+                          })
+                        }
+                        className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground"
+                      >
+                        Reprioritize
+                      </button>
+                      <button
+                        onClick={() => updateDocument(activeDocument.id, { isArchived: true })}
+                        className="px-3 py-2 bg-muted text-foreground rounded text-sm hover:bg-muted/80"
+                      >
+                        Archive
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDocument(activeDocument)}
+                        className="px-3 py-2 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {t("documentsView.relatedItems")}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {t("documentsView.noRelatedItems")}
+                    </div>
                   </div>
                 </div>
               )}
+            </aside>
+          )}
+        </div>
 
-              {ytdlpInstallMessage && (
-                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500 text-sm">
-                  <Check className="w-4 h-4" />
-                  <span>{ytdlpInstallMessage}</span>
+        {enableYouTubeImport && showYouTubeImport && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-lg w-full max-w-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Youtube className="w-5 h-5 text-red-500" />
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {t("documentsView.youtubeImportTitle")}
+                  </h2>
                 </div>
-              )}
-
-              <div className="text-xs text-muted-foreground">
-                Note: yt-dlp must be installed for YouTube import to work
-              </div>
-
-              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => {
                     setShowYouTubeImport(false);
                     setYoutubeUrl("");
                     setYoutubeError(null);
                   }}
-                  disabled={youtubeLoading}
-                  className="px-4 py-2 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                  className="p-1 text-muted-foreground hover:text-foreground rounded"
                 >
-                  Cancel
+                  <X className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={handleYouTubeImport}
-                  disabled={youtubeLoading}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-                >
-                  {youtubeLoading ? "Importing..." : "Import"}
-                  <Link2 className="w-4 h-4" />
-                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    {t("documentsView.youtubeUrlLabel")}
+                  </label>
+                  <input
+                    type="url"
+                    value={youtubeUrl}
+                    onChange={(event) => setYoutubeUrl(event.target.value)}
+                    placeholder={t("documentsView.youtubeUrlPlaceholder")}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={youtubeLoading}
+                  />
+                </div>
+
+                {youtubeError && (
+                  <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-lg text-sm">
+                    {youtubeError}
+                  </div>
+                )}
+
+                {ytdlpAvailable === false && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 mt-0.5" />
+                      <div className="text-sm">
+                        <div>{t("documentsView.ytDlpMissing")}</div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={handleInstallYtdlp}
+                            disabled={!isTauri() || ytdlpInstalling}
+                            className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {ytdlpInstalling ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                            {ytdlpInstalling
+                              ? t("documentsView.installing")
+                              : t("documentsView.installYtdlp")}
+                          </button>
+                          <a
+                            href="https://github.com/yt-dlp/yt-dlp#installation"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-sm"
+                          >
+                            {t("documentsView.manualInstallGuide")}
+                          </a>
+                        </div>
+                        {!isTauri() && (
+                          <div className="mt-2 text-xs text-destructive/80">
+                            {t("documentsView.oneClickInstallDesktop")}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {ytdlpInstallMessage && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500 text-sm">
+                    <Check className="w-4 h-4" />
+                    <span>{ytdlpInstallMessage}</span>
+                  </div>
+                )}
+
+                <div className="text-xs text-muted-foreground">
+                  {t("documentsView.ytdlpRequiredNote")}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setShowYouTubeImport(false);
+                      setYoutubeUrl("");
+                      setYoutubeError(null);
+                    }}
+                    disabled={youtubeLoading}
+                    className="px-4 py-2 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                  >
+                    {t("documentsView.cancel")}
+                  </button>
+                  <button
+                    onClick={handleYouTubeImport}
+                    disabled={youtubeLoading}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {youtubeLoading ? t("documentsView.importing") : t("documentsView.import")}
+                    <Link2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showAnnaArchiveSearch && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg w-full max-w-4xl max-h-[90vh] overflow-auto">
-            <AnnaArchiveSearch
-              onImportComplete={async (path) => {
-                // After download, trigger document import from the downloaded path
-                try {
-                  const imported = await importFromFiles([path]);
-                  if (onOpenDocument && imported.length > 0) {
-                    onOpenDocument(imported[0]);
+        {showAnnaArchiveSearch && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border rounded-lg w-full max-w-4xl max-h-[90vh] overflow-auto">
+              <AnnaArchiveSearch
+                onImportComplete={async (path) => {
+                  // After download, trigger document import from the downloaded path
+                  try {
+                    const imported = await importFromFiles([path]);
+                    if (onOpenDocument && imported.length > 0) {
+                      onOpenDocument(imported[0]);
+                    }
+                  } catch (error) {
+                    console.error("Failed to import downloaded book:", error);
                   }
-                } catch (error) {
-                  console.error("Failed to import downloaded book:", error);
-                }
-                setShowAnnaArchiveSearch(false);
-              }}
-              onClose={() => setShowAnnaArchiveSearch(false)}
-            />
+                  setShowAnnaArchiveSearch(false);
+                }}
+                onClose={() => setShowAnnaArchiveSearch(false)}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ArXiv Import Dialog */}
-      <ArxivImportDialog
-        isOpen={showArxivImport}
-        onClose={() => setShowArxivImport(false)}
-        onOpenDocument={onOpenDocument}
-      />
-
-      {/* Web Article Import Dialog */}
-      <WebArticleImportDialog
-        isOpen={showWebArticleImport}
-        onClose={() => setShowWebArticleImport(false)}
-        onOpenDocument={onOpenDocument}
-      />
-
-      {/* Audiobook Import Dialog */}
-      <AudiobookImportDialog
-        isOpen={showAudiobookImport}
-        onClose={() => setShowAudiobookImport(false)}
-        onOpenDocument={onOpenDocument}
-      />
-
-      {/* Markdown Bundle Preview */}
-      {detectedBundle && (
-        <MarkdownBundlePreview
-          bundle={detectedBundle}
-          isOpen={showMarkdownBundlePreview}
-          onClose={() => {
-            setShowMarkdownBundlePreview(false);
-            setDetectedBundle(null);
-            setBundleFiles([]);
-          }}
-          onImport={handleBundleImport}
+        {/* ArXiv Import Dialog */}
+        <ArxivImportDialog
+          isOpen={showArxivImport}
+          onClose={() => setShowArxivImport(false)}
+          onOpenDocument={onOpenDocument}
         />
-      )}
 
-      {/* Confirmation Dialog for bulk operations */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={confirmDialog.close}
-        onConfirm={confirmDialog.onConfirm}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        variant={confirmDialog.variant}
-        details={confirmDialog.details}
-        itemName={confirmDialog.itemName}
-        itemCount={confirmDialog.itemCount}
-      />
-    </div>
+        {/* Web Article Import Dialog */}
+        <WebArticleImportDialog
+          isOpen={showWebArticleImport}
+          onClose={() => setShowWebArticleImport(false)}
+          onOpenDocument={onOpenDocument}
+        />
+
+        {/* Audiobook Import Dialog */}
+        <AudiobookImportDialog
+          isOpen={showAudiobookImport}
+          onClose={() => setShowAudiobookImport(false)}
+          onOpenDocument={onOpenDocument}
+        />
+
+        {/* Markdown Bundle Preview */}
+        {detectedBundle && (
+          <MarkdownBundlePreview
+            bundle={detectedBundle}
+            isOpen={showMarkdownBundlePreview}
+            onClose={() => {
+              setShowMarkdownBundlePreview(false);
+              setDetectedBundle(null);
+              setBundleFiles([]);
+            }}
+            onImport={handleBundleImport}
+          />
+        )}
+
+        {/* Confirmation Dialog for bulk operations */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={confirmDialog.close}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          variant={confirmDialog.variant}
+          details={confirmDialog.details}
+          itemName={confirmDialog.itemName}
+          itemCount={confirmDialog.itemCount}
+        />
+      </div>
     </DragDropUpload>
   );
 }
@@ -1519,12 +1628,10 @@ function PriorityBadge({ doc }: { doc: Document }) {
     tier === "high"
       ? "bg-red-500/15 text-red-600"
       : tier === "medium"
-      ? "bg-amber-500/15 text-amber-600"
-      : "bg-emerald-500/15 text-emerald-600";
+        ? "bg-amber-500/15 text-amber-600"
+        : "bg-emerald-500/15 text-emerald-600";
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${tierStyles}`}>
-      {signal}
-    </span>
+    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${tierStyles}`}>{signal}</span>
   );
 }
 
@@ -1533,7 +1640,10 @@ function ProgressBar({ doc }: { doc: Document }) {
   return (
     <div className="flex items-center gap-2">
       <div className="relative h-2 w-24 bg-muted/60 rounded-full overflow-hidden">
-        <div className="absolute left-0 top-0 h-full bg-primary/70" style={{ width: `${extractRatio * 100}%` }} />
+        <div
+          className="absolute left-0 top-0 h-full bg-primary/70"
+          style={{ width: `${extractRatio * 100}%` }}
+        />
         {total > 0 && (
           <div
             className="absolute top-0 h-full bg-foreground/30"
@@ -1549,6 +1659,7 @@ function ProgressBar({ doc }: { doc: Document }) {
 }
 
 function DocumentProgressIndicator({ doc }: { doc: Document }) {
+  const { t } = useI18n();
   const progressPercent = doc.progressPercent ?? 0;
   const currentPage = doc.currentPage ?? 1;
   const totalPages = doc.totalPages ?? 0;
@@ -1560,27 +1671,30 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
   if ((doc as any).positionJson) {
     try {
       const positionJson = (doc as any).positionJson;
-      const position = typeof positionJson === 'string' ? JSON.parse(positionJson) : positionJson;
+      const position = typeof positionJson === "string" ? JSON.parse(positionJson) : positionJson;
       if (position) {
         hasPosition = true;
         switch (position.type) {
-          case 'page':
-            positionText = `Page ${position.page}`;
+          case "page":
+            positionText = t("documentsView.pagePosition", { page: position.page });
             break;
-          case 'scroll':
-            positionText = `${Math.round(position.percent)}% through document`;
+          case "scroll":
+            positionText = t("documentsView.percentThrough", {
+              percent: Math.round(position.percent),
+            });
             break;
-          case 'cfi':
-            positionText = `EPUB location saved`;
+          case "cfi":
+            positionText = t("documentsView.epubLocationSaved");
             break;
-          case 'time': {
+          case "time": {
             const minutes = Math.floor(position.seconds / 60);
             const seconds = Math.floor(position.seconds % 60);
-            positionText = `Video: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const secondsPadded = seconds.toString().padStart(2, "0");
+            positionText = t("documentsView.videoPosition", { minutes, seconds: secondsPadded });
             break;
           }
           default:
-            positionText = "Position saved";
+            positionText = t("documentsView.positionSaved");
         }
       }
     } catch {
@@ -1591,18 +1705,21 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
   // Legacy fallback if no positionJson found
   if (!hasPosition) {
     if (totalPages > 0) {
-      positionText = `Page ${currentPage} of ${totalPages}`;
+      positionText = t("documentsView.pageOfTotal", { current: currentPage, total: totalPages });
     } else if (progressPercent > 0) {
-      positionText = `${Math.round(progressPercent)}% through document`;
+      positionText = t("documentsView.percentThrough", { percent: Math.round(progressPercent) });
     } else {
-      positionText = "Not started";
+      positionText = t("documentsView.notStarted");
     }
   }
 
   // Get the display progress percent
-  const displayProgress = progressPercent > 0
-    ? progressPercent
-    : (totalPages > 0 ? ((currentPage - 1) / totalPages) * 100 : 0);
+  const displayProgress =
+    progressPercent > 0
+      ? progressPercent
+      : totalPages > 0
+        ? ((currentPage - 1) / totalPages) * 100
+        : 0;
 
   return (
     <div className="space-y-2">
@@ -1620,20 +1737,18 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
       </div>
 
       {/* Position text */}
-      <div className="text-xs text-muted-foreground">
-        {positionText}
-      </div>
+      <div className="text-xs text-muted-foreground">{positionText}</div>
 
       {/* Additional status indicators */}
       <div className="flex items-center gap-2 mt-2">
         {displayProgress > 0 && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-medium">
-            Reading
+            {t("documentsView.readingStatus")}
           </span>
         )}
         {doc.dateLastReviewed && (
           <span className="text-[10px] text-muted-foreground">
-            Last reviewed {formatRelativeTime(doc.dateLastReviewed)}
+            {t("documentsView.lastReviewed", { time: formatRelativeTime(doc.dateLastReviewed) })}
           </span>
         )}
       </div>
@@ -1642,8 +1757,9 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
 }
 
 function TagsInline({ tags }: { tags: string[] }) {
+  const { t } = useI18n();
   if (!tags || tags.length === 0) {
-    return <span className="text-xs text-muted-foreground">No tags</span>;
+    return <span className="text-xs text-muted-foreground">{t("documentsView.noTags")}</span>;
   }
   const visible = tags.slice(0, MAX_VISIBLE_TAGS);
   const remaining = tags.length - visible.length;
@@ -1665,7 +1781,7 @@ function TagsInline({ tags }: { tags: string[] }) {
 
 /**
  * Mobile Import Menu
- * 
+ *
  * A compact dropdown menu for mobile devices that consolidates all import options.
  * Reduces visual clutter while keeping all functionality accessible.
  */
@@ -1686,6 +1802,7 @@ function MobileImportMenu({
   onAudiobookClick,
   onAnnaArchiveClick,
 }: MobileImportMenuProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -1720,9 +1837,9 @@ function MobileImportMenu({
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-lg z-50 py-1.5 animate-in fade-in slide-in-from-top-1">
           <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Import from
+            {t("documentsView.importFrom")}
           </div>
-          
+
           {enableYouTubeImport && (
             <button
               onClick={() => handleAction(onYouTubeClick)}
@@ -1731,10 +1848,10 @@ function MobileImportMenu({
               <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
                 <Youtube className="w-4 h-4 text-red-500" />
               </div>
-              <span>YouTube</span>
+              <span>{t("documentsView.importYouTube")}</span>
             </button>
           )}
-          
+
           <button
             onClick={() => handleAction(onArxivClick)}
             className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
@@ -1742,9 +1859,9 @@ function MobileImportMenu({
             <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
               <FileTextIcon className="w-4 h-4 text-orange-500" />
             </div>
-            <span>ArXiv</span>
+            <span>{t("documentsView.arxiv")}</span>
           </button>
-          
+
           <button
             onClick={() => handleAction(onWebArticleClick)}
             className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
@@ -1752,9 +1869,9 @@ function MobileImportMenu({
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
               <Globe className="w-4 h-4 text-blue-500" />
             </div>
-            <span>Web Article</span>
+            <span>{t("documentsView.webArticle")}</span>
           </button>
-          
+
           <button
             onClick={() => handleAction(onAudiobookClick)}
             className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
@@ -1762,9 +1879,9 @@ function MobileImportMenu({
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
               <BookAudio className="w-4 h-4 text-amber-600" />
             </div>
-            <span>Audiobook</span>
+            <span>{t("documentsView.audiobook")}</span>
           </button>
-          
+
           {isTauri() && (
             <>
               <div className="my-1 border-t border-border" />
@@ -1775,7 +1892,7 @@ function MobileImportMenu({
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
                   <BookOpen className="w-4 h-4 text-purple-500" />
                 </div>
-                <span>Anna&apos;s Archive</span>
+                <span>{t("documentsView.annasArchive")}</span>
               </button>
             </>
           )}
@@ -1787,7 +1904,7 @@ function MobileImportMenu({
 
 /**
  * Mobile Saved Views Menu
- * 
+ *
  * A compact dropdown for saved views on mobile devices.
  * Consolidates view selection and save functionality.
  */
@@ -1804,6 +1921,7 @@ function MobileSavedViewsMenu({
   onApplyView,
   onSaveView,
 }: MobileSavedViewsMenuProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const activeView = savedViews.find((v) => v.id === activeViewId);
@@ -1829,10 +1947,10 @@ function MobileSavedViewsMenu({
             ? "bg-primary/10 text-primary border border-primary/20"
             : "bg-background border border-border text-foreground hover:bg-muted/60"
         }`}
-        aria-label="Saved views"
+        aria-label={t("documentsView.savedViews")}
         aria-expanded={isOpen}
       >
-        <span className="truncate">{activeView?.name ?? "Views"}</span>
+        <span className="truncate">{activeView?.name ?? t("documentsView.savedViews")}</span>
         <svg
           className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -1855,7 +1973,7 @@ function MobileSavedViewsMenu({
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Plus className="w-4 h-4" />
             </div>
-            <span className="font-medium">Save Current View</span>
+            <span className="font-medium">{t("documentsView.saveCurrentView")}</span>
           </button>
 
           {savedViews.length > 0 && <div className="my-1 border-t border-border" />}
@@ -1863,7 +1981,7 @@ function MobileSavedViewsMenu({
           <div className="max-h-48 overflow-y-auto">
             {savedViews.length === 0 ? (
               <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                No saved views yet
+                {t("documentsView.noSavedViews")}
               </div>
             ) : (
               savedViews.map((view) => (
@@ -1879,19 +1997,23 @@ function MobileSavedViewsMenu({
                       : "text-foreground hover:bg-muted/60"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    activeViewId === view.id ? "bg-primary/10" : "bg-muted"
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      activeViewId === view.id ? "bg-primary/10" : "bg-muted"
+                    }`}
+                  >
                     {view.mode === "grid" ? (
-                      <LayoutGrid className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <LayoutGrid
+                        className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`}
+                      />
                     ) : (
-                      <List className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <List
+                        className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`}
+                      />
                     )}
                   </div>
                   <span className="truncate">{view.name}</span>
-                  {activeViewId === view.id && (
-                    <Check className="w-4 h-4 ml-auto flex-shrink-0" />
-                  )}
+                  {activeViewId === view.id && <Check className="w-4 h-4 ml-auto flex-shrink-0" />}
                 </button>
               ))
             )}
@@ -1907,7 +2029,7 @@ function MobileSavedViewsMenu({
                 }}
                 className="w-full px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
               >
-                Reset to default
+                {t("documentsView.resetToDefault")}
               </button>
             </>
           )}

@@ -53,7 +53,7 @@ interface ReviewQueueViewProps {
 }
 
 export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMode }: ReviewQueueViewProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const {
     items,
     isLoading,
@@ -262,12 +262,12 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const applyScheduleShift = async (label: string, deltaDays: number) => {
     if (!selectedItem) return;
     if (selectedItem.itemType !== "learning-item") {
-      toast.info(`${label} applies to learning items only.`);
+      toast.info(label, t("queue.learningItemsOnly"));
       return;
     }
     try {
       await postponeItem(selectedItem.id, deltaDays);
-      toast.success(label, "Updated review schedule.");
+      toast.success(label, t("queue.reviewScheduleUpdated"));
       await refreshQueue();
     } catch (error) {
       toast.error(label, error instanceof Error ? error.message : t("queue.failedToUpdateSchedule"));
@@ -790,7 +790,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   disabled={bulkOperationLoading}
                   className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm"
                 >
-                  Delete
+                  {t("queue.delete")}
                 </button>
               </div>
             </div>
@@ -839,7 +839,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 <Clock className="w-4 h-4" />
                 <span>
                   {t("queue.sessionEstimatePerItem", {
-                    estimate: visibleItems?.[0] ? formatMinutesRange(getTimeEstimateRange(visibleItems[0])) : "N/A",
+                    estimate: visibleItems?.[0] ? formatMinutesRange(getTimeEstimateRange(visibleItems[0])) : t("reviewComplete.notAvailable"),
                   })}
                 </span>
                 <span>•</span>
@@ -883,13 +883,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 className="space-y-3"
                 tabIndex={isManualBrowseActive ? 0 : -1}
                 onKeyDown={handleQueueListKeyDown}
-                aria-label="Queue items list"
+                aria-label={t("queue.queueItemsList")}
               >
                 {selectableItems.length > 0 && queueMode === "review" && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={allSelected} onChange={handleToggleSelectAll} />
-                      Select all learning items
+                      {t("queue.selectAllLearningItems")}
                     </label>
                   </div>
                 )}
@@ -952,7 +952,11 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                             return (
                               <span
                                 className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-300"
-                                title={`Next review: ${fsrsInfo.nextReviewDate ? fsrsInfo.nextReviewDate.toLocaleDateString() : 'Not scheduled'}`}
+                                title={t("queue.nextReviewTitle", {
+                                  date: fsrsInfo.nextReviewDate
+                                    ? fsrsInfo.nextReviewDate.toLocaleDateString(locale)
+                                    : t("queue.notScheduled"),
+                                })}
                               >
                                 <Clock className="w-3 h-3 inline mr-1" />
                                 {fsrsInfo.statusLabel}
@@ -970,7 +974,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatMinutesRange(estimateRange)} • Priority {getPriorityScore(item, preset)}
+                              {formatMinutesRange(estimateRange)} • {t("queue.priorityWithValue", { value: getPriorityScore(item, preset) })}
                             </div>
                             <TimeConfidenceBar min={estimateRange.min} max={estimateRange.max} />
                           </div>
@@ -1028,21 +1032,27 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                           <div className="flex items-center gap-3">
                             <Sparkles className="w-4 h-4" />
                             <span>
-                              Stability {getFsrsMetrics(item).stability} • Difficulty {getFsrsMetrics(item).difficulty} • Retrievability{" "}
-                              {Math.round(getFsrsMetrics(item).retrievability * 100)}%
+                              {t("queue.fsrsSummary", {
+                                stability: getFsrsMetrics(item).stability,
+                                difficulty: getFsrsMetrics(item).difficulty,
+                                retrievability: Math.round(getFsrsMetrics(item).retrievability * 100),
+                              })}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
                             <Target className="w-4 h-4" />
                             <span>
-                              Next interval: {getFsrsMetrics(item).nextIntervalDays} days • Impact: {getReadingImpact(item)}
+                              {t("queue.nextIntervalImpact", {
+                                days: getFsrsMetrics(item).nextIntervalDays,
+                                impact: getReadingImpact(item),
+                              })}
                             </span>
                           </div>
                           {status === "drifted" && (
                             <div className="flex items-center gap-3 text-muted-foreground">
                               <AlertTriangle className="w-4 h-4" />
                               <span>
-                                Drifted state: reschedule, compress intervals, or downgrade frequency.
+                                {t("queue.driftedStateMessage")}
                               </span>
                             </div>
                           )}
@@ -1080,32 +1090,38 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">{t("queue.schedulingRationale")}</div>
                   <div className="text-xs text-muted-foreground">
-                    Priority {getPriorityScore(selectedItem, preset)} • {getStatusLabel(getQueueStatus(selectedItem))}
+                    {t("queue.prioritySummary", {
+                      value: getPriorityScore(selectedItem, preset),
+                      status: getStatusLabel(getQueueStatus(selectedItem)),
+                    })}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">{t("queue.fsrsSnapshot")}</div>
                   <div className="text-xs text-muted-foreground">
-                    Stability {getFsrsMetrics(selectedItem).stability} • Difficulty {getFsrsMetrics(selectedItem).difficulty} • Retrievability{" "}
-                    {Math.round(getFsrsMetrics(selectedItem).retrievability * 100)}%
+                    {t("queue.fsrsSummary", {
+                      stability: getFsrsMetrics(selectedItem).stability,
+                      difficulty: getFsrsMetrics(selectedItem).difficulty,
+                      retrievability: Math.round(getFsrsMetrics(selectedItem).retrievability * 100),
+                    })}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">{t("queue.nextInterval")}</div>
                   <div className="text-sm font-semibold text-foreground">
-                    {getFsrsMetrics(selectedItem).nextIntervalDays} days
+                    {t("queue.nextIntervalDays", { days: getFsrsMetrics(selectedItem).nextIntervalDays })}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">{t("queue.conversionPathway")}</div>
                   <div className="text-xs text-muted-foreground">
-                    Reading → Extract → Cloze → Review
+                    {t("queue.conversionPathwayValue")}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Impact: {getReadingImpact(selectedItem)}
+                    {t("queue.impactWithValue", { impact: getReadingImpact(selectedItem) })}
                   </div>
                 </div>
 
@@ -1146,8 +1162,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   </button>
                   {showAdvanced && (
                     <div className="space-y-2 text-xs text-muted-foreground">
-                      <div>Raw FSRS values</div>
-                      <div>Override scheduling</div>
+                      <div>{t("queue.rawFsrsValues")}</div>
+                      <div>{t("queue.overrideScheduling")}</div>
                       <button
                         onClick={() => setShowRawJson((prev) => !prev)}
                         className="px-3 py-1 bg-background border border-border rounded"

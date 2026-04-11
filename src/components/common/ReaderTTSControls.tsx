@@ -4,6 +4,7 @@ import { useTTS } from "../../hooks/useTTS";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getVoicesForProvider } from "../../utils/ttsSettings";
 import { generateSpeech } from "../../api/tts";
+import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 
 interface ReaderTTSControlsProps {
@@ -91,6 +92,7 @@ export function ReaderTTSControls({
   autoAdvance = true,
   onChunkStart,
 }: ReaderTTSControlsProps) {
+  const { t } = useI18n();
   const tts = useSettingsStore((state) => state.settings.tts);
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
@@ -505,7 +507,7 @@ export function ReaderTTSControls({
           onClick={() => void handlePrev()}
           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40"
           disabled={chunkIndex === 0 || isLoading}
-          title="Previous chunk"
+          title={t("readerTts.previousChunk")}
         >
           <SkipBack className="h-3.5 w-3.5" />
         </button>
@@ -513,7 +515,7 @@ export function ReaderTTSControls({
           onClick={() => void handlePlayPause()}
           className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
           disabled={isLoading}
-          title={isPlaying ? (isPaused ? "Resume" : "Pause") : "Play"}
+          title={isPlaying ? (isPaused ? t("readerTts.resume") : t("readerTts.pause")) : t("readerTts.play")}
         >
           {isBuffering && isAutoPlaying ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -529,7 +531,7 @@ export function ReaderTTSControls({
           onClick={handleStop}
           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40"
           disabled={!isPlaying && !isPaused}
-          title="Stop"
+          title={t("readerTts.stop")}
         >
           <Square className="h-3.5 w-3.5" />
         </button>
@@ -537,7 +539,7 @@ export function ReaderTTSControls({
           onClick={() => void handleNext()}
           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40"
           disabled={chunkIndex >= chunks.length - 1 || isLoading}
-          title="Next chunk"
+          title={t("readerTts.nextChunk")}
         >
           <SkipForward className="h-3.5 w-3.5" />
         </button>
@@ -548,7 +550,7 @@ export function ReaderTTSControls({
               value={selectedVoiceId}
               onChange={(e) => handleVoiceChange(e.target.value)}
               className="max-w-[9.5rem] rounded-md border border-border bg-background px-1.5 py-1 text-xs"
-              title="Voice"
+              title={t("readerTts.voice")}
             >
               {providerVoices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
@@ -568,7 +570,7 @@ export function ReaderTTSControls({
               }
             }}
             className="rounded-md border border-border bg-background px-1.5 py-1 text-xs"
-            title="Playback speed"
+            title={t("readerTts.playbackSpeed")}
           >
             {speedOptions.map((speed) => (
               <option key={speed} value={speed}>
@@ -583,7 +585,7 @@ export function ReaderTTSControls({
         </span>
       </div>
       <p className="mt-1 max-w-[26rem] truncate text-[11px] text-muted-foreground" title={currentChunk}>
-        {isBuffering && isAutoPlaying ? "Buffering next segment..." : isLoading ? "Generating audio..." : currentChunk}
+        {isBuffering && isAutoPlaying ? t("readerTts.bufferingNextSegment") : isLoading ? t("readerTts.generatingAudio") : currentChunk}
       </p>
     </div>
   );

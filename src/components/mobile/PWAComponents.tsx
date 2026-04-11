@@ -15,6 +15,7 @@ import {
   WifiOff,
   RefreshCw,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import { isOnline, listenNetworkChanges } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
 
@@ -25,6 +26,7 @@ import { isTauri } from "../../lib/tauri";
  * and the user hasn't installed it yet.
  */
 export function PWAInstallPrompt() {
+  const { t } = useI18n();
   const [showPrompt, setShowPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -87,12 +89,12 @@ export function PWAInstallPrompt() {
         className="pwa-install-btn"
       >
         <Download className="w-5 h-5 mr-2" />
-        Install App
+        {t("pwa.installApp")}
       </button>
       <button
         onClick={handleDismiss}
         className="pwa-dismiss-btn"
-        aria-label="Dismiss"
+        aria-label={t("pwa.dismiss")}
       >
         <X className="w-5 h-5" />
       </button>
@@ -106,6 +108,7 @@ export function PWAInstallPrompt() {
  * Shows an offline banner when connection is lost
  */
 export function OfflineIndicator() {
+  const { t } = useI18n();
   const [online, setOnline] = useState(isOnline());
 
   useEffect(() => {
@@ -118,13 +121,13 @@ export function OfflineIndicator() {
   return (
     <div className="offline-indicator">
       <WifiOff className="w-4 h-4 mr-2" />
-      <span className="offline-text">You're offline. Some features may be unavailable.</span>
+      <span className="offline-text">{t("pwa.offlineMessage")}</span>
       <button
         onClick={() => window.location.reload()}
         className="offline-retry-btn"
       >
         <RefreshCw className="w-4 h-4 mr-2" />
-        Retry
+        {t("pwa.retry")}
       </button>
     </div>
   );

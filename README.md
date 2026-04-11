@@ -27,7 +27,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 | Principle | Description |
 |-----------|-------------|
 | **Incremental Reading** | Process large documents in small, manageable chunks over time |
-| **Spaced Repetition** | Review content at scientifically-optimized intervals using FSRS-5, SM-18, or SM-2 |
+| **Spaced Repetition** | Review content at scientifically-optimized intervals using FSRS-6, SM-18, SM-20, or SM-2 |
 | **Import Flexibility** | Bring content from anywhere—PDFs, EPUBs, websites, papers, Anki decks |
 | **Smart Scheduling** | Know exactly when you'll review each card again with preview intervals |
 | **Rich Analytics** | Track your progress, streaks, and performance metrics |
@@ -48,7 +48,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 
 ### 🧠 Learning & Review
 
-- Multiple scheduling algorithms: FSRS-5, SM-18, SM-2
+- Multiple scheduling algorithms: FSRS-5, SM-18, SM-20, SM-2
 - Card types: Basic, Cloze, and Q&A
 - Review queue with filtering/sorting, keyboard-first rating flow, and session stats
 - Preview intervals (including long-form duration-aware safety caps)
@@ -269,7 +269,7 @@ incrementum-tauri/
 │   │   ├── commands/      # Tauri command handlers
 │   │   ├── models/        # Data models
 │   │   ├── database/      # SQLite database layer
-│   │   ├── algorithms/    # FSRS, SM-2, SM-18 implementations
+│   │   ├── algorithms/    # FSRS, SM-2, SM-18, SM-20 implementations
 │   │   ├── processor/     # Document processors
 │   │   └── integrations/  # External integrations
 │   └── Cargo.toml         # Rust dependencies
@@ -320,7 +320,7 @@ Mobile note: desktop sidecar binaries (like `whisper`) are disabled on Android/i
 - **Framework**: Tauri 2.0
 - **Language**: Rust
 - **Database**: SQLite with SQLx
-- **Algorithm**: FSRS-5, SM-18, SM-2 (spaced repetition)
+- **Algorithm**: FSRS-5, SM-18, SM-20, SM-2 (spaced repetition)
 - **Runtime**: Tokio (async)
 
 </details>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Activity, Clock, Zap, Trash2 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 import { usePerformance } from "../../utils/performance";
 
 interface MetricRowProps {
@@ -37,6 +38,7 @@ function MetricRow({ name, count, avg, min, max }: MetricRowProps) {
 }
 
 export function PerformanceMonitorPanel() {
+  const { t } = useI18n();
   const { getSummary, clear } = usePerformance();
   const [summary, setSummary] = useState<ReturnType<typeof getSummary>>({});
   const [isVisible, setIsVisible] = useState(false);
@@ -64,7 +66,7 @@ export function PerformanceMonitorPanel() {
       <button
         onClick={() => setIsVisible(true)}
         className="fixed bottom-4 right-4 z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
-        title="Show Performance Monitor"
+        title={t("performanceMonitor.show")}
       >
         <Activity className="w-5 h-5" />
       </button>
@@ -77,9 +79,9 @@ export function PerformanceMonitorPanel() {
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Performance Monitor</h3>
+          <h3 className="font-semibold text-foreground">{t("performanceMonitor.title")}</h3>
           <span className="text-xs text-muted-foreground">
-            ({metrics.length} metrics)
+            {t("performanceMonitor.metricsCount", { count: metrics.length })}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -90,14 +92,14 @@ export function PerformanceMonitorPanel() {
                 ? "bg-yellow-500/20 text-yellow-500"
                 : "hover:bg-muted text-muted-foreground"
             }`}
-            title={isPaused ? "Resume" : "Pause"}
+            title={isPaused ? t("performanceMonitor.resume") : t("performanceMonitor.pause")}
           >
             {isPaused ? <Clock className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
           </button>
           <button
             onClick={handleClear}
             className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
-            title="Clear metrics"
+            title={t("performanceMonitor.clearMetrics")}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -112,18 +114,18 @@ export function PerformanceMonitorPanel() {
 
       {/* Table Header */}
       <div className="grid grid-cols-6 gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/30">
-        <div className="col-span-2">Operation</div>
-        <div>Count</div>
-        <div>Avg</div>
-        <div>Min</div>
-        <div>Max</div>
+        <div className="col-span-2">{t("performanceMonitor.operation")}</div>
+        <div>{t("performanceMonitor.count")}</div>
+        <div>{t("performanceMonitor.avg")}</div>
+        <div>{t("performanceMonitor.min")}</div>
+        <div>{t("performanceMonitor.max")}</div>
       </div>
 
       {/* Metrics List */}
       <div className="flex-1 overflow-y-auto">
         {metrics.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
-            No performance metrics recorded yet.
+            {t("performanceMonitor.empty")}
           </div>
         ) : (
           metrics
@@ -144,7 +146,7 @@ export function PerformanceMonitorPanel() {
       {/* Footer */}
       <div className="p-3 border-t border-border text-xs text-muted-foreground">
         <div className="flex items-center justify-between">
-          <span>Legend:</span>
+          <span>{t("performanceMonitor.legend")}</span>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>

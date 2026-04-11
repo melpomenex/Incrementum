@@ -4,6 +4,7 @@
 //! - FSRS-6 (Free Spaced Repetition Scheduler)
 //! - SM-2, SM-5, SM-8, SM-15 (SuperMemo algorithms)
 //! - SM-18 (Latest SuperMemo algorithm)
+//! - SM-20 (Python-backed canonical implementation)
 //! - Queue selector with weighted randomization
 //! - Document scheduler for incremental reading
 
@@ -14,6 +15,7 @@ use chrono::{Utc, Duration};
 pub mod optimizer;
 pub mod supermemo;
 pub mod sm18;
+pub mod sm20;
 pub mod queue_selector;
 pub mod document_scheduler;
 pub mod incremental_scheduler;
@@ -26,6 +28,7 @@ pub use document_scheduler::{DocumentScheduler, DocumentSchedulerParams};
 pub use incremental_scheduler::{IncrementalScheduler, IncrementalSchedulerParams};
 pub use engaging_scheduler::{EngagingScheduler, EngagementPreferences, ItemEngagementMeta, EngagingScheduleResult};
 pub use sm18::{SM18State, SM18Algorithm, SM18ReviewResult};
+pub use sm20::{SM20PreviewIntervals, SM20ReviewResult, SM20State};
 
 /// Supported spaced repetition algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,6 +39,7 @@ pub enum AlgorithmType {
     Sm8,
     Sm15,
     Sm18,
+    Sm20,
 }
 
 impl AlgorithmType {
@@ -48,6 +52,7 @@ impl AlgorithmType {
             "sm8" => AlgorithmType::Sm8,
             "sm15" => AlgorithmType::Sm15,
             "sm18" => AlgorithmType::Sm18,
+            "sm20" => AlgorithmType::Sm20,
             _ => AlgorithmType::Fsrs,
         }
     }
@@ -61,6 +66,7 @@ impl AlgorithmType {
             AlgorithmType::Sm8 => "sm8",
             AlgorithmType::Sm15 => "sm15",
             AlgorithmType::Sm18 => "sm18",
+            AlgorithmType::Sm20 => "sm20",
         }
     }
 }

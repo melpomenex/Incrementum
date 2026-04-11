@@ -18,6 +18,8 @@ import { ReviewRating, formatInterval } from "../../api/review";
 import { cn } from "../../utils";
 import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
 import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
+import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
+import { useI18n } from "../../lib/i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface ZenReviewModeProps {
@@ -28,11 +30,13 @@ interface ZenReviewModeProps {
 function ZenCard({ 
   item, 
   showAnswer,
-  onShowAnswer 
+  onShowAnswer,
+  t,
 }: { 
   item: ReviewSessionItem; 
   showAnswer: boolean;
   onShowAnswer: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const isDocument = (item as any).itemType === "document";
   
@@ -41,7 +45,7 @@ function ZenCard({
     return (
       <div className="max-w-3xl mx-auto">
         <div className="text-xs text-muted-foreground/50 mb-4 font-mono tracking-wide">
-          {docItem.documentTitle || "Document Review"}
+          {docItem.documentTitle || t("zenReview.documentReview")}
         </div>
         <div className="prose prose-lg dark:prose-invert max-w-none">
           <div 
@@ -155,7 +159,7 @@ function ZenCard({
           showAnswer && "opacity-60"
         )}
         dangerouslySetInnerHTML={{
-          __html: renderAnkiHtmlWithLatex(card.question || card.cloze_text || "No question")
+          __html: renderAnkiHtmlWithLatex(card.question || card.cloze_text || t("zenReview.noQuestion"))
         }}
       />
     );
@@ -172,14 +176,14 @@ function ZenCard({
           onClick={onShowAnswer}
           className="mt-12 text-sm text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors tracking-widest uppercase"
         >
-          Press Space to reveal
+          {t("zenReview.pressSpaceToReveal")}
         </button>
       ) : card.item_type === "Cloze" ? null : (
         <div className="mt-8 pt-8 border-t border-border/20">
           <div 
             className="prose prose-lg dark:prose-invert max-w-none text-foreground/80"
             dangerouslySetInnerHTML={{ 
-              __html: renderAnkiHtmlWithLatex(card.answer || "No answer") 
+              __html: renderAnkiHtmlWithLatex(card.answer || t("zenReview.noAnswer")) 
             }}
           />
         </div>
@@ -229,15 +233,17 @@ function AlgorithmMetadata({
 // Context Peek - shows source context when Alt is held
 function ContextPeek({ 
   item,
-  isVisible 
+  isVisible,
+  t,
 }: { 
   item: ReviewSessionItem | null;
   isVisible: boolean;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   if (!item || !isVisible) return null;
   
   const context = (item as any).context || (item as any).extractContext || (item as any).documentContext;
-  const title = (item as any).documentTitle || (item as any).sourceTitle || "Source";
+  const title = (item as any).documentTitle || (item as any).sourceTitle || t("zenReview.source");
   
   if (!context) return null;
   
@@ -253,7 +259,7 @@ function ContextPeek({
           dangerouslySetInnerHTML={{ __html: context }}
         />
         <div className="mt-4 text-xs text-muted-foreground/40 text-center">
-          Release Alt to return
+          {t("zenReview.releaseAlt")}
         </div>
       </div>
     </div>
@@ -308,6 +314,7 @@ function SessionTimer({ startTime }: { startTime: number }) {
 }
 
 export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
+  const { t } = useI18n();
   const {
     currentCard,
     queue,
@@ -395,7 +402,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-muted-foreground/30 text-sm">Loading...</div>
+        <div className="text-muted-foreground/30 text-sm">{t("zenReview.loading")}</div>
       </div>
     );
   }
@@ -404,9 +411,9 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="text-muted-foreground mb-4">Error: {error}</div>
+          <div className="text-muted-foreground mb-4">{t("zenReview.errorWithMessage", { message: error })}</div>
           <button onClick={onExit} className="text-sm text-primary hover:underline">
-            Exit
+            {t("zenReview.exit")}
           </button>
         </div>
       </div>
@@ -418,12 +425,12 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl mb-4 opacity-30">◉</div>
-          <div className="text-muted-foreground/50 mb-6">Session complete</div>
+          <div className="text-muted-foreground/50 mb-6">{t("zenReview.sessionComplete")}</div>
           <button 
             onClick={onExit}
             className="text-sm text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
           >
-            Press Escape to exit
+            {t("zenReview.pressEscapeToExit")}
           </button>
         </div>
       </div>
@@ -436,15 +443,28 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   // Compute algorithm-aware metadata values
   const effectiveAlgorithm = currentCardData.algorithm_type || settings.learning.algorithm;
   const isSm18 = effectiveAlgorithm === "sm18";
+  const isSm20 = effectiveAlgorithm === "sm20";
   const sm18State = isSm18 ? parseSm18State(currentCardData.algorithm_state) : null;
+  const sm20State = isSm20 ? parseSm20State(currentCardData.algorithm_state) : null;
   const metaStability = isSm18 && sm18State
     ? sm18State.stability
+    : isSm20 && sm20State
+    ? sm20State.stability
     : currentCardData.stability;
   const metaDifficulty = isSm18 && sm18State
     ? sm18State.difficulty
+    : isSm20 && sm20State
+    ? sm20State.difficulty
     : currentCardData.difficulty;
   const metaRetrievability = isSm18 && sm18State && sm18State.stability > 0
     ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
+    : isSm20 && sm20State && sm20State.stability > 0
+    ? sm20Retrievability(
+        sm20State.stability,
+        currentCardData.last_review_date
+          ? (Date.now() - new Date(currentCardData.last_review_date).getTime()) / (86400 * 1000)
+          : 0
+      )
     : currentCardData.retrievability;
   const metaInterval = currentCardData.interval;
 
@@ -462,6 +482,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
           item={currentCard}
           showAnswer={isAnswerShown}
           onShowAnswer={showAnswer}
+          t={t}
         />
       </div>
 
@@ -486,6 +507,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
       <ContextPeek 
         item={currentCard} 
         isVisible={contextPeekVisible}
+        t={t}
       />
       
       {/* Progress indicator - ultra subtle dots */}

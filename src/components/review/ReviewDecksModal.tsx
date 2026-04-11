@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Layers, Search, X } from "lucide-react";
 import type { StudyDeck } from "../../types/study-decks";
+import { useI18n } from "../../lib/i18n";
 
 interface ReviewDecksModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function ReviewDecksModal({
   activeDeckId,
   onSelectDeck,
 }: ReviewDecksModalProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -85,16 +87,16 @@ export function ReviewDecksModal({
         <div className="flex items-start justify-between gap-4 border-b border-border p-6">
           <div>
             <h2 id="review-decks-modal-title" className="text-2xl font-bold text-foreground">
-              Saved Decks
+              {t("reviewDecks.title")}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {decks.length} {decks.length === 1 ? "deck" : "decks"} available for review.
+              {t("reviewDecks.availableCount", { count: decks.length })}
             </p>
           </div>
           <button
             onClick={onClose}
             className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Close decks modal"
+            aria-label={t("reviewDecks.closeModal")}
           >
             <X className="h-5 w-5" />
           </button>
@@ -106,7 +108,7 @@ export function ReviewDecksModal({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search decks or tags"
+              placeholder={t("reviewDecks.searchPlaceholder")}
               autoFocus
               className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
             />
@@ -127,10 +129,10 @@ export function ReviewDecksModal({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-foreground">All Decks</span>
+                  <span className="font-semibold text-foreground">{t("reviewHome.allDecks")}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{totalDueCount} due</span>
+                  <span>{t("reviewHome.countDue", { count: totalDueCount })}</span>
                   {activeDeckId === null && <Check className="h-4 w-4 text-primary" />}
                 </div>
               </div>
@@ -138,7 +140,7 @@ export function ReviewDecksModal({
 
             {filteredDeckStats.length === 0 && (
               <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No matching decks found.
+                {t("reviewDecks.noMatches")}
               </div>
             )}
 
@@ -160,7 +162,7 @@ export function ReviewDecksModal({
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold text-foreground">{deck.name}</span>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{count} due</span>
+                      <span>{t("reviewHome.countDue", { count })}</span>
                       {isActive && <Check className="h-4 w-4 text-primary" />}
                     </div>
                   </div>
@@ -176,7 +178,7 @@ export function ReviewDecksModal({
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-muted-foreground">No tag filters</span>
+                      <span className="text-xs text-muted-foreground">{t("reviewDecks.noTagFilters")}</span>
                     )}
                   </div>
                 </button>

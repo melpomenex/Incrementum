@@ -248,6 +248,7 @@ function GeneralSettings() {
               >
                 <option value="fsrs">{t("settings.fsrs6Recommended")}</option>
                 <option value="sm18">{t("settingsLegacy.supermemo18")}</option>
+                <option value="sm20">SuperMemo 20</option>
                 <option value="sm15">{t("settingsLegacy.supermemo15")}</option>
                 <option value="sm8">{t("settingsLegacy.supermemo8")}</option>
                 <option value="sm5">{t("settingsLegacy.supermemo5")}</option>

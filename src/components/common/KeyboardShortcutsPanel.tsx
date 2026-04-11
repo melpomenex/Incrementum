@@ -20,6 +20,7 @@ import {
   HelpCircle,
   Command,
 } from "lucide-react";
+import { useI18n } from "../../lib/i18n";
 
 export interface ShortcutItem {
   keys: string[];
@@ -32,42 +33,44 @@ export interface ShortcutsContext {
 }
 
 // Define shortcuts for each context
-const contextShortcuts: Record<string, ShortcutItem[]> = {
-  global: [
-    { keys: ["⌘/Ctrl", "K"], label: "Command palette", icon: Command },
-    { keys: ["/"], label: "Focus search", icon: Search },
-    { keys: ["?"], label: "Show shortcuts", icon: HelpCircle },
-    { keys: ["B"], label: "Toggle sidebar", icon: PanelLeft },
-  ],
-  documents: [
-    { keys: ["J", "↓"], label: "Move down", icon: ArrowDown },
-    { keys: ["K", "↑"], label: "Move up", icon: ArrowUp },
-    { keys: ["Enter"], label: "Open document", icon: CornerDownLeft },
-    { keys: ["N"], label: "New document", icon: FilePlus },
-    { keys: ["Esc"], label: "Deselect", icon: Escape },
-  ],
-  review: [
-    { keys: ["Space"], label: "Show answer", icon: CornerDownLeft },
-    { keys: ["1-4"], label: "Rate card", icon: Keyboard },
-    { keys: ["Esc"], label: "Exit review", icon: Escape },
-    { keys: ["T"], label: "Toggle TTS", icon: Keyboard },
-  ],
-  queue: [
-    { keys: ["J", "↓"], label: "Move down", icon: ArrowDown },
-    { keys: ["K", "↑"], label: "Move up", icon: ArrowUp },
-    { keys: ["Enter"], label: "Open item", icon: CornerDownLeft },
-    { keys: ["R"], label: "Start review", icon: RotateCcw },
-  ],
-  graph: [
-    { keys: ["Scroll"], label: "Zoom", icon: Keyboard },
-    { keys: ["Drag"], label: "Pan", icon: Keyboard },
-    { keys: ["Esc"], label: "Reset view", icon: Escape },
-  ],
-  settings: [
-    { keys: ["Tab"], label: "Next field", icon: Keyboard },
-    { keys: ["Esc"], label: "Close", icon: Escape },
-  ],
-};
+function getContextShortcuts(t: (key: string) => string): Record<string, ShortcutItem[]> {
+  return {
+    global: [
+      { keys: ["⌘/Ctrl", "K"], label: t("keyboardShortcutsPanel.commandPalette"), icon: Command },
+      { keys: ["/"], label: t("keyboardShortcutsPanel.focusSearch"), icon: Search },
+      { keys: ["?"], label: t("keyboardShortcutsPanel.showShortcuts"), icon: HelpCircle },
+      { keys: ["B"], label: t("keyboardShortcutsPanel.toggleSidebar"), icon: PanelLeft },
+    ],
+    documents: [
+      { keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown },
+      { keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp },
+      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openDocument"), icon: CornerDownLeft },
+      { keys: ["N"], label: t("keyboardShortcutsPanel.newDocument"), icon: FilePlus },
+      { keys: ["Esc"], label: t("keyboardShortcutsPanel.deselect"), icon: Escape },
+    ],
+    review: [
+      { keys: ["Space"], label: t("keyboardShortcutsPanel.showAnswer"), icon: CornerDownLeft },
+      { keys: ["1-4"], label: t("keyboardShortcutsPanel.rateCard"), icon: Keyboard },
+      { keys: ["Esc"], label: t("keyboardShortcutsPanel.exitReview"), icon: Escape },
+      { keys: ["T"], label: t("keyboardShortcutsPanel.toggleTts"), icon: Keyboard },
+    ],
+    queue: [
+      { keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown },
+      { keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp },
+      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openItem"), icon: CornerDownLeft },
+      { keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: RotateCcw },
+    ],
+    graph: [
+      { keys: ["Scroll"], label: t("keyboardShortcutsPanel.zoom"), icon: Keyboard },
+      { keys: ["Drag"], label: t("keyboardShortcutsPanel.pan"), icon: Keyboard },
+      { keys: ["Esc"], label: t("keyboardShortcutsPanel.resetView"), icon: Escape },
+    ],
+    settings: [
+      { keys: ["Tab"], label: t("keyboardShortcutsPanel.nextField"), icon: Keyboard },
+      { keys: ["Esc"], label: t("keyboardShortcutsPanel.close"), icon: Escape },
+    ],
+  };
+}
 
 interface KeyboardShortcutsPanelProps {
   context: ShortcutsContext["view"];
@@ -82,8 +85,18 @@ export function KeyboardShortcutsPanel({
   compact = false,
   showToggle = true,
 }: KeyboardShortcutsPanelProps) {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const contextShortcuts = getContextShortcuts(t);
+  const contextLabels: Record<ShortcutsContext["view"], string> = {
+    documents: t("keyboardShortcutsPanel.documents"),
+    review: t("keyboardShortcutsPanel.review"),
+    queue: t("keyboardShortcutsPanel.queue"),
+    graph: t("keyboardShortcutsPanel.graph"),
+    settings: t("keyboardShortcutsPanel.settings"),
+    global: t("keyboardShortcutsPanel.global"),
+  };
 
   // Combine global shortcuts with context-specific ones
   const shortcuts = [...contextShortcuts.global, ...(contextShortcuts[context] || [])];
@@ -93,7 +106,7 @@ export function KeyboardShortcutsPanel({
       <button
         onClick={() => setIsDismissed(false)}
         className={`fixed bottom-4 right-4 p-2 bg-card border border-border rounded-lg shadow-lg hover:bg-muted transition-colors ${className}`}
-        title="Show keyboard shortcuts"
+        title={t("keyboardShortcutsPanel.showKeyboardShortcuts")}
       >
         <Keyboard className="w-4 h-4 text-muted-foreground" />
       </button>
@@ -117,7 +130,7 @@ export function KeyboardShortcutsPanel({
             onClick={() => setIsExpanded(true)}
             className="text-primary hover:underline"
           >
-            +{shortcuts.length - 3} more
+            {t("keyboardShortcutsPanel.moreCount", { count: shortcuts.length - 3 })}
           </button>
         )}
       </div>
@@ -143,14 +156,14 @@ export function KeyboardShortcutsPanel({
           <button
             onClick={() => setIsExpanded(true)}
             className="p-1.5 hover:bg-muted rounded transition-colors"
-            title="View all shortcuts"
+            title={t("keyboardShortcutsPanel.viewAllShortcuts")}
           >
             <Keyboard className="w-4 h-4 text-muted-foreground" />
           </button>
           <button
             onClick={() => setIsDismissed(true)}
             className="p-1 hover:bg-muted rounded transition-colors"
-            title="Hide panel"
+            title={t("keyboardShortcutsPanel.hidePanel")}
           >
             <X className="w-3 h-3 text-muted-foreground" />
           </button>
@@ -167,7 +180,7 @@ export function KeyboardShortcutsPanel({
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Keyboard className="w-4 h-4" />
-            Keyboard Shortcuts
+            {t("keyboardShortcutsPanel.title")}
           </h3>
           <button
             onClick={() => setIsExpanded(false)}
@@ -181,7 +194,7 @@ export function KeyboardShortcutsPanel({
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-64 overflow-y-auto">
           {/* Global shortcuts */}
           <div>
-            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Global</h4>
+            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("keyboardShortcutsPanel.global")}</h4>
             <div className="space-y-2">
               {contextShortcuts.global.map((shortcut, index) => (
                 <ShortcutRow key={index} shortcut={shortcut} />
@@ -193,7 +206,7 @@ export function KeyboardShortcutsPanel({
           {contextShortcuts[context] && (
             <div>
               <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2 capitalize">
-                {context}
+                {contextLabels[context]}
               </h4>
               <div className="space-y-2">
                 {contextShortcuts[context].map((shortcut, index) => (
@@ -205,23 +218,23 @@ export function KeyboardShortcutsPanel({
 
           {/* Quick actions */}
           <div>
-            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Quick Actions</h4>
+            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("keyboardShortcutsPanel.quickActions")}</h4>
             <div className="space-y-2">
-              <ShortcutRow shortcut={{ keys: ["N"], label: "New document", icon: FilePlus }} />
-              <ShortcutRow shortcut={{ keys: ["R"], label: "Start review", icon: RotateCcw }} />
-              <ShortcutRow shortcut={{ keys: ["Q"], label: "Open queue", icon: ListOrdered }} />
-              <ShortcutRow shortcut={{ keys: ["G"], label: "Go to graph", icon: GitBranch }} />
+              <ShortcutRow shortcut={{ keys: ["N"], label: t("keyboardShortcutsPanel.newDocument"), icon: FilePlus }} />
+              <ShortcutRow shortcut={{ keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: RotateCcw }} />
+              <ShortcutRow shortcut={{ keys: ["Q"], label: t("keyboardShortcutsPanel.openQueue"), icon: ListOrdered }} />
+              <ShortcutRow shortcut={{ keys: ["G"], label: t("keyboardShortcutsPanel.goToGraph"), icon: GitBranch }} />
             </div>
           </div>
 
           {/* Navigation */}
           <div>
-            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Navigation</h4>
+            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("keyboardShortcutsPanel.navigation")}</h4>
             <div className="space-y-2">
-              <ShortcutRow shortcut={{ keys: ["J", "↓"], label: "Move down", icon: ArrowDown }} />
-              <ShortcutRow shortcut={{ keys: ["K", "↑"], label: "Move up", icon: ArrowUp }} />
-              <ShortcutRow shortcut={{ keys: ["Enter"], label: "Open/Select", icon: CornerDownLeft }} />
-              <ShortcutRow shortcut={{ keys: ["Esc"], label: "Close/Cancel", icon: Escape }} />
+              <ShortcutRow shortcut={{ keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown }} />
+              <ShortcutRow shortcut={{ keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp }} />
+              <ShortcutRow shortcut={{ keys: ["Enter"], label: t("keyboardShortcutsPanel.openSelect"), icon: CornerDownLeft }} />
+              <ShortcutRow shortcut={{ keys: ["Esc"], label: t("keyboardShortcutsPanel.closeCancel"), icon: Escape }} />
             </div>
           </div>
         </div>
@@ -260,6 +273,7 @@ export function ShortcutsHint({
   onDismiss: () => void;
   onOpenFull: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-card border border-border rounded-xl shadow-xl p-4 max-w-xs animate-glass-scale-in">
       <div className="flex items-start gap-3">
@@ -268,24 +282,24 @@ export function ShortcutsHint({
         </div>
         <div className="flex-1">
           <h4 className="text-sm font-medium text-foreground mb-1">
-            Keyboard Shortcuts
+            {t("keyboardShortcutsPanel.title")}
           </h4>
           <p className="text-xs text-muted-foreground mb-3">
-            Press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">?</kbd> anytime to see all shortcuts, or use{" "}
-            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">J/K</kbd> to navigate.
+            {t("keyboardShortcutsPanel.hintBodyPrefix")} <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">?</kbd> {t("keyboardShortcutsPanel.hintBodyMiddle")}{" "}
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">J/K</kbd> {t("keyboardShortcutsPanel.hintBodySuffix")}
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenFull}
               className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors"
             >
-              View Shortcuts
+              {t("keyboardShortcutsPanel.viewShortcuts")}
             </button>
             <button
               onClick={onDismiss}
               className="px-3 py-1.5 text-muted-foreground hover:text-foreground text-xs transition-colors"
             >
-              Got it
+              {t("keyboardShortcutsPanel.gotIt")}
             </button>
           </div>
         </div>
