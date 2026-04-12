@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles, Languages } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles, Languages, PanelsTopLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -13,6 +13,7 @@ import { LocalVideoPlayer } from "./LocalVideoPlayerWrapper";
 import { AudiobookViewer } from "./AudiobookViewer";
 import { ExtractsList } from "../extracts/ExtractsList";
 import { LearningCardsList } from "../learning/LearningCardsList";
+import { EditableContentPalette } from "../common/EditableContentPalette";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import type { PdfSelectionContext } from "../../types/selection";
@@ -39,7 +40,6 @@ import { processHtmlContent } from "../../utils/documentImport";
 import { lookupDictionary, type DictionaryResult } from "../../utils/dictionaryLookup";
 import { recordReadingSession } from "../../utils/readingSpeed";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
-import { ScrollModeArticleEditor } from "../review/ScrollModeArticleEditor";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import {
@@ -223,6 +223,7 @@ export function DocumentViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [, setPagesRendered] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode ?? "document");
+  const [isPaletteMode, setIsPaletteMode] = useState(false);
   const [videoContext, setVideoContext] = useState<{
     videoId: string;
     title?: string;
@@ -466,6 +467,32 @@ export function DocumentViewer({
   };
 
   const docType = inferFileType(currentDocument);
+  const canUseEditPalette = viewMode === "document"
+    && (
+      docType === "markdown"
+      || docType === "html"
+      || docType === "epub"
+      || isEditableBrowserArticleDocument(currentDocument)
+    );
+
+  useEffect(() => {
+    setIsPaletteMode(false);
+  }, [documentId]);
+
+  useEffect(() => {
+    if (viewMode !== "document") {
+      setIsPaletteMode(false);
+    }
+  }, [viewMode]);
+
+  const saveEditableDocumentContent = useCallback(async (content: string) => {
+    if (!currentDocument) return;
+    const updated = await documentsApi.updateDocumentContent(currentDocument.id, content);
+    updateDocument(currentDocument.id, { content: updated.content ?? content });
+    if (docType === "html") {
+      setHtmlContent(updated.content ?? content);
+    }
+  }, [currentDocument, docType, updateDocument]);
 
   // Handle URL hash state changes (back/forward navigation)
   const handleUrlHashChange = useCallback((state: {
@@ -3024,8 +3051,26 @@ export function DocumentViewer({
             </button>
           </div>
 
+          {canUseEditPalette && (
+            <div className="flex items-center bg-muted rounded-md p-1 mr-2">
+              <button
+                onClick={() => setIsPaletteMode((prev) => !prev)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                  isPaletteMode
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={isPaletteMode ? "Return to reader" : "Open edit palette"}
+              >
+                <PanelsTopLeft className="w-4 h-4" />
+                {isPaletteMode ? "Reader" : "Palette"}
+              </button>
+            </div>
+          )}
+
           {/* Markdown Width Controls */}
-          {docType === "markdown" && viewMode === "document" && (
+          {docType === "markdown" && viewMode === "document" && !isPaletteMode && (
             <div className="flex items-center bg-muted rounded-md p-1">
               <button
                 onClick={handleNarrowMarkdown}
@@ -3219,6 +3264,19 @@ export function DocumentViewer({
           <div className="p-6 bg-background h-full overflow-auto">
             <LearningCardsList documentId={currentDocument.id} />
           </div>
+        ) : isPaletteMode && canUseEditPalette ? (
+          <EditableContentPalette
+            title={currentDocument.title}
+            badge={docType === "epub" ? "EPUB Palette" : docType === "html" ? "Document Palette" : "Markdown Palette"}
+            content={docType === "html" ? (currentDocument.content || htmlContent || "") : (currentDocument.content || "")}
+            contentKind={docType === "html" ? "html" : "markdown"}
+            sourceUrl={currentDocument.filePath?.startsWith("http") ? currentDocument.filePath : undefined}
+            placeholder={docType === "epub"
+              ? "Edit the extracted EPUB text here. This is a working text layer, not a full EPUB package editor."
+              : "Edit the document text here..."}
+            emptyPreviewMessage="The live preview will appear here as you edit."
+            onSave={({ content }) => saveEditableDocumentContent(content)}
+          />
         ) : docType === "pdf" && (fileData || pdfUrl) ? (
           pdfViewMode === "ocr-html" && ocrResult ? (
             <div className="reading-surface min-h-[500px]">
@@ -3350,8 +3408,6 @@ export function DocumentViewer({
               </div>
             </div>
           )
-        ) : isEditableBrowserArticleDocument(currentDocument) ? (
-          <ScrollModeArticleEditor document={currentDocument} />
         ) : docType === "markdown" ? (
           <div
             className="reading-surface reading-surface-markdown relative min-h-full h-full overflow-x-hidden"

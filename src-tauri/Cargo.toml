@@ -78,6 +78,7 @@ epub = "2"
 walkdir = "2"
 regex = "1"
 zip = "0.6"
+quick-xml = "0.37"
 rusqlite = { version = "0.31", features = ["bundled"] }
 image = "0.24"
 # Screenshot capture - optional feature
