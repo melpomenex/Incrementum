@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.19.0] - 2026-04-11
 
 ### Added
+
+- **Modern AI Summary Panel for RSS Scroll Mode** — complete UX overhaul of the AI summary feature in RSS reading.
+  - **Theme-aware design** — replaced amber-on-black terminal aesthetic with modern CSS variable-based styling that matches the app's design system and supports light/dark modes.
+  - **Smooth animations** — panel slides in/out with 300ms ease-out (enter) and 200ms ease-in (exit) transitions.
+  - **Resizable & repositionable** — drag handle supports 240-600px width; position toggle between left/right side; mobile responsive bottom sheet variant (< 768px).
+  - **Summary caching** — client-side cache with 7-day TTL, 100-entry LRU eviction, content hash validation, and localStorage persistence. Prevents redundant API calls when reopening panels.
+  - **Generation controls** — collapsible settings for summary length (Brief: 100 tokens, Medium: 200 tokens, Detailed: 400 tokens) and focus area (Key Points, Actionable Items, Background Context).
+  - **Stage-based loading** — progress indicator shows "Analyzing content...", "Extracting key points...", "Synthesizing summary..." stages.
+  - **Keyboard shortcuts** — `S` to generate/toggle summary, `H` to hide when open.
+  - **One-click actions** — copy to clipboard (with visual feedback), share via Web Share API (with desktop fallback), save as extract with tags ["ai-summary", "rss"].
+  - **Inline badge** — subtle "AI Summary" indicator appears when cached summary exists but panel is closed; click to expand.
+  - **Terminal mode preserved** — retro terminal aesthetic remains available as a toggle option for users who prefer it.
 - **Knowledge Graph scale improvements** — the graph is now readable and navigable with hundreds of flashcards instead of collapsing into an unreadable hairball.
   - **Barnes-Hut force simulation** — replaced O(n²) repulsion with a quadtree-based O(n log n) approximation, keeping the physics simulation responsive at 500+ nodes.
   - **Hierarchical node clustering** — flashcards collapse under their parent extract, extracts under their parent document at low zoom. Click a cluster badge to expand it with an animated zoom-to-fit transition.
@@ -19,22 +31,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SuperMemo 20 transparency** — review transparency, inspector, preview-interval, item-detail, and zen-review surfaces now understand SM-20 state and display SM-20-specific stability, difficulty, retrievability, repetitions, lapses, and forget-curve behavior when SM-20 is active.
 
 ### Changed
+
 - **Knowledge Graph controls are now wired** — layout algorithm selector (Force/Circular/Hierarchical/Grid), node size slider, and link distance slider in the filter sidebar all apply to the graph in real time.
 - Expanded internationalization coverage across review, queue, keyboard shortcut, graph, mobile, document, settings, and shared UI surfaces. This pass removes additional hardcoded English strings, broadens locale-key usage across `en`, `zh`, `es`, `de`, `fr`, and `ja`, and keeps the release aligned with the current i18n audit work.
 - Updated app, package, Tauri, and Rust crate version metadata to `1.19.0`.
 
 ### Fixed
+
 - **QuadTree infinite recursion** — the Barnes-Hut quadtree now uses a leaf-body model with a depth limit (40) to prevent infinite subdivision when nodes share the same position.
 - Restored native Rust test/build health by updating the stale `Extract` test helper in `src-tauri/src/generator/mod.rs` to include the current `progressive_summaries` field.
 
 ## [1.18.7] - 2026-04-10
 
 ### Added
+
 - **Progressive disclosure for extract review** — extracts with progressive disclosure enabled now gradually reveal content across multiple review sessions. AI-generated summaries are shown at early levels, then progressively more of the original text, and finally the full content at the max level. Good/Easy ratings advance the disclosure level by one.
 - **Ctrl+B shortcut in Cloze Creator** — select text in the cloze creation popup and press Ctrl+B (or Cmd+B) to wrap it in `{{ }}` blanks. A "Wrap as blank" button is also available.
 - **Range-based cloze rendering in ReviewCard and ZenReviewMode** — cloze cards created with character ranges (from the Cloze Creator) now render correctly in all review modes, not just scroll mode.
 
 ### Fixed
+
 - **cloze_ranges never persisted** — the `cloze_ranges` column existed in the schema but was omitted from the INSERT statement and all four read methods. Range-based cloze data was silently lost after creation.
 - **update_extract SQL missing disclosure fields** — `progressive_disclosure_level`, `max_disclosure_level`, and the new `progressive_summaries` column were not in the UPDATE statement, so edits to these fields were silently lost.
 - **createExtract/updateExtract API dropped maxDisclosureLevel** — the TypeScript API layer accepted the parameter but never passed it to the Tauri backend.
@@ -42,27 +58,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.18.6] - 2026-04-10
 
 ### Changed
+
 - Expanded Chinese localization coverage across the remaining queue, review, import, analytics, settings, mobile navigation, and shared dialog surfaces. This pass removes additional hardcoded English strings from screen-level and shared UI components, adds the missing locale keys to both `en` and `zh`, and keeps locale parity at 100% (`missing 0`, `extra 0`).
 
 ### Fixed
+
 - **macOS SQLite linkage fix** — documented the earlier macOS desktop fix where the system SQLite was missing symbols required by `sqlx`. The workaround added explicit macOS build-time linkage to Homebrew SQLite (`/opt/homebrew/opt/sqlite` on Apple Silicon, `/usr/local/opt/sqlite` on Intel) and preferred the static `libsqlite3.a` when present, preventing the startup/build failures caused by relying on the incomplete system SQLite.
 - **Screenshot overlay runtime stability** — the screenshot overlay now lazy-loads Tauri window and event APIs instead of importing them eagerly at module load time. This avoids initializing Tauri-only bindings in the wrong runtime and prevents the overlay from crashing when opened outside the expected desktop context.
 
 ## [1.18.5] - 2026-04-09
 
 ### Added
+
 - **SuperMemo 18 algorithm transparency** — review UI now adapts to the active algorithm. When SM18 is selected, the transparency panel, inspector, and zen-mode overlay show SM18-specific stats (stability, difficulty on 0-1 scale, retrievability via `R = 0.9^(t/S)`, reps, lapses) with correct formulas and labels, matching the existing FSRS-6 transparency experience.
 
 ### Changed
+
 - Review backends (Tauri and browser) now respect the algorithm setting passed from the frontend during review submission instead of always reading the stale `algorithm_type` stored on the card. The effective algorithm is also persisted back to the card for correct display.
 - FSRS-specific settings (retention slider, personal optimizer, scoped overrides) are hidden in Learning Settings when a non-FSRS algorithm is selected.
 - Item details popover scheduling section header now shows "FSRS-6" or "SuperMemo 18" based on the active algorithm.
 
 ### Fixed
+
 - Algorithm selection in settings had no effect on actual review scheduling — backends ignored the passed `algorithm` parameter and always dispatched to FSRS-6. All three backends (Tauri, browser, MCP) now correctly route to the user's chosen algorithm.
 - Cards created before the algorithm selector was added were permanently stuck on FSRS-6 even after switching to SM18 — the `algorithm_type` field was never updated.
 
 ### Added
+
 - **Comprehensive LaTeX engine upgrade** for flashcard rendering with KaTeX.
   - Enabled mhchem extension for chemistry notation (`\ce{}`, `\pu{}`) — renders chemical formulas, equations, and physical units natively.
   - Auto-detection of display-mode-only environments (`gather`, `split`, `multline`, `flalign`, `alignat`, `align`, `tag`) — inline expressions containing these now automatically render as centered block math.
@@ -75,37 +97,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Interaction metadata system** — both card types store their specialized data (options, correct answer, regions, image asset) in a structured JSON `interaction_metadata` field, enabling frontend-specific rendering while keeping the backend type system clean.
 
 ### Changed
+
 - Broadened LaTeX hint detection in the Anki normalization pipeline to recognize macro definitions (`\newcommand`, `\DeclareMathOperator`), chemistry commands (`\ce`, `\pu`), and a wider range of LaTeX commands for bare-text detection.
 - Escaped dollar signs (`\$`) are now properly handled during delimiter tokenization — they are preserved as literal characters and not treated as math delimiters.
 
 ### Fixed
+
 - Display-mode-only environments (e.g., `gather`, `split`) no longer silently degrade when used inside inline delimiters — they auto-upgrade to block display mode with proper centered rendering.
 
 ## [1.18.3] - 2026-04-09
 
 ### Changed
+
 - Migrated the app's configurable UI/theme font loading to an offline-first model by bundling local font assets and removing the runtime Google Fonts dependency.
 - Aligned scheduling terminology and defaults across the app with FSRS-6, including updated labels and canonical 21-parameter profile handling for existing personalized weights.
 
 ### Fixed
+
 - Fixed browser/PWA Anki package (`.apkg`) imports so imported learning items stay linked to the correct created deck documents and preserve tags needed by downstream review/deck flows.
 
 ## [1.18.0] - 2026-04-09
 
 ### Changed
+
 - Bumped app, package, Tauri, and Rust crate version metadata to `1.18.0`.
 
 ## [1.17.0] - 2026-04-08
 
 ### Added
+
 - Imported the full legacy `index.html` theme catalog into the app, including more than a hundred built-in themes and lightweight animated backdrop variants for the legacy animated themes.
 - Added theme backdrop rendering infrastructure so animated themes can show motion without relying on expensive full-screen effects.
 
 ### Changed
+
 - Browser-imported web content now opens in an editable article workspace instead of being treated as a mostly static HTML snapshot.
 - Browser extension captures and AI summaries now queue locally when the desktop app is offline and sync automatically when the app becomes reachable again.
 
 ### Fixed
+
 - Browser extension extract flows now cache offline, sync on reconnect, and show clearer toast/status feedback.
 - Browser extension AI summary saves now persist the generated summary itself as an extract through the same online/offline sync path.
 - Browser extension shortcut registration, extension icons, and popup/runtime invalidation handling were cleaned up.
@@ -114,6 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.16.0] - 2026-04-07
 
 ### Added
+
 - **Shared sound service** - Consolidated three separate AudioContext implementations (notification beep, focus timer, haptic feedback) into a single shared `soundService.ts` with singleton AudioContext management, eliminating duplicate code and resource leaks
 - **Notification sound picker** - Users can now choose from multiple notification sounds (default tone, bell, chime, ding, complete) with a volume slider and preview button in Settings > Notifications
 - **Bundled audio files** - Added 4 synthesized audio files (bell, chime, ding, complete) in `public/sounds/` for richer notification sounds beyond the basic oscillator beep
@@ -121,11 +152,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PWA icon generation** - Script to generate all required PWA icon sizes from the source SVG
 
 ### Changed
+
 - `useHapticFeedback` now reads sound toggle from `notifications.soundEnabled` instead of the non-existent `appearance.soundEnabled` field, so haptic sounds actually respect the notification settings toggle
 - Focus timer uses the shared sound service instead of creating its own AudioContext on each timer completion
 - Notification service delegates sound playback to the shared sound service
 
 ### Fixed
+
 - **PWA installability** - Generated all 8 missing PNG icon files referenced by manifest.json (only `icon.svg` and `sprout.png` existed before, causing 404s and Lighthouse failures)
 - **Manifest display mode** - Changed from `fullscreen` to `standalone` for proper Lighthouse compliance and better UX (users get standard navigation controls)
 - **Maskable icons** - Split 192x192 and 512x512 icons into separate `any` and `maskable` entries for correct Lighthouse validation
@@ -135,6 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.2] - 2026-03-16
 
 ### Fixed
+
 - **Vercel deployment fixes** - Resolved build failures on Vercel platform
   - Fixed `.vercelignore` to allow source files needed for the build
   - Fixed `index.html` to use relative paths for Vite build compatibility
@@ -144,6 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.0] - 2026-03-15
 
 ### Added
+
 - **Pocket TTS Integration** - Local CPU-based text-to-speech for offline, privacy-focused audio playback
   - New "Pocket TTS" provider option alongside Fal.ai and Groq cloud TTS
   - 8 pre-built voices: alba, marius, javert, jean, fantine, cosette, eponine, azelma
@@ -154,12 +189,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated TTS controls in document viewers (PDF, EPUB, Markdown)
 
 ### Changed
+
 - Extended TTS settings schema to support Pocket TTS provider configuration
 - Updated TTS hook and controls for streaming audio playback support
 
 ## [1.13.0] - 2026-03-01
 
 ### Added
+
 - Next-gen SRS scheduling controls, including desired-retention targeting, scoped FSRS policies (global/deck/tag), one-step review undo, and non-mutating cram sessions.
 - Advanced review interactions: typed answers with fuzzy grading, progressive hints, ordering/matching flows, conversational review, accessibility helpers, and clipboard quick-add capture.
 - New analytics surfaces for workload forecasting and memory decay, including retention-aware heatmap overlays and a dedicated forgetting-curve panel.
@@ -167,40 +204,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wave 4 study tooling, including social/collaboration helpers, energy tracking, and reading-speed/ETA support.
 
 ### Changed
+
 - Expanded Rust command/API plumbing, repository/migration schema, and frontend store/API wiring to support the new SRS platform capabilities end to end.
 - Updated review, analytics, learning, and settings UI flows to expose new controls and telemetry-backed behavior in both desktop and browser-backed paths.
 
 ### Fixed
+
 - Strengthened review interaction correctness and regression coverage across scope resolution, semantic grading, accessibility, reference import, collaboration helpers, and performance-sensitive paths.
 
 ## [1.12.11] - 2026-02-27
 
 ### Fixed
+
 - Android Gradle `BuildTask` cargo resolution now prefers hosted toolcache cargo binaries (including `RUST_TOOLCHAIN`-pinned paths) before falling back to `~/.cargo/bin/cargo`, avoiding CI runner proxy layout issues during `rustBuildArm64Release`.
 
 ## [1.12.10] - 2026-02-27
 
 ### Fixed
+
 - Android mobile CI now writes a stable `~/.cargo/bin/cargo` wrapper that delegates to the resolved real cargo binary, preventing Gradle `:app:rustBuildArm64Release` spawn failures on ephemeral runner cargo/rustup layouts.
 
 ## [1.12.9] - 2026-02-27
 
 ### Fixed
+
 - Android mobile CI now exports `CARGO` as the discovered real cargo binary path (instead of forcing `~/.cargo/bin/cargo` symlink), preventing Gradle `rustBuildArm64Release` failures when spawning cargo.
 
 ## [1.12.8] - 2026-02-27
 
 ### Fixed
+
 - Windows CI prebuild no longer hard-requires `notebooklm-<target>.exe` when NotebookLM runtime bundling is disabled, preventing `npm run build` failures in `build (windows-latest)` before Tauri packaging.
 
 ## [1.12.7] - 2026-02-27
 
 ### Fixed
+
 - Mobile CI `prebuild` now correctly honors `SKIP_NOTEBOOKLM_SIDECAR=1`, so iOS/Android validation jobs can build frontend assets without failing on missing `notebooklm-<target>` sidecar binaries.
 
 ## [1.12.6] - 2026-02-27
 
 ### Fixed
+
 - CI sidecar provisioning now always materializes a NotebookLM sidecar launcher when missing, preventing macOS/release bundle failures on missing `bin/notebooklm-<target>`.
 - AppImage CI now bootstraps the bundled NotebookLM portable runtime when source runtime assets are incomplete before runtime injection/verification.
 - Arch release packaging no longer forces `RUSTFLAGS=-Clink-arg=-lsqlite3`, avoiding linker failures (`DSO missing from command line`) in Arch container builds.
@@ -208,21 +253,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.5] - 2026-02-27
 
 ### Fixed
+
 - Fixed Android mobile CI Cargo bootstrap to prevent a self-referential `cargo` symlink (`Too many levels of symbolic links`) that stopped Android builds before compilation.
 
 ## [1.12.4] - 2026-02-27
 
 ### Fixed
+
 - Hardened Android mobile CI cargo discovery to avoid brittle PATH/sudo assumptions on GitHub runners.
 
 ## [1.12.3] - 2026-02-27
 
 ### Fixed
+
 - Android mobile CI now resolves `cargo` deterministically for Gradle Rust build tasks by hardening workflow symlink setup and using explicit cargo path fallbacks in Android `BuildTask.kt`.
 
 ## [1.12.1] - 2026-02-26
 
 ### Fixed
+
 - Flashcard review math rendering now supports raw LaTeX without delimiters in imported card content.
 - Linux `.deb` bundle verification now detects the whisper sidecar regardless of install path inside the package layout.
 - AppImage CI repack flow now extracts and invokes `appimagetool` from the correct location in CI.
@@ -232,14 +281,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.0] - 2026-02-26
 
 ### Added
+
 - NotebookLM sidecar/runtime packaging updates for desktop bundles, including external binary configuration and improved sidecar download/build flow.
 - Regression coverage to ensure tab content state is preserved when switching between tabs.
 
 ### Changed
+
 - Expanded NotebookLM backend artifact generation and provider handling to execute real generation flows and return richer artifact payloads.
 - Updated AppImage build script usage in npm scripts to align local and CI packaging behavior.
 
 ### Fixed
+
 - Fixed tab switching behavior that reset in-progress views (for example, Review sessions and nested Settings views) by keeping inactive tab content mounted instead of unmounting on every switch.
 - Fixed NotebookLM integration UX and login/document entry points for better runtime behavior in packaged builds.
 - Fixed release/build workflow regressions for `v1.12.0` by removing hard NotebookLM sidecar bundling requirements, skipping desktop sidecar builds on mobile targets, hardening AppImage runtime checks, and correcting Arch release toolchain dependencies.
@@ -247,6 +299,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.11.0] - 2026-02-23
 
 ### Added
+
 - NotebookLM integration workspace in Integrations with notebook management, source workflows, chat/research, and artifact generation surfaces.
 - NotebookLM chat extraction flow to save assistant responses (including selected text) directly into Incrementum extracts with thread/context metadata.
 - Saved-state affordances in NotebookLM chat (toast feedback + already-saved indicator) for extraction actions.
@@ -257,12 +310,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docs/notebooklm-document-qa-rollout.md`
 
 ### Changed
+
 - Implemented CLI provider artifact generation in backend (`src-tauri/src/notebooklm.rs`) so audio/video/report/mind-map/data-table/flashcards/quiz flows produce usable payloads.
 - Updated NotebookLM artifact handling to recover/parse structured payloads more robustly and avoid false “legacy format” messaging when recoverable content exists.
 - NotebookLM browser sync persistence now stores richer extract metadata (selection context, analysis context, FSRS memory state mapping).
 - NotebookLM-extracted document typing now prefers previewable markdown paths and upgrades legacy `other` notebook documents automatically.
 
 ### Fixed
+
 - Fixed `CLI provider scaffold pending` failures in NotebookLM artifact generation by replacing scaffold behavior with real CLI command execution + download/parsing paths.
 - Fixed NotebookLM audio/video preview UX to show player-ready media (or explicit generation progress) instead of forcing export-first flows.
 - Fixed NotebookLM extract preview regression where notebook-backed extracts were saved as non-previewable `other` document types.
@@ -271,6 +326,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.9] - 2026-02-21
 
 ### Fixed
+
 - Restored `Read Next` and `Random Item` toolbar actions so they reliably open queue items again.
 - Added fallback queue selection logic so toolbar actions still work when active filters temporarily produce an empty `filteredItems` list.
 - Added user-facing toast feedback for empty queue states and action failures, replacing silent no-op behavior.
@@ -279,22 +335,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.8] - 2026-02-21
 
 ### Fixed
+
 - Resolved Review View startup/runtime crash in Vimium navigation caused by invalid hook return aliases (`_showHints` / `_findText`) in `VimiumNavigation`.
 - Restored valid handler references so the app boots correctly in web/PWA builds and GitHub Actions release builds can complete.
 
 ## [1.10.7] - 2026-02-21
 
 ### Added
+
 - Review deck browsing in Review View via a dedicated decks modal, including deck-level preview flow improvements.
 - Image registry plumbing across Tauri + web API paths for richer media handling in review/content workflows.
 - OpenSpec change package for image-registry work: `openspec/changes/add-image-registry/`.
 
 ### Changed
+
 - Completed project linting setup migration to flat ESLint config (`eslint.config.js`) and normalized lint scripts/workflow.
 - Broad frontend/backend cleanup pass across review, viewer, import, graph, RSS, queue, settings, sync, and assistant modules.
 - Improved browser/PWA/Tauri compatibility and type-safety hardening in shared runtime utilities.
 
 ### Fixed
+
 - Fixed multiple review UX edge cases in scroll/preview/feedback/rating flows.
 - Fixed numerous document/media handling issues across PDF/EPUB/video/transcript and import pipelines.
 - Resolved large sets of lint defects and removed stale suppressions; lint now runs clean with current configured rules.
@@ -303,6 +363,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.4] - 2026-02-20
 
 ### Fixed
+
 - Resolved Linux PDF freeze regression by restoring worker-first PDF loading in Tauri with safe fallback behavior.
 - Prevented runtime panics when reading malformed non-UTF8 `content` values from SQLite rows by adding tolerant decoding fallbacks.
 - Fixed Windows desktop import dialog failures (`Tauri dialog API not available`) by adding a direct invoke fallback for dialog open operations.
@@ -311,6 +372,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.3] - 2026-02-19
 
 ### Added
+
 - Duration-aware long-form scheduling safety cap for videos/articles on positive ratings (`Good`/`Easy`):
   - `<25%` coverage of estimated content duration: cap next interval to `1 day`
   - `<50%` coverage: cap to `2 days`
@@ -328,6 +390,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `add-latex-rendering-and-duration-aware-scheduling`
 
 ### Changed
+
 - Improved PDF loading strategy in Tauri/WebKitGTK environments:
   - Added source fallback behavior (`fileUrl`/`fileData`) and safer worker handling
   - Added large-document page virtualization windowing and spacer-based layout for better performance
@@ -337,6 +400,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added favorites-only projection and index synchronization against visible items
 
 ### Fixed
+
 - Restored ability to open external links via shell capability (`shell:allow-open`)
 - Removed aggressive webview force-close behavior in tab content switching path to reduce tab-switch instability
 - Aligned `src-tauri/Cargo.toml` version with `1.10.3` to satisfy tag/version validation in CI release workflows
@@ -345,10 +409,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.10.2] - 2026-02-18
 
 ### Added
+
 - New reusable transcription UI module (`TranscriptionButton`, queue actions, provider-key dialog, and shared service hook) for local video workflows
 - GPU capability guidance in Audio Transcription settings, including platform-specific acceleration notes
 
 ### Changed
+
 - Refactored video transcript generation flow to use the shared transcription queue service and centralized error/status handling
 - Updated sidecar download/build pipeline to improve Whisper portability:
   - Build with static-linking flags across Linux/macOS/Windows paths
@@ -357,35 +423,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enable Metal acceleration on Apple Silicon builds and keep CPU fallback on unsupported targets
 
 ### Fixed
+
 - Improved local Whisper runtime failure messaging with explicit guidance when shared-library dependencies are missing
 - Updated bundled Linux Whisper binary used by the desktop app
 
 ## [1.9.2] - 2026-02-17
 
 ### Added
+
 - Assistant conversation persistence in the Assistant window:
   - Messages and unsent input are now restored after reloading or switching documents
   - Conversation storage is scoped by context (document, web page, video, general)
 
 ### Changed
+
 - Release metadata alignment for desktop builds:
   - Updated app version to `1.9.2` across Tauri and package manifests so Settings shows the correct version
 
 ### Fixed
+
 - Prevent duplicate context system messages when restoring persisted assistant conversations
 - Correct release/version drift that previously caused builds to report/tag the wrong app version
 
 ## [1.9.1] - 2026-02-16
 
 ### Changed
+
 - Prepared release pipeline alignment for the 1.9.x line
 
 ### Fixed
+
 - Addressed packaging/version inconsistencies that caused 1.9.1 release metadata to remain on the prior 1.8.1 version in some artifacts
 
 ## [1.9.0] - 2026-02-15
 
 ### Added
+
 - Document Minimap with scroll tracking and section highlights
 - Inline extraction directly within DocumentViewer
 - Focus Theme for distraction-free reading
@@ -396,6 +469,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markdown bundle import with image path resolution
 
 ### Fixed
+
 - Prevent ResizeObserver loop crash from minimap scroll updates
 - Resolve circular dependency in FocusTheme
 - Hide rating buttons popover when not in queue
@@ -406,25 +480,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.8.0] - 2026-02-12
 
 ### Added
+
 - New review and analytics components, including progress rings, review heatmap, quick review widget, and review preview modal
 - Smart productivity and guidance UX: interactive tutorial, FSRS explanation modal, break reminder, keyboard shortcuts panel, and shortcut tooltips
 - New smart content helpers: AI tag suggestions, smart collections, and similar content recommendations
 - Mobile/PWA improvements with install/offline indicators and touch-friendly interaction hooks
 
 ### Changed
+
 - Refreshed app shell and review/document views with improved loading skeletons, empty states, and onboarding polish
 
 ### Fixed
+
 - Improved sync resilience across local storage, file sync, and Yjs sync flows
 
 ## [1.7.5] - 2026-02-09
 
 ### Added
+
 - **Continue Reading tab** - New dedicated tab for resuming recently read documents
   - Accessible via toolbar button (Ctrl+2) or middle-click on icon
   - Lists documents with progress for quick continuation
 
 ### Fixed
+
 - **Tauri v2 compatibility fixes**
   - Fixed `beforeDevCommand` to properly run `npm run dev` instead of `true`
   - Fixed API parameter serialization: Tauri v2 expects camelCase for snake_case Rust parameters
@@ -443,6 +522,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.7.4] - 2026-02-06
 
 ### Fixed
+
 - **Anki import fixes for browser/PWA mode**
   - Fixed "Please update to the latest Anki version" error causing 0 cards to import
   - Fixed type mismatch when matching note IDs to card IDs (strict vs loose equality)
@@ -456,6 +536,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.3] - 2026-02-06
 
 ### Fixed
+
 - **Audiobook rating controls** - Changed to floating circular bubbles on right side
   - Circular buttons (12x12) stacked vertically on right edge
   - Color-coded: Red (Again), Orange (Hard), Blue (Good), Green (Easy)
@@ -466,6 +547,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.2] - 2026-02-06
 
 ### Fixed
+
 - **Audiobook rating controls** - Moved from bottom popup to side panel
   - Removed HoverRatingControls popup for audiobooks (was blocking play button)
   - Added new side-positioned rating controls (top-right, vertical layout)
@@ -475,6 +557,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.1] - 2026-02-06
 
 ### Fixed
+
 - **Linux .deb package ffmpeg conflict** - The .deb package was bundling ffmpeg which conflicted with system ffmpeg installations
   - Removed ffmpeg from bundled external binaries
   - Added ffmpeg as a package dependency for Linux .deb
@@ -482,6 +565,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated all ffmpeg call sites to use the new helper
 
 ### Added
+
 - New `utils` module with ffmpeg helper for cross-platform ffmpeg execution
 - Better error handling for missing document files in backup/export
 - Error coercion utilities in tauri.ts
@@ -489,6 +573,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.0] - 2026-02-06
 
 ### Added
+
 - **Complete App State Backup & Restore System**
   - Export all application state to `.incrementum` backup files
   - Export includes: settings, documents (metadata), extracts, learning items, collections, and optional document files
@@ -501,34 +586,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tab System Improvements** - Enhanced SplitPaneContainer, TabBar, and Tabs components
 
 ### Fixed
+
 - Priority control visibility in dark mode - replaced transparent backgrounds with solid colors, improved text contrast
 
 ## [1.5.0] - 2026-02-06
 
 ### Added
+
 - Fullscreen support for mobile PWA
 - Floating voice document assistant button with microphone permission preflight
 - Speech recognition started within user gesture for better browser compatibility
 - Mobile-friendly Documents tab header for PWA
 
 ### Changed
+
 - Mobile menus repositioned to top right next to title for better accessibility
 
 ### Fixed
+
 - Cmd/Ctrl+K hotkeys now work while viewing items
 
 ## [1.4.0] - 2026-02-06
 
 ### Fixed
+
 - Persistent PDF reading position: restore to the same page + within-page offset across tab switches and app restarts
 - Prevent PDF scroll "snap back" by avoiding auto-scroll on scroll-driven page updates and canceling restore retries once the user scrolls
 
 ### Changed
+
 - Reader-position persistence now prefers stable, user-namespaced document identity keys (content hash / PDF fingerprint) and flushes debounced writes on unload
 
 ## [1.3.0]
 
 ### Added
+
 - Toolbar position settings - move toolbar to top, left, or right side of the screen
 - Obsidian two-way sync (sync from Obsidian into Incrementum)
 - Obsidian delete command for notes by Incrementum ID
@@ -544,11 +636,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper sprout logo icons for all platforms
 
 ### Changed
+
 - Obsidian export now reuses existing files by matching `incrementum-id`
 - Obsidian sync exports all documents and extracts
 - Obsidian settings UI includes a "Sync From Obsidian" action
 
 ### Fixed
+
 - Tauri Obsidian integration now accepts camelCase config fields (`vaultPath`, `notesFolder`, etc.)
 - LocalVideoPlayer seeking and duplicate panels
 - Windows startup crash and build errors
@@ -564,6 +658,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-02-04
 
 ### Added
+
 - Local video transcription using Whisper
   - Generate transcripts for local video files using Whisper models
   - Selectable transcription models and languages
@@ -633,9 +728,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PWA fullscreen support
 
 ### Changed
+
 - Updated to FSRS v6 (fsrs v5.2) and latest stable Rust
 
 ### Fixed
+
 - Scroll mode split screen scaling
 - YouTube transcript handling and parsing
 - OCR HTML extraction for full PDFs
@@ -650,12 +747,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Review queue search functionality
 
 ### Performance
+
 - Documents now open immediately after upload
 - YouTube URL imports now maintain timestamps
 
 ## [1.0.0] - 2026
 
 ### Added
+
 - Initial release of Incrementum
 - Multi-format document import (PDF, EPUB, Markdown, HTML, TXT, JSON)
 - URL scraping and content extraction
