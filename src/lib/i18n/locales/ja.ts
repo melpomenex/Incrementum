@@ -1011,6 +1011,7 @@ export const ja: Dict = {
     "ブラウザ拡張機能を使ってウェブページからテキストを保存できます。AI 分析のためにここに表示されます。",
   "extracts.inboxTitle": "抽出受信箱",
   "extracts.keyPoints": "重要ポイント",
+  "extracts.createCardBtn": "カードを作成",
   "extracts.level": "レベル",
   "extracts.loading": "抽出を読み込み中...",
   "extracts.noCardsGenerated": "まだカードが生成されていません",

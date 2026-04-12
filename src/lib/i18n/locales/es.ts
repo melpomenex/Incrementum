@@ -1021,6 +1021,7 @@ export const es: Dict = {
   "extracts.failedToLoad": "Error al cargar extractos",
   "extracts.failedToUpdate": "Error al actualizar extracto",
   "extracts.fromBrowser": "extractos del navegador",
+  "extracts.createCardBtn": "Crear tarjeta",
   "extracts.generateCards": "Generar tarjetas",
   "extracts.generating": "Generando...",
   "extracts.generatingCards": "Generando tarjetas...",
