@@ -532,6 +532,303 @@ export function LearningSettings() {
           </p>
         </div>
       </div>
+
+      {/* Postpone Settings */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">{t("postpone.settingsTitle")}</h3>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("postpone.settingsDescription")}
+          </p>
+
+          {/* Toggle: Auto-Postpone */}
+          <SettingToggle
+            label={t("postpone.autoPostponeEnabled")}
+            description={t("postpone.autoPostponeEnabledDescription")}
+            checked={settings.learning.postpone.autoPostponeEnabled}
+            onChange={(checked) =>
+              updateSettings({
+                learning: { ...settings.learning, postpone: { ...settings.learning.postpone, autoPostponeEnabled: checked } },
+              })
+            }
+          />
+
+          {/* Toggle: Simple Mode */}
+          <SettingToggle
+            label={t("postpone.simpleMode")}
+            description={t("postpone.simpleModeDescription")}
+            checked={settings.learning.postpone.simpleMode}
+            onChange={(checked) =>
+              updateSettings({
+                learning: { ...settings.learning, postpone: { ...settings.learning.postpone, simpleMode: checked } },
+              })
+            }
+          />
+
+          {/* Toggle: Randomization */}
+          <SettingToggle
+            label={t("postpone.randomize")}
+            description={t("postpone.randomizeDescription")}
+            checked={settings.learning.postpone.randomize}
+            onChange={(checked) =>
+              updateSettings({
+                learning: { ...settings.learning, postpone: { ...settings.learning.postpone, randomize: checked } },
+              })
+            }
+          />
+
+          {/* Item parameters */}
+          <div>
+            <h4 className="text-sm font-semibold text-foreground mb-2">{t("postpone.itemParams")}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberSetting
+                label={t("postpone.itemIncrease")}
+                value={settings.learning.postpone.itemIncrease}
+                min={0} max={200}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, itemIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.itemMinIncrease")}
+                value={settings.learning.postpone.itemMinIncrease}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, itemMinIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.itemMaxIncrease")}
+                value={settings.learning.postpone.itemMaxIncrease}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, itemMaxIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.itemCap")}
+                value={settings.learning.postpone.itemCap}
+                min={1} max={36500}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, itemCap: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.itemFloor")}
+                value={settings.learning.postpone.itemFloor}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, itemFloor: v } },
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Topic (document) parameters */}
+          <div>
+            <h4 className="text-sm font-semibold text-foreground mb-2">{t("postpone.topicParams")}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberSetting
+                label={t("postpone.topicIncrease")}
+                value={settings.learning.postpone.topicIncrease}
+                min={0} max={200}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicMinIncrease")}
+                value={settings.learning.postpone.topicMinIncrease}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicMinIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicMaxIncrease")}
+                value={settings.learning.postpone.topicMaxIncrease}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicMaxIncrease: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicCap")}
+                value={settings.learning.postpone.topicCap}
+                min={1} max={36500}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicCap: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicFloor")}
+                value={settings.learning.postpone.topicFloor}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicFloor: v } },
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Eligibility thresholds */}
+          <div>
+            <h4 className="text-sm font-semibold text-foreground mb-2">{t("postpone.eligibilityThresholds")}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberSetting
+                label={t("postpone.minElapsed")}
+                value={settings.learning.postpone.minElapsed}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, minElapsed: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.minPriority")}
+                value={settings.learning.postpone.minPriority}
+                min={0} max={100}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, minPriority: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.minPriority2")}
+                value={settings.learning.postpone.minPriority2}
+                min={0} max={100}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, minPriority2: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.minStability")}
+                value={settings.learning.postpone.minStability}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, minStability: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicPriorityMin")}
+                value={settings.learning.postpone.topicPriorityMin}
+                min={0} max={100}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicPriorityMin: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicRepMin")}
+                value={settings.learning.postpone.topicRepMin}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicRepMin: v } },
+                  })
+                }
+              />
+              <NumberSetting
+                label={t("postpone.topicElapsedMin")}
+                value={settings.learning.postpone.topicElapsedMin}
+                min={0} max={365}
+                onChange={(v) =>
+                  updateSettings({
+                    learning: { ...settings.learning, postpone: { ...settings.learning.postpone, topicElapsedMin: v } },
+                  })
+                }
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        )}
+      </div>
+      <label className="relative inline-flex items-center cursor-pointer">
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
+      </label>
+    </div>
+  );
+}
+
+function NumberSetting({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-foreground mb-1">{label}</label>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value) || 0)))}
+        className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
+      />
     </div>
   );
 }

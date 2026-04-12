@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-04-12
+
+### Added
+
+- **Algorithm-aware postpone system** — replaces the naive "add N days" postpone with a priority-weighted, SM-20-inspired postponement engine that considers item stability, difficulty, retrievability, and review count when computing interval increases.
+  - **Single-item smart postpone** — right-click any item (learning item or document) in the queue and choose "Postpone" to get an algorithm-computed interval increase based on the item's current state. Well-established items (high stability, low difficulty) receive larger increases; struggling items are preserved with smaller increases.
+  - **Postpone All** — toolbar button to batch-postpone all eligible items in the queue. Shows a confirmation dialog with the count of items to be postponed and a summary after completion (items postponed, average increase, items skipped).
+  - **Auto-postpone** — opt-in toggle in learning settings that prompts you to postpone outstanding items when you open the queue with overdue reviews.
+  - **Eligibility gates** — items that are already well-established (high priority, high stability, many repetitions, long elapsed time) are automatically skipped during postponement to preserve their learning schedule.
+  - **Interval randomization** — optional noise distribution (matching the SM-20 formula) prevents all postponed items from clustering at the same future date.
+  - **Simple mode** — alternative postpone mode using linear interpolation by priority, bypassing eligibility checks.
+  - **Configurable settings** — full postpone settings panel in Learning Settings with controls for item/document increase percentages, min/max limits, caps, floors, eligibility thresholds, randomization, and auto-postpone toggle.
+  - **Full i18n coverage** — all postpone UI strings translated across 6 locales (en, zh, es, de, fr, ja).
+  - **22 unit tests** — comprehensive test coverage for the postpone engine covering priority computation, eligibility gates, simple mode, randomization, clamping, edge cases, and batch operations.
+
+### Changed
+
+- Updated app, package, Tauri, and Rust crate version metadata to `1.20.0`.
+- `QueueContextMenu` now supports algorithm-aware postpone for both learning items and documents (previously learning-items only with fixed-day presets).
+
 ## [1.19.0] - 2026-04-11
 
 ### Added
