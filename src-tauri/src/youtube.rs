@@ -90,15 +90,8 @@ impl Default for DownloadOptions {
 
 /// Check if yt-dlp is installed
 pub fn check_ytdlp_installed() -> Result<bool, String> {
-    // Try common absolute paths first (desktop-launched apps may have minimal PATH)
-    for path in ["/usr/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
-        if std::path::Path::new(path).exists() {
-            return Ok(true);
-        }
-    }
-
-    // Fall back to PATH lookup
-    let output = Command::new(resolve_ytdlp_path())
+    // Reuse the same binary resolution logic as the actual yt-dlp commands.
+    let output = ytdlp_command()?
         .arg("--version")
         .output();
 
@@ -110,7 +103,11 @@ pub fn check_ytdlp_installed() -> Result<bool, String> {
 
 /// Get the yt-dlp binary path, trying common locations before PATH lookup
 fn resolve_ytdlp_path() -> &'static str {
-    for path in ["/usr/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
+    for path in [
+        "/usr/bin/yt-dlp",
+        "/usr/local/bin/yt-dlp",
+        "/opt/homebrew/bin/yt-dlp",
+    ] {
         if std::path::Path::new(path).exists() {
             return path;
         }
@@ -152,15 +149,34 @@ pub fn get_ytdlp_binary_path() -> Result<PathBuf, String> {
             return Ok(path);
         }
     }
-    
-    // Otherwise, assume it's in PATH
-    Ok(PathBuf::from("yt-dlp"))
+
+    // Try common absolute paths before falling back to PATH lookup.
+    Ok(PathBuf::from(resolve_ytdlp_path()))
 }
 
 /// Create a Command for yt-dlp with the correct binary path
 fn ytdlp_command() -> Result<Command, String> {
     let path = get_ytdlp_binary_path()?;
-    Ok(Command::new(path))
+    let mut cmd = Command::new(path);
+    sanitize_python_env(&mut cmd);
+    Ok(cmd)
+}
+
+/// Clear Python-related environment variables that AppImage can leak into
+/// subprocesses. System `yt-dlp` is often a Python entrypoint script, and these
+/// variables can make it fail to import the standard library.
+fn sanitize_python_env(cmd: &mut Command) {
+    for key in [
+        "PYTHONHOME",
+        "PYTHONPATH",
+        "PYTHONUSERBASE",
+        "PYTHONNOUSERSITE",
+        "PYTHONEXECUTABLE",
+        "__PYVENV_LAUNCHER__",
+        "VIRTUAL_ENV",
+    ] {
+        cmd.env_remove(key);
+    }
 }
 
 /// Auto-setup yt-dlp by downloading it
@@ -221,7 +237,9 @@ pub async fn setup_ytdlp() -> Result<String, String> {
 
 /// Get yt-dlp version from a specific path
 fn get_ytdlp_version_from_path(path: &PathBuf) -> Result<String, String> {
-    let output = Command::new(path)
+    let mut cmd = Command::new(path);
+    sanitize_python_env(&mut cmd);
+    let output = cmd
         .arg("--version")
         .output()
         .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
@@ -378,7 +396,7 @@ pub fn download_video(
 
     let output_path = output_dir.join(&options.output_template);
 
-    let mut cmd = Command::new(resolve_ytdlp_path());
+    let mut cmd = ytdlp_command()?;
 
     // Add format selection
     cmd.arg("-f").arg(&options.format);
@@ -419,7 +437,7 @@ fn try_with_browser_cookies(url: &str, args: &[&str]) -> Result<std::process::Ou
     let browsers = ["chrome", "firefox", "safari", "edge", "brave", "vivaldi", "opera"];
     
     // First try without cookies
-    let output = Command::new(resolve_ytdlp_path())
+    let output = ytdlp_command()?
         .args(args)
         .arg(url)
         .output()
@@ -433,12 +451,15 @@ fn try_with_browser_cookies(url: &str, args: &[&str]) -> Result<std::process::Ou
     
     // Try with each browser's cookies
     for browser in &browsers {
-        let cookie_output = Command::new("yt-dlp")
-            .args(args)
-            .arg("--cookies-from-browser")
-            .arg(browser)
-            .arg(url)
-            .output();
+        let cookie_output = ytdlp_command()
+            .and_then(|mut cmd| {
+                cmd.args(args)
+                    .arg("--cookies-from-browser")
+                    .arg(browser)
+                    .arg(url);
+                cmd.output()
+                    .map_err(|e| format!("Failed to run yt-dlp: {}", e))
+            });
         
         match cookie_output {
             Ok(result) => {
@@ -747,7 +768,7 @@ fn parse_srt_timestamp(ts: &str) -> Option<f64> {
 /// Search YouTube (requires API key for full results)
 pub fn search_youtube(query: &str, _api_key: Option<&str>) -> Result<Vec<serde_json::Value>, String> {
     // yt-dlp can do basic search without API key
-    let output = Command::new(resolve_ytdlp_path())
+    let output = ytdlp_command()?
         .args([
             "ytsearch5:",
             query,
@@ -783,7 +804,8 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
     
     // First try without cookies - use --flat-playlist for simplified output
     // but we need to handle multiple JSON lines
-    let output = Command::new(resolve_ytdlp_path())
+    let output = ytdlp_command()
+        .map_err(|e| format!("Failed to prepare yt-dlp command: {}", e))?
         .args([
             "--dump-json",
             "--flat-playlist",
@@ -828,6 +850,10 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("[yt-dlp] Failed without cookies: {}", stderr);
+            let trimmed = stderr.trim();
+            if !trimmed.is_empty() {
+                return Err(format!("Failed to get playlist info from yt-dlp: {}", trimmed));
+            }
         }
         Err(e) => {
             eprintln!("[yt-dlp] Command failed: {}", e);
@@ -838,7 +864,8 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
     // Try with each browser's cookies
     for browser in &browsers {
         eprintln!("[yt-dlp] Trying with {} cookies...", browser);
-        let output = Command::new(resolve_ytdlp_path())
+        let output = ytdlp_command()
+            .map_err(|e| format!("Failed to prepare yt-dlp command: {}", e))?
             .args([
                 "--dump-json",
                 "--flat-playlist",
@@ -879,6 +906,13 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
             Ok(output) => {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 eprintln!("[yt-dlp] Failed with {}: {}", browser, stderr);
+                let trimmed = stderr.trim();
+                if !trimmed.is_empty() {
+                    return Err(format!(
+                        "Failed to get playlist info from yt-dlp using {} cookies: {}",
+                        browser, trimmed
+                    ));
+                }
             }
             Err(e) => {
                 eprintln!("[yt-dlp] Command failed with {}: {}", browser, e);
@@ -1252,7 +1286,7 @@ fn parse_chapters_from_description(description: &str, duration: Option<f64>) -> 
 
 /// Extract chapters from a YouTube video URL
 pub fn extract_chapters(url: &str) -> Result<Vec<YouTubeChapter>, String> {
-    let output = Command::new(resolve_ytdlp_path())
+    let output = ytdlp_command()?
         .args([
             "--dump-json",
             "--no-playlist",
