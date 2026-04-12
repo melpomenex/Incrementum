@@ -4,6 +4,7 @@ import {
   sm20PreviewIntervals,
   sm20Retrievability,
   sm20Review,
+  sm20RecordReview,
 } from "../sm20";
 
 describe("SM-20 scheduler", () => {
@@ -50,5 +51,22 @@ describe("SM-20 scheduler", () => {
     expect(preview.again).toBeLessThan(preview.hard);
     expect(preview.hard).toBeLessThan(preview.good);
     expect(preview.good).toBeLessThan(preview.easy);
+  });
+
+  test("record review incremental average", () => {
+    const intervalMatrix = new Float64Array(9261);
+    const countMatrix = new Uint32Array(9261);
+    sm20RecordReview(5.0, 0.3, 3, 3.0, intervalMatrix, countMatrix);
+    sm20RecordReview(5.0, 0.3, 3, 5.0, intervalMatrix, countMatrix);
+    // After recording 3.0 then 5.0 for the same cell: count=2, interval=(3*1+5)/2=4.0
+    let foundCell = false;
+    for (let i = 0; i < 9261; i++) {
+      if (countMatrix[i] > 0) {
+        expect(countMatrix[i]).toBe(2);
+        expect(intervalMatrix[i]).toBeCloseTo(4.0, 10);
+        foundCell = true;
+      }
+    }
+    expect(foundCell).toBe(true);
   });
 });
