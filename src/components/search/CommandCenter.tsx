@@ -39,7 +39,6 @@ import type { UIState } from "../../stores/uiStore";
 import type { StudyDeckState } from "../../stores/studyDeckStore";
 import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
-import * as documentsApi from "../../api/documents";
 import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
 
@@ -192,7 +191,6 @@ export function CommandCenter() {
   const transcriptCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
   const htmlTextCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
-  const epubSearchCacheRef = useRef<Map<string, Map<string, SearchHit[]>>>(new Map());
   const { theme, themes, setTheme } = useTheme();
 
   useEffect(() => {
@@ -283,8 +281,6 @@ export function CommandCenter() {
     const maxExtractsToScan = isWeb ? 1000 : Infinity;
     const maxTranscriptFetches = isWeb ? 5 : 20;
     let transcriptFetches = 0;
-    const maxEpubSearches = isWeb ? 1 : 3;
-    let epubSearches = 0;
 
     const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -340,54 +336,6 @@ export function CommandCenter() {
         const entry = { text, lower: text.toLowerCase() };
         htmlTextCacheRef.current.set(doc.id, entry);
         return entry;
-      }
-    };
-
-    const getEpubHits = async (doc: Document, rawQuery: string): Promise<SearchHit[]> => {
-      const cachedForDoc = epubSearchCacheRef.current.get(doc.id);
-      if (cachedForDoc?.has(rawQuery)) {
-        return cachedForDoc.get(rawQuery) ?? [];
-      }
-
-      if (epubSearches >= maxEpubSearches) return [];
-      epubSearches += 1;
-
-      try {
-        const base64 = await documentsApi.readDocumentFile(doc.filePath);
-        if (!base64) return [];
-        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-        const { default: ePub } = await import("epubjs");
-        const book: any = ePub(bytes.buffer);
-        await book.ready;
-        if (typeof book.search !== "function") return [];
-        const found: any[] = await book.search(rawQuery);
-        const hits: SearchHit[] = (found || []).slice(0, 6).map((item, i) => {
-          const cfi = item?.cfi || item?.cfiRange || item?.cfiRange?.start || item?.cfiRange;
-          const excerptText = (item?.excerpt || item?.text || "").toString();
-          const { excerpt } = highlightSearchTerms(excerptText || rawQuery, rawQuery, 200);
-          return {
-            id: `epub-hit-${doc.id}-${i}`,
-            location: { kind: "epub", cfi: String(cfi) },
-            label: "EPUB",
-            excerptHtml: excerpt,
-          };
-        }).filter((hit) => !!(hit.location as any)?.cfi);
-
-        if (!epubSearchCacheRef.current.has(doc.id)) {
-          epubSearchCacheRef.current.set(doc.id, new Map());
-        }
-        epubSearchCacheRef.current.get(doc.id)!.set(rawQuery, hits);
-
-        try {
-          book.destroy?.();
-        } catch {
-          // ignore
-        }
-
-        return hits;
-      } catch (error) {
-        console.warn("[CommandCenter] EPUB search failed", doc.id, error);
-        return [];
       }
     };
 
@@ -797,14 +745,6 @@ export function CommandCenter() {
           }
         }
 
-        // EPUB: upgrade hits to CFI-based when possible
-        if (doc.fileType === "epub" && allowContentSearch && (contentMatch || titleMatch)) {
-          const epubHits = await getEpubHits(doc, query.query);
-          if (epubHits.length > 0) {
-            hits.splice(0, hits.length, ...epubHits);
-          }
-        }
-
         const isMatch = titleMatch || contentMatch || transcriptMatch || hits.length > 0;
         if (!isMatch) continue;
 
@@ -904,11 +844,12 @@ export function CommandCenter() {
         action();
       }
     } else if (result.type === SearchResultType.Document || result.type === SearchResultType.Extract) {
-      // Open document in tab
-      // We need the full document object, find it in store
       const docId = result.type === SearchResultType.Extract ? result.metadata?.documentId : result.id;
       if (!docId) return;
-      openDocumentInTab(docId);
+      openDocumentInTab(docId, {
+        highlightQuery: result.metadata?.highlightQuery,
+        initialJump: result.metadata?.primaryHit?.location,
+      });
     }
   }, [documents, addTab]);
 
