@@ -239,7 +239,7 @@ interface PrivacySettings {
  */
 interface GroqTranscriptionSettings {
   apiKey: string;
-  model: 'whisper-large-v3' | 'whisper-large-v3-turbo';
+  model: "whisper-large-v3" | "whisper-large-v3-turbo";
   useFreeTier: boolean;
   usage: {
     lastResetDate: string;
@@ -252,7 +252,7 @@ interface GroqTranscriptionSettings {
  * Audio Transcription Settings
  */
 interface AudioTranscriptionSettings {
-  provider: 'local' | 'groq';
+  provider: "local" | "groq";
   autoTranscription: boolean;
   autoTranscribeLocalVideos: boolean;
   preferredModelId?: string;
@@ -270,7 +270,7 @@ interface AudioTranscriptionSettings {
 interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
-  mode: 'normal' | 'filtered' | 'intelligent';
+  mode: "normal" | "filtered" | "intelligent";
   useFsrsScheduling: boolean;
 }
 
@@ -302,6 +302,24 @@ export interface RSSQueueSettings {
   unreadOnly: boolean;
   /** Whether to prefer newer items */
   preferRecent: boolean;
+}
+
+/**
+ * RSS Summary Settings
+ */
+export interface RSSSummarySettings {
+  /** Display mode: modern or terminal */
+  mode: "modern" | "terminal";
+  /** Default summary length */
+  defaultLength: "brief" | "medium" | "detailed";
+  /** Default focus area */
+  defaultFocus: "key-points" | "actionable" | "background";
+  /** Panel width in pixels */
+  panelWidth: number;
+  /** Panel position: left or right */
+  panelPosition: "left" | "right";
+  /** Whether panel is visible by default */
+  autoOpen: boolean;
 }
 
 /**
@@ -341,6 +359,7 @@ export interface Settings {
   tts: TTSSettings;
   scrollQueue: ScrollQueueSettings;
   rssQueue: RSSQueueSettings;
+  rssSummary: RSSSummarySettings;
   youtube: YouTubeSettings;
   features: FeatureFlags;
 }
@@ -481,7 +500,7 @@ export const defaultSettings: Settings = {
     analyticsEnabled: false,
   },
   audioTranscription: {
-    provider: 'local',
+    provider: "local",
     autoTranscription: false,
     autoTranscribeLocalVideos: true,
     preferredModelId: "distil-small.en",
@@ -491,8 +510,8 @@ export const defaultSettings: Settings = {
     confidenceScores: false,
     confidenceThreshold: 0.7,
     groq: {
-      apiKey: '',
-      model: 'whisper-large-v3-turbo',
+      apiKey: "",
+      model: "whisper-large-v3-turbo",
       useFreeTier: true,
       usage: {
         lastResetDate: new Date().toISOString(),
@@ -504,7 +523,7 @@ export const defaultSettings: Settings = {
   smartQueue: {
     autoRefresh: false,
     refreshInterval: 60,
-    mode: 'normal',
+    mode: "normal",
     useFsrsScheduling: true,
   },
   tts: createDefaultTTSSettings(),
@@ -521,6 +540,14 @@ export const defaultSettings: Settings = {
     excludedFeedIds: [], // No feeds excluded by default
     unreadOnly: true, // Only include unread items
     preferRecent: true, // Prefer newer items
+  },
+  rssSummary: {
+    mode: "modern",
+    defaultLength: "medium",
+    defaultFocus: "key-points",
+    panelWidth: 320,
+    panelPosition: "right",
+    autoOpen: false,
   },
   youtube: {
     apiKey: undefined,
@@ -652,6 +679,7 @@ export const useSettingsStore = create<SettingsState>()(
           tts: sanitizeTTSSettings(persisted.tts),
           scrollQueue: { ...defaultSettings.scrollQueue, ...persisted.scrollQueue },
           rssQueue: { ...defaultSettings.rssQueue, ...persisted.rssQueue },
+          rssSummary: { ...defaultSettings.rssSummary, ...persisted.rssSummary },
           youtube: { ...defaultSettings.youtube, ...persisted.youtube },
           features: { ...defaultSettings.features, ...persisted.features },
         };
@@ -665,7 +693,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (!Array.isArray(merged.rssQueue.excludedFeedIds)) {
           merged.rssQueue.excludedFeedIds = [];
         }
-        if (typeof merged.rssQueue.maxItemAgeDays !== "number" || merged.rssQueue.maxItemAgeDays < 0) {
+        if (
+          typeof merged.rssQueue.maxItemAgeDays !== "number" ||
+          merged.rssQueue.maxItemAgeDays < 0
+        ) {
           merged.rssQueue.maxItemAgeDays = defaultSettings.rssQueue.maxItemAgeDays;
         }
         if (!merged.documents.ocr.language) {
