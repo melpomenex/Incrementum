@@ -341,16 +341,18 @@ export function formatKeyCombo(combo: KeyCombo): string {
   const parts: string[] = [];
 
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const usesPrimaryModifier = !!combo.ctrl && !!combo.meta;
 
-  if (combo.ctrl) parts.push(isMac ? "⌃" : "Ctrl");
+  if (usesPrimaryModifier) parts.push(isMac ? "⌘" : "Ctrl");
+  else if (combo.ctrl) parts.push(isMac ? "⌃" : "Ctrl");
   if (combo.alt) parts.push(isMac ? "⌥" : "Alt");
   if (combo.shift) parts.push(isMac ? "⇧" : "Shift");
-  if (combo.meta) parts.push(isMac ? "⌘" : "⊞");
+  if (!usesPrimaryModifier && combo.meta) parts.push(isMac ? "⌘" : "⊞");
 
   // Format key
   let key = combo.key;
   if (key === " ") key = "Space";
-  if (key.startsWith("arrow")) key = key.charAt(5).toUpperCase() + key.slice(6);
+  if (key.toLowerCase().startsWith("arrow")) key = key.charAt(5).toUpperCase() + key.slice(6);
   else key = key.charAt(0).toUpperCase() + key.slice(1);
 
   parts.push(key);
@@ -364,13 +366,25 @@ export function formatKeyCombo(combo: KeyCombo): string {
 export function eventMatchesCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
   const key = event.key.toLowerCase();
   const comboKey = combo.key.toLowerCase();
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const usesPrimaryModifier = !!combo.ctrl && !!combo.meta;
+  const ctrlMatches = usesPrimaryModifier
+    ? event.ctrlKey === false
+    : !!event.ctrlKey === !!combo.ctrl;
+  const metaMatches = usesPrimaryModifier
+    ? event.metaKey === isMac
+    : !!event.metaKey === !!combo.meta;
+  const primaryModifierMatches = usesPrimaryModifier
+    ? (isMac ? event.metaKey : event.ctrlKey)
+    : true;
 
   return (
     key === comboKey &&
-    !!event.ctrlKey === !!combo.ctrl &&
+    ctrlMatches &&
     !!event.altKey === !!combo.alt &&
     !!event.shiftKey === !!combo.shift &&
-    !!event.metaKey === !!combo.meta
+    metaMatches &&
+    primaryModifierMatches
   );
 }
 
