@@ -3,9 +3,10 @@
  * Beautiful, Obsidian-inspired graph visualization
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { invokeCommand } from "../lib/tauri";
 import { ObsidianGraph } from "../components/graph/ObsidianGraph";
+import type { ObsidianGraphHandle } from "../components/graph/ObsidianGraph";
 import { ObsidianSphere } from "../components/graph/ObsidianSphere";
 import { GraphFilterControls, applyGraphFilters, extractGraphMetadata } from "../components/graph/GraphFilters";
 import { NodeDetailView } from "../components/graph/NodeDetailView";
@@ -30,6 +31,7 @@ import {
   FileText,
   MessageSquare,
   Brain,
+  Maximize2,
 } from "lucide-react";
 
 type ViewMode = "graph" | "sphere";
@@ -42,6 +44,8 @@ export function KnowledgeGraphPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("graph");
   const [showFilters, setShowFilters] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const graphRef = useRef<ObsidianGraphHandle>(null);
+  const searchFitTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addTab } = useTabsStore();
   const toast = useToast();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
@@ -54,6 +58,8 @@ export function KnowledgeGraphPage() {
     tags: [] as string[],
   });
   const [layout, setLayout] = useState(LayoutAlgorithm.Force);
+  const [graphLinkDistance, setGraphLinkDistance] = useState(120);
+  const [graphNodeScale, setGraphNodeScale] = useState(1);
 
   // Load graph data
   const loadGraphData = useCallback(async () => {
@@ -162,6 +168,21 @@ export function KnowledgeGraphPage() {
   const filteredData = useMemo(() => {
     return applyGraphFilters(graphData.nodes, graphData.edges, filters);
   }, [graphData, filters]);
+
+  // Search-with-zoom: auto-fit viewport when search results change
+  useEffect(() => {
+    if (searchFitTimeout.current) {
+      clearTimeout(searchFitTimeout.current);
+    }
+    if (filters.searchQuery && filteredData.nodes.length > 0 && graphRef.current) {
+      searchFitTimeout.current = setTimeout(() => {
+        graphRef.current?.fitToView(filteredData.nodes);
+      }, 300);
+    }
+    return () => {
+      if (searchFitTimeout.current) clearTimeout(searchFitTimeout.current);
+    };
+  }, [filters.searchQuery, filteredData]);
 
   // Extract metadata
   const { categories, tags } = useMemo(() => {
@@ -435,6 +456,15 @@ export function KnowledgeGraphPage() {
                 <X className="w-4 h-4" />
               </button>
             )}
+            {searchQuery && (
+              <button
+                onClick={() => graphRef.current?.fitToView()}
+                className="absolute -right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                title={t("graph.resetView")}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Filter toggle with glass styling */}
@@ -472,6 +502,10 @@ export function KnowledgeGraphPage() {
               layout={layout}
               onLayoutChange={setLayout}
               nodeCounts={nodeCounts}
+              linkDistance={graphLinkDistance}
+              onLinkDistanceChange={setGraphLinkDistance}
+              nodeScale={graphNodeScale}
+              onNodeScaleChange={setGraphNodeScale}
             />
           </div>
         )}
@@ -480,12 +514,16 @@ export function KnowledgeGraphPage() {
         <div className="flex-1 relative">
           {viewMode === "graph" ? (
             <ObsidianGraph
+              ref={graphRef}
               data={filteredData}
               onNodeClick={handleNodeClick}
               onNodeDoubleClick={handleNodeDoubleClick}
               selectedNode={selectedNode || undefined}
               enablePhysics={true}
               showLabels={true}
+              layout={layout}
+              linkDistance={graphLinkDistance}
+              nodeScale={graphNodeScale}
             />
           ) : (
             <ObsidianSphere

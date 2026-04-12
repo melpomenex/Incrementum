@@ -8,14 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.19.0] - 2026-04-11
 
 ### Added
+- **Knowledge Graph scale improvements** — the graph is now readable and navigable with hundreds of flashcards instead of collapsing into an unreadable hairball.
+  - **Barnes-Hut force simulation** — replaced O(n²) repulsion with a quadtree-based O(n log n) approximation, keeping the physics simulation responsive at 500+ nodes.
+  - **Hierarchical node clustering** — flashcards collapse under their parent extract, extracts under their parent document at low zoom. Click a cluster badge to expand it with an animated zoom-to-fit transition.
+  - **Level-of-detail rendering** — three visual tiers based on zoom: colored dots at low zoom, labeled circles at medium zoom, full icons/glow/labels at high zoom.
+  - **Minimap** — a 180×120px overview canvas in the bottom-left corner with a viewport rectangle and click-to-navigate. Toggleable via a toolbar button, visible by default when the graph has more than 50 nodes.
+  - **Search-with-zoom** — typing in the search box auto-zooms the viewport to frame matching nodes after a 300ms debounce. A reset-view button appears during active search.
+  - **Edge proximity blending** — overlapping edges render with reduced opacity to cut visual noise in dense regions.
 - **SuperMemo 20 scheduling** — added SM-20 as a first-class algorithm option across desktop and browser-backed review flows, with native Rust and TypeScript implementations based on the reverse-engineered SM-20 V2 interval-growth core.
 - **SuperMemo 20 transparency** — review transparency, inspector, preview-interval, item-detail, and zen-review surfaces now understand SM-20 state and display SM-20-specific stability, difficulty, retrievability, repetitions, lapses, and forget-curve behavior when SM-20 is active.
 
 ### Changed
+- **Knowledge Graph controls are now wired** — layout algorithm selector (Force/Circular/Hierarchical/Grid), node size slider, and link distance slider in the filter sidebar all apply to the graph in real time.
 - Expanded internationalization coverage across review, queue, keyboard shortcut, graph, mobile, document, settings, and shared UI surfaces. This pass removes additional hardcoded English strings, broadens locale-key usage across `en`, `zh`, `es`, `de`, `fr`, and `ja`, and keeps the release aligned with the current i18n audit work.
 - Updated app, package, Tauri, and Rust crate version metadata to `1.19.0`.
 
 ### Fixed
+- **QuadTree infinite recursion** — the Barnes-Hut quadtree now uses a leaf-body model with a depth limit (40) to prevent infinite subdivision when nodes share the same position.
 - Restored native Rust test/build health by updating the stale `Extract` test helper in `src-tauri/src/generator/mod.rs` to include the current `progressive_summaries` field.
 
 ## [1.18.7] - 2026-04-10

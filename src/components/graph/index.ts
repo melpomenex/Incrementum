@@ -9,7 +9,7 @@ export type { GraphNode, GraphEdge, GraphData, KnowledgeGraphProps } from "./Kno
 
 // New Obsidian-inspired components
 export { ObsidianGraph } from "./ObsidianGraph";
-export type { ObsidianGraphProps } from "./ObsidianGraph";
+export type { ObsidianGraphProps, ObsidianGraphHandle } from "./ObsidianGraph";
 
 export { ObsidianSphere } from "./ObsidianSphere";
 export type { ObsidianSphereProps } from "./ObsidianSphere";

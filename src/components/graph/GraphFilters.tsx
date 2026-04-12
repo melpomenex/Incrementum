@@ -45,6 +45,10 @@ export interface GraphFilterControlsProps {
   layout: LayoutAlgorithm;
   onLayoutChange: (layout: LayoutAlgorithm) => void;
   nodeCounts: Record<GraphNodeType, number>;
+  linkDistance?: number;
+  onLinkDistanceChange?: (value: number) => void;
+  nodeScale?: number;
+  onNodeScaleChange?: (value: number) => void;
 }
 
 const NODE_TYPE_CONFIG = {
@@ -93,6 +97,10 @@ export function GraphFilterControls({
   layout,
   onLayoutChange,
   nodeCounts,
+  linkDistance,
+  onLinkDistanceChange,
+  nodeScale,
+  onNodeScaleChange,
 }: GraphFilterControlsProps) {
   const { t } = useI18n();
   const [activeSection, setActiveSection] = useState<string | null>("types");
@@ -320,14 +328,15 @@ export function GraphFilterControls({
                   <div>
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-muted-foreground">{t("graph.nodeSize")}</span>
-                      <span className="font-medium">{t("graph.auto")}</span>
+                      <span className="font-medium">{nodeScale !== undefined ? `${Math.round(nodeScale * 100)}%` : t("graph.auto")}</span>
                     </div>
                     <input
                       type="range"
                       min="0.5"
                       max="2"
                       step="0.1"
-                      defaultValue="1"
+                      value={nodeScale ?? 1}
+                      onChange={(e) => onNodeScaleChange?.(Number(e.target.value))}
                       className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                     />
                   </div>
@@ -335,13 +344,14 @@ export function GraphFilterControls({
                   <div>
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-muted-foreground">{t("graph.linkDistance")}</span>
-                      <span className="font-medium">120px</span>
+                      <span className="font-medium">{linkDistance ?? 120}px</span>
                     </div>
                     <input
                       type="range"
                       min="50"
                       max="300"
-                      defaultValue="120"
+                      value={linkDistance ?? 120}
+                      onChange={(e) => onLinkDistanceChange?.(Number(e.target.value))}
                       className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                     />
                   </div>

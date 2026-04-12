@@ -1,12 +1,12 @@
 /**
  * Obsidian-inspired Knowledge Graph
- * Beautiful, interactive 2D/3D graph visualization
+ * Beautiful, interactive 2D graph visualization with LOD, clustering, Barnes-Hut, minimap
  */
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
-import { GraphNodeType, type GraphNode, type GraphData } from "./KnowledgeGraph";
+import { GraphNodeType, LayoutAlgorithm, type GraphNode, type GraphData } from "./KnowledgeGraph";
 import {
   FileText,
   Quote,
@@ -18,6 +18,7 @@ import {
   ZoomOut,
   Maximize2,
   Settings2,
+  Map,
 } from "lucide-react";
 
 export interface ObsidianGraphProps {
@@ -28,6 +29,13 @@ export interface ObsidianGraphProps {
   highlightedNodes?: string[];
   enablePhysics?: boolean;
   showLabels?: boolean;
+  layout?: LayoutAlgorithm;
+  linkDistance?: number;
+  nodeScale?: number;
+}
+
+export interface ObsidianGraphHandle {
+  fitToView: (nodes?: GraphNode[]) => void;
 }
 
 interface SimulationNode extends GraphNode {
@@ -35,36 +43,41 @@ interface SimulationNode extends GraphNode {
   vy: number;
   fx?: number | null;
   fy?: number | null;
+  childCount?: number;
+  expandedChildren?: GraphNode[];
 }
+
+// LOD tiers
+const LOD = { LOW: 0.4, MED: 1.0 };
 
 // Node type configuration
 const NODE_CONFIG = {
   [GraphNodeType.Document]: {
-    icon: FileText,
+    icon: "📄",
     size: 24,
     color: "#3b82f6",
     labelKey: "graph.document",
   },
   [GraphNodeType.Extract]: {
-    icon: Quote,
+    icon: "💬",
     size: 16,
     color: "#22c55e",
     labelKey: "graph.extract",
   },
   [GraphNodeType.Flashcard]: {
-    icon: BrainCircuit,
+    icon: "🧠",
     size: 12,
     color: "#a855f7",
     labelKey: "graph.flashcard",
   },
   [GraphNodeType.Category]: {
-    icon: Folder,
+    icon: "📁",
     size: 20,
     color: "#f59e0b",
     labelKey: "graph.categorySingular",
   },
   [GraphNodeType.Tag]: {
-    icon: Tag,
+    icon: "🏷️",
     size: 14,
     color: "#06b6d4",
     labelKey: "graph.tag",
@@ -72,15 +85,363 @@ const NODE_CONFIG = {
 };
 
 // Edge type configuration
-const EDGE_CONFIG = {
-  reference: { color: "#3b82f6", width: 2, dash: [] as number[] },
+const EDGE_CONFIG: Record<string, { color: string; width: number; dash: number[] }> = {
+  reference: { color: "#3b82f6", width: 2, dash: [] },
   contains: { color: "#64748b", width: 1.5, dash: [5, 5] },
-  related: { color: "#22c55e", width: 1, dash: [] as number[] },
-  derived: { color: "#a855f7", width: 2, dash: [] as number[] },
+  related: { color: "#22c55e", width: 1, dash: [] },
+  derived: { color: "#a855f7", width: 2, dash: [] },
   tagged: { color: "#06b6d4", width: 1, dash: [2, 4] },
 };
 
-export function ObsidianGraph({
+// ── Barnes-Hut QuadTree ──────────────────────────────────────────
+
+interface QuadTreeBody {
+  x: number;
+  y: number;
+  mass?: number;
+}
+
+class QuadTree {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  mass = 0;
+  cx = 0;
+  cy = 0;
+  children: (QuadTree | null)[] = [null, null, null, null];
+  // Single body stored at this leaf (undefined when internal node)
+  body: QuadTreeBody | undefined;
+
+  constructor(x: number, y: number, w: number, h: number) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+
+  insert(body: QuadTreeBody, depth = 0): void {
+    if (depth > 40) return; // Safety: prevent infinite recursion on coincident points
+
+    // Empty leaf — store body directly
+    if (this.body === undefined && this.mass === 0) {
+      this.body = body;
+      this.cx = body.x;
+      this.cy = body.y;
+      this.mass = body.mass ?? 1;
+      return;
+    }
+
+    // We have an existing body — need to subdivide and push both down
+    if (this.body !== undefined) {
+      this.subdivide();
+      const oldBody = this.body;
+      this.body = undefined; // This is now an internal node
+
+      // Push old body into appropriate child
+      const qi = this.quadrant(oldBody.x, oldBody.y);
+      const bounds = this.quadBounds(qi);
+      if (!this.children[qi]) {
+        this.children[qi] = new QuadTree(bounds[0], bounds[1], bounds[2], bounds[3]);
+      }
+      this.children[qi]!.insert(oldBody, depth + 1);
+    }
+
+    // Push new body into appropriate child
+    const qi2 = this.quadrant(body.x, body.y);
+    const bounds2 = this.quadBounds(qi2);
+    if (!this.children[qi2]) {
+      this.children[qi2] = new QuadTree(bounds2[0], bounds2[1], bounds2[2], bounds2[3]);
+    }
+    this.children[qi2]!.insert(body, depth + 1);
+
+    // Recalculate center of mass
+    const bm = body.mass ?? 1;
+    const totalMass = this.mass + bm;
+    this.cx = (this.cx * this.mass + body.x * bm) / totalMass;
+    this.cy = (this.cy * this.mass + body.y * bm) / totalMass;
+    this.mass = totalMass;
+  }
+
+  private quadrant(x: number, y: number): number {
+    const midX = this.x + this.w / 2;
+    const midY = this.y + this.h / 2;
+    return (y >= midY ? 2 : 0) + (x >= midX ? 1 : 0);
+  }
+
+  private quadBounds(i: number): [number, number, number, number] {
+    const hw = this.w / 2;
+    const hh = this.h / 2;
+    const cols = i % 2;
+    const rows = Math.floor(i / 2);
+    return [this.x + cols * hw, this.y + rows * hh, hw, hh];
+  }
+
+  private subdivide(): void {
+    for (let i = 0; i < 4; i++) {
+      const bounds = this.quadBounds(i);
+      this.children[i] = new QuadTree(bounds[0], bounds[1], bounds[2], bounds[3]);
+    }
+  }
+
+  /**
+   * Compute repulsion force from this tree on a body using Barnes-Hut approximation.
+   * Returns [fx, fy] — force components.
+   */
+  forceOn(body: QuadTreeBody, theta: number): [number, number] {
+    const dx = body.x - this.cx;
+    const dy = body.y - this.cy;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const size = Math.max(this.w, this.h);
+
+    if (size / dist < theta || this.body !== undefined) {
+      // Treat as a single body
+      const f = (this.mass * repelConst) / (dist * dist);
+      return [(dx / dist) * f, (dy / dist) * f];
+    }
+
+    let fx = 0;
+    let fy = 0;
+    for (const child of this.children) {
+      if (!child || child.mass === 0) continue;
+      const [cfx, cfy] = child.forceOn(body, theta);
+      fx += cfx;
+      fy += cfy;
+    }
+    return [fx, fy];
+  }
+}
+
+// Repulsion constant — shared across the Barnes-Hut force calculation
+let repelConst = 300;
+
+// ── Build QuadTree from nodes ────────────────────────────────────
+
+function buildQuadTree(nodes: { x: number; y: number }[]): QuadTree {
+  if (nodes.length === 0) {
+    return new QuadTree(0, 0, 1, 1);
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    if (n.x < minX) minX = n.x;
+    if (n.y < minY) minY = n.y;
+    if (n.x > maxX) maxX = n.x;
+    if (n.y > maxY) maxY = n.y;
+  }
+
+  const pad = 10;
+  const tree = new QuadTree(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2);
+  for (const n of nodes) {
+    tree.insert({ x: n.x, y: n.y, mass: 1 });
+  }
+  return tree;
+}
+
+// ── Edge adjacency index (for O(1) neighbor lookups) ─────────────
+
+interface EdgeAdjacency {
+  getNeighbors(nodeId: string): string[];
+  getSource(edgeId: string): string;
+  getTarget(edgeId: string): string;
+}
+
+function buildEdgeAdjacency(edges: { id: string; source: string; target: string }[]): EdgeAdjacency {
+  const neighbors: Record<string, string[]> = {};
+  const sourceMap: Record<string, string> = {};
+  const targetMap: Record<string, string> = {};
+
+  for (const edge of edges) {
+    sourceMap[edge.id] = edge.source;
+    targetMap[edge.id] = edge.target;
+    if (!neighbors[edge.source]) neighbors[edge.source] = [];
+    neighbors[edge.source].push(edge.target);
+    if (!neighbors[edge.target]) neighbors[edge.target] = [];
+    neighbors[edge.target].push(edge.source);
+  }
+
+  return {
+    getNeighbors: (id) => neighbors[id] || [],
+    getSource: (id) => sourceMap[id] || "",
+    getTarget: (id) => targetMap[id] || "",
+  };
+}
+
+// ── Cluster helpers ──────────────────────────────────────────────
+
+interface ClusterIndex {
+  childrenOf: Record<string, string[]>;       // parentId -> childIds
+  parentOf: Record<string, string>;           // childId -> parentId
+  totalDescendants: Record<string, number>;    // nodeId -> total descendants
+}
+
+function buildClusterIndex(edges: { source: string; target: string; type?: string }[], nodes: GraphNode[]): ClusterIndex {
+  const childrenOf: Record<string, string[]> = {};
+  const parentOf: Record<string, string> = {};
+
+  for (const edge of edges) {
+    if (edge.type === "contains" || edge.type === "derived") {
+      if (!childrenOf[edge.source]) childrenOf[edge.source] = [];
+      childrenOf[edge.source].push(edge.target);
+      parentOf[edge.target] = edge.source;
+    }
+  }
+
+  // Compute total descendants (recursive count)
+  const totalDescendants: Record<string, number> = {};
+  function countDesc(id: string): number {
+    if (totalDescendants[id] !== undefined) return totalDescendants[id];
+    const ch = childrenOf[id] || [];
+    let total = ch.length;
+    for (const c of ch) {
+      total += countDesc(c);
+    }
+    totalDescendants[id] = total;
+    return total;
+  }
+
+  for (const node of nodes) {
+    countDesc(node.id);
+  }
+
+  return { childrenOf, parentOf, totalDescendants };
+}
+
+// ── Compute visible nodes based on zoom + cluster expansion ──────
+
+interface VisibleSet {
+  nodes: Record<string, boolean>;
+  isCluster: Record<string, number>; // nodeId -> descendant count that's hidden
+}
+
+function computeVisibleNodes(
+  nodes: GraphNode[],
+  clusterIndex: ClusterIndex,
+  zoom: number,
+  expandedClusters: Record<string, boolean>,
+): VisibleSet {
+  const visible: Record<string, boolean> = {};
+  const isCluster: Record<string, number> = {};
+
+  if (zoom < LOD.LOW) {
+    // Show only documents (top-level), each as cluster
+    for (const node of nodes) {
+      if (node.type === GraphNodeType.Document) {
+        visible[node.id] = true;
+        const desc = clusterIndex.totalDescendants[node.id] || 0;
+        const ch = clusterIndex.childrenOf[node.id];
+        if (desc > 0 || (ch?.length ?? 0) > 0) {
+          isCluster[node.id] = desc;
+        }
+      }
+    }
+  } else if (zoom < LOD.MED) {
+    // Show documents + extracts; extracts with flashcards are clusters
+    // Allow expanded documents to show children
+    for (const node of nodes) {
+      if (node.type === GraphNodeType.Document) {
+        visible[node.id] = true;
+        if (expandedClusters[node.id]) {
+          const ch = clusterIndex.childrenOf[node.id] || [];
+          for (const cid of ch) {
+            const cn = nodes.find(n => n.id === cid);
+            if (cn) {
+              visible[cid] = true;
+              const desc = clusterIndex.totalDescendants[cid] || 0;
+              if (desc > 0) isCluster[cid] = desc;
+            }
+          }
+        } else {
+          const desc = clusterIndex.totalDescendants[node.id] || 0;
+          if (desc > 0) isCluster[node.id] = desc;
+        }
+      }
+    }
+  } else {
+    // Show everything; extracts with flashcards can still be clusters
+    for (const node of nodes) {
+      visible[node.id] = true;
+      if (node.type === GraphNodeType.Extract) {
+        const ch = clusterIndex.childrenOf[node.id] || [];
+        if (!expandedClusters[node.id] && ch.length > 0) {
+          isCluster[node.id] = clusterIndex.totalDescendants[node.id] || ch.length;
+        }
+      }
+    }
+  }
+
+  return { nodes: visible, isCluster };
+}
+
+// ── Edge proximity blending ──────────────────────────────────────
+
+interface ScreenEdge {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  idx: number;
+}
+
+function computeEdgeOpacities(screenEdges: ScreenEdge[], threshold = 3): Float32Array {
+  const opacities = new Float32Array(screenEdges.length);
+  opacities.fill(1);
+
+  // For each edge, count how many other edges pass within `threshold` pixels
+  for (let i = 0; i < screenEdges.length; i++) {
+    const a = screenEdges[i];
+    let nearby = 0;
+    for (let j = 0; j < screenEdges.length; j++) {
+      if (i === j) continue;
+      const b = screenEdges[j];
+      // Quick bounding-box pre-check
+      const minBX = Math.min(b.x1, b.x2) - threshold;
+      const maxBX = Math.max(b.x1, b.x2) + threshold;
+      const minBY = Math.min(b.y1, b.y2) - threshold;
+      const maxBY = Math.max(b.y1, b.y2) + threshold;
+      if (
+        a.x1 < minBX && a.x2 < minBX ||
+        a.x1 > maxBX && a.x2 > maxBX ||
+        a.y1 < minBY && a.y2 < minBY ||
+        a.y1 > maxBY && a.y2 > maxBY
+      ) continue;
+
+      // Point-to-segment distance for midpoints (cheap approximation)
+      const mx = (a.x1 + a.x2) / 2;
+      const my = (a.y1 + a.y2) / 2;
+      const dist = pointToSegmentDist(mx, my, b.x1, b.y1, b.x2, b.y2);
+      if (dist < threshold) nearby++;
+    }
+    // Blend: more nearby edges -> lower opacity, min 0.3
+    if (nearby > 0) {
+      opacities[i] = Math.max(0.3, 1 - nearby * 0.12);
+    }
+  }
+
+  return opacities;
+}
+
+function pointToSegmentDist(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
+}
+
+// ── Easing ───────────────────────────────────────────────────────
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+// ── Component ────────────────────────────────────────────────────
+
+export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>(function ObsidianGraph({
   data,
   onNodeClick,
   onNodeDoubleClick,
@@ -88,9 +449,13 @@ export function ObsidianGraph({
   highlightedNodes = [],
   enablePhysics = true,
   showLabels = true,
-}: ObsidianGraphProps) {
+  layout: layoutProp,
+  linkDistance: linkDistanceProp,
+  nodeScale = 1,
+}, ref) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const minimapRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -101,28 +466,170 @@ export function ObsidianGraph({
   const [physicsEnabled, setPhysicsEnabled] = useState(enablePhysics);
   const [showSettings, setShowSettings] = useState(false);
   const [localShowLabels, setLocalShowLabels] = useState(showLabels);
-  const [linkDistance, setLinkDistance] = useState(120);
+  const [linkDistance, setLinkDistance] = useState(linkDistanceProp ?? 120);
   const [repelForce, setRepelForce] = useState(300);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
+  const [clusterAnimProgress, setClusterAnimProgress] = useState(1); // 1 = fully settled
+
+  const frameCountRef = useRef(0);
+  const animatingTransformRef = useRef(false);
+  const targetTransformRef = useRef<{ x: number; y: number; k: number } | null>(null);
+  const searchFitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Build cluster index from data
+  const clusterIndex = useMemo(() => buildClusterIndex(data.edges, data.nodes), [data.edges, data.nodes]);
+
+  // Build edge adjacency
+  const edgeAdj = useMemo(() => buildEdgeAdjacency(data.edges), [data.edges]);
+
+  // Map from node id -> SimulationNode for O(1) lookup
+  const nodeMapRef = useRef<Record<string, SimulationNode>>({});
 
   // Initialize simulation nodes with random positions
   const simulationNodes = useMemo<SimulationNode[]>(() => {
     const width = canvasRef.current?.width || 800;
     const height = canvasRef.current?.height || 600;
-    return data.nodes.map((node) => ({
+    const nodes = data.nodes.map((node) => ({
       ...node,
-      x: width / 2 + (Math.random() - 0.5) * 200,
-      y: height / 2 + (Math.random() - 0.5) * 200,
+      x: node.x || (width / 2 + (Math.random() - 0.5) * 200),
+      y: node.y || (height / 2 + (Math.random() - 0.5) * 200),
       vx: 0,
       vy: 0,
     }));
+    const map: Record<string, SimulationNode> = {};
+    for (const n of nodes) map[n.id] = n;
+    nodeMapRef.current = map;
+    return nodes;
   }, [data.nodes]);
 
-  // Physics simulation
+  const fitToView = useCallback((targetNodes?: GraphNode[]) => {
+    const nodes = targetNodes || simulationNodes;
+    if (nodes.length === 0) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const node of nodes) {
+      minX = Math.min(minX, node.x);
+      minY = Math.min(minY, node.y);
+      maxX = Math.max(maxX, node.x);
+      maxY = Math.max(maxY, node.y);
+    }
+
+    const padding = 100;
+    const width = maxX - minX + padding * 2;
+    const height = maxY - minY + padding * 2;
+
+    const scaleX = canvas.width / width;
+    const scaleY = canvas.height / height;
+    const newK = Math.min(scaleX, scaleY, 2);
+
+    const newX = (canvas.width - (maxX + minX) * newK) / 2;
+    const newY = (canvas.height - (maxY + minY) * newK) / 2;
+
+    targetTransformRef.current = { x: newX, y: newY, k: newK };
+    animatingTransformRef.current = true;
+  }, [simulationNodes]);
+
+  // Sync linkDistance from prop
+  useEffect(() => {
+    if (linkDistanceProp !== undefined) {
+      setLinkDistance(linkDistanceProp);
+    }
+  }, [linkDistanceProp]);
+
+  // Apply non-force layouts directly to simulation nodes
+  useEffect(() => {
+    if (!layoutProp || layoutProp === LayoutAlgorithm.Force) return;
+
+    const canvas = canvasRef.current;
+    const width = canvas?.width || 800;
+    const height = canvas?.height || 600;
+    const nodes = simulationNodes;
+    if (nodes.length === 0) return;
+
+    // Disable physics for non-force layouts
+    setPhysicsEnabled(false);
+
+    switch (layoutProp) {
+      case LayoutAlgorithm.Circular: {
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = Math.min(centerX, centerY) * 0.8;
+        const angleStep = (Math.PI * 2) / nodes.length;
+        for (let i = 0; i < nodes.length; i++) {
+          nodes[i].x = centerX + Math.cos(i * angleStep) * radius;
+          nodes[i].y = centerY + Math.sin(i * angleStep) * radius;
+          nodes[i].vx = 0;
+          nodes[i].vy = 0;
+        }
+        break;
+      }
+      case LayoutAlgorithm.Hierarchical: {
+        const levels: Record<number, SimulationNode[]> = {};
+        for (const node of nodes) {
+          const level = (node.type === GraphNodeType.Document ? 0 :
+                        node.type === GraphNodeType.Extract ? 1 : 2);
+          if (!levels[level]) levels[level] = [];
+          levels[level].push(node);
+        }
+        let y = 50;
+        for (const lvl of Object.keys(levels).sort()) {
+          const levelNodes = levels[Number(lvl)];
+          const xStep = width / (levelNodes.length + 1);
+          for (let i = 0; i < levelNodes.length; i++) {
+            levelNodes[i].x = xStep * (i + 1);
+            levelNodes[i].y = y;
+            levelNodes[i].vx = 0;
+            levelNodes[i].vy = 0;
+          }
+          y += 120;
+        }
+        break;
+      }
+      case LayoutAlgorithm.Grid: {
+        const gridSize = Math.ceil(Math.sqrt(nodes.length));
+        const cellWidth = width / gridSize;
+        const cellHeight = height / gridSize;
+        for (let i = 0; i < nodes.length; i++) {
+          const row = Math.floor(i / gridSize);
+          const col = i % gridSize;
+          nodes[i].x = cellWidth * (col + 0.5);
+          nodes[i].y = cellHeight * (row + 0.5);
+          nodes[i].vx = 0;
+          nodes[i].vy = 0;
+        }
+        break;
+      }
+      case LayoutAlgorithm.Random: {
+        for (const node of nodes) {
+          node.x = Math.random() * width;
+          node.y = Math.random() * height;
+          node.vx = 0;
+          node.vy = 0;
+        }
+        break;
+      }
+    }
+
+    // Re-enable physics when switching back to force layout
+    return () => {
+      setPhysicsEnabled(true);
+    };
+  }, [layoutProp, simulationNodes]);
+
+  // Expose fitToView for parent via imperative handle
+  useImperativeHandle(ref, () => ({ fitToView }), [fitToView]);
+
+  // Physics simulation (Barnes-Hut)
   useEffect(() => {
     if (!physicsEnabled) return;
 
     let animationId: number;
     let temperature = 1;
+    repelConst = repelForce;
 
     const simulate = () => {
       if (temperature < 0.001) {
@@ -131,57 +638,47 @@ export function ObsidianGraph({
       }
 
       const nodes = simulationNodes;
+      const nodeMap = nodeMapRef.current;
       const edges = data.edges;
-      const width = canvasRef.current?.width || 800;
-      const height = canvasRef.current?.height || 600;
+      const canvas = canvasRef.current;
+      const width = canvas?.width || 800;
+      const height = canvas?.height || 600;
+
+      // Build quadtree for Barnes-Hut repulsion
+      const tree = buildQuadTree(nodes);
 
       // Apply forces
-      nodes.forEach((node) => {
-        if (node.fx !== null && node.fy !== null) return;
+      for (const node of nodes) {
+        if (node.fx !== null && node.fy !== null) continue;
 
-        let fx = 0;
-        let fy = 0;
+        // Barnes-Hut repulsion
+        const [rfx, rfy] = tree.forceOn(node, 0.5);
+        let fx = rfx;
+        let fy = rfy;
 
-        // Repulsion (Coulomb's law approximation)
-        nodes.forEach((other) => {
-          if (node === other) return;
-          const dx = node.x - other.x;
-          const dy = node.y - other.y;
+        // Attraction along edges (use adjacency for O(1) neighbor lookup)
+        const neighbors = edgeAdj.getNeighbors(node.id);
+        for (const nId of neighbors) {
+          const other = nodeMap[nId];
+          if (!other) continue;
+          const dx = other.x - node.x;
+          const dy = other.y - node.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = repelForce / (dist * dist);
+          const force = (dist - linkDistance) * 0.03;
           fx += (dx / dist) * force;
           fy += (dy / dist) * force;
-        });
-
-        // Attraction along edges (Hooke's law)
-        edges.forEach((edge) => {
-          const source = nodes.find((n) => n.id === edge.source);
-          const target = nodes.find((n) => n.id === edge.target);
-          if (!source || !target) return;
-
-          if (source === node || target === node) {
-            const other = source === node ? target : source;
-            const dx = other.x - node.x;
-            const dy = other.y - node.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const force = (dist - linkDistance) * 0.03;
-            fx += (dx / dist) * force;
-            fy += (dy / dist) * force;
-          }
-        });
+        }
 
         // Center gravity
-        const centerX = width / 2;
-        const centerY = height / 2;
-        fx += (centerX - node.x) * 0.005;
-        fy += (centerY - node.y) * 0.005;
+        fx += (width / 2 - node.x) * 0.005;
+        fy += (height / 2 - node.y) * 0.005;
 
         // Update velocity and position with damping
         node.vx = (node.vx + fx) * 0.8;
         node.vy = (node.vy + fy) * 0.8;
         node.x += node.vx * temperature;
         node.y += node.vy * temperature;
-      });
+      }
 
       temperature *= 0.99;
       animationId = requestAnimationFrame(simulate);
@@ -192,7 +689,13 @@ export function ObsidianGraph({
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [simulationNodes, data.edges, physicsEnabled, linkDistance, repelForce]);
+  }, [simulationNodes, data.edges, physicsEnabled, linkDistance, repelForce, edgeAdj]);
+
+  // Compute visible nodes based on zoom
+  const visibleSet = useMemo(
+    () => computeVisibleNodes(data.nodes, clusterIndex, transform.k, expandedClusters),
+    [data.nodes, clusterIndex, transform.k, expandedClusters],
+  );
 
   // Draw function
   const draw = useCallback(() => {
@@ -203,8 +706,9 @@ export function ObsidianGraph({
     if (!ctx) return;
 
     const { width, height } = canvas;
+    const zoom = transform.k;
 
-    // Clear with fade effect for motion blur
+    // Clear
     ctx.fillStyle = theme.colors.background;
     ctx.fillRect(0, 0, width, height);
 
@@ -213,58 +717,96 @@ export function ObsidianGraph({
 
     ctx.save();
     ctx.translate(transform.x, transform.y);
-    ctx.scale(transform.k, transform.k);
+    ctx.scale(zoom, zoom);
 
-    // Draw edges
-    data.edges.forEach((edge) => {
-      const source = simulationNodes.find((n) => n.id === edge.source);
-      const target = simulationNodes.find((n) => n.id === edge.target);
-      if (!source || !target) return;
+    const nodeMap = nodeMapRef.current;
+
+    // ── Draw edges with proximity blending ──
+    const screenEdges: ScreenEdge[] = [];
+    for (let i = 0; i < data.edges.length; i++) {
+      const edge = data.edges[i];
+      const source = nodeMap[edge.source];
+      const target = nodeMap[edge.target];
+      if (!source || !target) continue;
+      if (!visibleSet.nodes[edge.source] && !visibleSet.nodes[edge.target]) continue;
+      if (!visibleSet.nodes[edge.source] || !visibleSet.nodes[edge.target]) continue;
+
+      // Check if edge connects a visible cluster to its hidden children — skip those
+      if (visibleSet.isCluster[edge.source] !== undefined && !visibleSet.nodes[edge.target]) continue;
+      if (visibleSet.isCluster[edge.target] !== undefined && !visibleSet.nodes[edge.source]) continue;
+
+      screenEdges.push({
+        x1: source.x * zoom + transform.x,
+        y1: source.y * zoom + transform.y,
+        x2: target.x * zoom + transform.y,
+        y2: target.y * zoom + transform.y,
+        idx: i,
+      });
+    }
+
+    // Compute edge opacities (only when zoom > LOD.LOW to save cycles at low zoom)
+    const edgeOpacities = zoom > LOD.LOW && screenEdges.length > 1 && screenEdges.length < 500
+      ? computeEdgeOpacities(screenEdges, 3 * zoom)
+      : null;
+
+    for (let si = 0; si < screenEdges.length; si++) {
+      const { idx } = screenEdges[si];
+      const edge = data.edges[idx];
+      const source = nodeMap[edge.source]!;
+      const target = nodeMap[edge.target]!;
 
       const config = EDGE_CONFIG[edge.type || "related"];
       const isHighlighted = selectedNode && (edge.source === selectedNode || edge.target === selectedNode);
       const isDimmed = selectedNode && !isHighlighted;
+      const opacity = edgeOpacities ? edgeOpacities[si] : 1;
 
       ctx.beginPath();
-      ctx.moveTo(source.x, source.y);
-
-      // Curved edges for better aesthetics
+      ctx.moveTo(source.x, target.y !== undefined ? source.y : source.y);
       const midX = (source.x + target.x) / 2;
       const midY = (source.y + target.y) / 2;
       const curvature = 20;
       ctx.quadraticCurveTo(midX + curvature, midY - curvature, target.x, target.y);
 
-      ctx.strokeStyle = isHighlighted ? config.color : config.color + (isDimmed ? "20" : "60");
+      const baseAlpha = isHighlighted ? 1 : isDimmed ? 0.12 : 0.4;
+      ctx.strokeStyle = config.color + (Math.round(baseAlpha * opacity * 255)).toString(16).padStart(2, "0");
       ctx.lineWidth = isHighlighted ? config.width * 1.5 : config.width;
       ctx.setLineDash(config.dash);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Edge label
-      if (localShowLabels && edge.label && transform.k > 0.7) {
+      // Edge label only at high zoom
+      if (localShowLabels && edge.label && zoom > 0.7) {
         ctx.fillStyle = theme.colors.textSecondary;
         ctx.font = `10px ${theme.typography.fontFamily}`;
         ctx.textAlign = "center";
         ctx.fillText(edge.label, midX, midY - 5);
       }
-    });
+    }
 
-    // Draw nodes
-    simulationNodes.forEach((node) => {
+    // ── Draw nodes with LOD ──
+    for (const node of simulationNodes) {
+      if (!visibleSet.nodes[node.id]) continue;
+
       const config = NODE_CONFIG[node.type];
+      if (!config) continue;
       const isSelected = selectedNode === node.id;
       const isHovered = hoveredNode === node.id;
       const isHighlighted = highlightedNodes.includes(node.id);
       const isDimmed = selectedNode && !isSelected && !isHighlighted;
 
-      const radius = config.size * (isSelected ? 1.3 : isHovered ? 1.2 : 1);
+      const radius = config.size * nodeScale * (isSelected ? 1.3 : isHovered ? 1.2 : 1);
       const opacity = isDimmed ? 0.2 : 1;
+      const clusterCount = visibleSet.isCluster[node.id] || 0;
+      const isLowZoom = zoom < LOD.LOW;
+      const isMedZoom = zoom >= LOD.LOW && zoom < LOD.MED;
 
-      // Glow effect for selected/hovered nodes
-      if (isSelected || isHovered) {
+      ctx.globalAlpha = opacity;
+
+      // Glow effect — only at high zoom, selected/hovered
+      if (!isLowZoom && (isSelected || isHovered)) {
         const gradient = ctx.createRadialGradient(
           node.x, node.y, 0,
-          node.x, node.y, radius * 2.5
+          node.x, node.y, radius * 2.5,
         );
         gradient.addColorStop(0, config.color + "40");
         gradient.addColorStop(1, config.color + "00");
@@ -274,71 +816,202 @@ export function ObsidianGraph({
         ctx.fill();
       }
 
-      // Node shadow
-      ctx.beginPath();
-      ctx.arc(node.x + 2, node.y + 2, radius, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0,0,0,0.2)";
-      ctx.fill();
+      if (isLowZoom) {
+        // LOW LOD: simple colored dot, slightly larger for clusters
+        const r = clusterCount > 0 ? radius * 1.3 : radius * 0.7;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = config.color;
+        ctx.fill();
+      } else {
+        // MEDIUM + HIGH LOD
 
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = config.color;
-      ctx.globalAlpha = opacity;
-      ctx.fill();
+        // Shadow
+        ctx.beginPath();
+        ctx.arc(node.x + 2, node.y + 2, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.fill();
 
-      // Inner highlight
-      const gradient = ctx.createRadialGradient(
-        node.x - radius * 0.3, node.y - radius * 0.3, 0,
-        node.x, node.y, radius
-      );
-      gradient.addColorStop(0, "rgba(255,255,255,0.3)");
-      gradient.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = gradient;
-      ctx.fill();
+        // Node circle
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = config.color;
+        ctx.fill();
 
-      // Border for selected nodes
-      if (isSelected) {
-        ctx.strokeStyle = theme.colors.onBackground;
-        ctx.lineWidth = 3;
+        // Inner highlight — HIGH LOD only
+        if (!isMedZoom) {
+          const gradient = ctx.createRadialGradient(
+            node.x - radius * 0.3, node.y - radius * 0.3, 0,
+            node.x, node.y, radius,
+          );
+          gradient.addColorStop(0, "rgba(255,255,255,0.3)");
+          gradient.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
+
+        // Border for selected nodes
+        if (isSelected) {
+          ctx.strokeStyle = theme.colors.onBackground;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+
+        // Icon — HIGH LOD or selected/hovered
+        if (!isMedZoom || isSelected || isHovered) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `${radius * 0.9}px ${theme.typography.fontFamily}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(config.icon, node.x, node.y);
+        }
+
+        // Label
+        if (localShowLabels || isSelected || isHovered) {
+          ctx.fillStyle = isSelected ? theme.colors.onBackground : theme.colors.textSecondary;
+          ctx.font = `${isSelected || isHovered ? "bold " : ""}12px ${theme.typography.fontFamily}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+
+          let label = node.label;
+          const maxLen = isMedZoom ? 20 : 25;
+          if (label.length > maxLen) label = label.substring(0, maxLen - 3) + "...";
+          ctx.fillText(label, node.x, node.y + radius + 8);
+        }
+      }
+
+      // Cluster count badge — shown at LOW and MED zoom when node is a cluster
+      if (clusterCount > 0) {
+        const badgeR = isLowZoom ? 10 : 9;
+        const badgeX = node.x + (isLowZoom ? radius * 1.0 : radius * 0.8);
+        const badgeY = node.y - (isLowZoom ? radius * 1.0 : radius * 0.8);
+
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+        ctx.fillStyle = theme.colors.onBackground;
+        ctx.fill();
+        ctx.strokeStyle = config.color;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
+
+        ctx.fillStyle = theme.colors.background;
+        ctx.font = `bold ${isLowZoom ? 9 : 8}px ${theme.typography.fontFamily}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const countLabel = clusterCount > 99 ? "99+" : String(clusterCount);
+        ctx.fillText(countLabel, badgeX, badgeY);
       }
 
       ctx.globalAlpha = 1;
-
-      // Icon
-      if (transform.k > 0.6 || isSelected) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `${radius}px ${theme.typography.fontFamily}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        // Simple icon representation using text
-        const iconChar = node.type === GraphNodeType.Document ? "📄" :
-                        node.type === GraphNodeType.Extract ? "💬" :
-                        node.type === GraphNodeType.Flashcard ? "🧠" :
-                        node.type === GraphNodeType.Category ? "📁" : "🏷️";
-        ctx.fillText(iconChar, node.x, node.y);
-      }
-
-      // Label
-      if (localShowLabels || isSelected || isHovered) {
-        ctx.fillStyle = isSelected ? theme.colors.onBackground : theme.colors.textSecondary;
-        ctx.font = `${isSelected || isHovered ? "bold " : ""}12px ${theme.typography.fontFamily}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.globalAlpha = opacity;
-        
-        // Truncate long labels
-        let label = node.label;
-        if (label.length > 25) label = label.substring(0, 22) + "...";
-        
-        ctx.fillText(label, node.x, node.y + radius + 8);
-        ctx.globalAlpha = 1;
-      }
-    });
+    }
 
     ctx.restore();
-  }, [simulationNodes, data.edges, transform, theme, selectedNode, highlightedNodes, hoveredNode, localShowLabels]);
+
+    // ── Minimap ──
+    frameCountRef.current++;
+    if (showMinimap && data.nodes.length > 50 && frameCountRef.current % 10 === 0) {
+      drawMinimap();
+    }
+  }, [
+    simulationNodes, data.edges, data.nodes, transform, theme,
+    selectedNode, highlightedNodes, hoveredNode, localShowLabels,
+    visibleSet, showMinimap, edgeAdj,
+  ]);
+
+  // ── Minimap rendering ──────────────────────────────────────────
+
+  const drawMinimap = useCallback(() => {
+    const miniCanvas = minimapRef.current;
+    const mainCanvas = canvasRef.current;
+    if (!miniCanvas || !mainCanvas) return;
+
+    const mctx = miniCanvas.getContext("2d");
+    if (!mctx) return;
+
+    const mw = miniCanvas.width;
+    const mh = miniCanvas.height;
+    const { width: cw, height: ch } = mainCanvas;
+
+    // Background
+    mctx.fillStyle = theme.colors.background + "dd";
+    mctx.fillRect(0, 0, mw, mh);
+
+    if (simulationNodes.length === 0) return;
+
+    // Compute bounds
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const node of simulationNodes) {
+      if (node.x < minX) minX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y > maxY) maxY = node.y;
+    }
+
+    const pad = 20;
+    const gw = maxX - minX + pad * 2;
+    const gh = maxY - minY + pad * 2;
+    const scale = Math.min(mw / gw, mh / gh);
+    const ox = (mw - gw * scale) / 2 - minX * scale + pad * scale;
+    const oy = (mh - gh * scale) / 2 - minY * scale + pad * scale;
+
+    // Draw nodes as dots
+    for (const node of simulationNodes) {
+      if (!visibleSet.nodes[node.id]) continue;
+      const config = NODE_CONFIG[node.type];
+      if (!config) continue;
+      mctx.beginPath();
+      mctx.arc(node.x * scale + ox, node.y * scale + oy, 1.5, 0, Math.PI * 2);
+      mctx.fillStyle = config.color;
+      mctx.fill();
+    }
+
+    // Viewport rectangle
+    const vx = (-transform.x / transform.k) * scale + ox;
+    const vy = (-transform.y / transform.k) * scale + oy;
+    const vw = (cw / transform.k) * scale;
+    const vh = (ch / transform.k) * scale;
+
+    mctx.strokeStyle = theme.colors.onBackground + "60";
+    mctx.lineWidth = 1;
+    mctx.strokeRect(vx, vy, vw, vh);
+    mctx.fillStyle = theme.colors.onBackground + "10";
+    mctx.fillRect(vx, vy, vw, vh);
+  }, [simulationNodes, transform, theme, visibleSet]);
+
+  // ── Animated transform (for search fit) ────────────────────────
+
+  useEffect(() => {
+    if (!animatingTransformRef.current || !targetTransformRef.current) return;
+
+    const target = targetTransformRef.current;
+    const start = { ...transform };
+    const duration = 300;
+    let startTime: number | null = null;
+
+    let animId: number;
+    const animate = (time: number) => {
+      if (startTime === null) startTime = time;
+      const elapsed = time - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const e = easeOutCubic(t);
+
+      setTransform({
+        x: start.x + (target.x - start.x) * e,
+        y: start.y + (target.y - start.y) * e,
+        k: start.k + (target.k - start.k) * e,
+      });
+
+      if (t < 1) {
+        animId = requestAnimationFrame(animate);
+      } else {
+        animatingTransformRef.current = false;
+        targetTransformRef.current = null;
+      }
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [transform]); // Re-run when transform updates during animation
 
   // Animation loop
   useEffect(() => {
@@ -374,7 +1047,8 @@ export function ObsidianGraph({
     return () => window.removeEventListener("resize", resize);
   }, [draw]);
 
-  // Mouse handlers
+  // ── Mouse handlers ─────────────────────────────────────────────
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
@@ -390,7 +1064,6 @@ export function ObsidianGraph({
         y: e.clientY - dragStart.y,
       });
     } else {
-      // Check for node hover
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -399,12 +1072,15 @@ export function ObsidianGraph({
 
       let hovered: string | null = null;
       for (const node of simulationNodes) {
+        if (!visibleSet.nodes[node.id]) continue;
         const config = NODE_CONFIG[node.type];
+        if (!config) continue;
         const dx = x - node.x;
         const dy = y - node.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist <= config.size + 5) {
+        // Slightly larger hit area for clusters
+        const hitRadius = visibleSet.isCluster[node.id] !== undefined ? config.size * nodeScale * 1.5 + 5 : config.size * nodeScale + 5;
+        if (dist <= hitRadius) {
           hovered = node.id;
           break;
         }
@@ -437,46 +1113,106 @@ export function ObsidianGraph({
   };
 
   const handleClick = () => {
-    if (hoveredNode && onNodeClick) {
-      const node = simulationNodes.find((n) => n.id === hoveredNode);
-      if (node) onNodeClick(node);
+    if (!hoveredNode) return;
+
+    const node = nodeMapRef.current[hoveredNode];
+    if (!node) return;
+
+    // Check if it's a cluster — expand it
+    if (visibleSet.isCluster[node.id] !== undefined) {
+      setExpandedClusters((prev) => ({
+        ...prev,
+        [node.id]: true,
+      }));
+      // Zoom in to the expanded area
+      const children = clusterIndex.childrenOf[node.id] || [];
+      const childNodes = children
+        .map((id) => nodeMapRef.current[id])
+        .filter(Boolean) as GraphNode[];
+      if (childNodes.length > 0) {
+        fitToView([node, ...childNodes]);
+      }
+      return;
+    }
+
+    if (onNodeClick) {
+      onNodeClick(node);
     }
   };
 
   const handleDoubleClick = () => {
-    if (hoveredNode && onNodeDoubleClick) {
-      const node = simulationNodes.find((n) => n.id === hoveredNode);
-      if (node) onNodeDoubleClick(node);
+    if (!hoveredNode) return;
+    const node = nodeMapRef.current[hoveredNode];
+    if (!node) return;
+    if (onNodeDoubleClick) {
+      onNodeDoubleClick(node);
     }
   };
 
-  const fitToView = () => {
-    if (simulationNodes.length === 0) return;
+  // ── Minimap click/drag navigation ──────────────────────────────
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleMinimapClick = useCallback((e: React.MouseEvent) => {
+    const miniCanvas = minimapRef.current;
+    const mainCanvas = canvasRef.current;
+    if (!miniCanvas || !mainCanvas || simulationNodes.length === 0) return;
+
+    const rect = miniCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const mw = miniCanvas.width;
+    const mh = miniCanvas.height;
+    const { width: cw, height: ch } = mainCanvas;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    simulationNodes.forEach((node) => {
-      minX = Math.min(minX, node.x);
-      minY = Math.min(minY, node.y);
-      maxX = Math.max(maxX, node.x);
-      maxY = Math.max(maxY, node.y);
-    });
+    for (const node of simulationNodes) {
+      if (node.x < minX) minX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y > maxY) maxY = node.y;
+    }
 
-    const padding = 100;
-    const width = maxX - minX + padding * 2;
-    const height = maxY - minY + padding * 2;
+    const pad = 20;
+    const gw = maxX - minX + pad * 2;
+    const gh = maxY - minY + pad * 2;
+    const scale = Math.min(mw / gw, mh / gh);
+    const ox = (mw - gw * scale) / 2 - minX * scale + pad * scale;
+    const oy = (mh - gh * scale) / 2 - minY * scale + pad * scale;
 
-    const scaleX = canvas.width / width;
-    const scaleY = canvas.height / height;
-    const newK = Math.min(scaleX, scaleY, 2);
+    // Convert minimap click to graph coordinates
+    const graphX = (mx - ox) / scale;
+    const graphY = (my - oy) / scale;
 
-    const newX = (canvas.width - (maxX + minX) * newK) / 2;
-    const newY = (canvas.height - (maxY + minY) * newK) / 2;
+    // Set transform to center on that point
+    const newK = transform.k;
+    const newX = cw / 2 - graphX * newK;
+    const newY = ch / 2 - graphY * newK;
 
-    setTransform({ x: newX, y: newY, k: newK });
-  };
+    targetTransformRef.current = { x: newX, y: newY, k: newK };
+    animatingTransformRef.current = true;
+  }, [simulationNodes, transform]);
+
+  // ── Search fit handler (called from parent) ────────────────────
+
+  // Reset view
+  const resetView = useCallback(() => {
+    fitToView(simulationNodes);
+  }, [fitToView, simulationNodes]);
+
+  // Auto-collapse clusters when zooming out
+  useEffect(() => {
+    if (transform.k < LOD.LOW) {
+      // At low zoom, collapse everything
+      setExpandedClusters({});
+    } else if (transform.k >= LOD.MED) {
+      // At high zoom, expand all extract clusters
+      setExpandedClusters({});
+    }
+    // At medium zoom, keep user's manual expansion state
+  }, [transform.k]);
+
+  // Node count for minimap visibility
+  const totalNodeCount = data.nodes.length;
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
@@ -492,10 +1228,23 @@ export function ObsidianGraph({
         onDoubleClick={handleDoubleClick}
       />
 
+      {/* Minimap */}
+      {showMinimap && totalNodeCount > 50 && (
+        <canvas
+          ref={minimapRef}
+          width={180}
+          height={120}
+          className="absolute bottom-6 left-6 rounded-lg border border-border shadow-lg cursor-pointer"
+          style={{ background: theme.colors.background + "dd" }}
+          onClick={handleMinimapClick}
+          title={t("graph.minimap")}
+        />
+      )}
+
       {/* Floating Controls */}
       <div className="absolute bottom-6 right-6 flex flex-col gap-2">
         <button
-          onClick={fitToView}
+          onClick={resetView}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
           title={t("graph.fitToView")}
         >
@@ -515,6 +1264,15 @@ export function ObsidianGraph({
         >
           <ZoomOut className="w-5 h-5" />
         </button>
+        {totalNodeCount > 50 && (
+          <button
+            onClick={() => setShowMinimap(!showMinimap)}
+            className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105 ${showMinimap ? "text-primary" : ""}`}
+            title={t("graph.minimap")}
+          >
+            <Map className="w-5 h-5" />
+          </button>
+        )}
         <button
           onClick={() => setShowSettings(!showSettings)}
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105 ${showSettings ? "text-primary" : ""}`}
@@ -596,15 +1354,16 @@ export function ObsidianGraph({
       </div>
     </div>
   );
-}
+});
 
-// Draw grid background
+// ── Grid drawing ─────────────────────────────────────────────────
+
 function drawGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   transform: { x: number; y: number; k: number },
-  theme: { colors: { surfaceVariant: string; border: string } }
+  theme: { colors: { surfaceVariant: string; border: string } },
 ) {
   const gridSize = 50 * transform.k;
   const offsetX = transform.x % gridSize;
@@ -613,7 +1372,6 @@ function drawGrid(
   ctx.strokeStyle = theme.colors.border + "20";
   ctx.lineWidth = 1;
 
-  // Vertical lines
   for (let x = offsetX; x < width; x += gridSize) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -621,7 +1379,6 @@ function drawGrid(
     ctx.stroke();
   }
 
-  // Horizontal lines
   for (let y = offsetY; y < height; y += gridSize) {
     ctx.beginPath();
     ctx.moveTo(0, y);
