@@ -563,9 +563,12 @@ export function DocumentViewer({
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileSelectionTimeoutRef = useRef<number | null>(null);
   const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+  const activeExtractSelection = docType === "epub"
+    ? (selectedText || lastSelectionRef.current)
+    : selectedText;
 
   const handleDictionaryLookup = useCallback(async () => {
-    const word = selectedText.trim().split(/\s+/)[0] || "";
+    const word = activeExtractSelection.trim().split(/\s+/)[0] || "";
     if (!word) return;
     setIsDictionaryLoading(true);
     try {
@@ -576,7 +579,7 @@ export function DocumentViewer({
     } finally {
       setIsDictionaryLoading(false);
     }
-  }, [selectedText, toast]);
+  }, [activeExtractSelection, toast]);
 
   // Extract store for minimap
   const { extracts, loadExtracts } = useExtractStore();
@@ -2093,14 +2096,14 @@ export function DocumentViewer({
         return;
       }
       // Clear selection when clicking on empty areas
-      if (selectedText && !window.getSelection()?.toString()) {
+      if (activeExtractSelection && !window.getSelection()?.toString()) {
         clearTextSelection();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [selectedText, clearTextSelection]);
+  }, [activeExtractSelection, clearTextSelection]);
 
   useEffect(() => {
     onSelectionChange?.(selectedText);
@@ -2175,7 +2178,7 @@ export function DocumentViewer({
         if (isExtractDialogOpen) {
           setIsExtractDialogOpen(false);
           clearTextSelection();
-        } else if (selectedText) {
+        } else if (activeExtractSelection) {
           // If no dialog is open but text is selected, clear the selection
           clearTextSelection();
         }
@@ -2187,7 +2190,7 @@ export function DocumentViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [viewMode, showSearch, isExtractDialogOpen, isFullscreen]);
+  }, [activeExtractSelection, viewMode, showSearch, isExtractDialogOpen, isFullscreen]);
 
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {
@@ -2358,9 +2361,10 @@ export function DocumentViewer({
     }
 
     const selection = window.getSelection()?.toString().trim();
-    const selectionText = selection || lastSelectionRef.current;
+    const selectionText = selectedText.trim() || selection || lastSelectionRef.current;
     if (selectionText) {
       setSelectedText(selectionText);
+      lastSelectionRef.current = selectionText;
     }
     setIsExtractDialogOpen(true);
   };
@@ -3572,26 +3576,35 @@ export function DocumentViewer({
       )}
 
       {/* Floating Action Button for Extract Creation */}
-      {selectedText && viewMode === "document" && (
+      {activeExtractSelection && viewMode === "document" && (
         <div 
           className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[70] pointer-events-auto animate-in slide-in-from-bottom-4 duration-200"
           data-extract-button="true"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/92 p-2 shadow-2xl backdrop-blur-md">
             <button
               onClick={openExtractDialog}
-              className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transition-all min-h-[48px] text-sm font-medium"
+              className="group flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-all min-h-[52px] text-sm font-semibold hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:translate-y-0"
               title={t("viewer.createExtractFromSelection")}
-              aria-label={t("viewer.createExtractFromSelectionChars", { count: selectedText.length })}
+              aria-label={t("viewer.createExtractFromSelectionChars", { count: activeExtractSelection.length })}
             >
-              <Lightbulb className="w-5 h-5" aria-hidden="true" />
-              <span>{t("viewer.createExtract")}</span>
-              <span className="text-xs opacity-75 ml-1">({selectedText.length})</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-foreground/14 transition-colors group-hover:bg-primary-foreground/20">
+                <Lightbulb className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span className="flex flex-col items-start leading-tight">
+                <span>{t("viewer.createExtract")}</span>
+                <span className="text-[11px] font-medium text-primary-foreground/80">
+                  {t("extracts.selectedText")}
+                </span>
+              </span>
+              <span className="rounded-full bg-primary-foreground/14 px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                {activeExtractSelection.length}
+              </span>
             </button>
             <button
               onClick={handleDictionaryLookup}
               disabled={isDictionaryLoading}
-              className="flex items-center gap-2 px-3 py-3 border border-border bg-card text-foreground rounded-lg shadow-lg hover:bg-muted transition-colors disabled:opacity-60"
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 text-foreground shadow-sm transition-colors min-h-[52px] hover:bg-muted disabled:opacity-60"
               title={t("viewer.lookupDictionaryThesaurus")}
             >
               <Languages className="w-4 h-4" />
@@ -3669,7 +3682,7 @@ export function DocumentViewer({
       {/* Create Extract Dialog */}
       <CreateExtractDialog
         documentId={currentDocument.id}
-        selectedText={selectedText}
+        selectedText={activeExtractSelection}
         pageNumber={selectionContext?.pages[0]?.pageNumber ?? pageNumber}
         selectionContext={selectionContext}
         isOpen={isExtractDialogOpen}
