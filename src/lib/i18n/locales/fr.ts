@@ -1,6 +1,7 @@
-import { Dict } from "./en";
+import { Dict, en } from "./en";
 
 export const fr: Dict = {
+  ...en,
   "nav.continue": "Continuer la lecture",
   "nav.dashboard": "Tableau de bord",
   "nav.documents": "Documents",

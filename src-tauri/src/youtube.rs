@@ -98,7 +98,7 @@ pub fn check_ytdlp_installed() -> Result<bool, String> {
     }
 
     // Fall back to PATH lookup
-    let output = Command::new(get_ytdlp_path())
+    let output = Command::new(resolve_ytdlp_path())
         .arg("--version")
         .output();
 
@@ -109,7 +109,7 @@ pub fn check_ytdlp_installed() -> Result<bool, String> {
 }
 
 /// Get the yt-dlp binary path, trying common locations before PATH lookup
-fn get_ytdlp_path() -> &'static str {
+fn resolve_ytdlp_path() -> &'static str {
     for path in ["/usr/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
         if std::path::Path::new(path).exists() {
             return path;
@@ -378,7 +378,7 @@ pub fn download_video(
 
     let output_path = output_dir.join(&options.output_template);
 
-    let mut cmd = Command::new(get_ytdlp_path());
+    let mut cmd = Command::new(resolve_ytdlp_path());
 
     // Add format selection
     cmd.arg("-f").arg(&options.format);
@@ -419,7 +419,7 @@ fn try_with_browser_cookies(url: &str, args: &[&str]) -> Result<std::process::Ou
     let browsers = ["chrome", "firefox", "safari", "edge", "brave", "vivaldi", "opera"];
     
     // First try without cookies
-    let output = Command::new(get_ytdlp_path())
+    let output = Command::new(resolve_ytdlp_path())
         .args(args)
         .arg(url)
         .output()
@@ -747,7 +747,7 @@ fn parse_srt_timestamp(ts: &str) -> Option<f64> {
 /// Search YouTube (requires API key for full results)
 pub fn search_youtube(query: &str, _api_key: Option<&str>) -> Result<Vec<serde_json::Value>, String> {
     // yt-dlp can do basic search without API key
-    let output = Command::new(get_ytdlp_path())
+    let output = Command::new(resolve_ytdlp_path())
         .args([
             "ytsearch5:",
             query,
@@ -783,7 +783,7 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
     
     // First try without cookies - use --flat-playlist for simplified output
     // but we need to handle multiple JSON lines
-    let output = Command::new(get_ytdlp_path())
+    let output = Command::new(resolve_ytdlp_path())
         .args([
             "--dump-json",
             "--flat-playlist",
@@ -838,7 +838,7 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
     // Try with each browser's cookies
     for browser in &browsers {
         eprintln!("[yt-dlp] Trying with {} cookies...", browser);
-        let output = Command::new(get_ytdlp_path())
+        let output = Command::new(resolve_ytdlp_path())
             .args([
                 "--dump-json",
                 "--flat-playlist",
@@ -1252,7 +1252,7 @@ fn parse_chapters_from_description(description: &str, duration: Option<f64>) -> 
 
 /// Extract chapters from a YouTube video URL
 pub fn extract_chapters(url: &str) -> Result<Vec<YouTubeChapter>, String> {
-    let output = Command::new(get_ytdlp_path())
+    let output = Command::new(resolve_ytdlp_path())
         .args([
             "--dump-json",
             "--no-playlist",
