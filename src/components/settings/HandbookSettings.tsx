@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import handbookMarkdown from "../../../docs/USER_HANDBOOK.md?raw";
+import { useEffect, useMemo } from "react";
 import { renderMarkdown } from "../../utils/markdown";
 import { useI18n } from "../../lib/i18n";
+import { getHandbookMarkdown } from "./handbookContent";
 
 type Heading = {
   level: number;
@@ -71,12 +71,20 @@ const fixInternalLinks = (html: string) =>
   });
 
 export function HandbookSettings() {
-  const { t } = useI18n();
-  const headings = useMemo(() => parseHeadings(handbookMarkdown), []);
+  const { locale, t } = useI18n();
+  const handbookMarkdown = useMemo(() => getHandbookMarkdown(locale), [locale]);
+  const headings = useMemo(() => parseHeadings(handbookMarkdown), [handbookMarkdown]);
   const rendered = useMemo(() => {
     const html = renderMarkdown(handbookMarkdown);
     return fixInternalLinks(addHeadingIds(html, headings));
-  }, [headings]);
+  }, [handbookMarkdown, headings]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("incrementum-theme-backdrop-suspend", { detail: { suspended: true } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("incrementum-theme-backdrop-suspend", { detail: { suspended: false } }));
+    };
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto">
