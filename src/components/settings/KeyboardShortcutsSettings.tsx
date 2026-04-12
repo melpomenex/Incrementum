@@ -4,12 +4,158 @@
 
 import { useState } from "react";
 import {
+  type ShortcutAction,
+  ShortcutCategory,
   formatKeyCombo,
   useShortcutStore,
 } from "../common/KeyboardShortcuts";
 import { useVimiumEnabled } from "../common/VimiumNavigation";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useI18n } from "../../lib/i18n";
+
+const shortcutCategoryLabels: Record<ShortcutCategory, string> = {
+  [ShortcutCategory.Navigation]: "settings.shortcutCategory.navigation",
+  [ShortcutCategory.Editing]: "settings.shortcutCategory.editing",
+  [ShortcutCategory.View]: "settings.shortcutCategory.view",
+  [ShortcutCategory.Review]: "settings.shortcutCategory.review",
+  [ShortcutCategory.Documents]: "settings.shortcutCategory.documents",
+  [ShortcutCategory.Flashcards]: "settings.shortcutCategory.flashcards",
+  [ShortcutCategory.General]: "settings.shortcutCategory.general",
+};
+
+const shortcutLabels: Record<string, { name: string; description: string }> = {
+  "nav.forward": {
+    name: "settings.shortcuts.nav.forward.name",
+    description: "settings.shortcuts.nav.forward.description",
+  },
+  "nav.back": {
+    name: "settings.shortcuts.nav.back.name",
+    description: "settings.shortcuts.nav.back.description",
+  },
+  "nav.up": {
+    name: "settings.shortcuts.nav.up.name",
+    description: "settings.shortcuts.nav.up.description",
+  },
+  "nav.command-palette": {
+    name: "settings.shortcuts.nav.commandPalette.name",
+    description: "settings.shortcuts.nav.commandPalette.description",
+  },
+  "edit.new-document": {
+    name: "settings.shortcuts.edit.newDocument.name",
+    description: "settings.shortcuts.edit.newDocument.description",
+  },
+  "edit.new-extract": {
+    name: "settings.shortcuts.edit.newExtract.name",
+    description: "settings.shortcuts.edit.newExtract.description",
+  },
+  "edit.new-flashcard": {
+    name: "settings.shortcuts.edit.newFlashcard.name",
+    description: "settings.shortcuts.edit.newFlashcard.description",
+  },
+  "edit.save": {
+    name: "settings.shortcuts.edit.save.name",
+    description: "settings.shortcuts.edit.save.description",
+  },
+  "edit.undo": {
+    name: "settings.shortcuts.edit.undo.name",
+    description: "settings.shortcuts.edit.undo.description",
+  },
+  "edit.redo": {
+    name: "settings.shortcuts.edit.redo.name",
+    description: "settings.shortcuts.edit.redo.description",
+  },
+  "view.zoom-in": {
+    name: "settings.shortcuts.view.zoomIn.name",
+    description: "settings.shortcuts.view.zoomIn.description",
+  },
+  "view.zoom-out": {
+    name: "settings.shortcuts.view.zoomOut.name",
+    description: "settings.shortcuts.view.zoomOut.description",
+  },
+  "view.fullscreen": {
+    name: "settings.shortcuts.view.fullscreen.name",
+    description: "settings.shortcuts.view.fullscreen.description",
+  },
+  "view.sidebar": {
+    name: "settings.shortcuts.view.sidebar.name",
+    description: "settings.shortcuts.view.sidebar.description",
+  },
+  "review.start": {
+    name: "settings.shortcuts.review.start.name",
+    description: "settings.shortcuts.review.start.description",
+  },
+  "review.again": {
+    name: "settings.shortcuts.review.again.name",
+    description: "settings.shortcuts.review.again.description",
+  },
+  "review.hard": {
+    name: "settings.shortcuts.review.hard.name",
+    description: "settings.shortcuts.review.hard.description",
+  },
+  "review.good": {
+    name: "settings.shortcuts.review.good.name",
+    description: "settings.shortcuts.review.good.description",
+  },
+  "review.easy": {
+    name: "settings.shortcuts.review.easy.name",
+    description: "settings.shortcuts.review.easy.description",
+  },
+  "review.skip": {
+    name: "settings.shortcuts.review.skip.name",
+    description: "settings.shortcuts.review.skip.description",
+  },
+  "doc.import": {
+    name: "settings.shortcuts.documents.import.name",
+    description: "settings.shortcuts.documents.import.description",
+  },
+  "doc.search": {
+    name: "settings.shortcuts.documents.search.name",
+    description: "settings.shortcuts.documents.search.description",
+  },
+  "doc.next": {
+    name: "settings.shortcuts.documents.next.name",
+    description: "settings.shortcuts.documents.next.description",
+  },
+  "doc.prev": {
+    name: "settings.shortcuts.documents.previous.name",
+    description: "settings.shortcuts.documents.previous.description",
+  },
+  "gen.screenshot": {
+    name: "settings.shortcuts.general.screenshot.name",
+    description: "settings.shortcuts.general.screenshot.description",
+  },
+  "gen.settings": {
+    name: "settings.shortcuts.general.settings.name",
+    description: "settings.shortcuts.general.settings.description",
+  },
+  "gen.help": {
+    name: "settings.shortcuts.general.help.name",
+    description: "settings.shortcuts.general.help.description",
+  },
+  "gen.quit": {
+    name: "settings.shortcuts.general.quit.name",
+    description: "settings.shortcuts.general.quit.description",
+  },
+};
+
+function translateWithFallback(
+  t: (key: string) => string,
+  key: string | undefined,
+  fallback: string
+) {
+  if (!key) return fallback;
+  const translated = t(key);
+  return translated === key ? fallback : translated;
+}
+
+function getShortcutCopy(shortcut: ShortcutAction, t: (key: string) => string) {
+  const translationKeys = shortcutLabels[shortcut.id];
+
+  return {
+    name: translateWithFallback(t, translationKeys?.name, shortcut.name),
+    description: translateWithFallback(t, translationKeys?.description, shortcut.description),
+  };
+}
 
 /**
  * Keyboard shortcut recording button
@@ -21,24 +167,29 @@ function ShortcutRecorder({
   combo: { key: string; ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean };
   onUpdate: (combo: { key: string; ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }) => void;
 }) {
+  const { t } = useI18n();
   const [isRecording, setIsRecording] = useState(false);
 
   const handleRecord = () => {
     setIsRecording(true);
 
-    const handler = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const handler = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-      const newCombo = {
-        key: e.key,
-        ctrl: e.ctrlKey,
-        alt: e.altKey,
-        shift: e.shiftKey,
-        meta: e.metaKey,
-      };
+      if (event.key === "Escape") {
+        setIsRecording(false);
+        window.removeEventListener("keydown", handler, true);
+        return;
+      }
 
-      onUpdate(newCombo);
+      onUpdate({
+        key: event.key,
+        ctrl: event.ctrlKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+      });
       setIsRecording(false);
 
       window.removeEventListener("keydown", handler, true);
@@ -95,21 +246,26 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
           </button>
         </div>
 
-        {Object.entries(grouped).map(([category, shortcuts]) => (
+        {Object.entries(grouped).map(([category, shortcutsInCategory]) => (
           <div key={category} className="mb-6">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              {category}
+              {translateWithFallback(
+                t,
+                shortcutCategoryLabels[category as ShortcutCategory],
+                category
+              )}
             </h3>
 
             <div className="space-y-1">
-              {shortcuts.map((shortcut) => {
+              {shortcutsInCategory.map((shortcut) => {
                 const combo = shortcut.currentCombo || shortcut.defaultCombo;
+                const copy = getShortcutCopy(shortcut, t);
 
                 return (
                   <SettingsRow
                     key={shortcut.id}
-                    label={shortcut.name}
-                    description={shortcut.description}
+                    label={copy.name}
+                    description={copy.description}
                   >
                     <div className="flex items-center gap-2">
                       {shortcut.editable !== false && (
