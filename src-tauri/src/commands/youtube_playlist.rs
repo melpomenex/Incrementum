@@ -115,11 +115,17 @@ pub async fn subscribe_to_playlist(
     let channel = playlist_info["channel"].as_str().map(|s| s.to_string());
     let channel_id = playlist_info["channel_id"].as_str().map(|s| s.to_string());
     let description = playlist_info["description"].as_str().map(|s| s.to_string());
-    
-    // Count videos
+
+    // Count videos and derive subscription thumbnail from first video
     let total_videos = playlist_info["entries"]
         .as_array()
         .map(|arr| arr.len() as i32);
+
+    let subscription_thumbnail = playlist_info["entries"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|e| e["id"].as_str())
+        .map(|vid| youtube_thumbnail_url(vid));
 
     // Create subscription
     repo.create_playlist_subscription(
@@ -130,7 +136,7 @@ pub async fn subscribe_to_playlist(
         channel.as_deref(),
         channel_id.as_deref(),
         description.as_deref(),
-        None, // thumbnail_url
+        subscription_thumbnail.as_deref(),
         total_videos,
     ).await?;
 
@@ -147,18 +153,19 @@ pub async fn subscribe_to_playlist(
                 let video_uuid = uuid::Uuid::new_v4().to_string();
                 let video_title = entry["title"].as_str().map(|s| s.to_string());
                 let duration = entry["duration"].as_i64().map(|d| d as i32);
-                
+                let thumbnail = youtube_thumbnail_url(video_id);
+
                 // Check if video already exists as a document
                 let video_url = format!("https://www.youtube.com/watch?v={}", video_id);
                 let existing_doc = repo.find_document_by_url(&video_url).await?;
-                
+
                 match repo.add_playlist_video(
                     &video_uuid,
                     &id,
                     video_id,
                     video_title.as_deref(),
                     duration,
-                    None, // thumbnail_url
+                    Some(&thumbnail),
                     Some(position as i32),
                     None, // published_at
                 ).await {
@@ -270,7 +277,8 @@ pub async fn refresh_playlist(
                 let duration = entry["duration"].as_i64().map(|d| d as i32);
                 
                 let video_uuid = uuid::Uuid::new_v4().to_string();
-                
+                let thumbnail = youtube_thumbnail_url(video_id);
+
                 // Try to add video (will fail silently if already exists due to UNIQUE constraint)
                 let added = repo.add_playlist_video(
                     &video_uuid,
@@ -278,7 +286,7 @@ pub async fn refresh_playlist(
                     video_id,
                     video_title.as_deref(),
                     duration,
-                    None,
+                    Some(&thumbnail),
                     Some(position as i32),
                     None,
                 ).await.is_ok();
@@ -511,6 +519,11 @@ pub async fn mark_playlist_video_queued(
 }
 
 // Helper functions
+
+/// Build a YouTube thumbnail URL from a video ID
+fn youtube_thumbnail_url(video_id: &str) -> String {
+    format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", video_id)
+}
 
 fn extract_playlist_id(url: &str) -> Option<String> {
     // Handle various YouTube playlist URL formats
