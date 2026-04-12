@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download } from "lucide-react";
+import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download, CalendarClock } from "lucide-react";
 import { useQueueStore } from "../stores";
 import { QueueStatsDisplay } from "../components/queue/QueueStats";
 import { BulkActionBar } from "../components/queue/BulkActionBar";
 import { QueueContextMenu } from "../components/queue/QueueContextMenu";
 import { ExportQueueDialog } from "../components/queue/ExportQueueDialog";
+import { PostponeAllDialog } from "../components/queue/PostponeAllDialog";
+import { AutoPostponePrompt } from "../components/queue/AutoPostponePrompt";
 import { DynamicVirtualList } from "../components/common/VirtualList";
 import type { QueueItem } from "../types/queue";
 import { updateDocumentPriority } from "../api/documents";
@@ -30,7 +32,6 @@ export function Queue() {
     setSelected,
     selectAll,
     clearSelection,
-    postponeItem,
     bulkSuspend,
     bulkUnsuspend,
     bulkDelete,
@@ -42,6 +43,7 @@ export function Queue() {
   const [showFilters, setShowFilters] = useState(false);
   const [allSelected, setAllSelected] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showPostponeAllDialog, setShowPostponeAllDialog] = useState(false);
   const [priorityDrafts, setPriorityDrafts] = useState<Record<string, { rating?: number; slider?: number }>>({});
   const [priorityUpdatingIds, setPriorityUpdatingIds] = useState<Set<string>>(new Set());
 
@@ -74,10 +76,6 @@ export function Queue() {
     } else {
       navigate(`/documents/${item.documentId}`);
     }
-  };
-
-  const handlePostponeItem = async (id: string, days: number) => {
-    await postponeItem(id, days);
   };
 
   const handleDeleteItem = async (id: string) => {
@@ -224,6 +222,15 @@ export function Queue() {
           title={t("queueLegacy.exportQueue")}
         >
           <Download className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={() => setShowPostponeAllDialog(true)}
+          disabled={filteredItems.length === 0}
+          className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+          title={t("postpone.postponeAllTitle")}
+        >
+          <CalendarClock className="w-4 h-4" />
         </button>
 
         <button
@@ -532,7 +539,6 @@ export function Queue() {
 
                         <QueueContextMenu
                           item={item}
-                          onPostpone={handlePostponeItem}
                           onDelete={handleDeleteItem}
                           onStartReview={handleStartReview}
                         />
@@ -553,6 +559,15 @@ export function Queue() {
         isOpen={showExportDialog}
         onClose={() => setShowExportDialog(false)}
       />
+
+      {/* Postpone All Dialog */}
+      <PostponeAllDialog
+        isOpen={showPostponeAllDialog}
+        onClose={() => setShowPostponeAllDialog(false)}
+      />
+
+      {/* Auto-Postpone Prompt */}
+      <AutoPostponePrompt />
     </div>
   );
 }

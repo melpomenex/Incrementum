@@ -29,6 +29,39 @@ export interface FSRSScopeOverride {
 }
 
 /**
+ * Postpone Settings (SM-20 algorithm-aware postponement)
+ */
+export interface PostponeSettings {
+  // Item parameters
+  itemIncrease: number;
+  itemMinIncrease: number;
+  itemMaxIncrease: number;
+  itemCap: number;
+  itemFloor: number;
+
+  // Topic (document) parameters
+  topicIncrease: number;
+  topicMinIncrease: number;
+  topicMaxIncrease: number;
+  topicCap: number;
+  topicFloor: number;
+
+  // Eligibility thresholds
+  minElapsed: number;
+  minPriority: number;
+  minPriority2: number;
+  minStability: number;
+  topicPriorityMin: number;
+  topicRepMin: number;
+  topicElapsedMin: number;
+
+  // Behavior
+  randomize: boolean;
+  simpleMode: boolean;
+  autoPostponeEnabled: boolean;
+}
+
+/**
  * Learning Settings
  */
 export interface LearningSettings {
@@ -45,6 +78,7 @@ export interface LearningSettings {
   fsrsParams: FSRSParams;
   scopedFsrsOverrides: FSRSScopeOverride[];
   timezone: string;
+  postpone: PostponeSettings;
 }
 
 /**
@@ -407,6 +441,28 @@ export const defaultSettings: Settings = {
     },
     scopedFsrsOverrides: [],
     timezone: "auto",
+    postpone: {
+      itemIncrease: 50,
+      itemMinIncrease: 1,
+      itemMaxIncrease: 365,
+      itemCap: 365,
+      itemFloor: 1,
+      topicIncrease: 40,
+      topicMinIncrease: 1,
+      topicMaxIncrease: 200,
+      topicCap: 180,
+      topicFloor: 1,
+      minElapsed: 30,
+      minPriority: 50,
+      minPriority2: 60,
+      minStability: 30,
+      topicPriorityMin: 60,
+      topicRepMin: 10,
+      topicElapsedMin: 14,
+      randomize: true,
+      simpleMode: false,
+      autoPostponeEnabled: false,
+    },
   },
   documents: {
     defaultCategory: "Uncategorized",
