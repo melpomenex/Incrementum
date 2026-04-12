@@ -453,11 +453,11 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
               </div>
 
               {/* Tags */}
-              {extract.tags.length > 0 && (
+              {(extract.tags?.length ?? 0) > 0 && (
                 <div className="flex items-center gap-1">
                   <Tag className="w-3 h-3" />
                   <div className="flex gap-1">
-                    {extract.tags.map((tag, index) => (
+                    {(extract.tags ?? []).map((tag, index) => (
                       <span
                         key={index}
                         className="px-2 py-0.5 bg-primary/10 text-primary rounded"
