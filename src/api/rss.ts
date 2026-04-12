@@ -25,6 +25,9 @@ export interface FeedItem {
   read: boolean;
   favorite: boolean;
   feedId: string;
+  // Full content fields
+  fullContent?: string;
+  fullContentFetchedAt?: string;
 }
 
 /**
@@ -46,6 +49,8 @@ export interface Feed {
   items: FeedItem[];
   subscribeDate: string;
   unreadCount: number;
+  // Full content auto-fetch setting: 'always', 'favorites', 'manual'
+  autoFetchFullContent?: string;
 }
 
 /**
@@ -93,14 +98,10 @@ function parseRSS(xmlDoc: Document, feedUrl: string): Feed | null {
 
   const title = getElementText(channel, "title") || "Unknown Feed";
   const description =
-    getElementText(channel, "description") ||
-    getElementText(channel, "tagline") ||
-    "";
+    getElementText(channel, "description") || getElementText(channel, "tagline") || "";
   const link = getElementText(channel, "link") || feedUrl;
   const imageUrl =
-    getElementText(channel, "image > url") ||
-    getElementText(channel, "itunes\\:image") ||
-    "";
+    getElementText(channel, "image > url") || getElementText(channel, "itunes\\:image") || "";
   const language = getElementText(channel, "language");
   const category = getElementText(channel, "category");
 
@@ -133,10 +134,7 @@ function parseRSS(xmlDoc: Document, feedUrl: string): Feed | null {
  */
 function parseRSSItem(item: Element): FeedItem | null {
   const title = getElementText(item, "title") || "Untitled";
-  const description =
-    getElementText(item, "description") ||
-    getElementText(item, "summary") ||
-    "";
+  const description = getElementText(item, "description") || getElementText(item, "summary") || "";
   const link = getElementText(item, "link") || "";
   const pubDate = getElementText(item, "pubDate") || new Date().toISOString();
   const author = getElementText(item, "author") || getElementText(item, "dc\\:creator");
@@ -161,7 +159,7 @@ function parseRSSItem(item: Element): FeedItem | null {
   // Extract content from content:encoded if available
   // Try multiple approaches to handle namespaced elements
   let content = description;
-  
+
   // Approach 1: Try the escaped colon selector
   const contentEl1 = item.querySelector("content\\:encoded");
   if (contentEl1?.textContent) {
@@ -174,8 +172,10 @@ function parseRSSItem(item: Element): FeedItem | null {
     } else {
       // Approach 3: Iterate all child nodes to find content:encoded
       for (const child of Array.from(item.children)) {
-        if (child.tagName.toLowerCase().includes("encoded") || 
-            child.tagName === "content:encoded") {
+        if (
+          child.tagName.toLowerCase().includes("encoded") ||
+          child.tagName === "content:encoded"
+        ) {
           if (child.textContent) {
             content = child.textContent;
             break;
@@ -210,10 +210,7 @@ function parseAtom(xmlDoc: Document, feedUrl: string): Feed | null {
   if (!feed) return null;
 
   const title = getElementText(feed, "title") || "Unknown Feed";
-  const description =
-    getElementText(feed, "subtitle") ||
-    getElementText(feed, "description") ||
-    "";
+  const description = getElementText(feed, "subtitle") || getElementText(feed, "description") || "";
   const link = getAtomLink(feed) || feedUrl;
   const icon = getElementText(feed, "icon");
   const logo = getElementText(feed, "logo");
@@ -249,10 +246,7 @@ function parseAtom(xmlDoc: Document, feedUrl: string): Feed | null {
  */
 function parseAtomEntry(entry: Element): FeedItem | null {
   const title = getElementText(entry, "title") || "Untitled";
-  const content =
-    getElementText(entry, "content") ||
-    getElementText(entry, "summary") ||
-    "";
+  const content = getElementText(entry, "content") || getElementText(entry, "summary") || "";
   const link = getAtomLink(entry) || "";
   const pubDate =
     getElementText(entry, "published") ||
@@ -299,9 +293,7 @@ function parseAtomEntry(entry: Element): FeedItem | null {
  * Get Atom link element
  */
 function getAtomLink(parent: Element): string | null {
-  const linkEl = parent.querySelector(
-    "link[rel='alternate'], link:not([rel])"
-  );
+  const linkEl = parent.querySelector("link[rel='alternate'], link:not([rel])");
   return linkEl?.getAttribute("href") || null;
 }
 
@@ -321,7 +313,7 @@ function generateFeedId(feedUrl: string): string {
   let hash = 0;
   for (let i = 0; i < feedUrl.length; i++) {
     const char = feedUrl.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return `feed-${Math.abs(hash)}`;
@@ -331,10 +323,12 @@ function generateFeedId(feedUrl: string): string {
  * Generate item ID
  */
 function generateItemId(link: string, pubDate: string): string {
-  return `item-${Math.abs((link + pubDate).split("").reduce((a, b) => {
-    a = (a << 5) - a + b.charCodeAt(0);
-    return a & a;
-  }, 0))}`;
+  return `item-${Math.abs(
+    (link + pubDate).split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0)
+  )}`;
 }
 
 /**
@@ -429,19 +423,20 @@ function saveFeeds(feeds: Feed[]): void {
     localStorage.setItem("rss_feeds", JSON.stringify(feeds));
   } catch (e) {
     // Check for quota exceeded error
-    if (e instanceof DOMException && (
-        e.name === 'QuotaExceededError' || 
-        e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-        e.code === 22)) {
-      
+    if (
+      e instanceof DOMException &&
+      (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22)
+    ) {
       console.warn("[RSS] Storage quota exceeded. Attempting to prune old data...");
-      
+
       // Strategy 1: Limit to 50 items per feed (most recent)
-      let prunedFeeds = feeds.map(feed => ({
+      let prunedFeeds = feeds.map((feed) => ({
         ...feed,
-        items: feed.items.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()).slice(0, 50)
+        items: feed.items
+          .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+          .slice(0, 50),
       }));
-      
+
       try {
         localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
         console.log("[RSS] Saved with 50 items limit.");
@@ -449,31 +444,31 @@ function saveFeeds(feeds: Feed[]): void {
       } catch {
         // Strategy 2: Remove content from read items (keep description)
         console.warn("[RSS] Still too large. Removing content from read items...");
-        prunedFeeds = prunedFeeds.map(feed => ({
+        prunedFeeds = prunedFeeds.map((feed) => ({
           ...feed,
-          items: feed.items.map(item => item.read ? { ...item, content: "" } : item)
+          items: feed.items.map((item) => (item.read ? { ...item, content: "" } : item)),
         }));
-        
+
         try {
           localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
           console.log("[RSS] Saved with read items content removed.");
           return;
         } catch {
-           // Strategy 3: Remove content from ALL items (keep description only)
-           console.warn("[RSS] Still too large. Removing content from all items...");
-           prunedFeeds = prunedFeeds.map(feed => ({
-             ...feed,
-             items: feed.items.map(item => ({ ...item, content: "" }))
-           }));
-           
-           try {
-             localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
-             console.log("[RSS] Saved with all content removed.");
-             return;
-           } catch (e4) {
-             console.error("[RSS] Critical: Unable to save feeds even after pruning.", e4);
-             throw e; // Throw original error to let caller know
-           }
+          // Strategy 3: Remove content from ALL items (keep description only)
+          console.warn("[RSS] Still too large. Removing content from all items...");
+          prunedFeeds = prunedFeeds.map((feed) => ({
+            ...feed,
+            items: feed.items.map((item) => ({ ...item, content: "" })),
+          }));
+
+          try {
+            localStorage.setItem("rss_feeds", JSON.stringify(prunedFeeds));
+            console.log("[RSS] Saved with all content removed.");
+            return;
+          } catch (e4) {
+            console.error("[RSS] Critical: Unable to save feeds even after pruning.", e4);
+            throw e; // Throw original error to let caller know
+          }
         }
       }
     }
@@ -559,10 +554,7 @@ export function getUnreadItems(): Array<{ feed: Feed; item: FeedItem }> {
   });
 
   // Sort by pub date (newest first)
-  results.sort(
-    (a, b) =>
-      new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()
-  );
+  results.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime());
 
   return results;
 }
@@ -782,7 +774,7 @@ export function formatFeedDate(dateString: string): string {
  */
 function getApiBaseUrl(): string {
   // Default to localhost for development
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? `${window.location.protocol}//${window.location.hostname}:8766`
     : `${window.location.protocol}//${window.location.hostname}`;
 }
@@ -795,7 +787,7 @@ function shouldUseHttpBackend(): boolean {
     return false;
   }
   const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1';
+  return host === "localhost" || host === "127.0.0.1";
 }
 
 /**
@@ -862,7 +854,10 @@ interface TauriRssArticle {
 /**
  * Convert backend RSS feed format to frontend format
  */
-function backendFeedToFrontend(feed: BackendRssFeed & { unread_count?: number }, items: BackendRssArticle[] = []): Feed {
+function backendFeedToFrontend(
+  feed: BackendRssFeed & { unread_count?: number },
+  items: BackendRssArticle[] = []
+): Feed {
   return {
     id: feed.id,
     title: feed.title,
@@ -875,7 +870,7 @@ function backendFeedToFrontend(feed: BackendRssFeed & { unread_count?: number },
     lastUpdated: feed.date_added,
     lastFetched: feed.last_fetched || feed.date_added,
     updateInterval: Math.floor(feed.update_interval / 60), // Convert seconds to minutes
-    items: items.map(item => ({
+    items: items.map((item) => ({
       id: item.id,
       title: item.title,
       description: item.summary || "",
@@ -907,7 +902,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
     lastUpdated: feed.date_added,
     lastFetched: feed.last_fetched || feed.date_added,
     updateInterval: Math.floor(feed.update_interval / 60),
-    items: items.map(item => ({
+    items: items.map((item) => ({
       id: item.id,
       title: item.title,
       description: item.summary || "",
@@ -922,7 +917,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
       feedId: feed.id,
     })),
     subscribeDate: feed.date_added,
-    unreadCount: items.filter(item => !item.is_read).length,
+    unreadCount: items.filter((item) => !item.is_read).length,
   };
 }
 
@@ -942,7 +937,9 @@ async function getFeedsViaTauri(): Promise<Feed[]> {
   return feedsWithItems;
 }
 
-async function createOrUpdateFeedViaTauri(feed: Feed): Promise<{ feed: TauriRssFeed; created: boolean }> {
+async function createOrUpdateFeedViaTauri(
+  feed: Feed
+): Promise<{ feed: TauriRssFeed; created: boolean }> {
   const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds");
   const existing = existingFeeds.find((candidate) => candidate.url === feed.feedUrl);
   const updateIntervalSeconds = Math.max(1, Math.round(feed.updateInterval * 60));
@@ -979,6 +976,10 @@ async function createOrUpdateFeedViaTauri(feed: Feed): Promise<{ feed: TauriRssF
 async function createArticlesViaTauri(feedId: string, items: FeedItem[]): Promise<void> {
   if (items.length === 0) return;
 
+  // Check if feed has auto-fetch "always" mode
+  const feed = getFeed(feedId);
+  const shouldAutoFetch = feed?.autoFetchFullContent === "always";
+
   await Promise.all(
     items.map((item) =>
       invokeCommand("create_rss_article", {
@@ -997,6 +998,17 @@ async function createArticlesViaTauri(feedId: string, items: FeedItem[]): Promis
       })
     )
   );
+
+  // Trigger auto-fetch for "always" mode feeds after articles are created
+  if (shouldAutoFetch) {
+    console.log(
+      `[RSS] Auto-fetching full content for ${items.length} new items in feed "${feed?.title}"`
+    );
+    // Fire and forget - don't block on these requests
+    items.forEach((item) => {
+      void fetchArticleFullContent(item.id, item.link);
+    });
+  }
 }
 
 function getFeedItemKey(item: FeedItem): string {
@@ -1017,7 +1029,9 @@ export async function syncFeedToTauri(feed: Feed, existingItems: FeedItem[] = []
  * Create an RSS feed subscription via HTTP API
  */
 export async function createFeedViaHttp(feedUrl: string): Promise<Feed> {
-  const response = await fetch(`${getApiBaseUrl()}/api/rss/fetch?url=${encodeURIComponent(feedUrl)}`);
+  const response = await fetch(
+    `${getApiBaseUrl()}/api/rss/fetch?url=${encodeURIComponent(feedUrl)}`
+  );
 
   if (!response.ok) {
     throw new Error(`Failed to fetch feed: ${response.statusText}`);
@@ -1027,8 +1041,8 @@ export async function createFeedViaHttp(feedUrl: string): Promise<Feed> {
 
   // Now create the subscription
   const createResponse = await fetch(`${getApiBaseUrl()}/api/rss/feeds`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       url: feedUrl,
       title: parsedFeed.title,
@@ -1062,7 +1076,9 @@ export async function getFeedsViaHttp(): Promise<Feed[]> {
   // Fetch articles for each feed
   const feedsWithItems = await Promise.all(
     feeds.map(async (feed) => {
-      const articlesResponse = await fetch(`${getApiBaseUrl()}/api/rss/feeds/${feed.id}/articles?limit=50`);
+      const articlesResponse = await fetch(
+        `${getApiBaseUrl()}/api/rss/feeds/${feed.id}/articles?limit=50`
+      );
       if (articlesResponse.ok) {
         const articles: BackendRssArticle[] = await articlesResponse.json();
         return backendFeedToFrontend(feed, articles);
@@ -1077,8 +1093,13 @@ export async function getFeedsViaHttp(): Promise<Feed[]> {
 /**
  * Get articles for a specific feed via HTTP API
  */
-export async function getArticlesViaHttp(feedId: string, limit: number = 50): Promise<BackendRssArticle[]> {
-  const response = await fetch(`${getApiBaseUrl()}/api/rss/feeds/${feedId}/articles?limit=${limit}`);
+export async function getArticlesViaHttp(
+  feedId: string,
+  limit: number = 50
+): Promise<BackendRssArticle[]> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/api/rss/feeds/${feedId}/articles?limit=${limit}`
+  );
 
   if (!response.ok) {
     throw new Error(`Failed to fetch articles: ${response.statusText}`);
@@ -1092,7 +1113,7 @@ export async function getArticlesViaHttp(feedId: string, limit: number = 50): Pr
  */
 export async function markArticleReadViaHttp(articleId: string, isRead: boolean): Promise<void> {
   const response = await fetch(`${getApiBaseUrl()}/api/rss/articles/${articleId}?read=${isRead}`, {
-    method: 'POST',
+    method: "POST",
   });
 
   if (!response.ok) {
@@ -1105,7 +1126,7 @@ export async function markArticleReadViaHttp(articleId: string, isRead: boolean)
  */
 export async function deleteFeedViaHttp(feedId: string): Promise<void> {
   const response = await fetch(`${getApiBaseUrl()}/api/rss/feeds/${feedId}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 
   if (!response.ok) {
@@ -1116,10 +1137,12 @@ export async function deleteFeedViaHttp(feedId: string): Promise<void> {
 /**
  * Import OPML via HTTP API
  */
-export async function importOpmlViaHttp(opmlContent: string): Promise<{ imported: number; errors: string[] }> {
+export async function importOpmlViaHttp(
+  opmlContent: string
+): Promise<{ imported: number; errors: string[] }> {
   const response = await fetch(`${getApiBaseUrl()}/api/rss/opml/import`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ opml_content: opmlContent }),
   });
 
@@ -1207,7 +1230,7 @@ export interface RssUserPreferenceUpdate {
  */
 export async function getRssPreferencesViaHttp(feedId?: string): Promise<RssUserPreference> {
   const params = new URLSearchParams();
-  if (feedId) params.append('feed_id', feedId);
+  if (feedId) params.append("feed_id", feedId);
 
   const response = await fetch(`${getApiBaseUrl()}/api/rss/preferences?${params}`);
 
@@ -1226,11 +1249,11 @@ export async function setRssPreferencesViaHttp(
   feedId?: string
 ): Promise<RssUserPreference> {
   const params = new URLSearchParams();
-  if (feedId) params.append('feed_id', feedId);
+  if (feedId) params.append("feed_id", feedId);
 
   const response = await fetch(`${getApiBaseUrl()}/api/rss/preferences?${params}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(preferences),
   });
 
@@ -1251,19 +1274,19 @@ export async function getRssPreferencesAuto(feedId?: string): Promise<RssUserPre
   // In Tauri mode, return defaults for now
   // TODO: Integrate with Tauri command once implemented
   return {
-    id: 'default',
+    id: "default",
     feed_id: feedId,
-    view_mode: 'card',
-    theme_mode: 'system',
-    density: 'normal',
+    view_mode: "card",
+    theme_mode: "system",
+    density: "normal",
     column_count: 2,
     show_thumbnails: true,
     excerpt_length: 150,
     show_author: true,
     show_date: true,
     show_feed_icon: true,
-    sort_by: 'date',
-    sort_order: 'desc',
+    sort_by: "date",
+    sort_order: "desc",
     date_created: new Date().toISOString(),
     date_modified: new Date().toISOString(),
   };
@@ -1281,12 +1304,12 @@ export async function setRssPreferencesAuto(
   }
   // In Tauri mode, save to localStorage for now
   // TODO: Integrate with Tauri command once implemented
-  const key = feedId ? `rss_prefs_${feedId}` : 'rss_prefs_global';
+  const key = feedId ? `rss_prefs_${feedId}` : "rss_prefs_global";
   localStorage.setItem(key, JSON.stringify(preferences));
 
   // Return a mock response
   return {
-    id: 'default',
+    id: "default",
     feed_id: feedId,
     ...preferences,
     date_created: new Date().toISOString(),
@@ -1333,9 +1356,7 @@ export async function getUnreadItemsAuto(): Promise<Array<{ feed: Feed; item: Fe
     });
   });
 
-  results.sort(
-    (a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()
-  );
+  results.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime());
 
   return results;
 }
@@ -1384,7 +1405,11 @@ export async function unsubscribeFromFeedAuto(feedId: string): Promise<void> {
 /**
  * Unified markItemRead - works in both Tauri and Web mode
  */
-export async function markItemReadAuto(feedId: string, itemId: string, read: boolean = true): Promise<void> {
+export async function markItemReadAuto(
+  feedId: string,
+  itemId: string,
+  read: boolean = true
+): Promise<void> {
   if (isTauri()) {
     // In Tauri mode, use the backend command to update SQLite
     await invokeCommand("mark_rss_article_read", { id: itemId, isRead: read, is_read: read });
@@ -1409,7 +1434,7 @@ export async function markFeedReadAuto(feedId: string): Promise<void> {
     try {
       // In web mode, mark all articles for this feed as read
       const articles = await getArticlesViaHttp(feedId, 1000);
-      await Promise.all(articles.map(a => markArticleReadViaHttp(a.id, true)));
+      await Promise.all(articles.map((a) => markArticleReadViaHttp(a.id, true)));
       return;
     } catch (error) {
       console.warn("[RSS] HTTP backend unavailable, updating local feed.", error);
@@ -1420,24 +1445,38 @@ export async function markFeedReadAuto(feedId: string): Promise<void> {
 
 /**
  * Unified toggleItemFavorite - works in both Tauri and Web mode
+ * Also triggers auto-fetch for "favorites" mode feeds
  */
 export async function toggleItemFavoriteAuto(feedId: string, itemId: string): Promise<void> {
+  // Get the feed and item for auto-fetch check
+  const feed = getFeed(feedId);
+  const item = feed?.items.find((i) => i.id === itemId);
+
   if (isTauri()) {
     await invokeCommand("toggle_rss_article_queued", { id: itemId });
-    return;
-  }
-  if (shouldUseHttpBackend()) {
+  } else if (shouldUseHttpBackend()) {
     try {
       // In HTTP-backed mode, queued status is used as the persisted favorite flag.
       await fetch(`${getApiBaseUrl()}/api/rss/articles/${itemId}/queued`, {
-        method: 'POST',
+        method: "POST",
       });
-      return;
     } catch (error) {
       console.warn("[RSS] HTTP backend unavailable, updating local item.", error);
+      toggleItemFavorite(feedId, itemId);
+    }
+  } else {
+    toggleItemFavorite(feedId, itemId);
+  }
+
+  // Trigger auto-fetch if feed is in "favorites" mode and item was favorited
+  if (feed && item && feed.autoFetchFullContent === "favorites") {
+    const updatedItem = getFeed(feedId)?.items.find((i) => i.id === itemId);
+    if (updatedItem?.favorite && !updatedItem.fullContent) {
+      console.log(`[RSS] Auto-fetching full content for favorited item: ${item.title}`);
+      // Fire and forget - don't wait for result
+      void fetchArticleFullContent(itemId, item.link);
     }
   }
-  toggleItemFavorite(feedId, itemId);
 }
 
 /**
@@ -1640,8 +1679,8 @@ async function detectSubstackCustomDomain(url: string): Promise<NewsletterFeedRe
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "text/html,application/xhtml+xml",
-        "User-Agent": "Mozilla/5.0 (compatible; RSS Reader Bot)"
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "Mozilla/5.0 (compatible; RSS Reader Bot)",
       },
     });
 
@@ -1655,32 +1694,40 @@ async function detectSubstackCustomDomain(url: string): Promise<NewsletterFeedRe
     const indicators = {
       // High confidence: Generator meta tag
       generator: /<meta[^>]*name=["']generator["'][^>]*content=["'][^"']*Substack/i.test(html),
-      
+
       // High confidence: Substack CDN links
       cdn: /substackcdn\.com|substack\.com\/min\/main/.test(html),
-      
+
       // High confidence: Substack-specific scripts
       scripts: /window\.__SUBSTACK_UI|window\.__SUBSTACK_PUBLICations/.test(html),
-      
+
       // High confidence: Feed link with substack
-      feedLink: /<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["'][^"']*substack\.com/i.test(html),
-      
+      feedLink:
+        /<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["'][^"']*substack\.com/i.test(html),
+
       // Medium confidence: Substack data attributes
       dataAttrs: /data-substack|data-publication/i.test(html),
-      
+
       // Medium confidence: Substack-specific CSS classes
       css: /\.substack-|substack-wrapper|publication-content/.test(html),
-      
+
       // Medium confidence: Substack JSON-LD
       jsonLd: /"@type":\s*"NewsArticle"[^}]*substack/i.test(html),
     };
 
     // Calculate confidence score
-    const highConfidenceCount = [indicators.generator, indicators.cdn, indicators.scripts, indicators.feedLink].filter(Boolean).length;
-    const mediumConfidenceCount = [indicators.dataAttrs, indicators.css, indicators.jsonLd].filter(Boolean).length;
+    const highConfidenceCount = [
+      indicators.generator,
+      indicators.cdn,
+      indicators.scripts,
+      indicators.feedLink,
+    ].filter(Boolean).length;
+    const mediumConfidenceCount = [indicators.dataAttrs, indicators.css, indicators.jsonLd].filter(
+      Boolean
+    ).length;
 
     // Determine if this is likely a Substack site
-    const isSubstack = highConfidenceCount >= 1 || (highConfidenceCount + mediumConfidenceCount >= 2);
+    const isSubstack = highConfidenceCount >= 1 || highConfidenceCount + mediumConfidenceCount >= 2;
 
     if (!isSubstack) {
       return null;
@@ -1696,7 +1743,9 @@ async function detectSubstackCustomDomain(url: string): Promise<NewsletterFeedRe
 
     // Try to find the actual feed URL
     // First, look for RSS link in HTML
-    const feedMatch = html.match(/<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["']([^"']+)["']/i);
+    const feedMatch = html.match(
+      /<link[^>]*type=["']application\/rss\+xml["'][^>]*href=["']([^"']+)["']/i
+    );
     if (feedMatch) {
       const feedUrl = new URL(feedMatch[1], url).toString();
       return {
@@ -1708,7 +1757,7 @@ async function detectSubstackCustomDomain(url: string): Promise<NewsletterFeedRe
 
     // Try common Substack feed patterns
     const feedPatterns = [`${url}/feed`, `${url}/feed.xml`];
-    
+
     for (const feedUrl of feedPatterns) {
       try {
         const isValid = await verifyFeedUrl(feedUrl);
@@ -1739,7 +1788,7 @@ async function detectBeehiivCustomDomain(url: string): Promise<NewsletterFeedRes
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "text/html",
+        Accept: "text/html",
       },
     });
 
@@ -1754,7 +1803,7 @@ async function detectBeehiivCustomDomain(url: string): Promise<NewsletterFeedRes
 
     // Try feed patterns
     const feedPatterns = [`${url}/feed`, `${url}/feed.xml`];
-    
+
     for (const feedUrl of feedPatterns) {
       const isValid = await verifyFeedUrl(feedUrl);
       if (isValid) {
@@ -1780,7 +1829,7 @@ async function detectGhostBlog(url: string): Promise<NewsletterFeedResult | null
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "text/html",
+        Accept: "text/html",
       },
     });
 
@@ -1789,14 +1838,15 @@ async function detectGhostBlog(url: string): Promise<NewsletterFeedResult | null
     const html = await response.text();
 
     // Ghost indicators
-    const isGhost = /<meta[^>]*name=["']generator["'][^>]*content=["']Ghost/i.test(html) || 
-                    /ghost\.io|ghost\.org/.test(html);
+    const isGhost =
+      /<meta[^>]*name=["']generator["'][^>]*content=["']Ghost/i.test(html) ||
+      /ghost\.io|ghost\.org/.test(html);
 
     if (!isGhost) return null;
 
     // Ghost RSS patterns
     const feedPatterns = [`${url}/rss/`, `${url}/rss`, `${url}/feed`];
-    
+
     for (const feedUrl of feedPatterns) {
       const isValid = await verifyFeedUrl(feedUrl);
       if (isValid) {
@@ -1823,7 +1873,7 @@ async function discoverGenericFeed(url: string): Promise<NewsletterFeedResult | 
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "text/html,application/xhtml+xml,application/xml",
+        Accept: "text/html,application/xhtml+xml,application/xml",
       },
     });
 
@@ -1890,7 +1940,7 @@ async function verifyFeedUrl(url: string): Promise<boolean> {
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "application/rss+xml,application/atom+xml,application/xml,text/xml",
+        Accept: "application/rss+xml,application/atom+xml,application/xml,text/xml",
       },
     });
 
@@ -1899,17 +1949,17 @@ async function verifyFeedUrl(url: string): Promise<boolean> {
     }
 
     const contentType = response.headers.get("content-type") || "";
-    const isXmlContent = contentType.includes("xml") ||
-                        contentType.includes("rss") ||
-                        contentType.includes("atom");
+    const isXmlContent =
+      contentType.includes("xml") || contentType.includes("rss") || contentType.includes("atom");
 
     // Check if content looks like XML
     const text = await response.text();
     const trimmedText = text.trim().substring(0, 1000);
-    const looksLikeXml = trimmedText.startsWith("<?xml") ||
-                        trimmedText.startsWith("<rss") ||
-                        trimmedText.startsWith("<feed") ||
-                        trimmedText.startsWith("<rdf:");
+    const looksLikeXml =
+      trimmedText.startsWith("<?xml") ||
+      trimmedText.startsWith("<rss") ||
+      trimmedText.startsWith("<feed") ||
+      trimmedText.startsWith("<rdf:");
 
     return isXmlContent || looksLikeXml;
   } catch {
@@ -1973,5 +2023,466 @@ export async function quickSubscribeToNewsletter(
   } catch (error) {
     console.error("[Newsletter] Quick subscribe failed:", error);
     throw error;
+  }
+}
+
+// ============================================================================
+// Full Content Fetching
+// ============================================================================
+
+/**
+ * Response from full content fetch operation
+ */
+export interface FullContentResponse {
+  articleId: string;
+  fullContent?: string;
+  excerpt?: string;
+  fetchedAt: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * CORS proxy URLs for web mode fetching
+ */
+const CORS_PROXIES = [
+  null, // Direct fetch (Tauri bypasses CORS)
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?",
+  "https://api.codetabs.com/v1/proxy?quest=",
+];
+
+/**
+ * Fetch full article content from source URL using Readability extraction
+ */
+export async function fetchArticleFullContent(
+  articleId: string,
+  articleUrl: string
+): Promise<FullContentResponse> {
+  if (isTauri()) {
+    // Tauri mode: use backend command
+    try {
+      const result = await invokeCommand<FullContentResponse>("fetch_article_full_content", {
+        articleId,
+        articleUrl,
+      });
+      return result;
+    } catch (error) {
+      console.error("[RSS] Failed to fetch full content via Tauri:", error);
+      return {
+        articleId,
+        success: false,
+        fetchedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  } else {
+    // Web mode: fetch via CORS proxies and extract using Mozilla Readability
+    return fetchFullContentWeb(articleId, articleUrl);
+  }
+}
+
+/**
+ * Fetch full content in web mode using CORS proxies and Readability
+ */
+async function fetchFullContentWeb(
+  articleId: string,
+  articleUrl: string
+): Promise<FullContentResponse> {
+  // Try CORS proxies in sequence
+  for (const proxy of CORS_PROXIES) {
+    const fetchUrl = proxy ? `${proxy}${encodeURIComponent(articleUrl)}` : articleUrl;
+
+    try {
+      const response = await fetch(fetchUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      });
+
+      if (!response.ok) {
+        continue; // Try next proxy
+      }
+
+      const html = await response.text();
+
+      // Check content size before processing (limit to 5MB raw HTML)
+      if (html.length > 5 * 1024 * 1024) {
+        logFetchFailure(articleId, articleUrl, new Error("Content too large (>5MB)"), "fetch");
+        continue;
+      }
+
+      // Use DOM-based extraction in browser
+      const extracted = extractReadableContent(html, articleUrl);
+
+      if (!extracted.content) {
+        logFetchFailure(
+          articleId,
+          articleUrl,
+          new Error("Extraction returned empty content"),
+          "extraction"
+        );
+        continue; // Try next proxy if extraction failed
+      }
+
+      // Check if extracted content exceeds size limit
+      if (isContentTooLarge(extracted.content)) {
+        logFetchFailure(
+          articleId,
+          articleUrl,
+          new Error("Extracted content exceeds 1MB limit"),
+          "extraction"
+        );
+        continue;
+      }
+
+      // Generate excerpt
+      const excerpt = generateArticleExcerpt(extracted.content);
+
+      const fetchedAt = new Date().toISOString();
+
+      // Store in localStorage for caching
+      const cacheKey = `rss_full_content_${articleId}`;
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          content: extracted.content,
+          fetchedAt,
+          excerpt,
+        })
+      );
+
+      return {
+        articleId,
+        fullContent: extracted.content,
+        excerpt,
+        fetchedAt,
+        success: true,
+      };
+    } catch (error) {
+      const stage = error instanceof Error && error.message.includes("CORS") ? "cors" : "fetch";
+      logFetchFailure(articleId, articleUrl, error, stage);
+      console.warn(`[RSS] Proxy ${proxy || "direct"} failed:`, error);
+      continue; // Try next proxy
+    }
+  }
+
+  // All proxies failed
+  return {
+    articleId,
+    success: false,
+    fetchedAt: new Date().toISOString(),
+    error: "Failed to fetch article content through all available proxies",
+  };
+}
+
+/**
+ * Extract readable content from HTML using DOM-based approach
+ */
+function extractReadableContent(html: string, url: string): { title: string; content: string } {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  // Simple extraction: try to find main content area
+  const selectors = [
+    "article",
+    "[role='main']",
+    "main",
+    ".article-content",
+    ".post-content",
+    ".entry-content",
+    ".content",
+    "#content",
+    ".blog-post",
+    ".post",
+  ];
+
+  let contentElement: Element | null = null;
+
+  for (const selector of selectors) {
+    contentElement = doc.querySelector(selector);
+    if (contentElement) break;
+  }
+
+  // If no content area found, use body
+  if (!contentElement) {
+    contentElement = doc.body;
+  }
+
+  if (!contentElement) {
+    return { title: "", content: "" };
+  }
+
+  // Clean up the content
+  const clone = contentElement.cloneNode(true) as Element;
+
+  // Remove non-content elements
+  const removeSelectors = [
+    "script",
+    "style",
+    "nav",
+    "header",
+    "footer",
+    "aside",
+    ".sidebar",
+    ".comments",
+    ".advertisement",
+    ".ads",
+    ".social-share",
+    ".related-posts",
+    ".author-bio",
+    ".newsletter-signup",
+    ".cookie-banner",
+    ".popup",
+    ".modal",
+  ];
+
+  removeSelectors.forEach((selector) => {
+    const elements = clone.querySelectorAll(selector);
+    elements.forEach((el) => el.remove());
+  });
+
+  // Get title
+  const title =
+    doc.querySelector("title")?.textContent || doc.querySelector("h1")?.textContent || "";
+
+  // Get content HTML
+  const content = clone.innerHTML;
+
+  return { title, content };
+}
+
+/**
+ * Generate plain text excerpt from HTML content
+ */
+export function generateArticleExcerpt(htmlContent: string, maxLength: number = 200): string {
+  // Create a temporary element to strip HTML tags
+  const temp = document.createElement("div");
+  temp.innerHTML = htmlContent;
+
+  // Get plain text
+  let text = temp.textContent || temp.innerText || "";
+
+  // Normalize whitespace
+  text = text.replace(/\s+/g, " ").trim();
+
+  // Truncate at word boundary
+  if (text.length > maxLength) {
+    const truncated = text.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(" ");
+    if (lastSpace > 0) {
+      text = truncated.substring(0, lastSpace) + "...";
+    } else {
+      text = truncated + "...";
+    }
+  }
+
+  return text;
+}
+
+/**
+ * Get cached full content for an article
+ */
+export async function getArticleFullContent(
+  articleId: string
+): Promise<{ content?: string; fetchedAt?: string } | null> {
+  if (isTauri()) {
+    try {
+      const result = await invokeCommand<[string, string] | null>("get_article_full_content", {
+        articleId,
+      });
+      if (result) {
+        return { content: result[0], fetchedAt: result[1] };
+      }
+      return null;
+    } catch (error) {
+      console.error("[RSS] Failed to get full content:", error);
+      return null;
+    }
+  } else {
+    // Web mode: check localStorage
+    const cacheKey = `rss_full_content_${articleId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        return { content: data.content, fetchedAt: data.fetchedAt };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+/**
+ * Update auto-fetch preference for a feed
+ */
+export async function updateFeedAutoFetchPreference(
+  feedId: string,
+  autoFetchMode: "always" | "favorites" | "manual"
+): Promise<void> {
+  if (isTauri()) {
+    await invokeCommand("update_feed_auto_fetch", { feedId, autoFetchMode });
+  } else {
+    // Web mode: store in localStorage
+    const settingsKey = `rss_feed_settings_${feedId}`;
+    const existing = localStorage.getItem(settingsKey);
+    const settings = existing ? JSON.parse(existing) : {};
+    settings.autoFetchFullContent = autoFetchMode;
+    localStorage.setItem(settingsKey, JSON.stringify(settings));
+  }
+}
+
+/**
+ * Check if content is stale (older than 30 days)
+ */
+export function isContentStale(fetchedAt: string): boolean {
+  const fetchDate = new Date(fetchedAt);
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  return fetchDate < thirtyDaysAgo;
+}
+
+/**
+ * Clear full content cache for an article
+ */
+export function clearArticleFullContent(articleId: string): void {
+  if (!isTauri()) {
+    const cacheKey = `rss_full_content_${articleId}`;
+    localStorage.removeItem(cacheKey);
+  }
+}
+
+// ============================================================================
+// Offline & Caching Utilities
+// ============================================================================
+
+const MAX_CONTENT_SIZE = 1024 * 1024; // 1MB per article
+const CONTENT_RETENTION_DAYS = 30;
+
+/**
+ * Check if content exceeds size limit
+ */
+export function isContentTooLarge(content: string): boolean {
+  const sizeInBytes = new Blob([content]).size;
+  return sizeInBytes > MAX_CONTENT_SIZE;
+}
+
+/**
+ * Prune old cached content from localStorage (web mode only)
+ * Removes content older than retention period
+ */
+export function pruneOldCachedContent(): number {
+  if (isTauri()) return 0; // Tauri handles this in backend
+
+  let prunedCount = 0;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - CONTENT_RETENTION_DAYS);
+
+  // Iterate through localStorage keys
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("rss_full_content_")) continue;
+
+    try {
+      const cached = localStorage.getItem(key);
+      if (!cached) continue;
+
+      const data = JSON.parse(cached);
+      if (data.fetchedAt) {
+        const fetchDate = new Date(data.fetchedAt);
+        if (fetchDate < cutoffDate) {
+          localStorage.removeItem(key);
+          prunedCount++;
+        }
+      }
+    } catch (error) {
+      // Invalid cache entry, remove it
+      localStorage.removeItem(key);
+      prunedCount++;
+    }
+  }
+
+  if (prunedCount > 0) {
+    console.log(`[RSS] Pruned ${prunedCount} old cached content entries`);
+  }
+  return prunedCount;
+}
+
+/**
+ * Check if device is currently online
+ */
+export function isOnline(): boolean {
+  return typeof navigator !== "undefined" ? navigator.onLine : true;
+}
+
+/**
+ * Log fetch/extraction failures for debugging
+ */
+export function logFetchFailure(
+  articleId: string,
+  articleUrl: string,
+  error: unknown,
+  stage: "fetch" | "extraction" | "cors"
+): void {
+  const timestamp = new Date().toISOString();
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  const failureLog = {
+    timestamp,
+    articleId,
+    articleUrl,
+    stage,
+    error: errorMessage,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+    online: isOnline(),
+  };
+
+  // Store in localStorage for debugging (keep last 50 entries)
+  const existingLogs = JSON.parse(localStorage.getItem("rss_fetch_failures") || "[]");
+  existingLogs.unshift(failureLog);
+  const trimmedLogs = existingLogs.slice(0, 50);
+  localStorage.setItem("rss_fetch_failures", JSON.stringify(trimmedLogs));
+
+  console.error(`[RSS] Fetch failure at stage "${stage}" for ${articleUrl}:`, errorMessage);
+}
+
+/**
+ * Get recent fetch failures for debugging
+ */
+export function getRecentFetchFailures(): Array<{
+  timestamp: string;
+  articleId: string;
+  articleUrl: string;
+  stage: string;
+  error: string;
+  online: boolean;
+}> {
+  return JSON.parse(localStorage.getItem("rss_fetch_failures") || "[]");
+}
+
+/**
+ * Clear all fetch failure logs
+ */
+export function clearFetchFailureLogs(): void {
+  localStorage.removeItem("rss_fetch_failures");
+}
+
+/**
+ * Initialize RSS module - prunes old cache entries on startup
+ */
+export function initRssModule(): void {
+  // Prune old cached content on startup (web mode only)
+  pruneOldCachedContent();
+
+  // Set up online/offline event listeners
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", () => {
+      console.log("[RSS] Device is now online");
+    });
+    window.addEventListener("offline", () => {
+      console.log("[RSS] Device is now offline - cached content will be used");
+    });
   }
 }

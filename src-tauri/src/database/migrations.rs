@@ -1230,6 +1230,21 @@ pub const MIGRATIONS: &[Migration] = &[
         ALTER TABLE extracts ADD COLUMN progressive_summaries TEXT;
         "#,
     ),
+    // Migration 037: Add RSS full content fetching columns
+    Migration::new(
+        "037_add_rss_full_content",
+        r#"
+        -- Add full content fields to RSS articles for storing extracted article HTML
+        ALTER TABLE rss_articles ADD COLUMN full_content TEXT;
+        ALTER TABLE rss_articles ADD COLUMN full_content_fetched_at TEXT;
+
+        -- Add auto-fetch preference to RSS feeds (always, favorites, manual)
+        ALTER TABLE rss_feeds ADD COLUMN auto_fetch_full_content TEXT DEFAULT 'manual';
+
+        -- Create index for fetching articles by content fetch status
+        CREATE INDEX IF NOT EXISTS idx_rss_articles_full_content_fetched ON rss_articles(full_content_fetched_at);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

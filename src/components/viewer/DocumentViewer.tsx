@@ -836,6 +836,22 @@ export function DocumentViewer({
     }
   }, [setRestoreState, setSuppressPdfAutoScroll, suppressPdfAutoScroll]);
 
+  const cancelPdfRestoreAttempt = useCallback((reason: string) => {
+    if (!restorationInProgressRef.current && !suppressPdfAutoScroll && !restoreState) return;
+
+    console.log("[DocumentViewer] Canceling PDF restore attempt:", reason);
+    restoreScrollDoneRef.current = true;
+    restorationInProgressRef.current = false;
+    pendingViewStateRef.current = null;
+    setRestoreState(null);
+    setSuppressPdfAutoScroll(false);
+
+    if (restoreScrollTimeoutRef.current !== null) {
+      clearTimeout(restoreScrollTimeoutRef.current);
+      restoreScrollTimeoutRef.current = null;
+    }
+  }, [restoreState, suppressPdfAutoScroll]);
+
   const captureScrollState = useCallback(() => {
     const container = document.querySelector(
       "[data-document-scroll-container]"
@@ -2195,6 +2211,14 @@ export function DocumentViewer({
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {
       const newPage = Math.max(1, pageNumber - 1);
+      if (
+        docType === "pdf" &&
+        restorationInProgressRef.current &&
+        restoreState &&
+        restoreState.pageNumber !== newPage
+      ) {
+        cancelPdfRestoreAttempt("manual-prev-page");
+      }
       setPageNumber(newPage);
       // Push to history for back/forward navigation
       if (docType === "pdf") {
@@ -2206,6 +2230,14 @@ export function DocumentViewer({
   const handleNextPage = () => {
     if (currentDocument && currentDocument.totalPages) {
       const newPage = Math.min(currentDocument.totalPages!, pageNumber + 1);
+      if (
+        docType === "pdf" &&
+        restorationInProgressRef.current &&
+        restoreState &&
+        restoreState.pageNumber !== newPage
+      ) {
+        cancelPdfRestoreAttempt("manual-next-page");
+      }
       setPageNumber(newPage);
       // Push to history for back/forward navigation
       if (docType === "pdf") {
@@ -2215,6 +2247,14 @@ export function DocumentViewer({
   };
 
   const handlePageChange = (newPageNumber: number) => {
+    if (
+      docType === "pdf" &&
+      restorationInProgressRef.current &&
+      restoreState &&
+      restoreState.pageNumber !== newPageNumber
+    ) {
+      cancelPdfRestoreAttempt("programmatic-page-change");
+    }
     setPageNumber(newPageNumber);
     // Push to history for significant page jumps (e.g., TOC navigation)
     if (docType === "pdf" && Math.abs(newPageNumber - pageNumber) > 1) {
