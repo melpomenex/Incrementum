@@ -1015,6 +1015,7 @@ export const de: Dict = {
   "extracts.failedToLoad": "Auszüge konnten nicht geladen werden",
   "extracts.failedToUpdate": "Auszug konnte nicht aktualisiert werden",
   "extracts.fromBrowser": "Auszüge aus dem Browser",
+  "extracts.createCardBtn": "Karte erstellen",
   "extracts.generateCards": "Karten generieren",
   "extracts.generating": "Generierung...",
   "extracts.generatingCards": "Karten werden generiert...",

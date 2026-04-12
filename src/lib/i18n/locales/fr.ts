@@ -1022,6 +1022,7 @@ export const fr: Dict = {
   "extracts.failedToLoad": "Échec du chargement des extraits",
   "extracts.failedToUpdate": "Échec de la mise à jour de l'extrait",
   "extracts.fromBrowser": "extraits du navigateur",
+  "extracts.createCardBtn": "Créer une carte",
   "extracts.generateCards": "Générer des cartes",
   "extracts.generating": "Génération...",
   "extracts.generatingCards": "Génération des cartes...",

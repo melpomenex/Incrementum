@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye } from "lucide-react";
+import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye, PencilLine } from "lucide-react";
 import { getExtracts, type Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { bulkGenerateCards } from "../../api/extract-bulk";
@@ -10,6 +10,7 @@ import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { GeneratedCardsPopover } from "../common/GeneratedCardsPopover";
 import { RichContentRenderer } from "../common/RichContentRenderer";
 import { useI18n } from "../../lib/i18n";
+import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
 
 interface ExtractsListProps {
   documentId: string;
@@ -39,6 +40,15 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   const [deletingExtract, setDeletingExtract] = useState<Extract | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isManualStudioOpen, setIsManualStudioOpen] = useState(false);
+  const [manualStudioSeed, setManualStudioSeed] = useState<{
+    key: string;
+    documentId: string;
+    excerpt: string;
+    draftCardType: "qa";
+    resetDraftCards: true;
+    autoEditDraft: true;
+  } | null>(null);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -92,6 +102,18 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         return next;
       });
     }
+  };
+
+  const handleCreateCard = (extract: Extract) => {
+    setManualStudioSeed({
+      key: `${extract.id}-${Date.now()}`,
+      documentId: extract.document_id,
+      excerpt: extract.content,
+      draftCardType: "qa",
+      resetDraftCards: true,
+      autoEditDraft: true,
+    });
+    setIsManualStudioOpen(true);
   };
 
   const handleEdit = (extract: Extract) => {
@@ -498,7 +520,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
 
             {/* Learning Items Section */}
             <div className="mt-3 pt-3 border-t border-border">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <GeneratedCardsPopover
                   extractId={extract.id}
                   extractTitle={extract.content.slice(0, 100)}
@@ -522,28 +544,37 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                     </button>
                   )}
                 />
-                <button
-                  onClick={() => handleGenerateCards(extract.id)}
-                  disabled={generatingIds.has(extract.id)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5",
-                    generatingIds.has(extract.id)
-                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                      : "bg-primary/10 text-primary hover:bg-primary/20"
-                  )}
-                >
-                  {generatingIds.has(extract.id) ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      {t("extracts.generating")}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3 h-3" />
-                      {t("extracts.generateCards")}
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleCreateCard(extract)}
+                    className="px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5 bg-muted text-foreground hover:bg-muted/80"
+                  >
+                    <PencilLine className="w-3 h-3" />
+                    {t("extracts.createCardBtn")}
+                  </button>
+                  <button
+                    onClick={() => handleGenerateCards(extract.id)}
+                    disabled={generatingIds.has(extract.id)}
+                    className={cn(
+                      "px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5",
+                      generatingIds.has(extract.id)
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                    )}
+                  >
+                    {generatingIds.has(extract.id) ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {t("extracts.generating")}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        {t("extracts.generateCards")}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -571,6 +602,11 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
           setDeletingExtract(null);
         }}
         onDelete={handleExtractDeleted}
+      />
+      <FlashcardStudioModal
+        isOpen={isManualStudioOpen}
+        onClose={() => setIsManualStudioOpen(false)}
+        seed={manualStudioSeed}
       />
     </div>
   );
