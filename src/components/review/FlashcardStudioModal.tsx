@@ -126,6 +126,16 @@ interface ChatMessage {
 interface FlashcardStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
+  seed?: FlashcardStudioSeed | null;
+}
+
+interface FlashcardStudioSeed {
+  key: string;
+  documentId?: string | null;
+  excerpt?: string;
+  draftCardType?: DraftCardType;
+  resetDraftCards?: boolean;
+  autoEditDraft?: boolean;
 }
 
 interface QuickTemplate {
@@ -1823,7 +1833,7 @@ function DeckSelector({
 // MAIN COMPONENT
 // =============================================================================
 
-export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalProps) {
+export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioModalProps) {
   const { t } = useI18n();
   const toast = useToast();
   const { documents, loadDocuments } = useDocumentStore();
@@ -1858,6 +1868,7 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
   const [imageAssets, setImageAssets] = useState<ImageAsset[]>([]);
   const [selectedImageAssetIds, setSelectedImageAssetIds] = useState<string[]>([]);
   const [isImageImporting, setIsImageImporting] = useState(false);
+  const appliedSeedKeyRef = useRef<string | null>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -2227,6 +2238,38 @@ export function FlashcardStudioModal({ isOpen, onClose }: FlashcardStudioModalPr
       imageOcclusionRegions: [],
     };
   }, [selectedImageAssetIds]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      appliedSeedKeyRef.current = null;
+      return;
+    }
+    if (!seed?.key || appliedSeedKeyRef.current === seed.key) {
+      return;
+    }
+
+    appliedSeedKeyRef.current = seed.key;
+
+    if (seed.documentId !== undefined) {
+      setSelectedDocumentId(seed.documentId);
+    }
+
+    if (seed.excerpt?.trim()) {
+      setContextSelection({
+        ...DEFAULT_CONTEXT_SELECTION,
+        mode: "excerpt",
+        excerpt: seed.excerpt,
+      });
+    }
+
+    if (seed.resetDraftCards || seed.draftCardType) {
+      const nextCard = createBlankDraftCard(seed.draftCardType || "qa");
+      setDraftCards([nextCard]);
+      setFlippedCardId(null);
+      setEditingCardId(seed.autoEditDraft === false ? null : nextCard.id);
+      setViewMode("chat");
+    }
+  }, [isOpen, seed, createBlankDraftCard]);
 
   const handleSend = async (customPrompt?: string) => {
     const promptText = customPrompt || input;

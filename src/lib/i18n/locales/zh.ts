@@ -1118,6 +1118,7 @@ export const zh: Dict = {
   "extracts.failedToLoad": "加载摘录失败",
   "extracts.failedToUpdate": "更新摘录失败",
   "extracts.fromBrowser": "来自浏览器的摘录",
+  "extracts.createCardBtn": "创建卡片",
   "extracts.generateCards": "生成卡片",
   "extracts.generating": "生成中...",
   "extracts.generatingCards": "正在生成卡片...",
