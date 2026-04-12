@@ -62,25 +62,41 @@ export interface UpdateExtractInput {
   max_disclosure_level?: number;
 }
 
+function normalizeExtract(extract: Extract): Extract {
+  return {
+    ...extract,
+    content: extract.content ?? "",
+    notes: extract.notes ?? "",
+    tags: Array.isArray(extract.tags) ? extract.tags : [],
+    progressive_disclosure_level: extract.progressive_disclosure_level ?? 0,
+    max_disclosure_level: extract.max_disclosure_level ?? 0,
+    progressive_summaries: Array.isArray(extract.progressive_summaries) ? extract.progressive_summaries : [],
+    review_count: extract.review_count ?? 0,
+    reps: extract.reps ?? 0,
+  };
+}
+
 /**
  * Get all extracts for a document, or all extracts if no documentId is provided
  */
 export async function getExtracts(documentId?: string | null): Promise<Extract[]> {
-  return await invokeCommand<Extract[]>("get_extracts", { documentId });
+  const extracts = await invokeCommand<Extract[]>("get_extracts", { documentId });
+  return Array.isArray(extracts) ? extracts.map(normalizeExtract) : [];
 }
 
 /**
  * Get a single extract by ID
  */
 export async function getExtract(id: string): Promise<Extract | null> {
-  return await invokeCommand<Extract>("get_extract", { id });
+  const extract = await invokeCommand<Extract | null>("get_extract", { id });
+  return extract ? normalizeExtract(extract) : null;
 }
 
 /**
  * Create a new extract
  */
 export async function createExtract(input: CreateExtractInput): Promise<Extract> {
-  return await invokeCommand<Extract>("create_extract", {
+  const extract = await invokeCommand<Extract>("create_extract", {
     documentId: input.document_id,
     content: input.content,
     htmlContent: input.html_content,
@@ -93,13 +109,14 @@ export async function createExtract(input: CreateExtractInput): Promise<Extract>
     selectionContext: input.selection_context,
     maxDisclosureLevel: input.max_disclosure_level,
   });
+  return normalizeExtract(extract);
 }
 
 /**
  * Update an existing extract
  */
 export async function updateExtract(input: UpdateExtractInput): Promise<Extract> {
-  return await invokeCommand<Extract>("update_extract", {
+  const extract = await invokeCommand<Extract>("update_extract", {
     id: input.id,
     content: input.content,
     note: input.note,
@@ -108,6 +125,7 @@ export async function updateExtract(input: UpdateExtractInput): Promise<Extract>
     color: input.color,
     maxDisclosureLevel: input.max_disclosure_level,
   });
+  return normalizeExtract(extract);
 }
 
 /**
