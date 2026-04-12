@@ -27,11 +27,11 @@ export interface DocumentSettings {
   autoSegment: boolean;
   autoHighlight: boolean;
   segmentSize: number;
-  segmentStrategy: 'semantic' | 'paragraph' | 'fixed' | 'smart';
+  segmentStrategy: "semantic" | "paragraph" | "fixed" | "smart";
   highlightColor: 0 | 1 | 2 | 3 | 4;
   ocr: {
     enabled: boolean;
-    provider: 'google' | 'aws' | 'mistral' | 'mathpix' | 'gpt4o' | 'claude' | 'local';
+    provider: "google" | "aws" | "mistral" | "mathpix" | "gpt4o" | "claude" | "local";
     apiKey: string;
     preferLocal: boolean;
   };
@@ -57,7 +57,7 @@ export interface LearningSettings {
 
 // Algorithm Settings
 export interface AlgorithmSettings {
-  type: 'fsrs' | 'sm2' | 'sm18' | 'sm20';
+  type: "fsrs" | "sm2" | "sm18" | "sm20";
   desiredRetention: number;
   maxRetention: number;
   weightsHalfLife: number;
@@ -124,7 +124,7 @@ export interface APISettings {
 export interface QASettings {
   autoGeneration: boolean;
   maxQuestions: number;
-  difficulty: 'easy' | 'medium' | 'hard' | 'adaptive';
+  difficulty: "easy" | "medium" | "hard" | "adaptive";
   systemPrompt: string;
   contextWindow: boolean;
   contextWindowSize: number;
@@ -136,7 +136,7 @@ export interface QASettings {
 // Groq Transcription Settings
 export interface GroqTranscriptionSettings {
   apiKey: string;
-  model: 'whisper-large-v3' | 'whisper-large-v3-turbo';
+  model: "whisper-large-v3" | "whisper-large-v3-turbo";
   useFreeTier: boolean;
   // Usage tracking (reset monthly)
   usage: {
@@ -148,7 +148,7 @@ export interface GroqTranscriptionSettings {
 
 // Audio Transcription Settings
 export interface AudioTranscriptionSettings {
-  provider: 'local' | 'groq';
+  provider: "local" | "groq";
   autoTranscription: boolean;
   autoTranscribeLocalVideos: boolean;
   preferredModelId?: string;
@@ -160,7 +160,7 @@ export interface AudioTranscriptionSettings {
   groq: GroqTranscriptionSettings;
 }
 
-export type TTSRequestMode = 'direct' | 'proxy';
+export type TTSRequestMode = "direct" | "proxy";
 
 export interface TTSPreset {
   id: string;
@@ -177,9 +177,9 @@ export interface TTSPreset {
 
 export interface TTSVoiceProfile {
   id: string;
-  provider: 'fal' | 'groq' | 'pocket';
+  provider: "fal" | "groq" | "pocket";
   name: string;
-  kind: 'builtin' | 'cloned';
+  kind: "builtin" | "cloned";
   voice?: string;
   speakerEmbeddingUrl?: string;
   referenceText?: string;
@@ -189,14 +189,14 @@ export interface TTSVoiceProfile {
 export interface TTSSettings {
   schemaVersion: number;
   enabled: boolean;
-  provider: 'fal' | 'groq' | 'pocket';
+  provider: "fal" | "groq" | "pocket";
   requestMode: TTSRequestMode;
   apiKey: string;
   proxyUrl: string;
   modelId: string;
   cloneModelId: string;
   groqModelId: string;
-  groqResponseFormat: 'wav' | 'mp3';
+  groqResponseFormat: "wav" | "mp3";
   language: string;
   defaultVoiceId: string;
   defaultPresetId: string;
@@ -229,7 +229,7 @@ export interface IntegrationSettings {
   };
   notebooklm: {
     enabled: boolean;
-    provider: 'mock' | 'cli' | string;
+    provider: "mock" | "cli" | string;
     activeNotebookId: string;
     defaultDeckName: string;
     dedupeOnImport: boolean;
@@ -241,17 +241,17 @@ export interface MCPServerSettings {
   server1: {
     name: string;
     endpoint: string;
-    transport: 'stdio' | 'sse';
+    transport: "stdio" | "sse";
   };
   server2: {
     name: string;
     endpoint: string;
-    transport: 'stdio' | 'sse';
+    transport: "stdio" | "sse";
   };
   server3: {
     name: string;
     endpoint: string;
-    transport: 'stdio' | 'sse';
+    transport: "stdio" | "sse";
   };
   autoConnect: boolean;
   connectionTimeout: number;
@@ -263,7 +263,7 @@ export interface ObsidianIntegrationSettings {
   databasePath: string;
   realTimeSync: boolean;
   conflictResolution: boolean;
-  conflictStrategy: 'local' | 'remote' | 'newer';
+  conflictStrategy: "local" | "remote" | "newer";
 }
 
 // RSS Settings
@@ -275,7 +275,7 @@ export interface RSSSettings {
   autoImport: boolean;
   autoCleanup: boolean;
   autoDismissOnScrollEnd: boolean;
-  scrollEndAction: 'dismiss' | 'keep' | 'ask';
+  scrollEndAction: "dismiss" | "keep" | "ask";
   keepEntries: number;
 }
 
@@ -302,8 +302,18 @@ export interface SponsorBlockSettings {
 export interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
-  mode: 'normal' | 'filtered' | 'intelligent';
+  mode: "normal" | "filtered" | "intelligent";
   useFsrsScheduling: boolean; // Use FSRS-based scheduling for documents in the queue
+}
+
+// RSS Summary Settings
+export interface RSSSummarySettings {
+  mode: "modern" | "terminal";
+  defaultLength: "brief" | "medium" | "detailed";
+  defaultFocus: "key-points" | "actionable" | "background";
+  panelWidth: number;
+  panelPosition: "left" | "right";
+  autoOpen: boolean;
 }
 
 // Keybindings Settings
@@ -328,6 +338,7 @@ export interface Settings {
   mcpServers: MCPServerSettings;
   obsidianIntegration: ObsidianIntegrationSettings;
   rss: RSSSettings;
+  rssSummary: RSSSummarySettings;
   sponsorBlock: SponsorBlockSettings;
   smartQueue: SmartQueueSettings;
   keybindings: KeybindingSettings;

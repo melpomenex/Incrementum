@@ -1,6 +1,6 @@
 /**
  * RSS Scroll Mode - TikTok-style vertical scrolling through RSS articles
- * 
+ *
  * Features:
  * - Full-screen immersive article reading
  * - Interleaved feed items (variety mixing from different sources)
@@ -26,6 +26,7 @@ import {
   Sparkles,
   Lightbulb,
   Undo,
+  Info,
 } from "lucide-react";
 import {
   Feed,
@@ -46,6 +47,11 @@ import { isTauri, openExternal } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
+import { ArticleContextOverlay } from "./ArticleContextOverlay";
+import { ModernSummaryPanel, SummaryBadge, SummaryActions } from "./summary";
+import { useSummaryCache } from "../../utils/rssSummary";
+import type { SummaryLength, SummaryFocus } from "../../types/rssSummary";
+import { SUMMARY_LENGTH_CONFIG, SUMMARY_LOADING_STAGES } from "../../types/rssSummary";
 
 interface RSSScrollItem {
   feed: Feed;
@@ -58,7 +64,7 @@ interface RSSScrollModeProps {
   initialFeedId?: string | null;
 }
 
-type SummaryMode = "terminal" | "assistant";
+type LegacySummaryMode = "terminal" | "assistant";
 type AssistantPosition = "left" | "right";
 
 // Session storage key for position
@@ -84,9 +90,7 @@ function interleaveFeedItems(items: RSSScrollItem[]): RSSScrollItem[] {
   });
 
   // Sort feeds by number of items (descending) for better distribution
-  const sortedFeeds = Array.from(feedGroups.entries()).sort(
-    (a, b) => b[1].length - a[1].length
-  );
+  const sortedFeeds = Array.from(feedGroups.entries()).sort((a, b) => b[1].length - a[1].length);
 
   // Round-robin distribution
   let addedCount = 0;
@@ -157,6 +161,18 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const scrollCooldown = 500; // ms between scroll actions
   const startTimeRef = useRef(Date.now());
 
+  // Enhanced scroll mode state
+  const [showJumpInput, setShowJumpInput] = useState(false);
+  const [jumpTargetIndex, setJumpTargetIndex] = useState("");
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const [favoriteAnimation, setFavoriteAnimation] = useState<string | null>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  // Article context overlay state
+  const [showContextOverlay, setShowContextOverlay] = useState(false);
+  const [fullContentExpanded, setFullContentExpanded] = useState(false);
+
   const handleOpenOriginal = useCallback(async (url?: string) => {
     if (!url) return;
     try {
@@ -184,14 +200,35 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   }, []);
 
   // Summary state
-  const [summaryMode, setSummaryMode] = useState<SummaryMode>(() => {
+  const [summaryMode, setSummaryMode] = useState<LegacySummaryMode>(() => {
     const saved = localStorage.getItem("rss-summary-mode");
-    return (saved as SummaryMode) || "terminal";
+    return (saved as LegacySummaryMode) || "terminal";
   });
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryText, setSummaryText] = useState("");
   const [displayedSummary, setDisplayedSummary] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+
+  // Modern summary panel state
+  const [modernSummaryLength, setModernSummaryLength] = useState<SummaryLength>(() => {
+    const saved = localStorage.getItem("rss-summary-length");
+    return (saved as SummaryLength) || "medium";
+  });
+  const [modernSummaryFocus, setModernSummaryFocus] = useState<SummaryFocus>(() => {
+    const saved = localStorage.getItem("rss-summary-focus");
+    return (saved as SummaryFocus) || "key-points";
+  });
+  const [modernSummaryMode, setModernSummaryMode] = useState<"modern" | "terminal">(() => {
+    const saved = localStorage.getItem("rss-summary-display-mode");
+    return (saved as "modern" | "terminal") || "modern";
+  });
+  const [loadingStage, setLoadingStage] = useState<
+    "analyzing" | "extracting" | "synthesizing" | "complete"
+  >("analyzing");
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  // Summary cache hook
+  const { getCachedSummary, cacheSummary, isCached } = useSummaryCache();
 
   // Auto-read mode - when enabled, marking one item as read auto-marks subsequent items
   const [autoReadMode, setAutoReadMode] = useState(() => {
@@ -296,9 +333,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
 
     const buildContext = async () => {
-      const maxTokens = settings?.ai?.maxTokens && settings.ai.maxTokens > 0
-        ? settings.ai.maxTokens
-        : 2000;
+      const maxTokens =
+        settings?.ai?.maxTokens && settings.ai.maxTokens > 0 ? settings.ai.maxTokens : 2000;
       const aiModel = settings?.ai?.model;
 
       const rawContent = item.item.content || item.item.description || "";
@@ -404,12 +440,20 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         return;
       }
 
+      // Minimum delta threshold to prevent accidental navigation (10 pixels)
+      const minDeltaThreshold = 10;
+      if (Math.abs(e.deltaY) < minDeltaThreshold) {
+        return;
+      }
+
       // Find scrollable content within current item
       const target = e.target as HTMLElement;
-      const scrollableContent = target.closest('.rss-article-content') as HTMLElement | null;
+      const scrollableContent = target.closest(".rss-article-content") as HTMLElement | null;
 
       if (scrollableContent) {
-        const canScrollDown = scrollableContent.scrollTop < (scrollableContent.scrollHeight - scrollableContent.clientHeight - 10);
+        const canScrollDown =
+          scrollableContent.scrollTop <
+          scrollableContent.scrollHeight - scrollableContent.clientHeight - 10;
         const canScrollUp = scrollableContent.scrollTop > 10;
 
         // If content can still scroll, let it scroll
@@ -437,8 +481,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in input
-      if ((e.target as HTMLElement).tagName === "INPUT" ||
-        (e.target as HTMLElement).tagName === "TEXTAREA") {
+      if (
+        (e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "TEXTAREA"
+      ) {
         return;
       }
 
@@ -461,18 +507,56 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           goToPrevious();
           break;
         case "Escape":
-          onExit?.();
+          if (showJumpInput) {
+            setShowJumpInput(false);
+            setJumpTargetIndex("");
+          } else if (showMarkAllConfirm) {
+            setShowMarkAllConfirm(false);
+          } else {
+            onExit?.();
+          }
           break;
         case "h":
+        case "H":
+          // If summary is open, close it
+          if (showSummary) {
+            e.preventDefault();
+            closeSummary();
+          }
+          break;
         case "?":
           setShowControls((prev) => !prev);
+          break;
+        case "s":
+        case "S":
+          e.preventDefault();
+          if (showSummary) {
+            closeSummary();
+          } else {
+            handleSummarize();
+          }
+          break;
+        case "j":
+          e.preventDefault();
+          setShowJumpInput(true);
+          break;
+        case "i":
+          e.preventDefault();
+          setShowContextOverlay(true);
           break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNext, goToPrevious, onExit, hasActiveSelectionInContent]);
+  }, [
+    goToNext,
+    goToPrevious,
+    onExit,
+    hasActiveSelectionInContent,
+    showJumpInput,
+    showMarkAllConfirm,
+  ]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -509,167 +593,176 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   }, []);
 
   // Handle mark as read - removes item from scroll list (except favorites)
-  const handleMarkRead = useCallback(async (feedId: string, itemId: string, shouldToggleAutoRead = false) => {
-    // Toggle auto-read mode if requested (user clicked the button)
-    if (shouldToggleAutoRead) {
-      setAutoReadMode(prev => !prev);
-    }
+  const handleMarkRead = useCallback(
+    async (feedId: string, itemId: string, shouldToggleAutoRead = false) => {
+      // Toggle auto-read mode if requested (user clicked the button)
+      if (shouldToggleAutoRead) {
+        setAutoReadMode((prev) => !prev);
+      }
 
-    try {
-      await markItemReadAuto(feedId, itemId, true);
-    } catch (error) {
-      console.warn("Failed to mark as read:", error);
-    }
+      try {
+        await markItemReadAuto(feedId, itemId, true);
+      } catch (error) {
+        console.warn("Failed to mark as read:", error);
+      }
 
-    // Find the item to check if it's favorited
-    const itemToRemove = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
+      // Find the item to check if it's favorited
+      const itemToRemove = scrollItems.find((si) => si.feed.id === feedId && si.item.id === itemId);
 
-    // Don't remove if favorited - preserve for later access
-    if (itemToRemove?.item.favorite) {
+      // Don't remove if favorited - preserve for later access
+      if (itemToRemove?.item.favorite) {
+        const itemKey = `${feedId}-${itemId}`;
+        setReadItems((prev) => new Set(prev).add(itemKey));
+        return;
+      }
+
+      // Get current index before removal
+      const itemVisibleIndex = visibleScrollItems.findIndex(
+        (si) => si.feed.id === feedId && si.item.id === itemId
+      );
+      if (itemVisibleIndex === -1) return;
+
+      // Remove item from scroll list
+      const newItems = scrollItems.filter(
+        (si) => !(si.feed.id === feedId && si.item.id === itemId)
+      );
+      setScrollItems(newItems);
+
+      // Adjust indices after removal (use functional updates to avoid stale closures)
+      if (itemVisibleIndex < currentIndex) {
+        setCurrentIndex((prev) => Math.max(0, prev - 1));
+      }
+      if (itemVisibleIndex < renderedIndex) {
+        setRenderedIndex((prev) => Math.max(0, prev - 1));
+      }
+      // If we removed the current item, stay at same index (next item slides in)
+      // No need to change currentIndex since we removed current and next becomes current
+
+      // Track in read items set
       const itemKey = `${feedId}-${itemId}`;
       setReadItems((prev) => new Set(prev).add(itemKey));
-      return;
-    }
-
-    // Get current index before removal
-    const itemVisibleIndex = visibleScrollItems.findIndex(
-      (si) => si.feed.id === feedId && si.item.id === itemId
-    );
-    if (itemVisibleIndex === -1) return;
-
-    // Remove item from scroll list
-    const newItems = scrollItems.filter(
-      (si) => !(si.feed.id === feedId && si.item.id === itemId)
-    );
-    setScrollItems(newItems);
-
-    // Adjust indices after removal (use functional updates to avoid stale closures)
-    if (itemVisibleIndex < currentIndex) {
-      setCurrentIndex(prev => Math.max(0, prev - 1));
-    }
-    if (itemVisibleIndex < renderedIndex) {
-      setRenderedIndex(prev => Math.max(0, prev - 1));
-    }
-    // If we removed the current item, stay at same index (next item slides in)
-    // No need to change currentIndex since we removed current and next becomes current
-
-    // Track in read items set
-    const itemKey = `${feedId}-${itemId}`;
-    setReadItems((prev) => new Set(prev).add(itemKey));
-  }, [scrollItems, visibleScrollItems, currentIndex, renderedIndex]);
+    },
+    [scrollItems, visibleScrollItems, currentIndex, renderedIndex]
+  );
 
   // Swipe gesture handlers with undo toast
-  const handleSwipeMarkRead = useCallback(async (feedId: string, itemId: string) => {
-    const item = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
-    if (!item) return;
+  const handleSwipeMarkRead = useCallback(
+    async (feedId: string, itemId: string) => {
+      const item = scrollItems.find((si) => si.feed.id === feedId && si.item.id === itemId);
+      if (!item) return;
 
-    const wasFavorite = item.item.favorite;
+      const wasFavorite = item.item.favorite;
 
-    // Store original state for undo
-    const undoData = {
-      action: "read" as const,
-      feedId,
-      itemId,
-      wasFavorite,
-    };
+      // Store original state for undo
+      const undoData = {
+        action: "read" as const,
+        feedId,
+        itemId,
+        wasFavorite,
+      };
 
-    // Mark as read (but don't remove favorites from scroll list)
-    try {
-      await markItemReadAuto(feedId, itemId, true);
-    } catch (error) {
-      console.warn("Failed to mark as read:", error);
-    }
-
-    // Update local state
-    setScrollItems((prev) =>
-      prev.map((si) =>
-        si.feed.id === feedId && si.item.id === itemId
-          ? { ...si, item: { ...si.item, read: true } }
-          : si
-      )
-    );
-
-    const itemKey = `${feedId}-${itemId}`;
-    setReadItems((prev) => new Set(prev).add(itemKey));
-
-    // Show undo toast
-    setUndoState({
-      visible: true,
-      ...undoData,
-      progress: 100,
-    });
-
-    // Start progress animation
-    const startTime = Date.now();
-    const duration = 3000;
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
-
-      setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
-
-      if (elapsed < duration && undoState?.visible) {
-        requestAnimationFrame(animate);
-      } else {
-        setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+      // Mark as read (but don't remove favorites from scroll list)
+      try {
+        await markItemReadAuto(feedId, itemId, true);
+      } catch (error) {
+        console.warn("Failed to mark as read:", error);
       }
-    };
 
-    requestAnimationFrame(animate);
-  }, [scrollItems, undoState?.visible]);
+      // Update local state
+      setScrollItems((prev) =>
+        prev.map((si) =>
+          si.feed.id === feedId && si.item.id === itemId
+            ? { ...si, item: { ...si.item, read: true } }
+            : si
+        )
+      );
 
-  const handleSwipeFavorite = useCallback(async (feedId: string, itemId: string) => {
-    const item = scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId);
-    if (!item) return;
+      const itemKey = `${feedId}-${itemId}`;
+      setReadItems((prev) => new Set(prev).add(itemKey));
 
-    const wasFavorite = item.item.favorite;
+      // Show undo toast
+      setUndoState({
+        visible: true,
+        ...undoData,
+        progress: 100,
+      });
 
-    // Toggle favorite
-    try {
-      await toggleItemFavoriteAuto(feedId, itemId);
-    } catch (error) {
-      console.warn("Failed to toggle favorite:", error);
-    }
+      // Start progress animation
+      const startTime = Date.now();
+      const duration = 3000;
 
-    // Update local state
-    setScrollItems((prev) =>
-      prev.map((si) =>
-        si.feed.id === feedId && si.item.id === itemId
-          ? { ...si, item: { ...si.item, favorite: !si.item.favorite } }
-          : si
-      )
-    );
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
 
-    // Show undo toast
-    setUndoState({
-      visible: true,
-      action: "favorite",
-      feedId,
-      itemId,
-      wasFavorite,
-      progress: 100,
-    });
+        setUndoState((prev) => (prev ? { ...prev, progress: remaining } : null));
 
-    // Start progress animation
-    const startTime = Date.now();
-    const duration = 3000;
+        if (elapsed < duration && undoState?.visible) {
+          requestAnimationFrame(animate);
+        } else {
+          setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+        }
+      };
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+      requestAnimationFrame(animate);
+    },
+    [scrollItems, undoState?.visible]
+  );
 
-      setUndoState((prev) => prev ? { ...prev, progress: remaining } : null);
+  const handleSwipeFavorite = useCallback(
+    async (feedId: string, itemId: string) => {
+      const item = scrollItems.find((si) => si.feed.id === feedId && si.item.id === itemId);
+      if (!item) return;
 
-      if (elapsed < duration && undoState?.visible) {
-        requestAnimationFrame(animate);
-      } else {
-        setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+      const wasFavorite = item.item.favorite;
+
+      // Toggle favorite
+      try {
+        await toggleItemFavoriteAuto(feedId, itemId);
+      } catch (error) {
+        console.warn("Failed to toggle favorite:", error);
       }
-    };
 
-    requestAnimationFrame(animate);
-  }, [scrollItems, undoState?.visible]);
+      // Update local state
+      setScrollItems((prev) =>
+        prev.map((si) =>
+          si.feed.id === feedId && si.item.id === itemId
+            ? { ...si, item: { ...si.item, favorite: !si.item.favorite } }
+            : si
+        )
+      );
+
+      // Show undo toast
+      setUndoState({
+        visible: true,
+        action: "favorite",
+        feedId,
+        itemId,
+        wasFavorite,
+        progress: 100,
+      });
+
+      // Start progress animation
+      const startTime = Date.now();
+      const duration = 3000;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
+
+        setUndoState((prev) => (prev ? { ...prev, progress: remaining } : null));
+
+        if (elapsed < duration && undoState?.visible) {
+          requestAnimationFrame(animate);
+        } else {
+          setUndoState((prev) => (prev ? { ...prev, visible: false } : null));
+        }
+      };
+
+      requestAnimationFrame(animate);
+    },
+    [scrollItems, undoState?.visible]
+  );
 
   // Touch gesture handlers for swipe actions and vertical navigation
   useEffect(() => {
@@ -722,10 +815,14 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           const currentItem = visibleScrollItems[currentIndex];
           if (currentItem) {
             // Check content scroll position first
-            const scrollableContent = container.querySelector(".rss-article-content") as HTMLElement;
+            const scrollableContent = container.querySelector(
+              ".rss-article-content"
+            ) as HTMLElement;
             if (scrollableContent) {
               const canScrollLeft = scrollableContent.scrollLeft > 0;
-              const canScrollRight = scrollableContent.scrollLeft < (scrollableContent.scrollWidth - scrollableContent.clientWidth - 10);
+              const canScrollRight =
+                scrollableContent.scrollLeft <
+                scrollableContent.scrollWidth - scrollableContent.clientWidth - 10;
 
               // If content can scroll horizontally, let it scroll
               if ((deltaX > 0 && canScrollLeft) || (deltaX < 0 && canScrollRight)) {
@@ -735,10 +832,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
             // Swipe right = mark as read
             if (deltaX > 0) {
+              triggerHaptic();
               handleSwipeMarkRead(currentItem.feed.id, currentItem.item.id);
             }
             // Swipe left = favorite
             else if (deltaX < 0) {
+              triggerHaptic();
               handleSwipeFavorite(currentItem.feed.id, currentItem.item.id);
             }
           }
@@ -749,7 +848,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           // Check content scroll position first
           const scrollableContent = container.querySelector(".rss-article-content") as HTMLElement;
           if (scrollableContent) {
-            const canScrollDown = scrollableContent.scrollTop < (scrollableContent.scrollHeight - scrollableContent.clientHeight - 10);
+            const canScrollDown =
+              scrollableContent.scrollTop <
+              scrollableContent.scrollHeight - scrollableContent.clientHeight - 10;
             const canScrollUp = scrollableContent.scrollTop > 10;
 
             // If content can still scroll, let it scroll
@@ -778,7 +879,15 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [visibleScrollItems, currentIndex, goToNext, goToPrevious, handleSwipeMarkRead, handleSwipeFavorite, hasActiveSelectionInContent]);
+  }, [
+    visibleScrollItems,
+    currentIndex,
+    goToNext,
+    goToPrevious,
+    handleSwipeMarkRead,
+    handleSwipeFavorite,
+    hasActiveSelectionInContent,
+  ]);
 
   const handleUndo = useCallback(async () => {
     if (!undoState) return;
@@ -820,6 +929,141 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
   }, [undoState, toast]);
 
+  // Haptic feedback helper
+  const triggerHaptic = useCallback(() => {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50); // Short 50ms vibration
+    }
+  }, []);
+
+  // Jump to specific article index
+  const handleJumpToIndex = useCallback(() => {
+    const target = parseInt(jumpTargetIndex, 10) - 1; // Convert to 0-based index
+    if (isNaN(target) || target < 0 || target >= visibleScrollItems.length) {
+      toast.error(
+        "Invalid article number",
+        `Please enter a number between 1 and ${visibleScrollItems.length}`
+      );
+      return;
+    }
+
+    setIsTransitioning(true);
+    setCurrentIndex(target);
+    setTimeout(() => {
+      setRenderedIndex(target);
+      setIsTransitioning(false);
+    }, 300);
+    setShowJumpInput(false);
+    setJumpTargetIndex("");
+  }, [jumpTargetIndex, visibleScrollItems.length, toast]);
+
+  // Progress bar click handler
+  const handleProgressBarClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!progressBarRef.current || visibleScrollItems.length === 0) return;
+
+      const rect = progressBarRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = clickX / rect.width;
+      const targetIndex = Math.floor(percentage * visibleScrollItems.length);
+
+      const clampedIndex = Math.max(0, Math.min(visibleScrollItems.length - 1, targetIndex));
+
+      setIsTransitioning(true);
+      setCurrentIndex(clampedIndex);
+      setTimeout(() => {
+        setRenderedIndex(clampedIndex);
+        setIsTransitioning(false);
+      }, 300);
+    },
+    [visibleScrollItems.length]
+  );
+
+  // Mark all as read handler
+  const handleMarkAllRead = useCallback(async () => {
+    setIsMarkingAllRead(true);
+    const itemsToMark = visibleScrollItems.filter(
+      (si) => !si.item.favorite && !si.item.read && !readItems.has(`${si.feed.id}-${si.item.id}`)
+    );
+
+    try {
+      // Mark all items as read
+      await Promise.all(itemsToMark.map((si) => markItemReadAuto(si.feed.id, si.item.id, true)));
+
+      // Update local state
+      const newReadItems = new Set(readItems);
+      itemsToMark.forEach((si) => {
+        newReadItems.add(`${si.feed.id}-${si.item.id}`);
+      });
+      setReadItems(newReadItems);
+
+      // Remove non-favorite items from scroll list
+      const favoriteIds = new Set(
+        visibleScrollItems
+          .filter((si) => si.item.favorite)
+          .map((si) => `${si.feed.id}-${si.item.id}`)
+      );
+      setScrollItems((prev) => prev.filter((si) => favoriteIds.has(`${si.feed.id}-${si.item.id}`)));
+
+      toast.success("Marked all as read", `${itemsToMark.length} articles marked as read`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            // Undo: mark all as unread
+            await Promise.all(
+              itemsToMark.map((si) => markItemReadAuto(si.feed.id, si.item.id, false))
+            );
+            // Reload feeds to restore items
+            const loadedFeeds = await getSubscribedFeedsAuto();
+            let allItems: RSSScrollItem[] = [];
+            loadedFeeds.forEach((feed) => {
+              feed.items.forEach((item, idx) => {
+                allItems.push({ feed, item, index: idx });
+              });
+            });
+            allItems.sort((a, b) => calculateEngagementScore(b) - calculateEngagementScore(a));
+            const interleaved = interleaveFeedItems(allItems);
+            setScrollItems(interleaved);
+            toast.success("Undo", "Articles restored");
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+      toast.error(
+        "Failed to mark all as read",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    } finally {
+      setIsMarkingAllRead(false);
+      setShowMarkAllConfirm(false);
+    }
+  }, [visibleScrollItems, readItems, toast]);
+
+  // Enhanced favorite toggle with animation
+  const handleToggleFavoriteAnimated = useCallback(
+    async (feedId: string, itemId: string) => {
+      const itemKey = `${feedId}-${itemId}`;
+      const currentItem = visibleScrollItems.find(
+        (si) => si.feed.id === feedId && si.item.id === itemId
+      );
+      const willBeFavorite = !currentItem?.item.favorite;
+
+      // Trigger animation
+      setFavoriteAnimation(itemKey);
+      setTimeout(() => setFavoriteAnimation(null), 500);
+
+      // Trigger haptic feedback when favoriting
+      if (willBeFavorite) {
+        triggerHaptic();
+      }
+
+      // Call original handler
+      await handleToggleFavorite(feedId, itemId);
+    },
+    [visibleScrollItems, handleToggleFavorite, triggerHaptic]
+  );
+
   // Handle text selection
   const updateSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -834,8 +1078,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const container = contentRef.current;
     const anchorNode = selection?.anchorNode ?? null;
     const focusNode = selection?.focusNode ?? null;
-    const selectionInContainer = !!container
-      && ((anchorNode && container.contains(anchorNode)) || (focusNode && container.contains(focusNode)));
+    const selectionInContainer =
+      !!container &&
+      ((anchorNode && container.contains(anchorNode)) ||
+        (focusNode && container.contains(focusNode)));
     if (!selectionInContainer) {
       setSelectedText("");
       selectedTextRef.current = "";
@@ -914,7 +1160,15 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         error instanceof Error ? error.message : "An error occurred"
       );
     }
-  }, [visibleScrollItems, renderedIndex, selectedText, documents, addDocument, updateDocument, toast]);
+  }, [
+    visibleScrollItems,
+    renderedIndex,
+    selectedText,
+    documents,
+    addDocument,
+    updateDocument,
+    toast,
+  ]);
 
   // Handle extract created
   const handleExtractCreated = useCallback(() => {
@@ -939,6 +1193,19 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     localStorage.setItem("rss-assistant-position", assistantPosition);
   }, [assistantPosition]);
 
+  // Save modern summary settings
+  useEffect(() => {
+    localStorage.setItem("rss-summary-length", modernSummaryLength);
+  }, [modernSummaryLength]);
+
+  useEffect(() => {
+    localStorage.setItem("rss-summary-focus", modernSummaryFocus);
+  }, [modernSummaryFocus]);
+
+  useEffect(() => {
+    localStorage.setItem("rss-summary-display-mode", modernSummaryMode);
+  }, [modernSummaryMode]);
+
   // Typewriter effect for summary
   useEffect(() => {
     if (!showSummary || summaryMode !== "terminal" || !summaryText) return;
@@ -950,7 +1217,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const typeChar = () => {
       if (currentIndex < text.length) {
         const char = text[currentIndex];
-        setDisplayedSummary(prev => prev + char);
+        setDisplayedSummary((prev) => prev + char);
         currentIndex++;
         // Random typing speed for realistic effect
         const delay = Math.random() * 15 + 5;
@@ -965,63 +1232,145 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   // Helper to strip HTML and convert to markdown-like text
   const htmlToText = (html: string): string => {
     // Create a temporary element to parse HTML
-    const tmp = document.createElement('div');
+    const tmp = document.createElement("div");
     tmp.innerHTML = html;
 
     // Get text content
-    let text = tmp.textContent || tmp.innerText || '';
+    let text = tmp.textContent || tmp.innerText || "";
 
     // Clean up whitespace
-    text = text.replace(/\s+/g, ' ').trim();
+    text = text.replace(/\s+/g, " ").trim();
 
     return text;
   };
 
-  // Handle summarize
-  const handleSummarize = useCallback(async () => {
-    const currentItem = visibleScrollItems[renderedIndex];
-    if (!currentItem || isSummarizing) return;
+  // Handle summarize with new parameters and caching
+  const handleSummarize = useCallback(
+    async (params?: { length?: SummaryLength; focus?: SummaryFocus }) => {
+      const currentItem = visibleScrollItems[renderedIndex];
+      if (!currentItem || isSummarizing) return;
 
-    const rawContent = currentItem.item.content || currentItem.item.description || "";
-    // Convert HTML to clean text
-    const content = htmlToText(rawContent);
+      const rawContent = currentItem.item.content || currentItem.item.description || "";
+      // Convert HTML to clean text
+      const content = htmlToText(rawContent);
 
-    if (!content.trim()) {
-      toast.error(t("queueScroll.noContentToSummarize"));
-      return;
-    }
+      if (!content.trim()) {
+        toast.error(t("queueScroll.noContentToSummarize"));
+        return;
+      }
 
-    // Show inline terminal panel
-    setIsSummarizing(true);
-    setSummaryText("");
-    setDisplayedSummary("");
-    setShowSummary(true);
+      const length = params?.length || modernSummaryLength;
+      const focus = params?.focus || modernSummaryFocus;
 
-    // Check if we're in Tauri mode
-    if (!isTauri()) {
-      // Browser mode - show placeholder summary
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
-      const excerpt = sentences.slice(0, 3).join(". ") + ".";
-      const summary = `## Quick Summary\n\n${excerpt}\n\n---\n\n*Note: AI summarization requires the desktop app for full functionality. This is an extractive preview.*`;
+      // Check cache first
+      const articleId = `${currentItem.feed.id}-${currentItem.item.id}`;
+      const cached = getCachedSummary(articleId, content);
 
-      setSummaryText(summary);
-      setDisplayedSummary(summary);
-      setIsSummarizing(false);
-      return;
-    }
+      // If we have a valid cached summary with matching parameters, use it
+      if (cached && cached.length === length && cached.focus === focus) {
+        setSummaryText(cached.content);
+        setShowSummary(true);
+        return;
+      }
 
-    try {
-      // Use the summarizeContent function (Tauri only)
-      const summary = await summarizeContent(content, 200);
-      setSummaryText(summary);
-    } catch (error) {
-      console.error("Failed to summarize:", error);
-      toast.error(t("queueScroll.failedSummarize"), error instanceof Error ? error.message : "Unknown error");
-      setShowSummary(false);
-    } finally {
-      setIsSummarizing(false);
-    }
-  }, [visibleScrollItems, renderedIndex, isSummarizing, toast]);
+      // Show panel
+      setIsSummarizing(true);
+      setSummaryText("");
+      setDisplayedSummary("");
+      setShowSummary(true);
+      setLoadingStage("analyzing");
+      setLoadingProgress(SUMMARY_LOADING_STAGES.analyzing.progress);
+
+      // Check if we're in Tauri mode
+      if (!isTauri()) {
+        // Browser mode - show placeholder summary
+        setLoadingStage("extracting");
+        setLoadingProgress(SUMMARY_LOADING_STAGES.extracting.progress);
+
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate processing
+
+        const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 20);
+        const excerpt = sentences.slice(0, 3).join(". ") + ".";
+        const summary = `## Quick Summary\n\n${excerpt}\n\n---\n\n*Note: AI summarization requires the desktop app for full functionality. This is an extractive preview.*`;
+
+        setLoadingStage("synthesizing");
+        setLoadingProgress(SUMMARY_LOADING_STAGES.synthesizing.progress);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        setSummaryText(summary);
+        setLoadingStage("complete");
+        setLoadingProgress(100);
+        setIsSummarizing(false);
+
+        // Cache the result
+        cacheSummary(
+          articleId,
+          content,
+          summary,
+          { length, focus },
+          {
+            articleTitle: currentItem.item.title,
+            articleUrl: currentItem.item.link,
+          }
+        );
+        return;
+      }
+
+      try {
+        // Simulate stages for better UX
+        setLoadingStage("analyzing");
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        setLoadingProgress(SUMMARY_LOADING_STAGES.analyzing.progress);
+
+        setLoadingStage("extracting");
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        setLoadingProgress(SUMMARY_LOADING_STAGES.extracting.progress);
+
+        // Use the summarizeContent function (Tauri only) with selected length
+        const tokenLimit = SUMMARY_LENGTH_CONFIG[length].tokens;
+        const summary = await summarizeContent(content, tokenLimit);
+
+        setLoadingStage("synthesizing");
+        setLoadingProgress(SUMMARY_LOADING_STAGES.synthesizing.progress);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        setSummaryText(summary);
+        setLoadingStage("complete");
+        setLoadingProgress(100);
+
+        // Cache the result
+        cacheSummary(
+          articleId,
+          content,
+          summary,
+          { length, focus },
+          {
+            articleTitle: currentItem.item.title,
+            articleUrl: currentItem.item.link,
+          }
+        );
+      } catch (error) {
+        console.error("Failed to summarize:", error);
+        toast.error(
+          t("queueScroll.failedSummarize"),
+          error instanceof Error ? error.message : "Unknown error"
+        );
+        setSummaryText("");
+      } finally {
+        setIsSummarizing(false);
+      }
+    },
+    [
+      visibleScrollItems,
+      renderedIndex,
+      isSummarizing,
+      toast,
+      modernSummaryLength,
+      modernSummaryFocus,
+      getCachedSummary,
+      cacheSummary,
+    ]
+  );
 
   // Close summary
   const closeSummary = useCallback(() => {
@@ -1032,7 +1381,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
   // Switch assistant position
   const toggleAssistantPosition = useCallback(() => {
-    setAssistantPosition(prev => prev === "left" ? "right" : "left");
+    setAssistantPosition((prev) => (prev === "left" ? "right" : "left"));
   }, []);
 
   // Panel resize handlers
@@ -1053,9 +1402,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const delta = assistantPosition === "right"
-        ? resizeStartXRef.current - e.clientX  // dragging left increases width
-        : e.clientX - resizeStartXRef.current; // dragging right increases width
+      const delta =
+        assistantPosition === "right"
+          ? resizeStartXRef.current - e.clientX // dragging left increases width
+          : e.clientX - resizeStartXRef.current; // dragging right increases width
       const newWidth = Math.max(240, Math.min(600, resizeStartWidthRef.current + delta));
       setPanelWidth(newWidth);
       currentWidthRef.current = newWidth; // Update ref immediately
@@ -1081,9 +1431,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const currentItem = visibleScrollItems[currentIndex];
   const renderedItem = visibleScrollItems[renderedIndex];
 
-  const progress = visibleScrollItems.length > 0
-    ? ((currentIndex + 1) / visibleScrollItems.length) * 100
-    : 0;
+  const progress =
+    visibleScrollItems.length > 0 ? ((currentIndex + 1) / visibleScrollItems.length) * 100 : 0;
 
   if (visibleScrollItems.length === 0) {
     return (
@@ -1097,9 +1446,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           {favoritesOnly ? t("queueScroll.noFavoriteArticles") : t("queueScroll.noArticlesYet")}
         </p>
         <p className="text-sm mb-4">
-          {favoritesOnly
-            ? t("queueScroll.starToSee")
-            : t("queueScroll.loadArticles")}
+          {favoritesOnly ? t("queueScroll.starToSee") : t("queueScroll.loadArticles")}
         </p>
         {favoritesOnly && (
           <button
@@ -1120,16 +1467,22 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full bg-background overflow-hidden relative"
-    >
-      {/* Progress bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-muted z-50">
+    <div ref={containerRef} className="h-full w-full bg-background overflow-hidden relative">
+      {/* Clickable Progress bar */}
+      <div
+        ref={progressBarRef}
+        onClick={handleProgressBarClick}
+        className="absolute top-0 left-0 right-0 h-1.5 bg-muted z-50 cursor-pointer hover:h-2 transition-all"
+        title="Click to jump to position"
+      >
         <div
           className="h-full bg-orange-500 transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
+        {/* Progress tooltip on hover */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity text-xs text-muted-foreground bg-background/90 px-2 py-1 rounded pointer-events-none">
+          {Math.round(progress)}%
+        </div>
       </div>
 
       {/* Header controls */}
@@ -1151,8 +1504,17 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             <div className="flex items-center gap-2">
               <Rss className="w-5 h-5 text-orange-500" />
               <span className="font-medium text-foreground">
-                {visibleScrollItems.length === 0 ? 0 : currentIndex + 1} / {visibleScrollItems.length}
+                {visibleScrollItems.length === 0 ? 0 : currentIndex + 1} /{" "}
+                {visibleScrollItems.length}
               </span>
+              {/* Jump to index button */}
+              <button
+                onClick={() => setShowJumpInput(true)}
+                className="ml-1 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                title="Jump to article number (press 'j')"
+              >
+                <span className="text-xs font-mono">#</span>
+              </button>
             </div>
             <button
               onClick={() => setFavoritesOnly((prev) => !prev)}
@@ -1166,13 +1528,24 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             >
               {favoritesOnly ? t("queueScroll.favorites") : t("queueScroll.allArticles")}
             </button>
+            {/* Mark All Read button */}
+            {!favoritesOnly && (
+              <button
+                onClick={() => setShowMarkAllConfirm(true)}
+                disabled={isMarkingAllRead}
+                className="ml-1 p-1.5 text-muted-foreground hover:text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
+                title="Mark all as read"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {currentItem && (
             <div className="flex items-center gap-2">
               {/* Summarize button */}
               <button
-                onClick={handleSummarize}
+                onClick={() => handleSummarize()}
                 disabled={isSummarizing}
                 className={cn(
                   "p-2 rounded-lg transition-colors",
@@ -1191,7 +1564,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   "p-2 rounded-lg transition-all duration-200 relative",
                   autoReadMode
                     ? "bg-green-500/20 text-green-500 ring-2 ring-green-500/50"
-                    : currentItem.item.read || readItems.has(`${currentItem.feed.id}-${currentItem.item.id}`)
+                    : currentItem.item.read ||
+                        readItems.has(`${currentItem.feed.id}-${currentItem.item.id}`)
                       ? "text-green-500"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
@@ -1203,20 +1577,41 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 )}
               </button>
               <button
-                onClick={() => handleToggleFavorite(currentItem.feed.id, currentItem.item.id)}
+                onClick={() =>
+                  handleToggleFavoriteAnimated(currentItem.feed.id, currentItem.item.id)
+                }
                 className={cn(
-                  "p-2 rounded-lg transition-colors",
+                  "p-2 rounded-lg transition-all duration-200 relative",
                   currentItem.item.favorite
                     ? "text-yellow-500"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
                 title={currentItem.item.favorite ? "Remove favorite" : "Add to favorites"}
               >
-                {currentItem.item.favorite ? (
-                  <Star className="w-5 h-5 fill-yellow-500" />
-                ) : (
-                  <StarOff className="w-5 h-5" />
+                <Star
+                  className={cn(
+                    "w-5 h-5 transition-transform duration-300",
+                    currentItem.item.favorite && "fill-yellow-500",
+                    favoriteAnimation === `${currentItem.feed.id}-${currentItem.item.id}` &&
+                      "scale-125"
+                  )}
+                />
+                {currentItem.item.favorite && (
+                  <span className="absolute inset-0 rounded-lg ring-2 ring-yellow-500/50 animate-ping opacity-75" />
                 )}
+              </button>
+              {/* Info button for article context */}
+              <button
+                onClick={() => setShowContextOverlay(true)}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  showContextOverlay
+                    ? "text-blue-500 bg-blue-100 dark:bg-blue-900/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+                title="Article info (press 'i')"
+              >
+                <Info className="w-5 h-5" />
               </button>
               <a
                 href={currentItem.item.link}
@@ -1304,6 +1699,31 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   {renderedItem.item.title}
                 </h1>
 
+                {/* Summary Badge - shown when summary is available but panel is closed */}
+                {renderedItem &&
+                  !showSummary &&
+                  isCached(
+                    `${renderedItem.feed.id}-${renderedItem.item.id}`,
+                    renderedItem.item.content || renderedItem.item.description || ""
+                  ) && (
+                    <SummaryBadge
+                      isVisible={true}
+                      onClick={() => {
+                        const content =
+                          renderedItem.item.content || renderedItem.item.description || "";
+                        const articleId = `${renderedItem.feed.id}-${renderedItem.item.id}`;
+                        const cached = getCachedSummary(articleId, content);
+                        if (cached) {
+                          setSummaryText(cached.content);
+                          setModernSummaryLength(cached.length);
+                          setModernSummaryFocus(cached.focus);
+                        }
+                        setShowSummary(true);
+                      }}
+                      className="mt-2"
+                    />
+                  )}
+
                 {/* Categories */}
                 {renderedItem.item.categories.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-4">
@@ -1375,7 +1795,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 {currentIndex < visibleScrollItems.length - 1 && (
                   <div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground">
                     <Sparkles className="w-4 h-4" />
-                    <span>Up next: {visibleScrollItems[currentIndex + 1]?.item.title.substring(0, 50)}
+                    <span>
+                      Up next: {visibleScrollItems[currentIndex + 1]?.item.title.substring(0, 50)}
                       {visibleScrollItems[currentIndex + 1]?.item.title.length > 50 ? "..." : ""}
                     </span>
                   </div>
@@ -1386,75 +1807,51 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         )}
       </div>
 
-      {/* Inline Terminal Summary Panel */}
-      {showSummary && summaryMode === "terminal" && renderedItem && (
-        <div
-          className={cn(
-            "fixed top-28 bottom-24 z-10 bg-[#1a1a1a] border-2 border-[#ffb000] rounded-lg shadow-2xl overflow-hidden flex flex-col transition-all duration-300",
-            assistantPosition === "left" ? "left-4" : "right-4"
-          )}
-          style={{ width: `${panelWidth}px` }}
-        >
-          {/* Resize handle - positioned on the inner edge */}
-          <div
-            className={cn(
-              "absolute top-0 bottom-0 w-2 cursor-col-resize z-20 hover:bg-[#ffb000]/20 transition-colors",
-              assistantPosition === "left" ? "right-0" : "left-0"
-            )}
-            onMouseDown={handleResizeStart}
-            title="Drag to resize"
-          >
-            {/* Visual indicator */}
-            <div className={cn(
-              "absolute top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-[#ffb000]/30",
-              assistantPosition === "left" ? "right-0.5" : "left-0.5"
-            )} />
-          </div>
-
-          {/* Terminal header */}
-          <div className="flex items-center justify-between px-3 py-2 bg-[#2a2a2a] border-b border-[#ffb000]/30 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="ml-2 text-[#ffb000] font-mono text-xs">AI_SUMMARY.exe</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={toggleAssistantPosition}
-                className="px-1.5 py-0.5 text-xs text-[#ffb000]/70 hover:text-[#ffb000] font-mono transition-colors"
-                title="Move panel"
-              >
-                ↔
-              </button>
-              <button
-                onClick={closeSummary}
-                className="px-1.5 py-0.5 text-xs text-[#ffb000]/70 hover:text-[#ffb000] font-mono transition-colors"
-              >
-                [X]
-              </button>
-            </div>
-          </div>
-
-          {/* Terminal content */}
-          <div className="flex-1 p-4 font-mono text-[#ffb000] overflow-y-auto text-sm leading-relaxed">
-            {isSummarizing && displayedSummary === "" && (
-              <div className="animate-pulse">Initializing neural network...</div>
-            )}
-            <div className="whitespace-pre-wrap">
-              {displayedSummary}
-              {isSummarizing && <span className="animate-pulse">▋</span>}
-            </div>
-          </div>
-
-          {/* Terminal footer */}
-          <div className="px-3 py-1.5 bg-[#2a2a2a] border-t border-[#ffb000]/30 text-[#ffb000]/50 text-[10px] font-mono truncate">
-            {settings?.ai?.model || 'AI'} • {settings?.ai?.provider || 'Provider'}
-          </div>
-        </div>
+      {/* Modern Summary Panel */}
+      {renderedItem && (
+        <ModernSummaryPanel
+          isOpen={showSummary}
+          content={summaryText}
+          mode={modernSummaryMode}
+          length={modernSummaryLength}
+          focus={modernSummaryFocus}
+          position={assistantPosition}
+          width={panelWidth}
+          isLoading={isSummarizing}
+          loadingProgress={loadingProgress}
+          loadingStage={SUMMARY_LOADING_STAGES[loadingStage].label}
+          onClose={closeSummary}
+          onModeChange={setModernSummaryMode}
+          onLengthChange={(length) => {
+            setModernSummaryLength(length);
+            // Regenerate if we have content and params changed
+            if (summaryText && !isSummarizing) {
+              handleSummarize({ length, focus: modernSummaryFocus });
+            }
+          }}
+          onFocusChange={(focus) => {
+            setModernSummaryFocus(focus);
+            // Regenerate if we have content and params changed
+            if (summaryText && !isSummarizing) {
+              handleSummarize({ length: modernSummaryLength, focus });
+            }
+          }}
+          onPositionToggle={toggleAssistantPosition}
+          onWidthChange={setPanelWidth}
+          onRegenerate={() => handleSummarize()}
+          footerActions={
+            summaryText ? (
+              <SummaryActions
+                content={summaryText}
+                articleTitle={renderedItem.item.title}
+                articleUrl={renderedItem.item.link}
+              />
+            ) : undefined
+          }
+        />
       )}
 
-      {/* Assistant Panel - when summaryMode === "assistant" */}
+      {/* Legacy Assistant Panel - only shown when in assistant chat mode */}
       {showSummary && summaryMode === "assistant" && isAssistantVisible && (
         <div
           className={cn(
@@ -1471,10 +1868,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             )}
             onMouseDown={handleResizeStart}
           >
-            <div className={cn(
-              "absolute top-1/2 -translate-y-1/2 w-1 h-8 bg-border group-hover:bg-primary/50 rounded",
-              assistantPosition === "left" ? "right-0" : "left-0"
-            )} />
+            <div
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 w-1 h-8 bg-border group-hover:bg-primary/50 rounded",
+                assistantPosition === "left" ? "right-0" : "left-0"
+              )}
+            />
           </div>
 
           <AssistantPanel
@@ -1497,7 +1896,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       >
         {/* Summary toggle */}
         <button
-          onClick={() => showSummary ? closeSummary() : handleSummarize()}
+          onClick={() => (showSummary ? closeSummary() : handleSummarize())}
           disabled={isSummarizing}
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm",
@@ -1508,7 +1907,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           title={showSummary ? "Close summary" : "Generate AI summary"}
         >
           <Sparkles className="w-4 h-4" />
-          <span>{isSummarizing ? "Summarizing..." : showSummary ? "Close Summary" : "Summarize"}</span>
+          <span>
+            {isSummarizing ? "Summarizing..." : showSummary ? "Close Summary" : "Summarize"}
+          </span>
         </button>
 
         {/* Position toggle (only when summary is shown) */}
@@ -1546,7 +1947,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           showControls ? "opacity-100" : "opacity-0"
         )}
       >
-        Scroll or use ↑↓ arrows • Mark as read (✓) enables auto-read • Toggle Favorites Only in header
+        ↑↓ arrows to navigate • i for info • j to jump • Mark as read (✓) enables auto-read
       </div>
 
       {/* Floating Extract Button */}
@@ -1583,14 +1984,116 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         />
       )}
 
+      {/* Jump to Index Dialog */}
+      {showJumpInput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card border border-border rounded-xl p-6 w-80 shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">Jump to Article</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Enter article number (1-{visibleScrollItems.length})
+            </p>
+            <input
+              type="number"
+              min={1}
+              max={visibleScrollItems.length}
+              value={jumpTargetIndex}
+              onChange={(e) => setJumpTargetIndex(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleJumpToIndex();
+                if (e.key === "Escape") {
+                  setShowJumpInput(false);
+                  setJumpTargetIndex("");
+                }
+              }}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground mb-4 focus:outline-none focus:ring-2 focus:ring-primary/60"
+              placeholder={`1-${visibleScrollItems.length}`}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowJumpInput(false);
+                  setJumpTargetIndex("");
+                }}
+                className="px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleJumpToIndex}
+                disabled={!jumpTargetIndex}
+                className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                Jump
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark All Read Confirmation */}
+      {showMarkAllConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card border border-border rounded-xl p-6 w-96 shadow-xl">
+            <h3 className="text-lg font-semibold mb-2">Mark All as Read?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This will mark all{" "}
+              {
+                visibleScrollItems.filter(
+                  (si) =>
+                    !si.item.favorite &&
+                    !si.item.read &&
+                    !readItems.has(`${si.feed.id}-${si.item.id}`)
+                ).length
+              }{" "}
+              unread articles as read. Favorited articles will be preserved.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowMarkAllConfirm(false)}
+                className="px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkAllRead}
+                disabled={isMarkingAllRead}
+                className="px-4 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                {isMarkingAllRead ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Marking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Mark All Read
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Article Context Overlay */}
+      {showContextOverlay && currentItem && (
+        <ArticleContextOverlay
+          feed={currentItem.feed}
+          item={currentItem.item}
+          isOpen={showContextOverlay}
+          onClose={() => setShowContextOverlay(false)}
+          onExpandFullContent={() => setFullContentExpanded(!fullContentExpanded)}
+          onOpenOriginal={() => handleOpenOriginal(currentItem.item.link)}
+          hasFullContent={!!currentItem.item.fullContent}
+          isFullContentExpanded={fullContentExpanded}
+        />
+      )}
+
       {/* Undo Toast */}
       {undoState && undoState.visible && (
-        <div
-          className={cn(
-            "undo-toast",
-            undoState.visible && "visible"
-          )}
-        >
+        <div className={cn("undo-toast", undoState.visible && "visible")}>
           <div
             className={cn(
               "undo-toast-icon",
@@ -1604,17 +2107,20 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             )}
           </div>
           <div className="undo-toast-message">
-            <span>{undoState.action === "read" ? "Marked as read" : undoState.wasFavorite ? "Unfavorited" : "Favorited"}</span>
+            <span>
+              {undoState.action === "read"
+                ? "Marked as read"
+                : undoState.wasFavorite
+                  ? "Unfavorited"
+                  : "Favorited"}
+            </span>
           </div>
           <button onClick={handleUndo} className="undo-toast-action">
             <Undo className="w-4 h-4 mr-1" />
             Undo
           </button>
           <div className="undo-toast-progress">
-            <div
-              className="undo-toast-progress-bar"
-              style={{ width: `${undoState.progress}%` }}
-            />
+            <div className="undo-toast-progress-bar" style={{ width: `${undoState.progress}%` }} />
           </div>
         </div>
       )}
