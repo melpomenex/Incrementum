@@ -1,6 +1,7 @@
-import { Dict } from "./en";
+import { Dict, en } from "./en";
 
 export const ja: Dict = {
+  ...en,
   "nav.continue": "続きを読む",
   "nav.dashboard": "ダッシュボード",
   "nav.documents": "ドキュメント",

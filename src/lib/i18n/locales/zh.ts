@@ -1,6 +1,7 @@
-import { Dict } from "./en";
+import { Dict, en } from "./en";
 
 export const zh: Dict = {
+  ...en,
   "nav.continue": "继续阅读",
   "nav.dashboard": "仪表盘",
   "nav.documents": "文档",

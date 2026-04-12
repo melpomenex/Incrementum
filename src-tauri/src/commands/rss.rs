@@ -129,13 +129,14 @@ pub async fn create_rss_feed(
         is_active: true,
         date_added: now,
         auto_queue: auto_queue.unwrap_or(false),
+        auto_fetch_full_content: Some("manual".to_string()),
     };
 
     // Insert feed into database
     sqlx::query(
         r#"
-        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue, auto_fetch_full_content)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         "#,
     )
     .bind(&feed.id)
@@ -148,6 +149,7 @@ pub async fn create_rss_feed(
     .bind(feed.is_active)
     .bind(&feed.date_added)
     .bind(feed.auto_queue)
+    .bind(&feed.auto_fetch_full_content)
     .execute(repo.pool())
     .await
     .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create RSS feed: {}", e)))?;
@@ -931,12 +933,13 @@ pub async fn create_rss_feed_http(
         is_active: true,
         date_added: now,
         auto_queue: auto_queue.unwrap_or(false),
+        auto_fetch_full_content: Some("manual".to_string()),
     };
 
     sqlx::query(
         r#"
-        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue, auto_fetch_full_content)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         "#,
     )
     .bind(&feed.id)
@@ -949,6 +952,7 @@ pub async fn create_rss_feed_http(
     .bind(feed.is_active)
     .bind(&feed.date_added)
     .bind(feed.auto_queue)
+    .bind(&feed.auto_fetch_full_content)
     .execute(repo.pool())
     .await
     .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create RSS feed: {}", e)))?;
@@ -976,6 +980,7 @@ pub async fn get_rss_feeds_http(repo: &Repository) -> Result<Vec<RssFeed>> {
             is_active: row.get("is_active"),
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
+            auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
         });
     }
 
@@ -1002,6 +1007,7 @@ pub async fn get_rss_feed_http(id: &str, repo: &Repository) -> Result<Option<Rss
             is_active: row.get("is_active"),
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
+            auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
         })),
         None => Ok(None),
     }
@@ -1216,9 +1222,23 @@ pub async fn fetch_article_full_content(
         }
     };
 
-    // Extract readable content using Readability
-    let readability = Readability::new(&html, &article_url, None);
-    let (title, content, _) = readability.parse();
+    // Extract readable content using Readability and convert it to owned data
+    // before awaiting on the database write, since Readability internals are not Send.
+    let (content, excerpt) = {
+        let mut readability = Readability::new();
+        let (content_node, _metadata) = readability.parse(&html);
+        let content = content_node.to_string();
+
+        let plain_text = html2text::from_read(content.as_bytes(), 80)
+            .unwrap_or_else(|_| content_node.text_contents());
+        let excerpt = if plain_text.len() > 200 {
+            Some(format!("{}...", &plain_text[..200]))
+        } else {
+            Some(plain_text)
+        };
+
+        (content, excerpt)
+    };
 
     if content.is_empty() {
         return Ok(FullContentResponse {
@@ -1230,14 +1250,6 @@ pub async fn fetch_article_full_content(
             error: Some("Could not extract readable content from page".to_string()),
         });
     }
-
-    // Generate excerpt (first 200 chars of plain text)
-    let plain_text = html2text::from_read(content.as_bytes(), 80);
-    let excerpt = if plain_text.len() > 200 {
-        Some(format!("{}...", &plain_text[..200]))
-    } else {
-        Some(plain_text)
-    };
 
     let fetched_at = Utc::now().to_rfc3339();
 
