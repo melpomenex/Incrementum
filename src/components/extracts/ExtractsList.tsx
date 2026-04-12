@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye, PencilLine } from "lucide-react";
-import { getExtracts, type Extract } from "../../api/extracts";
+import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye, PencilLine, PanelsTopLeft } from "lucide-react";
+import { getExtracts, updateExtract, type Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { bulkGenerateCards } from "../../api/extract-bulk";
 import { useUndoableOperations } from "../../api/undoable";
@@ -11,6 +11,7 @@ import { GeneratedCardsPopover } from "../common/GeneratedCardsPopover";
 import { RichContentRenderer } from "../common/RichContentRenderer";
 import { useI18n } from "../../lib/i18n";
 import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
+import { EditableContentPalette } from "../common/EditableContentPalette";
 
 interface ExtractsListProps {
   documentId: string;
@@ -37,6 +38,7 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
 
   // Dialog states
   const [editingExtract, setEditingExtract] = useState<Extract | null>(null);
+  const [paletteExtract, setPaletteExtract] = useState<Extract | null>(null);
   const [deletingExtract, setDeletingExtract] = useState<Extract | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -119,6 +121,10 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   const handleEdit = (extract: Extract) => {
     setEditingExtract(extract);
     setIsEditDialogOpen(true);
+  };
+
+  const handlePalette = (extract: Extract) => {
+    setPaletteExtract(extract);
   };
 
   const handleDelete = (extract: Extract) => {
@@ -418,6 +424,13 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => handlePalette(extract)}
+                  className="p-1.5 rounded hover:bg-muted transition-colors"
+                  title="Open extract palette"
+                >
+                  <PanelsTopLeft className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
                   onClick={() => handleEdit(extract)}
                   className="p-1.5 rounded hover:bg-muted transition-colors"
                   title={t("extracts.editExtract")}
@@ -608,6 +621,31 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         onClose={() => setIsManualStudioOpen(false)}
         seed={manualStudioSeed}
       />
+      {paletteExtract && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <EditableContentPalette
+            title={paletteExtract.page_title || paletteExtract.content.slice(0, 80) || "Extract"}
+            badge="Extract Palette"
+            content={paletteExtract.content}
+            notes={paletteExtract.notes ?? ""}
+            contentKind="markdown"
+            sourceUrl={paletteExtract.source_url}
+            placeholder="Refine the extract text here..."
+            notesPlaceholder="Add context, questions, or your own gloss..."
+            emptyPreviewMessage="The extract preview will appear here."
+            onClose={() => setPaletteExtract(null)}
+            onSave={async ({ content, notes }) => {
+              const updated = await updateExtract({
+                id: paletteExtract.id,
+                content,
+                note: notes,
+              });
+              setExtracts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+              setPaletteExtract(updated);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
