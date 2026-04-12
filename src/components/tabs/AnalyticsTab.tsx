@@ -10,6 +10,7 @@ import { DashboardProgressRings } from "../../components/analytics/ProgressRings
 import { ReviewHeatmap } from "../../components/analytics/ReviewHeatmap";
 import { ScheduleVisualization } from "../../components/analytics/ScheduleVisualization";
 import { ForgettingCurvePanel } from "../../components/analytics/ForgettingCurvePanel";
+import { WorkloadCalendar } from "../../components/analytics/WorkloadCalendar";
 import {
   BookOpen,
   Clock,
@@ -268,6 +269,9 @@ export function AnalyticsTab() {
 
       {/* Due Forecast */}
       <ScheduleVisualization />
+
+      {/* Workload Calendar */}
+      <WorkloadCalendar />
 
       {/* Forgetting Curves */}
       <ForgettingCurvePanel averageStabilityDays={memoryStats?.average_stability} />

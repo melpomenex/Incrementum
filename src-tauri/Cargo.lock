@@ -3696,6 +3696,7 @@ dependencies = [
  "md5",
  "once_cell",
  "pdf-extract",
+ "quick-xml 0.37.5",
  "rand 0.8.5",
  "readable-readability",
  "regex",

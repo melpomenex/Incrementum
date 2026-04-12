@@ -11,6 +11,7 @@ mod generator;
 mod algorithms;
 mod ai;
 mod anki;
+mod supermemo_import;
 mod youtube;
 mod sync;
 mod integrations;
@@ -414,6 +415,8 @@ pub fn run() {
             commands::get_activity_data,
             commands::get_category_stats,
             commands::get_leech_dashboard,
+            commands::get_workload_data,
+            commands::get_workload_day_details,
             // YouTube commands
             youtube::check_ytdlp,
             youtube::setup_ytdlp_auto,
@@ -623,6 +626,9 @@ pub fn run() {
             // Anki import commands
             anki::import_anki_package_to_learning_items,
             anki::import_anki_package_bytes_to_learning_items,
+            // SuperMemo import commands
+            supermemo_import::import_supermemo_package,
+            supermemo_import::validate_supermemo_package,
             // Demo content commands
             demo::import_demo_content_manually,
             demo::get_demo_content_status,

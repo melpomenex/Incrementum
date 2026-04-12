@@ -1944,6 +1944,69 @@ const commandHandlers: Record<string, CommandHandler> = {
         };
     },
 
+    get_workload_data: async (args: { start_date: string; end_date: string }) => {
+        const items = await db.getLearningItems();
+        const docs = await db.getDocuments();
+        const start = new Date(args.start_date + "T00:00:00Z");
+        const end = new Date(args.end_date + "T23:59:59Z");
+        const days: Array<{ date: string; due_count: number; reviewed_count: number; new_count: number }> = [];
+
+        const current = new Date(start);
+        while (current <= end) {
+            const dateStr = current.toISOString().split("T")[0];
+            const dueCount = items.filter((item) => (item.due_date || "").startsWith(dateStr) && !item.is_suspended).length;
+            const reviewedCount = items.filter((item) => (item.last_review_date || "").startsWith(dateStr) && !item.is_suspended && (item.review_count || 0) > 0).length;
+            const newCount = items.filter((item) => (item.last_review_date || "").startsWith(dateStr) && (item.review_count || 0) === 1 && !item.is_suspended).length;
+
+            days.push({
+                date: dateStr,
+                due_count: dueCount,
+                reviewed_count: reviewedCount,
+                new_count: newCount,
+            });
+
+            current.setDate(current.getDate() + 1);
+        }
+
+        return days;
+    },
+
+    get_workload_day_details: async (args: { date: string }) => {
+        const items = await db.getLearningItems();
+        const docs = await db.getDocuments();
+        const dateStr = args.date;
+        const todayStr = new Date().toISOString().split("T")[0];
+        const isPast = dateStr < todayStr;
+
+        const docMap = new Map(docs.map((d) => [d.id, d.title || "Unknown"]));
+
+        if (isPast) {
+            return items
+                .filter((item) => (item.last_review_date || "").startsWith(dateStr) && !item.is_suspended && (item.review_count || 0) > 0)
+                .map((item) => ({
+                    item_id: item.id,
+                    question: item.question,
+                    answer: item.answer || null,
+                    document_title: (item.document_id && docMap.get(item.document_id)) || "Unknown",
+                    item_type: item.item_type,
+                    state: item.state,
+                    review_rating: null,
+                }));
+        } else {
+            return items
+                .filter((item) => (item.due_date || "").startsWith(dateStr) && !item.is_suspended)
+                .map((item) => ({
+                    item_id: item.id,
+                    question: item.question,
+                    answer: item.answer || null,
+                    document_title: (item.document_id && docMap.get(item.document_id)) || "Unknown",
+                    item_type: item.item_type,
+                    state: item.state,
+                    review_rating: null,
+                }));
+        }
+    },
+
     // AI commands (passthrough - will use client-side API calls)
     get_ai_config: async () => {
         const config = await db.getSyncState('ai_config');

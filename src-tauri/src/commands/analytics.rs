@@ -2,7 +2,7 @@
 
 use crate::database::Repository;
 use tauri::State;
-use chrono::{Utc, Duration};
+use chrono::{Utc, Duration, NaiveDate};
 use sqlx::Row;
 
 /// Statistics overview for the dashboard
@@ -450,4 +450,178 @@ pub async fn get_leech_dashboard(
     }
 
     Ok(items)
+}
+
+/// Workload data for a single day
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WorkloadDay {
+    pub date: String,
+    pub due_count: i32,
+    pub reviewed_count: i32,
+    pub new_count: i32,
+}
+
+/// Detail of a single item for a specific day
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WorkloadDayDetail {
+    pub item_id: String,
+    pub question: String,
+    pub answer: Option<String>,
+    pub document_title: String,
+    pub item_type: String,
+    pub state: String,
+    pub review_rating: Option<i32>,
+}
+
+/// Get daily workload data for a date range
+#[tauri::command]
+pub async fn get_workload_data(
+    start_date: String,
+    end_date: String,
+    repo: State<'_, Repository>,
+) -> Result<Vec<WorkloadDay>, String> {
+    let pool = repo.pool();
+    let start = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d")
+        .map_err(|e| e.to_string())?;
+    let end = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
+        .map_err(|e| e.to_string())?;
+
+    let mut days = Vec::new();
+    let mut current = start;
+    while current <= end {
+        let day_start = current.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let day_end = current.and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+        // Due items count (unsuspended learning items with due_date on this day)
+        let due_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM learning_items WHERE due_date >= ? AND due_date <= ? AND is_suspended = false"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+
+        // Reviewed count (review_results on this day)
+        let reviewed_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM review_results WHERE timestamp >= ? AND timestamp <= ?"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+
+        // New items learned (first review on this day)
+        let new_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND review_count = 1 AND is_suspended = false"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+
+        days.push(WorkloadDay {
+            date: current.to_string(),
+            due_count: due_count as i32,
+            reviewed_count: reviewed_count as i32,
+            new_count: new_count as i32,
+        });
+
+        current = current.succ_opt().unwrap();
+    }
+
+    Ok(days)
+}
+
+/// Get item-level details for a specific day
+#[tauri::command]
+pub async fn get_workload_day_details(
+    date: String,
+    repo: State<'_, Repository>,
+) -> Result<Vec<WorkloadDayDetail>, String> {
+    let pool = repo.pool();
+    let target = NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|e| e.to_string())?;
+    let day_start = target.and_hms_opt(0, 0, 0).unwrap().and_utc();
+    let day_end = target.and_hms_opt(23, 59, 59).unwrap().and_utc();
+    let now = Utc::now();
+
+    if target < now.date_naive() {
+        // Past day: return items that were reviewed on this date
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                li.id as item_id,
+                li.question,
+                li.answer,
+                COALESCE(d.title, 'Unknown') as document_title,
+                li.item_type,
+                li.state,
+                rr.rating as review_rating
+            FROM review_results rr
+            JOIN learning_items li ON rr.item_id = li.id
+            LEFT JOIN documents d ON li.document_id = d.id
+            WHERE rr.timestamp >= ? AND rr.timestamp <= ?
+            ORDER BY rr.timestamp
+            "#
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_all(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+
+        let mut items = Vec::new();
+        for row in rows {
+            items.push(WorkloadDayDetail {
+                item_id: row.try_get("item_id").unwrap_or_default(),
+                question: row.try_get("question").unwrap_or_default(),
+                answer: row.try_get("answer").ok(),
+                document_title: row.try_get("document_title").unwrap_or_default(),
+                item_type: row.try_get("item_type").unwrap_or_default(),
+                state: row.try_get("state").unwrap_or_default(),
+                review_rating: row.try_get("review_rating").ok(),
+            });
+        }
+        Ok(items)
+    } else {
+        // Future/today: return items due on this date
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                li.id as item_id,
+                li.question,
+                li.answer,
+                COALESCE(d.title, 'Unknown') as document_title,
+                li.item_type,
+                li.state,
+                NULL as review_rating
+            FROM learning_items li
+            LEFT JOIN documents d ON li.document_id = d.id
+            WHERE li.due_date >= ? AND li.due_date <= ? AND li.is_suspended = false
+            ORDER BY li.due_date
+            "#
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_all(pool)
+        .await
+        .map_err(|e: sqlx::Error| e.to_string())?;
+
+        let mut items = Vec::new();
+        for row in rows {
+            items.push(WorkloadDayDetail {
+                item_id: row.try_get("item_id").unwrap_or_default(),
+                question: row.try_get("question").unwrap_or_default(),
+                answer: row.try_get("answer").ok(),
+                document_title: row.try_get("document_title").unwrap_or_default(),
+                item_type: row.try_get("item_type").unwrap_or_default(),
+                state: row.try_get("state").unwrap_or_default(),
+                review_rating: row.try_get("review_rating").ok(),
+            });
+        }
+        Ok(items)
+    }
 }

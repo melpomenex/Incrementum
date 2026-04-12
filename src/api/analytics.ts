@@ -89,3 +89,42 @@ export async function getLeechDashboard(threshold: number = 8): Promise<LeechIte
   }
   return Array.isArray(result) ? result : [];
 }
+
+export interface WorkloadDay {
+  date: string;
+  due_count: number;
+  reviewed_count: number;
+  new_count: number;
+}
+
+export interface WorkloadDayDetail {
+  item_id: string;
+  question: string;
+  answer: string | null;
+  document_title: string;
+  item_type: string;
+  state: string;
+  review_rating: number | null;
+}
+
+/**
+ * Get daily workload data for a date range
+ */
+export async function getWorkloadData(startDate: string, endDate: string): Promise<WorkloadDay[]> {
+  const result = await invokeCommand<WorkloadDay[] | null>("get_workload_data", { start_date: startDate, end_date: endDate });
+  if (!Array.isArray(result)) {
+    console.warn("[analytics] get_workload_data returned non-array result", result);
+  }
+  return Array.isArray(result) ? result : [];
+}
+
+/**
+ * Get item-level details for a specific day
+ */
+export async function getWorkloadDayDetails(date: string): Promise<WorkloadDayDetail[]> {
+  const result = await invokeCommand<WorkloadDayDetail[] | null>("get_workload_day_details", { date });
+  if (!Array.isArray(result)) {
+    console.warn("[analytics] get_workload_day_details returned non-array result", result);
+  }
+  return Array.isArray(result) ? result : [];
+}
