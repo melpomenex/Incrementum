@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSettingsStore } from "../../stores/settingsStore";
 
@@ -824,9 +824,22 @@ export function ThemeBackdrop() {
   // Live-updated brightness ref so the frame callback reads current value each tick
   const brightnessRef = useRef(settings.animationBrightness);
   brightnessRef.current = settings.animationBrightness;
+  const [suspended, setSuspended] = useState(false);
 
   const animation = theme.effects?.backgroundAnimation;
   const density = settings.animationFrequency;
+
+  useEffect(() => {
+    const handleSuspend = (event: Event) => {
+      const customEvent = event as CustomEvent<{ suspended?: boolean }>;
+      setSuspended(Boolean(customEvent.detail?.suspended));
+    };
+
+    window.addEventListener("incrementum-theme-backdrop-suspend", handleSuspend as EventListener);
+    return () => {
+      window.removeEventListener("incrementum-theme-backdrop-suspend", handleSuspend as EventListener);
+    };
+  }, []);
 
   const applyBrightnessGain = (
     ctx: CanvasRenderingContext2D,
@@ -857,7 +870,7 @@ export function ThemeBackdrop() {
 
   useEffect(() => {
     const cv = canvasRef.current;
-    if (!cv || !animation) return;
+    if (!cv || !animation || suspended) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) return;
@@ -910,9 +923,9 @@ export function ThemeBackdrop() {
       document.querySelectorAll(".anim-flash").forEach(e => e.remove());
       curTypeRef.current = null;
     };
-  }, [animation, density]);
+  }, [animation, density, suspended]);
 
-  if (!animation) return null;
+  if (!animation || suspended) return null;
 
   return (
     <div aria-hidden="true" className="theme-backdrop">

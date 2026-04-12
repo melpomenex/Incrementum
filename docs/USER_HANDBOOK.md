@@ -330,8 +330,8 @@ These actions apply to **learning items only** and update the schedule immediate
 | `Ctrl+Enter` | Show answer |
 | `Ctrl+1/2/3/4` | Rate without showing answer |
 | `Esc` | Pause/end session |
-| `Ctrl+E` | Edit current card |
-| `Ctrl+D` | Delete current card |
+| `Ctrl+E` | Edit current card (not yet implemented) |
+| `Ctrl+D` | Delete current card (also used globally for "Go to dashboard") |
 
 ### Session Management
 
@@ -786,13 +786,13 @@ Incrementum provides a complete backup and restore system to protect your learni
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+K` | Open command palette |
-| `Ctrl+P` | Go to... (documents, queue, etc.) |
+| `Ctrl+P` | Open command palette (alternative) |
 | `Ctrl+,` | Open settings |
 | `Ctrl+D` | Go to dashboard |
 | `Ctrl+Q` | Go to queue |
 | `Ctrl+R` | Start review |
 | `Ctrl+O` | Open document |
-| `Ctrl+N` | New card/extract |
+| `Ctrl+N` | Import document (alternative) |
 
 #### Customization
 
@@ -1548,15 +1548,15 @@ Export your data before major changes (Settings → Backup → Export)
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl/Cmd + K` | Open command palette |
-| `Ctrl/Cmd + P` | Quick navigation |
+| `Ctrl/Cmd + P` | Open command palette (alternative) |
 | `Ctrl/Cmd + ,` | Open settings |
 | `Ctrl/Cmd + D` | Go to dashboard |
 | `Ctrl/Cmd + Q` | Go to queue |
 | `Ctrl/Cmd + R` | Start review |
 | `Ctrl/Cmd + O` | Open document |
-| `Ctrl/Cmd + N` | New item |
+| `Ctrl/Cmd + N` | Import document (alternative) |
 | `Ctrl/Cmd + /` | Show keyboard shortcuts |
-| `Ctrl/Cmd + ,` | Settings |
+| `?` | Show keyboard shortcuts (no modifier) |
 
 ### Review Mode Shortcuts
 
@@ -1570,8 +1570,8 @@ Export your data before major changes (Settings → Backup → Export)
 | `Ctrl/Cmd + Enter` | Show answer (alternative) |
 | `Ctrl/Cmd + 1/2/3/4` | Rate without showing answer |
 | `Esc` | End session |
-| `Ctrl/Cmd + E` | Edit current card |
-| `Ctrl/Cmd + D` | Delete current card |
+| `Ctrl/Cmd + E` | Edit current card (not yet implemented) |
+| `Ctrl/Cmd + D` | Delete current card (also used globally for "Go to dashboard") |
 | `Ctrl/Cmd + S` | Suspend card |
 | `Ctrl/Cmd + H` | Card history |
 

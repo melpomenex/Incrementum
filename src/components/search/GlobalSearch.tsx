@@ -148,6 +148,7 @@ export function GlobalSearch({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const latestSearchRequestRef = useRef(0);
 
   // URL detection and import state
   const urlDetection = useURLDetector(query);
@@ -167,13 +168,19 @@ export function GlobalSearch({
   const debouncedSearch = useMemo(
     () =>
       debounce(async (searchQuery: SearchQuery) => {
+        const requestId = ++latestSearchRequestRef.current;
         setIsSearching(true);
         try {
           const searchResults = await onSearch(searchQuery);
+          if (requestId !== latestSearchRequestRef.current) {
+            return;
+          }
           setResults(searchResults);
           setSelectedIndex(0);
         } finally {
-          setIsSearching(false);
+          if (requestId === latestSearchRequestRef.current) {
+            setIsSearching(false);
+          }
         }
       }, 300),
     [onSearch]
@@ -183,6 +190,7 @@ export function GlobalSearch({
   useEffect(() => {
     if (isURLMode) {
       // Don't search when URL is detected
+      latestSearchRequestRef.current += 1;
       setResults([]);
       setIsSearching(false);
       return;
@@ -197,7 +205,9 @@ export function GlobalSearch({
       };
       debouncedSearch(searchQuery);
     } else if (results.length > 0) {
+      latestSearchRequestRef.current += 1;
       setResults([]);
+      setIsSearching(false);
     }
   }, [query, filters, debouncedSearch, isURLMode]);
 
