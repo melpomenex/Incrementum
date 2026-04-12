@@ -87,6 +87,10 @@ xcap = { version = "0.8", optional = true }
 roxmltree = "0.20"
 md5 = "0.7"
 
+# HTML content extraction for full article reading
+readable-readability = "0.4"
+html2text = "0.13"
+
 # Spaced Repetition
 fsrs = "5.2"
 

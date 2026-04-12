@@ -20,6 +20,7 @@ pub struct RssFeed {
     pub is_active: bool,
     pub date_added: String,
     pub auto_queue: bool,
+    pub auto_fetch_full_content: Option<String>, // 'always', 'favorites', 'manual'
 }
 
 /// RSS article model
@@ -38,6 +39,8 @@ pub struct RssArticle {
     pub is_queued: bool,
     pub is_read: bool,
     pub date_added: String,
+    pub full_content: Option<String>,
+    pub full_content_fetched_at: Option<String>,
 }
 
 /// RSS user preferences model
@@ -173,6 +176,7 @@ pub async fn get_rss_feeds(repo: State<'_, Repository>) -> Result<Vec<RssFeed>> 
             is_active: row.get("is_active"),
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
+            auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
         });
     }
 
@@ -200,6 +204,7 @@ pub async fn get_rss_feed(id: String, repo: State<'_, Repository>) -> Result<Opt
             is_active: row.get("is_active"),
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
+            auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
         })),
         None => Ok(None),
     }
@@ -215,6 +220,7 @@ pub async fn update_rss_feed(
     update_interval: Option<i32>,
     auto_queue: Option<bool>,
     is_active: Option<bool>,
+    auto_fetch_full_content: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<RssFeed> {
     // Build dynamic update query
@@ -238,6 +244,9 @@ pub async fn update_rss_feed(
     }
     if is_active.is_some() {
         updates.push(format!("is_active = {}", if is_active.unwrap() { 1 } else { 0 }));
+    }
+    if auto_fetch_full_content.is_some() {
+        updates.push(format!("auto_fetch_full_content = '{}'", auto_fetch_full_content.unwrap()));
     }
 
     if updates.is_empty() {
@@ -426,6 +435,8 @@ pub async fn create_rss_article(
         is_queued: row.get("is_queued"),
         is_read: row.get("is_read"),
         date_added: row.get("date_added"),
+        full_content: decode_optional_text(&row, "full_content"),
+        full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
     })
 }
 
@@ -463,6 +474,8 @@ pub async fn get_rss_articles(
             is_queued: row.get("is_queued"),
             is_read: row.get("is_read"),
             date_added: row.get("date_added"),
+            full_content: decode_optional_text(&row, "full_content"),
+            full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
         });
     }
 
@@ -1090,6 +1103,8 @@ pub async fn get_rss_articles_http(
             is_queued: row.get("is_queued"),
             is_read: row.get("is_read"),
             date_added: row.get("date_added"),
+            full_content: decode_optional_text(&row, "full_content"),
+            full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
         });
     }
 
@@ -1132,4 +1147,166 @@ pub async fn toggle_rss_article_queued_http(id: &str, repo: &Repository) -> Resu
         }
         None => Err(crate::error::IncrementumError::NotFound("Article not found".to_string())),
     }
+}
+
+/// Response for full content fetch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FullContentResponse {
+    pub article_id: String,
+    pub full_content: Option<String>,
+    pub excerpt: Option<String>,
+    pub fetched_at: String,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+/// Fetch and extract full article content from source URL
+#[tauri::command]
+pub async fn fetch_article_full_content(
+    article_id: String,
+    article_url: String,
+    repo: State<'_, Repository>,
+) -> Result<FullContentResponse> {
+    use reqwest::Client;
+    use readable_readability::Readability;
+
+    let client = Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create HTTP client: {}", e)))?;
+
+    // Fetch the article HTML
+    let response = match client.get(&article_url).send().await {
+        Ok(resp) => resp,
+        Err(e) => {
+            return Ok(FullContentResponse {
+                article_id,
+                full_content: None,
+                excerpt: None,
+                fetched_at: Utc::now().to_rfc3339(),
+                success: false,
+                error: Some(format!("Failed to fetch article: {}", e)),
+            });
+        }
+    };
+
+    if !response.status().is_success() {
+        return Ok(FullContentResponse {
+            article_id,
+            full_content: None,
+            excerpt: None,
+            fetched_at: Utc::now().to_rfc3339(),
+            success: false,
+            error: Some(format!("HTTP error: {}", response.status())),
+        });
+    }
+
+    let html = match response.text().await {
+        Ok(text) => text,
+        Err(e) => {
+            return Ok(FullContentResponse {
+                article_id,
+                full_content: None,
+                excerpt: None,
+                fetched_at: Utc::now().to_rfc3339(),
+                success: false,
+                error: Some(format!("Failed to read response: {}", e)),
+            });
+        }
+    };
+
+    // Extract readable content using Readability
+    let readability = Readability::new(&html, &article_url, None);
+    let (title, content, _) = readability.parse();
+
+    if content.is_empty() {
+        return Ok(FullContentResponse {
+            article_id,
+            full_content: None,
+            excerpt: None,
+            fetched_at: Utc::now().to_rfc3339(),
+            success: false,
+            error: Some("Could not extract readable content from page".to_string()),
+        });
+    }
+
+    // Generate excerpt (first 200 chars of plain text)
+    let plain_text = html2text::from_read(content.as_bytes(), 80);
+    let excerpt = if plain_text.len() > 200 {
+        Some(format!("{}...", &plain_text[..200]))
+    } else {
+        Some(plain_text)
+    };
+
+    let fetched_at = Utc::now().to_rfc3339();
+
+    // Store in database
+    sqlx::query(
+        r#"
+        UPDATE rss_articles
+        SET full_content = ?,
+            full_content_fetched_at = ?
+        WHERE id = ?
+        "#,
+    )
+    .bind(&content)
+    .bind(&fetched_at)
+    .bind(&article_id)
+    .execute(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to store full content: {}", e)))?;
+
+    Ok(FullContentResponse {
+        article_id,
+        full_content: Some(content),
+        excerpt,
+        fetched_at,
+        success: true,
+        error: None,
+    })
+}
+
+/// Update auto-fetch preference for a feed
+#[tauri::command]
+pub async fn update_feed_auto_fetch(
+    feed_id: String,
+    auto_fetch_mode: String, // 'always', 'favorites', 'manual'
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    sqlx::query(
+        r#"
+        UPDATE rss_feeds
+        SET auto_fetch_full_content = ?
+        WHERE id = ?
+        "#,
+    )
+    .bind(&auto_fetch_mode)
+    .bind(&feed_id)
+    .execute(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update feed auto-fetch: {}", e)))?;
+
+    Ok(())
+}
+
+/// Get cached full content for an article
+#[tauri::command]
+pub async fn get_article_full_content(
+    article_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Option<(String, String)>> {
+    let row = sqlx::query(
+        "SELECT full_content, full_content_fetched_at FROM rss_articles WHERE id = ?"
+    )
+    .bind(&article_id)
+    .fetch_optional(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to get full content: {}", e)))?;
+
+    Ok(row.map(|row| {
+        let content: Option<String> = row.get("full_content");
+        let fetched_at: Option<String> = row.get("full_content_fetched_at");
+        (content.unwrap_or_default(), fetched_at.unwrap_or_default())
+    }))
 }
