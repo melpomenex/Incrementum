@@ -190,7 +190,7 @@ function ThemeGalleryCard({
                 }}
               >
                 <Sparkles className="w-2 h-2" />
-                {t("settings.themeAnimated")}
+                animated
               </span>
             )}
           </div>

@@ -20,16 +20,15 @@ import {
   getAchievements,
   createReadingGoal,
   updateReadingGoal,
-  type ReadingGoal,
-  type ReadingStreak,
-  type Achievement,
-  type GoalType,
+} from '../../api/readingGoals';
+import type { ReadingGoal, ReadingStreak, Achievement, GoalType } from '../../types/readingGoal';
+import {
   getGoalLabel,
   getGoalUnit,
   formatStreakDays,
   getStreakMilestone,
   getStreakColor,
-} from '../../api/readingGoals';
+} from '../../types/readingGoal';
 
 interface ReadingGoalsPanelProps {
   className?: string;

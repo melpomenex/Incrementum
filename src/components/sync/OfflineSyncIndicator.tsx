@@ -21,9 +21,17 @@ import {
   setConnectionMode,
   processOfflineQueue,
   clearOfflineQueue,
-  type ConnectionMode,
-  type OfflineQueueState,
+  getConnectionMode,
 } from '../../lib/offline-queue';
+
+type ConnectionMode = ReturnType<typeof getConnectionMode>;
+type OfflineQueueState = {
+  requests: any[];
+  isOnline: boolean;
+  connectionMode: ConnectionMode;
+  localServerAvailable: boolean;
+  cloudAvailable: boolean;
+};
 import { useI18n } from '../../lib/i18n';
 
 interface SyncStatusIndicatorProps {

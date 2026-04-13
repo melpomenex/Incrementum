@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.1] - 2026-04-13
+
+### Changed
+
+- Refreshed app sound effects with a more tactile UI/notification set.
+- Added notification-gated review completion and milestone sounds.
+- Improved haptic feedback behavior by explicitly disabling vibration on unsupported PWA/browser platforms.
+
+### Fixed
+
+- Fixed multiple TypeScript errors across the app.
+- Fixed Tauri sound playback reliability for short UI sounds.
+- Updated notification sound preview/settings wiring to use the current sound map consistently.
+- Updated app, package, Tauri, and Rust crate version metadata to `1.20.1`.
+
 ## [1.20.0] - 2026-04-12
 
 ### Added

@@ -17,7 +17,7 @@ describe("Wave5 performance checks", () => {
     });
     const now = new Date();
 
-    let card = createEmptyCard(now, now);
+    let card = createEmptyCard(now);
     let iterations = 0;
 
     const start = nowMs();

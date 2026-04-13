@@ -133,7 +133,7 @@ export function exportStatisticsToJSON(
  * Export statistics to PNG (chart capture)
  */
 export function exportStatisticsToPNG(
-  element: HTMLElement,
+  data: StatisticsData,
   filename?: string
 ): void {
   // Use html2canvas or similar library

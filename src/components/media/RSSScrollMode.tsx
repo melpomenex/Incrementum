@@ -28,6 +28,7 @@ import {
   Undo,
   Info,
 } from "lucide-react";
+import { supportsHaptics } from "../../utils/soundService";
 import {
   Feed,
   FeedItem,
@@ -931,7 +932,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
   // Haptic feedback helper
   const triggerHaptic = useCallback(() => {
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
+    if (supportsHaptics()) {
       navigator.vibrate(50); // Short 50ms vibration
     }
   }, []);

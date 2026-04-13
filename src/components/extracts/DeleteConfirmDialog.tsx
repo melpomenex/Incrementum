@@ -3,6 +3,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { deleteExtract } from "../../api/extracts";
 import { Extract } from "../../api/extracts";
 import { useI18n } from "../../lib/i18n";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
 interface DeleteConfirmDialogProps {
   extract: Extract | null;
@@ -18,12 +19,14 @@ export function DeleteConfirmDialog({
   onDelete,
 }: DeleteConfirmDialogProps) {
   const { t } = useI18n();
+  const { delete: deleteHaptic } = useHapticFeedback();
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async () => {
     if (!extract) return;
 
+    deleteHaptic();
     setIsDeleting(true);
     setError(null);
 

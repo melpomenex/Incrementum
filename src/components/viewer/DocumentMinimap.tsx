@@ -185,6 +185,7 @@ export function useDocumentMinimap(
   extracts: Array<{ id: string; position?: number; createdAt: string }>,
   _totalPages?: number
 ) {
+  const { t } = useI18n();
   const segments = useMemo(() => {
     const segs: MinimapSegment[] = [];
     

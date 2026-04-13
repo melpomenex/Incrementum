@@ -13,6 +13,7 @@ import { hasImportedDemoContent, markDemoContentImported } from "./utils/demoCon
 import { useToast } from "./components/common/Toast";
 import { initializeNotifications } from "./utils/notificationService";
 import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
+import { HAPTIC_FEEDBACK_CSS } from "./hooks/useHapticFeedback";
 
 // PWA Components
 import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
@@ -438,6 +439,7 @@ function App() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: HAPTIC_FEEDBACK_CSS }} />
       <CommandCenter />
       <NewMainLayout
         activeItem={currentPage}

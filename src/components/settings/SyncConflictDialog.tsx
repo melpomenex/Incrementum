@@ -14,6 +14,7 @@ import {
   Calendar,
   Monitor,
   Cloud,
+  RefreshCw,
 } from "lucide-react";
 import type { SyncConflict, ConflictResolution } from "@/types/cloud";
 

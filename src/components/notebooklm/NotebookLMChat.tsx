@@ -105,14 +105,14 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
         if (!notebookDoc.content?.trim() && extracts.length > 0) {
           const blocks = extracts
             .filter((extract) => {
-              const context = extract.selection_context as Record<string, unknown> | undefined;
+              const context = extract.selection_context as unknown as Record<string, unknown> | undefined;
               return context?.type === "notebooklm_chat" && context?.notebookId === notebookId;
             })
             .sort((a, b) => a.date_created.localeCompare(b.date_created))
             .map((extract) =>
               buildMarkdownBlock({
                 messageId:
-                  ((extract.selection_context as Record<string, unknown> | undefined)?.messageId as string) ||
+                  ((extract.selection_context as unknown as Record<string, unknown> | undefined)?.messageId as string) ||
                   extract.id,
                 response: extract.content,
                 prompt: extract.notes,
@@ -130,7 +130,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
 
         const ids = new Set<string>();
         for (const extract of extracts) {
-          const context = extract.selection_context as Record<string, unknown> | undefined;
+          const context = extract.selection_context as unknown as Record<string, unknown> | undefined;
           if (!context) continue;
           if (context.type !== "notebooklm_chat") continue;
           if (context.notebookId !== notebookId) continue;

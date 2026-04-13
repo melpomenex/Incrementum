@@ -2,6 +2,7 @@
  * Settings validation utilities and components
  */
 
+import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";

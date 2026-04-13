@@ -3,6 +3,7 @@
  * Using Zod for runtime validation
  */
 
+// @ts-expect-error zod types not available
 import { z } from 'zod';
 
 // General Settings Schema

@@ -218,7 +218,7 @@ export function StreakDisplay({
             {emoji}
           </span>
         )}
-        <div className={sizes[size]} className="font-bold">
+        <div className={`${sizes[size]} font-bold`}>
           {currentStreak}
         </div>
         {showLabel && (

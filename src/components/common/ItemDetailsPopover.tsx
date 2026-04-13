@@ -37,6 +37,7 @@ export type ItemDetailsTarget =
       title: string;
       source?: string;
       link?: string;
+      category?: string;
     };
 
 interface ItemDetailsData {

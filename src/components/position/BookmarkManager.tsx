@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { createBookmark, deleteBookmark, listBookmarks, type Bookmark } from '../../api/position';
-import type { DocumentPosition } from '../../types/position';
+import { createBookmark, deleteBookmark, listBookmarks } from '../../api/position';
+import type { Bookmark, DocumentPosition } from '../../types/position';
 import { formatPosition } from '../../types/position';
 
 interface BookmarkManagerProps {

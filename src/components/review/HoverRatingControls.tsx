@@ -148,8 +148,7 @@ export function HoverRatingControls({
               </button>
             </div>
             <div className="flex items-center gap-2">
-              {(Object.keys(RATING_LABELS) as Array<keyof typeof RATING_LABELS>).slice(0, 4).map((ratingKey) => {
-                const rating = parseInt(ratingKey) as ReviewRating;
+              {(Object.keys(RATING_LABELS) as unknown as ReviewRating[]).slice(0, 4).map((rating) => {
                 const colors = RATING_COLORS[rating];
                 const label = RATING_LABELS[rating];
 
@@ -222,8 +221,7 @@ export function HoverRatingControls({
       >
         <div className={cn("max-w-4xl mx-auto p-4", isMobile && "pb-2")}>
           <div className="flex items-center justify-center gap-3">
-            {(Object.keys(RATING_LABELS) as Array<keyof typeof RATING_LABELS>).map((ratingKey) => {
-              const rating = parseInt(ratingKey) as ReviewRating;
+            {(Object.keys(RATING_LABELS) as unknown as ReviewRating[]).map((rating) => {
               const colors = RATING_COLORS[rating];
               const label = RATING_LABELS[rating];
               const shortcut = RATING_SHORTCUTS[rating];

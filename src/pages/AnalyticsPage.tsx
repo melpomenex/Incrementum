@@ -18,7 +18,7 @@ export function AnalyticsPage() {
   const { t } = useI18n();
 
   useEffect(() => {
-    loadAll(timeRange);
+    loadAll();
   }, [loadAll, timeRange]);
 
   const exportStats = async () => {
@@ -74,8 +74,8 @@ export function AnalyticsPage() {
               icon={<BarChart3 className="w-5 h-5" />}
               trend={
                 activityData && activityData.length > 1
-                  ? ((activityData[activityData.length - 1]?.total_cards || 0) -
-                    (activityData[activityData.length - 2]?.total_cards || 0))
+                  ? ((activityData[activityData.length - 1]?.cards_learned || 0) -
+                    (activityData[activityData.length - 2]?.cards_learned || 0))
                   : 0
               }
             />
@@ -92,7 +92,7 @@ export function AnalyticsPage() {
             <StatCard
               label={t("analytics.retentionRate")}
               value={`${Math.round(
-                ((dashboardStats?.cards_retained || 0) /
+                ((dashboardStats?.retention_rate || 0) /
                   Math.max(1, dashboardStats?.total_cards || 0)) *
                 100
               )}%`}

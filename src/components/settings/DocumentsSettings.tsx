@@ -218,7 +218,7 @@ export function DocumentsSettings() {
                 updateSettings({
                   documents: {
                     ...settings.documents,
-                    epubSettings: { ...settings.documents.epubSettings, fontFamily: e.target.value },
+                    epubSettings: { ...settings.documents.epubSettings, fontFamily: e.target.value as "serif" | "sans-serif" | "monospace" },
                   },
                 })
               }

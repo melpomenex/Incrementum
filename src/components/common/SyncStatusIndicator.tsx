@@ -173,7 +173,7 @@ export function SyncStatusIndicator({
       </div>
 
       {/* Sync Button */}
-      {(showSyncButton || syncMode === "two-way") && (
+      {showSyncButton && (
         <button
           onClick={handleSyncNow}
           disabled={syncState === "syncing"}

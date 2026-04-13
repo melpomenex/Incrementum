@@ -164,6 +164,7 @@ interface AppearanceSettings {
   theme: "light" | "dark" | "system";
   fontSize: number;
   fontFamily: string;
+  visualFeedbackEnabled?: boolean;
   themeCustomizations?: {
     primaryColor?: string;
     fontFamily?: string;
@@ -257,6 +258,8 @@ interface NotificationSettings {
   quietHoursStart: string;
   quietHoursEnd: string;
   showBadge: boolean;
+  feedbackSoundsEnabled: boolean;
+  feedbackVolume: number;
 }
 
 /**
@@ -549,6 +552,8 @@ export const defaultSettings: Settings = {
     quietHoursStart: "22:00",
     quietHoursEnd: "08:00",
     showBadge: true,
+    feedbackSoundsEnabled: false,
+    feedbackVolume: 0.3,
   },
   privacy: {
     telemetryEnabled: false,

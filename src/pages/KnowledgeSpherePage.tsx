@@ -115,5 +115,5 @@ export function KnowledgeSpherePage() {
     );
   }
 
-  return <KnowledgeSphereTab nodes={nodes} />;
+  return <KnowledgeSphereTab />;
 }

@@ -140,10 +140,9 @@ export function withUndo<T extends (...args: any[]) => Promise<any>>(
 ): T {
   return (async (...args: Parameters<T>) => {
     const command = commandFactory(...args);
-    const { execute } = useUndoRedoStore.getState();
+    const { executeCommand } = useUndoRedoStore.getState();
 
-    await command.execute();
-    await execute(command);
+    await executeCommand(command);
     return await operation(...args);
   }) as T;
 }

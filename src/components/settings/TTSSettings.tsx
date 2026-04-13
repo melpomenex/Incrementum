@@ -400,7 +400,7 @@ export function TTSSettings() {
       setPocketStatus({
         available: status.available,
         downloading: status.downloading,
-        downloadProgress: status.downloadProgress ?? 0,
+        downloadProgress: status.download_progress ?? 0,
         error: status.error,
       });
     });

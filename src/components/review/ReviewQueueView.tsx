@@ -941,7 +941,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 handleLearningItemSelection(
                                   item.id,
                                   !selectedIds.has(item.id),
-                                  !!event.nativeEvent.shiftKey
+                                  !!(event.nativeEvent as MouseEvent).shiftKey
                                 );
                               }}
                             />

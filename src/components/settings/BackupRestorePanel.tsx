@@ -386,13 +386,11 @@ export function BackupRestorePanel({
                       {backup.encrypted && (
                         <Shield
                           className="w-4 h-4 text-primary"
-                          title={t("backup.encrypted")}
                         />
                       )}
                       {backup.compressed && (
                         <FileText
                           className="w-4 h-4 text-muted-foreground"
-                          title={t("backup.compressed")}
                         />
                       )}
                     </div>

@@ -6,7 +6,6 @@
 import { invokeCommand as invoke } from "../lib/tauri";
 import {
   ocrImageFile,
-  extractKeyPhrases,
   getGLMRuntimeStatus,
   startOllamaRuntime,
   updateOCRConfig,
@@ -16,6 +15,7 @@ import { isTauri } from "../lib/tauri";
 import { useSettingsStore } from "../stores/settingsStore";
 import { detectMathContent, extractMathFromText } from "./mathOcr";
 import {
+  extractKeyPhrases,
   extractKeyPhrasesFrontend,
   getTextStatistics,
   extractSummary,

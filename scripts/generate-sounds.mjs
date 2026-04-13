@@ -1,48 +1,41 @@
 /**
- * Generate notification sound files using ffmpeg.
- * Creates WAV files from synthesized tones, then converts to MP3.
+ * Copy the curated tactile sound set into public/sounds/.
  */
-import { execSync } from 'child_process';
-import { mkdirSync } from 'fs';
+import { copyFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(__dirname, '..');
 const outDir = join(__dirname, '..', 'public', 'sounds');
 mkdirSync(outDir, { recursive: true });
 
 const sounds = [
-  {
-    name: 'bell',
-    // Two harmonics: 830Hz + 1660Hz with exponential decay over 1.5s
-    ffmpeg: `-f lavfi -i "sine=frequency=830:duration=1.5" -f lavfi -i "sine=frequency=1660:duration=1.5" -filter_complex "[0]volume=0.4[a];[1]volume=0.2[b];[a][b]amix=inputs=2:duration=longest,afade=t=out:st=0.2:d=1.3"`,
-  },
-  {
-    name: 'chime',
-    // Three ascending tones: C5(523), E5(659), G5(784) each 0.2s with 0.15s gap
-    ffmpeg: `-f lavfi -i "sine=frequency=523:duration=0.25" -f lavfi -i "sine=frequency=659:duration=0.25" -f lavfi -i "sine=frequency=784:duration=0.35" -filter_complex "[0]adelay=0|0,volume=0.3[a];[1]adelay=350|350,volume=0.3[b];[2]adelay=700|700,volume=0.3[c];[a][b][c]amix=inputs=3:duration=longest,afade=t=out:st=0.7:d=0.5"`,
-  },
-  {
-    name: 'ding',
-    // Single clean 1200Hz tone with fast decay
-    ffmpeg: `-f lavfi -i "sine=frequency=1200:duration=0.5" -af "afade=t=in:st=0:d=0.01,afade=t=out:st=0.05:d=0.45,volume=0.35"`,
-  },
-  {
-    name: 'complete',
-    // Rising two-tone: 440Hz -> 880Hz (sounds like "done!")
-    ffmpeg: `-f lavfi -i "sine=frequency=440:duration=0.3" -f lavfi -i "sine=frequency=880:duration=0.5" -filter_complex "[0]volume=0.3[a];[1]adelay=250|250,volume=0.35[b];[a][b]amix=inputs=2:duration=longest,afade=t=out:st=0.4:d=0.5"`,
-  },
+  // Tighter feedback set for direct manipulation and review actions.
+  { outName: 'success.mp3', source: 'sounds/curated/correct_01.mp3' },
+  { outName: 'error.mp3', source: 'sounds/curated/wrong_02.mp3' },
+  { outName: 'warning.mp3', source: 'sounds/curated/question_01.mp3' },
+  { outName: 'ui-complete.mp3', source: 'sounds/curated/reveal_01.mp3' },
+  { outName: 'click.mp3', source: 'sounds/curated/click_02.mp3' },
+  { outName: 'delete.mp3', source: 'sounds/interface-sounds-mp3/drop_001.mp3' },
+  { outName: 'review-complete.mp3', source: 'sounds/curated/correct_04.mp3' },
+  { outName: 'streak.mp3', source: 'sounds/curated/notification_02.mp3' },
+  { outName: 'milestone.mp3', source: 'sounds/curated/notification_03.mp3' },
+
+  // Notification variants: all short, clean, and non-musical.
+  { outName: 'glass.mp3', source: 'sounds/curated/notification_02.mp3' },
+  { outName: 'bloom.mp3', source: 'sounds/curated/notification_03.mp3' },
+  { outName: 'pulse.mp3', source: 'sounds/curated/timer_tick_01.mp3' },
+  { outName: 'ascend.mp3', source: 'sounds/curated/correct_02.mp3' },
+  { outName: 'softbell.mp3', source: 'sounds/curated/notification_01.mp3' },
+  { outName: 'sonar.mp3', source: 'sounds/curated/question_01.mp3' },
 ];
 
 for (const sound of sounds) {
-  const outFile = join(outDir, `${sound.name}.mp3`);
-  const cmd = `ffmpeg -y ${sound.ffmpeg} -c:a libmp3lame -q:a 6 "${outFile}" 2>/dev/null`;
-  try {
-    execSync(cmd, { stdio: 'pipe' });
-    console.log(`Created: ${sound.name}.mp3`);
-  } catch (e) {
-    console.error(`Failed to create ${sound.name}.mp3:`, e.message);
-  }
+  const inFile = join(rootDir, sound.source);
+  const outFile = join(outDir, sound.outName);
+  copyFileSync(inFile, outFile);
+  console.log(`Copied: ${sound.outName} <= ${sound.source}`);
 }
 
-console.log('Done! Sound files are in public/sounds/');
+console.log('Done! Tactile sound files are in public/sounds/');

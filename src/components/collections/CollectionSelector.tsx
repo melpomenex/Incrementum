@@ -11,8 +11,8 @@ import {
   removeDocumentFromCollection,
   createCollection,
   getDocumentCollections,
-  type Collection,
 } from '../../api/collections';
+import type { Collection } from '../../types/collection';
 
 interface CollectionSelectorProps {
   documentId: string;

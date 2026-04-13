@@ -173,6 +173,7 @@ export function calculateRelevanceScore(
     [SearchResultType.Flashcard]: 1.5,
     [SearchResultType.Category]: 0.8,
     [SearchResultType.Tag]: 0.5,
+    [SearchResultType.Command]: 0.3,
   };
 
   score *= typeWeights[type];
@@ -422,7 +423,7 @@ export function parseAdvancedSearch(query: string): AdvancedSearchQuery {
     beforeMatch,
     afterMatch,
   ].forEach((match) => {
-    if (match) remainingQuery = remainingQuery.replace(match, "");
+    if (match) remainingQuery = remainingQuery.replace(match[0], "");
   });
 
   result.text = remainingQuery.trim() || undefined;
