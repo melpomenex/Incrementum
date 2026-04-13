@@ -297,7 +297,7 @@ export function QueueScrollPage() {
 
   // Smart start position calculation
   const calculateSmartStart = useCallback(async (totalItems: number) => {
-    if (totalItems === 0) return 0;
+    if (totalItems === 0) return { position: 0, shouldShowToast: false, lastPosition: 0 };
 
     const lastPositionStr = sessionStorage.getItem(SESSION_KEYS.LAST_POSITION);
     const lastPosition = lastPositionStr ? parseInt(lastPositionStr, 10) : undefined;
@@ -526,7 +526,7 @@ export function QueueScrollPage() {
             engagementScore: baseScore + serendipityBonus,
           };
         })
-        .filter((item): item is ScrollItem => item !== null);
+        .filter((item): item is NonNullable<typeof item> => item !== null) as ScrollItem[];
 
       // Load RSS items based on settings
       const rssSettings = settings.rssQueue ?? defaultSettings.rssQueue;
@@ -1207,7 +1207,15 @@ export function QueueScrollPage() {
         return;
       }
 
-      if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+      const isReviewItem = currentItem?.type === "flashcard" || currentItem?.type === "extract";
+
+      if (e.key === " ") {
+        if (isReviewItem) {
+          return;
+        }
+        e.preventDefault();
+        goToNext();
+      } else if (e.key === "ArrowDown" || e.key === "PageDown") {
         e.preventDefault();
         goToNext();
       } else if (e.key === "ArrowUp" || e.key === "PageUp") {
@@ -1239,7 +1247,7 @@ export function QueueScrollPage() {
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [goToNext, goToPrevious, isFullscreen, toggleFullscreen]);
+  }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen]);
 
   // Auto-hide controls on mouse idle
   useEffect(() => {

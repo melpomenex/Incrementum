@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { validateUrl, validateArxivInput } from "../../utils/documentImport";
 
-type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo";
+export type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo";
 
 interface ImportOption {
   id: ImportSource;

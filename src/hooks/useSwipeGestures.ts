@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
+import { supportsHaptics } from "../utils/soundService";
 
 export interface SwipeActions {
   onSwipeLeft?: () => void;
@@ -241,7 +242,7 @@ export function useSwipeGestures(
 
   // Haptic feedback utility
   const triggerHaptic = useCallback(() => {
-    if ("vibrate" in navigator) {
+    if (supportsHaptics()) {
       navigator.vibrate(10); // Light tap
     }
   }, []);

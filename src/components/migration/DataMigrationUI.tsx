@@ -274,7 +274,7 @@ export function DataMigrationUI() {
   const selectDatabase = async () => {
     try {
       // Use Tauri file dialog
-      const { open } = await import("@tauri-apps/api/dialog");
+      const { open } = await import("@tauri-apps/plugin-dialog");
       const selected = await open({
         multiple: false,
         filters: [{

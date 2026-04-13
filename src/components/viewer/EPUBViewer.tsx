@@ -542,7 +542,7 @@ export function EPUBViewer({
             // Extract text from current chapter only (not entire book)
             const extractCurrentChapterText = () => {
               try {
-                const contents = rendition?.getContents?.();
+                const contents = rendition?.getContents?.() as unknown as any[] | undefined;
                 if (contents && contents.length > 0) {
                   const text = contents
                     .map((content: any) => content?.document?.body?.textContent?.trim())
@@ -578,7 +578,7 @@ export function EPUBViewer({
               console.log("EPUBViewer: Initial display complete, resize events now enabled");
               // Force a resize to ensure proper rendering after content is stable
               if (rendition) {
-                rendition.resize();
+                rendition.resize(undefined, undefined);
               }
             }
           }, 500);
@@ -628,7 +628,7 @@ export function EPUBViewer({
               clearTimeout(savePositionTimer);
             }
             savePositionTimer = setTimeout(() => {
-              const currentLocation = rendition.currentLocation();
+              const currentLocation = rendition.currentLocation() as any;
               if (currentLocation && currentLocation.start && mounted) {
                 saveReadingPosition(currentLocation.start.cfi);
               }

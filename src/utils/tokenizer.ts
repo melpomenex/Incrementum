@@ -12,9 +12,9 @@ async function getTokenizer(model?: string): Promise<Tokenizer> {
   let encoding: Tokenizer;
 
   try {
-    encoding = tiktoken.encoding_for_model(model ?? "gpt-4o-mini") as Tokenizer;
+    encoding = tiktoken.encoding_for_model((model ?? "gpt-4o-mini") as any) as unknown as Tokenizer;
   } catch {
-    encoding = tiktoken.get_encoding("cl100k_base") as Tokenizer;
+    encoding = tiktoken.get_encoding("cl100k_base") as unknown as Tokenizer;
   }
 
   tokenizerCache = encoding;

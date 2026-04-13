@@ -479,7 +479,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
     try {
       // Try to get selection data from the webview's localStorage via evaluateJavaScript
-      const result = await webviewRef.current.evaluateJavaScript<string>(`
+      const result = await (webviewRef.current as any).evaluateJavaScript(`
         (function() {
           const data = localStorage.getItem('${SELECTION_STORAGE_KEY}');
           if (data) {
@@ -517,7 +517,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         
         // Fallback: try direct selection access
         if (!selectedText) {
-          const result = await webviewRef.current.evaluateJavaScript<string>(`
+          const result = await (webviewRef.current as any).evaluateJavaScript(`
             (function() {
               const selection = window.getSelection()?.toString() || '';
               return selection;
@@ -611,9 +611,9 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         content: data.content,
         html_content: data.htmlContent,
         source_url: extractDialog?.url || currentUrl,
-        page_title: pageTitle,
         note: data.note,
         tags: data.tags,
+        category: pageTitle,
         color: "yellow",
       };
 
@@ -636,17 +636,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       // Show success toast with actions
       toast.success(
         "Extract created successfully",
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">Extract saved with {data.content.length} characters</p>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setShowSidebar(true)}
-              className="text-xs bg-primary/20 hover:bg-primary/30 text-primary px-2 py-1 rounded transition-colors"
-            >
-              View Extracts
-            </button>
-          </div>
-        </div>,
+        `Extract saved with ${data.content.length} characters`,
         { duration: 5000 }
       );
 
@@ -732,7 +722,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     }
 
     let isCancelled = false;
-    const unlistenFns: (() => void)[] = [];
+    const unlistenFns: Array<(() => void) | (() => Promise<void>)> = [];
 
     const createWebview = async () => {
       if (!isMountedRef.current || isCancelled) return;
@@ -812,7 +802,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             if (lastInjectedUrl === currentUrl) return;
             lastInjectedUrl = currentUrl;
             
-            await webview.evaluateJavaScript(
+            await (webview as any).evaluateJavaScript(
               "(function(){" + WEBVIEW_EXTRACT_BRIDGE_SCRIPT + "})();"
             );
             console.log("[WebBrowserTab] Extract bridge injected");
@@ -838,7 +828,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         }).catch((e) => console.warn("Failed to attach created listener:", e));
 
         // Re-inject on navigation (when URL changes)
-        webview.on("tauri://url-changed", () => {
+        (webview as any).on("tauri://url-changed", () => {
           lastInjectedUrl = ""; // Reset so script will be injected on new page
           setTimeout(injectBridgeScript, 1500);
           setTimeout(injectBridgeScript, 4000);
@@ -1153,7 +1143,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                               )}
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="w-3 h-3" />
-                                {formatRelativeTime(extract.timestamp)}
+                                {formatRelativeTime(new Date(extract.timestamp))}
                               </div>
                             </div>
                             <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -92,7 +92,7 @@ export function useQueueNavigation() {
       closable: true,
       data: { documentId: item.documentId },
     });
-    setActiveTab(tabId);
+    setActiveTab('main', tabId);
   }, [addTab, setActiveTab]);
 
   // Navigation actions

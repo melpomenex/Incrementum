@@ -6,6 +6,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { create } from "zustand";
 import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import { playFeedback, vibrate } from "../../utils/soundService";
 
 /**
  * Toast types
@@ -254,19 +255,23 @@ export function useToast() {
       });
   }, [addToast]);
 
-  const success = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+  const success = useCallback((title: string, message?: string, options?: Partial<ToastData>) => {
+    playFeedback('success');
     return addToast({ type: ToastType.Success, title, message, ...options });
   }, [addToast]);
 
-  const error = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+  const error = useCallback((title: string, message?: string, options?: Partial<ToastData>) => {
+    playFeedback('error');
+    vibrate('error');
     return addToast({ type: ToastType.Error, title, message, ...options });
   }, [addToast]);
 
-  const warning = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+  const warning = useCallback((title: string, message?: string, options?: Partial<ToastData>) => {
+    playFeedback('warning');
     return addToast({ type: ToastType.Warning, title, message, ...options });
   }, [addToast]);
 
-  const info = useCallback((title: string, message?: string, options?: Partial<Toast>) => {
+  const info = useCallback((title: string, message?: string, options?: Partial<ToastData>) => {
     return addToast({ type: ToastType.Info, title, message, ...options });
   }, [addToast]);
 

@@ -268,7 +268,7 @@ export async function importAppState(
 
         if (isTauri()) {
           // In Tauri, save to app data directory
-          const [{ writeFile, BaseDirectory, appDataDir }, { join }] = await Promise.all([
+          const [{ writeFile, BaseDirectory }, { join, appDataDir }] = await Promise.all([
             import("@tauri-apps/plugin-fs"),
             import("@tauri-apps/api/path"),
           ]);

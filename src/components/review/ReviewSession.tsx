@@ -13,6 +13,7 @@ import { ReviewFeedback } from "./ReviewFeedback";
 import { ReviewCardSkeleton } from "../common/Skeleton";
 import { FSRSExplanationModal, useFSRSExplanation } from "../onboarding/FSRSExplanationModal";
 import { useSwipeGesture, getSwipeIndicatorStyle, SWIPE_RATINGS } from "../../hooks/useSwipeGesture";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { BreakReminderModal, useBreakReminder } from "./BreakReminderModal";
 import { ZenReviewMode } from "./ZenReviewMode";
 import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
@@ -101,6 +102,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   // FSRS Inspector
   const { isOpen: isInspectorOpen, setIsOpen: setIsInspectorOpen } = useFSRSInspector();
   const toast = useToast();
+  const haptic = useHapticFeedback();
 
   // FSRS explanation modal for first-time reviewers
   const { shouldShow: showFSRSExplanation, markShown: markFSRSShown } = useFSRSExplanation();
@@ -138,6 +140,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   }>({ type: null });
 
   const handleRating = async (rating: ReviewRating) => {
+    haptic.click();
     const beforeId = currentCard?.id;
     if (interactionResult) {
       useReviewStore.getState().setPendingReviewMetadata({
@@ -157,8 +160,10 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     // Show feedback for milestones
     if (willComplete) {
       setFeedback({ type: "complete" });
+      haptic.complete();
     } else if (currentStreak?.current_streak && currentStreak.current_streak > 0 && currentStreak.current_streak % 10 === 0) {
       setFeedback({ type: "streak", value: currentStreak.current_streak });
+      haptic.streak();
     }
 
     const afterId = useReviewStore.getState().currentCard?.id;

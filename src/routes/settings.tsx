@@ -9,12 +9,12 @@ export function Settings() {
   useEffect(() => {
     // Apply theme to document
     const root = document.documentElement;
-    if (settings.theme === "dark" || (settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (settings.appearance.theme === "dark" || (settings.appearance.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
-  }, [settings.theme]);
+  }, [settings.appearance.theme]);
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -39,8 +39,8 @@ export function Settings() {
                 </div>
               </div>
               <select
-                value={settings.theme}
-                onChange={(e) => updateSettings({ theme: e.target.value as any })}
+                value={settings.appearance.theme}
+                onChange={(e) => updateSettings({ appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
                 <option value="light">{t("settingsLegacy.light")}</option>
@@ -60,8 +60,8 @@ export function Settings() {
                 type="number"
                 min="10"
                 max="20"
-                value={settings.fontSize}
-                onChange={(e) => updateSettings({ fontSize: Number(e.target.value) })}
+                value={settings.appearance.fontSize}
+                onChange={(e) => updateSettings({ appearance: { ...settings.appearance, fontSize: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
               />
             </div>
@@ -106,8 +106,8 @@ export function Settings() {
                 type="number"
                 min="0"
                 max="100"
-                value={settings.newCardsPerDay}
-                onChange={(e) => updateSettings({ newCardsPerDay: Number(e.target.value) })}
+                value={settings.learning.newCardsPerDay}
+                onChange={(e) => updateSettings({ learning: { ...settings.learning, newCardsPerDay: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
               />
             </div>
@@ -123,8 +123,8 @@ export function Settings() {
                 type="number"
                 min="0"
                 max="500"
-                value={settings.reviewsPerDay}
-                onChange={(e) => updateSettings({ reviewsPerDay: Number(e.target.value) })}
+                value={settings.learning.reviewsPerDay}
+                onChange={(e) => updateSettings({ learning: { ...settings.learning, reviewsPerDay: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
               />
             </div>
@@ -144,16 +144,16 @@ export function Settings() {
                 </div>
               </div>
               <button
-                onClick={() => updateSettings({ autoImport: !settings.autoImport })}
+                onClick={() => updateSettings({ documents: { ...settings.documents, autoProcessOnImport: !settings.documents.autoProcessOnImport } })}
                 className={`
                   w-12 h-6 rounded-full transition-colors relative
-                  ${settings.autoImport ? "bg-primary" : "bg-muted"}
+                  ${settings.documents.autoProcessOnImport ? "bg-primary" : "bg-muted"}
                 `}
               >
                 <div
                   className={`
                     w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all
-                    ${settings.autoImport ? "left-6" : "left-0.5"}
+                    ${settings.documents.autoProcessOnImport ? "left-6" : "left-0.5"}
                   `}
                 />
               </button>
@@ -168,8 +168,8 @@ export function Settings() {
               </div>
               <input
                 type="text"
-                value={settings.defaultCategory}
-                onChange={(e) => updateSettings({ defaultCategory: e.target.value })}
+                value={settings.documents.defaultCategory}
+                onChange={(e) => updateSettings({ documents: { ...settings.documents, defaultCategory: e.target.value } })}
                 className="w-48 px-3 py-2 bg-background border border-border rounded-md text-foreground"
               />
             </div>

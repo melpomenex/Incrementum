@@ -349,7 +349,7 @@ interface ThemeStore {
   customThemes: Theme[];
   setTheme: (theme: Theme) => void;
   setColor: (color: keyof Theme["colors"], value: string) => void;
-  setFont: (font: keyof Theme["fonts"], font: ThemeFont) => void;
+  setFont: (fontKey: keyof Theme["fonts"], font: ThemeFont) => void;
   setBorderRadius: (size: keyof Theme["borderRadius"], value: string) => void;
   addCustomTheme: (theme: Theme) => void;
   removeCustomTheme: (id: string) => void;

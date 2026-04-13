@@ -35,8 +35,6 @@ import {
 import type { Document } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
 import type { TabsState } from "../../stores/tabsStore";
-import type { UIState } from "../../stores/uiStore";
-import type { StudyDeckState } from "../../stores/studyDeckStore";
 import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -160,9 +158,9 @@ const formatTimestamp = (seconds: number): string => {
 
 // Stable selectors defined outside component to avoid infinite re-renders
 const selectAddTab = (state: TabsState) => state.addTab;
-const selectActiveDeckId = (state: StudyDeckState) => state.activeDeckId;
-const selectCommandPaletteOpen = (state: UIState) => state.commandPaletteOpen;
-const selectSetCommandPaletteOpen = (state: UIState) => state.setCommandPaletteOpen;
+const selectActiveDeckId = (state: { activeDeckId: string }) => state.activeDeckId;
+const selectCommandPaletteOpen = (state: { commandPaletteOpen: boolean }) => state.commandPaletteOpen;
+const selectSetCommandPaletteOpen = (state: { setCommandPaletteOpen: (open: boolean) => void }) => state.setCommandPaletteOpen;
 const selectDocuments = (state: { documents: Document[] }) => state.documents;
 const selectDocumentsLoading = (state: { isLoading: boolean }) => state.isLoading;
 const selectLoadDocuments = (state: { loadDocuments: () => Promise<void> }) => state.loadDocuments;
@@ -364,53 +362,53 @@ export function CommandCenter() {
     }
 
     // 1. Search Commands
-    const openDashboard = () => addTab({
+    const openDashboard = () => { addTab({
       title: "Dashboard",
       icon: <LayoutDashboard className="w-4 h-4" />,
       type: "dashboard",
       content: DashboardTab,
       closable: false,
-    });
+    }); };
 
-    const openDocuments = () => addTab({
+    const openDocuments = () => { addTab({
       title: "Documents",
       icon: <Library className="w-4 h-4" />,
       type: "documents",
       content: DocumentsTab,
       closable: true,
-    });
+    }); };
 
-    const openQueue = () => addTab({
+    const openQueue = () => { addTab({
       title: "Queue",
       icon: <ListTodo className="w-4 h-4" />,
       type: "queue",
       content: QueueTab,
       closable: true,
-    });
+    }); };
 
-    const openAnalytics = () => addTab({
+    const openAnalytics = () => { addTab({
       title: "Statistics",
       icon: <BarChart3 className="w-4 h-4" />,
       type: "analytics",
       content: AnalyticsTab,
       closable: true,
-    });
+    }); };
 
-    const openSettings = () => addTab({
+    const openSettings = () => { addTab({
       title: "Settings",
       icon: <Settings className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
       closable: true,
-    });
+    }); };
 
-    const openReview = () => addTab({
+    const openReview = () => { addTab({
       title: "Review",
       icon: <Brain className="w-4 h-4" />,
       type: "review",
       content: ReviewTab,
       closable: true,
-    });
+    }); };
 
     const sectionActions: Record<string, () => void> = {
       dashboard: openDashboard,
@@ -427,7 +425,7 @@ export function CommandCenter() {
         description: "Navigate to the dashboard",
         icon: <LayoutDashboard className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openDashboard,
+        action: () => { openDashboard(); },
         keywords: ["home", "main"],
       },
       {
@@ -436,7 +434,7 @@ export function CommandCenter() {
         description: "View all documents",
         icon: <Library className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openDocuments,
+        action: () => { openDocuments(); },
         keywords: ["library", "files"],
       },
       {
@@ -445,7 +443,7 @@ export function CommandCenter() {
         description: "View reading queue",
         icon: <ListTodo className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openQueue,
+        action: () => { openQueue(); },
         keywords: ["list", "reading"],
       },
       {
@@ -454,7 +452,7 @@ export function CommandCenter() {
         description: "View learning statistics",
         icon: <BarChart3 className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openAnalytics,
+        action: () => { openAnalytics(); },
         keywords: ["stats", "progress"],
       },
       {
@@ -463,7 +461,7 @@ export function CommandCenter() {
         description: "View application settings",
         icon: <Settings className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openSettings,
+        action: () => { openSettings(); },
         keywords: ["config", "preferences"],
       },
       {
@@ -472,7 +470,7 @@ export function CommandCenter() {
         description: "Start a review session",
         icon: <Brain className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: openReview,
+        action: () => { openReview(); },
         keywords: ["review", "study"],
       },
     ];

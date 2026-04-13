@@ -268,7 +268,7 @@ export async function restoreBrowserArchive(parsed: ParsedCollectionArchive): Pr
     difficulty: doc.difficulty,
     reps: doc.reps,
     total_time_spent: doc.totalTimeSpent,
-  } as db.Document)));
+  } as unknown as db.Document)));
 
   await db.bulkPutExtracts(extracts.map((extract) => ({
     id: extract.id,

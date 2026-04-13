@@ -9,13 +9,14 @@ import {
   Plus,
   BookOpen,
 } from 'lucide-react';
+import { getCollections } from '../../api/collections';
+import type { Collection } from '../../types/collection';
 import {
-  getCollections,
-  type Collection,
   PRESET_COLLECTIONS,
   getPresetCollectionIcon,
   isPresetCollection,
-} from '../../api/collections';
+  type PresetCollection,
+} from '../../types/collection';
 import { useDocumentStore } from '../../stores/documentStore';
 
 interface CollectionsPanelProps {
@@ -132,7 +133,7 @@ export function CollectionsPanel({
           const count = getDocumentCount(collection);
           const isPreset = isPresetCollection(collection.id);
           const icon = isPreset
-            ? getPresetCollectionIcon(collection.id)
+            ? getPresetCollectionIcon(collection.id as PresetCollection)
             : collection.icon || '📁';
 
           return (

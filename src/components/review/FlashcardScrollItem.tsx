@@ -4,6 +4,7 @@ import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
 import { cn } from "../../utils";
 import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
 interface FlashcardScrollItemProps {
     learningItem: LearningItem;
@@ -17,6 +18,7 @@ interface FlashcardScrollItemProps {
 export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollItemProps) {
     const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
+    const { click } = useHapticFeedback();
 
     // Keyboard shortcuts: Space to reveal, 1-4 to rate
     useEffect(() => {
@@ -37,15 +39,19 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
             if (isAnswerRevealed) {
                 if (e.key === "1") {
                     e.preventDefault();
+                    click();
                     onRate(1);
                 } else if (e.key === "2") {
                     e.preventDefault();
+                    click();
                     onRate(2);
                 } else if (e.key === "3") {
                     e.preventDefault();
+                    click();
                     onRate(3);
                 } else if (e.key === "4") {
                     e.preventDefault();
+                    click();
                     onRate(4);
                 }
             }
@@ -277,28 +283,28 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
                 {isAnswerRevealed && (
                     <div className="flex items-center justify-center gap-4 mt-6">
                         <button
-                            onClick={() => onRate(1)}
+                            onClick={() => { click(); onRate(1); }}
                             className="flex-1 py-4 bg-red-500/90 text-white rounded-xl font-medium hover:bg-red-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
                             <AlertCircle className="w-5 h-5" />
                             Again
                         </button>
                         <button
-                            onClick={() => onRate(2)}
+                            onClick={() => { click(); onRate(2); }}
                             className="flex-1 py-4 bg-orange-500/90 text-white rounded-xl font-medium hover:bg-orange-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
                             <Star className="w-5 h-5" />
                             Hard
                         </button>
                         <button
-                            onClick={() => onRate(3)}
+                            onClick={() => { click(); onRate(3); }}
                             className="flex-1 py-4 bg-blue-500/90 text-white rounded-xl font-medium hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
                             <CheckCircle className="w-5 h-5" />
                             Good
                         </button>
                         <button
-                            onClick={() => onRate(4)}
+                            onClick={() => { click(); onRate(4); }}
                             className="flex-1 py-4 bg-green-500/90 text-white rounded-xl font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
                             <Sparkles className="w-5 h-5" />

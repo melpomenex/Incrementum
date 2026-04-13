@@ -48,6 +48,12 @@ export interface RSSUserPreferenceUpdate {
   show_author?: boolean | null;
   show_date?: boolean | null;
   show_feed_icon?: boolean | null;
+  // Reader appearance
+  font_family?: string | null;
+  font_size?: number | null;
+  line_height?: number | null;
+  content_width?: number | null;
+  text_align?: string | null;
   // Sorting preferences
   sort_by?: string | null;
   sort_order?: string | null;
@@ -71,11 +77,16 @@ export interface RSSUserPreference {
   show_author?: boolean | null;
   show_date?: boolean | null;
   show_feed_icon?: boolean | null;
+  font_family?: string | null;
+  font_size?: number | null;
+  line_height?: number | null;
+  content_width?: number | null;
+  text_align?: string | null;
   sort_by?: string | null;
   sort_order?: string | null;
 }
 
-type TabType = "filters" | "display" | "layout" | "sorting";
+type TabType = "filters" | "display" | "layout" | "sorting" | "reader";
 
 export function RSSCustomizationPanel({
   feedId: _feedId,

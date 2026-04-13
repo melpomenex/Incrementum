@@ -58,7 +58,7 @@ export async function initLocalStorageSync(): Promise<void> {
       return;
     }
 
-  const map = sync.doc.getMap<SyncEntry>("localStorage");
+  const map: any = sync.doc.getMap("localStorage");
   const lastApplied = new Map<string, number>();
   const pendingWrites = new Map<string, string | null>();
   let flushTimer: number | null = null;

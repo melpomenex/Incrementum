@@ -204,7 +204,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                         {!isExpanded && (
                                             <div className="flex items-start gap-2">
                                                 {extract.html_content && (
-                                                    <Eye className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" title="Rich content available" />
+                                                    <Eye className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                                                 )}
                                                 <p className="text-sm text-muted-foreground line-clamp-2">
                                                     {extract.content}

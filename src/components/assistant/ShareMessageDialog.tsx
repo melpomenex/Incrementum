@@ -9,7 +9,7 @@ import {
   MessageSquare,
   MessagesSquare,
 } from "lucide-react";
-import { Modal } from "../common/Modal";
+import { X } from "lucide-react";
 import {
   exportAssistantMessageToObsidian,
   exportConversationToObsidian,
@@ -144,8 +144,16 @@ export function ShareMessageDialog({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Share Conversation" size="lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-border rounded-xl shadow-2xl">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Share Conversation</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-4">
       <div className="space-y-4">
         {/* Mode Selection */}
         <div className="flex gap-2 p-1 bg-muted rounded-lg">
@@ -341,6 +349,8 @@ export function ShareMessageDialog({
           )}
         </div>
       </div>
-    </Modal>
+        </div>
+      </div>
+    </div>
   );
 }

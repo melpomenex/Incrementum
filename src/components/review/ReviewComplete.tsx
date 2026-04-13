@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { CheckCircle2, Home, Flame, Trophy, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../lib/i18n";
+import { playNotificationGatedFeedback } from "../../utils/soundService";
 
 interface ReviewCompleteProps {
   reviewsCompleted: number;
@@ -20,10 +22,29 @@ export function ReviewComplete({
 }: ReviewCompleteProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const didPlaySoundsRef = useRef(false);
   const accuracy = reviewsCompleted > 0
     ? Math.round((correctCount / reviewsCompleted) * 100)
     : 0;
   const duration = Math.round((Date.now() - sessionStartTime) / 1000 / 60); // in minutes
+  const hitMilestone = Boolean(
+    streak &&
+    streak.current_streak > 1 &&
+    streak.current_streak === streak.longest_streak
+  );
+
+  useEffect(() => {
+    if (didPlaySoundsRef.current) return;
+    didPlaySoundsRef.current = true;
+
+    playNotificationGatedFeedback("review-complete");
+
+    if (hitMilestone) {
+      window.setTimeout(() => {
+        playNotificationGatedFeedback("milestone");
+      }, 200);
+    }
+  }, [hitMilestone]);
 
   return (
     <div className="w-full max-w-md mx-auto text-center">
@@ -49,8 +70,8 @@ export function ReviewComplete({
           <span className="text-sm font-medium text-orange-500">
             {t("reviewComplete.dayStreak", { count: streak.current_streak })}
           </span>
-          {streak.current_streak === streak.longest_streak && streak.longest_streak > 1 && (
-            <Trophy className="w-4 h-4 text-yellow-500 ml-1" title={t("reviewComplete.personalBest")} />
+          {hitMilestone && (
+            <span title={t("reviewComplete.personalBest")}><Trophy className="w-4 h-4 text-yellow-500 ml-1" /></span>
           )}
         </div>
       )}

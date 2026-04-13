@@ -181,7 +181,7 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
       type: t.type,
       data: t.data,
     })),
-    activeTabId: useTabsStore.getState().activeTabId,
+    activeTabId: (useTabsStore.getState().rootPane as any)?.activeTabId ?? null,
   };
 
   updateProgress({

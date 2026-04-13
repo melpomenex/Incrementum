@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { AlertTriangle, X, Trash2, Check } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
 export type ConfirmDialogVariant = "danger" | "warning" | "info";
 
@@ -37,6 +38,7 @@ export function ConfirmDialog({
   itemCount = 1,
 }: ConfirmDialogProps) {
   const { t } = useI18n();
+  const { delete: deleteHaptic } = useHapticFeedback();
 
   if (!isOpen) return null;
 
@@ -149,6 +151,7 @@ export function ConfirmDialog({
           </button>
           <button
             onClick={() => {
+              if (variant === "danger") deleteHaptic();
               onConfirm();
               onClose();
             }}

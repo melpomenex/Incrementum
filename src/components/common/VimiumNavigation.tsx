@@ -289,11 +289,12 @@ export function useVimiumNavigation(
 
     hints.forEach((hint) => {
       const text = hint.textContent || "";
+      const el = hint as HTMLElement;
       if (text.startsWith(prefix)) {
-        hint.style.background = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
+        el.style.background = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
         matchFound = true;
       } else {
-        hint.style.opacity = "0.3";
+        el.style.opacity = "0.3";
       }
     });
 
@@ -370,7 +371,7 @@ export function useVimiumNavigation(
 
     stateRef.current.findQuery = query;
 
-    const windowFind = window.find(query, false, !forward);
+    const windowFind = (window as unknown as { find: (query: string, caseSensitive: boolean, backwards: boolean) => boolean }).find(query, false, !forward);
 
     if (windowFind) {
       setFindResults((prev) => ({

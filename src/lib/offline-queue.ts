@@ -441,7 +441,7 @@ export function getConnectionMode(): ConnectionMode {
 export function setConnectionMode(mode: ConnectionMode): void {
   localStorage.setItem(CONNECTION_MODE_KEY, mode);
   console.log('[DualConnection] Connection mode changed to:', mode);
-  queueManager.notifyState({ connectionMode: mode });
+  (queueManager as any).notifyState({ connectionMode: mode });
 }
 
 /**
