@@ -296,7 +296,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
       {/* Customize Button */}
       <div className="flex justify-center pt-4 border-t">
         <button
-          onClick={() => setShowCustomize(true)}
+          onClick={() => setShowGallery(true)}
           className="flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-dashed hover:border-primary transition-colors text-foreground"
         >
           <Palette className="w-5 h-5" />

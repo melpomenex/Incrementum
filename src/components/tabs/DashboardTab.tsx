@@ -176,7 +176,7 @@ export function DashboardTab() {
       documents.slice(0, 10).map((doc) => ({
         id: doc.id,
         front: doc.title || "Untitled",
-        back: doc.extracted_text?.slice(0, 220) || t("dashboardTab.noExtractedContent"),
+        back: doc.content?.slice(0, 220) || t("dashboardTab.noExtractedContent"),
         documentTitle: doc.title || t("dashboardTab.untitled"),
       })),
     [documents]

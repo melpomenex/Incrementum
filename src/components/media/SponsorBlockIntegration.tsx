@@ -51,7 +51,7 @@ export function SponsorBlockIntegration({
   });
 
   // Skip notification timeout
-  const skipNoticeTimeout = useRef<NodeJS.Timeout>();
+  const skipNoticeTimeout = useRef<NodeJS.Timeout>(undefined);
 
   // Fetch segments when video URL changes
   useEffect(() => {

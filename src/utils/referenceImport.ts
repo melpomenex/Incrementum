@@ -1,4 +1,5 @@
-import { createDocument, updateDocument, type Document } from "../api/documents";
+import { createDocument, updateDocument } from "../api/documents";
+import type { Document } from "../types/document";
 
 export interface ReferenceImportItem {
   title: string;
@@ -35,7 +36,7 @@ export function parseZoteroItems(payload: unknown): ReferenceImportItem[] {
         source: "zotero" as const,
       };
     })
-    .filter((item): item is ReferenceImportItem => Boolean(item));
+    .filter((item) => item !== null && item !== undefined) as ReferenceImportItem[];
 }
 
 export function parseMendeleyItems(payload: unknown): ReferenceImportItem[] {
@@ -59,7 +60,7 @@ export function parseMendeleyItems(payload: unknown): ReferenceImportItem[] {
         source: "mendeley" as const,
       };
     })
-    .filter((item): item is ReferenceImportItem => Boolean(item));
+    .filter((item) => item !== null && item !== undefined) as ReferenceImportItem[];
 }
 
 export async function importReferenceItems(items: ReferenceImportItem[]): Promise<number> {

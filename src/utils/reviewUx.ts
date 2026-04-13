@@ -298,7 +298,7 @@ function applyFilters(items: QueueItem[], options?: SessionCustomizationOptions)
 
   // Apply exclude suspended filter
   if (options?.filters?.excludeSuspended) {
-    filtered = filtered.filter((item) => item.status !== "suspended");
+    filtered = filtered.filter((item) => (item as any).status !== "suspended");
   }
 
   return filtered;

@@ -1436,6 +1436,7 @@ export function LocalVideoPlayer({
 
 // Scroll hint component that shows briefly when video loads
 function ScrollHint({ isPlaying: _isPlaying }: { isPlaying: boolean }) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
   

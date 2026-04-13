@@ -80,7 +80,7 @@ function formatTime(seconds: number): string {
 type ViewMode = "document" | "extracts" | "cards";
 type PdfViewMode = "pdf" | "ocr-html";
 
-type DocumentType = "pdf" | "epub" | "markdown" | "html" | "youtube" | "video" | "audio";
+type DocumentType = "pdf" | "epub" | "markdown" | "html" | "youtube" | "video" | "audio" | "other";
 const MARKDOWN_WIDTH_STORAGE_KEY = "incrementum.markdown.width-ch";
 const MARKDOWN_MIN_WIDTH_CH = 80;
 const MARKDOWN_MAX_WIDTH_CH = 180;

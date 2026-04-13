@@ -225,6 +225,15 @@ tags: [incrementum]
     keepEntries: 500,
   },
 
+  rssSummary: {
+    mode: 'modern',
+    defaultLength: 'medium',
+    defaultFocus: 'key-points',
+    panelWidth: 400,
+    panelPosition: 'right',
+    autoOpen: false,
+  },
+
   sponsorBlock: {
     enabled: false,
     autoSkip: true,

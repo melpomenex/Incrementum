@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { answerQuestion } from "../../api/ai";
+import { answerQuestion } from "../api/ai";
 
 export interface TagSuggestion {
   tag: string;

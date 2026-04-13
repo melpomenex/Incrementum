@@ -13,6 +13,7 @@ import {
   ArchiveDocumentCommand,
   CreateExtractCommand,
 } from "../commands/undoableCommands";
+import type { Extract } from "../types/document";
 
 /**
  * Hook providing undoable operations
@@ -66,7 +67,7 @@ export function useUndoableOperations() {
     /**
      * Create an extract with undo support (undo deletes it)
      */
-    createExtract: (extract: Parameters<typeof CreateExtractCommand.prototype.execute>[0], onSuccess?: () => void) => {
+    createExtract: (extract: Omit<Extract, "id">, onSuccess?: () => void) => {
       return execute(new CreateExtractCommand(extract, onSuccess));
     },
   };

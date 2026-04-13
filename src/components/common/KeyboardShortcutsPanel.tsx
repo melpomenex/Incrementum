@@ -3,14 +3,13 @@
  * Shows relevant keyboard shortcuts at the bottom of each view
  */
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import {
   Keyboard,
   X,
   ArrowUp,
   ArrowDown,
   CornerDownLeft,
-  Escape,
   Search,
   FilePlus,
   RotateCcw,
@@ -20,12 +19,18 @@ import {
   HelpCircle,
   Command,
 } from "lucide-react";
+
+// lucide-react doesn't export Escape
+function EscapeIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6L6 18M6 6l12 12"/></svg>;
+}
+const Escape = EscapeIcon;
 import { useI18n } from "../../lib/i18n";
 
 export interface ShortcutItem {
   keys: string[];
   label: string;
-  icon?: typeof Keyboard;
+  icon?: ComponentType<{ size?: number; className?: string }>;
 }
 
 export interface ShortcutsContext {

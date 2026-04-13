@@ -105,12 +105,7 @@ export function DragDropUpload({
   const safelyCleanupListener = useCallback((unlisten?: (() => void) | null) => {
     if (typeof unlisten !== "function") return;
     try {
-      const result = unlisten();
-      if (result && typeof (result as Promise<unknown>).then === "function") {
-        void (result as Promise<unknown>).catch(() => {
-          // Ignore cleanup failures if the listener was already removed internally.
-        });
-      }
+      unlisten();
     } catch {
       // Ignore cleanup failures if the listener was already removed internally.
     }

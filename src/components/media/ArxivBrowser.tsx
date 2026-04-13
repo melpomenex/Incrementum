@@ -226,7 +226,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                         <span>{formatArxivDate(paper.published)}</span>
                         <span>•</span>
                         <span className="text-primary">
-                          {getCategoryDisplayName(paper.primary_category)}
+                          {getCategoryDisplayName(paper.primaryCategory)}
                         </span>
                       </div>
                       {paper.summary && (
@@ -327,10 +327,10 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                 </div>
               )}
 
-              {selectedPaper.journal_ref && (
+              {selectedPaper.journalRef && (
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground">
-                    <strong>Journal Reference:</strong> {selectedPaper.journal_ref}
+                    <strong>Journal Reference:</strong> {selectedPaper.journalRef}
                   </p>
                 </div>
               )}

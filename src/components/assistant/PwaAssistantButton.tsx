@@ -343,7 +343,7 @@ export function PwaAssistantButton({
     // Keep voice start synchronous to preserve user activation.
     const preflight = preflightVoice();
     if (!preflight.ok) {
-      setError(preflight.message);
+      setError((preflight as { ok: false; message: string }).message);
       return;
     }
     requestMicPermissionInGesture(setError);

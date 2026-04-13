@@ -6,22 +6,38 @@
 import { useState, ReactNode } from "react";
 import {
   Command,
-  Shift,
-  Ctrl,
-  Alt,
   CornerDownLeft,
   Delete,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  Escape,
 } from "lucide-react";
+
+// lucide-react doesn't export these, so we create simple SVG components
+function ShiftIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 2l4 4-4 4"/><path d="M16 6H9a5 5 0 0 0 0 10h7"/><path d="M12 22l-4-4 4-4"/></svg>;
+}
+function CtrlIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>;
+}
+function AltIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 3v18"/><path d="M6 7l6-4 6 4"/><path d="M6 17l6 4 6-4"/></svg>;
+}
+function EscapeIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6L6 18M6 6l12 12"/></svg>;
+}
+
+// Re-export as drop-in replacements
+const Shift = ShiftIcon;
+const Ctrl = CtrlIcon;
+const Alt = AltIcon;
+const Escape = EscapeIcon;
 
 interface KeyDefinition {
   key: string;
   label?: string;
-  icon?: typeof Command;
+  icon?: React.ComponentType<{ className?: string }>;
   isModifier?: boolean;
 }
 

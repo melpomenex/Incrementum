@@ -5,7 +5,7 @@
 
 import { useCallback } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
-import { playFeedback, type FeedbackType } from '../utils/soundService';
+import { playFeedback, vibrate, type FeedbackType } from '../utils/soundService';
 
 export type { FeedbackType } from '../utils/soundService';
 
@@ -96,17 +96,18 @@ function createConfetti(x: number, y: number): void {
  */
 export function useHapticFeedback() {
   const settings = useSettingsStore((state) => state.settings);
-  const soundEnabled = settings.notifications?.soundEnabled ?? true;
+  const soundEnabled = settings.notifications?.feedbackSoundsEnabled ?? false;
   const visualEnabled = settings.appearance?.visualFeedbackEnabled ?? true;
 
   const trigger = useCallback((type: FeedbackType, event?: React.MouseEvent | { x: number; y: number }) => {
     // Get position
-    const x = event && 'clientX' in event ? event.clientX : event?.x ?? window.innerWidth / 2;
-    const y = event && 'clientY' in event ? event.clientY : event?.y ?? window.innerHeight / 2;
+    const x = event ? ('clientX' in event ? event.clientX : event.x) : window.innerWidth / 2;
+    const y = event ? ('clientY' in event ? event.clientY : event.y) : window.innerHeight / 2;
 
-    // Play sound
+    // Play sound and vibrate
     if (soundEnabled) {
       playFeedback(type);
+      vibrate(type);
     }
 
     // Visual feedback

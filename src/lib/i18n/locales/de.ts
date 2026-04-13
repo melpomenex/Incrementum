@@ -1724,6 +1724,11 @@ export const de: Dict = {
   "notificationSettings.verifySettings":
     "Überprüfe, ob deine Benachrichtigungseinstellungen funktionieren",
   "notificationSettings.volume": "Lautstärke",
+  "notificationSettings.uiSoundEffects": "UI Sound Effects",
+  "notificationSettings.uiSoundEffectsLabel": "UI Sound Effects",
+  "notificationSettings.uiSoundEffectsDesc": "Play sounds and haptic feedback for user interactions (card ratings, completions, deletions)",
+  "notificationSettings.uiSoundEffectsDescNoHaptics": "Play sounds for user interactions (card ratings, completions, deletions). Haptic feedback is not available on this device/browser.",
+  "notificationSettings.feedbackVolume": "Feedback Volume",
   "notificationSettings.webBrowser": "Webbrowser",
   "notificationSettings.willReceive":
     "Du erhältst Benachrichtigungen basierend auf deinen Präferenzen",

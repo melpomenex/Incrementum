@@ -489,7 +489,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                   <button
                     onClick={() => {
                       // Trigger file picker for credentials
-                      window.api?.file?.openFileDialog?.({
+                      (window as any).api?.file?.openFileDialog?.({
                         filters: [{ name: "JSON", extensions: ["json"] }],
                       })?.then((path: string) => {
                         if (path) onUpdateSettings({ googleCredentialsPath: path });
@@ -953,7 +953,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
                     />
                     <button
                       onClick={() => {
-                        window.api?.file?.openFileDialog?.({
+                        (window as any).api?.file?.openFileDialog?.({
                           directory: true,
                         })?.then((path: string) => {
                           if (path) onUpdateSettings({ mathOcrModelDir: path });

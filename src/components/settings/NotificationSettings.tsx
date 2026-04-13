@@ -31,6 +31,10 @@ import {
 import {
   playNotificationSound,
   NOTIFICATION_SOUND_OPTIONS,
+  NOTIFICATION_SOUND_FILES,
+  playFile,
+  playNotificationDefaultTone,
+  supportsHaptics,
   type NotificationSoundId,
 } from "../../utils/soundService";
 
@@ -49,6 +53,7 @@ function BackgroundNotificationSettings({
   enabled: boolean;
   permission: NotificationPermission;
 }) {
+  const { t } = useI18n();
   const [bgStatus, setBgStatus] = useState<{
     supported: boolean;
     subscribed: boolean;
@@ -138,6 +143,7 @@ function BackgroundNotificationSettings({
  */
 export function NotificationSettings({ onChange }: NotificationSettingsProps) {
   const { t } = useI18n();
+  const hapticsSupported = supportsHaptics();
   const { settings, updateSettingsCategory } = useSettingsStore();
   const notificationSettings = settings.notifications;
 
@@ -468,19 +474,12 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
                       const soundId = (notificationSettings.notificationSound || "default") as NotificationSoundId;
                       if (soundId !== "none") {
                         const vol = notificationSettings.soundVolume ?? 0.5;
-                        import("../../utils/soundService").then(({ playFile, playNotificationDefaultTone }) => {
-                          const fileMap: Record<string, string> = {
-                            bell: "/sounds/bell.mp3",
-                            chime: "/sounds/chime.mp3",
-                            ding: "/sounds/ding.mp3",
-                            complete: "/sounds/complete.mp3",
-                          };
-                          if (fileMap[soundId]) {
-                            playFile(fileMap[soundId], vol);
-                          } else {
-                            playNotificationDefaultTone(vol);
-                          }
-                        });
+                        const filePath = NOTIFICATION_SOUND_FILES[soundId];
+                        if (filePath) {
+                          playFile(filePath, vol);
+                        } else {
+                          playNotificationDefaultTone(vol);
+                        }
                       }
                     }}
                     className="p-1.5 rounded-md hover:bg-muted transition-colors"
@@ -499,6 +498,55 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
                   value={Math.round((notificationSettings.soundVolume ?? 0.5) * 100)}
                   onChange={(e) =>
                     handleUpdate({ soundVolume: parseInt(e.target.value) / 100 })
+                  }
+                  className="w-32 accent-primary"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* UI Sound Effects (independent from notification sounds) */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4">{t("notificationSettings.uiSoundEffects")}</h3>
+        <div className="space-y-4">
+          <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
+            <div className="flex items-start gap-3">
+              <Volume2 className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium">{t("notificationSettings.uiSoundEffectsLabel")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {hapticsSupported
+                    ? t("notificationSettings.uiSoundEffectsDesc")
+                    : t("notificationSettings.uiSoundEffectsDescNoHaptics")}
+                </p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={notificationSettings.feedbackSoundsEnabled ?? false}
+                onChange={(e) =>
+                  handleUpdate({ feedbackSoundsEnabled: e.target.checked })
+                }
+              />
+              <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {notificationSettings.feedbackSoundsEnabled && (
+            <div className="ml-8 p-4 bg-muted/30 rounded-lg">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm">{t("notificationSettings.feedbackVolume")}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round((notificationSettings.feedbackVolume ?? 0.3) * 100)}
+                  onChange={(e) =>
+                    handleUpdate({ feedbackVolume: parseInt(e.target.value) / 100 })
                   }
                   className="w-32 accent-primary"
                 />

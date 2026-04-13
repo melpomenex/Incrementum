@@ -89,7 +89,7 @@ async function loadTauriEventAPI(): Promise<void> {
 
   try {
     const eventModule = await import("@tauri-apps/api/event");
-    tauriEventListen = eventModule.listen;
+    tauriEventListen = eventModule.listen as typeof tauriEventListen;
   } catch (error) {
     console.error("Failed to load Tauri event API:", error);
     throw new Error("Tauri event API not available");
@@ -231,7 +231,7 @@ export async function openFolderPicker(options?: {
       if (!tauriDialogOpen) {
         throw new Error("Failed to load Tauri dialog API");
       }
-      return await tauriDialogOpen(dialogOptions) as Promise<string | null>;
+      return (await tauriDialogOpen(dialogOptions) as unknown) as Promise<string | null>;
     } catch (error) {
       console.warn("[Tauri] Folder dialog plugin import failed, using invoke fallback:", error);
       return await invokeCommand<string | null>("plugin:dialog|open", {

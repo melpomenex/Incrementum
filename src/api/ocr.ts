@@ -115,6 +115,7 @@ export async function performOCR(
   options: OCROptions = {}
 ): Promise<OCRResult> {
   // Dynamic import of Tesseract.js
+  // @ts-expect-error tesseract.js types not available
   const Tesseract = await import("tesseract.js");
 
   const {
@@ -197,6 +198,7 @@ export async function performOCRWithProgress(
   onProgress: (progress: number, status: string) => void,
   options: OCROptions = {}
 ): Promise<OCRResult> {
+  // @ts-expect-error tesseract.js types not available
   const Tesseract = await import("tesseract.js");
 
   const { language = OCRLanguage.English } = options;
@@ -238,6 +240,7 @@ export function getLanguageDisplayName(code: string): string {
  * Preload OCR language data
  */
 export async function preloadLanguage(language: string = OCRLanguage.English): Promise<void> {
+  // @ts-expect-error tesseract.js types not available
   const Tesseract = await import("tesseract.js");
   await Tesseract.loadLanguage(language);
 }

@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Trophy, Star, Flame, PartyPopper, X } from "lucide-react";
+import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
 interface ReviewFeedbackProps {
   type: "streak" | "milestone" | "complete" | "mastered" | null;
@@ -54,11 +55,16 @@ const feedbackConfigs: Record<string, FeedbackConfig> = {
 export function ReviewFeedback({ type, value, onClose }: ReviewFeedbackProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const { complete: completeHaptic, streak: streakHaptic, milestone: milestoneHaptic } = useHapticFeedback();
 
   useEffect(() => {
     if (type) {
       setIsVisible(true);
       setIsExiting(false);
+
+      if (type === "streak") streakHaptic();
+      else if (type === "milestone") milestoneHaptic();
+      else if (type === "complete") completeHaptic();
       
       // Auto-dismiss after 3 seconds
       const timer = setTimeout(() => {

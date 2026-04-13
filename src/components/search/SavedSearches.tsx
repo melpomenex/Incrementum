@@ -363,7 +363,7 @@ export function SearchHistoryManager() {
 /**
  * Search suggestions dropdown
  */
-export function SearchSuggestions({
+export async function SearchSuggestions({
   query,
   onSelect,
   recentSearches,

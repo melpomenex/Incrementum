@@ -202,8 +202,8 @@ function GeneralSettings() {
                 </div>
               </div>
               <select
-                value={settings.theme}
-                onChange={(e) => updateSettings({ theme: e.target.value as any })}
+                value={settings.appearance.theme}
+                onChange={(e) => updateSettings({ appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" } })}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm"
               >
                 <option value="light">{t("settingsLegacy.light")}</option>
@@ -222,8 +222,8 @@ function GeneralSettings() {
                 type="number"
                 min="10"
                 max="20"
-                value={settings.fontSize}
-                onChange={(e) => updateSettings({ fontSize: Number(e.target.value) })}
+                value={settings.appearance.fontSize}
+                onChange={(e) => updateSettings({ appearance: { ...settings.appearance, fontSize: Number(e.target.value) } })}
                 className="w-16 px-2 py-1 bg-background border border-border rounded text-sm text-center"
               />
             </div>
@@ -266,9 +266,9 @@ function GeneralSettings() {
                 type="number"
                 min="0"
                 max="100"
-                value={settings.newCardsPerDay}
+                value={settings.learning.newCardsPerDay}
                 onChange={(e) =>
-                  updateSettings({ newCardsPerDay: Number(e.target.value) })
+                  updateSettings({ learning: { ...settings.learning, newCardsPerDay: Number(e.target.value) } })
                 }
                 className="w-16 px-2 py-1 bg-background border border-border rounded text-sm text-center"
               />
@@ -284,9 +284,9 @@ function GeneralSettings() {
                 type="number"
                 min="0"
                 max="500"
-                value={settings.reviewsPerDay}
+                value={settings.learning.reviewsPerDay}
                 onChange={(e) =>
-                  updateSettings({ reviewsPerDay: Number(e.target.value) })
+                  updateSettings({ learning: { ...settings.learning, reviewsPerDay: Number(e.target.value) } })
                 }
                 className="w-16 px-2 py-1 bg-background border border-border rounded text-sm text-center"
               />
@@ -307,8 +307,8 @@ function GeneralSettings() {
               </div>
               <input
                 type="checkbox"
-                checked={settings.autoImport}
-                onChange={(e) => updateSettings({ autoImport: e.target.checked })}
+                checked={settings.documents.autoProcessOnImport}
+                onChange={(e) => updateSettings({ documents: { ...settings.documents, autoProcessOnImport: e.target.checked } })}
                 className="rounded"
               />
             </label>
@@ -321,9 +321,9 @@ function GeneralSettings() {
               </div>
               <input
                 type="text"
-                value={settings.defaultCategory}
+                value={settings.documents.defaultCategory}
                 onChange={(e) =>
-                  updateSettings({ defaultCategory: e.target.value })
+                  updateSettings({ documents: { ...settings.documents, defaultCategory: e.target.value } })
                 }
                 className="w-40 px-2 py-1 bg-background border border-border rounded text-sm"
               />

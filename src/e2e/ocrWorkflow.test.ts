@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useDocumentStore } from "../stores/documentStore";
+import type { Document } from "../types/document";
 import * as documentsApi from "../api/documents";
 
 // Mock the API
@@ -106,7 +107,7 @@ describe("E2E Tests: OCR Workflow", () => {
         filePath: "/path/to/test.pdf",
         fileType: "pdf",
         totalPages: 10,
-      };
+      } as unknown as Document;
 
       // Mock OCR response
       vi.mocked(documentsApi.readDocumentFile).mockResolvedValue("base64data...");
@@ -213,7 +214,7 @@ describe("E2E Tests: Document Viewer with Auto-Extract", () => {
       title: "Test PDF",
       filePath: "/test/document.pdf",
       fileType: "pdf",
-    };
+    } as unknown as Document;
 
     act(() => {
       docsResult.current.setCurrentDocument(mockDocument);

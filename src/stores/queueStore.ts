@@ -648,7 +648,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
 if (typeof useCollectionStore.subscribe === "function") {
   useCollectionStore.subscribe(
-    (state) => state.activeCollectionId,
     () => {
       const { applyFilters } = useQueueStore.getState();
       applyFilters();

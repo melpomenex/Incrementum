@@ -11,12 +11,12 @@
  * - Subtle session timer that fades when inactive
  */
 
-import type { Theme } from "./ThemeSystem";
+import { type Theme, ThemeMode } from "./ThemeSystem";
 
 export const FOCUS_THEME: Theme = {
   id: "focus",
   name: "Focus",
-  mode: "dark" as const,
+  mode: ThemeMode.Dark,
   colors: {
     // Extremely muted UI chrome
     primary: "#4a5568",

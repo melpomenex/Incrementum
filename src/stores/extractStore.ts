@@ -16,7 +16,7 @@ export const useExtractStore = create<ExtractState>((set) => ({
   loadExtracts: async (documentId) => {
     set({ isLoading: true });
     try {
-      const extracts = await invokeCommand("get_extracts", { documentId: documentId || null });
+      const extracts: any[] = await invokeCommand("get_extracts", { documentId: documentId || null }) || [];
       set({ extracts, isLoading: false });
     } catch (error) {
       console.error("Failed to load extracts:", error);

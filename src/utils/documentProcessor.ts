@@ -411,7 +411,7 @@ export async function batchProcessDocuments(
   for (const documentId of documentIds) {
     try {
       // Get document content
-      const document = await invokeCommand("get_document", { id: documentId });
+      const document = await invokeCommand<any>("get_document", { id: documentId });
       const processed = await processDocument(
         documentId,
         document.content || "",
