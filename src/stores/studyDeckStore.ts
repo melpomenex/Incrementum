@@ -14,6 +14,7 @@ interface StudyDeckState {
   updateDeck: (deckId: string, updates: Partial<Pick<StudyDeck, "name" | "tagFilters">>) => void;
   removeDeck: (deckId: string) => void;
   seedFromDocuments: (documents: Document[]) => void;
+  ensureDecksExist: (deckNames: string[]) => string[];
 }
 
 export const useStudyDeckStore = create<StudyDeckState>()(
@@ -73,6 +74,29 @@ export const useStudyDeckStore = create<StudyDeckState>()(
         });
       },
 
+      ensureDecksExist: (deckNames) => {
+        const createdOrMatchedIds: string[] = [];
+        for (const deckName of deckNames) {
+          const state = get();
+          const existing = state.decks.find(
+            (deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase()
+          );
+          if (existing) {
+            createdOrMatchedIds.push(existing.id);
+            continue;
+          }
+          get().addDeck(deckName, [deckName]);
+          const updatedState = get();
+          const created = updatedState.decks.find(
+            (deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase()
+          );
+          if (created) {
+            createdOrMatchedIds.push(created.id);
+          }
+        }
+        return createdOrMatchedIds;
+      },
+
       seedFromDocuments: (documents) => {
         const { decks } = get();
         if (decks.length > 0) return;
@@ -81,7 +105,7 @@ export const useStudyDeckStore = create<StudyDeckState>()(
         documents.forEach((doc) => {
           const tags = Array.isArray(doc.tags) ? doc.tags : [];
           if (tags.length === 0) return;
-          if (!tags.some((tag) => tag.toLowerCase() === "anki-import")) return;
+          if (!tags.some((tag) => tag.toLowerCase() === "anki-import" || tag.toLowerCase() === "study-json-import")) return;
           getDeckTagCandidates(tags).forEach((tag) => tagCandidates.add(tag));
         });
 

@@ -1245,6 +1245,97 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_rss_articles_full_content_fetched ON rss_articles(full_content_fetched_at);
         "#,
     ),
+    // Migration 038: Remove foreign key constraint on documents.category
+    // Category should be free-form text, not a reference to categories table.
+    // (Same fix as migration 028 applied to extracts.)
+    Migration::new(
+        "038_remove_document_category_fk",
+        r#"
+        -- SQLite doesn't support dropping foreign keys directly, so recreate the table
+        -- Step 1: Create new table without the foreign key constraint on category
+        CREATE TABLE IF NOT EXISTS documents_new (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            content TEXT,
+            content_hash TEXT,
+            total_pages INTEGER,
+            current_page INTEGER,
+            current_scroll_percent REAL,
+            current_cfi TEXT,
+            current_view_state TEXT,
+            position_json TEXT,
+            progress_percent REAL DEFAULT 0.0,
+            category TEXT,
+            tags TEXT NOT NULL DEFAULT '[]',
+            date_added TEXT NOT NULL,
+            date_modified TEXT NOT NULL,
+            date_last_reviewed TEXT,
+            extract_count INTEGER NOT NULL DEFAULT 0,
+            learning_item_count INTEGER NOT NULL DEFAULT 0,
+            priority_rating INTEGER NOT NULL DEFAULT 0,
+            priority_slider INTEGER NOT NULL DEFAULT 0,
+            priority_score REAL NOT NULL DEFAULT 0,
+            is_archived INTEGER NOT NULL DEFAULT 0,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
+            is_dismissed INTEGER NOT NULL DEFAULT 0,
+            metadata TEXT,
+            cover_image_url TEXT,
+            cover_image_source TEXT,
+            language TEXT,
+            word_count INTEGER,
+            reading_time INTEGER,
+            source_url TEXT,
+            author TEXT,
+            next_reading_date TEXT,
+            html_content TEXT,
+            reading_count INTEGER NOT NULL DEFAULT 0,
+            stability REAL,
+            difficulty REAL,
+            reps INTEGER,
+            total_time_spent INTEGER,
+            consecutive_count INTEGER
+        );
+
+        -- Step 2: Copy data from old table (explicit column list to avoid order mismatch)
+        INSERT INTO documents_new (
+            id, title, file_path, file_type, content, content_hash, total_pages, current_page,
+            category, tags, date_added, date_modified, date_last_reviewed,
+            extract_count, learning_item_count, priority_score, is_archived, is_favorite, metadata,
+            language, word_count, reading_time, source_url, author,
+            priority_rating, priority_slider, next_reading_date,
+            cover_image_url, cover_image_source, current_view_state,
+            html_content, current_scroll_percent, current_cfi, position_json, progress_percent,
+            reading_count, stability, difficulty, reps, total_time_spent, consecutive_count,
+            is_dismissed
+        )
+        SELECT
+            id, title, file_path, file_type, content, content_hash, total_pages, current_page,
+            category, tags, date_added, date_modified, date_last_reviewed,
+            extract_count, learning_item_count, priority_score, is_archived, is_favorite, metadata,
+            language, word_count, reading_time, source_url, author,
+            priority_rating, priority_slider, next_reading_date,
+            cover_image_url, cover_image_source, current_view_state,
+            html_content, current_scroll_percent, current_cfi, position_json, progress_percent,
+            reading_count, stability, difficulty, reps, total_time_spent, consecutive_count,
+            is_dismissed
+        FROM documents;
+
+        -- Step 3: Drop old table
+        DROP TABLE documents;
+
+        -- Step 4: Rename new table
+        ALTER TABLE documents_new RENAME TO documents;
+
+        -- Step 5: Recreate indexes
+        CREATE INDEX IF NOT EXISTS idx_documents_date_added ON documents(date_added);
+        CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+        CREATE INDEX IF NOT EXISTS idx_documents_file_type ON documents(file_type);
+        CREATE INDEX IF NOT EXISTS idx_documents_is_archived ON documents(is_archived);
+        CREATE INDEX IF NOT EXISTS idx_documents_is_dismissed ON documents(is_dismissed);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

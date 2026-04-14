@@ -48,25 +48,6 @@ function inferAnkiDeckNames(imported: unknown[]): string[] {
   return Array.from(names);
 }
 
-function ensureAnkiStudyDecks(deckNames: string[]): string[] {
-  const createdOrMatchedIds: string[] = [];
-  for (const deckName of deckNames) {
-    const state = useStudyDeckStore.getState();
-    const existing = state.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
-    if (existing) {
-      createdOrMatchedIds.push(existing.id);
-      continue;
-    }
-    state.addDeck(deckName, [deckName]);
-    const updatedState = useStudyDeckStore.getState();
-    const created = updatedState.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
-    if (created) {
-      createdOrMatchedIds.push(created.id);
-    }
-  }
-  return createdOrMatchedIds;
-}
-
 export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const { documents, loadDocuments } = useDocumentStore();
   const { loadStreak, streak, streakLoading } = useReviewStore();
@@ -198,7 +179,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
           { filePath }
         );
         const deckNames = [result.deck_name];
-        const deckIds = ensureAnkiStudyDecks(deckNames);
+        const deckIds = useStudyDeckStore.getState().ensureDecksExist(deckNames);
         if (deckIds.length > 0) {
           clearDeckSelection();
           toggleDeckSelection(deckIds[0]);
@@ -213,7 +194,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
           apkgPath: filePath,
         });
         const deckNames = inferAnkiDeckNames(imported);
-        const deckIds = ensureAnkiStudyDecks(deckNames);
+        const deckIds = useStudyDeckStore.getState().ensureDecksExist(deckNames);
         if (deckIds.length > 0) {
           clearDeckSelection();
           toggleDeckSelection(deckIds[0]);

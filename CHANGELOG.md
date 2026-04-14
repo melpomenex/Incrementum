@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.3] - 2026-04-14
+
+### Added
+
+- **Document category migration** — added database migration `038_remove_document_category_fk` to remove the unintended foreign key constraint from `documents.category`, preserving category as free-form text and recreating the relevant indexes after the table rebuild.
+
+### Fixed
+
+- **JSON deck registration from Documents imports** — importing study JSON decks from the Documents page now creates or reuses the matching study deck entry immediately, including drag-and-drop, JSON picker imports, and mixed local file imports.
+- **Study deck seeding for JSON imports** — deck auto-seeding now recognizes `study-json-import` tags in addition to `anki-import`, so JSON-imported decks are rediscovered correctly on first load.
+- **Review algorithm transparency consistency** — the transparency panel now labels the next review using the active global algorithm while still reading stored SuperMemo state from the card data for reps, lapses, and retrievability details.
+
 ## [1.20.2] - 2026-04-14
 
 ### Added

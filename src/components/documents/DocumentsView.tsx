@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useCollectionStore } from "../../stores/collectionStore";
+import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { AnnaArchiveSearch } from "../import/AnnaArchiveSearch";
 import { ArxivImportDialog } from "../import/ArxivImportDialog";
 import { WebArticleImportDialog } from "../import/WebArticleImportDialog";
@@ -387,10 +388,11 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const handleStudyJsonDeck = useCallback(
     async (filePath: string) => {
       try {
-        await invokeCommand<{ deck_name: string; cards_imported: number }>(
+        const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
           "import_study_json_file",
           { filePath }
         );
+        useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
         console.log("JSON deck imported successfully");
         await loadDocuments();
       } catch (err) {

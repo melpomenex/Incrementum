@@ -45,22 +45,7 @@ function inferAnkiDeckNames(imported: unknown[]): string[] {
 }
 
 function ensureAnkiStudyDecks(deckNames: string[]): string[] {
-  const createdOrMatchedIds: string[] = [];
-  for (const deckName of deckNames) {
-    const state = useStudyDeckStore.getState();
-    const existing = state.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
-    if (existing) {
-      createdOrMatchedIds.push(existing.id);
-      continue;
-    }
-    state.addDeck(deckName, [deckName]);
-    const updatedState = useStudyDeckStore.getState();
-    const created = updatedState.decks.find((deck) => deck.name.trim().toLowerCase() === deckName.trim().toLowerCase());
-    if (created) {
-      createdOrMatchedIds.push(created.id);
-    }
-  }
-  return createdOrMatchedIds;
+  return useStudyDeckStore.getState().ensureDecksExist(deckNames);
 }
 
 export function ReviewSession({ onExit }: ReviewSessionProps) {
@@ -222,7 +207,8 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         const deckNames = [result.deck_name];
         const deckIds = ensureAnkiStudyDecks(deckNames);
         if (deckIds.length > 0) {
-          useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+          useStudyDeckStore.getState().clearDeckSelection();
+          useStudyDeckStore.getState().toggleDeckSelection(deckIds[0]);
         }
         await loadQueue();
         toast.success(
@@ -236,7 +222,8 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         const deckNames = inferAnkiDeckNames(imported);
         const deckIds = ensureAnkiStudyDecks(deckNames);
         if (deckIds.length > 0) {
-          useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+          useStudyDeckStore.getState().clearDeckSelection();
+          useStudyDeckStore.getState().toggleDeckSelection(deckIds[0]);
         }
         await loadQueue();
         toast.success(
