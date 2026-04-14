@@ -29,7 +29,7 @@ Incrementum is a powerful learning application that combines two proven techniqu
 
 **Incremental Reading** - Process large amounts of information in small, manageable chunks over time. Instead of reading articles cover-to-cover, you extract key points and gradually build understanding.
 
-**Spaced Repetition** - Review material at scientifically-optimized intervals to maximize retention. Algorithms like FSRS-5 and SM-18 predict when you're about to forget and schedule reviews just in time.
+**Spaced Repetition** - Review material at scientifically-optimized intervals to maximize retention. Algorithms like FSRS-6 and SM-18 predict when you're about to forget and schedule reviews just in time.
 
 ### Key Concepts
 
@@ -59,7 +59,7 @@ When you first launch Incrementum, you'll see the **Dashboard** with four main s
    - Try "Modern Dark" or "Material You" for a modern look
 
 2. **Configure Review Settings** - Settings → Learning → Algorithm
-   - **Algorithm**: FSRS-5 (recommended), SM-18, or SM-2
+   - **Algorithm**: FSRS-6 (recommended), SM-18, or SM-2
    - **Desired Retention**: 90% (default) - targets how well you want to remember
    - **Learn Per Day**: 20-50 items recommended for beginners
 
@@ -93,6 +93,7 @@ Let's import your first document:
 | **HTML** | Web pages | Articles, blog posts |
 | **Anki (.apkg)** | Anki deck package | Migrate from Anki |
 | **SuperMemo** | ZIP exports | Migrate from SuperMemo |
+| **JSON (.json)** | Flashcard deck files | Import decks with scheduling data |
 | **URL** | Any web link | Online articles, blogs |
 | **Arxiv** | Academic papers | Research literature |
 | **Screenshot** | Screen capture | Quick captures from any app |
@@ -136,6 +137,47 @@ Let's import your first document:
    - Authors
    - Publication date
    - References
+
+#### Method 4: JSON Deck Import
+
+Import flashcard decks from JSON files that include scheduling data (intervals, ease factors, review history).
+
+**Importing via the File Picker:**
+
+1. Click **Documents** → **Import** → **JSON**
+2. Select your `.json` deck file
+3. Incrementum creates a deck document and imports all cards, preserving:
+   - Scheduling (intervals, ease factors, due dates)
+   - Review history (repetitions, lapses, retention rate)
+   - Card states (new, reviewing, or suspended)
+
+**Importing via Drag and Drop:**
+
+Drag a `.json` file directly onto the app window. If the file matches the expected deck format, it's imported automatically.
+
+**JSON Deck Format:**
+
+The file should be a flat object mapping question text to card data:
+
+```json
+{
+  "What is the powerhouse of the cell?": {
+    "answer": "The mitochondria.",
+    "subject": "Biology",
+    "deck_name": "Cell Biology",
+    "ease_factor": 2.6,
+    "interval_days": 7,
+    "repetitions": 3,
+    "due_at": "2026-04-20T12:00:00Z"
+  }
+}
+```
+
+**Notes:**
+- Each `.json` file creates one deck. The deck name comes from the `deck_name` field.
+- Imported cards use the SM-2 algorithm by default. You can switch algorithms after import.
+- Dropping the same file twice won't create duplicates — existing cards are skipped.
+- Cards marked `known_pile: true` are imported as suspended.
 
 ### Document Viewer
 
@@ -185,9 +227,9 @@ Once imported, open any document to access:
 
 ## The Learning System
 
-### Understanding FSRS-5
+### Understanding FSRS-6
 
-**FSRS-5** (Free Spaced Repetition Scheduler) is a modern algorithm that:
+**FSRS-6** (Free Spaced Repetition Scheduler) is a modern algorithm that:
 
 1. **Tracks Memory State**: Models your memory strength for each card
 2. **Predicts Forgetting**: Estimates when you'll forget each item
@@ -570,7 +612,7 @@ Export your data for analysis:
 
 Incrementum supports three scheduling algorithms. Choose the one that best fits your learning style:
 
-**FSRS-5 (Recommended):**
+**FSRS-6 (Recommended):**
 - Modern, research-backed
 - Adapts to individual memory
 - Predicts forgetting times
@@ -1515,7 +1557,7 @@ Export your data before major changes (Settings → Backup → Export)
 
 **Review Session**: A period of actively recalling and rating cards
 
-**FSRS**: Free Spaced Repetition Scheduler, modern algorithm optimizing review timing (FSRS-5 is the current version)
+**FSRS**: Free Spaced Repetition Scheduler, modern algorithm optimizing review timing (FSRS-6 is the current version)
 
 **Interval**: Time between reviews (e.g., 7 days)
 

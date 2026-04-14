@@ -11,8 +11,9 @@ interface ReviewDecksModalProps {
     deck: StudyDeck;
     count: number;
   }>;
-  activeDeckId: string | null;
-  onSelectDeck: (deckId: string | null) => void;
+  activeDeckIds: string[];
+  onToggleDeck: (deckId: string | null) => void;
+  onClearSelection: () => void;
 }
 
 export function ReviewDecksModal({
@@ -20,8 +21,9 @@ export function ReviewDecksModal({
   onClose,
   decks,
   deckStats,
-  activeDeckId,
-  onSelectDeck,
+  activeDeckIds,
+  onToggleDeck,
+  onClearSelection,
 }: ReviewDecksModalProps) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
@@ -117,11 +119,11 @@ export function ReviewDecksModal({
           <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
             <button
               onClick={() => {
-                onSelectDeck(null);
+                onClearSelection();
                 onClose();
               }}
               className={`w-full rounded-xl border p-4 text-left transition-colors ${
-                activeDeckId === null
+                activeDeckIds.length === 0
                   ? "border-primary bg-primary/10"
                   : "border-border bg-background hover:bg-muted/70"
               }`}
@@ -133,7 +135,7 @@ export function ReviewDecksModal({
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>{t("reviewHome.countDue", { count: totalDueCount })}</span>
-                  {activeDeckId === null && <Check className="h-4 w-4 text-primary" />}
+                  {activeDeckIds.length === 0 && <Check className="h-4 w-4 text-primary" />}
                 </div>
               </div>
             </button>
@@ -145,13 +147,12 @@ export function ReviewDecksModal({
             )}
 
             {filteredDeckStats.map(({ deck, count }) => {
-              const isActive = activeDeckId === deck.id;
+              const isActive = activeDeckIds.includes(deck.id);
               return (
                 <button
                   key={deck.id}
                   onClick={() => {
-                    onSelectDeck(deck.id);
-                    onClose();
+                    onToggleDeck(deck.id);
                   }}
                   className={`w-full rounded-xl border p-4 text-left transition-colors ${
                     isActive

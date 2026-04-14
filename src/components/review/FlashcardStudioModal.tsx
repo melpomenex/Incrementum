@@ -1837,7 +1837,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const { t } = useI18n();
   const toast = useToast();
   const { documents, loadDocuments } = useDocumentStore();
-  const { decks, activeDeckId } = useStudyDeckStore();
+  const { decks, activeDeckIds } = useStudyDeckStore();
   const providers = useLLMProvidersStore((state) => state.providers);
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
   const maxTokens = useSettingsStore((state) => state.settings.ai.maxTokens) || 4000;
@@ -1954,14 +1954,14 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         if (typeof parsed?.selectedNotebookId === "string") setSelectedNotebookId(parsed.selectedNotebookId);
         if (typeof parsed?.selectedDocumentId === "string") setSelectedDocumentId(parsed.selectedDocumentId);
         if (typeof parsed?.selectedDeckId === "string") setSelectedDeckId(parsed.selectedDeckId);
-        else if (activeDeckId) setSelectedDeckId(activeDeckId);
+        else if (activeDeckIds[0]) setSelectedDeckId(activeDeckIds[0]);
         if (parsed?.contextSelection) setContextSelection(normalizeContextSelection(parsed.contextSelection));
       } catch (error) {
         console.warn("Failed to restore state", error);
-        setSelectedDeckId(activeDeckId ?? null);
+        setSelectedDeckId(activeDeckIds[0] ?? null);
       }
     } else {
-      setSelectedDeckId(activeDeckId ?? null);
+      setSelectedDeckId(activeDeckIds[0] ?? null);
     }
 
     const historyRaw = localStorage.getItem(HISTORY_KEY);
@@ -1973,7 +1973,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         // ignore
       }
     }
-  }, [isOpen, activeDeckId]);
+  }, [isOpen, activeDeckIds[0]]);
 
   // Save state
   useEffect(() => {

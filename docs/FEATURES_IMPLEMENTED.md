@@ -45,7 +45,7 @@ Complete list of Incrementum features and their implementation status.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| FSRS-5 Algorithm | ✅ Implemented | State-of-the-art spaced repetition scheduler |
+| FSRS-6 Algorithm | ✅ Implemented | State-of-the-art spaced repetition scheduler |
 | SM-18 Algorithm | ✅ Implemented | Latest SuperMemo 18 algorithm with 3D SInc matrix |
 | SM-2 Algorithm | ✅ Implemented | Classic SuperMemo 2 algorithm option |
 | Flashcard Creation | ✅ Implemented | Basic front/back cards |

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.2] - 2026-04-14
+
+### Added
+
+- **Study JSON deck import** — import flat-map JSON deck files (`{question: card_object}`) from external tools with full scheduling data preservation (ease factor, interval, repetitions, due date, lapse count). Cards are deduplicated by SHA-256 hash of question text and tagged with `study-json-import`. Includes both a Rust backend (Tauri commands + 8 unit tests) and a browser-compatible implementation using SubtleCrypto.
+- **Multi-deck selection** — deck filtering now supports selecting multiple decks simultaneously instead of a single deck. Toggle decks on/off from the deck picker, review queue filters by all selected decks, and deck pills reflect multi-select state.
+- **JSON import in file picker** — new "JSON" tab in the enhanced file picker with drag-and-drop support for `.json` deck files on the Documents page.
+
+### Changed
+
+- "Import Anki" button generalized to "Import Deck" — now accepts both `.apkg` and `.json` files.
+- Updated handbook and documentation to reference FSRS-6 as the default algorithm recommendation (renamed from FSRS-5).
+- Handbook Table of Contents sidebar is now independently scrollable when entries exceed the viewport.
+
+### Removed
+
+- Cleaned up 5 obsolete documentation files (IMPLEMENTATION_STATUS, NEWSLETTER_IMPLEMENTATION_COMPLETE, UX_UI_IMPROVEMENTS, newsletter-directory-ui-ux-improvements, newsletter-improvements-summary).
+
 ## [1.20.1] - 2026-04-13
 
 ### Changed

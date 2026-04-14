@@ -7,8 +7,9 @@ import { getDeckTagCandidates, normalizeTagList } from "../utils/studyDecks";
 
 interface StudyDeckState {
   decks: StudyDeck[];
-  activeDeckId: string | null;
-  setActiveDeckId: (deckId: string | null) => void;
+  activeDeckIds: string[];
+  toggleDeckSelection: (deckId: string | null) => void;
+  clearDeckSelection: () => void;
   addDeck: (name: string, tagFilters?: string[]) => void;
   updateDeck: (deckId: string, updates: Partial<Pick<StudyDeck, "name" | "tagFilters">>) => void;
   removeDeck: (deckId: string) => void;
@@ -19,10 +20,20 @@ export const useStudyDeckStore = create<StudyDeckState>()(
   persist(
     (set, get) => ({
       decks: [],
-      activeDeckId: null,
+      activeDeckIds: [],
 
-      setActiveDeckId: (deckId) => {
-        set({ activeDeckId: deckId });
+      toggleDeckSelection: (deckId) => {
+        set((state) => {
+          if (deckId === null) return { activeDeckIds: [] };
+          const ids = state.activeDeckIds;
+          return ids.includes(deckId)
+            ? { activeDeckIds: ids.filter((id) => id !== deckId) }
+            : { activeDeckIds: [...ids, deckId] };
+        });
+      },
+
+      clearDeckSelection: () => {
+        set({ activeDeckIds: [] });
       },
 
       addDeck: (name, tagFilters = []) => {
@@ -57,8 +68,8 @@ export const useStudyDeckStore = create<StudyDeckState>()(
       removeDeck: (deckId) => {
         set((state) => {
           const nextDecks = state.decks.filter((deck) => deck.id !== deckId);
-          const nextActive = state.activeDeckId === deckId ? null : state.activeDeckId;
-          return { decks: nextDecks, activeDeckId: nextActive };
+          const nextActiveIds = state.activeDeckIds.filter((id) => id !== deckId);
+          return { decks: nextDecks, activeDeckIds: nextActiveIds };
         });
       },
 
@@ -90,7 +101,18 @@ export const useStudyDeckStore = create<StudyDeckState>()(
     }),
     {
       name: "incrementum-study-decks",
-      version: 1,
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 2) {
+          // Migrate activeDeckId (string | null) → activeDeckIds (string[])
+          const oldId = state.activeDeckId as string | null | undefined;
+          state.activeDeckIds = oldId ? [oldId] : [];
+          delete state.activeDeckId;
+          delete state.setActiveDeckId;
+        }
+        return state;
+      },
     }
   )
 );

@@ -4,7 +4,7 @@ import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { getDueItems, type LearningItem } from "../../api/review";
-import { filterByDeck, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
+import { filterByDeck, filterByDecks, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
 import type { StudyDeck } from "../../types/study-decks";
 import { FlashcardStudioModal } from "./FlashcardStudioModal";
 import { ReviewDecksModal } from "./ReviewDecksModal";
@@ -72,8 +72,9 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const { loadStreak, streak, streakLoading } = useReviewStore();
   const {
     decks,
-    activeDeckId,
-    setActiveDeckId,
+    activeDeckIds,
+    toggleDeckSelection,
+    clearDeckSelection,
     addDeck,
     updateDeck,
     removeDeck,
@@ -93,8 +94,12 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
   const { t } = useI18n();
 
   const activeDeck = useMemo(
-    () => (decks || []).find((deck) => deck.id === activeDeckId) ?? null,
-    [decks, activeDeckId]
+    () => {
+      if (activeDeckIds.length === 1) return (decks || []).find((deck) => deck.id === activeDeckIds[0]) ?? null;
+      if (activeDeckIds.length === 0) return null;
+      return null; // multi-select: no single deck
+    },
+    [decks, activeDeckIds]
   );
 
   useEffect(() => {
@@ -125,9 +130,15 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
     loadStats();
   }, []);
 
+  const activeDecks = useMemo(
+    () => activeDeckIds.map((id) => (decks || []).find((d) => d.id === id)).filter((d): d is StudyDeck => d != null),
+    [decks, activeDeckIds]
+  );
+
   const scopedItems = useMemo(() => {
-    return activeDeck ? filterByDeck(dueItems, activeDeck) : dueItems;
-  }, [dueItems, activeDeck]);
+    if (activeDecks.length === 0) return dueItems;
+    return filterByDecks(dueItems, activeDecks);
+  }, [dueItems, activeDecks]);
 
   const today = toDateOnly(new Date());
   const dueToday = scopedItems.filter((item) => {
@@ -167,32 +178,52 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
     updateDeck(deck.id, { tagFilters: nextTags });
   };
 
-  const handleImportAnkiDeck = async () => {
+  const handleImportDeck = async () => {
     if (isAnkiImporting) return;
     setIsAnkiImporting(true);
     try {
       const selected = await openFilePicker({
-        title: t("reviewSession.importAnkiDialogTitle"),
+        title: t("reviewSession.importDeckDialogTitle"),
         multiple: false,
-        filters: [{ name: t("reviewSession.importAnkiPackage"), extensions: ["apkg"] }],
+        filters: [{ name: t("reviewSession.deckFiles"), extensions: ["apkg", "json"] }],
       });
       if (!selected || selected.length === 0) return;
 
-      const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
-        apkgPath: selected[0],
-      });
+      const filePath = selected[0];
+      const ext = filePath.toLowerCase().split(".").pop();
 
-      const deckNames = inferAnkiDeckNames(imported);
-      const deckIds = ensureAnkiStudyDecks(deckNames);
-      if (deckIds.length > 0) {
-        setActiveDeckId(deckIds[0]);
+      if (ext === "json") {
+        const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
+          "import_study_json_file",
+          { filePath }
+        );
+        const deckNames = [result.deck_name];
+        const deckIds = ensureAnkiStudyDecks(deckNames);
+        if (deckIds.length > 0) {
+          clearDeckSelection();
+          toggleDeckSelection(deckIds[0]);
+        }
+        await loadStats();
+        toast.success(
+          t("reviewSession.deckImportComplete"),
+          t("reviewSession.deckImportSummary", { cards: result.cards_imported, decks: 1 })
+        );
+      } else {
+        const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
+          apkgPath: filePath,
+        });
+        const deckNames = inferAnkiDeckNames(imported);
+        const deckIds = ensureAnkiStudyDecks(deckNames);
+        if (deckIds.length > 0) {
+          clearDeckSelection();
+          toggleDeckSelection(deckIds[0]);
+        }
+        await loadStats();
+        toast.success(
+          t("reviewSession.ankiImportComplete"),
+          t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
+        );
       }
-
-      await loadStats();
-      toast.success(
-        t("reviewSession.ankiImportComplete"),
-        t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
-      );
     } catch (error) {
       toast.error(
         t("reviewSession.ankiImportFailed"),
@@ -237,12 +268,12 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 {t("extracts.createFlashcards")}
               </button>
               <button
-                onClick={handleImportAnkiDeck}
+                onClick={handleImportDeck}
                 disabled={isAnkiImporting}
                 className="inline-flex items-center gap-2 rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload className="h-4 w-4" />
-                {isAnkiImporting ? t("review.importing") : t("review.importAnki")}
+                {isAnkiImporting ? t("review.importing") : t("review.importDeck")}
               </button>
               <button
                 onClick={() => setIsReviewPreviewOpen(true)}
@@ -261,9 +292,11 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setActiveDeckId(null)}
+              onClick={() => clearDeckSelection()}
               className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                !activeDeck ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                activeDeckIds.length === 0
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               {t("reviewHome.allDecks")}
@@ -271,9 +304,9 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
             {decks?.map((deck) => (
               <button
                 key={deck.id}
-                onClick={() => setActiveDeckId(deck.id)}
+                onClick={() => toggleDeckSelection(deck.id)}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  activeDeckId === deck.id
+                  activeDeckIds.includes(deck.id)
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground"
                 }`}
@@ -346,7 +379,7 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 <p className="text-sm text-muted-foreground">{t("reviewHome.decksDesc")}</p>
               </div>
               <button
-                onClick={() => setActiveDeckId(null)}
+                onClick={() => clearDeckSelection()}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 {t("reviewHome.resetSelection")}
@@ -362,9 +395,14 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
               {deckStats?.map(({ deck, count }) => (
                 <button
                   key={deck.id}
-                  onClick={() => setActiveDeckId(deck.id)}
+                  onClick={() => toggleDeckSelection(deck.id)}
+                  onDoubleClick={() => {
+                    clearDeckSelection();
+                    toggleDeckSelection(deck.id);
+                    onStartReview();
+                  }}
                   className={`flex flex-col gap-2 rounded-lg border px-4 py-3 text-left transition-colors ${
-                    activeDeckId === deck.id
+                    activeDeckIds.includes(deck.id)
                       ? "border-primary bg-primary/10"
                       : "border-border bg-background hover:bg-muted"
                   }`}
@@ -508,8 +546,9 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
         onClose={() => setIsDecksModalOpen(false)}
         decks={decks}
         deckStats={deckStats}
-        activeDeckId={activeDeckId}
-        onSelectDeck={setActiveDeckId}
+        activeDeckIds={activeDeckIds}
+        onToggleDeck={toggleDeckSelection}
+        onClearSelection={clearDeckSelection}
       />
     </div>
   );

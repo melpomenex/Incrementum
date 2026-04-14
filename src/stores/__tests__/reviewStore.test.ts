@@ -52,7 +52,7 @@ vi.mock("../collectionStore", () => ({
 vi.mock("../studyDeckStore", () => ({
   useStudyDeckStore: {
     getState: () => ({
-      activeDeckId: null,
+      activeDeckIds: [],
       decks: [],
     }),
   },

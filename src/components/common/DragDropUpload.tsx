@@ -78,6 +78,8 @@ interface UploadFile {
 interface DragDropUploadProps {
   onFilesImported?: (filePaths: string[]) => void;
   onAnkiPackage?: (filePath: string) => void;
+  /** Called when a .json file is dropped that validates as a JSON deck */
+  onStudyJsonDeck?: (filePath: string) => void;
   /** Called when a markdown bundle is detected (markdown + images + metadata) */
   onBundleDetected?: (bundle: MarkdownBundle, files: File[]) => void;
   className?: string;
@@ -87,6 +89,7 @@ interface DragDropUploadProps {
 export function DragDropUpload({
   onFilesImported,
   onAnkiPackage,
+  onStudyJsonDeck,
   onBundleDetected,
   className,
   children,
@@ -213,6 +216,24 @@ export function DragDropUpload({
           continue;
         }
 
+        // Handle JSON deck files
+        if (uploadFile.type === "json") {
+          if (isTauri()) {
+            const filePath = (uploadFile.file as any).path;
+            if (filePath) {
+              updateFileStatus(uploadFile.id, "success", 100, filePath);
+              onStudyJsonDeck?.(filePath);
+            } else {
+              throw new Error("Could not get file path");
+            }
+          } else {
+            const virtualPath = storeBrowserFile(uploadFile.file);
+            updateFileStatus(uploadFile.id, "success", 100, virtualPath);
+            onStudyJsonDeck?.(virtualPath);
+          }
+          continue;
+        }
+
         // Handle regular documents
         if (isTauri()) {
           // In Tauri, use the native file path directly
@@ -241,7 +262,7 @@ export function DragDropUpload({
 
     // Notify parent of completed imports
     const successfulUploads = uploadQueue
-      .filter((f) => f.status === "success" && f.virtualPath && f.type !== "apkg")
+      .filter((f) => f.status === "success" && f.virtualPath && f.type !== "apkg" && f.type !== "json")
       .map((f) => f.virtualPath!);
 
     if (successfulUploads.length > 0) {
@@ -551,11 +572,18 @@ export function DragDropUpload({
             setIsDragOver(false);
 
             // Tauri sends file paths in the payload
-            const paths = event.payload?.paths || [];
+            const paths: string[] = event.payload?.paths || [];
             if (paths.length > 0) {
               console.log("[DragDropUpload] Tauri dropped files:", paths);
-              // Import files using their paths
-              onFilesImported?.(paths);
+              // Route .json files to deck import, everything else to regular import
+              const jsonPaths = paths.filter(p => p.toLowerCase().endsWith('.json'));
+              const regularPaths = paths.filter(p => !p.toLowerCase().endsWith('.json'));
+              if (regularPaths.length > 0) {
+                onFilesImported?.(regularPaths);
+              }
+              for (const jsonPath of jsonPaths) {
+                onStudyJsonDeck?.(jsonPath);
+              }
             }
           });
           if (!isMountedRef.current) {

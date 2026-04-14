@@ -41,6 +41,9 @@ linuxdeploy*.AppImage
 *.apkg
 *.anpkg
 
+# Study data
+Study/
+
 # Vagrant
 .vagrant
 *.bin
