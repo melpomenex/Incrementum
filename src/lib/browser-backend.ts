@@ -2461,6 +2461,146 @@ const commandHandlers: Record<string, CommandHandler> = {
         }
     },
 
+    // JSON Deck Import (browser implementation)
+    import_study_json_file: async (args) => {
+        const filePath = args.filePath as string;
+        const file = getBrowserFile(filePath);
+        if (!file) {
+            throw new Error('File not found. Please select the file again.');
+        }
+
+        const text = await file.text();
+        let raw: Record<string, unknown>;
+        try {
+            raw = JSON.parse(text);
+        } catch {
+            throw new Error('Invalid JSON file.');
+        }
+
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+            throw new Error('Expected a JSON object mapping questions to cards.');
+        }
+
+        const entries = Object.entries(raw);
+        if (entries.length === 0) {
+            throw new Error('Deck file is empty (no cards found).');
+        }
+
+        // Validate first entry to confirm structure
+        const firstCard = entries[0][1];
+        if (!firstCard || typeof firstCard !== 'object' || !('answer' in firstCard)) {
+            throw new Error('File does not match the expected JSON deck format.');
+        }
+
+        // Extract deck metadata from first card
+        const card0 = firstCard as Record<string, unknown>;
+        const deckName = (card0.deck_name as string) || 'Imported Deck';
+        const subject = (card0.subject as string) || 'General';
+
+        // Create the parent document
+        const doc = await db.createDocument({
+            title: deckName,
+            file_path: `json-deck://${filePath}`,
+            file_type: 'other',
+        });
+
+        // Deduplication: collect existing question hashes for this document
+        const existingItems = await db.getAllLearningItems();
+        const existingIds = new Set<string>();
+
+        // Simple SHA-256 hash for deduplication (using SubtleCrypto)
+        const hashQuestion = async (q: string): Promise<string> => {
+            const data = new TextEncoder().encode(q);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        };
+
+        let imported = 0;
+        let skipped = 0;
+
+        for (const [question, cardValue] of entries) {
+            const card = cardValue as Record<string, unknown>;
+            const questionHash = await hashQuestion(question);
+
+            if (existingIds.has(questionHash)) {
+                skipped++;
+                continue;
+            }
+
+            // Build interaction metadata from fields without direct LearningItem equivalents
+            const interactionMetadata: Record<string, unknown> = {};
+            if (card.correct_count !== undefined) interactionMetadata.correct_count = card.correct_count;
+            if (card.missed_count !== undefined) interactionMetadata.missed_count = card.missed_count;
+            if (card.retention_rate !== undefined) interactionMetadata.retention_rate = card.retention_rate;
+            if (card.manual_review !== undefined) interactionMetadata.manual_review = card.manual_review;
+            if (card.save_for_later !== undefined) interactionMetadata.save_for_later = card.save_for_later;
+            if (card.difficulty !== undefined) interactionMetadata.difficulty_label = card.difficulty;
+            if (card.difficulty_score !== undefined) interactionMetadata.difficulty_score = card.difficulty_score;
+
+            await db.createLearningItem({
+                document_id: doc.id,
+                item_type: 'flashcard',
+                question,
+                answer: card.answer as string | undefined,
+                tags: ['json-import', subject, deckName],
+                interaction_metadata: interactionMetadata,
+                // Browser backend stores don't support scheduling fields directly,
+                // but the interaction_metadata preserves the data for sync
+            });
+            existingIds.add(questionHash);
+            imported++;
+        }
+
+        return {
+            deck_name: deckName,
+            document_id: doc.id,
+            cards_imported: imported,
+            cards_skipped: skipped,
+        };
+    },
+
+    validate_study_json_file: async (args) => {
+        const filePath = args.filePath as string;
+        const file = getBrowserFile(filePath);
+        if (!file) {
+            throw new Error('File not found. Please select the file again.');
+        }
+
+        const text = await file.text();
+        let raw: Record<string, unknown>;
+        try {
+            raw = JSON.parse(text);
+        } catch {
+            throw new Error('Invalid JSON file.');
+        }
+
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+            throw new Error('Expected a JSON object mapping questions to cards.');
+        }
+
+        const entries = Object.entries(raw);
+        if (entries.length === 0) {
+            throw new Error('Deck file is empty (no cards found).');
+        }
+
+        const card0 = entries[0][1] as Record<string, unknown>;
+        const deckName = (card0.deck_name as string) || 'Unknown Deck';
+        const subject = (card0.subject as string) || 'Unknown';
+        const totalCards = entries.length;
+        const reviewCards = entries.filter(([, c]) => {
+            const reviewCount = (c as Record<string, unknown>).review_count;
+            return typeof reviewCount === 'number' && reviewCount > 0;
+        }).length;
+
+        return {
+            deck_name: deckName,
+            subject,
+            total_cards: totalCards,
+            new_cards: totalCards - reviewCards,
+            review_cards: reviewCards,
+        };
+    },
+
     // RSS feed fetch with CORS proxy support
     fetch_rss_feed_url: async (args) => {
         const feedUrl = args.feedUrl as string;

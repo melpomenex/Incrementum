@@ -11,6 +11,7 @@ mod generator;
 mod algorithms;
 mod ai;
 mod anki;
+mod study_json_import;
 mod supermemo_import;
 mod youtube;
 mod sync;
@@ -629,6 +630,9 @@ pub fn run() {
             // SuperMemo import commands
             supermemo_import::import_supermemo_package,
             supermemo_import::validate_supermemo_package,
+            // Study JSON import commands
+            study_json_import::import_study_json_file,
+            study_json_import::validate_study_json_file,
             // Demo content commands
             demo::import_demo_content_manually,
             demo::get_demo_content_status,

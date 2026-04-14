@@ -34,6 +34,11 @@ export function filterByDeck<T extends { tags: string[] }>(items: T[], deck: Stu
   return items.filter((item) => matchesDeckTags(item.tags, deck));
 }
 
+export function filterByDecks<T extends { tags: string[] }>(items: T[], decks: StudyDeck[]): T[] {
+  if (decks.length === 0) return items;
+  return items.filter((item) => decks.some((deck) => matchesDeckTags(item.tags, deck)));
+}
+
 export function getDeckTagCandidates(tags: string[]): string[] {
   return tags
     .filter((tag) => tag && tag.trim().length > 0)

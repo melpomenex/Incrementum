@@ -98,7 +98,7 @@ export function HandbookSettings() {
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <aside className="md:sticky md:top-6 md:w-60 md:shrink-0 self-start">
-          <div className="border border-border rounded-lg bg-muted/30 p-4">
+          <div className="border border-border rounded-lg bg-muted/30 p-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
               {t("handbook.contents")}
             </div>

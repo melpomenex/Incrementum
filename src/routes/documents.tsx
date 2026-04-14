@@ -10,6 +10,7 @@ import type { Document } from "../types/document";
 import { useI18n } from "../lib/i18n";
 import { importSuperMemoPackage, convertSuperMemoCollectionToDocuments } from "../utils/supermemoImport";
 import * as documentsApi from "../api/documents";
+import { invokeCommand } from "../lib/tauri";
 
 export function Documents() {
   const { t } = useI18n();
@@ -55,9 +56,38 @@ export function Documents() {
         importedDoc = await importFromArxiv(data.url);
         console.log('[Documents] importFromArxiv completed');
       } else if (source === 'local') {
-        const imported = await importFromFiles(data.filePaths);
-        if (imported.length > 0) {
-          importedDoc = imported[0];
+        // Separate .json files (deck import) from regular documents
+        const filePaths: string[] = data.filePaths;
+        const jsonPaths = filePaths.filter((p: string) => p.toLowerCase().endsWith('.json'));
+        const regularPaths = filePaths.filter((p: string) => !p.toLowerCase().endsWith('.json'));
+
+        // Import JSON decks
+        if (jsonPaths.length > 0) {
+          setImporting(true);
+          setError(null);
+          try {
+            for (const jsonPath of jsonPaths) {
+              const result = await invokeCommand<{ deck_name: string; document_id: string; cards_imported: number }>(
+                "import_study_json_file",
+                { filePath: jsonPath }
+              );
+              console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards`);
+            }
+            await loadDocuments();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to import JSON deck";
+            setError(msg);
+          } finally {
+            setImporting(false);
+          }
+        }
+
+        // Import regular documents
+        if (regularPaths.length > 0) {
+          const imported = await importFromFiles(regularPaths);
+          if (imported.length > 0) {
+            importedDoc = imported[0];
+          }
         }
       } else if (source === 'supermemo') {
         setImporting(true);
@@ -92,6 +122,23 @@ export function Documents() {
 
           if (firstDoc) importedDoc = firstDoc;
           else setError("Failed to import any items from the SuperMemo collection.");
+        } finally {
+          setImporting(false);
+          setImportProgress(0, 0);
+        }
+      } else if (source === 'json') {
+        setImporting(true);
+        setError(null);
+        try {
+          const result = await invokeCommand<{ deck_name: string; document_id: string; cards_imported: number; cards_skipped: number }>(
+            "import_study_json_file",
+            { filePath: data.filePath }
+          );
+          console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards (${result.cards_skipped} duplicates skipped)`);
+          await loadDocuments();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Failed to import JSON deck";
+          setError(msg);
         } finally {
           setImporting(false);
           setImportProgress(0, 0);

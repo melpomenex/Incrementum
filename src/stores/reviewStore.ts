@@ -19,6 +19,7 @@ import { useSettingsStore } from "./settingsStore";
 import { useStudyDeckStore } from "./studyDeckStore";
 import { getUser } from "../lib/sync-client";
 import { resolveFsrsParamsForScope } from "../utils/fsrsScope";
+import { filterByDecks } from "../utils/studyDecks";
 
 interface StoredReviewSession {
   reviewedIds: string[];
@@ -228,10 +229,23 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
             return assigned ? assigned === activeCollectionId : true;
           })
         : documentItems;
+
+      // Filter by active deck selection
+      const { activeDeckIds, decks } = useStudyDeckStore.getState();
+      const activeDecks = activeDeckIds
+        .map((id) => decks.find((d) => d.id === id))
+        .filter((d): d is NonNullable<typeof d> => d != null);
+      const deckFilteredItems = activeDecks.length > 0
+        ? filterByDecks(collectionFilteredItems, activeDecks)
+        : collectionFilteredItems;
+      const deckFilteredDocuments = activeDecks.length > 0
+        ? filterByDecks(collectionFilteredDocuments, activeDecks)
+        : collectionFilteredDocuments;
+
       const storedSession = loadStoredSession();
       const reviewedIds = new Set(storedSession?.reviewedIds ?? []);
-      const pendingCards = collectionFilteredItems.filter((item) => !reviewedIds.has(item.id));
-      const pendingDocuments = collectionFilteredDocuments.filter((item) => !reviewedIds.has(item.id));
+      const pendingCards = deckFilteredItems.filter((item) => !reviewedIds.has(item.id));
+      const pendingDocuments = deckFilteredDocuments.filter((item) => !reviewedIds.has(item.id));
 
       const sortByDueDate = (date: string | undefined) => {
         if (!date) return 0;
@@ -463,7 +477,8 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       } else if (reviewMode === "normal") {
         const learningCard = currentCard as LearningItem;
         const settings = useSettingsStore.getState().settings;
-        const activeDeckId = useStudyDeckStore.getState().activeDeckId;
+        const studyDeckState = useStudyDeckStore.getState();
+        const activeDeckId = studyDeckState.activeDeckIds[0] ?? null;
         const fsrsParams = resolveFsrsParamsForScope({
           settings,
           activeDeckId,

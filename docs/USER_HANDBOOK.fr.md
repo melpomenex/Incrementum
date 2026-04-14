@@ -12,7 +12,7 @@ Incrementum est une puissante application d'apprentissage qui combine deux techn
 
 **Lecture incrémentielle** - Traitez de grandes quantités d'information par petits blocs gérables au fil du temps. Au lieu de lire un article du début à la fin, vous en extrayez les points clés et construisez progressivement votre compréhension.
 
-**Répétition espacée** - Révisez le contenu à des intervalles scientifiquement optimisés pour maximiser la rétention. Des algorithmes comme FSRS-5 et SM-18 prédisent quand vous êtes sur le point d'oublier et planifient les révisions juste à temps.
+**Répétition espacée** - Révisez le contenu à des intervalles scientifiquement optimisés pour maximiser la rétention. Des algorithmes comme FSRS-6 et SM-18 prédisent quand vous êtes sur le point d'oublier et planifient les révisions juste à temps.
 
 ### Concepts clés
 
@@ -42,7 +42,7 @@ Lorsque vous lancez Incrementum pour la première fois, vous verrez le **Tableau
    - Essayez « Modern Dark » ou « Material You » pour un look moderne
 
 2. **Configurer les paramètres de révision** - Paramètres → Apprentissage → Algorithme
-   - **Algorithme** : FSRS-5 (recommandé), SM-18 ou SM-2
+   - **Algorithme** : FSRS-6 (recommandé), SM-18 ou SM-2
    - **Rétention souhaitée** : 90 % (par défaut) - le niveau de mémorisation que vous visez
    - **Apprendre par jour** : 20 à 50 éléments recommandés pour les débutants
 
@@ -76,6 +76,7 @@ Importons votre premier document :
 | **HTML** | Pages Web | Articles, billets de blog |
 | **Anki (.apkg)** | Paquet de deck Anki | Migrer depuis Anki |
 | **SuperMémo** | Exportations ZIP | Migrer depuis SuperMemo |
+| **JSON (.json)** | Fichiers de decks de flashcards | Importer des decks avec données de planification |
 | **URL** | Tout lien Web | Articles en ligne, blogs |
 | **Arxiv** | Articles académiques | Littérature de recherche |
 | **Capture d'écran** | Capture d'écran | Captures rapides depuis n'importe quelle application |
@@ -119,6 +120,29 @@ Importons votre premier document :
    - Auteurs
    - Date de parution
    - Références
+
+#### Méthode 4 : Import JSON de Decks
+
+Importez des decks de flashcards à partir de fichiers JSON contenant des données de planification (intervalles, facteurs de facilité, historique de révision).
+
+**Import via le sélecteur de fichiers :**
+
+1. Cliquez sur **Documents** → **Importer** → **JSON**
+2. Sélectionnez votre fichier `.json` de deck
+3. Incrementum crée un document de deck et importe toutes les cartes en conservant :
+   - La planification (intervalles, facteurs de facilité, dates d'échéance)
+   - L'historique de révision (répétitions, lapsus, taux de rétention)
+   - Les états des cartes (nouvelles, en révision ou suspendues)
+
+**Import par glisser-déposer :**
+
+Glissez un fichier `.json` directement sur la fenêtre de l'application. Si le fichier correspond au format attendu, il est importé automatiquement.
+
+**Remarques :**
+- Chaque fichier `.json` crée un deck. Le nom du deck provient du champ `deck_name`.
+- Les cartes importées utilisent l'algorithme SM-2 par défaut. Vous pouvez changer d'algorithme après l'import.
+- Déposer le même fichier deux fois ne crée pas de doublons — les cartes existantes sont ignorées.
+- Les cartes marquées `known_pile: true` sont importées comme suspendues.
 
 ### Visionneuse de documents
 
@@ -168,9 +192,9 @@ Une fois importé, ouvrez n'importe quel document pour accéder :
 
 ## Le système d'apprentissage
 
-### Comprendre FSRS-5
+### Comprendre FSRS-6
 
-**FSRS-5** (Free Spaced Repetition Scheduler) est un algorithme moderne qui :
+**FSRS-6** (Free Spaced Repetition Scheduler) est un algorithme moderne qui :
 
 1. **Suit l'état de la mémoire** : modélise la force de votre mémoire pour chaque carte
 2. **Prédit l'oubli** : estime le moment où vous oublierez chaque élément
@@ -553,7 +577,7 @@ Exportez vos données pour analyse :
 
 Incrementum prend en charge trois algorithmes de planification. Choisissez celui qui correspond le mieux à votre style d'apprentissage :
 
-**FSRS-5 (recommandé) :**
+**FSRS-6 (recommandé) :**
 - Moderne, soutenu par la recherche
 - S'adapte à la mémoire individuelle
 - Prédit les temps d'oubli
@@ -1486,7 +1510,7 @@ Exportez vos données avant les changements majeurs (Paramètres → Sauvegarde 
 
 **Séance de révision** : une période de rappel actif et de cartes d'évaluation
 
-**FSRS** : Free Spaced Repetition Scheduler, algorithme moderne optimisant le timing de révision (FSRS-5 est la version actuelle)
+**FSRS** : Free Spaced Repetition Scheduler, algorithme moderne optimisant le timing de révision (FSRS-6 est la version actuelle)
 
 **Intervalle** : délai entre les examens (par exemple, 7 jours)
 

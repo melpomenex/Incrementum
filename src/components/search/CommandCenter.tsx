@@ -158,7 +158,7 @@ const formatTimestamp = (seconds: number): string => {
 
 // Stable selectors defined outside component to avoid infinite re-renders
 const selectAddTab = (state: TabsState) => state.addTab;
-const selectActiveDeckId = (state: { activeDeckId: string }) => state.activeDeckId;
+const selectActiveDeckIds = (state: { activeDeckIds: string[] }) => state.activeDeckIds;
 const selectCommandPaletteOpen = (state: { commandPaletteOpen: boolean }) => state.commandPaletteOpen;
 const selectSetCommandPaletteOpen = (state: { setCommandPaletteOpen: (open: boolean) => void }) => state.setCommandPaletteOpen;
 const selectDocuments = (state: { documents: Document[] }) => state.documents;
@@ -176,7 +176,7 @@ export function CommandCenter() {
   const loadDocuments = useDocumentStore(selectLoadDocuments);
   const addTab = useTabsStore(selectAddTab);
   const decks = useStudyDeckStore(selectDecks);
-  const activeDeckId = useStudyDeckStore(selectActiveDeckId);
+  const activeDeckIds = useStudyDeckStore(selectActiveDeckIds);
   const commandPaletteOpen = useUIStore(selectCommandPaletteOpen);
   const setCommandPaletteOpen = useUIStore(selectSetCommandPaletteOpen);
   const extracts = useExtractStore(selectExtracts);
@@ -245,8 +245,11 @@ export function CommandCenter() {
   }, [commandPaletteOpen, documents]);
 
   const activeDeck = useMemo(
-    () => decks.find((item) => item.id === activeDeckId) ?? null,
-    [decks, activeDeckId]
+    () => {
+      if (activeDeckIds.length === 0) return null;
+      return decks.find((item) => item.id === activeDeckIds[0]) ?? null;
+    },
+    [decks, activeDeckIds]
   );
   const shouldFilterByDeck = false;
 

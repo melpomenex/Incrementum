@@ -15,10 +15,11 @@ import {
   File,
   AlertCircle,
   CheckCircle2,
+  Database,
 } from "lucide-react";
 import { validateUrl, validateArxivInput } from "../../utils/documentImport";
 
-export type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo";
+export type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo" | "json";
 
 interface ImportOption {
   id: ImportSource;
@@ -70,6 +71,13 @@ const importOptions: ImportOption[] = [
     icon: Download,
     description: "Import SuperMemo collections",
     supportedFormats: ["zip"],
+  },
+  {
+    id: "json",
+    label: "JSON",
+    icon: Database,
+    description: "Import flashcard decks (.json)",
+    supportedFormats: ["json"],
   },
 ];
 
@@ -164,16 +172,16 @@ export function EnhancedFilePicker({
       } else if (selectedSource === "screenshot") {
         // Implement screenshot capture
         await onImport("screenshot", {});
-      } else if (selectedSource === "anki" || selectedSource === "supermemo") {
+      } else if (selectedSource === "anki" || selectedSource === "supermemo" || selectedSource === "json") {
         const { open } = await import("@tauri-apps/plugin-dialog");
+        const filterConfig = selectedSource === "anki"
+          ? { name: "Anki Package", extensions: ["apkg"] as string[] }
+          : selectedSource === "supermemo"
+            ? { name: "SuperMemo Collection", extensions: ["zip"] as string[] }
+            : { name: "JSON Deck", extensions: ["json"] as string[] };
         const selected = await open({
           multiple: false,
-          filters: [
-            {
-              name: selectedSource === "anki" ? "Anki Package" : "SuperMemo Collection",
-              extensions: selectedSource === "anki" ? ["apkg"] : ["zip"],
-            },
-          ],
+          filters: [filterConfig],
         });
 
         if (selected && Array.isArray(selected) && selected.length > 0) {
@@ -287,6 +295,19 @@ export function EnhancedFilePicker({
             <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
               <Download className="w-5 h-5 text-primary" />
               <span className="text-sm">Imports items, topics, and images</span>
+            </div>
+          </div>
+        );
+
+      case "json":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Select a JSON deck file (.json) to import flashcards with scheduling data
+            </p>
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+              <Database className="w-5 h-5 text-primary" />
+              <span className="text-sm">Preserves review history, intervals, and ease factors</span>
             </div>
           </div>
         );

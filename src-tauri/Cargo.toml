@@ -1,6 +1,6 @@
 [package]
 name = "incrementum-tauri"
-version = "1.20.1"
+version = "1.20.2"
 description = "Incrementum - Incremental Reading and Spaced Repetition"
 authors = ["Incrementum Team"]
 edition = "2021"
@@ -120,3 +120,6 @@ lto = false
 [profile.dev]
 debug = 0
 incremental = false
+
+[dev-dependencies]
+tempfile = "3"

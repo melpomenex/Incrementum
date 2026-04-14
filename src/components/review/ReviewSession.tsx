@@ -200,30 +200,50 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     }
   };
 
-  const handleImportAnkiDeck = async () => {
+  const handleImportDeck = async () => {
     if (isAnkiImporting) return;
     setIsAnkiImporting(true);
     try {
       const selected = await openFilePicker({
-        title: t("reviewSession.importAnkiDialogTitle"),
+        title: t("reviewSession.importDeckDialogTitle"),
         multiple: false,
-        filters: [{ name: t("reviewSession.importAnkiPackage"), extensions: ["apkg"] }],
+        filters: [{ name: t("reviewSession.deckFiles"), extensions: ["apkg", "json"] }],
       });
       if (!selected || selected.length === 0) return;
 
-      const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
-        apkgPath: selected[0],
-      });
-      const deckNames = inferAnkiDeckNames(imported);
-      const deckIds = ensureAnkiStudyDecks(deckNames);
-      if (deckIds.length > 0) {
-        useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+      const filePath = selected[0];
+      const ext = filePath.toLowerCase().split(".").pop();
+
+      if (ext === "json") {
+        const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
+          "import_study_json_file",
+          { filePath }
+        );
+        const deckNames = [result.deck_name];
+        const deckIds = ensureAnkiStudyDecks(deckNames);
+        if (deckIds.length > 0) {
+          useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+        }
+        await loadQueue();
+        toast.success(
+          t("reviewSession.deckImportComplete"),
+          t("reviewSession.deckImportSummary", { cards: result.cards_imported, decks: 1 })
+        );
+      } else {
+        const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
+          apkgPath: filePath,
+        });
+        const deckNames = inferAnkiDeckNames(imported);
+        const deckIds = ensureAnkiStudyDecks(deckNames);
+        if (deckIds.length > 0) {
+          useStudyDeckStore.getState().setActiveDeckId(deckIds[0]);
+        }
+        await loadQueue();
+        toast.success(
+          t("reviewSession.ankiImportComplete"),
+          t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
+        );
       }
-      await loadQueue();
-      toast.success(
-        t("reviewSession.ankiImportComplete"),
-        t("reviewSession.ankiImportSummary", { cards: imported.length, decks: deckNames.length || 1 })
-      );
     } catch (error) {
       toast.error(
         t("reviewSession.ankiImportFailed"),
@@ -383,12 +403,12 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             {t("review.emptyState")}
           </p>
           <button
-            onClick={handleImportAnkiDeck}
+            onClick={handleImportDeck}
             disabled={isAnkiImporting}
             className="mb-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Upload className="h-4 w-4" />
-            {isAnkiImporting ? t("review.importing") : t("review.importAnki")}
+            {isAnkiImporting ? t("review.importing") : t("review.importDeck")}
           </button>
           <br />
           <button
@@ -483,10 +503,10 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             <span className="font-mono text-[10px]">FSRS</span>
           </button>
           <button
-            onClick={handleImportAnkiDeck}
+            onClick={handleImportDeck}
             disabled={isAnkiImporting}
             className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={t("reviewSession.importAnkiTooltip")}
+            title={t("reviewSession.importDeckTooltip")}
           >
             <Upload className="w-3.5 h-3.5" />
             {isAnkiImporting ? t("review.importing") : t("review.import")}

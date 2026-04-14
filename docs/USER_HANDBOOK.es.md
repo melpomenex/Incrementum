@@ -12,7 +12,7 @@ Incrementum es una poderosa aplicación de aprendizaje que combina dos técnicas
 
 **Lectura incremental**: procese grandes cantidades de información en fragmentos pequeños y manejables a lo largo del tiempo. En lugar de leer artículos de principio a fin, extrae puntos clave y desarrolla gradualmente la comprensión.
 
-**Repetición espaciada**: revise el material a intervalos científicamente optimizados para maximizar la retención. Algoritmos como FSRS-5 y SM-18 predicen cuándo está a punto de olvidar y programan revisiones justo a tiempo.
+**Repetición espaciada**: revise el material a intervalos científicamente optimizados para maximizar la retención. Algoritmos como FSRS-6 y SM-18 predicen cuándo está a punto de olvidar y programan revisiones justo a tiempo.
 
 ### Conceptos clave
 
@@ -42,7 +42,7 @@ Cuando inicie Incrementum por primera vez, verá el **panel de control** con cua
    - Pruebe "Modern Dark" o "Material You" para una apariencia moderna
 
 2. **Configurar ajustes de revisión** - Ajustes → Aprendizaje → Algoritmo
-   - **Algoritmo**: FSRS-5 (recomendado), SM-18 o SM-2
+   - **Algoritmo**: FSRS-6 (recomendado), SM-18 o SM-2
    - **Retención deseada**: 90% (predeterminado): apunta a qué tan bien quieres recordar
    - **Aprender por día**: 20-50 elementos recomendados para principiantes
 
@@ -76,6 +76,7 @@ Importemos su primer documento:
 | **HTML** | Paginas web | Artículos, publicaciones de blogs |
 | **Anki (.apkg)** | Paquete de mazo Anki | Migrar desde Anki |
 | **SúperMemo** | Exportaciones ZIP | Migrar desde SuperMemo |
+| **JSON (.json)** | Archivos de mazos de flashcards | Importar mazos con datos de programación |
 | **URL** | Cualquier enlace web | Artículos en línea, blogs |
 | **Arxiv** | Trabajos académicos | Literatura de investigación |
 | **Captura de pantalla** | Captura de pantalla | Capturas rápidas desde cualquier aplicación |
@@ -119,6 +120,29 @@ Importemos su primer documento:
    - Autores
    - Fecha de publicación
    - Referencias
+
+#### Método 4: Importación JSON de Mazos
+
+Importe mazos de flashcards desde archivos JSON que incluyen datos de programación (intervalos, factores de facilidad, historial de revisión).
+
+**Importación mediante el selector de archivos:**
+
+1. Haga clic en **Documentos** → **Importar** → **JSON**
+2. Seleccione su archivo `.json` de mazo
+3. Incrementum crea un documento de mazo e importa todas las tarjetas preservando:
+   - Programación (intervalos, factores de facilidad, fechas de vencimiento)
+   - Historial de revisión (repeticiones, lapsos, tasa de retención)
+   - Estados de las tarjetas (nuevas, en revisión o suspendidas)
+
+**Importación mediante arrastrar y soltar:**
+
+Arrastre un archivo `.json` directamente sobre la ventana de la aplicación. Si el archivo coincide con el formato de mazo esperado, se importa automáticamente.
+
+**Notas:**
+- Cada archivo `.json` crea un mazo. El nombre del mazo proviene del campo `deck_name`.
+- Las tarjetas importadas usan el algoritmo SM-2 por defecto. Puede cambiar el algoritmo después de la importación.
+- Soltar el mismo archivo dos veces no crea duplicados — las tarjetas existentes se omiten.
+- Las tarjetas marcadas con `known_pile: true` se importan como suspendidas.
 
 ### Visor de documentos
 
@@ -168,9 +192,9 @@ Una vez importado, abra cualquier documento para acceder:
 
 ## El sistema de aprendizaje
 
-### Comprender FSRS-5
+### Comprender FSRS-6
 
-**FSRS-5** (Programador de repetición espaciada libre) es un algoritmo moderno que:
+**FSRS-6** (Programador de repetición espaciada libre) es un algoritmo moderno que:
 
 1. **Seguimiento del estado de la memoria**: modela la potencia de tu memoria para cada tarjeta
 2. **Predice el olvido**: estima cuándo olvidarás cada elemento
@@ -553,7 +577,7 @@ Exporte sus datos para su análisis:
 
 Incrementum admite tres algoritmos de programación. Elige el que mejor se adapte a tu estilo de aprendizaje:
 
-**FSRS-5 (Recomendado):**
+**FSRS-6 (Recomendado):**
 - Moderno, respaldado por investigaciones
 - Se adapta a la memoria individual
 - Predice tiempos de olvido
@@ -1486,7 +1510,7 @@ Exporte sus datos antes de cambios importantes (Configuración → Copia de segu
 
 **Sesión de revisión**: un período de recuperación activa y calificación de tarjetas
 
-**FSRS**: Programador de repetición espaciada libre, algoritmo moderno que optimiza el tiempo de revisión (FSRS-5 es la versión actual)
+**FSRS**: Programador de repetición espaciada libre, algoritmo moderno que optimiza el tiempo de revisión (FSRS-6 es la versión actual)
 
 **Intervalo**: tiempo entre revisiones (p. ej., 7 días)
 
