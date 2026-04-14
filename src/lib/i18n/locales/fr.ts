@@ -378,6 +378,16 @@ export const fr: Dict = {
   "continueReading.resume": "Reprendre",
   "queue.review": "Révision",
   "queue.scrollMode": "Mode défilement",
+  "queuePreset.maximizeRetention": "Maximiser la Rétention",
+  "queuePreset.minimizeTime": "Minimiser le Temps Quotidien",
+  "queuePreset.aggressiveCatchUp": "Rattrapage Aggressif",
+  "queuePreset.exploratoryLearning": "Apprentissage Exploratoire",
+  "queuePreset.projectFocused": "Axé sur le Projet",
+  "queuePreset.maximizeRetentionDesc": "Priorise les éléments les plus susceptibles d'être oubliés — les éléments en retard d'abord",
+  "queuePreset.minimizeTimeDesc": "Concentrez-vous sur les résultats rapides — les éléments courts d'abord pour progresser rapidement",
+  "queuePreset.aggressiveCatchUpDesc": "Traitez d'abord le retard — priorise fortement les éléments en retard",
+  "queuePreset.exploratoryDesc": "Découvrez du nouveau matériel — favorise les éléments avec plus de tags",
+  "queuePreset.projectFocusedDesc": "Concentrez-vous sur l'essentiel — les éléments les mieux notés en priorité d'abord",
   "queueScroll.resuming": "Reprise là où vous vous êtes arrêté",
   "queueScroll.dismissNotAvailable": "Masquage non disponible",
   "queueScroll.onlyDocuments": "Seuls les documents peuvent être masqués",
@@ -2163,18 +2173,6 @@ export const fr: Dict = {
     "Pour de meilleures performances, utilisez l'actualisation automatique avec des intervalles de 30 secondes ou plus. Des intervalles plus courts peuvent affecter la batterie des appareils portables.",
   "settings.enableVimium": "Activer la navigation Vimium",
   "settings.enableVimiumDesc": "Utiliser des raccourcis clavier pour la navigation (comme Vimium)",
-  "settings.fsrsEnabledTitle": "Planification FSRS activée",
-  "settings.fsrsInfo1":
-    "Les documents sont planifiés selon la next_reading_date calculée par FSRS pour une rétention optimale de la mémoire",
-  "settings.fsrsInfo2":
-    "Les nouveaux documents (jamais lus) apparaissent en premier, classés par priorité définie par l'utilisateur",
-  "settings.fsrsInfo3":
-    "Les documents dus (next_reading_date <= maintenant) apparaissent avant les documents à date future",
-  "settings.fsrsInfo4":
-    "Votre priority_rating agit comme un multiplicateur (0.5x à 2.0x) sur la priorité calculée par FSRS",
-  "settings.fsrsScheduling": "Planification de file basée sur FSRS",
-  "settings.fsrsSchedulingDesc":
-    "Utiliser l'algorithme FSRS (Free Spaced Repetition Scheduler) pour optimiser le moment de révision des documents basé sur la rétention de mémoire",
   "settings.keyboardShortcuts": "Raccourcis clavier",
   "settings.keyboardShortcutsDesc": "Personnaliser les raccourcis clavier pour les actions rapides",
   "settings.linkHintKeys": "Touches d'indice de lien",
@@ -2205,22 +2203,6 @@ export const fr: Dict = {
   "settings.mcpTransportType": "Type de transport",
   "settings.mcpUrl": "URL",
   "settings.pressKeys": "Appuyez sur les touches...",
-  "settings.queueMode": "Mode de file",
-  "settings.queueModeDesc":
-    "Sélectionnez comment les éléments sont organisés dans votre file d'apprentissage",
-  "settings.queueModeDetails": "Détails du mode de file :",
-  "settings.queueModeFiltered": "Filtré",
-  "settings.queueModeFilteredDesc": "File filtrée par tags, catégories ou priorité",
-  "settings.queueModeFilteredDetail":
-    "Appliquez des filtres comme tags, catégories ou plages de priorité. Utile pour l'étude ciblée.",
-  "settings.queueModeIntelligent": "Intelligent",
-  "settings.queueModeIntelligentDesc": "Optimisation IA de la file basée sur les performances",
-  "settings.queueModeIntelligentDetail":
-    "Utilise l'IA pour optimiser l'ordre de la file en fonction de vos habitudes de performance et vos objectifs d'apprentissage.",
-  "settings.queueModeNormal": "Normal",
-  "settings.queueModeNormalDesc": "File standard affichant tous les éléments dus dans l'ordre",
-  "settings.queueModeNormalDetail":
-    "Affiche tous les éléments dans leur ordre planifié. Idéal pour les sessions de révision concentrées.",
   "settings.refreshInterval": "Intervalle d'actualisation",
   "settings.refreshIntervalDesc": "Fréquence de vérification des nouveaux éléments dus",
   "settings.resetAllDefaults": "Tout réinitialiser par défaut",

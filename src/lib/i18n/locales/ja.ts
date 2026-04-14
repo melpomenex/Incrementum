@@ -374,6 +374,16 @@ export const ja: Dict = {
   "continueReading.resume": "再開",
   "queue.review": "復習",
   "queue.scrollMode": "スクロールモード",
+  "queuePreset.maximizeRetention": "記憶保持を最大化",
+  "queuePreset.minimizeTime": "毎日の時間を最小化",
+  "queuePreset.aggressiveCatchUp": "積極的な追跡",
+  "queuePreset.exploratoryLearning": "探求的学習",
+  "queuePreset.projectFocused": "プロジェクト重視",
+  "queuePreset.maximizeRetentionDesc": "忘れるリスクが最も高い項目を優先 — 期限切れと期限が近い項目を最初に表示",
+  "queuePreset.minimizeTimeDesc": "クイックウィンに集中 — 短い項目を先に並べて短時間で進捗",
+  "queuePreset.aggressiveCatchUpDesc": "バックログを先に処理 — 期限切れの項目を強く優先してスケジュールを復元",
+  "queuePreset.exploratoryDesc": "新しい素材を発見 — タグが多い項目と学習項目を優先",
+  "queuePreset.projectFocusedDesc": "最も重要なことに集中 — 優先度評価が高くタグが豊富な項目を最初に表示",
   "queueScroll.resuming": "中断したところから再開",
   "queueScroll.dismissNotAvailable": "非表示にできません",
   "queueScroll.onlyDocuments": "ドキュメントのみ非表示にできます",
@@ -2108,18 +2118,6 @@ export const ja: Dict = {
     "最適なパフォーマンスのため、30秒以上の間隔で自動更新を使用してください。短い間隔はポータブルデバイスのバッテリーに影響する場合があります。",
   "settings.enableVimium": "Vimium ナビゲーションを有効にする",
   "settings.enableVimiumDesc": "Vimium のようなキーボードショートカットでナビゲーション",
-  "settings.fsrsEnabledTitle": "FSRS ベースのスケジューリングが有効",
-  "settings.fsrsInfo1":
-    "ドキュメントは FSRS で計算された next_reading_date に基づいてスケジュールされ、最適な記憶定着を図ります",
-  "settings.fsrsInfo2":
-    "新しいドキュメント（未読）が最初に表示され、ユーザー設定の優先度で順序付けられます",
-  "settings.fsrsInfo3":
-    "期限のドキュメント（next_reading_date \u2264 現在）が将来日付のドキュメントより先に表示されます",
-  "settings.fsrsInfo4":
-    "優先度評価は FSRS 計算の優先度に対する乗数（0.5x ～ 2.0x）として機能します",
-  "settings.fsrsScheduling": "FSRS ベースのキュースケジューリング",
-  "settings.fsrsSchedulingDesc":
-    "FSRS（Free Spaced Repetition Scheduler）アルゴリズムを使用して記憶定着に基づいてドキュメントの復習タイミングを最適化",
   "settings.keyboardShortcuts": "キーボードショートカット",
   "settings.keyboardShortcutsDesc": "クイックアクションのキーボードショートカットをカスタマイズ",
   "settings.linkHintKeys": "リンクヒントキー",
@@ -2149,21 +2147,6 @@ export const ja: Dict = {
   "settings.mcpTransportType": "トランスポートタイプ",
   "settings.mcpUrl": "URL",
   "settings.pressKeys": "キーを押してください...",
-  "settings.queueMode": "キューモード",
-  "settings.queueModeDesc": "学習キューの項目の整理方法を選択",
-  "settings.queueModeDetails": "キューモードの詳細:",
-  "settings.queueModeFiltered": "フィルター済み",
-  "settings.queueModeFilteredDesc": "タグ、カテゴリ、優先度でキューをフィルタリング",
-  "settings.queueModeFilteredDetail":
-    "タグ、カテゴリ、優先度範囲などのフィルターを適用。集中学習に便利。",
-  "settings.queueModeIntelligent": "インテリジェント",
-  "settings.queueModeIntelligentDesc": "パフォーマンスに基づく AI キュー最適化",
-  "settings.queueModeIntelligentDetail":
-    "AI を使用してパフォーマンスパターンと学習目標に基づいてキューオーダーを最適化。",
-  "settings.queueModeNormal": "通常",
-  "settings.queueModeNormalDesc": "期限の項目を順番に表示する標準キュー",
-  "settings.queueModeNormalDetail":
-    "すべての項目をスケジュール順に表示。集中復習セッションに最適。",
   "settings.refreshInterval": "更新間隔",
   "settings.refreshIntervalDesc": "新しい期限項目を確認する頻度",
   "settings.resetAllDefaults": "すべてデフォルトにリセット",
