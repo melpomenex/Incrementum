@@ -34,6 +34,9 @@ pub mod audiobook;
 pub mod semantic_search;
 pub mod focus_timer;
 pub mod image_registry;
+pub mod substack;
+pub mod rss_features;
+pub mod curated_feeds;
 
 // Re-export error types for use in commands
 pub use crate::error::Result;
@@ -68,6 +71,8 @@ pub use audiobook::*;
 pub use semantic_search::*;
 pub use focus_timer::*;
 pub use image_registry::*;
+pub use substack::*;
+pub use rss_features::*;
 pub use mcp::*;
 
 // Cloud commands

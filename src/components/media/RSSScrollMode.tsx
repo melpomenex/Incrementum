@@ -27,6 +27,9 @@ import {
   Lightbulb,
   Undo,
   Info,
+  ThumbsUp,
+  ThumbsDown,
+  GraduationCap,
 } from "lucide-react";
 import { supportsHaptics } from "../../utils/soundService";
 import {
@@ -53,6 +56,8 @@ import { ModernSummaryPanel, SummaryBadge, SummaryActions } from "./summary";
 import { useSummaryCache } from "../../utils/rssSummary";
 import type { SummaryLength, SummaryFocus } from "../../types/rssSummary";
 import { SUMMARY_LENGTH_CONFIG, SUMMARY_LOADING_STAGES } from "../../types/rssSummary";
+import { TrainingMenu } from "./TrainingMenu";
+import { useClassifiersStore } from "../../stores/classifiersStore";
 
 interface RSSScrollItem {
   feed: Feed;
@@ -144,6 +149,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const { t } = useI18n();
   const { documents, addDocument, updateDocument } = useDocumentStore();
   const { settings } = useSettingsStore();
+  const { addClassifier } = useClassifiersStore();
   const toast = useToast();
   const [scrollItems, setScrollItems] = useState<RSSScrollItem[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -209,6 +215,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [summaryText, setSummaryText] = useState("");
   const [displayedSummary, setDisplayedSummary] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  const [showTrainingMenu, setShowTrainingMenu] = useState(false);
 
   // Modern summary panel state
   const [modernSummaryLength, setModernSummaryLength] = useState<SummaryLength>(() => {
@@ -592,6 +599,28 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       )
     );
   }, []);
+
+  // Quick train: thumbs up/down on current article
+  const handleQuickTrain = useCallback(async (sentiment: "like" | "dislike") => {
+    const current = visibleScrollItems[currentIndex];
+    if (!current) return;
+    const { feed, item } = current;
+    const value = item.author || item.categories?.[0] || "";
+    if (!value) {
+      toast.error("Cannot train", "Article has no author or tags");
+      return;
+    }
+    const classifierType = item.author ? "author" : "tag";
+    try {
+      await addClassifier(feed.id, classifierType, value, sentiment, "feed");
+      toast.success(
+        sentiment === "like" ? "Liked" : "Disliked",
+        `Training on ${classifierType}: ${value}`
+      );
+    } catch (err) {
+      toast.error("Training failed", err instanceof Error ? err.message : "Unknown error");
+    }
+  }, [visibleScrollItems, currentIndex, addClassifier, toast]);
 
   // Handle mark as read - removes item from scroll list (except favorites)
   const handleMarkRead = useCallback(
@@ -1790,6 +1819,36 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                     <ExternalLink className="w-4 h-4" />
                     <span className="text-sm font-medium">Read Original</span>
                   </a>
+
+                  {/* Training controls */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => void handleQuickTrain("like")}
+                      className="p-2 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                      title="Show more like this"
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => void handleQuickTrain("dislike")}
+                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Show less like this"
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setShowTrainingMenu(true)}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        showTrainingMenu
+                          ? "text-emerald-500 bg-emerald-500/10"
+                          : "text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10"
+                      )}
+                      title="Train intelligence"
+                    >
+                      <GraduationCap className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Next article preview */}
@@ -1807,6 +1866,15 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           </article>
         )}
       </div>
+
+      {/* Training Menu Overlay */}
+      {showTrainingMenu && renderedItem && (
+        <TrainingMenu
+          article={renderedItem.item}
+          feedId={renderedItem.feed.id}
+          onClose={() => setShowTrainingMenu(false)}
+        />
+      )}
 
       {/* Modern Summary Panel */}
       {renderedItem && (

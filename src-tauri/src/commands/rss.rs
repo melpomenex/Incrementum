@@ -41,6 +41,7 @@ pub struct RssArticle {
     pub date_added: String,
     pub full_content: Option<String>,
     pub full_content_fetched_at: Option<String>,
+    pub intelligence_score: Option<f64>,
 }
 
 /// RSS user preferences model
@@ -439,6 +440,7 @@ pub async fn create_rss_article(
         date_added: row.get("date_added"),
         full_content: decode_optional_text(&row, "full_content"),
         full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
+        intelligence_score: row.try_get("intelligence_score").ok().flatten(),
     })
 }
 
@@ -478,6 +480,7 @@ pub async fn get_rss_articles(
             date_added: row.get("date_added"),
             full_content: decode_optional_text(&row, "full_content"),
             full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
+            intelligence_score: row.try_get("intelligence_score").ok().flatten(),
         });
     }
 
@@ -595,11 +598,22 @@ pub struct ParsedFeed {
     pub items: Vec<ParsedFeedItem>,
 }
 
+fn normalize_known_feed_url(feed_url: &str) -> String {
+    match feed_url.trim() {
+        "https://feeds.nbcnews.com/nbcnews/topstories" => {
+            "https://feeds.nbcnews.com/nbcnews/public/news".to_string()
+        }
+        other => other.to_string(),
+    }
+}
+
 /// Fetch and parse RSS/Atom feed from URL
 #[tauri::command]
 pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
     use reqwest::Client;
     use roxmltree::Document;
+
+    let normalized_feed_url = normalize_known_feed_url(&feed_url);
 
     let client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -607,7 +621,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create HTTP client: {}", e)))?;
 
     let response = client
-        .get(&feed_url)
+        .get(&normalized_feed_url)
         .send()
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch feed: {}", e)))?;
@@ -629,7 +643,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to parse XML: {}", e)))?;
 
     // Generate feed ID from URL
-    let digest = md5::compute(&feed_url);
+    let digest = md5::compute(&normalized_feed_url);
     let id = format!("feed-{:02x}", digest.0[0]);
     let _now = Utc::now().to_rfc3339();
 
@@ -653,7 +667,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
             .children()
             .find(|n| n.tag_name().name() == "link")
             .and_then(|n| n.text())
-            .unwrap_or(&feed_url)
+            .unwrap_or(&normalized_feed_url)
             .to_string();
 
         let image_url = channel
@@ -686,7 +700,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
             title,
             description,
             link,
-            feed_url,
+            feed_url: normalized_feed_url.clone(),
             image_url,
             language,
             category,
@@ -717,7 +731,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
                     && (n.attribute("rel") != Some("self") || n.attribute("rel").is_none())
             })
             .and_then(|n| n.attribute("href"))
-            .unwrap_or(&feed_url)
+            .unwrap_or(&normalized_feed_url)
             .to_string();
 
         let image_url = feed
@@ -745,7 +759,7 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
             title,
             description,
             link,
-            feed_url,
+            feed_url: normalized_feed_url.clone(),
             image_url,
             language,
             category: None,
@@ -1111,6 +1125,7 @@ pub async fn get_rss_articles_http(
             date_added: row.get("date_added"),
             full_content: decode_optional_text(&row, "full_content"),
             full_content_fetched_at: row.try_get("full_content_fetched_at").ok(),
+            intelligence_score: row.try_get("intelligence_score").ok().flatten(),
         });
     }
 
