@@ -20,6 +20,14 @@ import {
   Link2,
   FileText,
   MoreVertical,
+  Globe,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Brain,
+  GraduationCap,
+  Tag,
+  Keyboard,
 } from "lucide-react";
 import {
   Feed,
@@ -51,9 +59,27 @@ import { NewsletterUrlImporter } from "../newsletter/NewsletterUrlImporter";
 import { RSSScrollMode } from "./RSSScrollMode";
 import { RSSFullContentView } from "./RSSFullContentView";
 import { FeedSettingsDialog } from "./FeedSettingsDialog";
+import { MagazineLayout, GridLayout } from "./ArticleLayouts";
 import { useI18n } from "../../lib/i18n";
 import { isTauri, openExternal } from "../../lib/tauri";
 import { getDeviceInfo } from "../../lib/pwa";
+import { IntelligenceIndicator } from "./IntelligenceIndicator";
+import { TrainingMenu } from "./TrainingMenu";
+import { KeyboardShortcutProvider } from "./KeyboardShortcutProvider";
+import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
+import { SearchResults } from "./SearchResults";
+import { OriginalView } from "./OriginalView";
+import { StoryView } from "./StoryView";
+import { StoryViewModeSwitcher, type StoryViewMode } from "./StoryViewModeSwitcher";
+import { ManageTrainingView } from "./ManageTrainingView";
+import { DiscoverSitesPanel } from "./DiscoverSitesPanel";
+import { AnnotationsPanel } from "./AnnotationsPanel";
+import { TagInput } from "./TagInput";
+import { searchArticlesAuto, type RssSearchResult } from "../../api/rss-search";
+import { markArticleUnreadAuto, migrateFoldersFromLocalStorageAuto } from "../../api/rss-folders";
+import { useClassifiersStore } from "../../stores/classifiersStore";
+import { useTagsStore } from "../../stores/tagsStore";
+import { getArticlesByTagAuto } from "../../api/rss-tags";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
 
@@ -88,6 +114,27 @@ export function RSSReader() {
   const [showFeedSettings, setShowFeedSettings] = useState(false);
   const [feedSettingsFeed, setFeedSettingsFeed] = useState<Feed | null>(null);
   const [showFullContent, setShowFullContent] = useState(false);
+
+  // NewsBlur features state
+  const [storyViewMode, setStoryViewMode] = useState<StoryViewMode>("feed");
+  const [articleLayout, setArticleLayout] = useState<"list" | "magazine" | "grid">("list");
+  const [showTrainingMenu, setShowTrainingMenu] = useState(false);
+  const [trainingMenuPosition, setTrainingMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showManageTraining, setShowManageTraining] = useState(false);
+  const [showDiscoverSites, setShowDiscoverSites] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(false);
+  const [searchResults, setSearchResults] = useState<RssSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showReadStories, setShowReadStories] = useState(false);
+  const [draggedFeedId, setDraggedFeedId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+  const [draggedFeedTitle, setDraggedFeedTitle] = useState<string | null>(null);
+  const { intelligenceFilter, showDisliked, setIntelligenceFilter, toggleShowDisliked } = useClassifiersStore();
+  const { tags, loadTags, loadArticleTags, articleTags, setTagFilter, selectedTagFilter } = useTagsStore();
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [selectedArticleTags, setSelectedArticleTags] = useState<import("../../api/rss-tags").RssTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
 
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
@@ -143,20 +190,44 @@ export function RSSReader() {
   useEffect(() => {
     const allFeedItems = feeds.flatMap((feed) => feed.items.map((item) => ({ feed, item })));
 
+    // Intelligence filter: hide disliked articles (negative score) unless showDisliked is on
+    const applyIntelligenceFilter = (list: Array<{ feed: Feed; item: FeedItem }>) => {
+      if (showDisliked) return list;
+      return list.filter(({ item }) => {
+        const score = item.intelligenceScore;
+        if (score == null) return true; // unscored articles pass through
+        return score >= 0;
+      });
+    };
+
     if (viewMode === "all" && selectedFeed) {
-      setItems(selectedFeed.items.map((item) => ({ feed: selectedFeed, item })));
+      let items = selectedFeed.items.map((item) => ({ feed: selectedFeed, item }));
+      if (intelligenceFilter === "focus") {
+        items = items.filter(({ item }) => (item.intelligenceScore ?? 0) > 0);
+      }
+      setItems(applyIntelligenceFilter(items));
     } else if (viewMode === "unread") {
+      let filtered = allFeedItems.filter(({ item }) => !item.read);
+      if (intelligenceFilter === "focus") {
+        filtered = filtered.filter(({ item }) => (item.intelligenceScore ?? 0) > 0);
+      }
       setItems(
-        allFeedItems
-          .filter(({ item }) => !item.read)
+        applyIntelligenceFilter(filtered)
           .sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime())
       );
     } else if (viewMode === "favorites") {
-      setItems(
-        allFeedItems
-          .filter(({ item }) => item.favorite)
-          .sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime())
-      );
+      const filtered = allFeedItems.filter(({ item }) => item.favorite);
+      // Multi-tag AND filtering
+      if (selectedTagIds.size > 0) {
+        const tagArr = Array.from(selectedTagIds);
+        const tagged = filtered.filter(({ item }) => {
+          const at = articleTags.get(item.id) || [];
+          return tagArr.every((tid) => at.some((t) => t.id === tid));
+        });
+        setItems(tagged.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()));
+      } else {
+        setItems(filtered.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()));
+      }
     } else if (viewMode === "search" && searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
       setItems(
@@ -172,7 +243,23 @@ export function RSSReader() {
     } else {
       setItems([]);
     }
-  }, [viewMode, selectedFeed, feeds, searchQuery]);
+  }, [viewMode, selectedFeed, feeds, searchQuery, selectedTagFilter, selectedTagIds, articleTags, intelligenceFilter, showDisliked]);
+
+  // Load tags on mount
+  useEffect(() => {
+    void loadTags();
+  }, [loadTags]);
+
+  // Load article tags when selected article changes
+  useEffect(() => {
+    if (selectedItem) {
+      void loadArticleTags(selectedItem.id).then(() => {
+        setSelectedArticleTags(articleTags.get(selectedItem.id) || []);
+      });
+    } else {
+      setSelectedArticleTags([]);
+    }
+  }, [selectedItem, loadArticleTags, articleTags]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -213,8 +300,38 @@ export function RSSReader() {
       return feeds.find((feed) => feed.id === prev.id || feed.feedUrl === prev.feedUrl) ?? null;
     });
     setFolders(getFeedFolders());
+    // Migrate localStorage folders to SQLite on first launch (one-time)
+    try {
+      const localStorageFolders = localStorage.getItem("rss_folders");
+      if (localStorageFolders) {
+        const migrated = await migrateFoldersFromLocalStorageAuto(localStorageFolders);
+        if (migrated > 0) {
+          console.log(`[RSS] Migrated ${migrated} folders from localStorage to SQLite`);
+          localStorage.removeItem("rss_folders");
+        }
+      }
+    } catch (err) {
+      console.warn("[RSS] Folder migration failed:", err);
+    }
     return feeds;
   };
+
+  const moveFeedToFolderInSidebar = useCallback((feedId: string, folderId?: string) => {
+    const nextFolders = getFeedFolders().map((folder) => ({
+      ...folder,
+      feeds: folder.feeds.filter((existingFeedId) => existingFeedId !== feedId),
+    }));
+
+    if (folderId) {
+      const target = nextFolders.find((folder) => folder.id === folderId);
+      if (target && !target.feeds.includes(feedId)) {
+        target.feeds.push(feedId);
+      }
+    }
+
+    localStorage.setItem("rss_folders", JSON.stringify(nextFolders));
+    setFolders(nextFolders);
+  }, []);
 
   // Refresh all feeds (for auto-refresh and manual refresh all)
   const refreshAllFeeds = useCallback(
@@ -377,6 +494,69 @@ export function RSSReader() {
     }
   };
 
+  const handleDiscoverSiteSubscribe = useCallback(async (feed: Feed) => {
+    const updatedFeeds = await loadFeeds();
+    const subscribedFeed =
+      updatedFeeds.find((candidate) => candidate.feedUrl === feed.feedUrl || candidate.link === feed.link) ?? null;
+
+    if (subscribedFeed) {
+      setSelectedFeed(subscribedFeed);
+      if (isMobile) {
+        setMobileView("items");
+      }
+    }
+
+    setShowDiscoverSites(false);
+  }, [isMobile]);
+
+  const handleMoveFeedToSection = useCallback((feedId: string, folderId?: string) => {
+    moveFeedToFolderInSidebar(feedId, folderId);
+    setDragOverSectionId(null);
+    setDraggedFeedId(null);
+    setDraggedFeedTitle(null);
+  }, [moveFeedToFolderInSidebar]);
+
+  const canDropIntoSection = useCallback((section: { isFolder: boolean; folderId?: string; feeds: Feed[] }) => {
+    if (!draggedFeedId || !section.isFolder || !section.folderId) return false;
+    return !section.feeds.some((feed) => feed.id === draggedFeedId);
+  }, [draggedFeedId]);
+
+  const dragModeActive = draggedFeedId !== null;
+
+  const beginSidebarDrag = useCallback((feed: Feed) => {
+    setDraggedFeedId(feed.id);
+    setDraggedFeedTitle(feed.title);
+    setDragOverSectionId(null);
+  }, []);
+
+  const cancelSidebarDrag = useCallback(() => {
+    setDraggedFeedId(null);
+    setDraggedFeedTitle(null);
+    setDragOverSectionId(null);
+  }, []);
+
+  useEffect(() => {
+    if (!dragModeActive) return;
+
+    const handlePointerUp = () => {
+      cancelSidebarDrag();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        cancelSidebarDrag();
+      }
+    };
+
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cancelSidebarDrag, dragModeActive]);
+
   const handleRemoveFeed = async (feedId: string) => {
     if (confirm(t("delete.unsubscribeConfirm"))) {
       await unsubscribeFromFeedAuto(feedId);
@@ -474,7 +654,7 @@ export function RSSReader() {
 
   const unreadCount = feeds.reduce((acc, feed) => acc + feed.unreadCount, 0);
   const groupedFeeds = useMemo(() => {
-    const sections: Array<{ id: string; name: string; feeds: Feed[] }> = [];
+    const sections: Array<{ id: string; name: string; feeds: Feed[]; isFolder: boolean; folderId?: string }> = [];
     const assigned = new Set<string>();
 
     folders.forEach((folder) => {
@@ -482,7 +662,7 @@ export function RSSReader() {
         .map((feedId) => feeds.find((feed) => feed.id === feedId))
         .filter((feed): feed is Feed => Boolean(feed));
       if (folderFeeds.length > 0) {
-        sections.push({ id: folder.id, name: folder.name, feeds: folderFeeds });
+        sections.push({ id: folder.id, name: folder.name, feeds: folderFeeds, isFolder: true, folderId: folder.id });
         folderFeeds.forEach((feed) => assigned.add(feed.id));
       }
     });
@@ -507,6 +687,7 @@ export function RSSReader() {
           id: `category-${category}`,
           name: category,
           feeds: categoryFeeds,
+          isFolder: false,
         });
       });
 
@@ -542,6 +723,118 @@ export function RSSReader() {
     }
   };
 
+  // Enhanced FTS5 search with debounce
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const handleFTSSearch = useCallback((query: string) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!query.trim()) { setSearchResults([]); setIsSearching(false); return; }
+    setIsSearching(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const results = await searchArticlesAuto({
+          query: query.trim(),
+          feed_id: selectedFeed?.id,
+        });
+        setSearchResults(results);
+      } catch (err) {
+        console.error("[RSS] FTS search failed:", err);
+        setSearchResults([]);
+      }
+      setIsSearching(false);
+    }, 300);
+  }, [selectedFeed?.id]);
+
+  useEffect(() => {
+    if (viewMode === "search" && searchQuery) {
+      handleFTSSearch(searchQuery);
+    }
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, viewMode, handleFTSSearch]);
+
+  // Keyboard shortcut action handler
+  const handleKeyboardAction = useCallback((action: string) => {
+    const currentItems = items;
+    const currentIndex = currentItems.findIndex(
+      (i) => i.item.id === selectedItem?.id
+    );
+
+    switch (action) {
+      case "nextArticle":
+        if (currentIndex < currentItems.length - 1) {
+          const next = currentItems[currentIndex + 1];
+          setSelectedItem(next.item);
+          setSelectedItemFeed(next.feed);
+          if (!next.item.read) {
+            void markItemReadAuto(next.feed.id, next.item.id, true);
+          }
+        }
+        break;
+      case "prevArticle":
+        if (currentIndex > 0) {
+          const prev = currentItems[currentIndex - 1];
+          setSelectedItem(prev.item);
+          setSelectedItemFeed(prev.feed);
+        }
+        break;
+      case "markRead":
+        if (selectedItem && selectedItemFeed) {
+          void markItemReadAuto(selectedItemFeed.id, selectedItem.id, true);
+        }
+        break;
+      case "markUnread":
+        if (selectedItem) {
+          void markArticleUnreadAuto(selectedItem.id);
+        }
+        break;
+      case "star":
+        if (selectedItem && selectedItemFeed) {
+          handleToggleFavorite(selectedItemFeed, selectedItem);
+        }
+        break;
+      case "openOriginal":
+        if (selectedItem?.link) {
+          void openExternal(selectedItem.link);
+        }
+        break;
+      case "focusSearch":
+        document.querySelector<HTMLInputElement>('input[placeholder*="earch"]')?.focus();
+        break;
+      case "showHelp":
+        setShowKeyboardHelp(true);
+        break;
+      case "nextViewMode":
+        setStoryViewMode((prev) => {
+          const modes: StoryViewMode[] = ["feed", "original", "text", "story"];
+          const idx = modes.indexOf(prev);
+          return modes[(idx + 1) % modes.length];
+        });
+        break;
+      case "textView":
+        setStoryViewMode("text");
+        break;
+      case "refreshFeed":
+        if (selectedFeed) void refreshAllFeeds("manual");
+        break;
+      case "trainLike":
+        if (selectedItem && selectedItemFeed) {
+          setShowTrainingMenu(true);
+          setTrainingMenuPosition({ x: window.innerWidth - 200, y: 100 });
+        }
+        break;
+    }
+  }, [items, selectedItem, selectedItemFeed, selectedFeed, handleToggleFavorite, refreshAllFeeds]);
+
+  // Mark article unread handler
+  const handleMarkUnread = async (feed: Feed, item: FeedItem) => {
+    try {
+      await markItemReadAuto(feed.id, item.id, false);
+    } catch (err) {
+      console.error("[RSS] Failed to mark unread:", err);
+    }
+  };
+
   const readingStyles = useMemo(() => {
     if (!preferences) return {};
     return {
@@ -566,6 +859,29 @@ export function RSSReader() {
 
   return (
     <>
+      <KeyboardShortcutProvider onAction={handleKeyboardAction} />
+      <KeyboardHelpOverlay isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
+      {showManageTraining && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <ManageTrainingView onClose={() => setShowManageTraining(false)} />
+        </div>
+      )}
+      {showDiscoverSites && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <DiscoverSitesPanel
+            onClose={() => setShowDiscoverSites(false)}
+            onSubscribe={(feed) => void handleDiscoverSiteSubscribe(feed)}
+          />
+        </div>
+      )}
+      {showTrainingMenu && selectedItem && selectedItemFeed && (
+        <TrainingMenu
+          article={selectedItem}
+          feedId={selectedItemFeed.id}
+          position={trainingMenuPosition}
+          onClose={() => setShowTrainingMenu(false)}
+        />
+      )}
       <div className="h-full w-full bg-background">
         {isMobile && (
           <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/70">
@@ -732,7 +1048,7 @@ export function RSSReader() {
                     >
                       <Settings className="w-4 h-4" />
                     </button>
-                    <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
                       <button
                         onClick={handleImportOPML}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 first:rounded-t-lg flex items-center gap-2"
@@ -747,6 +1063,29 @@ export function RSSReader() {
                         <Download className="w-4 h-4" />
                         {t("rssReader.exportOpml")}
                       </button>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        onClick={() => setShowManageTraining(true)}
+                        className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
+                      >
+                        <GraduationCap className="w-4 h-4" />
+                        Manage Training
+                      </button>
+                      <button
+                        onClick={() => setShowDiscoverSites(true)}
+                        className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
+                      >
+                        <Globe className="w-4 h-4" />
+                        Discover Sites
+                      </button>
+                      <button
+                        onClick={() => setShowKeyboardHelp(true)}
+                        className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
+                      >
+                        <Keyboard className="w-4 h-4" />
+                        Keyboard Shortcuts
+                      </button>
+                      <div className="border-t border-border my-1" />
                       <button
                         onClick={() => setShowCustomization(true)}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 last:rounded-b-lg flex items-center gap-2"
@@ -775,7 +1114,7 @@ export function RSSReader() {
               )}
 
               {/* View mode tabs */}
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-4 gap-1">
                 <button
                   onClick={() => handleViewModeChange("all")}
                   className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
@@ -811,6 +1150,43 @@ export function RSSReader() {
                 >
                   {t("rssReader.favorites")}
                 </button>
+                <button
+                  onClick={() => setShowReadStories(true)}
+                  className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
+                    false
+                      ? "text-muted-foreground hover:bg-muted/70"
+                      : "bg-primary text-primary-foreground shadow-sm"
+                  }`}
+                >
+                  Read
+                </button>
+              </div>
+
+              {/* Intelligence filter controls */}
+              <div className="flex items-center gap-1 mt-2">
+                <button
+                  onClick={() => setIntelligenceFilter(intelligenceFilter === "focus" ? "all" : "focus")}
+                  className={`px-2 py-1 text-[10px] rounded-md transition-colors flex items-center gap-1 ${
+                    intelligenceFilter === "focus"
+                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                      : "text-muted-foreground hover:bg-muted/70"
+                  }`}
+                  title="Focus mode: show liked stories"
+                >
+                  <Brain className="w-3 h-3" />
+                  Focus
+                </button>
+                <button
+                  onClick={toggleShowDisliked}
+                  className={`px-2 py-1 text-[10px] rounded-md transition-colors ${
+                    showDisliked
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                      : "text-muted-foreground hover:bg-muted/70"
+                  }`}
+                  title="Show/hide disliked stories"
+                >
+                  <EyeOff className="w-3 h-3" />
+                </button>
               </div>
             </div>
 
@@ -829,19 +1205,85 @@ export function RSSReader() {
                 </div>
               ) : (
                 <div>
+                  {dragModeActive && draggedFeedTitle && (
+                    <div className="px-3 py-2 border-b border-primary/20 bg-primary/10 text-primary">
+                      <p className="text-xs font-medium">Moving {draggedFeedTitle}</p>
+                      <p className="text-[11px] opacity-80">Release over a folder section to move it there. Press Esc to cancel.</p>
+                    </div>
+                  )}
                   {groupedFeeds.sections.map((section) => (
-                    <div key={section.id} className="border-b border-border/70">
-                      <div className="w-full px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-[0.18em]">
-                        <Folder className="w-3.5 h-3.5" />
-                        {section.name}
+                    <div
+                      key={section.id}
+                      onPointerEnter={() => {
+                        if (!canDropIntoSection(section)) return;
+                        setDragOverSectionId(section.id);
+                      }}
+                      onPointerLeave={(e) => {
+                        const nextTarget = e.relatedTarget as Node | null;
+                        if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+                        if (dragOverSectionId === section.id) {
+                          setDragOverSectionId(null);
+                        }
+                      }}
+                      onPointerUp={() => {
+                        if (!canDropIntoSection(section) || !draggedFeedId || !section.folderId) return;
+                        handleMoveFeedToSection(draggedFeedId, section.folderId);
+                      }}
+                      className={`border-b border-border/70 transition-colors ${
+                        dragOverSectionId === section.id
+                          ? "bg-primary/5 ring-1 ring-inset ring-primary/30"
+                          : dragModeActive && canDropIntoSection(section)
+                            ? "bg-primary/[0.03]"
+                            : ""
+                      }`}
+                    >
+                      <div
+                        className={`w-full px-3 py-2 flex items-center justify-between gap-2 text-xs uppercase tracking-[0.18em] transition-colors ${
+                          dragOverSectionId === section.id
+                            ? "bg-primary/10 text-primary"
+                            : dragModeActive && canDropIntoSection(section)
+                              ? "text-primary/80"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Folder className="w-3.5 h-3.5" />
+                          {section.name}
+                        </div>
+                        {dragModeActive && canDropIntoSection(section) && (
+                          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">
+                            Drop here
+                          </span>
+                        )}
                       </div>
+                      {dragOverSectionId === section.id && canDropIntoSection(section) && (
+                        <div className="mx-3 mb-2 rounded-md border border-dashed border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                          Drop into {section.name}
+                        </div>
+                      )}
                       {section.feeds.map((feed) => (
                         <div
                           key={feed.id}
-                          className={`group w-full px-4 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${
+                          className={`group w-full cursor-grab px-4 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${
                             selectedFeed?.id === feed.id ? "bg-muted/50" : ""
-                          }`}
+                          } ${draggedFeedId === feed.id ? "opacity-50 cursor-grabbing" : ""}`}
                         >
+                          <button
+                            type="button"
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              beginSidebarDrag(feed);
+                            }}
+                            className={`mt-1 rounded p-1 text-muted-foreground transition-colors ${
+                              draggedFeedId === feed.id
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={`Move ${feed.title}`}
+                          >
+                            <GripVertical className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedFeed(feed);
@@ -895,14 +1337,52 @@ export function RSSReader() {
                   ))}
 
                   {groupedFeeds.ungrouped.length > 0 && (
-                    <div className="border-b border-border/70">
+                    <div
+                      className={`border-b border-border/70 transition-colors ${
+                        dragOverSectionId === "ungrouped" ? "bg-primary/5 ring-1 ring-inset ring-primary/30" : ""
+                      }`}
+                      onPointerEnter={() => {
+                        if (!draggedFeedId) return;
+                        setDragOverSectionId("ungrouped");
+                      }}
+                      onPointerLeave={() => {
+                        if (dragOverSectionId === "ungrouped") {
+                          setDragOverSectionId(null);
+                        }
+                      }}
+                      onPointerUp={() => {
+                        if (!draggedFeedId) return;
+                        handleMoveFeedToSection(draggedFeedId);
+                      }}
+                    >
+                      {dragOverSectionId === "ungrouped" && (
+                        <div className="mx-3 mt-2 rounded-md border border-dashed border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                          Remove from folder
+                        </div>
+                      )}
                       {groupedFeeds.ungrouped.map((feed) => (
                         <div
                           key={feed.id}
-                          className={`group w-full px-3 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${
+                          className={`group w-full cursor-grab px-3 py-2 text-left hover:bg-muted/70 transition-colors flex items-start gap-2 ${
                             selectedFeed?.id === feed.id ? "bg-muted/50" : ""
-                          }`}
+                          } ${draggedFeedId === feed.id ? "opacity-50 cursor-grabbing" : ""}`}
                         >
+                          <button
+                            type="button"
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              beginSidebarDrag(feed);
+                            }}
+                            className={`mt-1 rounded p-1 text-muted-foreground transition-colors ${
+                              draggedFeedId === feed.id
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={`Move ${feed.title}`}
+                          >
+                            <GripVertical className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedFeed(feed);
@@ -954,6 +1434,35 @@ export function RSSReader() {
                       ))}
                     </div>
                   )}
+                  {/* Tags as virtual feeds in sidebar */}
+                  {tags.length > 0 && (
+                    <div className="border-t border-border/70">
+                      <div className="w-full px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-[0.18em]">
+                        <Tag className="w-3.5 h-3.5" />
+                        Tags
+                      </div>
+                      {tags.filter((t) => t.article_count && t.article_count > 0).map((tag) => (
+                        <button
+                          key={tag.id}
+                          onClick={() => {
+                            setViewMode("favorites");
+                            setSelectedTagIds(new Set([tag.id]));
+                            setTagFilter(tag.id);
+                            if (isMobile) setMobileView("items");
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-muted/70 transition-colors flex items-center gap-2"
+                        >
+                          <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Tag className="w-3 h-3 text-primary" />
+                          </div>
+                          <span className="text-sm text-foreground truncate flex-1">{tag.name}</span>
+                          {tag.article_count != null && (
+                            <span className="text-xs text-muted-foreground">{tag.article_count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -965,6 +1474,52 @@ export function RSSReader() {
             <div
               className={`w-full lg:w-[420px] border-b lg:border-b-0 lg:border-r border-border/70 flex-col min-h-0 ${showItemsList ? "flex" : "hidden"}`}
             >
+              {/* Tag filter sidebar for saved stories */}
+              {viewMode === "favorites" && tags.length > 0 && (
+                <div className="px-3 py-2 border-b border-border/50">
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <Tag className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Tags</span>
+                    {selectedTagIds.size > 0 && (
+                      <button
+                        onClick={() => { setSelectedTagIds(new Set()); setTagFilter(null); }}
+                        className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {tags.filter((t) => t.article_count && t.article_count > 0).map((tag) => {
+                      const isSelected = selectedTagIds.has(tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          onClick={() => {
+                            setSelectedTagIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(tag.id)) next.delete(tag.id);
+                              else next.add(tag.id);
+                              return next;
+                            });
+                            setTagFilter(selectedTagIds.has(tag.id) ? null : tag.id);
+                          }}
+                          className={`px-2 py-0.5 text-[11px] rounded-full transition-colors ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {tag.name}
+                          {tag.article_count != null && (
+                            <span className="ml-1 opacity-70">{tag.article_count}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="px-5 pt-4 pb-3 border-b border-border/70 bg-gradient-to-b from-muted/20 via-muted/10 to-transparent">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -1010,14 +1565,75 @@ export function RSSReader() {
                     className="w-full pl-9 pr-3 py-2 bg-background/80 border border-border/70 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
                   />
                 </div>
+
+                {/* View mode switchers */}
+                <div className="mt-2 flex items-center gap-2">
+                  <StoryViewModeSwitcher
+                    currentMode={storyViewMode}
+                    onModeChange={setStoryViewMode}
+                    compact
+                  />
+                  <div className="flex items-center bg-muted/60 rounded-lg p-0.5">
+                    {(["list", "magazine", "grid"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setArticleLayout(mode)}
+                        className={`px-1.5 py-1 text-[10px] font-medium rounded-md capitalize transition-colors ${
+                          articleLayout === mode
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {items.length === 0 ? (
+              {/* Search results (FTS5) */}
+              {viewMode === "search" && searchQuery && (
+                <div className="p-3">
+                  <SearchResults
+                    results={searchResults}
+                    query={searchQuery}
+                    isLoading={isSearching}
+                    onSelect={(result) => {
+                      const feed = feeds.find((f) => f.id === result.feed_id);
+                      if (feed) {
+                        const item = feed.items.find((i) => i.id === result.id);
+                        if (item) {
+                          setSelectedItem(item);
+                          setSelectedItemFeed(feed);
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {items.length === 0 && !(viewMode === "search" && searchQuery) ? (
                 <div className="p-8 text-center text-muted-foreground mobile-density-section">
                   {viewMode === "unread" ? t("rssReader.noUnread") : t("rssReader.noArticles")}
                 </div>
+              ) : articleLayout === "magazine" ? (
+                <div className="flex-1 overflow-y-auto transition-all duration-300">
+                  <MagazineLayout
+                    items={items}
+                    onSelect={(feed, item) => handleItemClick(feed, item)}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                </div>
+              ) : articleLayout === "grid" ? (
+                <div className="flex-1 overflow-y-auto transition-all duration-300">
+                  <GridLayout
+                    items={items}
+                    onSelect={(feed, item) => handleItemClick(feed, item)}
+                    columnCount={preferences?.column_count ?? 3}
+                  />
+                </div>
               ) : (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto transition-all duration-300">
                   {items.map(({ feed, item }) => {
                     const imageUrl = item.enclosure?.type?.startsWith("image/")
                       ? item.enclosure.url
@@ -1031,11 +1647,14 @@ export function RSSReader() {
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div
-                            className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${
-                              item.read ? "bg-muted" : "bg-orange-500"
-                            }`}
-                          />
+                          <div className="mt-2 flex items-center gap-1.5 flex-shrink-0">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                item.read ? "bg-muted" : "bg-orange-500"
+                              }`}
+                            />
+                            <IntelligenceIndicator score={item.intelligenceScore} />
+                          </div>
 
                           {imageUrl && (
                             <div className="w-16 h-12 rounded-md overflow-hidden bg-muted/70 flex-shrink-0 border border-border/60">
@@ -1118,6 +1737,41 @@ export function RSSReader() {
                             >
                               <ExternalLink className="w-4 h-4" />
                             </a>
+                            {item.read && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleMarkUnread(feed, item);
+                                }}
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
+                                title="Mark as unread"
+                              >
+                                <EyeOff className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowTrainingMenu(true);
+                                setTrainingMenuPosition({ x: e.clientX, y: e.clientY });
+                              }}
+                              className="p-1.5 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 rounded transition-colors"
+                              title="Train intelligence"
+                            >
+                              <GraduationCap className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedItem(item);
+                                setSelectedItemFeed(feed);
+                                setShowTagInput(true);
+                              }}
+                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                              title="Tag article"
+                            >
+                              <Tag className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       </article>
@@ -1183,6 +1837,18 @@ export function RSSReader() {
                       >
                         <FileText className="w-4 h-4" />
                       </button>
+                      {/* Annotations toggle */}
+                      <button
+                        onClick={() => setShowAnnotations(!showAnnotations)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          showAnnotations
+                            ? "text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                        }`}
+                        title="Annotations"
+                      >
+                        <Tag className="w-4 h-4" />
+                      </button>
                       <a
                         href={selectedItem.link}
                         onClick={(e) => {
@@ -1196,8 +1862,60 @@ export function RSSReader() {
                       </a>
                     </div>
                   </div>
+                  {/* Tag input bar */}
+                  {selectedItem && (
+                    <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2">
+                      <button
+                        onClick={() => setShowTagInput(!showTagInput)}
+                        className={`p-1 rounded transition-colors ${showTagInput ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/70"}`}
+                        title="Tags"
+                      >
+                        <Tag className="w-3.5 h-3.5" />
+                      </button>
+                      {selectedArticleTags.length > 0 && !showTagInput && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {selectedArticleTags.map((tag) => (
+                            <span key={tag.id} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full">
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {showTagInput && selectedItem && (
+                        <div className="flex-1">
+                          <TagInput
+                            articleId={selectedItem.id}
+                            selectedTags={selectedArticleTags}
+                            onTagAdd={(tag) => {
+                              setSelectedArticleTags((prev) => [...prev, tag]);
+                            }}
+                            onTagRemove={(tagId) => {
+                              setSelectedArticleTags((prev) => prev.filter((t) => t.id !== tagId));
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex-1 overflow-y-auto">
-                    {showFullContent ? (
+                    {/* Conditional view rendering based on storyViewMode */}
+                    {storyViewMode === "original" && selectedItem.link ? (
+                      <OriginalView item={selectedItem} />
+                    ) : storyViewMode === "story" && selectedItemFeed ? (
+                      <StoryView
+                        item={selectedItem}
+                        feed={selectedItemFeed}
+                        items={items.map((i) => i.item)}
+                        onSelectItem={(item) => {
+                          const match = items.find((i) => i.item.id === item.id);
+                          if (match) {
+                            setSelectedItem(item);
+                            setSelectedItemFeed(match.feed);
+                          }
+                        }}
+                        onToggleFavorite={handleToggleFavorite}
+                      />
+                    ) : showFullContent ? (
                       <RSSFullContentView
                         item={selectedItem}
                         onClose={() => setShowFullContent(false)}

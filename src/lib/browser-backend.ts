@@ -3146,6 +3146,42 @@ const commandHandlers: Record<string, CommandHandler> = {
         ];
     },
 
+    // ── Substack API proxy (browser: direct fetch) ────────────────────────
+    substack_search: async (args) => {
+        const query = args.query as string;
+        const cursor = args.cursor as string | undefined;
+        const qs = new URLSearchParams({ query });
+        if (cursor) qs.set('cursor', cursor);
+        const resp = await fetch(`https://substack.com/api/v1/top/search?${qs}`);
+        if (!resp.ok) throw new Error(`Substack search returned ${resp.status}`);
+        return resp.json();
+    },
+
+    substack_categories: async () => {
+        const resp = await fetch('https://substack.com/api/v1/categories');
+        if (!resp.ok) throw new Error(`Substack categories returned ${resp.status}`);
+        return resp.json();
+    },
+
+    substack_pub_homepage: async (args) => {
+        const subdomain = args.subdomain as string;
+        const resp = await fetch(`https://${subdomain}.substack.com/api/v1/homepage_data`);
+        if (!resp.ok) throw new Error(`Substack pub homepage returned ${resp.status}`);
+        return resp.json();
+    },
+
+    substack_category_feed: async (args) => {
+        const categoryId = args.categoryId as string;
+        const limit = args.limit as number | undefined;
+        const cursor = args.cursor as string | undefined;
+        const qs = new URLSearchParams({ tab: categoryId, type: 'category' });
+        if (limit) qs.set('limit', String(limit));
+        if (cursor) qs.set('cursor', cursor);
+        const resp = await fetch(`https://substack.com/api/v1/reader/feed?${qs}`);
+        if (!resp.ok) throw new Error(`Substack category feed returned ${resp.status}`);
+        return resp.json();
+    },
+
     mcp_call_incrementum_tool: async (args) => {
         const toolName = args.toolName as string;
         const toolArgs = args.arguments as Record<string, unknown>;
@@ -3302,6 +3338,89 @@ const commandHandlers: Record<string, CommandHandler> = {
         const next = `inc_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
         localStorage.setItem(AUTOMATION_KEY_STORAGE, next);
         return next;
+    },
+
+    // RSS Intelligence / Classifiers (localStorage-backed for PWA mode)
+    add_rss_classifier: async (args) => {
+        const classifiers = JSON.parse(localStorage.getItem('rss_classifiers') || '[]');
+        const classifier = {
+            id: `cls_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            feed_id: args.feedId,
+            classifier_type: args.classifierType,
+            value: args.value,
+            sentiment: args.sentiment,
+            scope: args.scope || 'feed',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        classifiers.push(classifier);
+        localStorage.setItem('rss_classifiers', JSON.stringify(classifiers));
+        return classifier;
+    },
+
+    remove_rss_classifier: async (args) => {
+        const classifiers = JSON.parse(localStorage.getItem('rss_classifiers') || '[]');
+        const filtered = classifiers.filter((c: any) => c.id !== args.id);
+        localStorage.setItem('rss_classifiers', JSON.stringify(filtered));
+        return true;
+    },
+
+    get_rss_classifiers: async (args) => {
+        const classifiers = JSON.parse(localStorage.getItem('rss_classifiers') || '[]');
+        let result = classifiers;
+        if (args?.feedId) result = result.filter((c: any) => c.feed_id === args.feedId);
+        if (args?.classifierType) result = result.filter((c: any) => c.classifier_type === args.classifierType);
+        if (args?.sentiment) result = result.filter((c: any) => c.sentiment === args.sentiment);
+        return result;
+    },
+
+    update_rss_classifiers_batch: async (args) => {
+        const classifiers = JSON.parse(localStorage.getItem('rss_classifiers') || '[]');
+        const updates = args.updates as Array<{ id: string; sentiment?: string; value?: string }>;
+        for (const update of updates) {
+            const idx = classifiers.findIndex((c: any) => c.id === update.id);
+            if (idx >= 0) {
+                if (update.sentiment) classifiers[idx].sentiment = update.sentiment;
+                if (update.value) classifiers[idx].value = update.value;
+                classifiers[idx].updated_at = new Date().toISOString();
+            }
+        }
+        localStorage.setItem('rss_classifiers', JSON.stringify(classifiers));
+        return updates.length;
+    },
+
+    compute_intelligence_score: async (args) => {
+        const classifiers = JSON.parse(localStorage.getItem('rss_classifiers') || '[]');
+        const scores = JSON.parse(localStorage.getItem('rss_intelligence_scores') || '{}');
+        const articleScores = JSON.parse(localStorage.getItem('rss_article_data') || '{}');
+        const articleId = args.articleId as string;
+        const article = articleScores[articleId] || {};
+        let score = 0;
+        for (const cls of classifiers) {
+            if (cls.scope !== 'global' && cls.feed_id !== article.feed_id) continue;
+            let matches = false;
+            if (cls.classifier_type === 'author' && article.author) matches = article.author.toLowerCase().includes(cls.value.toLowerCase());
+            else if (cls.classifier_type === 'title' && article.title) matches = article.title.toLowerCase().includes(cls.value.toLowerCase());
+            else if (cls.classifier_type === 'feed') matches = true;
+            if (matches) {
+                if (cls.sentiment === 'like') score += 1;
+                else if (cls.sentiment === 'dislike') score -= 1;
+            }
+        }
+        const finalScore = Math.max(0, score);
+        scores[articleId] = { score: finalScore, computed_at: new Date().toISOString() };
+        localStorage.setItem('rss_intelligence_scores', JSON.stringify(scores));
+        return finalScore;
+    },
+
+    recompute_all_intelligence_scores: async () => {
+        // In PWA mode, scores are computed on-demand, so this is a no-op
+        return 0;
+    },
+
+    get_rss_articles_with_intelligence: async (args) => {
+        // Fallback: return empty array — PWA mode uses local feed data
+        return [];
     },
 };
 

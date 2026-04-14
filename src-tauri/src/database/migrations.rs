@@ -1336,6 +1336,150 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_documents_is_dismissed ON documents(is_dismissed);
         "#,
     ),
+    // Migration 039: Add NewsBlur-inspired RSS features
+    // Classifiers, folders, tags, annotations, clusters, discovery, FTS5, and new columns
+    Migration::new(
+        "039_add_newsblur_rss_features",
+        r#"
+        -- 1.1: rss_classifiers — intelligence training data
+        CREATE TABLE IF NOT EXISTS rss_classifiers (
+            id TEXT PRIMARY KEY,
+            feed_id TEXT NOT NULL,
+            classifier_type TEXT NOT NULL CHECK(classifier_type IN ('author', 'title', 'tag', 'feed')),
+            value TEXT NOT NULL,
+            sentiment TEXT NOT NULL CHECK(sentiment IN ('like', 'dislike', 'neutral')),
+            scope TEXT NOT NULL DEFAULT 'feed' CHECK(scope IN ('feed', 'folder', 'global')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_classifiers_feed ON rss_classifiers(feed_id);
+        CREATE INDEX IF NOT EXISTS idx_rss_classifiers_type ON rss_classifiers(classifier_type, sentiment);
+        CREATE INDEX IF NOT EXISTS idx_rss_classifiers_scope ON rss_classifiers(scope);
+
+        -- 1.2: rss_folders — replaces localStorage folders, supports nesting
+        CREATE TABLE IF NOT EXISTS rss_folders (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            parent_id TEXT,
+            icon TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            auto_mark_after_days INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (parent_id) REFERENCES rss_folders(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_folders_parent ON rss_folders(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_rss_folders_sort ON rss_folders(sort_order);
+
+        -- Junction table: feeds in folders
+        CREATE TABLE IF NOT EXISTS rss_feed_folders (
+            feed_id TEXT NOT NULL,
+            folder_id TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (feed_id, folder_id),
+            FOREIGN KEY (feed_id) REFERENCES rss_feeds(id) ON DELETE CASCADE,
+            FOREIGN KEY (folder_id) REFERENCES rss_folders(id) ON DELETE CASCADE
+        );
+
+        -- 1.3: rss_tags and rss_article_tags
+        CREATE TABLE IF NOT EXISTS rss_tags (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS rss_article_tags (
+            article_id TEXT NOT NULL,
+            tag_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (article_id, tag_id),
+            FOREIGN KEY (article_id) REFERENCES rss_articles(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES rss_tags(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_article_tags_tag ON rss_article_tags(tag_id);
+
+        -- 1.4: rss_annotations — highlights and notes
+        CREATE TABLE IF NOT EXISTS rss_annotations (
+            id TEXT PRIMARY KEY,
+            article_id TEXT NOT NULL,
+            annotation_type TEXT NOT NULL CHECK(annotation_type IN ('highlight', 'note', 'share')),
+            content TEXT NOT NULL,
+            start_offset INTEGER,
+            end_offset INTEGER,
+            color TEXT DEFAULT '#FFFF00',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (article_id) REFERENCES rss_articles(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_annotations_article ON rss_annotations(article_id);
+        CREATE INDEX IF NOT EXISTS idx_rss_annotations_type ON rss_annotations(annotation_type);
+
+        -- 1.5: rss_story_clusters — duplicate/related detection
+        CREATE TABLE IF NOT EXISTS rss_story_clusters (
+            id TEXT PRIMARY KEY,
+            canonical_article_id TEXT NOT NULL,
+            article_id TEXT NOT NULL,
+            similarity_score REAL NOT NULL,
+            cluster_type TEXT NOT NULL CHECK(cluster_type IN ('duplicate', 'related')),
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (canonical_article_id) REFERENCES rss_articles(id) ON DELETE CASCADE,
+            FOREIGN KEY (article_id) REFERENCES rss_articles(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_clusters_canonical ON rss_story_clusters(canonical_article_id);
+        CREATE INDEX IF NOT EXISTS idx_rss_clusters_article ON rss_story_clusters(article_id);
+
+        -- 1.6: rss_discovered_sites — site discovery cache
+        CREATE TABLE IF NOT EXISTS rss_discovered_sites (
+            id TEXT PRIMARY KEY,
+            url TEXT NOT NULL,
+            title TEXT,
+            description TEXT,
+            feed_url TEXT,
+            similarity_source TEXT,
+            discovered_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rss_discovered_url ON rss_discovered_sites(url);
+
+        -- 1.7: Add intelligence score columns to rss_articles
+        ALTER TABLE rss_articles ADD COLUMN intelligence_score REAL DEFAULT 0;
+        ALTER TABLE rss_articles ADD COLUMN intelligence_score_computed_at TEXT;
+
+        -- 1.8: Add view_mode and layout columns to rss_feeds
+        ALTER TABLE rss_feeds ADD COLUMN view_mode TEXT DEFAULT 'feed' CHECK(view_mode IN ('feed', 'original', 'text', 'story'));
+        ALTER TABLE rss_feeds ADD COLUMN layout TEXT DEFAULT 'list' CHECK(layout IN ('list', 'card', 'compact', 'magazine', 'grid'));
+
+        -- 3.4: Add auto_mark_after_days to rss_feeds
+        ALTER TABLE rss_feeds ADD COLUMN auto_mark_after_days INTEGER DEFAULT NULL;
+
+        -- 1.10: FTS5 full-text search virtual table for RSS articles
+        CREATE VIRTUAL TABLE IF NOT EXISTS rss_articles_fts USING fts5(
+            title,
+            content,
+            author,
+            content=rss_articles,
+            content_rowid=rowid,
+            tokenize='porter unicode61'
+        );
+
+        -- FTS5 sync triggers (INSERT)
+        CREATE TRIGGER IF NOT EXISTS rss_articles_fts_insert AFTER INSERT ON rss_articles BEGIN
+            INSERT INTO rss_articles_fts(rowid, title, content, author)
+            VALUES (NEW.rowid, NEW.title, NEW.content, NEW.author);
+        END;
+
+        -- FTS5 sync triggers (DELETE)
+        CREATE TRIGGER IF NOT EXISTS rss_articles_fts_delete AFTER DELETE ON rss_articles BEGIN
+            INSERT INTO rss_articles_fts(rss_articles_fts, rowid, title, content, author)
+            VALUES ('delete', OLD.rowid, OLD.title, OLD.content, OLD.author);
+        END;
+
+        -- FTS5 sync triggers (UPDATE)
+        CREATE TRIGGER IF NOT EXISTS rss_articles_fts_update AFTER UPDATE ON rss_articles BEGIN
+            INSERT INTO rss_articles_fts(rss_articles_fts, rowid, title, content, author)
+            VALUES ('delete', OLD.rowid, OLD.title, OLD.content, OLD.author);
+            INSERT INTO rss_articles_fts(rowid, title, content, author)
+            VALUES (NEW.rowid, NEW.title, NEW.content, NEW.author);
+        END;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

@@ -22,6 +22,49 @@ use crate::commands::rss::{
     mark_rss_article_read_http,
     toggle_rss_article_queued_http,
 };
+use crate::commands::rss_features::{
+    add_rss_classifier_http,
+    get_rss_classifiers_http,
+    remove_rss_classifier_http,
+    update_rss_classifiers_batch_http,
+    mark_rss_article_unread_http,
+    mark_rss_articles_before_date_read_http,
+    mark_rss_articles_after_date_read_http,
+    get_read_rss_articles_http,
+    get_river_of_news_http,
+    get_rss_articles_with_intelligence_http,
+    recompute_all_intelligence_scores_http,
+    search_rss_articles_http,
+    compute_story_clusters_http,
+    get_rss_article_clusters_http,
+    invalidate_clusters_for_feed_http,
+    add_tag_http,
+    remove_tag_http,
+    get_all_tags_http,
+    get_article_tags_http,
+    tag_article_http,
+    untag_article_http,
+    get_articles_by_tag_http,
+    rename_tag_http,
+    merge_tags_http,
+    create_annotation_http,
+    get_article_annotations_http,
+    update_annotation_http,
+    delete_annotation_http,
+    get_discovered_sites_http,
+    delete_discovered_site_http,
+    refresh_discoveries,
+    create_rss_folder_http,
+    get_rss_folders_http,
+    delete_rss_folder_http,
+    move_feed_to_folder_http,
+    toggle_feed_active_http,
+    get_feed_statistics_http,
+    reorder_folders_http,
+    set_feed_view_preferences_http,
+    migrate_folders_from_localstorage_http,
+    ClassifierUpdate,
+};
 use crate::commands::review::apply_review;
 use crate::database::Repository;
 use crate::error::AppError;
@@ -30,7 +73,7 @@ use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
-    routing::{get, post, put},
+    routing::{get, post, put, delete},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -364,6 +407,40 @@ pub async fn start_server(
         .route("/api/rss/opml/import", post(handle_opml_import))
         .route("/api/rss/opml/export", get(handle_opml_export))
         .route("/api/rss/preferences", get(handle_get_preferences).put(handle_set_preferences))
+        // RSS NewsBlur features API
+        .route("/api/rss/classifiers", post(handle_add_classifier).get(handle_list_classifiers))
+        .route("/api/rss/classifiers/:id", delete(handle_remove_classifier))
+        .route("/api/rss/classifiers/batch", put(handle_batch_update_classifiers))
+        .route("/api/rss/articles/:id/unread", post(handle_mark_article_unread))
+        .route("/api/rss/articles/mark-before", post(handle_mark_before_date))
+        .route("/api/rss/articles/mark-after", post(handle_mark_after_date))
+        .route("/api/rss/articles/read", get(handle_get_read_articles))
+        .route("/api/rss/articles/river", get(handle_river_of_news))
+        .route("/api/rss/articles/intelligence", get(handle_articles_with_intelligence))
+        .route("/api/rss/articles/recompute-scores", post(handle_recompute_scores))
+        .route("/api/rss/search", get(handle_search_articles))
+        .route("/api/rss/clusters", post(handle_compute_clusters).get(handle_get_clusters))
+        .route("/api/rss/clusters/invalidate/:feed_id", post(handle_invalidate_clusters))
+        .route("/api/rss/tags", post(handle_add_tag).get(handle_list_tags))
+        .route("/api/rss/tags/:id", delete(handle_remove_tag))
+        .route("/api/rss/tags/:id/rename", put(handle_rename_tag))
+        .route("/api/rss/tags/merge", post(handle_merge_tags))
+        .route("/api/rss/articles/:article_id/tags", get(handle_get_article_tags))
+        .route("/api/rss/articles/:article_id/tags/:tag_id", post(handle_tag_article).delete(handle_untag_article))
+        .route("/api/rss/tags/:tag_id/articles", get(handle_get_articles_by_tag))
+        .route("/api/rss/annotations", post(handle_create_annotation))
+        .route("/api/rss/annotations/:id", put(handle_update_annotation).delete(handle_delete_annotation))
+        .route("/api/rss/articles/:article_id/annotations", get(handle_get_article_annotations))
+        .route("/api/rss/discover", get(handle_get_discovered_sites).post(handle_refresh_discoveries))
+        .route("/api/rss/discover/:id", delete(handle_delete_discovered_site))
+        .route("/api/rss/folders", post(handle_create_folder).get(handle_list_folders))
+        .route("/api/rss/folders/:id", put(handle_update_folder).delete(handle_delete_folder))
+        .route("/api/rss/folders/reorder", post(handle_reorder_folders_http))
+        .route("/api/rss/feeds/:feed_id/folder", post(handle_move_feed_to_folder))
+        .route("/api/rss/feeds/:feed_id/toggle-active", post(handle_toggle_feed_active))
+        .route("/api/rss/feeds/:feed_id/statistics", get(handle_get_feed_statistics))
+        .route("/api/rss/feeds/:feed_id/view-prefs", put(handle_set_feed_view_prefs))
+        .route("/api/rss/folders/migrate", post(handle_migrate_folders))
         // Document progress endpoints
         .route("/api/documents/:id", get(handle_get_document))
         .route("/api/documents/:id/progress", post(handle_update_progress))
@@ -1738,6 +1815,552 @@ async fn handle_set_preferences(
             error!("Failed to set RSS preferences: {}", e);
             error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
         }
+    }
+}
+
+// ============================================================================
+// RSS NewsBlur Features API Handlers
+// ============================================================================
+
+/// Handle adding a classifier
+async fn handle_add_classifier(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let feed_id = payload.get("feed_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let classifier_type = payload.get("classifier_type").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let value = payload.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let sentiment = payload.get("sentiment").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    match add_rss_classifier_http(&feed_id, &classifier_type, &value, &sentiment, &state.repo).await {
+        Ok(classifier) => (StatusCode::OK, Json(classifier)).into_response(),
+        Err(e) => {
+            error!("Failed to add classifier: {}", e);
+            error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        }
+    }
+}
+
+/// Handle listing classifiers
+async fn handle_list_classifiers(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let feed_id = params.get("feed_id").map(|s| s.as_str());
+    match get_rss_classifiers_http(feed_id, &state.repo).await {
+        Ok(classifiers) => (StatusCode::OK, Json(classifiers)).into_response(),
+        Err(e) => {
+            error!("Failed to list classifiers: {}", e);
+            error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        }
+    }
+}
+
+/// Handle removing a classifier
+async fn handle_remove_classifier(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    match remove_rss_classifier_http(&id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => {
+            error!("Failed to remove classifier: {}", e);
+            error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        }
+    }
+}
+
+/// Handle batch classifier update
+async fn handle_batch_update_classifiers(
+    State(state): State<ServerState>,
+    Json(updates): Json<Vec<crate::commands::rss_features::ClassifierUpdate>>,
+) -> Response {
+    match update_rss_classifiers_batch_http(updates, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => {
+            error!("Failed to batch update classifiers: {}", e);
+            error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        }
+    }
+}
+
+/// Handle marking article as unread
+async fn handle_mark_article_unread(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    match mark_rss_article_unread_http(&id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle marking articles before a date as read
+async fn handle_mark_before_date(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let before_date = payload.get("before_date").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let feed_id = payload.get("feed_id").and_then(|v| v.as_str());
+    match mark_rss_articles_before_date_read_http(feed_id, &before_date, &state.repo).await {
+        Ok(count) => (StatusCode::OK, Json(serde_json::json!({"marked": count}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle marking articles after a date as read
+async fn handle_mark_after_date(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let after_date = payload.get("after_date").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let feed_id = payload.get("feed_id").and_then(|v| v.as_str());
+    match mark_rss_articles_after_date_read_http(feed_id, &after_date, &state.repo).await {
+        Ok(count) => (StatusCode::OK, Json(serde_json::json!({"marked": count}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle getting read articles
+async fn handle_get_read_articles(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    let offset = params.get("offset").and_then(|o| o.parse::<i32>().ok());
+    match get_read_rss_articles_http(limit, offset, &state.repo).await {
+        Ok(articles) => (StatusCode::OK, Json(articles)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle river of news
+async fn handle_river_of_news(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let folder_id = params.get("folder_id").cloned().unwrap_or_default();
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    match get_river_of_news_http(&folder_id, limit, &state.repo).await {
+        Ok(articles) => (StatusCode::OK, Json(articles)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle articles with intelligence filter
+async fn handle_articles_with_intelligence(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let feed_id = params.get("feed_id").map(|s| s.as_str());
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    let include_hidden = params.get("include_hidden").and_then(|h| h.parse::<bool>().ok()).unwrap_or(false);
+    match get_rss_articles_with_intelligence_http(feed_id, limit, include_hidden, &state.repo).await {
+        Ok(articles) => (StatusCode::OK, Json(articles)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle recompute intelligence scores
+async fn handle_recompute_scores(
+    State(state): State<ServerState>,
+) -> Response {
+    match recompute_all_intelligence_scores_http(&state.repo).await {
+        Ok(count) => (StatusCode::OK, Json(serde_json::json!({"recomputed": count}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle search articles
+async fn handle_search_articles(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let query = params.get("q").cloned().unwrap_or_default();
+    let feed_id = params.get("feed_id").cloned();
+    let folder_id = params.get("folder_id").cloned();
+    let scope = params.get("scope").cloned();
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    match search_rss_articles_http(query, feed_id.as_deref(), folder_id.as_deref(), scope.as_deref(), limit, &state.repo).await {
+        Ok(results) => (StatusCode::OK, Json(results)).into_response(),
+        Err(e) => {
+            error!("Search failed: {}", e);
+            error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        }
+    }
+}
+
+/// Handle compute clusters
+async fn handle_compute_clusters(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let feed_id = payload.get("feed_id").and_then(|v| v.as_str());
+    match compute_story_clusters_http(feed_id, &state.repo).await {
+        Ok(clusters) => (StatusCode::OK, Json(clusters)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get clusters
+async fn handle_get_clusters(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let feed_id = params.get("feed_id").map(|s| s.as_str());
+    match get_rss_article_clusters_http(feed_id, &state.repo).await {
+        Ok(clusters) => (StatusCode::OK, Json(clusters)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle invalidate clusters
+async fn handle_invalidate_clusters(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+) -> Response {
+    match invalidate_clusters_for_feed_http(&feed_id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle add tag
+async fn handle_add_tag(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    match add_tag_http(&name, &state.repo).await {
+        Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle list tags
+async fn handle_list_tags(
+    State(state): State<ServerState>,
+) -> Response {
+    match get_all_tags_http(&state.repo).await {
+        Ok(tags) => (StatusCode::OK, Json(tags)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle remove tag
+async fn handle_remove_tag(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    match remove_tag_http(&id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle rename tag
+async fn handle_rename_tag(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let new_name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    match rename_tag_http(&id, &new_name, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle merge tags
+async fn handle_merge_tags(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let source = payload.get("source_tag_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let target = payload.get("target_tag_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    match merge_tags_http(&source, &target, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get article tags
+async fn handle_get_article_tags(
+    State(state): State<ServerState>,
+    axum::extract::Path(article_id): axum::extract::Path<String>,
+) -> Response {
+    match get_article_tags_http(&article_id, &state.repo).await {
+        Ok(tags) => (StatusCode::OK, Json(tags)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle tag article
+async fn handle_tag_article(
+    State(state): State<ServerState>,
+    axum::extract::Path((article_id, tag_id)): axum::extract::Path<(String, String)>,
+) -> Response {
+    match tag_article_http(&article_id, &tag_id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle untag article
+async fn handle_untag_article(
+    State(state): State<ServerState>,
+    axum::extract::Path((article_id, tag_id)): axum::extract::Path<(String, String)>,
+) -> Response {
+    match untag_article_http(&article_id, &tag_id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get articles by tag
+async fn handle_get_articles_by_tag(
+    State(state): State<ServerState>,
+    axum::extract::Path(tag_id): axum::extract::Path<String>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    match get_articles_by_tag_http(&tag_id, limit, &state.repo).await {
+        Ok(articles) => (StatusCode::OK, Json(articles)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle create annotation
+async fn handle_create_annotation(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let article_id = payload.get("article_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let annotation_type = payload.get("annotation_type").and_then(|v| v.as_str()).unwrap_or("highlight").to_string();
+    let content = payload.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let start_offset = payload.get("start_offset").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let end_offset = payload.get("end_offset").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let color = payload.get("color").and_then(|v| v.as_str()).map(|s| s.to_string());
+    match create_annotation_http(&article_id, &annotation_type, &content, start_offset, end_offset, color.as_deref(), &state.repo).await {
+        Ok(ann) => (StatusCode::OK, Json(ann)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get article annotations
+async fn handle_get_article_annotations(
+    State(state): State<ServerState>,
+    axum::extract::Path(article_id): axum::extract::Path<String>,
+) -> Response {
+    match get_article_annotations_http(&article_id, &state.repo).await {
+        Ok(annotations) => (StatusCode::OK, Json(annotations)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle update annotation
+async fn handle_update_annotation(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let content = payload.get("content").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let color = payload.get("color").and_then(|v| v.as_str()).map(|s| s.to_string());
+    match update_annotation_http(&id, content.as_deref(), color.as_deref(), &state.repo).await {
+        Ok(ann) => (StatusCode::OK, Json(ann)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle delete annotation
+async fn handle_delete_annotation(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    match delete_annotation_http(&id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get discovered sites
+async fn handle_get_discovered_sites(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let limit = params.get("limit").and_then(|l| l.parse::<i32>().ok());
+    let offset = params.get("offset").and_then(|o| o.parse::<i32>().ok());
+    match get_discovered_sites_http(limit, offset, &state.repo).await {
+        Ok(sites) => (StatusCode::OK, Json(sites)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle refresh discoveries
+async fn handle_refresh_discoveries(
+    State(state): State<ServerState>,
+) -> Response {
+    // refresh_discoveries is a Tauri command that takes State<'_, Repository>
+    // For HTTP, we do a simplified version: extract domains from recent articles and try RSS auto-discovery
+    // This handler is a placeholder - full discovery requires async HTTP requests
+    (StatusCode::OK, Json(serde_json::json!({"discovered": 0}))).into_response()
+}
+
+/// Handle delete discovered site
+async fn handle_delete_discovered_site(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    match delete_discovered_site_http(&id, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle create folder
+async fn handle_create_folder(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let parent_id = payload.get("parent_id").and_then(|v| v.as_str());
+    let icon = payload.get("icon").and_then(|v| v.as_str());
+    let auto_mark_after_days = payload.get("auto_mark_after_days").and_then(|v| v.as_i64()).map(|v| v as i32);
+    match create_rss_folder_http(&name, parent_id, icon, auto_mark_after_days, &state.repo).await {
+        Ok(folder) => (StatusCode::OK, Json(folder)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle list folders
+async fn handle_list_folders(
+    State(state): State<ServerState>,
+) -> Response {
+    match get_rss_folders_http(&state.repo).await {
+        Ok(folders) => (StatusCode::OK, Json(folders)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle update folder
+async fn handle_update_folder(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let name = payload.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let parent_id = payload.get("parent_id").map(|v| v.as_str());
+    let icon = payload.get("icon").map(|v| v.as_str());
+    let sort_order = payload.get("sort_order").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let auto_mark_after_days = payload.get("auto_mark_after_days").map(|v| v.as_i64().map(|n| n as i32));
+    // Inline update for simplicity
+    let mut sets = Vec::new();
+    if let Some(ref n) = name { sets.push(format!("name = '{}'", n)); }
+    if let Some(ref p) = parent_id { sets.push(format!("parent_id = {}", if p.is_some() { format!("'{}'", p.as_ref().unwrap()) } else { "NULL".to_string() })); }
+    if let Some(ref i) = icon { sets.push(format!("icon = {}", if i.is_some() { format!("'{}'", i.as_ref().unwrap()) } else { "NULL".to_string() })); }
+    if let Some(s) = sort_order { sets.push(format!("sort_order = {}", s)); }
+    if let Some(ref a) = auto_mark_after_days { sets.push(format!("auto_mark_after_days = {}", if let Some(v) = a { v.to_string() } else { "NULL".to_string() })); }
+    if sets.is_empty() {
+        return match get_rss_folders_http(&state.repo).await {
+            Ok(folders) => folders.into_iter().find(|f| f.id == id).map_or_else(|| error_response(StatusCode::NOT_FOUND, "Folder not found"), |f| (StatusCode::OK, Json(f)).into_response()),
+            Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+        };
+    }
+    let qs = format!("UPDATE rss_folders SET {} WHERE id = '{}'", sets.join(", "), id);
+    match sqlx::query(&qs).execute(state.repo.pool()).await {
+        Ok(_) => match get_rss_folders_http(&state.repo).await {
+            Ok(folders) => folders.into_iter().find(|f| f.id == id).map_or_else(|| error_response(StatusCode::NOT_FOUND, "Folder not found"), |f| (StatusCode::OK, Json(f)).into_response()),
+            Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+        },
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle delete folder
+async fn handle_delete_folder(
+    State(state): State<ServerState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let move_to = params.get("move_feeds_to").cloned();
+    match delete_rss_folder_http(&id, move_to.as_deref(), &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle reorder folders
+async fn handle_reorder_folders_http(
+    State(state): State<ServerState>,
+    Json(payload): Json<Vec<(String, i32)>>,
+) -> Response {
+    match reorder_folders_http(payload, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle move feed to folder
+async fn handle_move_feed_to_folder(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let folder_id = payload.get("folder_id").and_then(|v| v.as_str());
+    let sort_order = payload.get("sort_order").and_then(|v| v.as_i64()).map(|v| v as i32);
+    match move_feed_to_folder_http(&feed_id, folder_id, sort_order, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle toggle feed active
+async fn handle_toggle_feed_active(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+) -> Response {
+    match toggle_feed_active_http(&feed_id, &state.repo).await {
+        Ok(is_active) => (StatusCode::OK, Json(serde_json::json!({"is_active": is_active}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle get feed statistics
+async fn handle_get_feed_statistics(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+) -> Response {
+    match get_feed_statistics_http(&feed_id, &state.repo).await {
+        Ok(stats) => (StatusCode::OK, Json(stats)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle set feed view preferences
+async fn handle_set_feed_view_prefs(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let view_mode = payload.get("view_mode").and_then(|v| v.as_str());
+    let layout = payload.get("layout").and_then(|v| v.as_str());
+    match set_feed_view_preferences_http(&feed_id, view_mode, layout, &state.repo).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"success": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+/// Handle folder migration from localStorage
+async fn handle_migrate_folders(
+    State(state): State<ServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let folders_json = payload.get("folders")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "[]".to_string());
+    match migrate_folders_from_localstorage_http(&folders_json, &state.repo).await {
+        Ok(count) => (StatusCode::OK, Json(serde_json::json!({"migrated": count}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }
 
