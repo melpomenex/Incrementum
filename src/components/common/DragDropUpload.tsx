@@ -105,6 +105,17 @@ export function DragDropUpload({
   const unlistenFnsRef = useRef<(() => void)[]>([]);
   const isMountedRef = useRef(true);
 
+  // Keep callback refs stable so the useEffect doesn't re-register Tauri listeners
+  // on every parent render (which caused 138+ registrations and crashes).
+  const onFilesImportedRef = useRef(onFilesImported);
+  onFilesImportedRef.current = onFilesImported;
+  const onAnkiPackageRef = useRef(onAnkiPackage);
+  onAnkiPackageRef.current = onAnkiPackage;
+  const onStudyJsonDeckRef = useRef(onStudyJsonDeck);
+  onStudyJsonDeckRef.current = onStudyJsonDeck;
+  const onBundleDetectedRef = useRef(onBundleDetected);
+  onBundleDetectedRef.current = onBundleDetected;
+
   const safelyCleanupListener = useCallback((unlisten?: (() => void) | null) => {
     if (typeof unlisten !== "function") return;
     try {
@@ -152,11 +163,11 @@ export function DragDropUpload({
     const fileArray = Array.from(files);
 
     // Check for markdown bundles first
-    if (onBundleDetected) {
+    if (onBundleDetectedRef.current) {
       const bundleResult = await detectMarkdownBundle(fileArray);
       if (bundleResult.isBundle && bundleResult.bundle) {
         console.log("[DragDropUpload] Markdown bundle detected:", bundleResult.bundle);
-        onBundleDetected(bundleResult.bundle, fileArray);
+        onBundleDetectedRef.current(bundleResult.bundle, fileArray);
         return;
       }
     }
@@ -188,7 +199,7 @@ export function DragDropUpload({
       // Process the files
       processUploadQueue(newUploads);
     }
-  }, [onBundleDetected]);
+  }, []);
 
   // Process upload queue
   const processUploadQueue = async (files: UploadFile[]) => {
@@ -203,7 +214,7 @@ export function DragDropUpload({
             const filePath = (uploadFile.file as any).path;
             if (filePath) {
               updateFileStatus(uploadFile.id, "success", 100, filePath);
-              onAnkiPackage?.(filePath);
+              onAnkiPackageRef.current?.(filePath);
             } else {
               throw new Error("Could not get file path");
             }
@@ -211,7 +222,7 @@ export function DragDropUpload({
             // Store in browser file store
             const virtualPath = storeBrowserFile(uploadFile.file);
             updateFileStatus(uploadFile.id, "success", 100, virtualPath);
-            onAnkiPackage?.(virtualPath);
+            onAnkiPackageRef.current?.(virtualPath);
           }
           continue;
         }
@@ -222,14 +233,14 @@ export function DragDropUpload({
             const filePath = (uploadFile.file as any).path;
             if (filePath) {
               updateFileStatus(uploadFile.id, "success", 100, filePath);
-              onStudyJsonDeck?.(filePath);
+              onStudyJsonDeckRef.current?.(filePath);
             } else {
               throw new Error("Could not get file path");
             }
           } else {
             const virtualPath = storeBrowserFile(uploadFile.file);
             updateFileStatus(uploadFile.id, "success", 100, virtualPath);
-            onStudyJsonDeck?.(virtualPath);
+            onStudyJsonDeckRef.current?.(virtualPath);
           }
           continue;
         }
@@ -266,7 +277,7 @@ export function DragDropUpload({
       .map((f) => f.virtualPath!);
 
     if (successfulUploads.length > 0) {
-      onFilesImported?.(successfulUploads);
+      onFilesImportedRef.current?.(successfulUploads);
     }
   };
 
@@ -579,10 +590,10 @@ export function DragDropUpload({
               const jsonPaths = paths.filter(p => p.toLowerCase().endsWith('.json'));
               const regularPaths = paths.filter(p => !p.toLowerCase().endsWith('.json'));
               if (regularPaths.length > 0) {
-                onFilesImported?.(regularPaths);
+                onFilesImportedRef.current?.(regularPaths);
               }
               for (const jsonPath of jsonPaths) {
-                onStudyJsonDeck?.(jsonPath);
+                onStudyJsonDeckRef.current?.(jsonPath);
               }
             }
           });
@@ -620,7 +631,7 @@ export function DragDropUpload({
         safelyCleanupListener(unlisten);
       });
     };
-  }, [processFiles, safelyCleanupListener, traverseDirectory, onFilesImported]);
+  }, [safelyCleanupListener]);
 
   // Format file size
   const formatFileSize = (bytes: number): string => {
