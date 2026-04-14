@@ -43,6 +43,14 @@ if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const message = reason?.message || String(reason);
+
+    // Suppress Tauri v2 event plugin bug — same as the window.error handler above.
+    // When unlisten() throws inside async code the TypeError surfaces here instead.
+    if (message.includes("listeners[eventId].handlerId")) {
+      event.preventDefault();
+      return;
+    }
+
     if (message.includes("TextDecoder") && message.includes("encoded data was not valid")) {
       event.preventDefault();
       console.error('[Yjs] Decode failure detected. Clearing persistence and reloading.', reason);
