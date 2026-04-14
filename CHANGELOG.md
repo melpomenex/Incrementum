@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-04-14
+
+### Added
+
+- **NewsBlur-style RSS expansion** — shipped a major RSS reader upgrade with site discovery, classifier/training primitives, related stories, shared stories, read stories, annotations, tag-aware saved stories, keyboard shortcut overlays, expanded feed statistics, and richer story/list layouts across the RSS tab and scroll mode.
+- **Discover Sites browser** — added a full-screen discovery experience with curated/feedspot-seeded sources, recommendation sections, category browsing, subscription actions, and generated curated feed imports for politics, science, AI, security, programming, travel, food, and related categories.
+- **Newsletter discovery and previews** — added Substack/newsletter discovery APIs and preview flows, richer curated newsletter directory behavior, and newsletter subscription paths that integrate with the RSS reader.
+- **Backend RSS feature surface** — added new Tauri/browser-sync commands, migrations, and API modules for folders, search, tags, annotations, site discovery, clustering, classifiers, and newsletter/substack integrations.
+
+### Changed
+
+- **RSS navigation and customization** — refreshed the RSS tab structure, feed settings, customization controls, browser backend support, and reader/sidebar interactions to support the expanded RSS feature set.
+- **Curated feed data source** — merged the handwritten curated feed list with generated Feedspot imports, plus an importer/report pipeline to expand and maintain the discovery catalog.
+- Updated app, package, Tauri, and Rust crate version metadata to `1.21.0`.
+
+### Fixed
+
+- **Discover Sites subscription refresh** — subscribing from Discover Sites now reloads the RSS reader state immediately so newly added feeds appear in the sidebar.
+- **Stale NBC News feed URL** — normalized the old NBC feed endpoint to the current working RSS URL so existing subscriptions refresh correctly instead of failing XML parsing.
+- **RSS sidebar organization interactions** — improved folder/feed movement interactions in the RSS sidebar and stabilized the related client-side state handling.
+
 ## [1.20.3] - 2026-04-14
 
 ### Added

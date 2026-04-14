@@ -1,0 +1,2994 @@
+{
+  "directory_url": "https://rss.feedspot.com/rss_directory/",
+  "target_categories": [
+    "Artificial Intelligence RSS Feeds",
+    "Data Science RSS Feeds",
+    "Science RSS Feeds",
+    "Technology News RSS Feeds",
+    "Software Development RSS Feeds",
+    "Programming RSS Feeds",
+    "Web Development RSS Feeds",
+    "Information Security RSS Feeds",
+    "SAAS RSS Feeds",
+    "Political RSS Feeds",
+    "Economics RSS Feeds",
+    "Personal Finance RSS Feeds",
+    "Travel RSS Feeds",
+    "Photography RSS Feeds",
+    "Food RSS Feeds"
+  ],
+  "resolved_categories": {
+    "Artificial Intelligence RSS Feeds": "https://rss.feedspot.com/ai_rss_feeds/",
+    "Data Science RSS Feeds": "https://rss.feedspot.com/data_science_rss_feeds/",
+    "Science RSS Feeds": "https://rss.feedspot.com/science_rss_feeds/",
+    "Technology News RSS Feeds": "https://rss.feedspot.com/tech_news_rss_feeds/",
+    "Software Development RSS Feeds": "https://rss.feedspot.com/software_development_rss_feeds/",
+    "Programming RSS Feeds": "https://rss.feedspot.com/programming_rss_feeds/",
+    "Web Development RSS Feeds": "https://rss.feedspot.com/web_development_rss_feeds/",
+    "Information Security RSS Feeds": "https://rss.feedspot.com/information_security_rss_feeds/",
+    "SAAS RSS Feeds": "https://rss.feedspot.com/saas_rss_feeds/",
+    "Political RSS Feeds": "https://rss.feedspot.com/political_rss_feeds/",
+    "Economics RSS Feeds": "https://rss.feedspot.com/economics_rss_feeds/",
+    "Personal Finance RSS Feeds": "https://rss.feedspot.com/personal_finance_rss_feeds/",
+    "Travel RSS Feeds": "https://rss.feedspot.com/travel_rss_feeds/",
+    "Photography RSS Feeds": "https://rss.feedspot.com/photography_rss_feeds/",
+    "Food RSS Feeds": "https://rss.feedspot.com/food_rss_feeds/"
+  },
+  "generated_at": "2026-04-14T20:10:09Z",
+  "counts": {
+    "Artificial Intelligence RSS Feeds": {
+      "url": "https://rss.feedspot.com/ai_rss_feeds/",
+      "extracted": 116,
+      "passed_quality": 109,
+      "dropped_quality": 7,
+      "imported": 40
+    },
+    "Data Science RSS Feeds": {
+      "url": "https://rss.feedspot.com/data_science_rss_feeds/",
+      "extracted": 70,
+      "passed_quality": 59,
+      "dropped_quality": 7,
+      "imported": 40
+    },
+    "Science RSS Feeds": {
+      "url": "https://rss.feedspot.com/science_rss_feeds/",
+      "extracted": 127,
+      "passed_quality": 98,
+      "dropped_quality": 19,
+      "imported": 40
+    },
+    "Technology News RSS Feeds": {
+      "url": "https://rss.feedspot.com/tech_news_rss_feeds/",
+      "extracted": 83,
+      "passed_quality": 48,
+      "dropped_quality": 25,
+      "imported": 40
+    },
+    "Software Development RSS Feeds": {
+      "url": "https://rss.feedspot.com/software_development_rss_feeds/",
+      "extracted": 73,
+      "passed_quality": 26,
+      "dropped_quality": 45,
+      "imported": 26
+    },
+    "Programming RSS Feeds": {
+      "url": "https://rss.feedspot.com/programming_rss_feeds/",
+      "extracted": 107,
+      "passed_quality": 60,
+      "dropped_quality": 37,
+      "imported": 40
+    },
+    "Web Development RSS Feeds": {
+      "url": "https://rss.feedspot.com/web_development_rss_feeds/",
+      "extracted": 102,
+      "passed_quality": 45,
+      "dropped_quality": 50,
+      "imported": 40
+    },
+    "Information Security RSS Feeds": {
+      "url": "https://rss.feedspot.com/information_security_rss_feeds/",
+      "extracted": 83,
+      "passed_quality": 75,
+      "dropped_quality": 7,
+      "imported": 40
+    },
+    "SAAS RSS Feeds": {
+      "url": "https://rss.feedspot.com/saas_rss_feeds/",
+      "extracted": 63,
+      "passed_quality": 28,
+      "dropped_quality": 33,
+      "imported": 28
+    },
+    "Political RSS Feeds": {
+      "url": "https://rss.feedspot.com/political_rss_feeds/",
+      "extracted": 90,
+      "passed_quality": 68,
+      "dropped_quality": 22,
+      "imported": 40
+    },
+    "Economics RSS Feeds": {
+      "url": "https://rss.feedspot.com/economics_rss_feeds/",
+      "extracted": 108,
+      "passed_quality": 77,
+      "dropped_quality": 31,
+      "imported": 40
+    },
+    "Personal Finance RSS Feeds": {
+      "url": "https://rss.feedspot.com/personal_finance_rss_feeds/",
+      "extracted": 98,
+      "passed_quality": 91,
+      "dropped_quality": 5,
+      "imported": 40
+    },
+    "Travel RSS Feeds": {
+      "url": "https://rss.feedspot.com/travel_rss_feeds/",
+      "extracted": 183,
+      "passed_quality": 180,
+      "dropped_quality": 2,
+      "imported": 40
+    },
+    "Photography RSS Feeds": {
+      "url": "https://rss.feedspot.com/photography_rss_feeds/",
+      "extracted": 117,
+      "passed_quality": 98,
+      "dropped_quality": 15,
+      "imported": 40
+    },
+    "Food RSS Feeds": {
+      "url": "https://rss.feedspot.com/food_rss_feeds/",
+      "extracted": 241,
+      "passed_quality": 234,
+      "dropped_quality": 5,
+      "imported": 40
+    }
+  },
+  "dropped_samples": [
+    {
+      "title": "Data Science, Database, Tools and QA Learning's",
+      "feed_url": "https://feeds.feedburner.com/blogspot/yBntD",
+      "site_url": "https://sqlandsiva.blogspot.com/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "1redDrop \u00bb Artificial Intelligence",
+      "feed_url": "https://1reddrop.com/category/artificial-intelligence/feed/",
+      "site_url": "https://1reddrop.com/category/artificial-intelligence/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "AI nyheter",
+      "feed_url": "https://nyheter.aitool.se/feed/",
+      "site_url": "https://nyheter.aitool.se/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "AI Revolution",
+      "feed_url": "https://airevolution.blog/feed/",
+      "site_url": "https://airevolution.blog/blog/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "AICorr.com",
+      "feed_url": "https://aicorr.com/feed/",
+      "site_url": "https://aicorr.com/latest/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Analyzing Life",
+      "feed_url": "https://algobeans.com/feed/",
+      "site_url": "https://algobeans.com/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Another Datum",
+      "feed_url": "https://anotherdatum.com/feeds/all.atom.xml?format=xml",
+      "site_url": "https://anotherdatum.com/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "AnyInstructor",
+      "feed_url": "https://anyinstructor.com/feed/",
+      "site_url": "https://anyinstructor.com/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Artisse AI",
+      "feed_url": "https://artisse.ai/feed/",
+      "site_url": "https://artisse.ai/blog/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Computational Intelligence",
+      "feed_url": "http://computational-intelligence.blogspot.com/feeds/posts/default",
+      "site_url": "http://computational-intelligence.blogspot.com/",
+      "category": "AI",
+      "source_category": "Artificial Intelligence RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Buck Woody",
+      "feed_url": "https://buckwoody.wordpress.com/feed/",
+      "site_url": "https://buckwoody.wordpress.com/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Data Double Confirm",
+      "feed_url": "https://projectosyo.wixsite.com/datadoubleconfirm/blog-feed.xml",
+      "site_url": "https://projectosyo.wixsite.com/datadoubleconfirm",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Mad (Data) Scientist",
+      "feed_url": "https://matloff.wordpress.com/feed/",
+      "site_url": "https://matloff.wordpress.com/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "DATAVERSITY \u00bb Data Science News, Articles, & Education",
+      "feed_url": "https://www.dataversity.net/category/data-topics/data-science-data-topics/feed/",
+      "site_url": "https://www.dataversity.net/category/data-topics/data-science-data-topics/",
+      "category": "AI",
+      "source_category": "Data Science RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "The Political Economist",
+      "feed_url": "http://im-an-economist.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://im-an-economist.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog",
+        "hyphenated_domain"
+      ]
+    },
+    {
+      "title": "David Andolfatto",
+      "feed_url": "http://andolfatto.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://andolfatto.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Falkenblog",
+      "feed_url": "http://falkenblog.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://falkenblog.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Macro and Other Market Musings",
+      "feed_url": "https://feeds.feedburner.com/blogspot/XqoV",
+      "site_url": "http://macromarketmusings.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Mike Norman Economics",
+      "feed_url": "https://feeds.feedburner.com/blogspot/ZHYAG",
+      "site_url": "http://mikenormaneconomics.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Offsetting Behaviour",
+      "feed_url": "https://feeds.feedburner.com/OffsettingBehaviour",
+      "site_url": "http://offsettingbehaviour.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Rajiv Sethi",
+      "feed_url": "http://rajivsethi.blogspot.com/feeds/posts/default",
+      "site_url": "http://rajivsethi.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Bonddad",
+      "feed_url": "http://bonddad.blogspot.com/feeds/posts/default",
+      "site_url": "http://bonddad.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Biased Economist",
+      "feed_url": "https://biasedeconomist.wordpress.com/feed/",
+      "site_url": "https://biasedeconomist.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Bradley A. Hansen's",
+      "feed_url": "https://bradleyahansen.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://bradleyahansen.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Casey Mulligan",
+      "feed_url": "https://caseymulligan.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://caseymulligan.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Dave Giles'",
+      "feed_url": "http://feeds.feedburner.com/blogspot/jjOHE",
+      "site_url": "https://davegiles.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "David O'Rear's East Asia Politics & Economics",
+      "feed_url": "https://eastasiapoliticseconomics.wordpress.com/feed/",
+      "site_url": "https://eastasiapoliticseconomics.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Ed Dolan's Econ",
+      "feed_url": "https://dolanecon.blogspot.com/feeds/posts/default",
+      "site_url": "https://dolanecon.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Grassroots Currency Speculation",
+      "feed_url": "https://grassrootscurrencyspeculation.blogspot.com/feeds/posts/default",
+      "site_url": "https://grassrootscurrencyspeculation.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Lars P Syll",
+      "feed_url": "https://larspsyll.wordpress.com/feed/",
+      "site_url": "https://larspsyll.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Lectures to Simplify Economics And Economic Analyses",
+      "feed_url": "https://intelligenteconomics.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://intelligenteconomics.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "long and variable",
+      "feed_url": "https://longandvariable.wordpress.com/feed/",
+      "site_url": "https://longandvariable.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Managerial Econ",
+      "feed_url": "https://feeds.feedburner.com/ManagerialEcon",
+      "site_url": "https://managerialecon.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Mostly Economics",
+      "feed_url": "https://mostlyeconomics.wordpress.com/feed/",
+      "site_url": "https://mostlyeconomics.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "No Hesitations",
+      "feed_url": "https://fxdiebold.blogspot.com/feeds/posts/default",
+      "site_url": "https://fxdiebold.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Notayesmanseconomics's",
+      "feed_url": "https://notayesmanseconomics.wordpress.com/feed/",
+      "site_url": "https://notayesmanseconomics.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Real-World Economics Review",
+      "feed_url": "https://rwer.wordpress.com/feed/",
+      "site_url": "https://rwer.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Stochastic Trend",
+      "feed_url": "https://feeds.feedburner.com/StochasticTrend",
+      "site_url": "https://stochastictrend.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Blog Papers of Dr. Michael Sakbani; Economics, Finance and Politics",
+      "feed_url": "https://michaelsakbani.blogspot.com/feeds/posts/default",
+      "site_url": "https://michaelsakbani.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Brick Wall Economic Theory",
+      "feed_url": "https://brickwalltheory.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://brickwalltheory.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Dangerous Economist",
+      "feed_url": "https://thedangerouseconomist.blogspot.com/feeds/posts/default",
+      "site_url": "https://thedangerouseconomist.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Everyday Economist",
+      "feed_url": "https://everydayecon.wordpress.com/feed/",
+      "site_url": "https://everydayecon.wordpress.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Grumpy Economist",
+      "feed_url": "https://johnhcochrane.blogspot.com/feeds/posts/default",
+      "site_url": "https://johnhcochrane.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Thoughts On Economics",
+      "feed_url": "https://robertvienneau.blogspot.com/feeds/posts/default",
+      "site_url": "https://robertvienneau.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "True Economics",
+      "feed_url": "https://trueeconomics.blogspot.com/feeds/posts/default",
+      "site_url": "https://trueeconomics.blogspot.com/",
+      "category": "Business & Finance",
+      "source_category": "Economics RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Cheese and Biscuits",
+      "feed_url": "https://cheesenbiscuits.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://cheesenbiscuits.blogspot.com/",
+      "category": "Food",
+      "source_category": "Food RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Dish with this chick",
+      "feed_url": "https://dishwiththischick.wordpress.com/feed/",
+      "site_url": "https://dishwiththischick.wordpress.com/",
+      "category": "Food",
+      "source_category": "Food RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Foodies - Szechuan Chicken & Asian Cuisine",
+      "feed_url": "https://aaronandmartinfoodiepark.blogspot.com/feeds/posts/default",
+      "site_url": "https://aaronandmartinfoodiepark.blogspot.com/",
+      "category": "Food",
+      "source_category": "Food RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Happily Cooking",
+      "feed_url": "https://happilycooking4u.blogspot.com/feeds/posts/default",
+      "site_url": "https://happilycooking4u.blogspot.com/",
+      "category": "Food",
+      "source_category": "Food RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "So yummy 365",
+      "feed_url": "https://soyummy365.blogspot.com/feeds/posts/default",
+      "site_url": "https://soyummy365.blogspot.com/",
+      "category": "Food",
+      "source_category": "Food RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Don't Work Another Day | Personal Finance & Investing",
+      "feed_url": "https://www.dontworkanotherday.com/feed",
+      "site_url": "https://www.dontworkanotherday.com/",
+      "category": "Personal Finance",
+      "source_category": "Personal Finance RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "PT Money | Personal Finance By Philip Taylor",
+      "feed_url": "https://feeds.feedburner.com/PrimeTimeMoney",
+      "site_url": "https://ptmoney.com/",
+      "category": "Personal Finance",
+      "source_category": "Personal Finance RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Sense & Centsibility Blog | LSS Financial Counseling",
+      "feed_url": "https://www.lssmn.org/financialcounseling/blog/feed",
+      "site_url": "https://www.lssmn.org/financialcounseling/blog",
+      "category": "Personal Finance",
+      "source_category": "Personal Finance RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "The Happy Financial | Personal Finance Blog Netherlands",
+      "feed_url": "https://thehappyfinancial.com/feed/",
+      "site_url": "https://thehappyfinancial.com/",
+      "category": "Personal Finance",
+      "source_category": "Personal Finance RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "The Rookie Manager | Personal Finance Blog Kenya",
+      "feed_url": "https://www.rookie-manager.com/category/personal-finance/feed/",
+      "site_url": "https://www.rookie-manager.com/category/personal-finance/",
+      "category": "Personal Finance",
+      "source_category": "Personal Finance RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Adrian Evans Photography",
+      "feed_url": "https://adrianevansphotography.wordpress.com/feed/",
+      "site_url": "https://adrianevansphotography.wordpress.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "James Gordon Patterson Photography",
+      "feed_url": "https://thecogentcommunicator.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://thecogentcommunicator.blogspot.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Strobist",
+      "feed_url": "https://feeds.feedburner.com/blogspot/WOBq",
+      "site_url": "https://strobist.blogspot.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Photography Bay | Digital Photography and Camera Review",
+      "feed_url": "http://feeds.feedburner.com/PhotographyBay",
+      "site_url": "http://photographybay.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Caroline Logan Photography | Wedding Photography",
+      "feed_url": "http://carolineloganphotography.com/feed/",
+      "site_url": "https://carolineloganphotography.com/blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "CreativeLive Blog | Photo & Video",
+      "feed_url": "https://www.creativelive.com/blog/category/topics/photo-video/feed/",
+      "site_url": "https://www.creativelive.com/blog/category/topics/photo-video/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Dan Carr Photography | Photography Reviews",
+      "feed_url": "https://dancarrphotography.com/feed/",
+      "site_url": "https://dancarrphotography.com/blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Ming Thein | Photographer",
+      "feed_url": "https://blog.mingthein.com/feed/",
+      "site_url": "https://blog.mingthein.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Momentary Awe | Travel photography",
+      "feed_url": "https://www.momentaryawe.com/feed/",
+      "site_url": "https://www.momentaryawe.com/blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Photography Axis | Photography",
+      "feed_url": "https://www.photographyaxis.com/blog/feed/",
+      "site_url": "https://www.photographyaxis.com/blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Seniorologie | Senior Potrait Photography",
+      "feed_url": "https://seniorologie.com/feed/",
+      "site_url": "https://seniorologie.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "The London Photography | Event Photography",
+      "feed_url": "https://cameophoto.co.uk/london-pr-corporate-event-photography-blog/feed/",
+      "site_url": "https://cameophoto.co.uk/london-pr-corporate-event-photography-blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Tiffinbox | Inspiring Photography",
+      "feed_url": "http://www.tiffinbox.org/feed/",
+      "site_url": "https://www.tiffinbox.org/blog/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "V-Flat World | Behind the scenes",
+      "feed_url": "https://vflatworld.com/blogs/behind-the-scenes.atom",
+      "site_url": "https://vflatworld.com/blogs/behind-the-scenes",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Wetpixel | Underwater Photography",
+      "feed_url": "https://wetpixel.com/feeds",
+      "site_url": "https://wetpixel.com/",
+      "category": "Photography",
+      "source_category": "Photography RSS Feeds",
+      "score": 0,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "2 Political Junkies",
+      "feed_url": "http://2politicaljunkies.blogspot.com/feeds/posts/default",
+      "site_url": "http://2politicaljunkies.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Alton Drew",
+      "feed_url": "https://altondrewtrades.blog/feed/",
+      "site_url": "https://altondrewtrades.blog/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Australian Politics",
+      "feed_url": "http://australian-politics.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://australian-politics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Born To Run The Numbers",
+      "feed_url": "https://borntorunthenumbers.com/feed/?alt=rss",
+      "site_url": "https://borntorunthenumbers.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Clark County Politics",
+      "feed_url": "http://clarkcountypolitics.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://clarkcountypolitics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Comments On National Amnesia",
+      "feed_url": "https://commentsonnationalamnesia.net/feed/",
+      "site_url": "https://commentsonnationalamnesia.net/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Flaming Liberal",
+      "feed_url": "https://flaming-liberal.com/feed/",
+      "site_url": "https://flaming-liberal.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Gary Has Issues",
+      "feed_url": "https://www.garyhasissues.com/feed/",
+      "site_url": "https://www.garyhasissues.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Man On A Mission: Politics",
+      "feed_url": "http://moampolitics.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://moampolitics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Od's Blog!",
+      "feed_url": "https://feeds.feedburner.com/odsBlog",
+      "site_url": "http://odsblog.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Politic-Ed",
+      "feed_url": "https://politic-ed.com/feed/",
+      "site_url": "https://politic-ed.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Politics Etc.",
+      "feed_url": "http://sgspolitics.blogspot.com/feeds/posts/default",
+      "site_url": "http://sgspolitics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Two Weeks Notice: A Latin American Politics",
+      "feed_url": "http://weeksnotice.blogspot.com/feeds/posts/default",
+      "site_url": "http://weeksnotice.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "World Politics 101",
+      "feed_url": "https://world-politics-101.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://world-politics-101.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog",
+        "hyphenated_domain"
+      ]
+    },
+    {
+      "title": "Zenpolitics",
+      "feed_url": "http://johnhilley.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://johnhilley.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -2,
+      "min_score": 1,
+      "reasons": [
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Cariboo-Chilcotin Politics",
+      "feed_url": "https://cariboopolitics.blogspot.com/feeds/posts/default",
+      "site_url": "https://cariboopolitics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Counterspin",
+      "feed_url": "https://hanblecheya2.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://hanblecheya2.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Hullabaloo",
+      "feed_url": "https://digbysblog.net/feed/",
+      "site_url": "https://digbysblog.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "RealityChek",
+      "feed_url": "https://alantonelson.wordpress.com/feed/",
+      "site_url": "https://alantonelson.wordpress.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Rock Solid Politics",
+      "feed_url": "https://rocksolidpolitics.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://rocksolidpolitics.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Russian Platform",
+      "feed_url": "https://www.blogger.com/feeds/1765660952748347088/posts/default",
+      "site_url": "https://russianplatform.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Scams, Swamps and Sinkholes",
+      "feed_url": "https://fraudwarrevisited.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://fraudwarrevisited.blogspot.com/",
+      "category": "Politics",
+      "source_category": "Political RSS Feeds",
+      "score": -1,
+      "min_score": 1,
+      "reasons": [
+        "valid_urls",
+        "priority_category",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": ": Web Development, Mobile App development, Enterprise application",
+      "feed_url": "https://www.flexsin.com/blog/feed/",
+      "site_url": "https://www.flexsin.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -8,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "bad_title_pattern",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "BoTree Technologies",
+      "feed_url": "https://www.botreetechnologies.com/blog/feed/",
+      "site_url": "https://www.botreetechnologies.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Ibiixo Technologies",
+      "feed_url": "https://www.ibiixo.com/feed/",
+      "site_url": "https://www.ibiixo.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "INDGLOBA - Web Designing And Development Company",
+      "feed_url": "http://indglobalconsultingsolution.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "http://indglobalconsultingsolution.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "clean_title",
+        "hosted_blog",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Sataware Technologies",
+      "feed_url": "https://www.sataware.com/feed/",
+      "site_url": "https://www.sataware.com/blogs/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Semidot Infotech",
+      "feed_url": "https://semidotinfotech.com/blog/feed/",
+      "site_url": "https://semidotinfotech.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Techcronus Business Solutions",
+      "feed_url": "https://www.techcronus.com/blog/feed/",
+      "site_url": "https://www.techcronus.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Uplogic Technologies",
+      "feed_url": "https://www.uplogictech.com/blog/feed/",
+      "site_url": "https://www.uplogictech.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Zobi Web Solutions Private Limited",
+      "feed_url": "https://www.zobiwebsolutions.com/feed/",
+      "site_url": "https://www.zobiwebsolutions.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -6,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "AHOM Technologies Private Limited",
+      "feed_url": "https://ahomtechnologies.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://ahomtechnologies.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -5,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "App Tech Store",
+      "feed_url": "https://apptechstore.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://apptechstore.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -5,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "CMOLDS",
+      "feed_url": "https://cmolds.com/blog/feed/",
+      "site_url": "https://cmolds.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -4,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Programming Zone | Let's Code",
+      "feed_url": "https://itmasterminds.blogspot.com/feeds/posts/default",
+      "site_url": "https://itmasterminds.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -4,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "TutorialsMate | Your Tutor Friend!",
+      "feed_url": "https://www.tutorialsmate.com/feeds/posts/default?alt=rss",
+      "site_url": "https://www.tutorialsmate.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -4,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "bad_title_pattern",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Zenesys",
+      "feed_url": "https://www.zenesys.com/rssfeed/",
+      "site_url": "https://www.zenesys.com/blogs/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -4,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "A Story of a Programmer",
+      "feed_url": "https://storyofprogrammer.com/feed/",
+      "site_url": "https://storyofprogrammer.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Abundant Code",
+      "feed_url": "https://feeds.feedburner.com/abundantcode",
+      "site_url": "https://abundantcode.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Algoberry",
+      "feed_url": "https://www.algoberry.com/feeds/posts/default",
+      "site_url": "https://www.algoberry.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "All in One Cluster",
+      "feed_url": "https://allinonecluster.com/blog/feed/",
+      "site_url": "https://allinonecluster.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Another Casual Coder",
+      "feed_url": "http://anothercasualcoder.blogspot.com/feeds/posts/default",
+      "site_url": "http://anothercasualcoder.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "AppVerticals",
+      "feed_url": "https://www.appverticals.com/blog/feed/",
+      "site_url": "https://www.appverticals.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Archer Imagine",
+      "feed_url": "https://www.archerimagine.com/feeds/all.atom.xml",
+      "site_url": "https://www.archerimagine.com/archives",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "ASPER BROTHERS",
+      "feed_url": "https://asperbrothers.com/feed/",
+      "site_url": "https://asperbrothers.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Blog - Captivix Blogs",
+      "feed_url": "https://www.captivix.com/feed/",
+      "site_url": "https://www.captivix.com/blogs/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Bootsgrid",
+      "feed_url": "https://blog.bootsgrid.com/feed/",
+      "site_url": "https://blog.bootsgrid.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "BR Softech",
+      "feed_url": "https://www.brsoftech.com/blog/feed/",
+      "site_url": "https://www.brsoftech.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Brickweb",
+      "feed_url": "https://www.brickweb.co.uk/rss.xml",
+      "site_url": "https://www.brickweb.co.uk/blog",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "C-Metric",
+      "feed_url": "https://www.c-metric.com/feed/",
+      "site_url": "https://www.c-metric.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "CMS Minds",
+      "feed_url": "https://cmsminds.com/feed/",
+      "site_url": "https://cmsminds.com/blogs/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "CodeIT | Software Development",
+      "feed_url": "https://codeit.us/feed",
+      "site_url": "https://codeit.us/blog",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Elinsys Blog | Latest web & Mobile Technology",
+      "feed_url": "https://www.elinsys.com/feed/",
+      "site_url": "https://www.elinsys.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Esferasoft Solutions",
+      "feed_url": "https://www.esferasoft.com/blog/feed/",
+      "site_url": "https://www.esferasoft.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "trusted_domain",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Globe Tech Soft",
+      "feed_url": "https://globetechsoft.com/feed/",
+      "site_url": "https://globetechsoft.com/blogs-and-news/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "trusted_domain",
+        "clean_title",
+        "category_deny_host",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Inexture",
+      "feed_url": "https://www.inexture.com/feed/",
+      "site_url": "https://www.inexture.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Intergy | Software Development Articles",
+      "feed_url": "https://www.intergy.com.au/feed/",
+      "site_url": "https://www.intergy.com.au/articles/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Inventcolabs",
+      "feed_url": "https://www.inventcolabssoftware.com/blog/feed/",
+      "site_url": "https://www.inventcolabssoftware.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "John's",
+      "feed_url": "https://johnsbloghome00.blogspot.com/feeds/posts/default",
+      "site_url": "https://johnsbloghome00.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Krishang Technolab",
+      "feed_url": "https://www.krishangtechnolab.com/feed/",
+      "site_url": "https://www.krishangtechnolab.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "MindK.com",
+      "feed_url": "https://www.mindk.com/blog/feed/",
+      "site_url": "https://www.mindk.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "NetMaxims",
+      "feed_url": "https://netmaxims.com/blog/feed/",
+      "site_url": "https://netmaxims.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Otaku, Cedric's blog | Thoughts about software development",
+      "feed_url": "https://www.beust.com/weblog/feed/",
+      "site_url": "https://www.beust.com/weblog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Prisom Technology",
+      "feed_url": "https://prisomtechnology.com/feed",
+      "site_url": "https://prisomtechnology.com/blogs",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "RipenApps",
+      "feed_url": "https://ripenapps.com/blog/feed/",
+      "site_url": "https://ripenapps.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Software for Good | Software Development",
+      "feed_url": "https://softwareforgood.com/feed/",
+      "site_url": "https://softwareforgood.com/insights/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Sphinx Solution",
+      "feed_url": "https://www.sphinx-solution.com/blog/feed/",
+      "site_url": "https://www.sphinx-solution.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Star Knowledge",
+      "feed_url": "https://star-knowledge.com/feed/",
+      "site_url": "https://star-knowledge.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "The Programmer's Paradox",
+      "feed_url": "https://feeds.feedburner.com/TheProgrammersParadox",
+      "site_url": "http://theprogrammersparadox.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "VA Media Box",
+      "feed_url": "https://vamediabox.com/feed/",
+      "site_url": "https://vamediabox.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "YesITLabs",
+      "feed_url": "https://www.yesitlabs.com/feed/",
+      "site_url": "https://www.yesitlabs.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Yet Another Math Programming Consultant",
+      "feed_url": "http://yetanothermathprogrammingconsultant.blogspot.com/feeds/posts/default",
+      "site_url": "http://yetanothermathprogrammingconsultant.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -3,
+      "min_score": 2,
+      "reasons": [
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Anurag Roy,Programmer",
+      "feed_url": "https://anurag485.blogspot.com/feeds/posts/default",
+      "site_url": "https://anurag485.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "BeTheProgrammer",
+      "feed_url": "https://betheprogrammmer.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://betheprogrammmer.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "CODE WITH CODING RIDERS",
+      "feed_url": "https://codingriders.blogspot.com/feeds/posts/default",
+      "site_url": "https://codingriders.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "CodeBlogs",
+      "feed_url": "http://feeds.feedburner.com/blogspot/CZLCa",
+      "site_url": "https://codeblogs1708.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "CodeityWeb",
+      "feed_url": "https://codeityweb.blogspot.com/feeds/posts/default",
+      "site_url": "https://codeityweb.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Front End Dev",
+      "feed_url": "https://frontenddev1.blogspot.com/feeds/posts/default",
+      "site_url": "https://frontenddev1.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Logesh Palani",
+      "feed_url": "https://logeshpalani.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://logeshpalani.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Mitul Suthar's Coding",
+      "feed_url": "https://mscodingblog.blogspot.com/feeds/posts/default",
+      "site_url": "https://mscodingblog.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Programming",
+      "feed_url": "https://m4513.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://m4513.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Programming Chaska",
+      "feed_url": "https://feeds.feedburner.com/ProgrammingChaska",
+      "site_url": "https://programmingchaska.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Tech Tips",
+      "feed_url": "https://joeywhelan.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://joeywhelan.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "The Fellow Programmer",
+      "feed_url": "https://thefellowprogrammer.blogspot.com/feeds/posts/default",
+      "site_url": "https://thefellowprogrammer.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Tutorial Land",
+      "feed_url": "https://ccpptutoriallands.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://ccpptutoriallands.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "Zhullyblog",
+      "feed_url": "https://zhullyblogg.blogspot.com/feeds/posts/default?alt=rss",
+      "site_url": "https://zhullyblogg.blogspot.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -2,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "hosted_blog"
+      ]
+    },
+    {
+      "title": "2Base Technologies",
+      "feed_url": "https://www.2basetechnologies.com/feed/",
+      "site_url": "https://www.2basetechnologies.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Acodez IT Solutions - Web Design & Web Development",
+      "feed_url": "https://acodez.in/blog/feed/",
+      "site_url": "https://acodez.in/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Activator Crack Software",
+      "feed_url": "https://activationkey.org/feed/",
+      "site_url": "https://activationkey.org/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Business Software India",
+      "feed_url": "https://business-software.in/feed/",
+      "site_url": "https://business-software.in/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Code The Web",
+      "feed_url": "https://codetheweb.blog/feed.xml",
+      "site_url": "https://codetheweb.blog/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Designveloper Blog \u00bb Website Development",
+      "feed_url": "https://www.designveloper.com/blog/category/website-development/feed",
+      "site_url": "https://www.designveloper.com/blog/category/website-development/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Huptech Web",
+      "feed_url": "https://www.huptechweb.com/feed/",
+      "site_url": "https://www.huptechweb.com/blogs/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Imenso Software",
+      "feed_url": "https://www.imensosoftware.com/feed/",
+      "site_url": "https://www.imensosoftware.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "iSmart Apps",
+      "feed_url": "https://ismartapps.io/feed/",
+      "site_url": "https://ismartapps.io/category/blogs/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Josh Software",
+      "feed_url": "https://blog.joshsoftware.com/feed/",
+      "site_url": "https://blog.joshsoftware.com/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "La Soft Blog \u00bb Software Development",
+      "feed_url": "https://lasoft.org/blog/category/software-development/feed",
+      "site_url": "https://lasoft.org/blog/category/software-development/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Made Tech on Software Delivery",
+      "feed_url": "https://www.madetech.com/feed/",
+      "site_url": "https://www.madetech.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Magneto IT Solutions",
+      "feed_url": "https://magnetoitsolutions.com/feed",
+      "site_url": "https://magnetoitsolutions.com/blog/category/web-application",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Maple Software Private Limited",
+      "feed_url": "https://maple-software.com/feed/",
+      "site_url": "https://maple-software.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Mass Software Solutions",
+      "feed_url": "https://massoftind.com/blog/feed/",
+      "site_url": "https://massoftind.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Mountain Goat Software",
+      "feed_url": "https://www.mountaingoatsoftware.com/blog/rss",
+      "site_url": "https://www.mountaingoatsoftware.com/blog",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "OpenSource Technologies",
+      "feed_url": "https://blogs.ost.agency/feed/",
+      "site_url": "https://blogs.ost.agency/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Sate Technologies",
+      "feed_url": "https://medium.com/feed/@sate.technologies",
+      "site_url": "https://medium.com/@sate.technologies",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Sirin Software",
+      "feed_url": "https://sirinsoftware.com/feed",
+      "site_url": "https://sirinsoftware.com/news/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Successful Software",
+      "feed_url": "https://successfulsoftware.net/feed/",
+      "site_url": "https://successfulsoftware.net/articles/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "TalkersCode.com - Web development",
+      "feed_url": "https://talkerscode.com/rss.xml",
+      "site_url": "https://talkerscode.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Tech Solutions",
+      "feed_url": "https://www.aayushsingh.in/feeds/posts/default?alt=rss",
+      "site_url": "https://www.aayushsingh.in/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "The One Technologies Blog \u00bb Azure Data Factory",
+      "feed_url": "https://theonetechnologies.com/blog/feed/rss/",
+      "site_url": "https://theonetechnologies.com/blog/category/azure-data-factory/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "The Right Software",
+      "feed_url": "https://therightsw.com/feed/",
+      "site_url": "https://therightsw.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Vyrazu Labs",
+      "feed_url": "https://vyrazu.com/feed/",
+      "site_url": "https://vyrazu.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Web Damn - Web Programming",
+      "feed_url": "https://webdamn.com/feed/",
+      "site_url": "https://webdamn.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Web Design Ledger",
+      "feed_url": "https://webdesignledger.com/feed/",
+      "site_url": "https://webdesignledger.com/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Web Development Zone",
+      "feed_url": "https://medium.com/feed/web-development-zone",
+      "site_url": "https://medium.com/web-development-zone",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "WP Swings Blog \u00bb Web development",
+      "feed_url": "https://wpswings.com/blog/category/web-development/feed/",
+      "site_url": "https://wpswings.com/blog/category/web-development/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "XB Software",
+      "feed_url": "https://xbsoftware.com/blog/feed",
+      "site_url": "https://xbsoftware.com/blog",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": -1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "service_vendor_blog"
+      ]
+    },
+    {
+      "title": "Codersee | Kotlin, Spring & Cloud Computing",
+      "feed_url": "https://codersee.com/feed/",
+      "site_url": "https://codersee.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 0,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Henrik Warne's blog | Thoughts on programming",
+      "feed_url": "https://henrikwarne.com/feed/?x=1",
+      "site_url": "https://henrikwarne.com/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 0,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "clean_title",
+        "noisy_title"
+      ]
+    },
+    {
+      "title": "Lambda the Ultimate - Programming Languages Weblog",
+      "feed_url": "http://lambda-the-ultimate.org/rss.xml",
+      "site_url": "http://lambda-the-ultimate.org/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 0,
+      "min_score": 2,
+      "reasons": [
+        "clean_title",
+        "hyphenated_domain"
+      ]
+    },
+    {
+      "title": "RichestSoft",
+      "feed_url": "https://richestsoft.com/blog/feed/",
+      "site_url": "https://richestsoft.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 0,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls",
+        "trusted_domain",
+        "clean_title",
+        "category_deny_host"
+      ]
+    },
+    {
+      "title": "Codeamy",
+      "feed_url": "https://www.codeamy.in/feeds/posts/default?alt=rss",
+      "site_url": "https://www.codeamy.in/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "CodePen",
+      "feed_url": "https://blog.codepen.io/feed/",
+      "site_url": "https://blog.codepen.io/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "CodePen",
+      "feed_url": "https://blog.codepen.io/feed/",
+      "site_url": "https://blog.codepen.io/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "Codrops",
+      "feed_url": "https://tympanus.net/codrops/feed/",
+      "site_url": "https://tympanus.net/codrops/",
+      "category": "Programming",
+      "source_category": "Programming RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "Codrops",
+      "feed_url": "https://tympanus.net/codrops/feed/",
+      "site_url": "https://tympanus.net/codrops/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "Crio",
+      "feed_url": "https://www.crio.do/blog/rss/",
+      "site_url": "https://www.crio.do/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "CronJ",
+      "feed_url": "https://www.cronj.com/blog/feed/",
+      "site_url": "https://www.cronj.com/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "DNG",
+      "feed_url": "https://www.dngwebdeveloper.com/blog/feed/",
+      "site_url": "https://www.dngwebdeveloper.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "Donatix",
+      "feed_url": "https://donatix.net/feed/",
+      "site_url": "https://donatix.net/blog/",
+      "category": "Programming",
+      "source_category": "Software Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    },
+    {
+      "title": "DY Kraf",
+      "feed_url": "https://dykraf.com/feed.xml",
+      "site_url": "https://dykraf.com/blog/",
+      "category": "Programming",
+      "source_category": "Web Development RSS Feeds",
+      "score": 1,
+      "min_score": 2,
+      "reasons": [
+        "valid_urls"
+      ]
+    }
+  ]
+}

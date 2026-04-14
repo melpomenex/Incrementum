@@ -454,10 +454,57 @@ function LayoutTab({
           value={preferences.column_count ?? 2}
           onChange={(value) => updatePreference("column_count", value)}
           min={1}
-          max={4}
+          max={6}
           step={1}
           suffix="columns"
         />
+      </Section>
+
+      <Section
+        title="Card Height"
+        description="Height of article cards"
+      >
+        <RadioGroup
+          value={(preferences.excerpt_length ?? 150) < 80 ? "compact" : (preferences.excerpt_length ?? 150) > 200 ? "tall" : "normal"}
+          options={[
+            { value: "compact", label: "Compact", description: "Title only, minimal info" },
+            { value: "normal", label: "Normal", description: "Title + short excerpt" },
+            { value: "tall", label: "Tall", description: "Title + long excerpt + metadata" },
+          ]}
+          onChange={(value) => updatePreference("excerpt_length", value === "compact" ? 50 : value === "tall" ? 300 : 150)}
+        />
+      </Section>
+
+      <Section
+        title="Thumbnails"
+        description="Thumbnail image display"
+      >
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={preferences.show_thumbnails ?? true}
+              onChange={(e) => updatePreference("show_thumbnails", e.target.checked)}
+              className="rounded border-border"
+            />
+            Show thumbnails
+          </label>
+          <RadioGroup
+            value={(preferences.excerpt_length ?? 150) < 80 ? "hidden" : (preferences.excerpt_length ?? 150) > 200 ? "large" : "normal"}
+            options={[
+              { value: "hidden", label: "Hidden", description: "No thumbnails" },
+              { value: "normal", label: "Small", description: "Small thumbnails on the left" },
+              { value: "large", label: "Large", description: "Large thumbnails above title" },
+            ]}
+            onChange={(value) => {
+              if (value === "hidden") {
+                updatePreference("show_thumbnails", false);
+              } else {
+                updatePreference("show_thumbnails", true);
+              }
+            }}
+          />
+        </div>
       </Section>
     </div>
   );

@@ -1,0 +1,4020 @@
+[
+  {
+    "title": "Adweek \u00bb Artificial Intelligence",
+    "feed_url": "https://www.adweek.com/category/artificial-intelligence/feed/",
+    "site_url": "https://www.adweek.com/category/artificial-intelligence/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI 2 People",
+    "feed_url": "https://ai2people.com/feed/",
+    "site_url": "https://ai2people.com/news/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI for Good",
+    "feed_url": "https://aiforgood.itu.int/feed/",
+    "site_url": "https://aiforgood.itu.int/ai-for-good-blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI Insider",
+    "feed_url": "https://theaiinsider.tech/feed/",
+    "site_url": "https://theaiinsider.tech",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI Summer",
+    "feed_url": "https://theaisummer.com/feed.xml",
+    "site_url": "https://theaisummer.com/resources/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI Time Journal",
+    "feed_url": "https://www.aitimejournal.com/feed/",
+    "site_url": "https://www.aitimejournal.com/journal/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AI Weekly",
+    "feed_url": "https://aiweekly.co/issues.rss",
+    "site_url": "https://aiweekly.co/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AIIOT \u00bb Artificial Intelligence",
+    "feed_url": "https://www.aiiottalk.com/feed/",
+    "site_url": "https://www.aiiottalk.com/artificial-intelligence-new/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "ALEPH ALPHA",
+    "feed_url": "https://aleph-alpha.com/feed/",
+    "site_url": "https://aleph-alpha.com/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Analytics India Magazine \u00bb AI News",
+    "feed_url": "https://analyticsindiamag.com/ai-news-updates/feed/",
+    "site_url": "https://analyticsindiamag.com/ai-news-updates/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Analytics Insight",
+    "feed_url": "https://feeds.feedburner.com/analyticsinsight/ijEZ",
+    "site_url": "https://www.analyticsinsight.net/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Analytics Vidhya",
+    "feed_url": "https://www.analyticsvidhya.com/feed/",
+    "site_url": "https://www.analyticsvidhya.com/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Archie.AI",
+    "feed_url": "https://medium.com/feed/archieai",
+    "site_url": "https://medium.com/archieai",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Ars Technica \u00bb AI",
+    "feed_url": "https://arstechnica.com/ai/feed/",
+    "site_url": "https://arstechnica.com/ai/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Artificial Lawyer",
+    "feed_url": "https://www.artificiallawyer.com/feed/",
+    "site_url": "https://www.artificiallawyer.com/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Artificial-Intelligence.Blog \u00bb AI News",
+    "feed_url": "https://www.artificial-intelligence.blog/ai-news?format=rss",
+    "site_url": "https://www.artificial-intelligence.blog/ai-news",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AWS Blog \u00bb Artificial Learning",
+    "feed_url": "https://aws.amazon.com/blogs/machine-learning/category/artificial-intelligence/feed/",
+    "site_url": "https://aws.amazon.com/blogs/machine-learning/category/artificial-intelligence/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "AWS News Blog \u00bb Artificial Intelligence",
+    "feed_url": "https://aws.amazon.com/blogs/aws/category/artificial-intelligence/feed/",
+    "site_url": "https://aws.amazon.com/blogs/aws/category/artificial-intelligence/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "BAIR",
+    "feed_url": "https://bair.berkeley.edu/blog/feed.xml",
+    "site_url": "https://bair.berkeley.edu/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Becoming A Data Scientist",
+    "feed_url": "https://www.becomingadatascientist.com/feed/",
+    "site_url": "https://www.becomingadatascientist.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Becoming Human",
+    "feed_url": "https://becominghuman.ai/feed",
+    "site_url": "https://becominghuman.ai/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Berkshire Grey",
+    "feed_url": "https://www.berkshiregrey.com/feed/",
+    "site_url": "https://www.berkshiregrey.com/resources/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Big Data Analytics News \u00bb Artificial Intelligence",
+    "feed_url": "https://bigdataanalyticsnews.com/category/artificial-intelligence/feed/",
+    "site_url": "https://bigdataanalyticsnews.com/category/artificial-intelligence/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Blue Orange",
+    "feed_url": "https://blueorange.digital/feed/",
+    "site_url": "https://blueorange.digital/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Carlo Carandang \u00bb Data Science",
+    "feed_url": "https://carlocarandang.com/category/data-science/feed/",
+    "site_url": "https://carlocarandang.com/category/data-science/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Cisco Blogs",
+    "feed_url": "https://blogs.cisco.com/ai/feed",
+    "site_url": "https://blogs.cisco.com/ai/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Clarifai",
+    "feed_url": "https://www.clarifai.com/blog/rss.xml",
+    "site_url": "https://www.clarifai.com/blog",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Codementor \u00bb Data Science Tutorials",
+    "feed_url": "https://www.codementor.io/community/topic/data-science/feed",
+    "site_url": "https://www.codementor.io/community/topic/data-science",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Cogito Tech",
+    "feed_url": "https://www.cogitotech.com/feed/",
+    "site_url": "https://www.cogitotech.com/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Command Line Tips",
+    "feed_url": "https://cmdlinetips.com/feed/",
+    "site_url": "https://cmdlinetips.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Computerworld \u00bb Artificial Intelligence",
+    "feed_url": "https://www.computerworld.com/artificial-intelligence/feed/",
+    "site_url": "https://www.computerworld.com/artificial-intelligence/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Contextual AI",
+    "feed_url": "https://contextual.ai/blog/feed/",
+    "site_url": "https://contextual.ai/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Copyleaks",
+    "feed_url": "https://copyleaks.com/blog/feed",
+    "site_url": "https://copyleaks.com/blog",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Crunchbase News \u00bb AI",
+    "feed_url": "https://news.crunchbase.com/sections/ai/feed/",
+    "site_url": "https://news.crunchbase.com/sections/ai/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Dan Rose AI",
+    "feed_url": "https://www.danrose.ai/blog?format=rss",
+    "site_url": "https://www.danrose.ai/blog",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Data Elixir",
+    "feed_url": "https://dataelixir.com/issues.rss",
+    "site_url": "https://dataelixir.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data For Science",
+    "feed_url": "https://medium.data4sci.com/feed",
+    "site_url": "https://medium.data4sci.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data Machina",
+    "feed_url": "https://datamachina.substack.com/feed",
+    "site_url": "https://datamachina.substack.com/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Data Piques",
+    "feed_url": "https://www.ethanrosenthal.com/index.xml",
+    "site_url": "https://www.ethanrosenthal.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data Plus Science",
+    "feed_url": "https://www.dataplusscience.com/RSSfeed.xml",
+    "site_url": "https://www.dataplusscience.com/insights.html",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data Science Central",
+    "feed_url": "https://feeds.feedburner.com/FeaturedBlogPosts-DataScienceCentral",
+    "site_url": "https://www.datasciencecentral.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data Science made in Switzerland",
+    "feed_url": "https://blog.zhaw.ch/datascience/feed/",
+    "site_url": "https://blog.zhaw.ch/datascience/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Data Science Unicorn",
+    "feed_url": "https://datascienceunicorn.tumblr.com/rss",
+    "site_url": "https://datascienceunicorn.tumblr.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Dataaspirant",
+    "feed_url": "https://dataaspirant.com/feed/",
+    "site_url": "https://dataaspirant.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Databricks",
+    "feed_url": "https://www.databricks.com/feed",
+    "site_url": "https://www.databricks.com/blog",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Dataconomy",
+    "feed_url": "https://dataconomy.com/feed/",
+    "site_url": "https://dataconomy.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "DataFlair",
+    "feed_url": "https://data-flair.training/blogs/feed/",
+    "site_url": "https://data-flair.training/blogs/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Datafloq",
+    "feed_url": "https://datafloq.com/feed/",
+    "site_url": "https://datafloq.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Datanami",
+    "feed_url": "https://www.datanami.com/feed/",
+    "site_url": "https://www.datanami.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "DataRobot",
+    "feed_url": "https://www.datarobot.com/blog/feed/",
+    "site_url": "https://www.datarobot.com/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "DataScience@SMU",
+    "feed_url": "https://datascience.smu.edu/blog/feed/",
+    "site_url": "https://datascience.smu.edu/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "DeepCognition.ai",
+    "feed_url": "https://deepcognition.ai/feed/",
+    "site_url": "https://deepcognition.ai/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "District Data Labs",
+    "feed_url": "https://districtdatalabs.silvrback.com/feed",
+    "site_url": "https://districtdatalabs.silvrback.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Domino.ai",
+    "feed_url": "https://domino.ai/feed.xml",
+    "site_url": "https://domino.ai/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "DSI Analytics",
+    "feed_url": "https://dsianalytics.com/feed/",
+    "site_url": "https://dsianalytics.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Financial Times \u00bb Artificial intelligence",
+    "feed_url": "https://www.ft.com/artificial-intelligence?format=rss",
+    "site_url": "https://www.ft.com/artificial-intelligence",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "FlowingData",
+    "feed_url": "https://flowingdata.com/feed",
+    "site_url": "https://flowingdata.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Google Research",
+    "feed_url": "https://research.google/blog/rss/",
+    "site_url": "https://research.google/blog/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Government Technology News \u00bb Artificial Intelligence",
+    "feed_url": "https://www.govtech.com/artificial-intelligence.rss",
+    "site_url": "https://www.govtech.com/artificial-intelligence",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Harvard Data Science Initiative",
+    "feed_url": "https://datascience.harvard.edu/feed/",
+    "site_url": "https://datascience.harvard.edu/category/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "InData Labs",
+    "feed_url": "https://indatalabs.com/blog/feed",
+    "site_url": "https://indatalabs.com/blog",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Insight Extractor",
+    "feed_url": "https://insightextractor.com/feed/",
+    "site_url": "https://insightextractor.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Julia Silge",
+    "feed_url": "https://juliasilge.com/blog/index.xml",
+    "site_url": "https://juliasilge.com/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "KDnuggets",
+    "feed_url": "https://www.kdnuggets.com/feed",
+    "site_url": "https://www.kdnuggets.com/news/index.html",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Little Miss Data",
+    "feed_url": "https://www.littlemissdata.com/blog?format=RSS",
+    "site_url": "https://www.littlemissdata.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Machine Learning Mastery",
+    "feed_url": "https://feeds.feedburner.com/MachineLearningMastery",
+    "site_url": "https://machinelearningmastery.com/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Microsoft \u00bb AI",
+    "feed_url": "https://news.microsoft.com/source/topics/ai/feed/",
+    "site_url": "https://news.microsoft.com/source/topics/ai/",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "MIT News \u00bb Artificial intelligence",
+    "feed_url": "https://news.mit.edu/rss/topic/artificial-intelligence2",
+    "site_url": "https://news.mit.edu/topic/artificial-intelligence2",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Nina B. Zumel",
+    "feed_url": "https://ninazumel.com/feed.xml",
+    "site_url": "https://ninazumel.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "NVIDIA Technical Blog \u00bb Data Science",
+    "feed_url": "https://developer.nvidia.com/blog/category/data-science/feed/",
+    "site_url": "https://developer.nvidia.com/blog/category/data-science/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "NYC Data Science Academy",
+    "feed_url": "https://nycdatascience.com/blog/feed/",
+    "site_url": "https://nycdatascience.com/blog/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "O'Reilly",
+    "feed_url": "https://www.oreilly.com/radar/feed/index.xml",
+    "site_url": "https://www.oreilly.com/radar/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Pete Warden's",
+    "feed_url": "https://petewarden.com/feed/",
+    "site_url": "https://petewarden.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Predictive Hacks",
+    "feed_url": "https://predictivehacks.com/feed/",
+    "site_url": "https://predictivehacks.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "R-bloggers",
+    "feed_url": "https://feeds.feedburner.com/RBloggers",
+    "site_url": "https://www.r-bloggers.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Remix Institute",
+    "feed_url": "https://www.remixinstitute.com/feed/",
+    "site_url": "https://www.remixinstitute.com/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "Science News \u00bb Artificial intelligence",
+    "feed_url": "https://www.sciencenews.org/topic/artificial-intelligence/feed",
+    "site_url": "https://www.sciencenews.org/topic/artificial-intelligence",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Statistical Modeling, Causal Inference, and Social Science",
+    "feed_url": "https://statmodeling.stat.columbia.edu/feed/",
+    "site_url": "https://statmodeling.stat.columbia.edu/",
+    "category": "AI",
+    "source_category": "Data Science RSS Feeds"
+  },
+  {
+    "title": "The Guardian \u00bb Artificial Intelligence (AI)",
+    "feed_url": "https://www.theguardian.com/technology/artificialintelligenceai/rss",
+    "site_url": "https://www.theguardian.com/technology/artificialintelligenceai",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "The New York Times \u00bb Artificial Intelligence",
+    "feed_url": "https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/spotlight/artificial-intelligence/rss.xml",
+    "site_url": "https://www.nytimes.com/spotlight/artificial-intelligence",
+    "category": "AI",
+    "source_category": "Artificial Intelligence RSS Feeds"
+  },
+  {
+    "title": "Alpha Sources",
+    "feed_url": "https://www.clausvistesen.com/alphasources-blog/?format=rss",
+    "site_url": "https://www.clausvistesen.com/alphasources-blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "American Institute for Economic Research",
+    "feed_url": "https://aier.org/feed/",
+    "site_url": "https://aier.org/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Armstrong Economics",
+    "feed_url": "https://www.armstrongeconomics.com/feed/",
+    "site_url": "https://www.armstrongeconomics.com/blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Atlanta Fed \u00bb Macroblog",
+    "feed_url": "https://www.atlantafed.org/RSS/macroblog.aspx",
+    "site_url": "https://www.atlantafed.org/blogs/macroblog",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Baseline Scenario",
+    "feed_url": "https://baselinescenario.com/feed/",
+    "site_url": "https://baselinescenario.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Brad DeLong's Grasping Reality",
+    "feed_url": "https://braddelong.substack.com/feed",
+    "site_url": "https://braddelong.substack.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "BusinessEconomics",
+    "feed_url": "https://www.businesseconomics.com/feed/rss2",
+    "site_url": "https://www.businesseconomics.com/blog",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Cafe Hayek",
+    "feed_url": "http://cafehayek.com/feed",
+    "site_url": "https://cafehayek.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Calculated Risk",
+    "feed_url": "https://feeds.feedburner.com/CalculatedRisk",
+    "site_url": "https://www.calculatedriskblog.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Capital Ebbs and Flows",
+    "feed_url": "https://blogs.wellesley.edu/jjoyce/feed/",
+    "site_url": "https://blogs.wellesley.edu/jjoyce/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Cheap Talk",
+    "feed_url": "https://cheaptalk.org/feed/",
+    "site_url": "https://cheaptalk.org/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Chris Blattman",
+    "feed_url": "https://chrisblattman.com/feed/",
+    "site_url": "https://chrisblattman.com/blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Confessions of a Supply-Side Liberal",
+    "feed_url": "https://blog.supplysideliberal.com/post?format=RSS",
+    "site_url": "https://blog.supplysideliberal.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Conversable Economist",
+    "feed_url": "https://conversableeconomist.com/feed/",
+    "site_url": "https://conversableeconomist.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Coppola Comment",
+    "feed_url": "https://www.coppolacomment.com/feeds/posts/default?alt=rss",
+    "site_url": "https://www.coppolacomment.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Credit Writedowns Pro",
+    "feed_url": "https://creditwritedowns.com/feed",
+    "site_url": "https://creditwritedowns.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Daniel Lacalle",
+    "feed_url": "https://www.dlacalle.com/en/feed/",
+    "site_url": "https://www.dlacalle.com/en/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Developing Economics",
+    "feed_url": "https://developingeconomics.org/feed/",
+    "site_url": "https://developingeconomics.org/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Econbrowser",
+    "feed_url": "https://econbrowser.com/feed",
+    "site_url": "https://econbrowser.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economic Policy Institute",
+    "feed_url": "https://www.epi.org/blog/feed/",
+    "site_url": "https://www.epi.org/blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economic Policy Journal",
+    "feed_url": "https://feeds.feedburner.com/economicpolicyjournal/YZSb",
+    "site_url": "https://www.economicpolicyjournal.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economic Prism",
+    "feed_url": "https://economicprism.com/rss_feed.xml",
+    "site_url": "https://economicprism.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economics in the Rear-View Mirror",
+    "feed_url": "https://www.irwincollier.com/feed/",
+    "site_url": "https://www.irwincollier.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economics One",
+    "feed_url": "https://economicsone.com/feed/",
+    "site_url": "https://economicsone.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Economist's View",
+    "feed_url": "http://feeds.feedburner.com/EconomistsView",
+    "site_url": "https://economistsview.typepad.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Environmental Economics",
+    "feed_url": "https://www.env-econ.net/atom.xml",
+    "site_url": "https://www.env-econ.net/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Equitable Growth",
+    "feed_url": "https://equitablegrowth.org/feed/",
+    "site_url": "https://equitablegrowth.org/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Evolving Economics",
+    "feed_url": "https://www.jasoncollins.blog/index.xml",
+    "site_url": "https://www.jasoncollins.blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Federal Reserve Bank of St. Louis",
+    "feed_url": "https://www.stlouisfed.org/rss/page%20resources/publications/blog-entries",
+    "site_url": "https://www.stlouisfed.org/on-the-economy/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Financial Times \u00bb Global Economy",
+    "feed_url": "https://www.ft.com/global-economy?format=rss",
+    "site_url": "https://www.ft.com/global-economy",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "First Trust Blog \u00bb Economics",
+    "feed_url": "https://www.ftportfolios.com/Common/Rss/EconomicsBlogFeed.aspx",
+    "site_url": "https://www.ftportfolios.com/retail/blogs/economics/index.aspx/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "FocusEconomics News",
+    "feed_url": "https://www.focus-economics.com/news-search/feed/",
+    "site_url": "https://www.focus-economics.com/news-search/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Freakonomics",
+    "feed_url": "https://freakonomics.com/feed/",
+    "site_url": "https://freakonomics.com/blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Greg Mankiw's",
+    "feed_url": "https://gregmankiw.blogspot.com/feeds/posts/default",
+    "site_url": "https://gregmankiw.blogspot.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "In the Long Run",
+    "feed_url": "https://inthelongrun.co.uk/feed/",
+    "site_url": "https://inthelongrun.co.uk/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "ITR Economic",
+    "feed_url": "https://blog.itreconomics.com/blog/rss.xml",
+    "site_url": "https://blog.itreconomics.com/blog/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "John Quiggin",
+    "feed_url": "https://johnquiggin.com/feed/",
+    "site_url": "https://johnquiggin.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Keith Hennessey",
+    "feed_url": "https://www.keithhennessey.com/feed/",
+    "site_url": "https://www.keithhennessey.com/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "Sound Economics",
+    "feed_url": "https://blogs.pugetsound.edu/econ/feed/",
+    "site_url": "https://blogs.pugetsound.edu/econ/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "The Incidental Economist",
+    "feed_url": "https://feeds.feedburner.com/TheIncidentalEconomist",
+    "site_url": "https://theincidentaleconomist.com/wordpress/",
+    "category": "Business & Finance",
+    "source_category": "Economics RSS Feeds"
+  },
+  {
+    "title": "100 Days of Real Food",
+    "feed_url": "https://www.100daysofrealfood.com/feed/",
+    "site_url": "https://www.100daysofrealfood.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "A Cozy Kitchen",
+    "feed_url": "https://www.acozykitchen.com/feed",
+    "site_url": "https://www.acozykitchen.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "A Family Feast",
+    "feed_url": "https://www.afamilyfeast.com/feed/",
+    "site_url": "https://www.afamilyfeast.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "A Mindfull Mom",
+    "feed_url": "https://amindfullmom.com/feed/",
+    "site_url": "https://amindfullmom.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "A Southern Soul",
+    "feed_url": "https://www.asouthernsoul.com/feed/",
+    "site_url": "https://www.asouthernsoul.com/blog/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "A Spicy Perspective",
+    "feed_url": "https://www.aspicyperspective.com/feed/",
+    "site_url": "https://www.aspicyperspective.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Add a Pinch",
+    "feed_url": "https://addapinch.com/feed/",
+    "site_url": "https://addapinch.com/category/all-recipes/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Aggie's Kitchen",
+    "feed_url": "https://aggieskitchen.com/feed/",
+    "site_url": "https://aggieskitchen.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Alexandra's kitchen",
+    "feed_url": "https://alexandracooks.com/feed/",
+    "site_url": "https://alexandracooks.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Aline Made",
+    "feed_url": "https://www.aline-made.com/feed/",
+    "site_url": "https://www.aline-made.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Ambitious Kitchen",
+    "feed_url": "https://www.ambitiouskitchen.com/feed/",
+    "site_url": "https://www.ambitiouskitchen.com/blog/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Amuse Your Bouche",
+    "feed_url": "https://feeds.feedburner.com/amuse-your-bouche/mzby",
+    "site_url": "https://www.easycheesyvegetarian.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Archana's Kitchen",
+    "feed_url": "https://www.archanaskitchen.com/?format=feed&type=rss",
+    "site_url": "https://www.archanaskitchen.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Ask Chef Dennis",
+    "feed_url": "https://www.askchefdennis.com/feed/",
+    "site_url": "https://www.askchefdennis.com/blog/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Averie Cooks",
+    "feed_url": "https://feeds.feedburner.com/LoveVeggiesAndYoga",
+    "site_url": "https://www.averiecooks.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Bake Play Smile",
+    "feed_url": "https://bakeplaysmile.com/feed/",
+    "site_url": "https://bakeplaysmile.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Balanced Healthy Meals",
+    "feed_url": "https://balancedhealthymeals.com/feed/",
+    "site_url": "https://balancedhealthymeals.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Barefoot In The Pines",
+    "feed_url": "https://barefootinthepines.com/feed/",
+    "site_url": "https://barefootinthepines.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Bayev's Kitchen",
+    "feed_url": "https://bayevskitchen.com/blog/feed/",
+    "site_url": "https://bayevskitchen.com/blog/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Bewitching Kitchen",
+    "feed_url": "https://bewitchingkitchen.com/feed/",
+    "site_url": "https://bewitchingkitchen.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Biting at the Bits",
+    "feed_url": "https://bitingatthebits.com/feed/",
+    "site_url": "https://bitingatthebits.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Blog.ksvadl.com",
+    "feed_url": "https://feeds.feedburner.com/food-blogs",
+    "site_url": "https://blog.ksvadl.com/search/label/Food",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Bonji Foods",
+    "feed_url": "https://www.bonjifoods.com/blog-feed.xml",
+    "site_url": "https://www.bonjifoods.com/blog",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Boulder Locavore",
+    "feed_url": "https://feeds.feedburner.com/BoulderLocavore",
+    "site_url": "https://boulderlocavore.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Brown Eyed Baker",
+    "feed_url": "https://www.browneyedbaker.com/feed/",
+    "site_url": "https://www.browneyedbaker.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Budget Bytes",
+    "feed_url": "https://www.budgetbytes.com/feed/",
+    "site_url": "https://www.budgetbytes.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cafe Delites",
+    "feed_url": "https://cafedelites.com/feed/",
+    "site_url": "https://cafedelites.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Carlsbad Cravings",
+    "feed_url": "https://carlsbadcravings.com/feed/",
+    "site_url": "https://carlsbadcravings.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Charlotte's Lively Kitchen",
+    "feed_url": "https://charlotteslivelykitchen.com/feed/",
+    "site_url": "https://charlotteslivelykitchen.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Chef Priyanka",
+    "feed_url": "https://www.chefpriyanka.com/feed/",
+    "site_url": "https://www.chefpriyanka.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Chelsea's Messy Apron \u00bb Slow Cooker",
+    "feed_url": "https://www.chelseasmessyapron.com/feed/",
+    "site_url": "https://www.chelseasmessyapron.com/category/slow-cooker-pressure-cooker/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Chew Out Loud",
+    "feed_url": "https://www.chewoutloud.com/feed/",
+    "site_url": "https://www.chewoutloud.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Chocolate & Zucchini",
+    "feed_url": "https://cnz.to/feed/",
+    "site_url": "https://cnz.to/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Closet Cooking",
+    "feed_url": "https://www.closetcooking.com/feed/",
+    "site_url": "https://www.closetcooking.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cook Republic",
+    "feed_url": "https://www.cookrepublic.com/feed/",
+    "site_url": "https://www.cookrepublic.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cook Smarts",
+    "feed_url": "https://www.cooksmarts.com/articles/feed/",
+    "site_url": "https://www.cooksmarts.com/articles/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cookie and Kate",
+    "feed_url": "https://feeds.feedburner.com/CookieAndKate",
+    "site_url": "https://cookieandkate.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cookies and Cups",
+    "feed_url": "https://feeds.feedburner.com/cookiesandcups",
+    "site_url": "https://cookiesandcups.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cookilicious",
+    "feed_url": "https://cookilicious.com/feed/",
+    "site_url": "https://cookilicious.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "Cooking Classy",
+    "feed_url": "https://www.cookingclassy.com/feed/",
+    "site_url": "https://www.cookingclassy.com/",
+    "category": "Food",
+    "source_category": "Food RSS Feeds"
+  },
+  {
+    "title": "1 Finance",
+    "feed_url": "https://1finance.co.in/1f-dashboard/feed/",
+    "site_url": "https://1finance.co.in/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "20somethingfinance.com",
+    "feed_url": "https://feeds.feedburner.com/20somethingfinancecom",
+    "site_url": "https://20somethingfinance.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "A Richer You",
+    "feed_url": "https://www.aricheryou.com/blog/feed/",
+    "site_url": "https://www.aricheryou.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Abandoned Cubicle",
+    "feed_url": "https://www.abandonedcubicle.com/feed/",
+    "site_url": "https://www.abandonedcubicle.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Adam Fayed",
+    "feed_url": "https://adamfayed.com/feed/",
+    "site_url": "https://adamfayed.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Barbara Friedberg",
+    "feed_url": "https://barbarafriedbergpersonalfinance.com/blog/feed/",
+    "site_url": "https://barbarafriedbergpersonalfinance.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "BasuNivesh",
+    "feed_url": "https://www.basunivesh.com/feed/",
+    "site_url": "https://www.basunivesh.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Beating Broke",
+    "feed_url": "https://www.beatingbroke.com/feed/",
+    "site_url": "https://www.beatingbroke.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Best Wallet Hacks",
+    "feed_url": "https://wallethacks.com/feed/",
+    "site_url": "https://wallethacks.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Bible Money Matters",
+    "feed_url": "https://feeds.feedburner.com/BibleMoneyMatters",
+    "site_url": "https://www.biblemoneymatters.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Boomer & Echo",
+    "feed_url": "https://feeds.feedburner.com/BoomerEcho",
+    "site_url": "https://boomerandecho.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Broke Girl Rich",
+    "feed_url": "https://brokegirlrich.com/feed/",
+    "site_url": "https://brokegirlrich.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Budget Bakers",
+    "feed_url": "https://budgetbakers.com/feed/",
+    "site_url": "https://budgetbakers.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Budgets Are Sexy",
+    "feed_url": "https://feeds.feedburner.com/budgetsaresexy",
+    "site_url": "https://budgetsaresexy.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Capital Source Group",
+    "feed_url": "https://capitalsourcegroup.com/feed/",
+    "site_url": "https://capitalsourcegroup.com/csg-insights/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Cash for Kat",
+    "feed_url": "https://cashforkat.com/feed/",
+    "site_url": "https://cashforkat.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Couple Wealth",
+    "feed_url": "https://couplewealth.com/feed/",
+    "site_url": "https://couplewealth.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Debt Discipline",
+    "feed_url": "https://feeds.feedburner.com/DebtDiscipline",
+    "site_url": "https://debtdiscipline.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Digest Your Finances",
+    "feed_url": "https://feeds.feedburner.com/DigestYourFinances",
+    "site_url": "https://digestyourfinances.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Dividend Diplomats",
+    "feed_url": "https://www.dividenddiplomats.com/feed/",
+    "site_url": "https://www.dividenddiplomats.com/blogroll/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Dividend Power",
+    "feed_url": "https://www.dividendpower.org/feed/",
+    "site_url": "https://www.dividendpower.org/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Dumb Funded",
+    "feed_url": "https://www.dumbfunded.co.uk/feed/",
+    "site_url": "https://www.dumbfunded.co.uk/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Esavingsblog",
+    "feed_url": "https://feeds.feedburner.com/esavingsblog",
+    "site_url": "https://esavingsblog.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Everything Finance",
+    "feed_url": "https://everythingfinanceblog.com/feed",
+    "site_url": "https://everythingfinanceblog.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "FangWallet",
+    "feed_url": "https://fangwallet.com/feed/",
+    "site_url": "https://fangwallet.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Financial Freedom Countdown",
+    "feed_url": "https://financialfreedomcountdown.com/feed/",
+    "site_url": "https://financialfreedomcountdown.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Financial Living",
+    "feed_url": "https://blog.acadviser.com/rss.xml",
+    "site_url": "https://blog.acadviser.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Financial Panther",
+    "feed_url": "https://financialpanther.com/feed/",
+    "site_url": "https://financialpanther.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Financial Post \u00bb Personal Finance",
+    "feed_url": "https://financialpost.com/category/personal-finance/feed.xml",
+    "site_url": "https://financialpost.com/category/personal-finance/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "FinMasters",
+    "feed_url": "https://finmasters.com/feed/",
+    "site_url": "https://finmasters.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Fintrakk",
+    "feed_url": "https://fintrakk.com/feed/",
+    "site_url": "https://fintrakk.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Fiscally Sound",
+    "feed_url": "https://feeds.feedburner.com/FiscallySound",
+    "site_url": "https://fiscallysound.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Get Out of Debt",
+    "feed_url": "https://getoutofdebt.org/feed",
+    "site_url": "https://getoutofdebt.org/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Getting Your Financial Ducks In A Row",
+    "feed_url": "https://feeds.feedburner.com/GettingYourFinancialDucksInARow",
+    "site_url": "https://financialducksinarow.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "GrowthRapidly",
+    "feed_url": "https://growthrapidly.com/home/feed/",
+    "site_url": "https://growthrapidly.com/home/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "I Will Teach You To Be Rich",
+    "feed_url": "https://www.iwillteachyoutoberich.com/feed/",
+    "site_url": "https://www.iwillteachyoutoberich.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Invest Safely",
+    "feed_url": "https://blog.invest-safely.com/feed/",
+    "site_url": "https://blog.invest-safely.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "KindaFrugal",
+    "feed_url": "https://www.kindafrugal.com/feed/",
+    "site_url": "https://www.kindafrugal.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Lazy Man And Money",
+    "feed_url": "https://feeds.feedburner.com/LazyManAndMoney",
+    "site_url": "https://www.lazymanandmoney.com/blog/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "Len Penzo",
+    "feed_url": "https://feeds.feedburner.com/LenPenzo",
+    "site_url": "https://lenpenzo.com/",
+    "category": "Personal Finance",
+    "source_category": "Personal Finance RSS Feeds"
+  },
+  {
+    "title": "121clicks",
+    "feed_url": "https://121clicks.com/feed",
+    "site_url": "https://121clicks.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "360Cities",
+    "feed_url": "https://blog.360cities.net/feed/",
+    "site_url": "https://blog.360cities.net/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "A Photo Editor",
+    "feed_url": "https://www.aphotoeditor.com/feed/",
+    "site_url": "https://www.aphotoeditor.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "ABM Photography",
+    "feed_url": "https://www.abmweddingphotos.com/feed/",
+    "site_url": "https://www.abmweddingphotos.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Advancing Your Photography",
+    "feed_url": "https://www.silberstudios.com/feed/",
+    "site_url": "https://www.silberstudios.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Antony Trivet Photography",
+    "feed_url": "https://antonytrivet.co.ke/feed/",
+    "site_url": "https://antonytrivet.co.ke/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "BeArt Presets",
+    "feed_url": "https://www.beart-presets.com/blog?format=RSS",
+    "site_url": "https://www.beart-presets.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Beautiful Flower Pictures",
+    "feed_url": "https://www.beautifulflowerpictures.com/blog/feed/",
+    "site_url": "https://www.beautifulflowerpictures.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Becca Jean Photography",
+    "feed_url": "https://beccajeanphotography.com/feed/",
+    "site_url": "https://beccajeanphotography.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Bee Happy Graphics",
+    "feed_url": "http://www.beehappygraphics.com/blog/feed/",
+    "site_url": "https://www.beehappygraphics.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Behind The Shutter",
+    "feed_url": "https://www.behindtheshutter.com/feed/",
+    "site_url": "https://www.behindtheshutter.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Belinda Jiao Photography",
+    "feed_url": "https://www.belindajiao.com/blog?format=rss",
+    "site_url": "https://www.belindajiao.com/blog",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Best Photography Gear",
+    "feed_url": "https://bestphotographygear.com/feed/",
+    "site_url": "https://bestphotographygear.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Brendan's Adventures",
+    "feed_url": "https://brendansadventures.com/feed/",
+    "site_url": "https://brendansadventures.com/category/travel/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Clickin Moms",
+    "feed_url": "https://www.theclickcommunity.com/blog/feed/",
+    "site_url": "https://www.theclickcommunity.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Contrastly",
+    "feed_url": "https://contrastly.com/feed/",
+    "site_url": "https://contrastly.com/articles/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Dan Bailey's Adventure Photography",
+    "feed_url": "https://danbaileyphoto.com/blog/feed/",
+    "site_url": "https://danbaileyphoto.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Daniela Cardili",
+    "feed_url": "https://danielacardili.com/feed/",
+    "site_url": "https://danielacardili.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Danielle Hobbs Photography",
+    "feed_url": "https://www.daniellehobbsphotography.com/posts/feed/",
+    "site_url": "https://www.daniellehobbsphotography.com/posts/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "David duChemin",
+    "feed_url": "https://davidduchemin.com/feed/",
+    "site_url": "https://davidduchemin.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Digital Photography Review",
+    "feed_url": "https://www.dpreview.com/feeds/news.xml",
+    "site_url": "https://www.dpreview.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "DivePhotoGuide",
+    "feed_url": "https://www.divephotoguide.com/rss",
+    "site_url": "https://www.divephotoguide.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "DIY Photography",
+    "feed_url": "https://feeds.feedburner.com/Diyphotographynet",
+    "site_url": "https://www.diyphotography.net/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Edin Chavez Photography",
+    "feed_url": "https://blog.edinchavez.com/feed/",
+    "site_url": "https://blog.edinchavez.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Feature Shoot",
+    "feed_url": "https://feeds.feedburner.com/FeatureShoot",
+    "site_url": "https://www.featureshoot.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Flickr Blog \u00bb Photographer Spotlight",
+    "feed_url": "https://blog.flickr.net/category/photographer-spotlight/feed",
+    "site_url": "https://blog.flickr.net/category/photographer-spotlight/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Flytographer",
+    "feed_url": "https://www.flytographer.com/feed/",
+    "site_url": "https://www.flytographer.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Food Photography",
+    "feed_url": "https://foodphotographyblog.com/feed/",
+    "site_url": "https://foodphotographyblog.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Fro Knows Photo",
+    "feed_url": "http://froknowsphoto.com/feed/",
+    "site_url": "https://froknowsphoto.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "GottaPics",
+    "feed_url": "https://gottapics.com/feed/",
+    "site_url": "https://gottapics.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Graddy Photography",
+    "feed_url": "https://graddyphotography.com/blog?format=rss",
+    "site_url": "https://graddyphotography.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Heartlove Photography",
+    "feed_url": "https://heartlovephotography.com/feed/",
+    "site_url": "https://heartlovephotography.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Hello Edits \u00bb Photography",
+    "feed_url": "https://helloedits.com/feed/",
+    "site_url": "https://helloedits.com/category/photography/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Hoffer Photography",
+    "feed_url": "https://hofferphotography.com/feed/",
+    "site_url": "https://hofferphotography.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Hope Taylor Photography",
+    "feed_url": "https://hopetaylor.com/feed/",
+    "site_url": "https://hopetaylor.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Images by Dena",
+    "feed_url": "https://imagesbydena.com/feed/",
+    "site_url": "https://imagesbydena.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Inspired Eye",
+    "feed_url": "https://www.theinspiredeye.net/feed/",
+    "site_url": "https://www.theinspiredeye.net/street-photography-blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "iPhone Photography School",
+    "feed_url": "http://iphonephotographyschool.com/feed/",
+    "site_url": "https://iphonephotographyschool.com/blog/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Jake Horn Photography",
+    "feed_url": "https://jakehornphotography.com/blog?format=rss",
+    "site_url": "https://jakehornphotography.com/blog",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Jamie Delaine",
+    "feed_url": "https://jamiedelaineblog.com/feed/",
+    "site_url": "https://jamiedelaineblog.com/",
+    "category": "Photography",
+    "source_category": "Photography RSS Feeds"
+  },
+  {
+    "title": "Alastair Campbell",
+    "feed_url": "https://alastaircampbell.org/feed/",
+    "site_url": "https://alastaircampbell.org/blog/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "AN SIONNACH FIONN",
+    "feed_url": "https://ansionnachfionn.com/feed/",
+    "site_url": "https://ansionnachfionn.com/category/politics/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Boing Boing \u00bb Politics",
+    "feed_url": "https://boingboing.net/tag/politics/feed",
+    "site_url": "https://boingboing.net/tag/politics",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "BuzzMachine",
+    "feed_url": "https://buzzmachine.com/feed/",
+    "site_url": "https://buzzmachine.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Campaign Catalyst",
+    "feed_url": "https://www.campaigncatalyst.net/category/politics/feed/",
+    "site_url": "https://www.campaigncatalyst.net/category/politics/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Colorado Pols",
+    "feed_url": "https://www.coloradopols.com/feed",
+    "site_url": "https://www.coloradopols.com/recent-posts",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Conservative Home",
+    "feed_url": "https://conservativehome.com/feed/",
+    "site_url": "https://conservativehome.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Daily Kos",
+    "feed_url": "https://www.dailykos.com/blogs/main.rss",
+    "site_url": "https://www.dailykos.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Democracy Paradox",
+    "feed_url": "https://democracyparadox.com/feed/",
+    "site_url": "https://democracyparadox.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Eye on Global Politics",
+    "feed_url": "https://eyeonglobalpolitics.com/blog/feed/",
+    "site_url": "https://eyeonglobalpolitics.com/blog/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Front Page Index",
+    "feed_url": "https://www.frontpageindex.com/feeds/posts/default?alt=rss",
+    "site_url": "https://www.frontpageindex.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Good Authority",
+    "feed_url": "https://goodauthority.org/feed/",
+    "site_url": "https://goodauthority.org/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Guido Fawkes",
+    "feed_url": "https://feeds.feedburner.com/guidofawkes",
+    "site_url": "https://order-order.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Iain Dale's Diary",
+    "feed_url": "https://www.iaindale.com/feed",
+    "site_url": "https://www.iaindale.com/articles",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Irish Politics Forum",
+    "feed_url": "https://politicalreform.ie/feed/",
+    "site_url": "https://politicalreform.ie/tag/politics/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Jennifer Stewart",
+    "feed_url": "https://www.jennifer-stewart.com/feeds/posts/default",
+    "site_url": "https://www.jennifer-stewart.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Ken Rudin's Political Junkie",
+    "feed_url": "https://www.krpoliticaljunkie.com/content/blog/feed/",
+    "site_url": "https://www.krpoliticaljunkie.com/content/blog/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Latest from Crooks and Liars",
+    "feed_url": "http://feeds.crooksandliars.com/crooksandliars/YaCP",
+    "site_url": "https://crooksandliars.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Left Foot Forward",
+    "feed_url": "https://leftfootforward.org/feed/",
+    "site_url": "https://leftfootforward.org/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Mother Jones \u00bb Politics",
+    "feed_url": "https://www.motherjones.com/politics/feed/",
+    "site_url": "https://www.motherjones.com/politics/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "National Review",
+    "feed_url": "https://www.nationalreview.com/feed/",
+    "site_url": "https://www.nationalreview.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "New Nationalism",
+    "feed_url": "https://newnationalism.com/feed/",
+    "site_url": "https://newnationalism.com/category/politics/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "NewsBusters",
+    "feed_url": "https://www.newsbusters.org/blog/feed",
+    "site_url": "https://www.newsbusters.org/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Political Gabfest",
+    "feed_url": "https://feeds.megaphone.fm/slatespoliticalgabfest",
+    "site_url": "https://slate.com/news-and-politics",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "PoliticalBetting",
+    "feed_url": "https://www1.politicalbetting.com/index.php/feed/",
+    "site_url": "https://www1.politicalbetting.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Politics Elections",
+    "feed_url": "https://politicselections.com/feed/",
+    "site_url": "https://politicselections.com/category/news/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Politics.co.uk",
+    "feed_url": "https://www.politics.co.uk/feed/",
+    "site_url": "https://www.politics.co.uk/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "PoliticusUSA",
+    "feed_url": "https://www.politicususa.com/feed",
+    "site_url": "https://www.politicususa.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Power Line",
+    "feed_url": "https://www.powerlineblog.com/index.xml",
+    "site_url": "https://www.powerlineblog.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "ProPublica",
+    "feed_url": "https://www.propublica.org/feeds/propublica/main",
+    "site_url": "https://www.propublica.org/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "RealClearPolitics",
+    "feed_url": "https://www.realclearpolitics.com/index.xml",
+    "site_url": "https://www.realclearpolitics.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Reason Magazine",
+    "feed_url": "https://reason.com/feed/",
+    "site_url": "https://reason.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "RedState \u00bb News and Politics",
+    "feed_url": "https://redstate.com/feed/",
+    "site_url": "https://redstate.com/category/news-and-politics",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Salon - Politics",
+    "feed_url": "https://www.salon.com/category/politics/feed",
+    "site_url": "https://www.salon.com/category/politics",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Schwartzreport",
+    "feed_url": "https://www.schwartzreport.net/feed/",
+    "site_url": "https://www.schwartzreport.net/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Shadowproof",
+    "feed_url": "https://shadowproof.com/feed/",
+    "site_url": "https://shadowproof.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Slugger O'Toole",
+    "feed_url": "https://sluggerotoole.com/feed/",
+    "site_url": "https://sluggerotoole.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Talk Left",
+    "feed_url": "https://feeds.feedburner.com/TalkleftThePoliticsOfCrime",
+    "site_url": "http://www.talkleft.com/",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "The Guardian Politics",
+    "feed_url": "https://www.theguardian.com/politics/blog/rss",
+    "site_url": "https://www.theguardian.com/politics/blog",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Wayne Dupree",
+    "feed_url": "https://waynedupree.com/index.rss",
+    "site_url": "https://waynedupree.com/category/politics",
+    "category": "Politics",
+    "source_category": "Political RSS Feeds"
+  },
+  {
+    "title": "Alexey Golub",
+    "feed_url": "https://tyrrrz.me/blog/rss.xml",
+    "site_url": "https://tyrrrz.me/blog",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Amit Merchant",
+    "feed_url": "https://www.amitmerchant.com/feed.xml",
+    "site_url": "https://www.amitmerchant.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "AnyAlpha",
+    "feed_url": "https://www.anyalpha.com/blog/feed/",
+    "site_url": "https://www.anyalpha.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Apiumhub",
+    "feed_url": "https://apiumhub.com/tech-blog-barcelona/feed/",
+    "site_url": "https://apiumhub.com/tech-blog-barcelona/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "ariya.io",
+    "feed_url": "https://ariya.io/index.xml",
+    "site_url": "https://ariya.io/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "ArtDriver",
+    "feed_url": "https://artdriver.com/blog/feed",
+    "site_url": "https://artdriver.com/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Austin Gil",
+    "feed_url": "https://austingil.com/feed/",
+    "site_url": "https://austingil.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Ben Nadel",
+    "feed_url": "https://www.bennadel.com/rss",
+    "site_url": "https://www.bennadel.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Black Coding Adventures",
+    "feed_url": "https://kevinavignon.com/feed/",
+    "site_url": "https://kevinavignon.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "CatsWhoCode",
+    "feed_url": "https://catswhocode.com/feed/",
+    "site_url": "https://catswhocode.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Christian Heilmann",
+    "feed_url": "https://christianheilmann.com/feed/",
+    "site_url": "https://christianheilmann.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "chsakell's",
+    "feed_url": "https://chsakell.com/feed/",
+    "site_url": "https://chsakell.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Code Underscored",
+    "feed_url": "https://www.codeunderscored.com/feed/",
+    "site_url": "https://www.codeunderscored.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Code vs Color",
+    "feed_url": "https://www.codevscolor.com/rss.xml",
+    "site_url": "https://www.codevscolor.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Codecondo",
+    "feed_url": "https://codecondo.com/feed/",
+    "site_url": "https://codecondo.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "CodeSignal",
+    "feed_url": "https://codesignal.com/feed/",
+    "site_url": "https://codesignal.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "CodeSnail",
+    "feed_url": "https://www.codesnail.com/rss.xml",
+    "site_url": "https://www.codesnail.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Coding Dojo",
+    "feed_url": "https://www.codingdojo.com/blog/feed",
+    "site_url": "https://www.codingdojo.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Coding N Concepts",
+    "feed_url": "https://codingnconcepts.com/index.xml",
+    "site_url": "https://codingnconcepts.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Codingface",
+    "feed_url": "https://codingface.com/feed/",
+    "site_url": "https://codingface.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Codingvila",
+    "feed_url": "https://www.codingvila.com/feeds/posts/default?alt=rss",
+    "site_url": "https://www.codingvila.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "codippa.com",
+    "feed_url": "https://codippa.com/feed/",
+    "site_url": "https://codippa.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "ColorWhistle",
+    "feed_url": "https://colorwhistle.com/blog/feed/",
+    "site_url": "https://colorwhistle.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Computing & Technology",
+    "feed_url": "https://feeds.feedburner.com/helloacm",
+    "site_url": "https://helloacm.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Coon Cave on Raccoon",
+    "feed_url": "https://raccoon.onyxbits.de/blog/index.xml",
+    "site_url": "https://raccoon.onyxbits.de/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "CreatifWerks",
+    "feed_url": "https://www.creatifwerks.com/feed/",
+    "site_url": "https://www.creatifwerks.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "CSS Wizardry",
+    "feed_url": "https://feeds.feedburner.com/csswizardry",
+    "site_url": "https://csswizardry.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "CyberNaira",
+    "feed_url": "https://cybernaira.com/feed/",
+    "site_url": "https://cybernaira.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Daniel Feldroy",
+    "feed_url": "https://daniel.feldroy.com/feeds/atom.xml",
+    "site_url": "https://daniel.feldroy.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "David Ford's Programming",
+    "feed_url": "https://medium.com/feed/@daveford",
+    "site_url": "https://medium.com/@daveford",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "David Walsh",
+    "feed_url": "https://davidwalsh.name/feed",
+    "site_url": "https://davidwalsh.name/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Design Shack",
+    "feed_url": "https://feedpress.me/designshack",
+    "site_url": "https://designshack.net/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Designs By Dave O.",
+    "feed_url": "https://designsbydaveo.com/feed/",
+    "site_url": "https://designsbydaveo.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Designveloper",
+    "feed_url": "https://www.designveloper.com/feed/",
+    "site_url": "https://www.designveloper.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Developer Tech",
+    "feed_url": "https://www.developer-tech.com/feed/",
+    "site_url": "https://www.developer-tech.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "DevelopersTroop",
+    "feed_url": "https://developerstroop.com/feed/",
+    "site_url": "https://developerstroop.com/website-blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Devgraph",
+    "feed_url": "https://www.devgraph.com/blog/feed/",
+    "site_url": "https://www.devgraph.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Discussdesk",
+    "feed_url": "https://www.discussdesk.com/feed",
+    "site_url": "https://www.discussdesk.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "DZone \u00bb JavaScript Zone",
+    "feed_url": "https://feeds.dzone.com/javascript",
+    "site_url": "https://dzone.com/javascript",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Education Ecosystem",
+    "feed_url": "https://feeds.feedburner.com/LivecodingtvBlog",
+    "site_url": "https://educationecosystem.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Elex Tutorial",
+    "feed_url": "https://elextutorial.com/feed/",
+    "site_url": "https://elextutorial.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Eli Bendersky's website",
+    "feed_url": "https://eli.thegreenplace.net/feeds/all.atom.xml",
+    "site_url": "https://eli.thegreenplace.net/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "EncodeDna.com",
+    "feed_url": "https://feeds.feedburner.com/Encodednadotcom/Feed",
+    "site_url": "https://www.encodedna.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "End Your If",
+    "feed_url": "https://feeds.feedburner.com/EndYourIf",
+    "site_url": "https://www.endyourif.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Enlear Academy",
+    "feed_url": "https://enlear.academy/feed",
+    "site_url": "https://enlear.academy/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Eric D. Brown",
+    "feed_url": "https://ericbrown.com/feed",
+    "site_url": "https://ericbrown.com/blog",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Erik Bernhardsson",
+    "feed_url": "https://erikbern.com/index.xml",
+    "site_url": "https://erikbern.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Excellent Webworld",
+    "feed_url": "https://www.excellentwebworld.com/feed/",
+    "site_url": "https://www.excellentwebworld.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "EzzyLearning.net",
+    "feed_url": "https://www.ezzylearning.net/feed",
+    "site_url": "https://www.ezzylearning.net/blog",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "falldowngoboone",
+    "feed_url": "https://www.falldowngoboone.com/feed/feed.xml",
+    "site_url": "https://www.falldowngoboone.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "freeCodeCamp",
+    "feed_url": "https://www.freecodecamp.org/news/rss",
+    "site_url": "https://www.freecodecamp.org/news/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "FusionReactor",
+    "feed_url": "https://fusion-reactor.com/feed/",
+    "site_url": "https://fusion-reactor.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "G4 Design House",
+    "feed_url": "https://www.g4designhouse.com/feed/",
+    "site_url": "https://www.g4designhouse.com/our-blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Geekstrick",
+    "feed_url": "https://geekstrick.com/feed/",
+    "site_url": "https://geekstrick.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Good Coders Code, Great Reuse",
+    "feed_url": "https://feeds.feedburner.com/catonmat",
+    "site_url": "https://catonmat.net/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Google Developers",
+    "feed_url": "https://feeds.feedburner.com/GDBcode",
+    "site_url": "https://developers.googleblog.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Grape Up",
+    "feed_url": "https://grapeup.com/feed/",
+    "site_url": "https://grapeup.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Gritty Engineer",
+    "feed_url": "https://grittyengineer.com/feed/",
+    "site_url": "https://grittyengineer.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Hackr.io",
+    "feed_url": "https://hackr.io/programming/rss.xml",
+    "site_url": "https://hackr.io/blog",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "HBWebsol",
+    "feed_url": "https://www.hbwebsol.com/feed/",
+    "site_url": "https://www.hbwebsol.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Herding Cats",
+    "feed_url": "https://feeds.feedburner.com/typepad/HerdingCats",
+    "site_url": "https://herdingcats.typepad.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Hongkiat",
+    "feed_url": "https://www.hongkiat.com/blog/feed/",
+    "site_url": "https://www.hongkiat.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Idiomatic Programmers",
+    "feed_url": "https://idiomaticprogrammers.com/index.xml",
+    "site_url": "https://idiomaticprogrammers.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "In'saneLab",
+    "feed_url": "https://insanelab.com/blog/feed/",
+    "site_url": "https://insanelab.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Initial Commit",
+    "feed_url": "https://initialcommit.com/blog/rss.xml",
+    "site_url": "https://initialcommit.com/blog",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Internetdevels",
+    "feed_url": "https://internetdevels.com/rss.xml",
+    "site_url": "https://internetdevels.com/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "IT Enterprise",
+    "feed_url": "https://itenterprise.co.uk/blog/feed/",
+    "site_url": "https://itenterprise.co.uk/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Jason Watmore's",
+    "feed_url": "https://jasonwatmore.com/rss",
+    "site_url": "https://jasonwatmore.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Java Beginners Tutorial",
+    "feed_url": "https://javabeginnerstutorial.com/feed/",
+    "site_url": "https://javabeginnerstutorial.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Jens Oliver Meiert",
+    "feed_url": "https://meiert.com/en/feed/",
+    "site_url": "https://meiert.com/en/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Jeremy Morgan",
+    "feed_url": "https://www.jeremymorgan.com/index.xml",
+    "site_url": "https://www.jeremymorgan.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Jogendra Kumar",
+    "feed_url": "https://jogendra.dev/feed.xml",
+    "site_url": "https://jogendra.dev/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "John D. Cook Consulting",
+    "feed_url": "https://www.johndcook.com/blog/feed/",
+    "site_url": "https://www.johndcook.com/blog/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "John kilmister",
+    "feed_url": "https://www.blueboxes.co.uk/rss.xml",
+    "site_url": "https://www.blueboxes.co.uk/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Kent C. Dodds",
+    "feed_url": "https://kentcdodds.com/blog/rss.xml",
+    "site_url": "https://kentcdodds.com/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Lars Roettig",
+    "feed_url": "https://larsroettig.dev/rss.xml",
+    "site_url": "https://larsroettig.dev/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Lea Verou",
+    "feed_url": "https://feeds.feedburner.com/leaverou",
+    "site_url": "https://lea.verou.me/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Lucid Softech",
+    "feed_url": "https://lucidsoftech.com/blog/feed",
+    "site_url": "https://lucidsoftech.com/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Maven Ecommerce",
+    "feed_url": "https://www.mavenecommerce.com/feed/",
+    "site_url": "https://www.mavenecommerce.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Maxime Heckel's",
+    "feed_url": "https://blog.maximeheckel.com/rss.xml",
+    "site_url": "https://blog.maximeheckel.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Medium \u00bb Stories by 4kCode",
+    "feed_url": "https://medium.com/feed/@4kcode",
+    "site_url": "https://medium.com/@4kcode",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Micha\u0142 Komorowski",
+    "feed_url": "https://feeds.feedburner.com/BlogMichalaKomorowskiego",
+    "site_url": "https://www.michalkomorowski.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Midnight Programmer",
+    "feed_url": "https://midnightprogrammer.net/index.xml",
+    "site_url": "https://midnightprogrammer.net/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "MindFlash",
+    "feed_url": "https://www.mindflash.org/feed",
+    "site_url": "https://www.mindflash.org/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Mon-Code",
+    "feed_url": "https://www.mon-code.net/feeds-en/rssGlobale",
+    "site_url": "https://www.mon-code.net/en",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Mycodebit",
+    "feed_url": "https://mycodebit.com/feed/",
+    "site_url": "https://mycodebit.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "MyWebProgrammer",
+    "feed_url": "https://www.mywebprogrammer.com/blog/feed/",
+    "site_url": "https://www.mywebprogrammer.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "New Dimension Design",
+    "feed_url": "https://nddesign.ca/feed/",
+    "site_url": "https://nddesign.ca/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Official jQuery",
+    "feed_url": "https://blog.jquery.com/feed/",
+    "site_url": "https://blog.jquery.com/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "opencodez",
+    "feed_url": "https://www.opencodez.com/feed",
+    "site_url": "https://www.opencodez.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Petre Popescu",
+    "feed_url": "https://petrepopescu.tech/feed/",
+    "site_url": "https://petrepopescu.tech/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Petri Kainulainen",
+    "feed_url": "https://feeds.feedblitz.com/PetriKainulainen",
+    "site_url": "https://www.petrikainulainen.net/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "PHPFOREVER",
+    "feed_url": "https://phpforever.com/feed/",
+    "site_url": "https://phpforever.com/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Pontikis.net",
+    "feed_url": "https://www.pontikis.net/feed",
+    "site_url": "https://www.pontikis.net/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "PragDave",
+    "feed_url": "https://pragdave.me/feed.xml",
+    "site_url": "https://pragdave.me/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Prime Inspire",
+    "feed_url": "https://primeinspire.com/blog/feed",
+    "site_url": "https://primeinspire.com/blog",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "R\u00e9mi Bourgarel's",
+    "feed_url": "https://remibou.github.io/feed",
+    "site_url": "https://remibou.github.io/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Scott Hanselman",
+    "feed_url": "http://feeds.hanselman.com/ScottHanselman",
+    "site_url": "https://www.hanselman.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "SD Times",
+    "feed_url": "https://sdtimes.com/feed/",
+    "site_url": "https://sdtimes.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Sigma Solve",
+    "feed_url": "https://www.sigmasolve.com/feed/",
+    "site_url": "https://www.sigmasolve.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Simon Willison's Weblog",
+    "feed_url": "https://simonwillison.net/atom/everything/",
+    "site_url": "https://simonwillison.net/",
+    "category": "Programming",
+    "source_category": "Programming RSS Feeds"
+  },
+  {
+    "title": "Speckyboy",
+    "feed_url": "https://speckyboy.com/feed/",
+    "site_url": "https://speckyboy.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Stefan Judis",
+    "feed_url": "https://www.stefanjudis.com/rss.xml",
+    "site_url": "https://www.stefanjudis.com/blog/",
+    "category": "Programming",
+    "source_category": "Web Development RSS Feeds"
+  },
+  {
+    "title": "Treehouse Blog - Learn to code and change your life!",
+    "feed_url": "http://blog.teamtreehouse.com/feed",
+    "site_url": "https://blog.teamtreehouse.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "Vivaldi Browser",
+    "feed_url": "https://vivaldi.com/feed/",
+    "site_url": "https://vivaldi.com/blog/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "WebAppers",
+    "feed_url": "https://feeds.feedburner.com/Webappers",
+    "site_url": "https://www.webappers.com/",
+    "category": "Programming",
+    "source_category": "Software Development RSS Feeds"
+  },
+  {
+    "title": "ABP Live \u00bb Science News",
+    "feed_url": "https://news.abplive.com/science/feed",
+    "site_url": "https://news.abplive.com/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Advanced Science News",
+    "feed_url": "https://www.advancedsciencenews.com/feed/",
+    "site_url": "https://www.advancedsciencenews.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "AGU Blogosphere",
+    "feed_url": "https://blogs.agu.org/feed/",
+    "site_url": "https://blogs.agu.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "AGU's Eos",
+    "feed_url": "https://eos.org/feed",
+    "site_url": "https://eos.org",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Ars Technica \u00bb Science",
+    "feed_url": "https://arstechnica.com/science/feed/",
+    "site_url": "https://arstechnica.com/science/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "BioSerendipity",
+    "feed_url": "http://www.bioserendipity.com/feed/",
+    "site_url": "https://www.bioserendipity.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "British Science Association",
+    "feed_url": "https://www.britishscienceassociation.org/handlers/rss.ashx?feed=1&IDModule=58a7a3e8-32d7-49ac-8fa0-6028844a8b44",
+    "site_url": "https://www.britishscienceassociation.org/Pages/News/Category/latest-news",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "CBS News \u00bb Science",
+    "feed_url": "https://www.cbsnews.com/latest/rss/science",
+    "site_url": "https://www.cbsnews.com/science/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Community of European Solar Radio Astronomers",
+    "feed_url": "https://www.astro.gla.ac.uk/users/eduard/cesra/?feed=rss2",
+    "site_url": "https://www.astro.gla.ac.uk/users/eduard/cesra/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Cosmos Magazine",
+    "feed_url": "https://cosmosmagazine.com/feed/",
+    "site_url": "https://cosmosmagazine.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Digital Science",
+    "feed_url": "https://www.digital-science.com/feed/",
+    "site_url": "https://www.digital-science.com/blog/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Earth University",
+    "feed_url": "https://news.climate.columbia.edu/feed/",
+    "site_url": "https://news.climate.columbia.edu/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Elephant in the Lab",
+    "feed_url": "http://elephantinthelab.org/feed/",
+    "site_url": "https://elephantinthelab.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "ESA Rocket Science",
+    "feed_url": "https://blogs.esa.int/rocketscience/feed/",
+    "site_url": "https://blogs.esa.int/rocketscience/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Explorations in Science With Dr. Michio Kaku",
+    "feed_url": "https://feeds.feedburner.com/mkaku",
+    "site_url": "https://mkaku.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Federal News Network \u00bb Science News",
+    "feed_url": "https://federalnewsnetwork.com/wp-admin/setup-config.php",
+    "site_url": "https://federalnewsnetwork.com/category/national-world-headlines/science-news",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Financial Times \u00bb Science",
+    "feed_url": "https://www.ft.com/science?format=rss",
+    "site_url": "https://www.ft.com/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Flip Science",
+    "feed_url": "https://www.flipscience.ph/feed/",
+    "site_url": "https://www.flipscience.ph/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Flux Science",
+    "feed_url": "https://www.fluxsci.com/flux?format=rss",
+    "site_url": "https://www.fluxsci.com/flux",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Frontiers \u00bb News",
+    "feed_url": "https://www.frontiersin.org/news/rss",
+    "site_url": "https://www.frontiersin.org/news/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Futurity.org",
+    "feed_url": "http://www.futurity.org/feed/",
+    "site_url": "https://www.futurity.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Hakai Magazine",
+    "feed_url": "https://hakaimagazine.com/feed/",
+    "site_url": "https://hakaimagazine.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Impact Science",
+    "feed_url": "https://www.impact.science/blog/feed/",
+    "site_url": "https://www.impact.science/blog/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Independent Science News",
+    "feed_url": "https://www.independentsciencenews.org/feed/",
+    "site_url": "https://www.independentsciencenews.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "IndiaBioscience",
+    "feed_url": "https://indiabioscience.org/feed",
+    "site_url": "https://indiabioscience.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "It Ain't Magic",
+    "feed_url": "https://itaintmagic.riken.jp/feed/",
+    "site_url": "https://itaintmagic.riken.jp/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Knowable Magazine",
+    "feed_url": "https://knowablemagazine.org/rss",
+    "site_url": "https://knowablemagazine.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Lake Scientist",
+    "feed_url": "https://www.lakescientist.com/feed/",
+    "site_url": "https://www.lakescientist.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Los Angeles Times \u00bb Science",
+    "feed_url": "https://www.latimes.com/science.rss",
+    "site_url": "https://www.latimes.com/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "Mind Hacks",
+    "feed_url": "https://mindhacks.com/feed/",
+    "site_url": "https://mindhacks.com/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "myScience",
+    "feed_url": "https://www.myscience.uk/news&mode=rss",
+    "site_url": "https://www.myscience.uk/news",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "New Atlas \u00bb Science",
+    "feed_url": "https://newatlas.com/science/index.rss",
+    "site_url": "https://newatlas.com/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "News Medical",
+    "feed_url": "https://www.news-medical.net/syndication.axd?format=rss",
+    "site_url": "https://www.news-medical.net/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "NewsForKids.net \u00bb Science",
+    "feed_url": "https://newsforkids.net/category/all_news/science/feed/",
+    "site_url": "https://newsforkids.net/category/all_news/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "NPR \u00bb Science",
+    "feed_url": "https://feeds.npr.org/1007/rss.xml",
+    "site_url": "https://www.npr.org/sections/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "OpenMind Magazine",
+    "feed_url": "https://www.openmindmag.org/feed.rss",
+    "site_url": "https://www.openmindmag.org/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "The Guardian \u00bb Science",
+    "feed_url": "https://www.theguardian.com/science/rss",
+    "site_url": "https://www.theguardian.com/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "The New York Times \u00bb Science",
+    "feed_url": "https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/international/section/science/rss.xml",
+    "site_url": "https://www.nytimes.com/international/section/science",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "U.S. National Science Foundation News",
+    "feed_url": "https://www.nsf.gov/rss/rss_www_news.xml",
+    "site_url": "https://www.nsf.gov/news",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "University of Illinois \u00bb Science and Technology",
+    "feed_url": "https://news.illinois.edu/category/research-news/science-and-technology/feed/",
+    "site_url": "https://news.illinois.edu/category/research-news/science-and-technology/",
+    "category": "Science",
+    "source_category": "Science RSS Feeds"
+  },
+  {
+    "title": "1st Security News",
+    "feed_url": "https://1stsecuritynews.com/feed",
+    "site_url": "https://1stsecuritynews.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Adam Levin",
+    "feed_url": "https://adamlevin.com/feed/",
+    "site_url": "https://adamlevin.com/cybersecurity/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Amazing Support",
+    "feed_url": "https://www.amazingsupport.co.uk/feed/",
+    "site_url": "https://www.amazingsupport.co.uk/blog/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Andrew Hay",
+    "feed_url": "http://feeds.feedburner.com/andrewhayca",
+    "site_url": "https://www.andrewhay.ca/blog",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Architect Security",
+    "feed_url": "https://architectsecurity.org/feed/",
+    "site_url": "https://architectsecurity.org/blog/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Avi Lumelsky",
+    "feed_url": "https://medium.com/feed/@avi-lumelsky",
+    "site_url": "https://avi-lumelsky.medium.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "AWS Security",
+    "feed_url": "https://aws.amazon.com/blogs/security/feed/",
+    "site_url": "https://aws.amazon.com/blogs/security/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "BadCyber",
+    "feed_url": "https://badcyber.com/feed/",
+    "site_url": "https://badcyber.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Bank Info Security",
+    "feed_url": "https://www.bankinfosecurity.com/rss-feeds",
+    "site_url": "https://www.bankinfosecurity.com/blogs",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Bentham's Gaze",
+    "feed_url": "https://www.benthamsgaze.org/feed/",
+    "site_url": "https://www.benthamsgaze.org/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Bishop Fox",
+    "feed_url": "https://bishopfox.com/feeds/blog.rss",
+    "site_url": "https://bishopfox.com/blog",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Black Hills Information Security",
+    "feed_url": "https://www.blackhillsinfosec.com/blog/feed/",
+    "site_url": "https://www.blackhillsinfosec.com/blog/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Catalyic Security",
+    "feed_url": "https://catalyicsecurity.com/feed/",
+    "site_url": "https://catalyicsecurity.com/blogs/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Chronicles of a CISO",
+    "feed_url": "https://johnmasserini.com/feed/",
+    "site_url": "https://johnmasserini.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Cisco Blogs \u00bb Security",
+    "feed_url": "https://blogs.cisco.com/security/feed",
+    "site_url": "https://blogs.cisco.com/security/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Cloud Security Alliance",
+    "feed_url": "https://cloudsecurityalliance.org/feed",
+    "site_url": "https://cloudsecurityalliance.org/blog?search=Information+Security",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Cloudbric",
+    "feed_url": "https://www.cloudbric.com/feed/",
+    "site_url": "https://www.cloudbric.com/blogs/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "CSO Australia",
+    "feed_url": "https://www.csoonline.com/feed/",
+    "site_url": "https://www.csoonline.com/au/blogs/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Cyber Defense Magazine",
+    "feed_url": "https://www.cyberdefensemagazine.com/feed/",
+    "site_url": "https://www.cyberdefensemagazine.com/news/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Cyber Sins",
+    "feed_url": "https://cybersins.com/index.xml",
+    "site_url": "https://cybersins.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Dark Reading",
+    "feed_url": "https://www.darkreading.com/rss.xml",
+    "site_url": "https://www.darkreading.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Data Breach Today Podcast",
+    "feed_url": "https://www.databreachtoday.com/itunes_rss_podcasts.php",
+    "site_url": "https://www.databreachtoday.com/interviews",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Data Privacy Security Insider",
+    "feed_url": "https://www.dataprivacyandsecurityinsider.com/feed/",
+    "site_url": "https://www.dataprivacyandsecurityinsider.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Defensive Security Podcast",
+    "feed_url": "https://defensivesecurity.org/feed/",
+    "site_url": "https://defensivesecurity.org/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "DISC InfoSec",
+    "feed_url": "https://blog.deurainfosec.com/feed/",
+    "site_url": "https://blog.deurainfosec.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Elie's Cybersecurity",
+    "feed_url": "https://elie.net/rss.xml",
+    "site_url": "https://elie.net/blog",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "eSecurity Planet",
+    "feed_url": "https://www.esecurityplanet.com/feed/",
+    "site_url": "https://www.esecurityplanet.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Flying Penguin",
+    "feed_url": "https://www.flyingpenguin.com/?feed=rss2",
+    "site_url": "https://www.flyingpenguin.com/?cat=2",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Fordham University Information Security",
+    "feed_url": "https://itsecurity.blog.fordham.edu/feed/",
+    "site_url": "https://itsecurity.blog.fordham.edu/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "G Data CyberDefense",
+    "feed_url": "https://feeds.feedblitz.com/GDataSecurityBlog-EN&x=1",
+    "site_url": "https://www.gdatasoftware.com/blog/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "GBHackers on Security",
+    "feed_url": "https://gbhackers.com/feed/",
+    "site_url": "https://gbhackers.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Geek Flare",
+    "feed_url": "https://geekflare.com/feed/",
+    "site_url": "https://geekflare.com/news/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Google Online Security",
+    "feed_url": "https://feeds.feedburner.com/GoogleOnlineSecurityBlog",
+    "site_url": "https://security.googleblog.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Gov Info Security",
+    "feed_url": "https://www.govinfosecurity.com/rss-feeds",
+    "site_url": "https://www.govinfosecurity.com/news",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Graham Cluley",
+    "feed_url": "https://grahamcluley.com/feed/",
+    "site_url": "https://grahamcluley.com/writing/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Hacking Articles",
+    "feed_url": "https://www.hackingarticles.in/feed/",
+    "site_url": "https://www.hackingarticles.in/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "HealthcareInfoSecurity.com",
+    "feed_url": "https://www.healthcareinfosecurity.com/rss-feeds",
+    "site_url": "https://www.healthcareinfosecurity.com/news",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Helen Patton",
+    "feed_url": "https://medium.com/feed/@hpatton",
+    "site_url": "https://hpatton.medium.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Infoblox",
+    "feed_url": "https://blogs.infoblox.com/feed/",
+    "site_url": "https://blogs.infoblox.com/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "Infosec K2K",
+    "feed_url": "https://www.infoseck2k.com/feed/",
+    "site_url": "https://www.infoseck2k.com/blogs/",
+    "category": "Security",
+    "source_category": "Information Security RSS Feeds"
+  },
+  {
+    "title": "A Smart Bear",
+    "feed_url": "https://longform.asmartbear.com/index.xml",
+    "site_url": "https://longform.asmartbear.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Aaron Beashel",
+    "feed_url": "https://aaronbeashel.com/feed/",
+    "site_url": "https://aaronbeashel.com/saas-marketing-blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "All That SaaS",
+    "feed_url": "https://allthatsaas.com/feed/",
+    "site_url": "https://allthatsaas.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Andrew Chen",
+    "feed_url": "https://andrewchen.com/feed/",
+    "site_url": "https://andrewchen.com/recent/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Chargebee's SaaS Dispatch",
+    "feed_url": "https://www.chargebee.com/blog/feed.xml?format=xml",
+    "site_url": "https://www.chargebee.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "ChartMogul",
+    "feed_url": "https://chartmogul.com/blog/feed/",
+    "site_url": "https://chartmogul.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Crazy Egg",
+    "feed_url": "https://www.crazyegg.com/blog/feed/",
+    "site_url": "https://www.crazyegg.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Kellblog \u00bb CEO",
+    "feed_url": "https://kellblog.com/feed/",
+    "site_url": "https://kellblog.com/category/ceo/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Lean-Case",
+    "feed_url": "https://www.lean-case.com/blog/feed/",
+    "site_url": "https://www.lean-case.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "OnStartups",
+    "feed_url": "https://www.onstartups.com/rss.xml",
+    "site_url": "https://www.onstartups.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Process Street",
+    "feed_url": "https://www.process.st/feed/",
+    "site_url": "https://www.process.st/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SaaS Capital",
+    "feed_url": "https://www.saas-capital.com/blog-posts/feed/",
+    "site_url": "https://www.saas-capital.com/blog-posts/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SaaS Mag",
+    "feed_url": "https://www.saasmag.com/feed/",
+    "site_url": "https://www.saasmag.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "saas.group",
+    "feed_url": "https://saas.group/feed/",
+    "site_url": "https://saas.group/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SaaSOptics",
+    "feed_url": "https://saasoptics.com/blog/feed/",
+    "site_url": "https://www.maxio.com/blog",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SaaStock",
+    "feed_url": "https://www.saastock.com/feed/",
+    "site_url": "https://www.saastock.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Sixteen Ventures",
+    "feed_url": "https://feeds.feedburner.com/SixteenVentures",
+    "site_url": "https://sixteenventures.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SmartKarrot",
+    "feed_url": "https://www.smartkarrot.com/feed/",
+    "site_url": "https://www.smartkarrot.com/resources/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "SparkToro",
+    "feed_url": "https://sparktoro.com/blog/feed/",
+    "site_url": "https://sparktoro.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "TechCrunch - SaaS",
+    "feed_url": "https://techcrunch.com/tag/saas/feed/",
+    "site_url": "https://techcrunch.com/tag/saas/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "The Agile Operator",
+    "feed_url": "https://agile-operator.com/feed/",
+    "site_url": "https://agile-operator.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "The Bridge Group",
+    "feed_url": "https://blog.bridgegroupinc.com/rss.xml",
+    "site_url": "https://blog.bridgegroupinc.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "The Help Scout",
+    "feed_url": "https://www.helpscout.com/feed.xml",
+    "site_url": "https://www.helpscout.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "The SaaS Garage Insights for SaaS Founders",
+    "feed_url": "https://saasgarage.com/feed/",
+    "site_url": "https://saasgarage.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "The SaaS Playbook",
+    "feed_url": "https://thesaasplaybook.substack.com/feed",
+    "site_url": "https://thesaasplaybook.substack.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Tomasz Tunguz",
+    "feed_url": "https://tomtunguz.com/index.xml",
+    "site_url": "https://tomtunguz.com/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "UserActive",
+    "feed_url": "https://www.useractive.io/feed/",
+    "site_url": "https://www.useractive.io/articles/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "YourSales Sales",
+    "feed_url": "https://yoursales.com/feed/",
+    "site_url": "https://yoursales.com/blog/",
+    "category": "Startups",
+    "source_category": "SAAS RSS Feeds"
+  },
+  {
+    "title": "Android Authority",
+    "feed_url": "https://www.androidauthority.com/feed/",
+    "site_url": "https://www.androidauthority.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Android Headlines",
+    "feed_url": "https://www.androidheadlines.com/feed",
+    "site_url": "https://www.androidheadlines.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "AppleInsider",
+    "feed_url": "https://appleinsider.com/rss/news/",
+    "site_url": "https://appleinsider.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Ars Technica \u00bb Self Driving Cars",
+    "feed_url": "https://arstechnica.com/tag/self-driving-cars/feed/",
+    "site_url": "https://arstechnica.com/tag/self-driving-cars/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Ausdroid",
+    "feed_url": "https://feeds.feedburner.com/ausdroid/feed",
+    "site_url": "https://ausdroid.net/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "BetaNews",
+    "feed_url": "https://betanews.com/feed/",
+    "site_url": "https://betanews.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Computer Weekly",
+    "feed_url": "https://www.computerweekly.com/rss/All-Computer-Weekly-content.xml",
+    "site_url": "https://www.computerweekly.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Computerworld",
+    "feed_url": "https://www.computerworld.com/feed/",
+    "site_url": "https://www.computerworld.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Droid Life",
+    "feed_url": "https://www.droid-life.com/feed/",
+    "site_url": "https://www.droid-life.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "ExtremeTech",
+    "feed_url": "https://www.extremetech.com/feed",
+    "site_url": "https://www.extremetech.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Fossbytes",
+    "feed_url": "https://fossbytes.com/feed/?x=1",
+    "site_url": "https://fossbytes.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Gadgets 360",
+    "feed_url": "https://www.gadgets360.com/rss/feeds",
+    "site_url": "https://www.gadgets360.com/news",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "GeekWire",
+    "feed_url": "https://www.geekwire.com/feed/",
+    "site_url": "https://www.geekwire.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "KnowTechie",
+    "feed_url": "https://knowtechie.com/feed/",
+    "site_url": "https://knowtechie.com",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "MacWorld",
+    "feed_url": "https://www.macworld.com/feed",
+    "site_url": "https://www.macworld.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "MobileSyrup",
+    "feed_url": "https://mobilesyrup.com/feed/",
+    "site_url": "https://mobilesyrup.com/categories/news/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "New Atlas",
+    "feed_url": "https://feeds.feedblitz.com/newatlas",
+    "site_url": "https://newatlas.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Nextgov/FCW",
+    "feed_url": "https://www.nextgov.com/rss/all/",
+    "site_url": "https://www.nextgov.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "NoCamels",
+    "feed_url": "https://nocamels.com/feed/",
+    "site_url": "https://nocamels.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Ohsem.me",
+    "feed_url": "https://ohsem.me/feed/",
+    "site_url": "https://ohsem.me/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Platform Executive",
+    "feed_url": "https://www.platformexecutive.com/feed/",
+    "site_url": "https://www.platformexecutive.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Rayarena",
+    "feed_url": "https://www.rayarena.com/feed",
+    "site_url": "https://www.rayarena.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Redmond Pie",
+    "feed_url": "https://feeds.feedburner.com/RedmondPie",
+    "site_url": "https://www.redmondpie.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Research Snipers",
+    "feed_url": "https://researchsnipers.com/feed/",
+    "site_url": "https://researchsnipers.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Silicon Republic \u00bb Technology",
+    "feed_url": "https://www.siliconrepublic.com/feed/",
+    "site_url": "https://www.siliconrepublic.com/technology/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Silicon Valley Journals",
+    "feed_url": "https://siliconvalleyjournals.com/feed/",
+    "site_url": "https://siliconvalleyjournals.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "SlashGear",
+    "feed_url": "https://www.slashgear.com/feed/",
+    "site_url": "https://www.slashgear.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Tech in Asia",
+    "feed_url": "https://www.techinasia.com/feed",
+    "site_url": "https://www.techinasia.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Techbullion",
+    "feed_url": "https://techbullion.com/feed/",
+    "site_url": "https://techbullion.com/tech-news/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechCavit",
+    "feed_url": "https://techcavit.com/feed/",
+    "site_url": "https://techcavit.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechCentral.ie",
+    "feed_url": "http://www.techcentral.ie/feed/",
+    "site_url": "https://www.techcentral.ie/category/blogs/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Techfullnews",
+    "feed_url": "https://techfullnews.com/feed/",
+    "site_url": "https://techfullnews.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechHive",
+    "feed_url": "https://www.techhive.com/feed",
+    "site_url": "https://www.techhive.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechJuice",
+    "feed_url": "https://www.techjuice.pk/feed/",
+    "site_url": "https://www.techjuice.pk/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechNews City",
+    "feed_url": "https://www.technews.city/feeds/posts/default?alt=rss",
+    "site_url": "https://www.technews.city/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechPager",
+    "feed_url": "https://www.techpager.org/feed/",
+    "site_url": "https://www.techpager.org/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechPlugged",
+    "feed_url": "https://techplugged.com/feed/",
+    "site_url": "https://techplugged.com/category/all-technology/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "TechPout",
+    "feed_url": "https://www.techpout.com/feed/",
+    "site_url": "https://www.techpout.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "Techradar",
+    "feed_url": "https://www.techradar.com/feeds.xml",
+    "site_url": "https://www.techradar.com/",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "The New York Times \u00bb Technology",
+    "feed_url": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+    "site_url": "https://www.nytimes.com/section/technology",
+    "category": "Tech",
+    "source_category": "Technology News RSS Feeds"
+  },
+  {
+    "title": "1000 Days of Travel",
+    "feed_url": "https://1000daysoftravel.godaddysites.com/f.atom",
+    "site_url": "https://1000daysoftravel.godaddysites.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "A Dangerous Business Travel",
+    "feed_url": "https://www.dangerous-business.com/feed/",
+    "site_url": "https://www.dangerous-business.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "A Luxury Travel",
+    "feed_url": "https://www.aluxurytravelblog.com/feed/",
+    "site_url": "https://www.aluxurytravelblog.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "A Walk In The World",
+    "feed_url": "https://awalkintheworld.com/feed/",
+    "site_url": "https://awalkintheworld.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Adv Jaspal Singh",
+    "feed_url": "https://advjaspal.com/feed/",
+    "site_url": "https://advjaspal.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Adventures With NieNie",
+    "feed_url": "https://adventureswithnienie.com/feed/",
+    "site_url": "https://adventureswithnienie.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Adventurous Kate",
+    "feed_url": "https://www.adventurouskate.com/feed/",
+    "site_url": "https://www.adventurouskate.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Against the Compass",
+    "feed_url": "https://againstthecompass.com/en/travel-blog/feed/",
+    "site_url": "https://againstthecompass.com/en/travel-blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Amanda Travels",
+    "feed_url": "https://amandatravels.co.uk/feed/",
+    "site_url": "https://amandatravels.co.uk/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Amateur Traveler",
+    "feed_url": "https://amateurtraveler.com/feed/",
+    "site_url": "https://amateurtraveler.com/tag/article/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Anywhere We Roam",
+    "feed_url": "https://anywhereweroam.com/feed/",
+    "site_url": "https://anywhereweroam.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Ashley Abroad",
+    "feed_url": "https://www.ashleyabroad.com/feed/",
+    "site_url": "https://www.ashleyabroad.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Atlas & Boots",
+    "feed_url": "https://www.atlasandboots.com/feed/",
+    "site_url": "https://www.atlasandboots.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Be My Travel Muse",
+    "feed_url": "https://feeds.feedburner.com/BeMyTravelMuse",
+    "site_url": "https://www.bemytravelmuse.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Beyond My Door",
+    "feed_url": "https://www.beyondmydoor.com/feed/",
+    "site_url": "https://www.beyondmydoor.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Breathe Dream Go",
+    "feed_url": "https://breathedreamgo.com/feed/",
+    "site_url": "https://breathedreamgo.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "BucketListly",
+    "feed_url": "https://www.bucketlistly.blog/feed.xml",
+    "site_url": "https://www.bucketlistly.blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Bulbul On The Wing",
+    "feed_url": "https://bulbulonthewing.com/feed/",
+    "site_url": "https://bulbulonthewing.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Camels & Chocolate",
+    "feed_url": "https://www.camelsandchocolate.com/feed/",
+    "site_url": "https://www.camelsandchocolate.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Charmaine Wanders",
+    "feed_url": "https://www.charmainewanders.com/blog-feed.xml",
+    "site_url": "https://www.charmainewanders.com/blog",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Chasing the Donkey",
+    "feed_url": "https://www.chasingthedonkey.com/feed/",
+    "site_url": "https://www.chasingthedonkey.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Coleman Concierge",
+    "feed_url": "https://www.colemanconcierge.com/feed/",
+    "site_url": "https://www.colemanconcierge.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Cooltourismical",
+    "feed_url": "https://www.cooltourismical.com/feed",
+    "site_url": "https://www.cooltourismical.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Crazy Sexy Fun Traveler",
+    "feed_url": "https://feeds.feedburner.com/CrazySexyFunTraveler",
+    "site_url": "https://www.crazysexyfuntraveler.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Dr Jam Travels",
+    "feed_url": "https://drjamtravels.blog/feed/",
+    "site_url": "https://drjamtravels.blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Earth's Attractions",
+    "feed_url": "https://www.earthsattractions.com/feed/",
+    "site_url": "https://www.earthsattractions.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Eat Sleep Love Travel",
+    "feed_url": "https://eatsleeplovetravel.com/feed/",
+    "site_url": "https://eatsleeplovetravel.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "EazyNazy",
+    "feed_url": "https://www.eazynazy.com/feed/",
+    "site_url": "https://www.eazynazy.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Enchanting Travels",
+    "feed_url": "https://www.enchantingtravels.com/feed/",
+    "site_url": "https://www.enchantingtravels.com/travel-blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Everything Zany",
+    "feed_url": "https://everythingzany.com/feed/",
+    "site_url": "https://everythingzany.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Expert Explorers",
+    "feed_url": "https://www.expertexplorers.com/feed/",
+    "site_url": "https://www.expertexplorers.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Explorient",
+    "feed_url": "https://www.explorient.com/feed/",
+    "site_url": "https://www.explorient.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Exploring Earth's Wonders",
+    "feed_url": "https://exploreplanet.net/feed/",
+    "site_url": "https://exploreplanet.net/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Finding The Universe",
+    "feed_url": "https://www.findingtheuniverse.com/feed/",
+    "site_url": "https://www.findingtheuniverse.com/blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Finnoy Travel",
+    "feed_url": "https://finnoytravel.com/en/rss.xml",
+    "site_url": "https://finnoytravel.com/en/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Flight Mate",
+    "feed_url": "https://flightmateza.co.za/feed/",
+    "site_url": "https://flightmateza.co.za/blogs/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Flip Flops Included",
+    "feed_url": "https://flipflopsincluded.com/feed/",
+    "site_url": "https://flipflopsincluded.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Followsummer",
+    "feed_url": "https://followsummer.com/feed/",
+    "site_url": "https://followsummer.com/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "Foreign Fresh & Fierce",
+    "feed_url": "https://www.foreignfreshfierce.com/feed/",
+    "site_url": "https://www.foreignfreshfierce.com/category/travel/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  },
+  {
+    "title": "ForTravelista",
+    "feed_url": "https://www.fortravelista.com/travel-blog/feed/",
+    "site_url": "https://www.fortravelista.com/travel-blog/",
+    "category": "Travel",
+    "source_category": "Travel RSS Feeds"
+  }
+]

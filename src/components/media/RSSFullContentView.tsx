@@ -75,7 +75,7 @@ function SafeHTML({ html }: { html: string }) {
 
   return (
     <div
-      className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-img:rounded-lg prose-img:shadow-md"
+      className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-img:rounded-lg prose-img:shadow-md prose-p:leading-relaxed prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg"
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );

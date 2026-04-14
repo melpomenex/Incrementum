@@ -28,6 +28,10 @@ export interface FeedItem {
   // Full content fields
   fullContent?: string;
   fullContentFetchedAt?: string;
+  // Intelligence scoring
+  intelligenceScore?: number;
+  // Thumbnail
+  thumbnail?: string;
 }
 
 /**
@@ -51,6 +55,13 @@ export interface Feed {
   unreadCount: number;
   // Full content auto-fetch setting: 'always', 'favorites', 'manual'
   autoFetchFullContent?: string;
+  // Active state (disabled feeds still subscribed)
+  isActive?: boolean;
+  // View/layout preferences
+  viewMode?: string;
+  layout?: string;
+  // Auto-mark-as-read after N days
+  autoMarkAfterDays?: number;
 }
 
 /**
@@ -60,6 +71,15 @@ export interface FeedFolder {
   id: string;
   name: string;
   feeds: string[]; // feed IDs
+}
+
+function normalizeKnownFeedUrl(feedUrl: string): string {
+  switch (feedUrl.trim()) {
+    case "https://feeds.nbcnews.com/nbcnews/topstories":
+      return "https://feeds.nbcnews.com/nbcnews/public/news";
+    default:
+      return feedUrl.trim();
+  }
 }
 
 /**
@@ -336,7 +356,8 @@ function generateItemId(link: string, pubDate: string): string {
  */
 export async function fetchFeed(feedUrl: string): Promise<Feed | null> {
   try {
-    const parsedFeed = await invokeCommand<any>("fetch_rss_feed_url", { feedUrl });
+    const normalizedFeedUrl = normalizeKnownFeedUrl(feedUrl);
+    const parsedFeed = await invokeCommand<any>("fetch_rss_feed_url", { feedUrl: normalizedFeedUrl });
 
     // Convert backend format to frontend format
     const feed: Feed = {
@@ -344,7 +365,7 @@ export async function fetchFeed(feedUrl: string): Promise<Feed | null> {
       title: parsedFeed.title,
       description: parsedFeed.description,
       link: parsedFeed.link,
-      feedUrl: parsedFeed.feed_url,
+      feedUrl: normalizeKnownFeedUrl(parsedFeed.feed_url),
       imageUrl: parsedFeed.image_url,
       language: parsedFeed.language,
       category: parsedFeed.category,
@@ -685,6 +706,7 @@ export function importOPML(opmlContent: string): Feed[] {
         items: [],
         subscribeDate: new Date().toISOString(),
         unreadCount: 0,
+        autoMarkAfterDays: undefined,
       });
       return;
     }
@@ -724,6 +746,24 @@ export function exportOPML(): string {
   feeds.forEach((feed) => {
     opml += `    <outline type="rss" text="${escapeXml(feed.title)}" xmlUrl="${escapeXml(feed.feedUrl)}" htmlUrl="${escapeXml(feed.link)}"/>\n`;
   });
+
+  // Add folder hierarchy from localStorage
+  const foldersJson = localStorage.getItem("rss_folders");
+  if (foldersJson) {
+    try {
+      const folders: Array<{id: string; name: string; feeds: string[]}> = JSON.parse(foldersJson);
+      folders.forEach((folder) => {
+        opml += `    <outline text="${escapeXml(folder.name)}" title="${escapeXml(folder.name)}">\n`;
+        folder.feeds.forEach((feedId) => {
+          const feed = feeds.find((f) => f.feedUrl === feedId || f.id === feedId);
+          if (feed) {
+            opml += `      <outline type="rss" text="${escapeXml(feed.title)}" xmlUrl="${escapeXml(feed.feedUrl)}" htmlUrl="${escapeXml(feed.link)}"/>\n`;
+          }
+        });
+        opml += `    </outline>\n`;
+      });
+    } catch {}
+  }
 
   opml += `  </body>
 </opml>`;
@@ -820,6 +860,7 @@ interface BackendRssArticle {
   is_queued: boolean;
   is_read: boolean;
   date_added: string;
+  intelligence_score?: number | null;
 }
 
 interface TauriRssFeed {
@@ -849,6 +890,7 @@ interface TauriRssArticle {
   is_queued: boolean;
   is_read: boolean;
   date_added: string;
+  intelligence_score: number | null;
 }
 
 /**
@@ -858,12 +900,13 @@ function backendFeedToFrontend(
   feed: BackendRssFeed & { unread_count?: number },
   items: BackendRssArticle[] = []
 ): Feed {
+  const normalizedFeedUrl = normalizeKnownFeedUrl(feed.url);
   return {
     id: feed.id,
     title: feed.title,
     description: feed.description || "",
-    link: feed.url,
-    feedUrl: feed.url,
+    link: normalizedFeedUrl,
+    feedUrl: normalizedFeedUrl,
     imageUrl: undefined,
     language: undefined,
     category: feed.category || undefined,
@@ -883,6 +926,7 @@ function backendFeedToFrontend(
       read: item.is_read,
       favorite: item.is_queued,
       feedId: feed.id,
+      intelligenceScore: item.intelligence_score ?? undefined,
     })),
     subscribeDate: feed.date_added,
     unreadCount: feed.unread_count ?? 0,
@@ -890,12 +934,13 @@ function backendFeedToFrontend(
 }
 
 function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []): Feed {
+  const normalizedFeedUrl = normalizeKnownFeedUrl(feed.url);
   return {
     id: feed.id,
     title: feed.title,
     description: feed.description || "",
-    link: feed.url,
-    feedUrl: feed.url,
+    link: normalizedFeedUrl,
+    feedUrl: normalizedFeedUrl,
     imageUrl: undefined,
     language: undefined,
     category: feed.category || undefined,
@@ -915,6 +960,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
       read: item.is_read,
       favorite: item.is_queued,
       feedId: feed.id,
+      intelligenceScore: item.intelligence_score ?? undefined,
     })),
     subscribeDate: feed.date_added,
     unreadCount: items.filter((item) => !item.is_read).length,
@@ -940,8 +986,11 @@ async function getFeedsViaTauri(): Promise<Feed[]> {
 async function createOrUpdateFeedViaTauri(
   feed: Feed
 ): Promise<{ feed: TauriRssFeed; created: boolean }> {
+  const normalizedFeedUrl = normalizeKnownFeedUrl(feed.feedUrl);
   const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds");
-  const existing = existingFeeds.find((candidate) => candidate.url === feed.feedUrl);
+  const existing = existingFeeds.find(
+    (candidate) => normalizeKnownFeedUrl(candidate.url) === normalizedFeedUrl
+  );
   const updateIntervalSeconds = Math.max(1, Math.round(feed.updateInterval * 60));
 
   if (existing) {
@@ -960,7 +1009,7 @@ async function createOrUpdateFeedViaTauri(
   }
 
   const created = await invokeCommand<TauriRssFeed>("create_rss_feed", {
-    url: feed.feedUrl,
+    url: normalizedFeedUrl,
     title: feed.title,
     description: feed.description || null,
     category: feed.category || null,
@@ -1029,8 +1078,9 @@ export async function syncFeedToTauri(feed: Feed, existingItems: FeedItem[] = []
  * Create an RSS feed subscription via HTTP API
  */
 export async function createFeedViaHttp(feedUrl: string): Promise<Feed> {
+  const normalizedFeedUrl = normalizeKnownFeedUrl(feedUrl);
   const response = await fetch(
-    `${getApiBaseUrl()}/api/rss/fetch?url=${encodeURIComponent(feedUrl)}`
+    `${getApiBaseUrl()}/api/rss/fetch?url=${encodeURIComponent(normalizedFeedUrl)}`
   );
 
   if (!response.ok) {
@@ -1044,7 +1094,7 @@ export async function createFeedViaHttp(feedUrl: string): Promise<Feed> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      url: feedUrl,
+      url: normalizedFeedUrl,
       title: parsedFeed.title,
       description: parsedFeed.description,
       category: parsedFeed.category,
@@ -1371,6 +1421,15 @@ export async function subscribeToFeedAuto(feed: Feed): Promise<void> {
       if (created) {
         await createArticlesViaTauri(createdFeed.id, feed.items);
       }
+      // Auto-detect favicon
+      try {
+        const baseUrl = new URL(feed.feedUrl).origin;
+        const iconUrl = `${baseUrl}/favicon.ico`;
+        const response = await fetch(iconUrl, { method: "HEAD", mode: "no-cors" });
+        if (response.ok) {
+          feed.icon = iconUrl;
+        }
+      } catch {}
       return;
     } catch (error) {
       console.warn("[RSS] Tauri backend unavailable, storing feed locally.", error);
