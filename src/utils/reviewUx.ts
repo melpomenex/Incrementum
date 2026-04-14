@@ -99,13 +99,15 @@ export function getPriorityVector(item: QueueItem): PriorityVector {
   const overdueDays = due ? Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24))) : 0;
   const typeLoad = item.itemType === "document" ? 75 : item.itemType === "extract" ? 55 : 35;
   const timeEfficiency = Math.max(20, 100 - Math.min(90, item.estimatedTime * 10));
-  const userIntent = item.tags?.length ? Math.min(90, 40 + item.tags.length * 8) : 35;
+  const tagScore = item.tags?.length ? Math.min(90, 40 + item.tags.length * 8) : 35;
+  const ratingScore = item.priorityRating != null ? clamp(item.priorityRating * 18, 10, 90) : 50;
+  const userIntent = 0.6 * ratingScore + 0.4 * tagScore;
 
   return {
     retentionRisk: clamp(item.priority * 10, 20, 95),
     cognitiveLoad: clamp(typeLoad + (item.progress < 30 ? 10 : 0), 15, 90),
     timeEfficiency,
-    userIntent,
+    userIntent: clamp(Math.round(userIntent), 15, 90),
     overduePenalty: clamp(overdueDays * 12, 0, 90),
   };
 }

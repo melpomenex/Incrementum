@@ -255,8 +255,7 @@ tags: [incrementum]
   smartQueue: {
     autoRefresh: true,
     refreshInterval: 5,
-    mode: 'normal',
-    useFsrsScheduling: true, // Enable FSRS-based queue scheduling by default
+    queueStrategyPreset: "maximize-retention",
   },
 
   keybindings: {

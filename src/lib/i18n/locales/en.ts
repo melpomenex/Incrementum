@@ -544,6 +544,11 @@ export const en: Dict = {
   "queuePreset.aggressiveCatchUp": "Aggressive Catch-Up",
   "queuePreset.exploratoryLearning": "Exploratory Learning",
   "queuePreset.projectFocused": "Project-Focused",
+  "queuePreset.maximizeRetentionDesc": "Prioritize items at highest risk of being forgotten — overdue items and those nearing their due date come first",
+  "queuePreset.minimizeTimeDesc": "Focus on quick wins — shorter items are sorted first so you can make progress in less time",
+  "queuePreset.aggressiveCatchUpDesc": "Tackle backlog first — heavily prioritizes overdue items to bring your schedule back on track",
+  "queuePreset.exploratoryDesc": "Discover new material — favors items with more tags and learning items for breadth-first exploration",
+  "queuePreset.projectFocusedDesc": "Focus on what matters most — items with high priority ratings and rich tagging surface first",
   "queueScroll.resuming": "Resuming where you left off",
   "queueScroll.resumingPosition": "Position {position} of {total}",
   "queueScroll.dismissNotAvailable": "Dismiss not available",
@@ -2935,36 +2940,10 @@ export const en: Dict = {
 
   // --- Smart Queues Settings ---
   "settings.smartQueuesDesc": "Configure intelligent learning queue behavior",
-  "settings.fsrsScheduling": "FSRS-Based Queue Scheduling",
-  "settings.fsrsSchedulingDesc":
-    "Use FSRS (Free Spaced Repetition Scheduler) algorithm to optimize document review timing based on memory retention",
   "settings.autoRefresh": "Auto-Refresh",
   "settings.autoRefreshDesc": "Automatically refresh the queue when items become due",
   "settings.refreshInterval": "Refresh Interval",
   "settings.refreshIntervalDesc": "How often to check for new due items",
-  "settings.queueMode": "Queue Mode",
-  "settings.queueModeDesc": "Select how items are organized in your learning queue",
-  "settings.queueModeNormal": "Normal",
-  "settings.queueModeNormalDesc": "Standard queue showing all due items in order",
-  "settings.queueModeFiltered": "Filtered",
-  "settings.queueModeFilteredDesc": "Queue filtered by tags, categories, or priority",
-  "settings.queueModeIntelligent": "Intelligent",
-  "settings.queueModeIntelligentDesc": "AI-powered queue optimization based on performance",
-  "settings.queueModeDetails": "Queue Mode Details:",
-  "settings.queueModeNormalDetail":
-    "Shows all items in their scheduled order. Best for focused review sessions.",
-  "settings.queueModeFilteredDetail":
-    "Apply filters like tags, categories, or priority ranges. Useful for targeted study.",
-  "settings.queueModeIntelligentDetail":
-    "Uses AI to optimize queue order based on your performance patterns and learning goals.",
-  "settings.fsrsEnabledTitle": "FSRS-Based Scheduling Enabled",
-  "settings.fsrsInfo1":
-    "Documents are scheduled based on next_reading_date calculated by FSRS for optimal memory retention",
-  "settings.fsrsInfo2": "New documents (never read) appear first, ordered by user-set priority",
-  "settings.fsrsInfo3":
-    "Due documents (next_reading_date \u2264 now) appear before future-dated documents",
-  "settings.fsrsInfo4":
-    "Your priority_rating acts as a multiplier (0.5x to 2.0x) on FSRS-calculated priority",
   "settings.tip": "Tip",
   "settings.autoRefreshTip":
     "For best performance, use auto-refresh with intervals of 30 seconds or more. Shorter intervals may impact battery life on portable devices.",

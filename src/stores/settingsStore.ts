@@ -307,8 +307,7 @@ interface AudioTranscriptionSettings {
 interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
-  mode: "normal" | "filtered" | "intelligent";
-  useFsrsScheduling: boolean;
+  queueStrategyPreset: string;
 }
 
 /**
@@ -584,8 +583,7 @@ export const defaultSettings: Settings = {
   smartQueue: {
     autoRefresh: false,
     refreshInterval: 60,
-    mode: "normal",
-    useFsrsScheduling: true,
+    queueStrategyPreset: "maximize-retention",
   },
   tts: createDefaultTTSSettings(),
   scrollQueue: {

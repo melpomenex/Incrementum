@@ -16,6 +16,7 @@ import {
   Target,
 } from "lucide-react";
 import { useQueueStore } from "../../stores/queueStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import type { QueueItem } from "../../types/queue";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../common/ItemDetailsPopover";
 import {
@@ -51,6 +52,14 @@ interface ReviewQueueViewProps {
   onOpenDocument?: (item: QueueItem) => void;
   onOpenScrollMode?: () => void;
 }
+
+const PRESET_DESC_KEYS: Record<PriorityPreset, string> = {
+  "maximize-retention": "queuePreset.maximizeRetentionDesc",
+  "minimize-time": "queuePreset.minimizeTimeDesc",
+  "aggressive-catchup": "queuePreset.aggressiveCatchUpDesc",
+  exploratory: "queuePreset.exploratoryLearningDesc",
+  "project-focused": "queuePreset.projectFocusedDesc",
+};
 
 export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMode }: ReviewQueueViewProps) {
   const { locale, t } = useI18n();
@@ -102,7 +111,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   // Subscribe to selectedIds separately to avoid creating new Set reference in selector
   const selectedIds = useQueueStore((state) => state.selectedIds);
   const [queueMode, setQueueMode] = useState<QueueMode>("reading");
-  const [preset, setPreset] = useState<PriorityPreset>("maximize-retention");
+  const [preset, setPreset] = useState<PriorityPreset>(
+    useSettingsStore.getState().settings.smartQueue.queueStrategyPreset as PriorityPreset
+  );
+  const updateSettingsCategory = useSettingsStore((s) => s.updateSettingsCategory);
+  const handleSetPreset = (value: PriorityPreset) => {
+    setPreset(value);
+    updateSettingsCategory("smartQueue", { queueStrategyPreset: value });
+  };
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isManualBrowseActive, setManualBrowseActive] = useState(false);
@@ -722,7 +738,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           </div>
           <select
             value={preset}
-            onChange={(event) => setPreset(event.target.value as PriorityPreset)}
+            onChange={(event) => handleSetPreset(event.target.value as PriorityPreset)}
             className="px-3 py-2 bg-background border border-border rounded-md text-sm"
           >
             <option value="maximize-retention">{t("queuePreset.maximizeRetention")}</option>
@@ -731,6 +747,9 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             <option value="exploratory">{t("queuePreset.exploratoryLearning")}</option>
             <option value="project-focused">{t("queuePreset.projectFocused")}</option>
           </select>
+          <p className="text-xs text-muted-foreground max-w-[200px]">
+            {t(PRESET_DESC_KEYS[preset])}
+          </p>
           <button
             onClick={() => setInspectorOpen((prev) => !prev)}
             className="px-3 py-2 bg-muted text-foreground rounded-md text-sm hover:bg-muted/80"

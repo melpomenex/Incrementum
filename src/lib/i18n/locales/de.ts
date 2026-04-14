@@ -377,6 +377,16 @@ export const de: Dict = {
   "continueReading.resume": "Fortsetzen",
   "queue.review": "Wiederholen",
   "queue.scrollMode": "Scroll-Modus",
+  "queuePreset.maximizeRetention": "Erinnerung Maximieren",
+  "queuePreset.minimizeTime": "Tägliche Zeit Minimieren",
+  "queuePreset.aggressiveCatchUp": "Aggressives Aufholen",
+  "queuePreset.exploratoryLearning": "Entdeckendes Lernen",
+  "queuePreset.projectFocused": "Projektfokus",
+  "queuePreset.maximizeRetentionDesc": "Priorisiere Elemente mit höchstem Vergessensrisiko — überfällige und bald fällige Elemente zuerst",
+  "queuePreset.minimizeTimeDesc": "Fokussiere auf schnelle Erfolge — kürzere Elemente werden zuerst sortiert",
+  "queuePreset.aggressiveCatchUpDesc": "Rücke Rückstand zuerst an — priorisiert überfällige Elemente stark",
+  "queuePreset.exploratoryDesc": "Entdecke neues Material — bevorzugt Elemente mit mehr Tags und Lernelemente",
+  "queuePreset.projectFocusedDesc": "Fokussiere auf das Wichtigste — Elemente mit hoher Prioritätsbewertung zuerst",
   "queueScroll.resuming": "Fahre dort fort, wo du aufgehört hast",
   "queueScroll.dismissNotAvailable": "Entfernen nicht verfügbar",
   "queueScroll.onlyDocuments": "Nur Dokumente können entfernt werden",
@@ -2147,18 +2157,6 @@ export const de: Dict = {
     "Für beste Leistung verwende Auto-Aktualisierung mit Intervallen von 30 Sekunden oder mehr. Kürzere Intervalle können die Akkulaufzeit bei tragbaren Geräten beeinträchtigen.",
   "settings.enableVimium": "Vimium-Navigation aktivieren",
   "settings.enableVimiumDesc": "Tastenkürzel für Navigation verwenden (wie Vimium)",
-  "settings.fsrsEnabledTitle": "FSRS-basierte Zeitplanung aktiviert",
-  "settings.fsrsInfo1":
-    "Dokumente werden basierend auf dem von FSRS berechneten next_reading_date für optimales Behalten eingeplant",
-  "settings.fsrsInfo2":
-    "Neue Dokumente (noch nie gelesen) erscheinen zuerst, sortiert nach benutzerdefinierter Priorität",
-  "settings.fsrsInfo3":
-    "Fällige Dokumente (next_reading_date \u2264 jetzt) erscheinen vor zukünftig datierten Dokumenten",
-  "settings.fsrsInfo4":
-    "Dein priority_rating fungiert als Multiplikator (0,5x bis 2,0x) auf die von FSRS berechnete Priorität",
-  "settings.fsrsScheduling": "FSRS-basierte Warteschlangen-Zeitplanung",
-  "settings.fsrsSchedulingDesc":
-    "FSRS-Algorithmus (Free Spaced Repetition Scheduler) verwenden, um das Timing der Dokumentwiederholung basierend auf dem Behalten zu optimieren",
   "settings.keyboardShortcuts": "Tastenkürzel",
   "settings.keyboardShortcutsDesc": "Tastenkürzel für Schnellaktionen anpassen",
   "settings.linkHintKeys": "Link-Hinweis-Tasten",
@@ -2188,23 +2186,6 @@ export const de: Dict = {
   "settings.mcpTransportType": "Transporttyp",
   "settings.mcpUrl": "URL",
   "settings.pressKeys": "Tasten drücken...",
-  "settings.queueMode": "Warteschlangen-Modus",
-  "settings.queueModeDesc": "Wähle, wie Elemente in deiner Lernwarteschlange organisiert werden",
-  "settings.queueModeDetails": "Warteschlangen-Modus-Details:",
-  "settings.queueModeFiltered": "Gefiltert",
-  "settings.queueModeFilteredDesc": "Warteschlange nach Tags, Kategorien oder Priorität gefiltert",
-  "settings.queueModeFilteredDetail":
-    "Filter wie Tags, Kategorien oder Prioritätsbereiche anwenden. Nützlich für gezieltes Lernen.",
-  "settings.queueModeIntelligent": "Intelligent",
-  "settings.queueModeIntelligentDesc":
-    "KI-gestützte Warteschlangen-Optimierung basierend auf Leistung",
-  "settings.queueModeIntelligentDetail":
-    "Verwendet KI zur Optimierung der Warteschlangen-Reihenfolge basierend auf deinen Leistungsmustern und Lernzielen.",
-  "settings.queueModeNormal": "Normal",
-  "settings.queueModeNormalDesc":
-    "Standard-Warteschlange zeigt alle fälligen Elemente in Reihenfolge",
-  "settings.queueModeNormalDetail":
-    "Zeigt alle Elemente in ihrer geplanten Reihenfolge. Am besten für fokussierte Wiederholungssitzungen.",
   "settings.refreshInterval": "Aktualisierungsintervall",
   "settings.refreshIntervalDesc": "Wie oft nach neuen fälligen Elementen gesucht wird",
   "settings.resetAllDefaults": "Alle auf Standard zurücksetzen",
