@@ -380,6 +380,16 @@ export const es: Dict = {
   "continueReading.resume": "Continuar",
   "queue.review": "Repaso",
   "queue.scrollMode": "Modo de desplazamiento",
+  "queuePreset.maximizeRetention": "Maximizar Retención",
+  "queuePreset.minimizeTime": "Minimizar Tiempo Diario",
+  "queuePreset.aggressiveCatchUp": "Recuperación Agresiva",
+  "queuePreset.exploratoryLearning": "Aprendizaje Exploratorio",
+  "queuePreset.projectFocused": "Enfoque por Proyecto",
+  "queuePreset.maximizeRetentionDesc": "Prioriza los elementos con mayor riesgo de olvido — los elementos atrasados y próximos a su fecha límite van primero",
+  "queuePreset.minimizeTimeDesc": "Enfócate en victorias rápidas — los elementos más cortos se ordenan primero para progresar en menos tiempo",
+  "queuePreset.aggressiveCatchUpDesc": "Aborda el retraso primero — prioriza fuertemente los elementos atrasados para poner tu calendario al día",
+  "queuePreset.exploratoryDesc": "Descubre material nuevo — favorece elementos con más etiquetas y elementos de aprendizaje para exploración en amplitud",
+  "queuePreset.projectFocusedDesc": "Enfócate en lo más importante — los elementos con calificaciones de prioridad altas y etiquetas ricas aparecen primero",
   "queueScroll.resuming": "Continuando donde lo dejaste",
   "queueScroll.dismissNotAvailable": "Descartar no disponible",
   "queueScroll.onlyDocuments": "Solo se pueden descartar documentos",
@@ -2145,18 +2155,6 @@ export const es: Dict = {
     "Para mejor rendimiento, usa auto-actualización con intervalos de 30 segundos o más. Intervalos más cortos pueden afectar la duración de la batería en dispositivos portátiles.",
   "settings.enableVimium": "Activar navegación Vimium",
   "settings.enableVimiumDesc": "Usa atajos de teclado para la navegación (como Vimium)",
-  "settings.fsrsEnabledTitle": "Programación basada en FSRS activada",
-  "settings.fsrsInfo1":
-    "Los documentos se programan según next_reading_date calculado por FSRS para retención óptima de memoria",
-  "settings.fsrsInfo2":
-    "Los documentos nuevos (nunca leídos) aparecen primero, ordenados por prioridad establecida por el usuario",
-  "settings.fsrsInfo3":
-    "Los documentos pendientes (next_reading_date ≤ ahora) aparecen antes que los de fecha futura",
-  "settings.fsrsInfo4":
-    "Tu priority_rating actúa como multiplicador (0.5x a 2.0x) sobre la prioridad calculada por FSRS",
-  "settings.fsrsScheduling": "Programación de cola basada en FSRS",
-  "settings.fsrsSchedulingDesc":
-    "Usa el algoritmo FSRS (Free Spaced Repetition Scheduler) para optimizar el momento de repaso de documentos según la retención de memoria",
   "settings.keyboardShortcuts": "Atajos de teclado",
   "settings.keyboardShortcutsDesc": "Personaliza los atajos de teclado para acciones rápidas",
   "settings.linkHintKeys": "Teclas de indicación de enlaces",
@@ -2187,21 +2185,6 @@ export const es: Dict = {
   "settings.mcpTransportType": "Tipo de transporte",
   "settings.mcpUrl": "URL",
   "settings.pressKeys": "Pulsa teclas...",
-  "settings.queueMode": "Modo de cola",
-  "settings.queueModeDesc": "Selecciona cómo se organizan los elementos en tu cola de aprendizaje",
-  "settings.queueModeDetails": "Detalles del modo de cola:",
-  "settings.queueModeFiltered": "Filtrado",
-  "settings.queueModeFilteredDesc": "Cola filtrada por etiquetas, categorías o prioridad",
-  "settings.queueModeFilteredDetail":
-    "Aplica filtros como etiquetas, categorías o rangos de prioridad. Útil para estudio enfocado.",
-  "settings.queueModeIntelligent": "Inteligente",
-  "settings.queueModeIntelligentDesc": "Optimización de cola con IA basada en rendimiento",
-  "settings.queueModeIntelligentDetail":
-    "Usa IA para optimizar el orden de la cola según tus patrones de rendimiento y objetivos de aprendizaje.",
-  "settings.queueModeNormal": "Normal",
-  "settings.queueModeNormalDesc": "Cola estándar mostrando todos los elementos pendientes en orden",
-  "settings.queueModeNormalDetail":
-    "Muestra todos los elementos en su orden programado. Mejor para sesiones de repaso enfocadas.",
   "settings.refreshInterval": "Intervalo de actualización",
   "settings.refreshIntervalDesc": "Cada cuánto comprobar si hay nuevos elementos pendientes",
   "settings.resetAllDefaults": "Restablecer todo a los valores predeterminados",

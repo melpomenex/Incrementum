@@ -302,8 +302,7 @@ export interface SponsorBlockSettings {
 export interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
-  mode: "normal" | "filtered" | "intelligent";
-  useFsrsScheduling: boolean; // Use FSRS-based scheduling for documents in the queue
+  queueStrategyPreset: string;
 }
 
 // RSS Summary Settings
