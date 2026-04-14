@@ -383,6 +383,23 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     [loadDocuments]
   );
 
+  // Handle JSON deck import
+  const handleStudyJsonDeck = useCallback(
+    async (filePath: string) => {
+      try {
+        await invokeCommand<{ deck_name: string; cards_imported: number }>(
+          "import_study_json_file",
+          { filePath }
+        );
+        console.log("JSON deck imported successfully");
+        await loadDocuments();
+      } catch (err) {
+        console.error("Failed to import JSON deck:", err);
+      }
+    },
+    [loadDocuments]
+  );
+
   // Handle markdown bundle detection
   const handleBundleDetected = useCallback((bundle: MarkdownBundle, files: File[]) => {
     console.log("[DocumentsView] Markdown bundle detected:", bundle);
@@ -678,6 +695,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     <DragDropUpload
       onFilesImported={handleDragDropFiles}
       onAnkiPackage={handleAnkiPackage}
+      onStudyJsonDeck={handleStudyJsonDeck}
       onBundleDetected={handleBundleDetected}
       className="h-full"
     >

@@ -12,7 +12,7 @@ Incrementum ist eine leistungsstarke Lernanwendung, die zwei bewährte Techniken
 
 **Inkrementelles Lesen** – Verarbeiten Sie große Informationsmengen im Laufe der Zeit in kleinen, überschaubaren Blöcken. Anstatt Artikel von Anfang bis Ende zu lesen, extrahieren Sie wichtige Punkte und bauen nach und nach Verständnis auf.
 
-**Verteiltes Wiederholen** – Wiederholen Sie Material in wissenschaftlich optimierten Abständen, um die Behaltensleistung zu maximieren. Algorithmen wie FSRS-5 und SM-18 sagen voraus, wann Sie etwas vergessen werden, und planen Wiederholungen genau zum richtigen Zeitpunkt ein.
+**Verteiltes Wiederholen** – Wiederholen Sie Material in wissenschaftlich optimierten Abständen, um die Behaltensleistung zu maximieren. Algorithmen wie FSRS-6 und SM-18 sagen voraus, wann Sie etwas vergessen werden, und planen Wiederholungen genau zum richtigen Zeitpunkt ein.
 
 ### Schlüsselkonzepte
 
@@ -42,7 +42,7 @@ Wenn Sie Incrementum zum ersten Mal starten, sehen Sie das **Dashboard** mit vie
    - Probieren Sie „Modern Dark“ oder „Material You“ für einen modernen Look
 
 2. **Überprüfungseinstellungen konfigurieren** – Einstellungen → Lernen → Algorithmus
-   - **Algorithmus**: FSRS-5 (empfohlen), SM-18 oder SM-2
+   - **Algorithmus**: FSRS-6 (empfohlen), SM-18 oder SM-2
    - **Gewünschte Erinnerung**: 90 % (Standard) – legt fest, wie gut Sie sich erinnern möchten
    - **Lernen pro Tag**: 20–50 Elemente empfohlen für Anfänger
 
@@ -76,6 +76,7 @@ Lassen Sie uns Ihr erstes Dokument importieren:
 | **HTML** | Webseiten | Artikel, Blogbeiträge |
 | **Anki (.apkg)** | Anki-Deck-Paket | Von Anki migrieren |
 | **SuperMemo** | ZIP-Exporte | Von SuperMemo migrieren |
+| **JSON (.json)** | Flashcard-Deck-Dateien | Decks mit Zeitplandaten importieren |
 | **URL** | Beliebiger Weblink | Online-Artikel, Blogs |
 | **Arxiv** | Wissenschaftliche Arbeiten | Forschungsliteratur |
 | **Screenshot** | Screenshot | Schnelle Aufnahmen aus jeder App |
@@ -119,6 +120,29 @@ Lassen Sie uns Ihr erstes Dokument importieren:
    - Autoren
    - Veröffentlichungsdatum
    - Referenzen
+
+#### Methode 4: JSON-Deck-Import
+
+Importieren Sie Flashcard-Decks aus JSON-Dateien mit Zeitplandaten (Intervalle, Leichtigkeitsfaktoren, Wiederholungsverlauf).
+
+**Import über die Dateiauswahl:**
+
+1. Klicken Sie auf **Dokumente** → **Importieren** → **JSON**
+2. Wählen Sie Ihre `.json`-Deck-Datei aus
+3. Incrementum erstellt ein Deck-Dokument und importiert alle Karten unter Beibehaltung von:
+   - Zeitplanung (Intervalle, Leichtigkeitsfaktoren, Fälligkeitsdaten)
+   - Wiederholungsverlauf (Wiederholungen, Aussetzer, Behaltensrate)
+   - Kartenstatus (neu, in Wiederholung oder ausgesetzt)
+
+**Import per Drag & Drop:**
+
+Ziehen Sie eine `.json`-Datei direkt in das App-Fenster. Wenn die Datei dem erwarteten Deck-Format entspricht, wird sie automatisch importiert.
+
+**Hinweise:**
+- Jede `.json`-Datei erstellt ein Deck. Der Deck-Name stammt aus dem Feld `deck_name`.
+- Importierte Karten verwenden standardmäßig den SM-2-Algorithmus. Sie können nach dem Import wechseln.
+- Das erneute Ablegen derselben Datei erstellt keine Duplikate — vorhandene Karten werden übersprungen.
+- Als `known_pile: true` markierte Karten werden als ausgesetzt importiert.
 
 ### Dokumentenbetrachter
 
@@ -168,9 +192,9 @@ Lassen Sie uns Ihr erstes Dokument importieren:
 
 ## Das Lernsystem
 
-### FSRS-5 verstehen
+### FSRS-6 verstehen
 
-**FSRS-5** (Free Spaced Repetition Scheduler) ist ein moderner Algorithmus, der:
+**FSRS-6** (Free Spaced Repetition Scheduler) ist ein moderner Algorithmus, der:
 
 1. **Verfolgt den Speicherstatus**: Modelliert Ihre Speicherstärke für jede Karte
 2. **Prognostiziert das Vergessen**: Schätzt ein, wann Sie jedes Element vergessen werden
@@ -553,7 +577,7 @@ Exportieren Sie Ihre Daten zur Analyse:
 
 Incrementum unterstützt drei Planungsalgorithmen. Wählen Sie diejenige, die am besten zu Ihrem Lernstil passt:
 
-**FSRS-5 (empfohlen):**
+**FSRS-6 (empfohlen):**
 - Modern, forschungsgestützt
 - Passt sich dem individuellen Gedächtnis an
 - Sagt Zeiten des Vergessens voraus
@@ -1486,7 +1510,7 @@ Exportieren Sie Ihre Daten vor größeren Änderungen (Einstellungen → Backup 
 
 **Überprüfungssitzung**: Eine Zeit des aktiven Abrufens und Bewertens von Karten
 
-**FSRS**: Free Spaced Repetition Scheduler, moderner Algorithmus zur Optimierung des Review-Timings (FSRS-5 ist die aktuelle Version)
+**FSRS**: Free Spaced Repetition Scheduler, moderner Algorithmus zur Optimierung des Review-Timings (FSRS-6 ist die aktuelle Version)
 
 **Intervall**: Zeit zwischen den Bewertungen (z. B. 7 Tage)
 

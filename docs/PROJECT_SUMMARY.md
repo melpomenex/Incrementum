@@ -308,9 +308,9 @@ CREATE INDEX idx_review_logs_date ON review_logs(review_date);
 
 ## Key Algorithms
 
-### FSRS-5 Algorithm
+### FSRS-6 Algorithm
 
-The Free Spaced Repetition Scheduler (FSRS) v5 is implemented in Rust:
+The Free Spaced Repetition Scheduler (FSRS) v6 is implemented in Rust:
 
 ```rust
 pub struct FSRSCalculator {

@@ -3672,7 +3672,7 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "1.20.0"
+version = "1.20.2"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -3714,6 +3714,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-shell",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-tungstenite",
