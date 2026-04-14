@@ -28,26 +28,27 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
   const [showSuspendNote, setShowSuspendNote] = useState(false);
   const { settings } = useSettingsStore();
 
-  // Use card's algorithm_type if set, otherwise fall back to user's setting
-  const effectiveAlgorithm = card.algorithm_type || settings.learning.algorithm;
-  const isSm18 = effectiveAlgorithm === "sm18";
-  const isSm20 = effectiveAlgorithm === "sm20";
-  const sm18State: SM18State | null = isSm18 ? parseSm18State(card.algorithm_state) : null;
-  const sm20State: SM20State | null = isSm20 ? parseSm20State(card.algorithm_state) : null;
+  // The global setting determines which algorithm the next review will use (matches submitReview behavior).
+  // Card's algorithm_type is only used to detect stored state for display purposes.
+  const activeAlgorithm = settings.learning.algorithm;
+  const hasSm18State = !!card.algorithm_state && card.algorithm_state.startsWith("{") && card.algorithm_state.includes('"stability"') && (card.algorithm_type === "sm18" || card.algorithm_state.includes('"repetition"'));
+  const hasSm20State = !!card.algorithm_state && card.algorithm_type === "sm20";
+  const sm18State: SM18State | null = hasSm18State ? parseSm18State(card.algorithm_state) : null;
+  const sm20State: SM20State | null = hasSm20State ? parseSm20State(card.algorithm_state) : null;
 
-  const stability = isSm18 && sm18State
+  const stability = sm18State
     ? sm18State.stability
-    : isSm20 && sm20State
+    : sm20State
     ? sm20State.stability
     : card.memory_state?.stability;
-  const difficulty = isSm18 && sm18State
+  const difficulty = sm18State
     ? sm18State.difficulty
-    : isSm20 && sm20State
+    : sm20State
     ? sm20State.difficulty
     : card.memory_state?.difficulty;
-  const retrievability = isSm18 && sm18State && sm18State.stability > 0
+  const retrievability = sm18State && sm18State.stability > 0
     ? sm18Retrievability(sm18State.stability, sm18State.elapsed)
-    : isSm20 && sm20State && sm20State.stability > 0
+    : sm20State && sm20State.stability > 0
     ? sm20Retrievability(
         sm20State.stability,
         card.last_review_date
@@ -61,7 +62,7 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <FlaskConical className="w-4 h-4" />
-          {getAlgorithmLabel(effectiveAlgorithm)}
+          {getAlgorithmLabel(activeAlgorithm)}
         </div>
         <button
           onClick={() => setShowRaw((prev) => !prev)}
@@ -79,12 +80,12 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
         )}
       </div>
 
-      {isSm18 && sm18State && (
+      {sm18State && (
         <div className="text-xs text-muted-foreground">
           Reps {sm18State.repetition} • Lapses {sm18State.lapses}
         </div>
       )}
-      {isSm20 && sm20State && (
+      {sm20State && (
         <div className="text-xs text-muted-foreground">
           Reps {sm20State.repetition} • Lapses {sm20State.lapses}
         </div>

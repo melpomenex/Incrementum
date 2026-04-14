@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link2, Mic } from "lucide-react";
 import { useDocumentStore } from "../stores";
+import { useStudyDeckStore } from "../stores/studyDeckStore";
 import { EnhancedFilePicker } from "../components/documents/EnhancedFilePicker";
 import type { ImportSource } from "../components/documents/EnhancedFilePicker";
 import { TranscriptionButton } from "../components/transcription";
@@ -72,6 +73,7 @@ export function Documents() {
                 { filePath: jsonPath }
               );
               console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards`);
+              useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
             }
             await loadDocuments();
           } catch (err) {
@@ -135,6 +137,7 @@ export function Documents() {
             { filePath: data.filePath }
           );
           console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards (${result.cards_skipped} duplicates skipped)`);
+          useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
           await loadDocuments();
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Failed to import JSON deck";
