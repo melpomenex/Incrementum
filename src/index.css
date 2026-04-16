@@ -255,12 +255,6 @@
     height: 100%;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .theme-backdrop {
-      display: none;
-    }
-  }
-
   @supports (height: 100dvh) {
     .app-shell {
       height: 100dvh;
