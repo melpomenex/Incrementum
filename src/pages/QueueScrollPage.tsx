@@ -198,7 +198,7 @@ export function QueueScrollPage() {
   ] as const;
 
   // Popup state
-  const [activeExtractForCloze, setActiveExtractForCloze] = useState<{ id: string, text: string, range: [number, number] } | null>(null);
+  const [activeExtractForCloze, setActiveExtractForCloze] = useState<{ id: string, text: string, extractContent?: string, range: [number, number] } | null>(null);
   const [activeExtractForQA, setActiveExtractForQA] = useState<string | null>(null);
 
   const lastScrollTime = useRef(0);
@@ -1832,7 +1832,7 @@ export function QueueScrollPage() {
               extract={renderedItem.extract}
               documentTitle={renderedItem.documentTitle}
               onRate={handleRating}
-              onCreateCloze={(text, range) => setActiveExtractForCloze({ id: renderedItem.extract!.id, text, range })}
+              onCreateCloze={(text, range) => setActiveExtractForCloze({ id: renderedItem.extract!.id, text, extractContent: renderedItem.extract!.content, range })}
               onCreateQA={() => setActiveExtractForQA(renderedItem.extract!.id)}
               onUpdate={(updates) => handleExtractUpdate(renderedItem.extract!.id, updates)}
             />
@@ -1895,6 +1895,7 @@ export function QueueScrollPage() {
         <ClozeCreatorPopup
           extractId={activeExtractForCloze.id}
           selectedText={activeExtractForCloze.text}
+          extractContent={activeExtractForCloze.extractContent}
           selectionRange={activeExtractForCloze.range}
           onCreated={(item) => {
             setActiveExtractForCloze(null);
