@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.21.4] - 2026-04-16
+
+### Fixed
+
+- **Animated themes on Windows** — theme backdrop animations were silently suppressed by the Windows `prefers-reduced-motion` accessibility setting. Animated themes are now always shown when explicitly selected by the user.
+- **Console window on Windows** — a terminal window no longer appears alongside the app on Windows.
+- **Popover theming** — popover foreground and background colors now follow the active theme instead of falling back to defaults.
+
 ## [1.21.3] - 2026-04-16
 
 ### Fixed

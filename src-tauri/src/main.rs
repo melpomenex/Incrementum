@@ -1,7 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-// TEMPORARILY DISABLED for debugging Windows startup crash
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "console")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::io::Write;
 
