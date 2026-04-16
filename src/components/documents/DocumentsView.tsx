@@ -61,7 +61,7 @@ import {
 } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { getDeviceInfo } from "../../lib/pwa";
-import { invokeCommand, isTauri } from "../../lib/tauri";
+import { invokeCommand, isTauri, isMac } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
 
@@ -751,7 +751,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                 <BookAudio className="w-4 h-4" />
                 {t("documentsView.audiobook")}
               </button>
-              {isTauri() && (
+              {isTauri() && isMac() && (
                 <button
                   onClick={() => setShowAnnaArchiveSearch(true)}
                   className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
@@ -1900,7 +1900,7 @@ function MobileImportMenu({
             <span>{t("documentsView.audiobook")}</span>
           </button>
 
-          {isTauri() && (
+          {isTauri() && isMac() && (
             <>
               <div className="my-1 border-t border-border" />
               <button

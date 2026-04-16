@@ -27,6 +27,9 @@
   --color-card: #ffffff;
   --color-card-foreground: #020817;
 
+  --color-popover: #ffffff;
+  --color-popover-foreground: #020817;
+
   --color-border: #e2e8f0;
   --color-input: #e2e8f0;
 
@@ -247,6 +250,7 @@
   }
 
   .theme-backdrop-canvas {
+    display: block;
     width: 100%;
     height: 100%;
   }
