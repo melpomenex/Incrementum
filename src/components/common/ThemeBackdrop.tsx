@@ -821,13 +821,14 @@ export function ThemeBackdrop() {
   const timersRef = useRef<number[]>([]);
   const resizeFnRef = useRef<(() => void) | null>(null);
   const curTypeRef = useRef<string | null>(null);
-  // Live-updated brightness ref so the frame callback reads current value each tick
-  const brightnessRef = useRef(settings.animationBrightness);
-  brightnessRef.current = settings.animationBrightness;
   const [suspended, setSuspended] = useState(false);
 
   const animation = theme.effects?.backgroundAnimation;
   const density = settings.animationFrequency;
+
+  // Brightness via CSS filter — GPU-accelerated, zero per-frame cost.
+  // Setting is stored in tenths (10 = 1.0x, 12 = 1.2x, etc.)
+  const brightnessGain = Math.max(0.1, settings.animationBrightness / 10);
 
   useEffect(() => {
     const handleSuspend = (event: Event) => {
@@ -840,37 +841,6 @@ export function ThemeBackdrop() {
       window.removeEventListener("incrementum-theme-backdrop-suspend", handleSuspend as EventListener);
     };
   }, []);
-
-  const applyBrightnessGain = (
-    ctx: CanvasRenderingContext2D,
-    cv: HTMLCanvasElement,
-    brightnessSetting: number
-  ) => {
-    const gain = Math.max(0.1, brightnessSetting / 10);
-    // Skip the brightness pass entirely when gain is exactly 1.0 (no-op)
-    if (Math.abs(gain - 1.0) < 0.001) return;
-
-    const wholePasses = Math.floor(gain);
-    const partialPass = gain - wholePasses;
-
-    // Reset transform for pixel-perfect self-draw (DPR transform must not
-    // scale the source canvas again).
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = "lighter";
-
-    for (let i = 0; i < wholePasses; i += 1) {
-      ctx.globalAlpha = 1;
-      ctx.drawImage(cv, 0, 0);
-    }
-
-    if (partialPass > 0.001) {
-      ctx.globalAlpha = partialPass;
-      ctx.drawImage(cv, 0, 0);
-    }
-
-    ctx.restore();
-  };
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -909,12 +879,7 @@ export function ThemeBackdrop() {
       density,
       timer(id: number) { timersRef.current.push(id); },
       onResize(fn: () => void) { resizeFnRef.current = fn; },
-      frame(id: number) {
-        // Brightness is stored in tenths (10 = 1.0x). Apply multiple additive passes
-        // so values above 1.0x actually become visible instead of being clamped by canvas.
-        applyBrightnessGain(ctx, cv, brightnessRef.current);
-        animIdRef.current = id;
-      },
+      frame(id: number) { animIdRef.current = id; },
     });
 
     return () => {
@@ -930,7 +895,11 @@ export function ThemeBackdrop() {
 
   return (
     <div aria-hidden="true" className="theme-backdrop">
-      <canvas ref={canvasRef} className="theme-backdrop-canvas" />
+      <canvas
+        ref={canvasRef}
+        className="theme-backdrop-canvas"
+        style={{ filter: `brightness(${brightnessGain})` }}
+      />
     </div>
   );
 }
