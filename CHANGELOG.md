@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.21.6] - 2026-04-16
+
+### Fixed
+
+- **Cloze creation context** — the original extract passage is now shown above the cloze editor so users can see which word to cloze.
+
 ## [1.21.5] - 2026-04-16
 
 ### Fixed

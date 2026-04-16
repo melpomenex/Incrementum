@@ -8,12 +8,14 @@ import { useI18n } from "../../lib/i18n";
 interface ClozeCreatorPopupProps {
     extractId: string;
     selectedText: string;
+    /** Full extract passage shown as read-only context when available. */
+    extractContent?: string;
     selectionRange: [number, number]; // Currently unused but kept for potential robust range handling
     onCreated: (item: LearningItem) => void;
     onCancel: () => void;
 }
 
-export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _selectionRange, onCreated, onCancel }: ClozeCreatorPopupProps) {
+export function ClozeCreatorPopup({ extractId, selectedText, extractContent, selectionRange: _selectionRange, onCreated, onCancel }: ClozeCreatorPopupProps) {
     const { t } = useI18n();
     // Pre-fill with selected text wrapped in cloze deletion syntax [1...]
     // Wait, backend expects cloze_text (full text with clozes) and cloze_ranges.
@@ -170,6 +172,14 @@ export function ClozeCreatorPopup({ extractId, selectedText, selectionRange: _se
 
                 {/* Content */}
                 <div className="p-6 flex flex-col gap-4 overflow-y-auto">
+                    {extractContent && (
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Extract</label>
+                            <div className="p-3 bg-muted/20 border border-border/50 rounded-lg text-sm text-muted-foreground leading-relaxed max-h-[120px] overflow-y-auto whitespace-pre-wrap">
+                                {extractContent}
+                            </div>
+                        </div>
+                    )}
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-medium text-foreground">{t("extracts.cardText")}</label>
                         <textarea
