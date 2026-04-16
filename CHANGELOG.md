@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.21.5] - 2026-04-16
+
+### Fixed
+
+- **Animated theme performance on Windows** — replaced per-frame canvas self-draw brightness gain (16MB+ pixel R/W per frame) with a GPU-accelerated CSS `filter: brightness()`, eliminating the main source of lag on Windows WebView2.
+
 ## [1.21.4] - 2026-04-16
 
 ### Fixed
