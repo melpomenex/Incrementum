@@ -126,7 +126,7 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
     if (!visible) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+      if (popupRef.current && e.target instanceof Node && !popupRef.current.contains(e.target)) {
         onDismiss?.();
       }
     };

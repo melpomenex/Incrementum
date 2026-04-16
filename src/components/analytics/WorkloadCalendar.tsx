@@ -255,7 +255,7 @@ export function WorkloadCalendar() {
   useEffect(() => {
     if (!expandedMonth) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && e.target instanceof Node && !containerRef.current.contains(e.target)) {
         setExpandedMonth(null);
       }
     };

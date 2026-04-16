@@ -1826,7 +1826,7 @@ function MobileImportMenu({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (menuRef.current && event.target instanceof Node && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     }
@@ -1946,7 +1946,7 @@ function MobileSavedViewsMenu({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (menuRef.current && event.target instanceof Node && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     }

@@ -220,7 +220,7 @@ export function GeneratedCardsPopover({
 
     const handleClickOutside = (event: MouseEvent) => {
       if (!wrapperRef.current) return;
-      if (wrapperRef.current.contains(event.target as Node)) return;
+      if (event.target instanceof Node && wrapperRef.current.contains(event.target)) return;
       setIsOpen(false);
     };
 

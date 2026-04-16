@@ -321,7 +321,7 @@ function TabPaneView({
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     // Only clear if leaving the container entirely
-    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+    if (!(e.relatedTarget instanceof Node) || !containerRef.current?.contains(e.relatedTarget)) {
       setDropIndicator(null);
       setIsDraggingOver(false);
     }
