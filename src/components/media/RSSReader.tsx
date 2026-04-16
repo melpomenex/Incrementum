@@ -1219,8 +1219,8 @@ export function RSSReader() {
                         setDragOverSectionId(section.id);
                       }}
                       onPointerLeave={(e) => {
-                        const nextTarget = e.relatedTarget as Node | null;
-                        if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+                        const nextTarget = e.relatedTarget;
+                        if (nextTarget instanceof Node && e.currentTarget.contains(nextTarget)) return;
                         if (dragOverSectionId === section.id) {
                           setDragOverSectionId(null);
                         }
