@@ -17,6 +17,10 @@ export interface SM20State {
   lapses: number;
   interval: number;
   last_quality: number;
+  algorithm_branch?: number;
+  retrov?: number;
+  s_factor?: number;
+  multiplier?: number;
 }
 
 export interface SM20ReviewResult {
@@ -85,6 +89,56 @@ const MATRIX_STRIDE_S = MATRIX_DIM; // 21
 const MATRIX_SIZE = 9261;
 
 // =============================================================================
+// FSRS-FAMILY BRANCH CONSTANTS
+// =============================================================================
+
+/** 35 FSRS-family parameters extracted from runtime memory (PTR_DAT_01125c00). */
+const FSRS_PARAMS: readonly number[] = [
+  // Expert 1 (power-law) parameters
+  0.9286298950420208,        // [0]  power-law base
+  347.85204578386566,        // [1]  time denominator for weight
+  0.30270230764837086,       // [2]  stability denominator for weight
+  // Expert 2/3 weight params
+  0.4078726801204931,        // [3]  expert 2 weight param
+  767.8438603670941,         // [4]  expert 3 weight param
+  // Initial difficulty per grade (0-5)
+  7.894742385544259,         // [5]
+  4.08242569493503,          // [6]
+  1.996431220980246,         // [7]
+  9.170585471775675,         // [8]
+  1.1425608073008684,        // [9]
+  17.65771045770738,         // [10]
+  // Initial stability per grade (0-5, plus 2 extra)
+  77.77877780253718,         // [11]
+  0.5921926894783989,        // [12]
+  0.6895479373487655,        // [13]
+  0.6472785530963361,        // [14]
+  0.4208423230793679,        // [15]
+  0.5186353666458963,        // [16]
+  0.27244747048223983,       // [17]
+  0.3261492383691367,        // [18]
+  // Lapse stability (grade < 3)
+  1.680034668443124,         // [19] lapse decay rate
+  5.928185533585771,         // [20] lapse weight param
+  2.0150955428514656,        // [21] lapse multiplier
+  0.2555216135743039,        // [22] lapse retrov correction
+  1.9926553104343092,        // [23] lapse retrov weight
+  // Difficulty update
+  95.04137758278812,         // [24] d decay param
+  42.21989471200275,         // [25] d stability factor
+  // Recall stability (grade >= 3)
+  3.1089639864486682,        // [26] recall base factor
+  1.3558071518966488,        // [27] recall stability param
+  0.9250460852489478,        // [28] hard bonus base
+  0.8538692150895362,        // [29] hard bonus weight
+  0.9559110660552212,        // [30] hard bonus ratio
+  -0.6915519353695037,       // [31] recall time exponent
+  1.0037797256248404,        // [32] recall grade factor
+  1.393910494789472,         // [33] recall base offset
+  0.12374729387559685,       // [34] recall grade mult
+];
+
+// =============================================================================
 // LOW-LEVEL HELPERS
 // =============================================================================
 
@@ -99,6 +153,127 @@ function exp2Clamped(x: number): number {
 function sigmoidWeight(x: number, y: number): number {
   const s = x + y;
   return s === 0 ? 0 : x / s;
+}
+
+// =============================================================================
+// FSRS-FAMILY EXPERT FUNCTIONS
+// =============================================================================
+
+/** FUN_00af8ac0: Expert 1 — power-law forgetting. */
+function fsrsExpert1(t: number, s: number): number {
+  const param1 = FSRS_PARAMS[0];
+  if (!(0 < param1 && 0 < s)) return 0.0;
+  const expPower = Math.pow(param1 / 0.9, 2);
+  const ratio = s / (s + t);
+  return s * Math.pow(ratio, expPower);
+}
+
+/** FUN_00af8bb0: Expert 2 — FSRS-style power-law forgetting.
+ *  result = pow(t/S + 1, log2(0.9)) = (1 + t/S)^(-0.152)
+ *  Bounded to [0,1] and decreasing — a proper forgetting curve.
+ */
+function fsrsExpert2(t: number, s: number): number {
+  const tOverS = s > 0 ? t / s : 0;
+  const shifted = tOverS + 1.0;
+  if (!(0 < t && 0 < shifted)) return 0.0;
+  // FUN_0040c140(0.9) / FUN_0040c140(2) = log2(0.9) / log2(2) = log2(0.9)
+  return Math.pow(shifted, Math.log2(0.9)); // ≈ -0.152
+}
+
+/** FUN_00af8c90: Expert 3 — exponential forgetting. */
+function fsrsExpert3(t: number, s: number): number {
+  if (!(0 < t)) return 0.0;
+  const ratio = s > 0 ? t / s : 0;
+  return Math.pow(2, -Math.abs(ratio) * 0.1053605);
+}
+
+/** FUN_00af8d00: 3-expert weighted average → retrievability-like proxy A. */
+function fsrsExpertMixture(t: number, s: number): number {
+  const e1 = fsrsExpert1(t, s);
+  const e2 = fsrsExpert2(t, s);
+  const e3 = fsrsExpert3(t, s);
+
+  const w1Time = 1.0 - sigmoidWeight(t, FSRS_PARAMS[1]);
+  const w1Stab = sigmoidWeight(s, FSRS_PARAMS[2]);
+  const w1 = (w1Time + w1Stab) / 2.0;
+
+  const w2Time = 1.0 - sigmoidWeight(t, FSRS_PARAMS[1]);
+  const w2Stab = sigmoidWeight(s, FSRS_PARAMS[3]);
+  const w2 = (w2Time + w2Stab) / 2.0;
+
+  const w3 = sigmoidWeight(t, FSRS_PARAMS[4]);
+
+  const wSum = w1 + w2 + w3;
+  if (wSum === 0) return 0.0;
+  return (w1 * e1 + w2 * e2 + w3 * e3) / wSum;
+}
+
+// =============================================================================
+// FSRS-FAMILY UPDATE FUNCTIONS
+// =============================================================================
+
+/** FUN_00af90f0: Update difficulty based on review outcome. */
+function fsrsDifficultyUpdate(d: number, s: number, a: number, grade: number): number {
+  const ratio = sigmoidWeight(s, FSRS_PARAMS[24]);
+  const dTarget = grade > 2 ? 1.0 : 0.0;
+  const dNew = ratio * d + (1.0 - ratio) * (d - (dTarget - a));
+  return clamp(dNew, 0.0, 1.0);
+}
+
+/** FUN_00af9010: Stability update for lapse (grade < 3). */
+function fsrsLapseStability(d: number, s: number, a: number): number {
+  let sNew = (1.0 - d) * FSRS_PARAMS[19] + 1.0;
+  const w = sigmoidWeight(s, FSRS_PARAMS[20]);
+  sNew *= w * FSRS_PARAMS[21] + 1.0;
+  const retrovSignal = 1.0 - a;
+  const r = sigmoidWeight(retrovSignal, FSRS_PARAMS[22]);
+  sNew *= r * FSRS_PARAMS[23] + 1.0;
+  return sNew;
+}
+
+/** FUN_00af91f0: Stability update for successful recall (grade >= 3). */
+function fsrsRecallStability(d: number, s: number, a: number, t: number, grade: number): number {
+  const sMin = Math.max(s, t);
+
+  const hardBonus = t < s
+    ? FSRS_PARAMS[28] + FSRS_PARAMS[29] * sigmoidWeight(s > 0 ? t / s : 0, FSRS_PARAMS[30])
+    : FSRS_PARAMS[28];
+
+  const timeFactor = s > 0 ? Math.pow(s, FSRS_PARAMS[31]) : 1.0;
+  const recallSignal = exp2Clamped(-(FSRS_PARAMS[32] * (1.0 - d) + FSRS_PARAMS[33]) * a);
+  const gradeFactor = (grade - 4) * FSRS_PARAMS[34] + 1.0;
+  const blend = FSRS_PARAMS[26] + (1.0 - d) * (FSRS_PARAMS[25] - FSRS_PARAMS[26]);
+
+  return sMin * hardBonus * (FSRS_PARAMS[27] + blend * timeFactor * recallSignal * gradeFactor);
+}
+
+/** FUN_00af9420: Main FSRS review kernel. Returns [new_S, new_D, interval, easiness]. */
+export function fsrsReviewKernel(s: number, d: number, t: number, grade: number): [number, number, number, number] {
+  const a = fsrsExpertMixture(t, s);
+  const dNew = fsrsDifficultyUpdate(d, s, a, grade);
+  const sNew = grade < 3 ? fsrsLapseStability(dNew, s, a) : fsrsRecallStability(dNew, s, a, t, grade);
+  const interval = sNew > 1.0 ? sNew : 1.0;
+  const easiness = s > 1.0 ? sNew / s : 0.0;
+  return [sNew, dNew, interval, easiness];
+}
+
+/** FUN_00ceb590: Initialize a new FSRS item. */
+export function fsrsInitItem(grade: number, stability: number, flag: boolean): SM20State {
+  const d = FSRS_PARAMS[Math.min(5 + grade, 10)];
+  const sFactor = FSRS_PARAMS[Math.min(11 + grade, 18)];
+  return {
+    version: 2,
+    stability,
+    difficulty: d,
+    repetition: 0,
+    lapses: 0,
+    interval: Math.max(1.0, stability),
+    last_quality: 0.75,
+    algorithm_branch: 1,
+    retrov: d,
+    s_factor: sFactor,
+    multiplier: flag ? 0.5 : 3.0,
+  };
 }
 
 // =============================================================================
@@ -353,6 +528,10 @@ const DEFAULT_STATE: SM20State = {
   lapses: 0,
   interval: 1.0,
   last_quality: 0.75,
+  algorithm_branch: 0,
+  retrov: 0.3,
+  s_factor: 1.0,
+  multiplier: 1.0,
 };
 
 export function parseSm20State(algorithmState?: string): SM20State {
@@ -368,6 +547,10 @@ export function parseSm20State(algorithmState?: string): SM20State {
           lapses: parsed.lapses ?? 0,
           interval: parsed.interval ?? Math.max(1.0, parsed.stability),
           last_quality: parsed.last_quality ?? 0.75,
+          algorithm_branch: parsed.algorithm_branch ?? 0,
+          retrov: parsed.retrov ?? parsed.difficulty,
+          s_factor: parsed.s_factor ?? 1.0,
+          multiplier: parsed.multiplier ?? 1.0,
         };
       }
     } catch {
@@ -410,6 +593,15 @@ export function sm20Review(
   elapsedDays: number
 ): SM20ReviewResult {
   const state = parseSm20State(JSON.stringify(currentState));
+
+  if (state.algorithm_branch === 1) {
+    return reviewFsrs(state, rating, elapsedDays);
+  }
+  return reviewClassic(state, rating, elapsedDays);
+}
+
+/** Classic SM-20 review path (V2/V4/V6 + Bayesian). */
+function reviewClassic(state: SM20State, rating: number, elapsedDays: number): SM20ReviewResult {
   const quality = ratingToQuality(rating);
   const ret = sm20Retrievability(state.stability, elapsedDays);
 
@@ -425,6 +617,10 @@ export function sm20Review(
         lapses,
         interval: intervalDays,
         last_quality: quality,
+        algorithm_branch: state.algorithm_branch,
+        retrov: state.retrov,
+        s_factor: state.s_factor,
+        multiplier: state.multiplier,
       },
       interval_days: intervalDays,
       retrievability: ret,
@@ -446,8 +642,41 @@ export function sm20Review(
       lapses: state.lapses,
       interval: intervalDays,
       last_quality: quality,
+      algorithm_branch: state.algorithm_branch,
+      retrov: state.retrov,
+      s_factor: state.s_factor,
+      multiplier: state.multiplier,
     },
     interval_days: intervalDays,
+    retrievability: ret,
+  };
+}
+
+/** FSRS-family review path (3-expert mixture model). */
+function reviewFsrs(state: SM20State, rating: number, elapsedDays: number): SM20ReviewResult {
+  const ret = sm20Retrievability(state.stability, elapsedDays);
+  const [newS, newD, interval, _easiness] = fsrsReviewKernel(
+    state.stability, state.difficulty, elapsedDays, rating
+  );
+
+  const repetition = rating <= 1 ? 0 : clamp(state.repetition + 1, 1, 20);
+  const lapses = rating <= 1 ? state.lapses + 1 : state.lapses;
+
+  return {
+    state: {
+      version: state.version,
+      stability: newS,
+      difficulty: newD,
+      repetition,
+      lapses,
+      interval,
+      last_quality: state.last_quality,
+      algorithm_branch: 1,
+      retrov: state.retrov,
+      s_factor: state.s_factor,
+      multiplier: state.multiplier,
+    },
+    interval_days: interval,
     retrievability: ret,
   };
 }
