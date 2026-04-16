@@ -876,15 +876,6 @@ export function ThemeBackdrop() {
     const cv = canvasRef.current;
     if (!cv || !animation || suspended) return;
 
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      console.warn(
-        "[ThemeBackdrop] Animation suppressed because prefers-reduced-motion: reduce is active.",
-        "Disable this in your OS accessibility settings to enable animated themes."
-      );
-      return;
-    }
-
     const ctx = cv.getContext("2d");
     if (!ctx) return;
 
