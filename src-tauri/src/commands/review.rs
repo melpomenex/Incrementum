@@ -618,6 +618,10 @@ fn parse_sm20_state(item: &LearningItem) -> SM20State {
             lapses: item.lapses.max(0) as u32,
             interval: item.interval.max(1.0),
             last_quality: 0.75,
+            algorithm_branch: 0,
+            retrov: item.memory_state.as_ref().map(|ms| ms.difficulty).unwrap_or(0.3).clamp(0.0, 1.0),
+            s_factor: 1.0,
+            multiplier: 1.0,
         })
 }
 

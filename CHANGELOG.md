@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.21.1] - 2026-04-16
+
+### Added
+
+- **SM-20 FSRS-family algorithm branch** — implemented the 3-expert mixture model (power-law, shifted power-decay, exponential forgetting) with 35 tunable parameters discovered in the SM-20 binary via Ghidra decompilation.
+
+### Fixed
+
+- **SM-20 Expert 2 exponent** — corrected `fsrs_expert2` to use `log2(0.9) ≈ -0.152` instead of `0.9^2 = 0.81`, matching the actual binary computation `FUN_0040c140(0.9) / FUN_0040c140(2.0)`. The old exponent caused unbounded growth instead of a proper forgetting curve.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

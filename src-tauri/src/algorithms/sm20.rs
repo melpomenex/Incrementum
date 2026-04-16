@@ -71,6 +71,57 @@ const MATRIX_STRIDE_R: usize = MATRIX_DIM * MATRIX_DIM; // 441
 const MATRIX_STRIDE_S: usize = MATRIX_DIM; // 21
 
 // =============================================================================
+// FSRS-FAMILY BRANCH CONSTANTS
+// =============================================================================
+
+/// 35 FSRS-family parameters extracted from runtime memory (PTR_DAT_01125c00).
+/// Gated by per-item flags: algorithm_branch == 1.
+const FSRS_PARAMS: [f64; 35] = [
+    // Expert 1 (power-law) parameters
+    0.9286298950420208,        // [0]  power-law base
+    347.85204578386566,        // [1]  time denominator for weight
+    0.30270230764837086,       // [2]  stability denominator for weight
+    // Expert 2/3 weight params
+    0.4078726801204931,        // [3]  expert 2 weight param
+    767.8438603670941,         // [4]  expert 3 weight param
+    // Initial difficulty per grade (0-5)
+    7.894742385544259,         // [5]
+    4.08242569493503,          // [6]
+    1.996431220980246,         // [7]
+    9.170585471775675,         // [8]
+    1.1425608073008684,        // [9]
+    17.65771045770738,         // [10]
+    // Initial stability per grade (0-5, plus 2 extra)
+    77.77877780253718,         // [11]
+    0.5921926894783989,        // [12]
+    0.6895479373487655,        // [13]
+    0.6472785530963361,        // [14]
+    0.4208423230793679,        // [15]
+    0.5186353666458963,        // [16]
+    0.27244747048223983,       // [17]
+    0.3261492383691367,        // [18]
+    // Lapse stability (grade < 3)
+    1.680034668443124,         // [19] lapse decay rate
+    5.928185533585771,         // [20] lapse weight param
+    2.0150955428514656,        // [21] lapse multiplier
+    0.2555216135743039,        // [22] lapse retrov correction
+    1.9926553104343092,        // [23] lapse retrov weight
+    // Difficulty update
+    95.04137758278812,         // [24] d decay param
+    42.21989471200275,         // [25] d stability factor
+    // Recall stability (grade >= 3)
+    3.1089639864486682,        // [26] recall base factor
+    1.3558071518966488,        // [27] recall stability param
+    0.9250460852489478,        // [28] hard bonus base
+    0.8538692150895362,        // [29] hard bonus weight
+    0.9559110660552212,        // [30] hard bonus ratio
+    -0.6915519353695037,       // [31] recall time exponent
+    1.0037797256248404,        // [32] recall grade factor
+    1.393910494789472,         // [33] recall base offset
+    0.12374729387559685,       // [34] recall grade mult
+];
+
+// =============================================================================
 // DATA TYPES
 // =============================================================================
 
@@ -83,6 +134,18 @@ pub struct SM20State {
     pub lapses: u32,
     pub interval: f64,
     pub last_quality: f64,
+    #[serde(default)]
+    pub algorithm_branch: u8,
+    #[serde(default)]
+    pub retrov: f64,
+    #[serde(default = "default_one")]
+    pub s_factor: f64,
+    #[serde(default = "default_one")]
+    pub multiplier: f64,
+}
+
+fn default_one() -> f64 {
+    1.0
 }
 
 impl Default for SM20State {
@@ -95,6 +158,10 @@ impl Default for SM20State {
             lapses: 0,
             interval: 1.0,
             last_quality: 0.75,
+            algorithm_branch: 0,
+            retrov: 0.3,
+            s_factor: 1.0,
+            multiplier: 1.0,
         }
     }
 }
@@ -136,6 +203,158 @@ fn sigmoid_weight(x: f64, y: f64) -> f64 {
         0.0
     } else {
         x / s
+    }
+}
+
+// =============================================================================
+// FSRS-FAMILY EXPERT FUNCTIONS
+// =============================================================================
+
+/// FUN_00af8ac0: Expert 1 — power-law forgetting.
+/// result = S * (S/(S+t))^pow(p[0]/0.9, 2)
+/// Activates when: threshold (0) < p[0] AND threshold (0) < S
+pub(crate) fn fsrs_expert1(t: f64, s: f64) -> f64 {
+    let threshold = 0.0;
+    let param1 = FSRS_PARAMS[0];
+    if !(threshold < param1 && threshold < s) {
+        return 0.0;
+    }
+    let exp_power = (param1 / 0.9).powi(2);
+    let ratio = s / (s + t);
+    s * ratio.powf(exp_power)
+}
+
+/// FUN_00af8bb0: Expert 2 — FSRS-style power-law forgetting.
+/// result = pow(t/S + 1, log2(0.9)) = (1 + t/S)^(-0.152)
+/// Bounded to [0,1] and decreasing — a proper forgetting curve.
+pub(crate) fn fsrs_expert2(t: f64, s: f64) -> f64 {
+    let threshold = 0.0;
+    let t_over_s = if s > 0.0 { t / s } else { 0.0 };
+    let shifted = t_over_s + 1.0;
+    if !(threshold < t && threshold < shifted) {
+        return 0.0;
+    }
+    // FUN_0040c140(0.9) / FUN_0040c140(2) = log2(0.9) / log2(2) = log2(0.9)
+    shifted.powf(0.9_f64.log2()) // ≈ -0.152
+}
+
+/// FUN_00af8c90: Expert 3 — exponential forgetting.
+/// result = 2^(-|t/S| * 0.1053605) ≈ 0.9296^(t/S)
+pub(crate) fn fsrs_expert3(t: f64, s: f64) -> f64 {
+    if !(0.0 < t) {
+        return 0.0;
+    }
+    let ratio = if s > 0.0 { t / s } else { 0.0 };
+    2.0_f64.powf(-ratio.abs() * 0.1053605)
+}
+
+/// FUN_00af8d00: 3-expert weighted average → retrievability-like proxy A.
+pub(crate) fn fsrs_expert_mixture(t: f64, s: f64) -> f64 {
+    let e1 = fsrs_expert1(t, s);
+    let e2 = fsrs_expert2(t, s);
+    let e3 = fsrs_expert3(t, s);
+
+    let w1_time = 1.0 - sigmoid_weight(t, FSRS_PARAMS[1]);
+    let w1_stab = sigmoid_weight(s, FSRS_PARAMS[2]);
+    let w1 = (w1_time + w1_stab) / 2.0;
+
+    let w2_time = 1.0 - sigmoid_weight(t, FSRS_PARAMS[1]);
+    let w2_stab = sigmoid_weight(s, FSRS_PARAMS[3]);
+    let w2 = (w2_time + w2_stab) / 2.0;
+
+    let w3 = sigmoid_weight(t, FSRS_PARAMS[4]);
+
+    let w_sum = w1 + w2 + w3;
+    if w_sum == 0.0 {
+        return 0.0;
+    }
+    (w1 * e1 + w2 * e2 + w3 * e3) / w_sum
+}
+
+// =============================================================================
+// FSRS-FAMILY UPDATE FUNCTIONS
+// =============================================================================
+
+/// FUN_00af90f0: Update difficulty based on review outcome.
+pub(crate) fn fsrs_difficulty_update(d: f64, s: f64, a: f64, grade: i32) -> f64 {
+    let ratio = sigmoid_weight(s, FSRS_PARAMS[24]);
+    let d_target = if grade > 2 { 1.0 } else { 0.0 };
+    let d_new = ratio * d + (1.0 - ratio) * (d - (d_target - a));
+    clamp(d_new, 0.0, 1.0)
+}
+
+/// FUN_00af9010: Stability update for lapse (grade < 3).
+pub(crate) fn fsrs_lapse_stability(d: f64, s: f64, a: f64) -> f64 {
+    let mut s_new = (1.0 - d) * FSRS_PARAMS[19] + 1.0;
+    let w = sigmoid_weight(s, FSRS_PARAMS[20]);
+    s_new *= w * FSRS_PARAMS[21] + 1.0;
+    let retrov_signal = 1.0 - a;
+    let r = sigmoid_weight(retrov_signal, FSRS_PARAMS[22]);
+    s_new *= r * FSRS_PARAMS[23] + 1.0;
+    s_new
+}
+
+/// FUN_00af91f0: Stability update for successful recall (grade >= 3).
+pub(crate) fn fsrs_recall_stability(d: f64, s: f64, a: f64, t: f64, grade: i32) -> f64 {
+    let s_min = s.max(t);
+
+    let hard_bonus = if t < s {
+        let t_over_s = if s > 0.0 { t / s } else { 0.0 };
+        FSRS_PARAMS[28] + FSRS_PARAMS[29] * sigmoid_weight(t_over_s, FSRS_PARAMS[30])
+    } else {
+        FSRS_PARAMS[28]
+    };
+
+    let time_factor = if s > 0.0 {
+        s.powf(FSRS_PARAMS[31])
+    } else {
+        1.0
+    };
+
+    let recall_signal = exp2_clamped(-(FSRS_PARAMS[32] * (1.0 - d) + FSRS_PARAMS[33]) * a);
+
+    let grade_factor = (grade - 4) as f64 * FSRS_PARAMS[34] + 1.0;
+
+    let blend = FSRS_PARAMS[26] + (1.0 - d) * (FSRS_PARAMS[25] - FSRS_PARAMS[26]);
+
+    s_min * hard_bonus * (FSRS_PARAMS[27] + blend * time_factor * recall_signal * grade_factor)
+}
+
+/// FUN_00af9420: Main FSRS review kernel.
+/// Returns (new_S, new_D, interval, easiness).
+pub(crate) fn fsrs_review_kernel(s: f64, d: f64, t: f64, grade: i32) -> (f64, f64, f64, f64) {
+    let a = fsrs_expert_mixture(t, s);
+    let d_new = fsrs_difficulty_update(d, s, a, grade);
+
+    let s_new = if grade < 3 {
+        fsrs_lapse_stability(d_new, s, a)
+    } else {
+        fsrs_recall_stability(d_new, s, a, t, grade)
+    };
+
+    let interval = if s_new > 1.0 { s_new } else { 1.0 };
+    let easiness = if s > 1.0 { s_new / s } else { 0.0 };
+
+    (s_new, d_new, interval, easiness)
+}
+
+/// FUN_00ceb590: Initialize a new FSRS item.
+pub fn fsrs_init_item(grade: i32, stability: f64, flag: bool) -> SM20State {
+    let d = FSRS_PARAMS[(5 + grade as usize).min(10)];
+    let s_factor = FSRS_PARAMS[(11 + grade as usize).min(18)];
+
+    SM20State {
+        version: 2,
+        stability,
+        difficulty: d,
+        repetition: 0,
+        lapses: 0,
+        interval: stability.max(1.0),
+        last_quality: 0.75,
+        algorithm_branch: 1,
+        retrov: d,
+        s_factor,
+        multiplier: if flag { 0.5 } else { 3.0 },
     }
 }
 
@@ -455,6 +674,18 @@ fn lapse_interval(stability: f64, lapses: u32) -> f64 {
 
 pub fn review(current_state: &SM20State, rating: i32, elapsed_days: f64) -> SM20ReviewResult {
     let state = current_state.clone();
+
+    // FSRS-family branch dispatch
+    if state.algorithm_branch == 1 {
+        return review_fsrs(&state, rating, elapsed_days);
+    }
+
+    // Classic branch
+    review_classic(&state, rating, elapsed_days)
+}
+
+/// Classic SM-20 review path (V2/V4/V6 + Bayesian).
+fn review_classic(state: &SM20State, rating: i32, elapsed_days: f64) -> SM20ReviewResult {
     let quality = rating_to_quality(rating);
     let current_retrievability = retrievability(state.stability, elapsed_days);
 
@@ -469,6 +700,10 @@ pub fn review(current_state: &SM20State, rating: i32, elapsed_days: f64) -> SM20
             lapses,
             interval: interval_days,
             last_quality: quality,
+            algorithm_branch: state.algorithm_branch,
+            retrov: state.retrov,
+            s_factor: state.s_factor,
+            multiplier: state.multiplier,
         };
 
         return SM20ReviewResult {
@@ -491,11 +726,45 @@ pub fn review(current_state: &SM20State, rating: i32, elapsed_days: f64) -> SM20
         lapses: state.lapses,
         interval: interval_days,
         last_quality: quality,
+        algorithm_branch: state.algorithm_branch,
+        retrov: state.retrov,
+        s_factor: state.s_factor,
+        multiplier: state.multiplier,
     };
 
     SM20ReviewResult {
         state: next_state,
         interval_days,
+        retrievability: current_retrievability,
+    }
+}
+
+/// FSRS-family review path (3-expert mixture model).
+fn review_fsrs(state: &SM20State, rating: i32, elapsed_days: f64) -> SM20ReviewResult {
+    let current_retrievability = retrievability(state.stability, elapsed_days);
+    let (new_s, new_d, interval, _easiness) =
+        fsrs_review_kernel(state.stability, state.difficulty, elapsed_days, rating);
+
+    let repetition = if rating <= 1 { 0 } else { (state.repetition + 1).clamp(1, 20) };
+    let lapses = if rating <= 1 { state.lapses + 1 } else { state.lapses };
+
+    let next_state = SM20State {
+        version: state.version,
+        stability: new_s,
+        difficulty: new_d,
+        repetition,
+        lapses,
+        interval,
+        last_quality: state.last_quality,
+        algorithm_branch: 1,
+        retrov: state.retrov,
+        s_factor: state.s_factor,
+        multiplier: state.multiplier,
+    };
+
+    SM20ReviewResult {
+        state: next_state,
+        interval_days: interval,
         retrievability: current_retrievability,
     }
 }
@@ -925,5 +1194,163 @@ mod tests {
         assert_eq!(stability_pretransform(50000.0), 44530.0);
         assert_eq!(stability_pretransform(f64::NAN), 44530.0);
         assert_eq!(stability_pretransform(f64::INFINITY), 44530.0);
+    }
+
+    // =========================================================================
+    // FSRS-family tests — pinned against sm20_reference.py output
+    // =========================================================================
+
+    #[test]
+    fn fsrs_expert1_typical() {
+        let result = fsrs_expert1(10.0, 5.0);
+        assert!((result - 1.55242464501152).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert1_zero_stability() {
+        assert_eq!(fsrs_expert1(10.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn fsrs_expert1_zero_time_returns_s() {
+        // t=0: activation check passes (0 < 0.9286 && 0 < 5.0), ratio = S/(S+0) = 1
+        assert!((fsrs_expert1(0.0, 5.0) - 5.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert2_decreasing() {
+        let result = fsrs_expert2(20.0, 5.0);
+        assert!((result - 0.782986721680384).abs() < 1e-10);
+        assert!(result < 1.0); // proper forgetting curve, bounded
+    }
+
+    #[test]
+    fn fsrs_expert2_zero_time() {
+        assert_eq!(fsrs_expert2(0.0, 5.0), 0.0);
+    }
+
+    #[test]
+    fn fsrs_expert2_typical() {
+        assert!((fsrs_expert2(5.0, 3.0) - 0.861492369224294).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert3_equal_time_stability() {
+        let result = fsrs_expert3(5.0, 5.0);
+        assert!((result - 0.929572632390522).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert3_zero_time() {
+        assert_eq!(fsrs_expert3(0.0, 5.0), 0.0);
+    }
+
+    #[test]
+    fn fsrs_expert3_typical() {
+        assert!((fsrs_expert3(5.0, 3.0) - 0.885398703912691).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert_mixture_typical() {
+        let result = fsrs_expert_mixture(5.0, 3.0);
+        assert!((result - 0.959164178214662).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_expert_mixture_zero_time() {
+        let result = fsrs_expert_mixture(0.0, 3.0);
+        assert!((result - 1.51109857732188).abs() < 1e-10);
+    }
+
+    // --- FSRS update function tests ---
+
+    #[test]
+    fn fsrs_difficulty_update_success() {
+        let result = fsrs_difficulty_update(0.5, 5.0, 0.8, 4);
+        assert!((result - 0.309995863953117).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_difficulty_update_lapse() {
+        let result = fsrs_difficulty_update(0.5, 5.0, 0.8, 1);
+        assert!((result - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_lapse_stability_reference() {
+        let result = fsrs_lapse_stability(0.5, 10.0, 0.6);
+        assert!((result - 9.23561795223687).abs() < 1e-8);
+    }
+
+    #[test]
+    fn fsrs_recall_stability_reference() {
+        let result = fsrs_recall_stability(0.3, 5.0, 0.8, 3.0, 4);
+        assert!((result - 28.1462978187137).abs() < 1e-8);
+    }
+
+    #[test]
+    fn fsrs_recall_stability_early_review() {
+        let result = fsrs_recall_stability(0.3, 5.0, 0.8, 2.0, 3);
+        assert!((result - 24.1291151309604).abs() < 1e-8);
+    }
+
+    // --- FSRS review kernel tests ---
+
+    #[test]
+    fn fsrs_kernel_lapse_path() {
+        let (s_new, d_new, interval, easiness) = fsrs_review_kernel(5.0, 0.3, 5.0, 1);
+        assert!((s_new - 8.25553717907111).abs() < 1e-8);
+        assert!((d_new - 1.0).abs() < 1e-8);
+        assert!((interval - 8.25553717907111).abs() < 1e-8);
+        assert!((easiness - 1.65110743581422).abs() < 1e-8);
+    }
+
+    #[test]
+    fn fsrs_kernel_recall_path() {
+        let (s_new, d_new, interval, easiness) = fsrs_review_kernel(5.0, 0.3, 3.0, 4);
+        assert!((s_new - 9.44504365807168).abs() < 1e-8);
+        assert!((d_new - 1.0).abs() < 1e-8);
+        assert!((interval - 9.44504365807168).abs() < 1e-8);
+        assert!((easiness - 1.88900873161434).abs() < 1e-8);
+    }
+
+    // --- FSRS init item tests ---
+
+    #[test]
+    fn fsrs_init_item_grade3_no_flag() {
+        let state = fsrs_init_item(3, 1.0, false);
+        assert_eq!(state.algorithm_branch, 1);
+        assert!((state.difficulty - FSRS_PARAMS[8]).abs() < 1e-10);
+        assert!((state.s_factor - FSRS_PARAMS[14]).abs() < 1e-10);
+        assert!((state.multiplier - 3.0).abs() < 1e-10);
+        assert!((state.retrov - FSRS_PARAMS[8]).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_init_item_grade5_with_flag() {
+        let state = fsrs_init_item(5, 2.0, true);
+        assert_eq!(state.algorithm_branch, 1);
+        assert!((state.difficulty - FSRS_PARAMS[10]).abs() < 1e-10);
+        assert!((state.s_factor - FSRS_PARAMS[16]).abs() < 1e-10);
+        assert!((state.multiplier - 0.5).abs() < 1e-10);
+    }
+
+    // --- Backward compatibility tests ---
+
+    #[test]
+    fn sm20_state_backward_compat_deserialize() {
+        let old_json = r#"{"version":2,"stability":5.0,"difficulty":0.3,"repetition":3,"lapses":0,"interval":5.0,"last_quality":0.78}"#;
+        let state: SM20State = serde_json::from_str(old_json).unwrap();
+        assert_eq!(state.version, 2);
+        assert!((state.stability - 5.0).abs() < 1e-10);
+        assert_eq!(state.algorithm_branch, 0);
+        assert!((state.s_factor - 1.0).abs() < 1e-10);
+        assert!((state.multiplier - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn fsrs_params_count() {
+        assert_eq!(FSRS_PARAMS.len(), 35);
+        assert!((FSRS_PARAMS[0] - 0.9286298950420208).abs() < 1e-15);
     }
 }
