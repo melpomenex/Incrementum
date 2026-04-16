@@ -847,11 +847,16 @@ export function ThemeBackdrop() {
     brightnessSetting: number
   ) => {
     const gain = Math.max(0.1, brightnessSetting / 10);
+    // Skip the brightness pass entirely when gain is exactly 1.0 (no-op)
+    if (Math.abs(gain - 1.0) < 0.001) return;
+
     const wholePasses = Math.floor(gain);
     const partialPass = gain - wholePasses;
-    const prevOp = ctx.globalCompositeOperation;
-    const prevA = ctx.globalAlpha;
 
+    // Reset transform for pixel-perfect self-draw (DPR transform must not
+    // scale the source canvas again).
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = "lighter";
 
     for (let i = 0; i < wholePasses; i += 1) {
@@ -864,8 +869,7 @@ export function ThemeBackdrop() {
       ctx.drawImage(cv, 0, 0);
     }
 
-    ctx.globalAlpha = prevA;
-    ctx.globalCompositeOperation = prevOp;
+    ctx.restore();
   };
 
   useEffect(() => {
@@ -873,7 +877,13 @@ export function ThemeBackdrop() {
     if (!cv || !animation || suspended) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      console.warn(
+        "[ThemeBackdrop] Animation suppressed because prefers-reduced-motion: reduce is active.",
+        "Disable this in your OS accessibility settings to enable animated themes."
+      );
+      return;
+    }
 
     const ctx = cv.getContext("2d");
     if (!ctx) return;

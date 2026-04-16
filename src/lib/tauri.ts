@@ -35,6 +35,40 @@ export function isTauri(): boolean {
   );
 }
 
+export type Platform = 'mac' | 'windows' | 'linux' | 'unknown';
+
+let _cachedPlatform: Platform | null = null;
+
+/**
+ * Detect the current OS platform.
+ * Uses navigator.platform with navigator.userAgent fallback.
+ */
+export function getPlatform(): Platform {
+  if (_cachedPlatform) return _cachedPlatform;
+
+  const platform = (navigator.platform || '').toUpperCase();
+  const ua = navigator.userAgent;
+
+  if (platform.includes('MAC') || /Mac OS X/i.test(ua)) {
+    _cachedPlatform = 'mac';
+  } else if (platform.includes('WIN') || /Windows/i.test(ua)) {
+    _cachedPlatform = 'windows';
+  } else if (platform.includes('LINUX') || /Linux/i.test(ua)) {
+    _cachedPlatform = 'linux';
+  } else {
+    _cachedPlatform = 'unknown';
+  }
+
+  return _cachedPlatform;
+}
+
+/**
+ * Check if running on macOS
+ */
+export function isMac(): boolean {
+  return getPlatform() === 'mac';
+}
+
 /**
  * Check if running in PWA mode
  */
