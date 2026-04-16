@@ -70,6 +70,8 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
   );
   root.style.setProperty("--color-card", theme.colors.card || theme.colors.surface);
   root.style.setProperty("--color-card-foreground", theme.colors.onSurface || theme.colors.text);
+  root.style.setProperty("--color-popover", theme.colors.card || theme.colors.surface);
+  root.style.setProperty("--color-popover-foreground", theme.colors.onSurface || theme.colors.text);
   root.style.setProperty("--color-border", theme.colors.border || theme.colors.outline);
   root.style.setProperty(
     "--color-input",
@@ -107,6 +109,8 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
   );
   root.style.setProperty("--color-card", theme.colors.card || theme.colors.surface);
   root.style.setProperty("--color-card-foreground", theme.colors.onSurface || theme.colors.text);
+  root.style.setProperty("--color-popover", theme.colors.card || theme.colors.surface);
+  root.style.setProperty("--color-popover-foreground", theme.colors.onSurface || theme.colors.text);
   root.style.setProperty("--color-border", theme.colors.border || theme.colors.outline);
   root.style.setProperty(
     "--color-input",

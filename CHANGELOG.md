@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.3] - 2026-04-16
+
+### Fixed
+
+- **Animated themes on Windows** — improved canvas backdrop rendering reliability on Windows WebView2 with proper `display: block` styling, robust brightness gain compositing via `ctx.save()`/`restore()`, and a diagnostic warning when `prefers-reduced-motion` suppresses animations at the OS level.
+- **Popover theming** — popover foreground and background colors now follow the active theme instead of falling back to defaults.
+
 ## [1.21.1] - 2026-04-16
 
 ### Added
