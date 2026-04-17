@@ -163,9 +163,9 @@ function sigmoidWeight(x: number, y: number): number {
 function fsrsExpert1(t: number, s: number): number {
   const param1 = FSRS_PARAMS[0];
   if (!(0 < param1 && 0 < s)) return 0.0;
-  const expPower = Math.pow(param1 / 0.9, 2);
+  const expPower = Math.log2(param1 / 0.9);
   const ratio = s / (s + t);
-  return s * Math.pow(ratio, expPower);
+  return param1 * Math.pow(ratio, expPower);
 }
 
 /** FUN_00af8bb0: Expert 2 — FSRS-style power-law forgetting.
@@ -188,20 +188,14 @@ function fsrsExpert3(t: number, s: number): number {
 }
 
 /** FUN_00af8d00: 3-expert weighted average → retrievability-like proxy A. */
-function fsrsExpertMixture(t: number, s: number): number {
+function fsrsExpertMixture(t: number, s: number, d: number): number {
   const e1 = fsrsExpert1(t, s);
   const e2 = fsrsExpert2(t, s);
   const e3 = fsrsExpert3(t, s);
 
-  const w1Time = 1.0 - sigmoidWeight(t, FSRS_PARAMS[1]);
-  const w1Stab = sigmoidWeight(s, FSRS_PARAMS[2]);
-  const w1 = (w1Time + w1Stab) / 2.0;
-
-  const w2Time = 1.0 - sigmoidWeight(t, FSRS_PARAMS[1]);
-  const w2Stab = sigmoidWeight(s, FSRS_PARAMS[3]);
-  const w2 = (w2Time + w2Stab) / 2.0;
-
-  const w3 = sigmoidWeight(t, FSRS_PARAMS[4]);
+  const w1 = ((1.0 - sigmoidWeight(s, FSRS_PARAMS[1])) + sigmoidWeight(d, FSRS_PARAMS[2])) / 2.0;
+  const w2 = ((1.0 - sigmoidWeight(s, FSRS_PARAMS[1])) + sigmoidWeight(d, FSRS_PARAMS[3])) / 2.0;
+  const w3 = sigmoidWeight(s, FSRS_PARAMS[4]);
 
   const wSum = w1 + w2 + w3;
   if (wSum === 0) return 0.0;
@@ -249,7 +243,7 @@ function fsrsRecallStability(d: number, s: number, a: number, t: number, grade: 
 
 /** FUN_00af9420: Main FSRS review kernel. Returns [new_S, new_D, interval, easiness]. */
 export function fsrsReviewKernel(s: number, d: number, t: number, grade: number): [number, number, number, number] {
-  const a = fsrsExpertMixture(t, s);
+  const a = fsrsExpertMixture(t, s, d);
   const dNew = fsrsDifficultyUpdate(d, s, a, grade);
   const sNew = grade < 3 ? fsrsLapseStability(dNew, s, a) : fsrsRecallStability(dNew, s, a, t, grade);
   const interval = sNew > 1.0 ? sNew : 1.0;
@@ -259,8 +253,8 @@ export function fsrsReviewKernel(s: number, d: number, t: number, grade: number)
 
 /** FUN_00ceb590: Initialize a new FSRS item. */
 export function fsrsInitItem(grade: number, stability: number, flag: boolean): SM20State {
-  const d = FSRS_PARAMS[Math.min(5 + grade, 10)];
-  const sFactor = FSRS_PARAMS[Math.min(11 + grade, 18)];
+  const d = (grade < 0 || grade > 5) ? FSRS_PARAMS[5] : FSRS_PARAMS[6 + grade];
+  const sFactor = (grade < 0 || grade > 5) ? FSRS_PARAMS[12] : FSRS_PARAMS[13 + grade];
   return {
     version: 2,
     stability,
