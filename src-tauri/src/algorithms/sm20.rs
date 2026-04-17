@@ -219,9 +219,9 @@ pub(crate) fn fsrs_expert1(t: f64, s: f64) -> f64 {
     if !(threshold < param1 && threshold < s) {
         return 0.0;
     }
-    let exp_power = (param1 / 0.9).powi(2);
+    let exp_power = (param1 / 0.9).log2();
     let ratio = s / (s + t);
-    s * ratio.powf(exp_power)
+    param1 * ratio.powf(exp_power)
 }
 
 /// FUN_00af8bb0: Expert 2 — FSRS-style power-law forgetting.
@@ -249,20 +249,14 @@ pub(crate) fn fsrs_expert3(t: f64, s: f64) -> f64 {
 }
 
 /// FUN_00af8d00: 3-expert weighted average → retrievability-like proxy A.
-pub(crate) fn fsrs_expert_mixture(t: f64, s: f64) -> f64 {
+pub(crate) fn fsrs_expert_mixture(t: f64, s: f64, d: f64) -> f64 {
     let e1 = fsrs_expert1(t, s);
     let e2 = fsrs_expert2(t, s);
     let e3 = fsrs_expert3(t, s);
 
-    let w1_time = 1.0 - sigmoid_weight(t, FSRS_PARAMS[1]);
-    let w1_stab = sigmoid_weight(s, FSRS_PARAMS[2]);
-    let w1 = (w1_time + w1_stab) / 2.0;
-
-    let w2_time = 1.0 - sigmoid_weight(t, FSRS_PARAMS[1]);
-    let w2_stab = sigmoid_weight(s, FSRS_PARAMS[3]);
-    let w2 = (w2_time + w2_stab) / 2.0;
-
-    let w3 = sigmoid_weight(t, FSRS_PARAMS[4]);
+    let w1 = ((1.0 - sigmoid_weight(s, FSRS_PARAMS[1])) + sigmoid_weight(d, FSRS_PARAMS[2])) / 2.0;
+    let w2 = ((1.0 - sigmoid_weight(s, FSRS_PARAMS[1])) + sigmoid_weight(d, FSRS_PARAMS[3])) / 2.0;
+    let w3 = sigmoid_weight(s, FSRS_PARAMS[4]);
 
     let w_sum = w1 + w2 + w3;
     if w_sum == 0.0 {
@@ -323,7 +317,7 @@ pub(crate) fn fsrs_recall_stability(d: f64, s: f64, a: f64, t: f64, grade: i32) 
 /// FUN_00af9420: Main FSRS review kernel.
 /// Returns (new_S, new_D, interval, easiness).
 pub(crate) fn fsrs_review_kernel(s: f64, d: f64, t: f64, grade: i32) -> (f64, f64, f64, f64) {
-    let a = fsrs_expert_mixture(t, s);
+    let a = fsrs_expert_mixture(t, s, d);
     let d_new = fsrs_difficulty_update(d, s, a, grade);
 
     let s_new = if grade < 3 {
@@ -340,8 +334,8 @@ pub(crate) fn fsrs_review_kernel(s: f64, d: f64, t: f64, grade: i32) -> (f64, f6
 
 /// FUN_00ceb590: Initialize a new FSRS item.
 pub fn fsrs_init_item(grade: i32, stability: f64, flag: bool) -> SM20State {
-    let d = FSRS_PARAMS[(5 + grade as usize).min(10)];
-    let s_factor = FSRS_PARAMS[(11 + grade as usize).min(18)];
+    let d = if grade < 0 || grade > 5 { FSRS_PARAMS[5] } else { FSRS_PARAMS[6 + grade as usize] };
+    let s_factor = if grade < 0 || grade > 5 { FSRS_PARAMS[12] } else { FSRS_PARAMS[13 + grade as usize] };
 
     SM20State {
         version: 2,
@@ -1252,13 +1246,13 @@ mod tests {
 
     #[test]
     fn fsrs_expert_mixture_typical() {
-        let result = fsrs_expert_mixture(5.0, 3.0);
+        let result = fsrs_expert_mixture(5.0, 3.0, 0.3);
         assert!((result - 0.959164178214662).abs() < 1e-10);
     }
 
     #[test]
     fn fsrs_expert_mixture_zero_time() {
-        let result = fsrs_expert_mixture(0.0, 3.0);
+        let result = fsrs_expert_mixture(0.0, 3.0, 0.3);
         assert!((result - 1.51109857732188).abs() < 1e-10);
     }
 
@@ -1320,8 +1314,8 @@ mod tests {
     fn fsrs_init_item_grade3_no_flag() {
         let state = fsrs_init_item(3, 1.0, false);
         assert_eq!(state.algorithm_branch, 1);
-        assert!((state.difficulty - FSRS_PARAMS[8]).abs() < 1e-10);
-        assert!((state.s_factor - FSRS_PARAMS[14]).abs() < 1e-10);
+        assert!((state.difficulty - FSRS_PARAMS[9]).abs() < 1e-10);
+        assert!((state.s_factor - FSRS_PARAMS[16]).abs() < 1e-10);
         assert!((state.multiplier - 3.0).abs() < 1e-10);
         assert!((state.retrov - FSRS_PARAMS[8]).abs() < 1e-10);
     }
@@ -1330,8 +1324,8 @@ mod tests {
     fn fsrs_init_item_grade5_with_flag() {
         let state = fsrs_init_item(5, 2.0, true);
         assert_eq!(state.algorithm_branch, 1);
-        assert!((state.difficulty - FSRS_PARAMS[10]).abs() < 1e-10);
-        assert!((state.s_factor - FSRS_PARAMS[16]).abs() < 1e-10);
+        assert!((state.difficulty - FSRS_PARAMS[11]).abs() < 1e-10);
+        assert!((state.s_factor - FSRS_PARAMS[18]).abs() < 1e-10);
         assert!((state.multiplier - 0.5).abs() < 1e-10);
     }
 
