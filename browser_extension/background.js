@@ -589,6 +589,7 @@ async function sendToIncrementum(data, options = {}) {
       text: trimmedText,
       content: trimmedText, // kept for backward compatibility
       html_content: data.html_content, // Rich HTML content for visual fidelity
+      extracted_images: data.extracted_images,
       type: data.type || (trimmedText ? 'extract' : 'page'),
       source: data.source || 'browser_extension',
       timestamp: data.timestamp || new Date().toISOString(),
@@ -655,22 +656,35 @@ async function saveLink(url, sourceTabId, linkText) {
 
     // Try to extract page content using the content script
     let pageContent = '';
+    let pageHtml = undefined;
+    let extractedImages = undefined;
+    let extractedTitle = '';
     try {
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'getPageContent'
       });
-      if (response && response.success && response.content) {
-        pageContent = response.content;
+      if (response && response.success) {
+        pageContent = response.page?.text || response.content || '';
+        pageHtml = response.page?.html_content;
+        extractedImages = response.page?.extracted_images;
+        extractedTitle = response.page?.title?.trim() || '';
         console.log('[DEBUG] Successfully extracted page content, length:', pageContent.length);
       }
     } catch (error) {
       console.log('[DEBUG] Could not get content from content script:', error.message);
     }
 
-    // Prefer the clicked link text as user-visible name, then loaded tab title.
-    const title = (typeof linkText === 'string' && linkText.trim())
-      ? linkText.trim()
-      : (tab.title || 'Link saved from context menu');
+    const resolvedTabTitle = typeof tab.title === 'string' ? tab.title.trim() : '';
+    const resolvedLinkText = typeof linkText === 'string' ? linkText.trim() : '';
+    let fallbackTitle = '';
+    try {
+      fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      fallbackTitle = 'Saved link';
+    }
+
+    // Prefer the actual destination page title. Fall back to link text and then hostname.
+    const title = extractedTitle || resolvedTabTitle || resolvedLinkText || fallbackTitle;
 
     // Close the tab
     await chrome.tabs.remove(tab.id);
@@ -681,6 +695,8 @@ async function saveLink(url, sourceTabId, linkText) {
       url,
       title,
       text: pageContent,
+      html_content: pageHtml,
+      extracted_images: extractedImages,
       type: 'page'
     });
     await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
@@ -688,9 +704,15 @@ async function saveLink(url, sourceTabId, linkText) {
   } catch (error) {
     console.error('[DEBUG] Error in saveLink:', error);
     // Fallback: save without content
+    let fallbackTitle = '';
+    try {
+      fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      fallbackTitle = 'Saved link';
+    }
     const result = await sendToIncrementum({
       url,
-      title: 'Link saved from context menu',
+      title: fallbackTitle,
       text: '',
       type: 'page'
     });
@@ -705,6 +727,8 @@ async function savePage(url, title) {
     // Try to extract page content using the content script
     const tabs = await chrome.tabs.query({ url: url });
     let pageContent = '';
+    let pageHtml = undefined;
+    let extractedImages = undefined;
 
     if (tabs.length > 0 && tabs[0].id) {
       try {
@@ -712,8 +736,10 @@ async function savePage(url, title) {
         const response = await chrome.tabs.sendMessage(tabs[0].id, {
           action: 'getPageContent'
         });
-        if (response && response.success && response.content) {
-          pageContent = response.content;
+        if (response && response.success) {
+          pageContent = response.page?.text || response.content || '';
+          pageHtml = response.page?.html_content;
+          extractedImages = response.page?.extracted_images;
         }
       } catch (error) {
         console.log('[DEBUG] Could not get content from content script:', error.message);
@@ -724,7 +750,9 @@ async function savePage(url, title) {
     return await sendToIncrementum({
       url,
       title,
-      text: pageContent
+      text: pageContent,
+      html_content: pageHtml,
+      extracted_images: extractedImages
     });
   } catch (error) {
     console.error('[DEBUG] Error in savePage:', error);

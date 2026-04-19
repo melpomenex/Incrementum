@@ -259,7 +259,7 @@ pub fn run() {
 
                 // Initialize browser sync server if auto-start is enabled
                 let repo_arc = std::sync::Arc::new(database::Repository::new(pool));
-                let _ = browser_sync_server::initialize_if_enabled(repo_arc, None).await;
+                let _ = browser_sync_server::initialize_if_enabled(repo_arc, app_handle.clone(), None).await;
 
                 tracing_subscriber::fmt::init();
 

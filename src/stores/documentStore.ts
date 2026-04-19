@@ -3,6 +3,9 @@ import { Document, Extract } from "../types";
 import * as documentsApi from "../api/documents";
 import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
+import { listen, isTauri } from "../lib/tauri";
+import { useToastStore } from "../components/common/Toast";
+import { ToastType } from "../components/common/Toast";
 
 interface DocumentState {
   // Data
@@ -44,7 +47,7 @@ interface DocumentState {
   importFromFile: (filePath: string) => Promise<Document>;
   importFromFiles: (filePaths: string[]) => Promise<Document[]>;
   importFromUrl: (url: string) => Promise<Document>;
-  importFromArxiv: (arxivIdOrUrl: string) => Promise<Document>;
+  importFromArxiv: (arxivIdOrUrl: string, format?: 'pdf' | 'html') => Promise<Document>;
   openFilePickerAndImport: () => Promise<Document[]>;
   setExtracts: (extracts: Extract[]) => void;
   setCurrentExtract: (extract: Extract | null) => void;
@@ -413,12 +416,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }
   },
 
-  importFromArxiv: async (arxivIdOrUrl) => {
+  importFromArxiv: async (arxivIdOrUrl, format: 'pdf' | 'html' = 'pdf') => {
     set({ isImporting: true, error: null, importProgress: { current: 0, total: 2, fileName: 'Fetching paper metadata...' } });
 
     try {
       // Use existing utility to fetch from Arxiv
-      const docData = await importFromArxivUtil(arxivIdOrUrl);
+      const docData = await importFromArxivUtil(arxivIdOrUrl, format);
 
       set({ importProgress: { current: 1, total: 2, fileName: 'Creating document...' } });
 
@@ -493,3 +496,31 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   setError: (error) => set({ error }),
 }));
+
+// Listen for browser extension save events (Tauri only)
+if (isTauri()) {
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  listen<{ document_id: string; title: string; url: string }>(
+    "browser-sync://document-saved",
+    (event) => {
+      const { title } = event.payload;
+
+      // Show toast notification
+      useToastStore.getState().addToast({
+        type: ToastType.Success,
+        title: "Page saved to Incrementum",
+        message: title || undefined,
+      });
+
+      // Debounce document list refresh (500ms)
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        useDocumentStore.getState().loadDocuments();
+        reloadTimer = null;
+      }, 500);
+    }
+  ).catch((err) => {
+    console.warn("[DocumentStore] Failed to register listener for browser-sync://document-saved:", err);
+  });
+}

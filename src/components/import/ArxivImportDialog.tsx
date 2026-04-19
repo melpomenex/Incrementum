@@ -20,6 +20,9 @@ import {
   User,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
 } from "lucide-react";
 import { cn } from "../../utils";
 import {
@@ -30,11 +33,12 @@ import {
   savePaperToLibrary,
   removePaperFromLibrary,
   isPaperSaved,
-  POPULAR_CATEGORIES,
+  ARXIV_DOMAINS,
   getCategoryDisplayName,
   formatAuthors,
   formatArxivDate,
   getArxivPdfUrl,
+  getArxivHtmlUrl,
 } from "../../api/arxiv";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
@@ -58,6 +62,8 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
   const [savedPapers, setSavedPapers] = useState(getSavedPapers());
   const [, setShowCategoryDropdown] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importFormat, setImportFormat] = useState<'pdf' | 'html'>('pdf');
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set(['cs']));
 
   const { importFromArxiv, loadDocuments } = useDocumentStore();
   const { success: showSuccess, error: showError } = useToast();
@@ -108,9 +114,10 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
       setImportSuccess(null);
       setSavedPapers(getSavedPapers());
       
-      // Load default category (AI)
-      if (POPULAR_CATEGORIES.length > 0) {
-        handleCategorySelect(POPULAR_CATEGORIES[0].id);
+      // Load default category (cs.AI)
+      const csDomain = ARXIV_DOMAINS.find(d => d.id === 'cs');
+      if (csDomain && csDomain.categories.length > 0) {
+        handleCategorySelect(csDomain.categories[0].id);
       }
     }
   }, [isOpen, handleCategorySelect]);
@@ -138,7 +145,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
 
     try {
       // Use the store's importFromArxiv method which handles everything
-      const doc = await importFromArxiv(paper.id);
+      const doc = await importFromArxiv(paper.id, importFormat);
       
       // Reload documents to show the new import
       await loadDocuments();
@@ -198,20 +205,50 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                 Categories
               </h3>
               <div className="space-y-1">
-                {POPULAR_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => handleCategorySelect(cat.id)}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                      selectedCategory === cat.id
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+                {ARXIV_DOMAINS.map((domain) => {
+                  const isExpanded = expandedDomains.has(domain.id);
+                  return (
+                    <div key={domain.id}>
+                      <button
+                        onClick={() => {
+                          setExpandedDomains(prev => {
+                            const next = new Set(prev);
+                            if (next.has(domain.id)) next.delete(domain.id);
+                            else next.add(domain.id);
+                            return next;
+                          });
+                        }}
+                        className="w-full flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{domain.name}</span>
+                        <span className="ml-auto text-muted-foreground/60">{domain.categories.length}</span>
+                      </button>
+                      {isExpanded && (
+                        <div className="ml-3 mt-0.5 space-y-0.5">
+                          {domain.categories.map((cat) => (
+                            <button
+                              key={cat.id}
+                              onClick={() => handleCategorySelect(cat.id)}
+                              className={cn(
+                                "w-full rounded-lg px-3 py-1.5 text-left text-xs transition-colors",
+                                selectedCategory === cat.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                              )}
+                            >
+                              {cat.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -470,6 +507,32 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                 )}
 
                 <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 mb-1">
+                    <button
+                      onClick={() => setImportFormat('pdf')}
+                      className={cn(
+                        "flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
+                        importFormat === 'pdf'
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Download className="h-3 w-3" />
+                      PDF
+                    </button>
+                    <button
+                      onClick={() => setImportFormat('html')}
+                      className={cn(
+                        "flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
+                        importFormat === 'html'
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <FileCode className="h-3 w-3" />
+                      HTML
+                    </button>
+                  </div>
                   <button
                     onClick={() => handleImport(selectedPaper)}
                     disabled={isImporting}
@@ -498,13 +561,13 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                     )}
                   </button>
                   <a
-                    href={getArxivPdfUrl(selectedPaper.id)}
+                    href={importFormat === 'html' ? getArxivHtmlUrl(selectedPaper.id) : getArxivPdfUrl(selectedPaper.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full rounded-lg border border-border bg-background py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2"
                   >
                     <Download className="h-4 w-4" />
-                    Download PDF
+                    Download {importFormat === 'html' ? 'HTML' : 'PDF'}
                   </a>
                   <a
                     href={selectedPaper.absUrl}

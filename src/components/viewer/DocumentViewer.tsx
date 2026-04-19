@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, AlertCircle, Star, CheckCircle, Sparkles, Languages, PanelsTopLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
@@ -116,13 +116,13 @@ const isEditableBrowserArticleDocument = (doc?: {
   metadata?: {
     source?: string;
     browserImportMode?: string;
+    articleHtml?: string;
   };
 }) => {
   if (!doc) return false;
   const normalizedType = normalizeDocumentType(doc.fileType);
   return (
     doc.metadata?.source === "browser_extension" &&
-    doc.metadata?.browserImportMode === "text-editor" &&
     (normalizedType === "html" || normalizedType === "markdown")
   );
 };
@@ -2728,9 +2728,32 @@ export function DocumentViewer({
     }
   };
 
-  const htmlSource = currentDocument?.content || htmlContent || "";
+  const htmlSource = currentDocument?.metadata?.articleHtml || currentDocument?.content || htmlContent || "";
   const htmlForDisplay = useMemo(() => {
-    if (!htmlSource) return "";
+    if (!htmlSource) {
+      if (isEditableBrowserArticleDocument(currentDocument)) {
+        const sourceUrl = currentDocument?.filePath || "";
+        return `<!DOCTYPE html><html><head></head><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; color: #666; text-align: center; padding: 2rem;">
+          <div>
+            <p>This page had no readable content when saved.</p>
+            <p style="font-size: 0.85em; margin-top: 8px; color: #888;">The source may require JavaScript to render content.</p>
+            ${sourceUrl.startsWith("http") ? `<p style="font-size: 0.85em; margin-top: 12px;"><a href="${sourceUrl}" target="_blank" rel="noopener" style="color: #2563eb;">Open original page</a></p>` : ""}
+          </div>
+        </body></html>`;
+      }
+      return "";
+    }
+
+    // Browser extension documents store plain text (captured via innerText).
+    // Route through processHtmlContent to add proper styling for iframe display.
+    if (isEditableBrowserArticleDocument(currentDocument)) {
+      const preserveImages = settings.documents.webImportPreserveImages;
+      const baseUrl = currentDocument?.filePath?.startsWith("http")
+        ? currentDocument.filePath
+        : window.location.origin;
+      return processHtmlContent(htmlSource, baseUrl, currentDocument?.title || "", preserveImages);
+    }
+
     const preserveImages = settings.documents.webImportPreserveImages;
     try {
       const parser = new DOMParser();
@@ -2800,7 +2823,7 @@ export function DocumentViewer({
     } catch {
       return htmlSource;
     }
-  }, [htmlSource, settings.documents.webImportPreserveImages, jumpHighlightQuery]);
+  }, [htmlSource, settings.documents.webImportPreserveImages, jumpHighlightQuery, currentDocument]);
 
   // Apply initial jump navigation (page/scroll/time) on document load.
   useEffect(() => {
@@ -3309,6 +3332,12 @@ export function DocumentViewer({
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
             onTextSelectionCapabilityChange={setPdfTextSelectionCapability}
+            onOcrExtractText={(text, pageNum) => {
+              setSelectedText(text);
+              lastSelectionRef.current = text;
+              setSelectionContext(null);
+              setIsExtractDialogOpen(true);
+            }}
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
           />
@@ -3583,93 +3612,6 @@ export function DocumentViewer({
           />
         )}
       </div>
-
-      {/* Side Rating Controls for PDFs */}
-      {viewMode === "document" && docType === "pdf" && hasDocumentHistory && !embedded && (
-        <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
-          <button
-            type="button"
-            onClick={() => handleRating(1)}
-            className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg"
-            title={t("viewer.againForgotCompletely")}
-            aria-label={t("viewer.rateAgain")}
-          >
-            <AlertCircle className="w-6 h-6 text-white" />
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Again (1)
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRating(2)}
-            className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg"
-            title={t("viewer.hardDifficultRecall")}
-            aria-label={t("viewer.rateHard")}
-          >
-            <Star className="w-6 h-6 text-white" />
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Hard (2)
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRating(3)}
-            className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg"
-            title={t("viewer.goodNormalRecall")}
-            aria-label={t("viewer.rateGood")}
-          >
-            <CheckCircle className="w-6 h-6 text-white" />
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Good (3)
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRating(4)}
-            className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg"
-            title={t("viewer.easyPerfectRecall")}
-            aria-label={t("viewer.rateEasy")}
-          >
-            <Sparkles className="w-6 h-6 text-white" />
-            <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Easy (4)
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* Floating Rating Bubbles for Audiobooks */}
-      {viewMode === "document" && docType === "audio" && hasDocumentHistory && !embedded && (
-        <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
-          {[
-            { value: 1, label: "A", title: "Again", color: "bg-red-500 hover:bg-red-600", shadow: "shadow-red-500/30" },
-            { value: 2, label: "H", title: "Hard", color: "bg-orange-500 hover:bg-orange-600", shadow: "shadow-orange-500/30" },
-            { value: 3, label: "G", title: "Good", color: "bg-blue-500 hover:bg-blue-600", shadow: "shadow-blue-500/30" },
-            { value: 4, label: "E", title: "Easy", color: "bg-green-500 hover:bg-green-600", shadow: "shadow-green-500/30" },
-          ].map((rating) => (
-            <button
-              key={rating.value}
-              onClick={() => handleRating(rating.value as ReviewRating)}
-              className={cn(
-                "w-12 h-12 rounded-full text-white font-bold text-sm",
-                "flex items-center justify-center",
-                "transition-all duration-150",
-                "hover:scale-110 active:scale-95",
-                "shadow-lg hover:shadow-xl",
-                rating.color,
-                rating.shadow
-              )}
-              title={`${rating.title} (${rating.value})`}
-              aria-label={`Rate ${rating.title}`}
-            >
-              {rating.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Floating Action Button for Extract Creation */}
       {activeExtractSelection && viewMode === "document" && (

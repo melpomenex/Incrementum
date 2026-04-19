@@ -12,7 +12,7 @@ pub mod playlist;
 pub mod video_extract;
 pub mod image_asset;
 
-pub use document::{Document, FileType, DocumentMetadata};
+pub use document::{Document, DocumentImageAsset, FileType, DocumentMetadata};
 pub use extract::Extract;
 pub use learning_item::{LearningItem, ItemType, ItemState, MemoryState, ReviewRating};
 pub use category::Category;

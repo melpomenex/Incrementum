@@ -72,6 +72,13 @@ pub enum FileType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DocumentImageAsset {
+    pub src: String,
+    pub alt: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DocumentMetadata {
     pub author: Option<String>,
     pub subject: Option<String>,
@@ -86,6 +93,8 @@ pub struct DocumentMetadata {
     pub fetched_at: Option<DateTime<Utc>>,
     pub site_name: Option<String>,
     pub browser_import_mode: Option<String>,
+    pub article_html: Option<String>,
+    pub extracted_images: Option<Vec<DocumentImageAsset>>,
 }
 
 impl Document {
