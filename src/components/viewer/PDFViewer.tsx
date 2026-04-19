@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { TextLayerBuilder } from "pdfjs-dist/web/pdf_viewer.mjs";
-import { List, ChevronLeft, ChevronRight, Maximize, Minimize } from "lucide-react";
+import { List, ChevronLeft, ChevronRight, Maximize, Minimize, Scan } from "lucide-react";
 import { cn } from "../../utils";
 import type { PdfDest, ViewState } from "../../types/readerPosition";
 import type { PdfRect, PdfSelectionContext, ViewportRect } from "../../types/selection";
@@ -30,6 +30,10 @@ import { SelectionRenderer } from "./selection";
 // 3-layer architecture components
 import { HighlightLayer, useHighlightManager, type StoredHighlight } from "./HighlightLayer";
 import { SelectionPopup, type HighlightColor } from "./SelectionPopup";
+import { OcrRegionSelector } from "./OcrRegionSelector";
+import { OcrProgressOverlay } from "./OcrProgressOverlay";
+import { OcrTextPreview } from "./OcrTextPreview";
+import { usePdfOcrManager } from "./PdfOcrManager";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
@@ -141,6 +145,7 @@ interface PDFViewerProps {
   onTextWindowChange?: (text: string) => void;
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
   onTextSelectionCapabilityChange?: (capability: PdfTextSelectionCapability) => void;
+  onOcrExtractText?: (text: string, pageNumber: number) => void;
 }
 
 type PdfTextLayerRenderer = {
@@ -182,6 +187,7 @@ export function PDFViewer({
   onTextWindowChange,
   onSelectionChange,
   onTextSelectionCapabilityChange,
+  onOcrExtractText,
 }: PDFViewerProps) {
   const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -229,6 +235,16 @@ export function PDFViewer({
     getHighlightsForPage,
   } = useHighlightManager();
 
+  // OCR mode manager
+  const ocr = usePdfOcrManager();
+
+  // Reset OCR mode when page changes or document unloads
+  useEffect(() => {
+    if (ocr.flowState !== "idle") {
+      ocr.exitOcrMode();
+    }
+  }, [pageNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Selection popup state
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);
   const [selectionPopupRect, setSelectionPopupRect] = useState<DOMRect | null>(null);
@@ -266,7 +282,7 @@ export function PDFViewer({
     documentId,
     pageContainerRefs,
     pageViewportRefs,
-    enabled: ENABLE_CUSTOM_PDF_SELECTION,
+    enabled: ENABLE_CUSTOM_PDF_SELECTION && ocr.flowState === "idle",
     onSelectionChange: (text, context) => {
       // Store the selection context for later use (highlight, etc.)
       setPendingSelectionContext(context);
@@ -1916,6 +1932,13 @@ export function PDFViewer({
       handlePrevPage();
     } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       handleNextPage();
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+      e.preventDefault();
+      if (ocr.flowState === "idle") {
+        ocr.enterOcrMode();
+      } else {
+        ocr.exitOcrMode();
+      }
     }
   };
 
@@ -2193,6 +2216,20 @@ export function PDFViewer({
                 <List className="w-4 h-4 md:w-4 md:h-4" />
               </button>
 
+              <button
+                onClick={() => {
+                  if (ocr.flowState === "idle") ocr.enterOcrMode();
+                  else ocr.exitOcrMode();
+                }}
+                className={cn(
+                  "p-2 rounded-md transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center",
+                  ocr.flowState !== "idle" ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400" : "hover:bg-muted text-muted-foreground"
+                )}
+                title="OCR Select (Ctrl+Shift+O)"
+              >
+                <Scan className="w-4 h-4 md:w-4 md:h-4" />
+              </button>
+
               <div className="hidden md:block h-6 w-px bg-border mx-2" />
 
               <button
@@ -2266,7 +2303,8 @@ export function PDFViewer({
             className={cn(
               "flex-1 min-h-0 overflow-auto bg-muted/30 p-4",
               isDragging && "cursor-grabbing",
-              !isDragging && (scale > 1 || zoomMode === "custom") && "cursor-grab"
+              !isDragging && ocr.flowState === "idle" && (scale > 1 || zoomMode === "custom") && "cursor-grab",
+              ocr.flowState !== "idle" && !isDragging && "cursor-crosshair"
             )}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -2338,7 +2376,11 @@ export function PDFViewer({
                           "textLayerContainer",
                           ENABLE_CUSTOM_PDF_SELECTION && "customSelectionActive"
                         )}
-                        style={{ transformOrigin: "0 0", zIndex: 10 }}
+                        style={{
+                          transformOrigin: "0 0",
+                          zIndex: 10,
+                          pointerEvents: ocr.flowState !== "idle" ? "none" : undefined,
+                        }}
                       />
                       {/* Custom selection layer - sits above textLayer for geometric selection */}
                       {ENABLE_CUSTOM_PDF_SELECTION && (
@@ -2353,6 +2395,61 @@ export function PDFViewer({
                             selectionState={customSelection.selectionState}
                           />
                         </div>
+                      )}
+                      {/* OCR region selection and overlays - only on current page */}
+                      {ocr.flowState !== "idle" && pageNum === pageNumber && (
+                        <>
+                          {ocr.flowState === "selecting" && (
+                            <OcrRegionSelector
+                              canvasRef={{ current: canvasRefs.current[index] }}
+                              isActive={true}
+                              onRegionSelected={(rect) => {
+                                const canvas = canvasRefs.current[index];
+                                if (canvas) ocr.handleRegionSelected(rect, canvas);
+                              }}
+                              onCancel={ocr.exitOcrMode}
+                            />
+                          )}
+                          {(ocr.flowState === "processing" || ocr.flowState === "previewing" || ocr.flowState === "error") && ocr.selectedRect && (() => {
+                            const canvas = canvasRefs.current[index];
+                            if (!canvas) return null;
+                            const cssScale = canvas.getBoundingClientRect().width / canvas.width;
+                            return (
+                              <>
+                                {ocr.flowState === "processing" && (
+                                  <OcrProgressOverlay
+                                    selectionRect={ocr.selectedRect}
+                                    cssScale={cssScale}
+                                    progress={0}
+                                    status="Processing..."
+                                  />
+                                )}
+                                {(ocr.flowState === "previewing" || ocr.flowState === "error") && (
+                                  <OcrTextPreview
+                                    ocrResult={ocr.ocrResult}
+                                    editedText={ocr.editedText}
+                                    language={ocr.language}
+                                    isLoading={false}
+                                    error={ocr.error}
+                                    selectionRect={ocr.selectedRect}
+                                    cssScale={cssScale}
+                                    onTextChange={ocr.setEditedText}
+                                    onLanguageChange={ocr.setLanguage}
+                                    onCreateExtract={() => {
+                                      const text = ocr.editedText.trim();
+                                      if (text && onOcrExtractText) {
+                                        onOcrExtractText(text, pageNumber);
+                                        ocr.exitOcrMode();
+                                      }
+                                    }}
+                                    onRetry={() => ocr.retryOcr()}
+                                    onCancel={ocr.exitOcrMode}
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
+                        </>
                       )}
                     </div>
                   );
