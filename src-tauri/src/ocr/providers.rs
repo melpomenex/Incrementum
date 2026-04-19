@@ -122,12 +122,41 @@ impl TesseractProvider {
         }
     }
 
+    /// Resolve the tesseract binary path.
+    /// If explicitly configured, use that. Otherwise try common locations:
+    /// - bare `tesseract` (works if on PATH)
+    /// - Homebrew on Apple Silicon: `/opt/homebrew/bin/tesseract`
+    /// - Homebrew on Intel Mac: `/usr/local/bin/tesseract`
+    fn resolve_cmd(&self) -> String {
+        if let Some(ref path) = self.tesseract_path {
+            return path.clone();
+        }
+        // Try common paths in order; return the first that exists
+        let candidates = [
+            "tesseract",
+            "/opt/homebrew/bin/tesseract",
+            "/usr/local/bin/tesseract",
+        ];
+        for candidate in &candidates {
+            if std::path::Path::new(candidate).exists() || *candidate == "tesseract" {
+                // For bare "tesseract", try running it — if it works, use it
+                if std::process::Command::new(candidate)
+                    .arg("--version")
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
+                {
+                    return candidate.to_string();
+                }
+            }
+        }
+        // Fallback to bare name — will produce a clear error in check_installation
+        "tesseract".to_string()
+    }
+
     /// Check if Tesseract is installed
     pub fn check_installation(&self) -> Result<()> {
-        let cmd = self
-            .tesseract_path
-            .clone()
-            .unwrap_or_else(|| "tesseract".to_string());
+        let cmd = self.resolve_cmd();
 
         let output = std::process::Command::new(&cmd)
             .arg("--version")
@@ -160,10 +189,7 @@ impl OCRProvider for TesseractProvider {
         // Check if Tesseract is available
         self.check_installation()?;
 
-        let cmd = self
-            .tesseract_path
-            .clone()
-            .unwrap_or_else(|| "tesseract".to_string());
+        let cmd = self.resolve_cmd();
 
         // Run Tesseract with output to stdout
         let output = std::process::Command::new(&cmd)
