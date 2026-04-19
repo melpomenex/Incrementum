@@ -503,8 +503,7 @@ export function QueueScrollPage() {
           if (doc?.isArchived) {
             return null;
           }
-          const isImportedWebArticle = !!doc?.filePath
-            && /^https?:\/\//.test(doc.filePath)
+          const isImportedWebArticle = doc?.metadata?.source === "browser_extension"
             && doc?.fileType !== "youtube";
 
           // Calculate engagement score based on priority and variety factors

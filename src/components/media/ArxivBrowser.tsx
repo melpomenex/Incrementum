@@ -8,6 +8,9 @@ import {
   BookmarkCheck,
   Loader2,
   BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FileCode,
 } from "lucide-react";
 import {
   ArxivPaper,
@@ -17,15 +20,16 @@ import {
   savePaperToLibrary,
   removePaperFromLibrary,
   isPaperSaved,
-  POPULAR_CATEGORIES,
+  ARXIV_DOMAINS,
   getCategoryDisplayName,
   formatAuthors,
   formatArxivDate,
   getArxivPdfUrl,
+  getArxivHtmlUrl,
 } from "../../api/arxiv";
 
 interface ArxivBrowserProps {
-  onImport?: (paper: ArxivPaper) => void;
+  onImport?: (paper: ArxivPaper, format?: 'pdf' | 'html') => void;
 }
 
 export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
@@ -36,6 +40,8 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedPapers, setSavedPapers] = useState(getSavedPapers());
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set(['cs']));
+  const [importFormat, setImportFormat] = useState<'pdf' | 'html'>('pdf');
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -86,7 +92,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
   };
 
   const handleImportPaper = (paper: ArxivPaper) => {
-    onImport?.(paper);
+    onImport?.(paper, importFormat);
   };
 
   return (
@@ -105,19 +111,49 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
         <div className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-2">Categories</h3>
           <div className="space-y-1">
-            {POPULAR_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategorySelect(cat.id)}
-                className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${
-                  selectedCategory === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {ARXIV_DOMAINS.map((domain) => {
+              const isExpanded = expandedDomains.has(domain.id);
+              return (
+                <div key={domain.id}>
+                  <button
+                    onClick={() => {
+                      setExpandedDomains(prev => {
+                        const next = new Set(prev);
+                        if (next.has(domain.id)) next.delete(domain.id);
+                        else next.add(domain.id);
+                        return next;
+                      });
+                    }}
+                    className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                    )}
+                    <span className="truncate">{domain.name}</span>
+                    <span className="ml-auto text-muted-foreground/60">{domain.categories.length}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-3 mt-0.5 space-y-0.5">
+                      {domain.categories.map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => handleCategorySelect(cat.id)}
+                          className={`w-full px-3 py-1.5 text-left text-xs rounded-lg transition-colors ${
+                            selectedCategory === cat.id
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -259,13 +295,13 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                         <ExternalLink className="w-4 h-4" />
                       </a>
                       <a
-                        href={getArxivPdfUrl(paper.id)}
+                        href={importFormat === 'html' ? getArxivHtmlUrl(paper.id) : getArxivPdfUrl(paper.id)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                        title="Download PDF"
+                        title={importFormat === 'html' ? "View HTML" : "Download PDF"}
                       >
-                        <Download className="w-4 h-4" />
+                        {importFormat === 'html' ? <FileCode className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                       </a>
                     </div>
                   </div>
@@ -335,16 +371,42 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                 </div>
               )}
 
+              {/* Format toggle */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setImportFormat('pdf')}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    importFormat === 'pdf'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Download className="w-3 h-3" />
+                  PDF
+                </button>
+                <button
+                  onClick={() => setImportFormat('html')}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    importFormat === 'html'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileCode className="w-3 h-3" />
+                  HTML
+                </button>
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2">
                 <a
-                  href={getArxivPdfUrl(selectedPaper.id)}
+                  href={importFormat === 'html' ? getArxivHtmlUrl(selectedPaper.id) : getArxivPdfUrl(selectedPaper.id)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Download PDF
+                  Download {importFormat === 'html' ? 'HTML' : 'PDF'}
                 </a>
                 <button
                   onClick={() => handleImportPaper(selectedPaper)}

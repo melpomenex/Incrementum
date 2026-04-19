@@ -1146,6 +1146,8 @@ pub async fn import_youtube_video(
         fetched_at: Some(created_at),
         site_name: Some("YouTube".to_string()),
         browser_import_mode: None,
+        article_html: None,
+        extracted_images: None,
     });
 
     // Save to database

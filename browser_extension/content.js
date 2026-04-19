@@ -306,78 +306,178 @@
     }, 3000);
   }
 
-  // Get page content for AI processing
-  function getPageContent() {
-    try {
-      // Extract meaningful content from the page
-      const content = [];
-      
-      // Get title
-      if (document.title) {
-        content.push(`Title: ${document.title}`);
+  function getPrimaryContentRoot() {
+    const contentSelectors = [
+      'main',
+      'article',
+      '[role="main"]',
+      '.content',
+      '.main-content',
+      '#content',
+      '#main',
+      '.post-content',
+      '.entry-content',
+      '.article-content'
+    ];
+
+    for (const selector of contentSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        return element;
       }
-      
-      // Get meta description
-      const metaDescription = document.querySelector('meta[name="description"]');
-      if (metaDescription && metaDescription.content) {
-        content.push(`Description: ${metaDescription.content}`);
+    }
+
+    return document.body;
+  }
+
+  function normalizeArticleText(text) {
+    return (text || '')
+      .replace(/\r/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .trim()
+      .slice(0, 50000);
+  }
+
+  function captureStyledArticleHtml(root) {
+    if (!root) return '';
+
+    const clone = root.cloneNode(true);
+    const originalElements = [root, ...root.querySelectorAll('*')];
+    const clonedElements = [clone, ...clone.querySelectorAll('*')];
+    const styleProps = [
+      'display',
+      'font-family',
+      'font-size',
+      'font-weight',
+      'font-style',
+      'line-height',
+      'color',
+      'background-color',
+      'text-align',
+      'text-decoration',
+      'text-transform',
+      'letter-spacing',
+      'margin-top',
+      'margin-right',
+      'margin-bottom',
+      'margin-left',
+      'padding-top',
+      'padding-right',
+      'padding-bottom',
+      'padding-left',
+      'list-style-type'
+    ];
+
+    for (let i = 0; i < originalElements.length; i++) {
+      const originalEl = originalElements[i];
+      const clonedEl = clonedElements[i];
+      if (!(originalEl instanceof HTMLElement) || !(clonedEl instanceof HTMLElement)) continue;
+
+      Array.from(clonedEl.attributes).forEach((attr) => {
+        if (attr.name.startsWith('on')) {
+          clonedEl.removeAttribute(attr.name);
+        }
+      });
+
+      const computed = window.getComputedStyle(originalEl);
+      const inlineStyles = styleProps
+        .map((prop) => {
+          const value = computed.getPropertyValue(prop);
+          if (!value || value === 'none' || value === 'normal' || value === 'rgba(0, 0, 0, 0)') {
+            return null;
+          }
+          return `${prop}: ${value}`;
+        })
+        .filter(Boolean)
+        .join('; ');
+
+      if (inlineStyles) {
+        clonedEl.setAttribute('style', inlineStyles);
+      } else {
+        clonedEl.removeAttribute('style');
       }
-      
-      // Get main content areas
-      const contentSelectors = [
-        'main',
-        'article',
-        '[role="main"]',
-        '.content',
-        '.main-content',
-        '#content',
-        '#main',
-        '.post-content',
-        '.entry-content',
-        '.article-content'
-      ];
-      
-      let mainContent = '';
-      for (const selector of contentSelectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-          mainContent = element.innerText || element.textContent || '';
-          break;
+
+      if (originalEl instanceof HTMLAnchorElement) {
+        const href = originalEl.href || originalEl.getAttribute('href');
+        if (href) {
+          clonedEl.setAttribute('href', href);
         }
       }
-      
-      // Fallback to body content if no main content found
-      if (!mainContent) {
-        mainContent = document.body.innerText || document.body.textContent || '';
+
+      if (originalEl instanceof HTMLImageElement) {
+        const src = originalEl.currentSrc || originalEl.src || originalEl.getAttribute('src');
+        if (src) {
+          clonedEl.setAttribute('src', src);
+        }
       }
-      
-      // Clean up the content
-      mainContent = mainContent
-        .replace(/\s+/g, ' ')  // Replace multiple whitespace with single space
-        .replace(/\n\s*\n/g, '\n')  // Remove empty lines
-        .trim();
-      
-      // Limit content length to avoid API limits
-      if (mainContent.length > 8000) {
-        mainContent = mainContent.substring(0, 8000) + '...';
+    }
+
+    if (clone instanceof HTMLElement) {
+      return clone.outerHTML;
+    }
+    return clone.textContent || '';
+  }
+
+  function extractArticleImages(root) {
+    if (!root) return [];
+
+    const seen = new Set();
+    const images = [];
+    const nodes = root.querySelectorAll('img[src]');
+
+    for (const img of nodes) {
+      const rawSrc = img.currentSrc || img.getAttribute('src') || '';
+      if (!rawSrc || rawSrc.startsWith('data:')) continue;
+
+      let absoluteSrc = rawSrc;
+      try {
+        absoluteSrc = new URL(rawSrc, window.location.href).href;
+      } catch {
+        // Keep original src if URL resolution fails.
       }
-      
-      content.push(`Content: ${mainContent}`);
-      
-      // Get headings for structure
-      const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
-        .map(h => h.textContent.trim())
-        .filter(text => text.length > 0)
-        .slice(0, 10);  // Limit to first 10 headings
-      
-      if (headings.length > 0) {
-        content.push(`Headings: ${headings.join(' | ')}`);
-      }
-      
-      return content.join('\n\n');
+
+      if (seen.has(absoluteSrc)) continue;
+      seen.add(absoluteSrc);
+
+      images.push({
+        src: absoluteSrc,
+        alt: (img.getAttribute('alt') || '').trim() || undefined
+      });
+
+      if (images.length >= 24) break;
+    }
+
+    return images;
+  }
+
+  // Get page content for AI processing and article saving
+  function getPageContent() {
+    try {
+      const root = getPrimaryContentRoot();
+      const text = normalizeArticleText(root?.innerText || root?.textContent || document.body.innerText || '');
+      const htmlContent = captureStyledArticleHtml(root);
+      const extractedImages = extractArticleImages(root);
+      const title =
+        document.title?.trim() ||
+        root?.querySelector?.('h1')?.textContent?.trim() ||
+        window.location.hostname;
+
+      return {
+        text,
+        title,
+        html_content: htmlContent || undefined,
+        extracted_images: extractedImages
+      };
     } catch (error) {
       console.error('Error extracting page content:', error);
-      return `Title: ${document.title}\nURL: ${window.location.href}`;
+      return {
+        text: normalizeArticleText(document.body.innerText || document.body.textContent || `Title: ${document.title}\nURL: ${window.location.href}`),
+        title: document.title?.trim() || window.location.hostname,
+        html_content: undefined,
+        extracted_images: []
+      };
     }
   }
 
@@ -468,13 +568,14 @@
     let calculatedPriority = calculateExtractPriority(text, analysis, options.priority);
 
     // Capture HTML content with computed styles for visual fidelity
-    const htmlContent = captureSelectionHTML();
+    const html_content = captureSelectionHTML();
 
     // Create enhanced extract data
     const extractData = {
       id: generateExtractId(),
       text: text,
-      html_content: htmlContent, // Rich HTML content for 1:1 visual fidelity
+      // Rich HTML content for 1:1 visual fidelity
+      html_content: html_content,
       context: context.substring(Math.max(0, context.indexOf(text) - 200),
                                 context.indexOf(text) + text.length + 200),
       url: window.location.href,
@@ -1173,13 +1274,14 @@
     const context = container.textContent || container.innerText || '';
 
     // Capture HTML content with computed styles for visual fidelity
-    const htmlContent = captureSelectionHTML();
+    const html_content = captureSelectionHTML();
 
     // Create extract data
     const extractData = {
       id: generateExtractId(),
       text: text,
-      html_content: htmlContent, // Rich HTML content for 1:1 visual fidelity
+      // Rich HTML content for 1:1 visual fidelity
+      html_content: html_content,
       context: context.substring(Math.max(0, context.indexOf(text) - 100),
                                 context.indexOf(text) + text.length + 100),
       url: window.location.href,
@@ -1628,7 +1730,7 @@
 
       case 'getPageContent':
         const content = getPageContent();
-        sendResponse({ success: true, content: content });
+        sendResponse({ success: true, content: content.text, page: content });
         break;
 
       case 'analyzePageStructure':

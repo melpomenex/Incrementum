@@ -129,44 +129,16 @@ export function processHtmlContent(rawHtml: string, baseUrl: string, title: stri
     doc.head.insertBefore(baseTag, doc.head.firstChild);
   }
 
-  // Add minimal styles for cross-platform consistency without overriding site layout
+  // Keep the saved page visually close to the source. Only add guardrails for sizing.
   const styleTag = doc.createElement('style');
   styleTag.textContent = `
-    /* Reset for consistent preview */
     html, body {
-      margin: 0 !important;
-      padding: 0 !important;
       overflow-x: hidden !important;
     }
 
-    /* Ensure images don't overflow */
     img {
       max-width: 100% !important;
       height: auto !important;
-    }
-
-    /* Improve readability */
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-    }
-
-    /* Hide potentially distracting elements */
-    nav[role="navigation"],
-    .navigation,
-    .nav,
-    header[role="banner"],
-    .site-header,
-    footer[role="contentinfo"],
-    .site-footer,
-    .comments,
-    #comments,
-    .social-share,
-    .share-buttons,
-    .advertisement,
-    .ads,
-    #disqus_thread {
-      display: none !important;
     }
   `;
   doc.head.appendChild(styleTag);
@@ -330,7 +302,7 @@ export async function importFromUrl(
 /**
  * Import paper from Arxiv
  */
-export async function importFromArxiv(input: string): Promise<Omit<Document, 'id'>> {
+export async function importFromArxiv(input: string, format: 'pdf' | 'html' = 'pdf'): Promise<Omit<Document, 'id'>> {
   try {
     // Extract Arxiv ID from URL or direct input
     const arxivId = extractArxivId(input);
@@ -341,15 +313,19 @@ export async function importFromArxiv(input: string): Promise<Omit<Document, 'id
     // Fetch paper metadata from Arxiv API
     const metadata = await fetchArxivMetadata(arxivId);
 
-    // Download PDF using the backend fetch function
+    // Download PDF or HTML using the backend fetch function
+    const isHtml = format === 'html';
+    const downloadUrl = isHtml
+      ? `https://arxiv.org/html/${arxivId}`
+      : `https://arxiv.org/pdf/${arxivId}.pdf`;
+    const fetched = await fetchUrlContent(downloadUrl);
     const pdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
-    const fetched = await fetchUrlContent(pdfUrl);
 
     // Create document object
     const document: Omit<Document, 'id'> = {
       title: metadata.title,
       filePath: fetched.file_path,
-      fileType: 'pdf',
+      fileType: isHtml ? 'html' : 'pdf',
       content: metadata.abstract,
       contentHash: await generateHash(fetched.file_path),
       category: 'Research Papers',
@@ -377,6 +353,7 @@ export async function importFromArxiv(input: string): Promise<Omit<Document, 'id
         arxivId: arxivId,
         arxivUrl: `https://arxiv.org/abs/${arxivId}`,
         pdfUrl: pdfUrl,
+        htmlUrl: isHtml ? downloadUrl : undefined,
         originalFileName: fetched.file_name,
       },
     };

@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.21.7",
+  "version": "1.21.8",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -141,6 +141,7 @@
     "recharts": "^3.6.0",
     "sql.js": "^1.13.0",
     "tailwind-merge": "^3.4.0",
+    "tesseract.js": "^7.0.0",
     "three": "^0.182.0",
     "ts-fsrs": "^5.2.3",
     "typings": "^2.1.1",

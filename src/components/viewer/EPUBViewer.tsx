@@ -53,6 +53,7 @@ export function EPUBViewer({
   const [chromeVisible, setChromeVisible] = useState(true);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
   const [showTocDrawer, setShowTocDrawer] = useState(false);
+  const [showDesktopToc, setShowDesktopToc] = useState(true);
   const [progressPercent, setProgressPercent] = useState(0);
   const [currentChapter, setCurrentChapter] = useState("");
   const selectionActiveRef = useRef(false);
@@ -1339,12 +1340,22 @@ export function EPUBViewer({
       )}
 
       {/* Main content area with sidebar and viewer */}
-      <div className="flex flex-1 overflow-hidden" onClick={handleReaderTap}>
+      <div className="flex flex-1 overflow-hidden relative" onClick={handleReaderTap}>
         {/* Sidebar - Table of Contents (sibling to viewer) */}
-        {!isMobile && toc.length > 0 && (
+        {!isMobile && toc.length > 0 && showDesktopToc && (
           <div className="w-64 border-r border-border bg-card overflow-y-auto z-10 flex-shrink-0">
-            <div className="p-4 border-b border-border">
+            <div className="p-4 border-b border-border flex items-center justify-between gap-3">
               <h3 className="font-semibold text-foreground">{t("viewer.tableOfContents")}</h3>
+              <button
+                type="button"
+                onClick={() => setShowDesktopToc(false)}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label={t("viewer.close")}
+                title={t("viewer.close")}
+              >
+                <Menu className="w-3.5 h-3.5" />
+                <span>{t("viewer.close")}</span>
+              </button>
             </div>
             <nav className="p-2">
               {toc.map((chapter, index) => (
@@ -1362,6 +1373,18 @@ export function EPUBViewer({
 
         {/* EPUB viewer container - epubjs renders directly into this */}
         <div className="flex-1 overflow-hidden relative">
+          {!isMobile && toc.length > 0 && !showDesktopToc && (
+            <button
+              type="button"
+              onClick={() => setShowDesktopToc(true)}
+              className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-2 text-sm text-foreground shadow-lg backdrop-blur-sm hover:bg-muted transition-colors"
+              aria-label={t("viewer.openTableOfContents")}
+              title={t("viewer.openTableOfContents")}
+            >
+              <Menu className="w-4 h-4" />
+              <span>{t("viewer.tableOfContents")}</span>
+            </button>
+          )}
           <div
             ref={viewerRef}
             className="absolute inset-0"

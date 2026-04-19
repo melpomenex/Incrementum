@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.21.8] - 2026-04-19
+
+### Added
+
+- **PDF OCR region select** — users can select a region on any PDF page (including scanned/image-only pages with no text layer) and OCR it into an extract. Activated via the Scan toolbar button or Ctrl+Shift+O, the user draws a rectangle over the desired area, the selected region is sent to the local Tesseract OCR backend, and the recognized text is presented in an editable preview panel before opening the Extract Modal.
+- **Rich article capture from browser extension** — the extension now sends styled HTML (with computed CSS inlined) and up to 24 extracted images per page to the backend, with a server-side readability fallback that enriches content if the extension's extraction yields less text.
+- **ArXiv HTML import** — papers can now be imported as HTML from `arxiv.org/html/` instead of PDF only, with a PDF/HTML toggle in both the import dialog and the ArXiv browser detail panel.
+- **Expanded ArXiv category taxonomy** — complete category tree (~150 categories across 16 domains) with hierarchical collapsible browsing, replacing the previous hand-picked flat list.
+- **Cloze creation from source excerpt** — the cloze editor now shows the source extract text in a selectable panel; users can highlight text and click "Cloze selection" or press Ctrl+B to create cloze deletions directly from the excerpt.
+- **Split-pane article editor** — scroll mode article editor now shows an HTML article preview on the left and the text editor + extracted images panel on the right, with Ctrl+E to create extracts from selected text.
+- **Toggleable EPUB table of contents** — desktop TOC sidebar can now be collapsed/hidden via a close button, with a floating "Table of Contents" button to re-open it.
+- **Browser extension save notifications** — a toast notification appears when the browser extension saves a page, and the document list refreshes automatically.
+- **Working "Open Data Folder" button** — the data folder button in Settings now actually opens the app data directory and displays the path.
+
+### Changed
+
+- **Browser extension title handling** — saved pages now prefer the destination page's actual title over the link text.
+- **Dashboard tab navigation** — clicking a dashboard quick-action button (e.g., Settings) now always navigates to the target tab, even if it is already open. Previously it would do nothing if the tab existed.
+- **Article HTML styling** — `processHtmlContent()` now preserves more of the source page's visual style instead of overriding fonts and hiding elements.
+- **Interface sound pack refresh** — replaced the previous UI feedback assets for `success`, `error`, `click`, `streak`, `review-complete`, and `milestone` with newly added `.wav` sound files, moved them into `public/sounds/`, and rewired the shared sound service to use the new assets.
+
+### Fixed
+
+- **Linux/Wayland webview positioning** — skips unreliable `window.outerWidth/outerHeight` offset detection on Linux, uses `getBoundingClientRect()` on the container element, and adds a `window.resize` listener as a fallback for Wayland compositors.
+- **Webview crash guard** — `.on()` call on embedded Webview is now guarded with a `typeof` check to prevent crashes in Tauri v2 versions where the method may not exist.
+- **Mobile crash on `.contains()`** — guarded all `.contains()` DOM calls with `instanceof Node` checks.
+- **Stale PWA assets on mobile** — bumped service worker cache version to v5.
+- **Web article detection in QueueScroll** — uses `metadata.source === "browser_extension"` instead of unreliable URL prefix matching.
+- **Existing browser-imported documents get enriched** — when a duplicate URL is re-saved, the server updates the existing document if it is missing text or HTML content.
+
 ## [1.21.6] - 2026-04-16
 
 ### Fixed
