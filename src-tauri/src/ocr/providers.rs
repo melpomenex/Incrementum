@@ -135,7 +135,7 @@ impl TesseractProvider {
 
         match output {
             Ok(output) if output.status.success() => Ok(()),
-            _ => Err(IncrementumError::Internal("Tesseract not found. Please install it or provide the correct path.".to_string())),
+            _ => Err(IncrementumError::Internal("Tesseract is not installed. Install it with your package manager:\n  • Arch: sudo pacman -S tesseract\n  • Ubuntu/Debian: sudo apt install tesseract-ocr\n  • macOS: brew install tesseract\n  • Windows: download from https://github.com/UB-Mannheim/tesseract/wiki\n\nOr set the tesseract path in Settings > Documents > OCR.".to_string())),
         }
     }
 }

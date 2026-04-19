@@ -61,10 +61,16 @@ export interface DocumentMetadata {
   fetchMethod?: 'direct' | 'proxy';
   readingTime?: number;
   browserImportMode?: 'text-editor' | 'rich-preview';
+  articleHtml?: string;
+  extractedImages?: Array<{
+    src: string;
+    alt?: string;
+  }>;
   // ArXiv metadata
   arxivId?: string;
   arxivUrl?: string;
   pdfUrl?: string;
+  htmlUrl?: string;
   originalFileName?: string;
   // Markdown bundle metadata
   bundleImages?: Record<string, string>; // relative path -> stored filename

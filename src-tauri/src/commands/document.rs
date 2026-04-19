@@ -162,6 +162,8 @@ pub async fn import_document(
         fetched_at: None,
         site_name: None,
         browser_import_mode: None,
+        article_html: None,
+        extracted_images: None,
     });
 
     // Create the document
@@ -347,6 +349,8 @@ pub async fn get_document(
                     fetched_at: None,
                     site_name: None,
                     browser_import_mode: None,
+                    article_html: None,
+                    extracted_images: None,
                 });
 
                 repo.update_document_content(
@@ -533,6 +537,8 @@ pub async fn extract_document_text(
         fetched_at: doc.metadata.as_ref().and_then(|m| m.fetched_at),
         site_name: doc.metadata.as_ref().and_then(|m| m.site_name.clone()),
         browser_import_mode: doc.metadata.as_ref().and_then(|m| m.browser_import_mode.clone()),
+        article_html: doc.metadata.as_ref().and_then(|m| m.article_html.clone()),
+        extracted_images: doc.metadata.as_ref().and_then(|m| m.extracted_images.clone()),
     });
 
     repo.update_document_content(

@@ -742,6 +742,45 @@ function highlightCloze(text: string): React.ReactElement {
   );
 }
 
+function stripClozeMarkup(text: string): string {
+  return text.replace(/\{\{(.*?)\}\}/g, "$1");
+}
+
+function mapPlainOffsetToMarkedOffset(markedText: string, plainOffset: number): number {
+  if (plainOffset <= 0) return 0;
+
+  let plainIndex = 0;
+  let markedIndex = 0;
+
+  while (markedIndex < markedText.length) {
+    if (markedText.startsWith("{{", markedIndex) || markedText.startsWith("}}", markedIndex)) {
+      markedIndex += 2;
+      continue;
+    }
+    if (plainIndex === plainOffset) {
+      return markedIndex;
+    }
+    plainIndex += 1;
+    markedIndex += 1;
+  }
+
+  return markedText.length;
+}
+
+function wrapMarkedTextByPlainOffsets(markedText: string, startOffset: number, endOffset: number): string {
+  const openIndex = mapPlainOffsetToMarkedOffset(markedText, startOffset);
+  const closeIndex = mapPlainOffsetToMarkedOffset(markedText, endOffset);
+  if (openIndex >= closeIndex) return markedText;
+
+  const before = markedText.slice(Math.max(0, openIndex - 2), openIndex);
+  const after = markedText.slice(closeIndex, closeIndex + 2);
+  if (before === "{{" && after === "}}") {
+    return markedText;
+  }
+
+  return `${markedText.slice(0, openIndex)}{{${markedText.slice(openIndex, closeIndex)}}}${markedText.slice(closeIndex)}`;
+}
+
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
@@ -1122,6 +1161,7 @@ function CardPreview({
   isEditing,
   onEdit,
   onSaveEdit,
+  sourceExcerpt,
   imageAssets,
   defaultImageAssetId,
 }: {
@@ -1131,10 +1171,18 @@ function CardPreview({
   isEditing: boolean;
   onEdit: () => void;
   onSaveEdit: (updates: Partial<DraftCard>) => void;
+  sourceExcerpt?: string;
   imageAssets: ImageAsset[];
   defaultImageAssetId?: string;
 }) {
   const { t } = useI18n();
+  const clozeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const sourceExcerptRef = useRef<HTMLDivElement>(null);
+  const [sourceSelection, setSourceSelection] = useState<{
+    text: string;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
   const [editForm, setEditForm] = useState<Partial<DraftCard>>({
     type: card.type,
     question: card.question || "",
@@ -1163,6 +1211,7 @@ function CardPreview({
       imageOcclusionAssetId: card.imageOcclusionAssetId || defaultImageAssetId,
       imageOcclusionRegions: card.imageOcclusionRegions || [],
     });
+    setSourceSelection(null);
   }, [card, defaultImageAssetId]);
 
   const activeType = (editForm.type as DraftCardType | undefined) || card.type;
@@ -1176,6 +1225,7 @@ function CardPreview({
   const { html: previewHtml, isPending: previewPending } = useLatexPreview(previewContent);
   const previewAssetId = (editForm.imageOcclusionAssetId as string | undefined) || defaultImageAssetId;
   const previewAsset = imageAssets.find((asset) => asset.id === previewAssetId) || null;
+  const trimmedSourceExcerpt = sourceExcerpt?.trim() || "";
 
   const setType = (type: DraftCardType) => {
     setEditForm((form) => ({
@@ -1183,7 +1233,10 @@ function CardPreview({
       type,
       question: type === "cloze" ? undefined : (form.question as string) || "",
       answer: type === "cloze" ? undefined : (form.answer as string) || "",
-      text: type === "cloze" ? (form.text as string) || "" : undefined,
+      text:
+        type === "cloze"
+          ? ((form.text as string) || trimmedSourceExcerpt || "")
+          : undefined,
       multipleChoiceOptions:
         type === "multiple-choice"
           ? (Array.isArray(form.multipleChoiceOptions) && form.multipleChoiceOptions.length > 0
@@ -1203,6 +1256,78 @@ function CardPreview({
           ? (Array.isArray(form.imageOcclusionRegions) ? form.imageOcclusionRegions : [])
           : undefined,
     }));
+  };
+
+  const wrapClozeSelection = () => {
+    const textarea = clozeTextareaRef.current;
+    const currentText = ((editForm.text as string) || "");
+    if (!textarea || textarea.selectionStart === textarea.selectionEnd) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = currentText.slice(start, end);
+    const wrapped = `{{${selectedText}}}`;
+    const nextText = currentText.slice(0, start) + wrapped + currentText.slice(end);
+
+    setEditForm((form) => ({ ...form, text: nextText }));
+    requestAnimationFrame(() => {
+      if (!clozeTextareaRef.current) return;
+      clozeTextareaRef.current.focus();
+      clozeTextareaRef.current.selectionStart = start;
+      clozeTextareaRef.current.selectionEnd = start + wrapped.length;
+    });
+  };
+
+  const updateSourceSelection = useCallback(() => {
+    const selection = window.getSelection();
+    const container = sourceExcerptRef.current;
+    if (!selection || selection.isCollapsed || !container || !selection.rangeCount) {
+      setSourceSelection(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!container.contains(range.commonAncestorContainer)) {
+      setSourceSelection(null);
+      return;
+    }
+
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(container);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const startOffset = preRange.toString().length;
+    const text = selection.toString();
+    const endOffset = startOffset + text.length;
+
+    if (!text.trim() || endOffset <= startOffset) {
+      setSourceSelection(null);
+      return;
+    }
+
+    setSourceSelection({
+      text,
+      startOffset,
+      endOffset,
+    });
+  }, []);
+
+  const applySourceSelectionAsCloze = () => {
+    if (!sourceSelection || !trimmedSourceExcerpt) return;
+
+    const currentText = ((editForm.text as string) || "").trim();
+    const hasCompatibleBase =
+      currentText.length > 0 && stripClozeMarkup(currentText) === trimmedSourceExcerpt;
+    const baseText = hasCompatibleBase ? currentText : trimmedSourceExcerpt;
+    const nextText = wrapMarkedTextByPlainOffsets(
+      baseText,
+      sourceSelection.startOffset,
+      sourceSelection.endOffset
+    );
+
+    setEditForm((form) => ({ ...form, text: nextText }));
+    setSourceSelection(null);
+    window.getSelection()?.removeAllRanges();
+    requestAnimationFrame(() => clozeTextareaRef.current?.focus());
   };
 
   if (isEditing) {
@@ -1246,12 +1371,76 @@ function CardPreview({
         ) : activeType === "cloze" ? (
           <div>
             <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.clozeTextLabel")}</label>
+            {trimmedSourceExcerpt && (
+              <div className="mt-1.5 mb-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Source Extract
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {sourceSelection && (
+                      <button
+                        type="button"
+                        onClick={applySourceSelectionAsCloze}
+                        className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground hover:opacity-90"
+                      >
+                        Cloze selection
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((form) => ({ ...form, text: trimmedSourceExcerpt }))}
+                      className="text-[10px] font-medium text-primary hover:opacity-80"
+                    >
+                      Use full extract
+                    </button>
+                  </div>
+                </div>
+                <div
+                  ref={sourceExcerptRef}
+                  onMouseUp={updateSourceSelection}
+                  onKeyUp={updateSourceSelection}
+                  className="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground select-text rounded-md border border-transparent px-1 py-0.5"
+                >
+                  {trimmedSourceExcerpt}
+                </div>
+                <div className="mt-2 flex items-start justify-between gap-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    Highlight a word or phrase in the extract, then use <span className="font-medium text-foreground">Cloze selection</span> to hide it in context.
+                  </p>
+                  {sourceSelection && (
+                    <div className="max-w-[45%] rounded-md bg-background/80 px-2 py-1 text-[10px] text-muted-foreground">
+                      Selected: <span className="text-foreground">{sourceSelection.text.trim()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <textarea
+              ref={clozeTextareaRef}
               value={(editForm.text as string) || ""}
               onChange={(e) => setEditForm((f) => ({ ...f, text: e.target.value }))}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+                  e.preventDefault();
+                  wrapClozeSelection();
+                }
+              }}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               rows={4}
             />
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] text-muted-foreground">
+                Select text and press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+B</kbd> to wrap it as a Cloze deletion.
+              </p>
+              <button
+                type="button"
+                onClick={wrapClozeSelection}
+                className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/15"
+              >
+                Wrap selection
+              </button>
+            </div>
           </div>
         ) : activeType === "multiple-choice" ? (
           <>
@@ -2204,6 +2393,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
   const createBlankDraftCard = useCallback((type: DraftCardType): DraftCard => {
     const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const seededExcerpt = contextSelection.excerpt?.trim() || "";
     const base: DraftCard = {
       id,
       type,
@@ -2216,7 +2406,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       return { ...base, question: "", answer: "" };
     }
     if (type === "cloze") {
-      return { ...base, text: "" };
+      return { ...base, text: seededExcerpt };
     }
     if (type === "multiple-choice") {
       return {
@@ -2237,7 +2427,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       imageOcclusionAssetId: selectedImageAssetIds[0],
       imageOcclusionRegions: [],
     };
-  }, [selectedImageAssetIds]);
+  }, [contextSelection.excerpt, selectedImageAssetIds]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -2264,6 +2454,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
     if (seed.resetDraftCards || seed.draftCardType) {
       const nextCard = createBlankDraftCard(seed.draftCardType || "qa");
+      if ((seed.draftCardType || "qa") === "cloze" && seed.excerpt?.trim()) {
+        nextCard.text = seed.excerpt.trim();
+      }
       setDraftCards([nextCard]);
       setFlippedCardId(null);
       setEditingCardId(seed.autoEditDraft === false ? null : nextCard.id);
@@ -3395,6 +3588,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                       isEditing={editingCardId === card.id}
                       onEdit={() => setEditingCardId(card.id)}
                       onSaveEdit={(updates) => handleEditCard(card.id, updates)}
+                      sourceExcerpt={contextSelection.excerpt}
                       imageAssets={imageAssets}
                       defaultImageAssetId={selectedImageAssetIds[0]}
                     />

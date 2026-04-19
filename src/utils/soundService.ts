@@ -29,15 +29,15 @@ export type NotificationSoundId =
 
 /** Map of feedback types to tactile UI sound files in public/sounds/. */
 const FEEDBACK_SOUND_FILES: Record<FeedbackType, string> = {
-  success: '/sounds/success.mp3',
-  error: '/sounds/error.mp3',
+  success: '/sounds/success.wav',
+  error: '/sounds/error.wav',
   warning: '/sounds/warning.mp3',
   complete: '/sounds/ui-complete.mp3',
-  click: '/sounds/click.mp3',
+  click: '/sounds/click.wav',
   delete: '/sounds/delete.mp3',
-  'review-complete': '/sounds/review-complete.mp3',
-  streak: '/sounds/streak.mp3',
-  milestone: '/sounds/milestone.mp3',
+  'review-complete': '/sounds/review-complete.wav',
+  streak: '/sounds/streak.wav',
+  milestone: '/sounds/milestone.wav',
 };
 
 /** Map of notification sound IDs to file paths (in public/sounds/). */

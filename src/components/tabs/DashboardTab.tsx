@@ -42,7 +42,7 @@ interface QuickAction {
 
 export function DashboardTab() {
   const { t } = useI18n();
-  const { addTab, tabs } = useTabsStore();
+  const { addTab } = useTabsStore();
   const documents = useDocumentStore((state) => state.documents);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -140,12 +140,6 @@ export function DashboardTab() {
   ];
 
   const openTab = (action: QuickAction) => {
-    const existing = tabs.find((tab) => tab.type === action.tabType);
-    if (existing) {
-      // Tab already exists, just activate it
-      return;
-    }
-
     addTab({
       title: action.tabTitle,
       icon: action.tabIcon,
@@ -157,11 +151,6 @@ export function DashboardTab() {
 
   const openSyncSettings = () => {
     localStorage.setItem("incrementum_settings_initial_tab", "sync");
-    const existing = tabs.find((tab) => tab.type === "settings");
-    if (existing) {
-      return;
-    }
-
     addTab({
       title: "Settings",
       icon: <Settings className="w-4 h-4" />,

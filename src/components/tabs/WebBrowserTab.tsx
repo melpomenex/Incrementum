@@ -32,7 +32,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, getPlatform } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { createExtract, type CreateExtractInput } from "../../api/extracts";
 import { createLearningItem } from "../../api/learning-items";
@@ -661,8 +661,41 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     setExtractDialog(extract);
   };
 
+  // Detect offset between CSS viewport coords and native GTK widget coords.
+  // On Wayland/WebKitGTK with hiddenTitle, the GtkHeaderBar widget may still
+  // consume space, creating a mismatch between where CSS (0,0) is and where
+  // the native webview (0,0) renders. We detect this once via outer/inner diff.
+  //
+  // IMPORTANT: On Linux (especially Wayland compositors like Hyprland, Sway),
+  // window.outerWidth/outerHeight are unreliable and can return incorrect
+  // values, producing wrong offsets that mis-position the webview. We skip
+  // offset detection entirely on Linux.
+  const nativeOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const detectNativeOffset = useCallback(() => {
+    if (nativeOffsetRef.current !== null) return;
+
+    const platform = getPlatform();
+    if (platform === 'linux') {
+      // On Linux/Wayland, outerWidth - innerWidth is unreliable and often
+      // produces incorrect values. WebKitGTK doesn't need this offset anyway.
+      nativeOffsetRef.current = { x: 0, y: 0 };
+      console.log("[WebBrowserTab] Native offset skipped on Linux (Wayland-safe)");
+      return;
+    }
+
+    // On macOS/Windows the outer-inner diff can detect title-bar offsets
+    const dx = window.outerWidth - window.innerWidth;
+    const dy = window.outerHeight - window.innerHeight;
+    nativeOffsetRef.current = { x: dx, y: dy };
+    console.log("[WebBrowserTab] Native offset detected:", { dx, dy,
+      outer: `${window.outerWidth}x${window.outerHeight}`,
+      inner: `${window.innerWidth}x${window.innerHeight}` });
+  }, []);
+
   const updateWebviewBounds = useCallback(async () => {
     if (!webviewRef.current || !webviewContainerRef.current) return;
+
+    detectNativeOffset();
 
     return new Promise<void>((resolve) => {
       requestAnimationFrame(() => {
@@ -672,16 +705,23 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             return;
           }
 
-          const windowWidth = window.innerWidth;
-          const windowHeight = window.innerHeight;
-          const toolbarHeight = 140;
-          
-          const x = 8;
-          const y = toolbarHeight;
-          const width = windowWidth - 16;
-          const height = windowHeight - toolbarHeight - 10;
+          const rect = webviewContainerRef.current.getBoundingClientRect();
+          const offset = nativeOffsetRef.current ?? { x: 0, y: 0 };
 
-          if (width > 0 && height > 200) {
+          // getBoundingClientRect() returns CSS logical pixels, which is
+          // exactly what LogicalPosition/LogicalSize expect. Tauri handles
+          // the DPR conversion internally.
+          const x = Math.round(rect.left - offset.x);
+          const y = Math.round(rect.top - offset.y);
+          const width = Math.round(rect.width);
+          const height = Math.round(rect.height);
+
+          console.log("[WebBrowserTab] updateWebviewBounds:", {
+            rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+            offset, dpr: window.devicePixelRatio, native: { x, y, width, height },
+          });
+
+          if (width > 0 && height > 50) {
             try {
               if (isTauri()) {
                 const { LogicalPosition, LogicalSize } = await import("@tauri-apps/api/dpi");
@@ -696,7 +736,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         }, 50);
       });
     });
-  }, []);
+  }, [detectNativeOffset]);
 
   // Initialize
   useEffect(() => {
@@ -768,14 +808,20 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
         if (!webviewContainerRef.current || !isMountedRef.current || isCancelled) return;
 
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        const toolbarHeight = 140;
-        
-        const x = 8;
-        const y = toolbarHeight;
-        const width = windowWidth - 16;
-        const height = windowHeight - toolbarHeight - 10;
+        detectNativeOffset();
+
+        const rect = webviewContainerRef.current.getBoundingClientRect();
+        const offset = nativeOffsetRef.current ?? { x: 0, y: 0 };
+
+        const x = Math.round(rect.left - offset.x);
+        const y = Math.round(rect.top - offset.y);
+        const width = Math.round(rect.width);
+        const height = Math.round(rect.height);
+
+        console.log("[WebBrowserTab] createWebview:", {
+          rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+          offset, dpr: window.devicePixelRatio, native: { x, y, width, height },
+        });
 
         const webview = new Webview(appWindow, "web-browser", {
           url: currentUrl,
@@ -828,13 +874,17 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         }).catch((e) => console.warn("Failed to attach created listener:", e));
 
         // Re-inject on navigation (when URL changes)
-        (webview as any).on("tauri://url-changed", () => {
-          lastInjectedUrl = ""; // Reset so script will be injected on new page
-          setTimeout(injectBridgeScript, 1500);
-          setTimeout(injectBridgeScript, 4000);
-        }).then((unlisten) => {
-          if (unlisten && typeof unlisten === 'function') unlistenFns.push(unlisten);
-        }).catch((e) => console.warn("Failed to attach url-changed listener:", e));
+        // Note: embedded Webview may not have .on() in some Tauri v2 versions;
+        // guard to avoid crashing webview creation.
+        if (typeof (webview as any).on === 'function') {
+          (webview as any).on("tauri://url-changed", () => {
+            lastInjectedUrl = ""; // Reset so script will be injected on new page
+            setTimeout(injectBridgeScript, 1500);
+            setTimeout(injectBridgeScript, 4000);
+          }).then((unlisten: any) => {
+            if (unlisten && typeof unlisten === 'function') unlistenFns.push(unlisten);
+          }).catch((e: unknown) => console.warn("Failed to attach url-changed listener:", e));
+        }
 
         webview.once("tauri://error", (event: unknown) => {
           if (!isCancelled) {
@@ -890,15 +940,23 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
   useEffect(() => {
     if (!webviewContainerRef.current) return;
     let rafId: number | null = null;
-    const observer = new ResizeObserver(() => {
+    const triggerUpdate = () => {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         void updateWebviewBounds();
       });
-    });
+    };
+    const observer = new ResizeObserver(triggerUpdate);
     observer.observe(webviewContainerRef.current);
+
+    // On Wayland compositors (Hyprland, Sway, etc.), window resize events from
+    // the compositor may not trigger the ResizeObserver on the container div.
+    // Listen for window resize events as a fallback to keep the webview in sync.
+    window.addEventListener('resize', triggerUpdate);
+
     return () => {
       observer.disconnect();
+      window.removeEventListener('resize', triggerUpdate);
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [updateWebviewBounds]);

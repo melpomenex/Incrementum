@@ -548,6 +548,8 @@ pub async fn import_from_obsidian_internal(
                 fetched_at: None,
                 site_name: None,
                 browser_import_mode: None,
+                article_html: None,
+                extracted_images: None,
             });
 
             if let Some(author) = frontmatter.get("author").and_then(|v| v.as_str()) {
@@ -619,6 +621,8 @@ pub async fn import_from_obsidian_internal(
             fetched_at: None,
             site_name: None,
             browser_import_mode: None,
+            article_html: None,
+            extracted_images: None,
         }),
         cover_image_url: None,
         cover_image_source: None,

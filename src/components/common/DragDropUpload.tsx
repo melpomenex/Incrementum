@@ -436,16 +436,23 @@ export function DragDropUpload({
 
   // Set up global drag and drop listeners
   useEffect(() => {
+    // Check if a drag event is an internal tab drag (not a file drop)
+    const isTabDrag = (types: readonly string[] | DOMStringList) =>
+      Array.from(types).includes("application/x-incrementum-tab");
+
     // For browser mode - use HTML5 drag and drop
     const handleGlobalDragEnter = (e: globalThis.DragEvent) => {
       const types = e.dataTransfer?.types || [];
       console.log("[DragDropUpload] Global dragenter:", types);
-      
+
+      // Ignore internal tab drags — let the tab/split-view system handle them
+      if (isTabDrag(types)) return;
+
       // Only show drop zone if files are being dragged
-      const hasFiles = Array.from(types).some(t => 
+      const hasFiles = Array.from(types).some(t =>
         t === "Files" || t === "file" || t.startsWith("application/") || t.startsWith("image/") || t.startsWith("text/")
       );
-      
+
       if (hasFiles || types.length === 0) {
         console.log("[DragDropUpload] Files detected (types:", types, "), showing overlay");
         setIsDragging(true);
@@ -460,6 +467,10 @@ export function DragDropUpload({
 
     const handleGlobalDragOver = (e: globalThis.DragEvent) => {
       console.log("[DragDropUpload] Global dragover");
+
+      // Ignore internal tab drags
+      if (isTabDrag(e.dataTransfer?.types || [])) return;
+
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(true);
@@ -467,6 +478,10 @@ export function DragDropUpload({
 
     const handleGlobalDrop = async (e: globalThis.DragEvent) => {
       console.log("[DragDropUpload] Global drop:", e.dataTransfer?.files?.length, "files");
+
+      // Ignore internal tab drags — don't consume the event
+      if (isTabDrag(e.dataTransfer?.types || [])) return;
+
       e.preventDefault();
       e.stopPropagation();
       dragCounter.current = 0;

@@ -38,6 +38,7 @@ import { HandbookSettings } from "./HandbookSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { TTSSettings } from "./TTSSettings";
+import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
@@ -597,7 +598,10 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
   const general = useSettingsStore((state) => state.settings.general);
   const updateSettingsCategory = useSettingsStore((state) => state.updateSettingsCategory);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [dataLocation, setDataLocation] = useState<string | null>(null);
+  const [isOpeningDataFolder, setIsOpeningDataFolder] = useState(false);
   const isDesktop = isTauri();
+  const toast = useToast();
   const { t } = useI18n();
 
   useEffect(() => {
@@ -614,10 +618,37 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
       console.warn("Failed to load app version:", error);
     });
 
+    (async () => {
+      const { appDataDir } = await import("@tauri-apps/api/path");
+      const path = await appDataDir();
+      if (!cancelled) {
+        setDataLocation(path);
+      }
+    })().catch((error) => {
+      console.warn("Failed to load app data directory:", error);
+    });
+
     return () => {
       cancelled = true;
     };
   }, [isDesktop]);
+
+  const handleOpenDataFolder = async () => {
+    if (!isDesktop) return;
+
+    setIsOpeningDataFolder(true);
+    try {
+      const resolvedPath = dataLocation ?? (await (await import("@tauri-apps/api/path")).appDataDir());
+      const { openPath } = await import("@tauri-apps/plugin-opener");
+      await openPath(resolvedPath);
+      setDataLocation(resolvedPath);
+    } catch (error) {
+      console.error("Failed to open data folder:", error);
+      toast.error("Failed to open folder", error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsOpeningDataFolder(false);
+    }
+  };
 
   return (
     <>
@@ -680,9 +711,19 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
       <SettingsSection title={t("settings.data")} description={t("settings.dataDesc")}>
         <SettingsRow label={t("settings.dataLocation")} description={t("settings.dataLocationDesc")}>
           <div className="flex items-center gap-2">
-            <button className="w-full sm:w-auto px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-muted text-sm font-medium min-h-[44px]">
-              {t("settings.openFolder")}
+            <button
+              type="button"
+              onClick={handleOpenDataFolder}
+              disabled={isOpeningDataFolder}
+              className="w-full sm:w-auto px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed text-sm font-medium min-h-[44px]"
+            >
+              {isOpeningDataFolder ? "Opening..." : t("settings.openFolder")}
             </button>
+            {dataLocation && (
+              <span className="hidden lg:block text-xs text-muted-foreground truncate max-w-[28rem]" title={dataLocation}>
+                {dataLocation}
+              </span>
+            )}
           </div>
         </SettingsRow>
 

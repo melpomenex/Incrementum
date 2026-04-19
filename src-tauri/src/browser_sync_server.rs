@@ -68,7 +68,8 @@ use crate::commands::rss_features::{
 use crate::commands::review::apply_review;
 use crate::database::Repository;
 use crate::error::AppError;
-use crate::models::{Document, FileType, Extract, ItemType, LearningItem};
+use crate::models::{Document, DocumentImageAsset, FileType, Extract, ItemType, LearningItem};
+use tauri::{AppHandle, Emitter};
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -95,6 +96,7 @@ const MAX_PAYLOAD_SIZE: usize = 10 * 1024 * 1024;
 #[derive(Clone)]
 pub struct ServerState {
     pub repo: Arc<Repository>,
+    pub app_handle: AppHandle,
     pub running: Arc<Mutex<bool>>,
     pub ai_config: Arc<Mutex<Option<AIConfig>>>,
     pub automation_api_key: Arc<Mutex<Option<String>>>,
@@ -106,6 +108,22 @@ pub struct ServerStatus {
     pub running: bool,
     pub port: u16,
     pub connections: usize,
+}
+
+/// Payload emitted when a document is saved via browser extension
+#[derive(Clone, Serialize)]
+struct DocumentSavedEvent {
+    document_id: String,
+    title: String,
+    url: String,
+}
+
+/// Payload emitted when an extract is saved via browser extension
+#[derive(Clone, Serialize)]
+struct ExtractSavedEvent {
+    extract_id: String,
+    document_id: String,
+    url: String,
 }
 
 /// Server configuration
@@ -133,6 +151,14 @@ impl Default for BrowserSyncConfig {
 
 /// Extension request payload from browser
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionImagePayload {
+    pub src: String,
+    #[serde(default)]
+    pub alt: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ExtensionRequest {
     pub url: String,
     pub title: String,
@@ -141,6 +167,8 @@ pub struct ExtensionRequest {
     /// Rich HTML content with inline styles for 1:1 visual fidelity
     #[serde(default)]
     pub html_content: Option<String>,
+    #[serde(default)]
+    pub extracted_images: Option<Vec<ExtensionImagePayload>>,
     #[serde(default)]
     pub r#type: String, // "page", "extract", "video"
     #[serde(default)]
@@ -367,6 +395,7 @@ static SERVER_HANDLE: Mutex<Option<tokio::task::JoinHandle<()>>> = Mutex::const_
 pub async fn start_server(
     config: BrowserSyncConfig,
     repo: Arc<Repository>,
+    app_handle: AppHandle,
     ai_config: Option<AIConfig>,
 ) -> Result<(), AppError> {
     // Check if server is already running
@@ -386,6 +415,7 @@ pub async fn start_server(
     let running = Arc::new(Mutex::new(true));
     let state = ServerState {
         repo: repo.clone(),
+        app_handle: app_handle.clone(),
         running: running.clone(),
         ai_config: Arc::new(Mutex::new(ai_config)),
         automation_api_key: Arc::new(Mutex::new(config.api_key.clone())),
@@ -601,6 +631,16 @@ fn infer_extension_file_type(payload: &ExtensionRequest) -> FileType {
 }
 
 fn build_browser_import_metadata(payload: &ExtensionRequest) -> crate::models::DocumentMetadata {
+    let browser_import_mode = if payload
+        .html_content
+        .as_ref()
+        .map(|html| !html.trim().is_empty())
+        .unwrap_or(false)
+    {
+        "rich-preview".to_string()
+    } else {
+        "text-editor".to_string()
+    };
     let site_name = Url::parse(&payload.url)
         .ok()
         .and_then(|url| url.host_str().map(str::to_string));
@@ -618,8 +658,103 @@ fn build_browser_import_metadata(payload: &ExtensionRequest) -> crate::models::D
         source: Some("browser_extension".to_string()),
         fetched_at: Some(chrono::Utc::now()),
         site_name,
-        browser_import_mode: Some("text-editor".to_string()),
+        browser_import_mode: Some(browser_import_mode),
+        article_html: payload.html_content.clone(),
+        extracted_images: payload.extracted_images.as_ref().map(|images| {
+            images
+                .iter()
+                .map(|image| DocumentImageAsset {
+                    src: image.src.clone(),
+                    alt: image.alt.clone(),
+                })
+                .collect()
+        }),
     }
+}
+
+fn build_browser_import_metadata_with_article(
+    payload: &ExtensionRequest,
+    article_html: Option<String>,
+    extracted_images: Option<Vec<DocumentImageAsset>>,
+) -> crate::models::DocumentMetadata {
+    let mut metadata = build_browser_import_metadata(payload);
+    metadata.article_html = article_html;
+    metadata.extracted_images = extracted_images;
+    metadata.browser_import_mode = Some(
+        if metadata
+            .article_html
+            .as_ref()
+            .map(|html| !html.trim().is_empty())
+            .unwrap_or(false)
+        {
+            "rich-preview".to_string()
+        } else {
+            "text-editor".to_string()
+        },
+    );
+    metadata
+}
+
+fn extract_text_from_html_fragment(html: &str) -> String {
+    html2text::from_read(html.as_bytes(), 80)
+        .unwrap_or_else(|_| {
+            regex::Regex::new(r"<[^>]+>")
+                .expect("valid html tag regex")
+                .replace_all(html, " ")
+                .to_string()
+        })
+        .replace('\u{a0}', " ")
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace("\n\n\n", "\n\n")
+        .trim()
+        .to_string()
+}
+
+fn extract_images_from_html_fragment(html: &str, base_url: &str) -> Vec<DocumentImageAsset> {
+    let src_regex = regex::Regex::new(r#"(?is)<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>"#)
+        .expect("valid image src regex");
+    let alt_regex = regex::Regex::new(r#"(?is)\balt\s*=\s*["']([^"']*)["']"#)
+        .expect("valid image alt regex");
+    let tag_regex = regex::Regex::new(r#"(?is)<img\b[^>]*>"#).expect("valid img tag regex");
+    let base = Url::parse(base_url).ok();
+    let mut seen = std::collections::HashSet::new();
+    let mut images = Vec::new();
+
+    for tag in tag_regex.find_iter(html) {
+        let fragment = tag.as_str();
+        let Some(src_capture) = src_regex.captures(fragment) else {
+            continue;
+        };
+        let raw_src = src_capture.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+        if raw_src.is_empty() || raw_src.starts_with("data:") {
+            continue;
+        }
+
+        let src = base
+            .as_ref()
+            .and_then(|base| base.join(raw_src).ok())
+            .map(|url| url.to_string())
+            .unwrap_or_else(|| raw_src.to_string());
+        if !seen.insert(src.clone()) {
+            continue;
+        }
+
+        let alt = alt_regex
+            .captures(fragment)
+            .and_then(|capture| capture.get(1))
+            .map(|m| m.as_str().trim().to_string())
+            .filter(|alt| !alt.is_empty());
+
+        images.push(DocumentImageAsset { src, alt });
+        if images.len() >= 24 {
+            break;
+        }
+    }
+
+    images
 }
 
 /// Handle general document import request (page or video)
@@ -628,6 +763,28 @@ async fn handle_import_request(
     payload: &ExtensionRequest,
     file_type: FileType,
 ) -> Result<ExtensionResponse, AppError> {
+    let payload_has_article_html = payload
+        .html_content
+        .as_ref()
+        .map(|html| !html.trim().is_empty())
+        .unwrap_or(false);
+    let payload_content = if !payload.text.trim().is_empty() {
+        payload.text.trim().to_string()
+    } else if let Some(html) = payload.html_content.as_deref() {
+        extract_text_from_html_fragment(html)
+    } else {
+        String::new()
+    };
+    let payload_images = payload.extracted_images.as_ref().map(|images| {
+        images
+            .iter()
+            .map(|image| DocumentImageAsset {
+                src: image.src.clone(),
+                alt: image.alt.clone(),
+            })
+            .collect::<Vec<_>>()
+    });
+
     // Check if document with this URL already exists
     let existing = state
         .repo
@@ -635,14 +792,54 @@ async fn handle_import_request(
         .await
         .ok();
 
-    if let Some(doc) = existing {
+    if let Some(Some(doc)) = existing {
+        let existing_missing_text = doc
+            .content
+            .as_deref()
+            .map(|content| content.trim().is_empty())
+            .unwrap_or(true);
+        let existing_missing_html = doc
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.article_html.as_deref())
+            .map(|html| html.trim().is_empty())
+            .unwrap_or(true);
+
+        if matches!(file_type, FileType::Html)
+            && ((!payload_content.is_empty() && existing_missing_text)
+                || (payload_has_article_html && existing_missing_html))
+        {
+            let metadata = build_browser_import_metadata_with_article(
+                payload,
+                payload.html_content.clone(),
+                payload_images.clone(),
+            );
+            let next_content = if payload_content.is_empty() {
+                doc.content.unwrap_or_default()
+            } else {
+                payload_content.clone()
+            };
+            if let Err(error) = state
+                .repo
+                .update_document_content(&doc.id, &next_content, None, None, Some(metadata))
+                .await
+            {
+                warn!("Failed to enrich existing browser-imported document {}: {}", doc.id, error);
+            }
+        }
+
         info!(
             "Document already exists for URL: {}, returning existing doc",
             payload.url
         );
+        let _ = state.app_handle.emit("browser-sync://document-saved", DocumentSavedEvent {
+            document_id: doc.id.clone(),
+            title: doc.title.clone(),
+            url: payload.url.clone(),
+        });
         return Ok(ExtensionResponse {
             success: true,
-            document_id: Some(doc.unwrap().id),
+            document_id: Some(doc.id),
             extract_id: None,
             error: None,
         });
@@ -650,7 +847,7 @@ async fn handle_import_request(
 
     // Fetch content if not provided
     // For YouTube, we skip fetching raw HTML content as it's not useful for reading
-    let content = if payload.text.is_empty() {
+    let content = if payload_content.is_empty() {
         if matches!(file_type, FileType::Youtube) {
             String::new()
         } else {
@@ -665,12 +862,18 @@ async fn handle_import_request(
             }
         }
     } else {
-        payload.text.clone()
+        payload_content.clone()
     };
 
     let category = if matches!(file_type, FileType::Youtube) { Some("YouTube Videos".to_string()) } else { None };
-    let metadata = if matches!(file_type, FileType::Html) {
-        Some(build_browser_import_metadata(payload))
+    let is_html = matches!(file_type, FileType::Html);
+    let content_len = content.len();
+    let metadata = if is_html {
+        Some(build_browser_import_metadata_with_article(
+            payload,
+            payload.html_content.clone(),
+            payload_images.clone(),
+        ))
     } else {
         None
     };
@@ -720,6 +923,77 @@ async fn handle_import_request(
         "Created document for URL: {} with id: {}",
         payload.url, created.id
     );
+
+    let _ = state.app_handle.emit("browser-sync://document-saved", DocumentSavedEvent {
+        document_id: created.id.clone(),
+        title: created.title.clone(),
+        url: payload.url.clone(),
+    });
+
+    // Background: attempt readability extraction for richer content.
+    // This does not block the response to the extension.
+    if is_html {
+        let bg_doc_id = created.id.clone();
+        let bg_url = payload.url.clone();
+        let bg_repo = state.repo.clone();
+        let bg_extension_text_len = content_len;
+        let bg_payload = payload.url.clone();
+
+        tokio::spawn(async move {
+            match fetch_readable_content(&bg_url).await {
+                Ok(readable) if readable.text.len() > bg_extension_text_len => {
+                    info!(
+                        "Readability extracted {} chars (vs {} from extension) for: {}",
+                        readable.text.len(), bg_extension_text_len, bg_url
+                    );
+                    let metadata = build_browser_import_metadata_with_article(
+                        &ExtensionRequest {
+                            url: bg_payload,
+                            title: String::new(),
+                            text: readable.text.clone(),
+                            html_content: Some(readable.html.clone()),
+                            extracted_images: Some(
+                                readable
+                                    .images
+                                    .iter()
+                                    .map(|image| ExtensionImagePayload {
+                                        src: image.src.clone(),
+                                        alt: image.alt.clone(),
+                                    })
+                                    .collect(),
+                            ),
+                            r#type: "page".to_string(),
+                            source: "browser_extension".to_string(),
+                            timestamp: None,
+                            context: None,
+                            tags: None,
+                            priority: None,
+                            analysis: None,
+                            fsrs_data: None,
+                            test: None,
+                        },
+                        Some(readable.html.clone()),
+                        Some(readable.images.clone()),
+                    );
+                    if let Err(e) = bg_repo
+                        .update_document_content(&bg_doc_id, &readable.text, None, None, Some(metadata))
+                        .await
+                    {
+                        warn!("Failed to update document {} with readable content: {}", bg_doc_id, e);
+                    }
+                }
+                Ok(readable) => {
+                    info!(
+                        "Readability extracted {} chars (not better than {} from extension) for: {}",
+                        readable.text.len(), bg_extension_text_len, bg_url
+                    );
+                }
+                Err(e) => {
+                    warn!("Background readability extraction failed for {}: {}", bg_url, e);
+                }
+            }
+        });
+    }
 
     Ok(ExtensionResponse {
         success: true,
@@ -827,6 +1101,12 @@ async fn handle_extract_request(
         "Created extract for document: {} with extract id: {}",
         document_id, created.id
     );
+
+    let _ = state.app_handle.emit("browser-sync://extract-saved", ExtractSavedEvent {
+        extract_id: created.id.clone(),
+        document_id: document_id.clone(),
+        url: payload.url.clone(),
+    });
 
     Ok(ExtensionResponse {
         success: true,
@@ -968,29 +1248,59 @@ async fn fetch_page_content(url: &str) -> Result<String, AppError> {
 
 /// Extract readable text from HTML
 fn extract_text_from_html(html: &str) -> String {
-    // Simple HTML tag removal and text extraction
-    // This is basic - could be enhanced with readability algorithm
-    let text = regex::Regex::new(r"<script[^>]*>.*?</script>")
-        .unwrap()
-        .replace_all(html, "")
-        .to_string();
+    extract_text_from_html_fragment(html)
+}
 
-    let text = regex::Regex::new(r"<style[^>]*>.*?</style>")
-        .unwrap()
-        .replace_all(&text, "")
-        .to_string();
+/// Fetch URL and extract readable article content using the readability algorithm.
+/// Returns structured readable content, or an error if extraction fails.
+#[derive(Debug)]
+struct ReadableArticle {
+    html: String,
+    text: String,
+    images: Vec<DocumentImageAsset>,
+}
 
-    let text = regex::Regex::new(r"<[^>]+>")
-        .unwrap()
-        .replace_all(&text, " ")
-        .to_string();
+async fn fetch_readable_content(url: &str) -> Result<ReadableArticle, AppError> {
+    use readable_readability::Readability;
 
-    // Clean up whitespace
-    text.lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| AppError::IntegrationError(format!("Failed to create HTTP client: {}", e)))?;
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| AppError::IntegrationError(format!("Failed to fetch URL for readability: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(AppError::IntegrationError(format!("HTTP error fetching {}: {}", url, response.status())));
+    }
+
+    let html = response
+        .text()
+        .await
+        .map_err(|e| AppError::IntegrationError(format!("Failed to read response body: {}", e)))?;
+
+    // Readability internals are not Send, so we must complete parsing
+    // before any .await point. Run synchronously and extract owned data.
+    let content = tokio::task::block_in_place(|| {
+        let mut readability = Readability::new();
+        let (content_node, _metadata) = readability.parse(&html);
+        content_node.to_string()
+    });
+
+    if content.trim().is_empty() {
+        return Err(AppError::IntegrationError("Readability extracted empty content".to_string()));
+    }
+
+    Ok(ReadableArticle {
+        text: extract_text_from_html_fragment(&content),
+        images: extract_images_from_html_fragment(&content, url),
+        html: content,
+    })
 }
 
 async fn is_automation_authorized(state: &ServerState, headers: &HeaderMap) -> bool {
@@ -2452,6 +2762,7 @@ async fn handle_update_progress(
 
 #[tauri::command]
 pub async fn start_browser_sync_server(
+    app_handle: AppHandle,
     port: u16,
     repo: tauri::State<'_, Repository>,
     ai_state: tauri::State<'_, crate::commands::ai::AIState>,
@@ -2473,7 +2784,7 @@ pub async fn start_browser_sync_server(
     // Get the pool from the repository and create a new Arc<Repository>
     let pool = repo.pool().clone();
     let repo_arc = Arc::new(Repository::new(pool));
-    start_server(config, repo_arc, ai_config).await?;
+    start_server(config, repo_arc, app_handle, ai_config).await?;
 
     Ok(ServerStatus {
         running: true,
@@ -2576,11 +2887,11 @@ pub async fn rotate_automation_api_key() -> Result<String, AppError> {
 }
 
 /// Initialize browser sync server (called on app startup)
-pub async fn initialize_if_enabled(repo: Arc<Repository>, ai_config: Option<AIConfig>) -> Result<(), AppError> {
+pub async fn initialize_if_enabled(repo: Arc<Repository>, app_handle: AppHandle, ai_config: Option<AIConfig>) -> Result<(), AppError> {
     let config = load_config();
     if config.auto_start {
         info!("Auto-starting browser extension server on port {}", config.port);
-        let _ = start_server(config, repo, ai_config).await;
+        let _ = start_server(config, repo, app_handle, ai_config).await;
     }
     Ok(())
 }
