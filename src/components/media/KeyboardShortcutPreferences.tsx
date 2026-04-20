@@ -4,9 +4,8 @@
  */
 
 import { useState } from "react";
-import { RotateCcw, AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useKeyboardShortcutsStore } from "../../stores/keyboardShortcutsStore";
-import { DEFAULT_SHORTCUTS } from "../../stores/keyboardShortcutsStore";
 
 interface KeyboardShortcutPreferencesProps {
   onClose: () => void;

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "../../lib/i18n";
-import { getWorkloadData, type WorkloadDay } from "../../api/analytics";
+import { type WorkloadDay } from "../../api/analytics";
 
 interface WorkloadTrendChartProps {
   workloadData: WorkloadDay[];

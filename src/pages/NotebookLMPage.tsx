@@ -19,7 +19,6 @@ import { NotebookLMStudio } from "../components/notebooklm/NotebookLMStudio";
 import { NotebookLMLoginPanel } from "../components/notebooklm/NotebookLMLoginPanel";
 import { ArtifactViewer, type ArtifactType } from "../components/notebooklm/artifacts";
 import {
-  notebooklmGetSettings,
   notebooklmSetSettings,
   notebooklmConnect,
   notebooklmDisconnect,
@@ -28,7 +27,6 @@ import {
   notebooklmCreateNotebook,
   notebooklmSelectNotebook,
   notebooklmCLILogin,
-  notebooklmGetJob,
   type NotebookSummary,
   type ImportPreviewItem,
   type NotebookLMJob,
@@ -42,7 +40,7 @@ export function NotebookLMPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const toast = useToast();
-  const { settings, updateSettingsCategory } = useSettingsStore();
+  const { settings: _settings, updateSettingsCategory } = useSettingsStore();
 
   const [connectionState, setConnectionState] = useState<ConnectionState>("checking");
   const [connectionMessage, setConnectionMessage] = useState("");
@@ -53,7 +51,7 @@ export function NotebookLMPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [_isCreating, setIsCreating] = useState(false);
   const [viewingArtifact, setViewingArtifact] = useState<NotebookLMJob | null>(null);
   const [artifactContent, setArtifactContent] = useState<string | null>(null);
 
@@ -122,7 +120,7 @@ export function NotebookLMPage() {
     }
   };
 
-  const [isCLIAvailable, setIsCLIAvailable] = useState<boolean | null>(null);
+  const [_isCLIAvailable, setIsCLIAvailable] = useState<boolean | null>(null);
 
   const handleConnect = async () => {
     setIsConnecting(true);

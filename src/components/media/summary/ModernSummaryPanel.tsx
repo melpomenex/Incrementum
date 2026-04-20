@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { X, Settings, ChevronLeft, ChevronRight, Sparkles, ChevronUp } from "lucide-react";
+import { X, Settings, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "../../../utils";
 import type { SummaryLength, SummaryFocus, SummaryMode } from "../../../types/rssSummary";
 

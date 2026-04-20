@@ -22,7 +22,7 @@ pub enum OCRProviderType {
     #[serde(rename = "nougat")]
     Nougat,
     #[serde(rename = "glm")]
-    GLMOCR,
+    Glmocr,
 }
 
 /// OCR result with text and metadata
@@ -829,7 +829,7 @@ impl GLMOCRProvider {
             IncrementumError::Internal(format!("Failed to parse GLM-OCR response: {}", e))
         })?;
 
-        let content = parsed.choices.get(0)
+        let content = parsed.choices.first()
             .ok_or_else(|| IncrementumError::Internal("GLM-OCR returned no choices".to_string()))?;
 
         let text = Self::extract_message_text(&content.message.content);
@@ -848,7 +848,7 @@ impl GLMOCRProvider {
             line_count,
             word_count,
             processing_time_ms,
-            provider: OCRProviderType::GLMOCR,
+            provider: OCRProviderType::Glmocr,
             metadata: serde_json::json!({
                 "engine": "GLM-OCR",
                 "format": "markdown",
@@ -899,7 +899,7 @@ struct ChatContentPart {
 #[async_trait::async_trait]
 impl OCRProvider for GLMOCRProvider {
     fn provider_type(&self) -> OCRProviderType {
-        OCRProviderType::GLMOCR
+        OCRProviderType::Glmocr
     }
 
     async fn process_image(&self, image_path: &std::path::Path) -> Result<OCRResult> {
@@ -945,7 +945,7 @@ impl OCRProvider for GLMOCRProvider {
                 line_count,
                 word_count,
                 processing_time_ms,
-                provider: OCRProviderType::GLMOCR,
+                provider: OCRProviderType::Glmocr,
                 metadata: serde_json::json!({
                     "engine": "GLM-OCR",
                     "format": "markdown",
@@ -1004,7 +1004,7 @@ pub fn create_provider(
         OCRProviderType::Nougat => {
             Ok(Box::new(NougatProvider::new(config.nougat_path.clone())))
         }
-        OCRProviderType::GLMOCR => {
+        OCRProviderType::Glmocr => {
             let glm_config = config.glm_ocr.as_ref()
                 .ok_or_else(|| IncrementumError::Internal("GLM-OCR config not set".to_string()))?;
             Ok(Box::new(GLMOCRProvider::new(glm_config.clone())))

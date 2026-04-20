@@ -3332,7 +3332,7 @@ export function DocumentViewer({
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
             onTextSelectionCapabilityChange={setPdfTextSelectionCapability}
-            onOcrExtractText={(text, pageNum) => {
+            onOcrExtractText={(text, _pageNum) => {
               setSelectedText(text);
               lastSelectionRef.current = text;
               setSelectionContext(null);

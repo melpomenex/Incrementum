@@ -77,6 +77,7 @@ pub async fn get_due_items(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_learning_item(
     item_type: String,
     question: String,

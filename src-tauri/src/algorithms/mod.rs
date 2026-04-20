@@ -31,8 +31,9 @@ pub use sm18::{SM18State, SM18Algorithm, SM18ReviewResult};
 pub use sm20::{SM20PreviewIntervals, SM20ReviewResult, SM20State};
 
 /// Supported spaced repetition algorithms
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AlgorithmType {
+    #[default]
     Fsrs,
     Sm2,
     Sm5,
@@ -77,11 +78,6 @@ impl std::fmt::Display for AlgorithmType {
     }
 }
 
-impl Default for AlgorithmType {
-    fn default() -> Self {
-        AlgorithmType::Fsrs
-    }
-}
 
 #[cfg(test)]
 mod tests;
@@ -196,7 +192,7 @@ pub fn calculate_priority_score(
         priority += 1.0;
     }
 
-    priority.max(0.0).min(10.0)
+    priority.clamp(0.0, 10.0)
 }
 
 /// Calculate combined priority score for documents using rating (1-4) and slider (0-100).
@@ -212,7 +208,7 @@ pub fn calculate_document_priority_score(
         0.0
     };
 
-    ((slider + rating_normalized) / 2.0).max(0.0).min(100.0)
+    ((slider + rating_normalized) / 2.0).clamp(0.0, 100.0)
 }
 
 /// Calculate FSRS-based priority for documents in the queue.
@@ -296,7 +292,7 @@ pub fn calculate_fsrs_document_priority(
     };
 
     // Final priority with adjustments, clamped to 0-10 range
-    (adjusted_priority + fsrs_adjustment).max(0.0).min(10.0)
+    (adjusted_priority + fsrs_adjustment).clamp(0.0, 10.0)
 }
 
 #[derive(Clone, serde::Serialize)]

@@ -27,7 +27,7 @@ pub async fn mcp_add_server(
         "stdio" => MCPTransport::Stdio,
         "sse" => {
             let url = transport_url.ok_or("transport_url is required for SSE transport")?;
-            MCPTransport::SSE(url)
+            MCPTransport::Sse(url)
         }
         _ => return Err(format!("Unknown transport type: {}", transport)),
     };

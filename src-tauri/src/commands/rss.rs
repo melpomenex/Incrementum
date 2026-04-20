@@ -215,6 +215,7 @@ pub async fn get_rss_feed(id: String, repo: State<'_, Repository>) -> Result<Opt
 
 /// Update RSS feed
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_rss_feed(
     id: String,
     title: Option<String>,
@@ -285,6 +286,7 @@ pub async fn delete_rss_feed(id: String, repo: State<'_, Repository>) -> Result<
 
 /// Add article to database
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_rss_article(
     feed_id: String,
     url: String,
@@ -1028,6 +1030,7 @@ pub async fn get_rss_feed_http(id: &str, repo: &Repository) -> Result<Option<Rss
 }
 
 /// Update RSS feed (HTTP API version)
+#[allow(clippy::too_many_arguments)]
 pub async fn update_rss_feed_http(
     id: &str,
     title: Option<String>,

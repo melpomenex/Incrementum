@@ -3,7 +3,6 @@
  * Date/duration picker for "mark older/newer than" actions
  */
 
-import { useState } from "react";
 
 interface DurationPickerProps {
   onSelect: (date: string) => void;

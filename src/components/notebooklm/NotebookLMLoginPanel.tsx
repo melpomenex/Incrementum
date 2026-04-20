@@ -6,7 +6,7 @@
  * - Guides user through login/logout process
  * - Shows authentication status
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -37,7 +37,7 @@ interface NotebookLMLoginPanelProps {
 export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps) {
   const [step, setStep] = useState<LoginStep>("checking");
   const [cliStatus, setCliStatus] = useState<CLIStatus | null>(null);
-  const [authStatus, setAuthStatus] = useState<CLIAuthStatus | null>(null);
+  const [_authStatus, setAuthStatus] = useState<CLIAuthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loginProgress, setLoginProgress] = useState(0);
   const [showBrowserHint, setShowBrowserHint] = useState(false);

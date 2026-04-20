@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, ChevronLeft, ChevronRight, ExternalLink, Loader2 } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { getReadArticlesAuto } from "../../api/rss-folders";
 
 interface ReadStoriesViewProps {
@@ -13,7 +13,7 @@ interface ReadStoriesViewProps {
 
 export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
   const [articles, setArticles] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const pageSize = 30;
 

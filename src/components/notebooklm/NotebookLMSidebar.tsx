@@ -5,9 +5,9 @@ import {
   FileText,
   Youtube,
   Upload,
-  MoreVertical,
+
   RefreshCw,
-  Trash2,
+
   BookOpen,
   ChevronDown,
   ChevronRight,
@@ -36,7 +36,7 @@ export function NotebookLMSidebar({
   onCreateNotebook,
 }: NotebookLMSidebarProps) {
   const [sources, setSources] = useState<SourceSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [showAddSource, setShowAddSource] = useState(false);
   const [sourceType, setSourceType] = useState<"url" | "youtube" | "text" | "file">("url");
   const [sourceInput, setSourceInput] = useState("");

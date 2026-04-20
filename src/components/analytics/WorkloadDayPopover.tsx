@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle, XCircle, HelpCircle, FileText, BookOpen } from "lucide-react";
+import { X, CheckCircle, XCircle, FileText, BookOpen } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { getWorkloadDayDetails, type WorkloadDayDetail } from "../../api/analytics";
 

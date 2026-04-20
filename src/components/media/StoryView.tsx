@@ -3,8 +3,8 @@
  * Single-article focused reading with minimal chrome, next/prev navigation
  */
 
-import { useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Star, ExternalLink, Share2, Clock, User } from "lucide-react";
+import { useCallback } from "react";
+import { ChevronLeft, ChevronRight, Star, ExternalLink, Clock, User } from "lucide-react";
 import type { FeedItem, Feed } from "../../api/rss";
 import { formatFeedDate } from "../../api/rss";
 import { openExternal } from "../../lib/tauri";

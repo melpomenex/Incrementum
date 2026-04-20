@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Highlighter, StickyNote, Trash2, Edit3, X } from "lucide-react";
+import { Highlighter, StickyNote, Trash2, X } from "lucide-react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
 import type { RssAnnotation } from "../../api/rss-annotations";
 
@@ -13,10 +13,10 @@ interface AnnotationsPanelProps {
   onClose?: () => void;
 }
 
-const HIGHLIGHT_COLORS = ["#FFE082", "#A5D6A7", "#90CAF9", "#CE93D8", "#EF9A9A"];
+const _HIGHLIGHT_COLORS = ["#FFE082", "#A5D6A7", "#90CAF9", "#CE93D8", "#EF9A9A"];
 
 export function AnnotationsPanel({ articleId, onClose }: AnnotationsPanelProps) {
-  const { annotationsByArticle, isLoading, loadAnnotations, deleteAnnotation, updateAnnotation } =
+  const { annotationsByArticle, isLoading, loadAnnotations, deleteAnnotation } =
     useAnnotationsStore();
 
   useEffect(() => {
@@ -87,8 +87,8 @@ function AnnotationCard({
   annotation: RssAnnotation;
   onDelete: () => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const { updateAnnotation } = useAnnotationsStore();
+  const [_isEditing, _setIsEditing] = useState(false);
+  const { updateAnnotation: _updateAnnotation } = useAnnotationsStore();
 
   return (
     <div

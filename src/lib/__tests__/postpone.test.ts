@@ -5,7 +5,7 @@ import {
   postponeAll,
   defaultPostponeConfig,
   type PostponeInput,
-  type PostponeConfig,
+
 } from "../postpone";
 
 const makeItem = (overrides: Partial<PostponeInput> = {}): PostponeInput => ({
@@ -267,7 +267,7 @@ describe("postponeAll", () => {
     ];
 
     const config = { ...defaultPostponeConfig, randomize: false };
-    const { results, stats } = postponeAll(items, config);
+    const { results: _results, stats } = postponeAll(items, config);
 
     expect(stats.totalItems).toBe(4);
     expect(stats.skippedCount).toBeGreaterThanOrEqual(1);
@@ -280,7 +280,7 @@ describe("postponeAll", () => {
   });
 
   test("empty input returns zero stats", () => {
-    const { results, stats } = postponeAll([], defaultPostponeConfig);
+    const { results: _results, stats } = postponeAll([], defaultPostponeConfig);
 
     expect(stats.totalItems).toBe(0);
     expect(stats.postponedCount).toBe(0);

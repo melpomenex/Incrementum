@@ -357,7 +357,7 @@ pub async fn compute_intelligence_score(
         let value_lower = value.to_lowercase();
         let matches = match classifier_type.as_str() {
             "author" => {
-                author_lower.as_ref().map_or(false, |a| a.contains(&value_lower))
+                author_lower.as_ref().is_some_and(|a| a.contains(&value_lower))
             }
             "title" => {
                 title_lower.contains(&value_lower)
@@ -1358,25 +1358,25 @@ async fn discover_feed_from_site(site_url: &str) -> Option<(String, String, Opti
     // Simple regex-based extraction of <link> tags with RSS/Atom types
     for line in html.lines() {
         let lower = line.to_lowercase();
-        if lower.contains("rel=\"alternate\"") || lower.contains("rel='alternate'") {
-            if lower.contains("application/rss+xml") || lower.contains("application/atom+xml") || lower.contains("text/xml") {
-                // Extract href
-                if let Some(href_start) = lower.find("href=\"").or_else(|| lower.find("href='")) {
-                    let href_start = href_start + 6;
-                    if let Some(href_end) = lower[href_start..].find('"').or_else(|| lower[href_start..].find('\'')) {
-                        let href = &line[href_start..href_start + href_end];
-                        let resolved = if href.starts_with("http") {
-                            href.to_string()
-                        } else if href.starts_with("//") {
-                            format!("https:{}", href)
-                        } else if href.starts_with('/') {
-                            format!("https://{}{}", site_url.strip_prefix("https://").unwrap_or(site_url).strip_prefix("http://").unwrap_or(site_url), href)
-                        } else {
-                            format!("{}/{}", site_url.trim_end_matches('/'), href)
-                        };
-                        feed_url = Some(resolved);
-                        break;
-                    }
+        if (lower.contains("rel=\"alternate\"") || lower.contains("rel='alternate'"))
+            && (lower.contains("application/rss+xml") || lower.contains("application/atom+xml") || lower.contains("text/xml"))
+        {
+            // Extract href
+            if let Some(href_start) = lower.find("href=\"").or_else(|| lower.find("href='")) {
+                let href_start = href_start + 6;
+                if let Some(href_end) = lower[href_start..].find('"').or_else(|| lower[href_start..].find('\'')) {
+                    let href = &line[href_start..href_start + href_end];
+                    let resolved = if href.starts_with("http") {
+                        href.to_string()
+                    } else if href.starts_with("//") {
+                        format!("https:{}", href)
+                    } else if href.starts_with('/') {
+                        format!("https://{}{}", site_url.strip_prefix("https://").unwrap_or(site_url).strip_prefix("http://").unwrap_or(site_url), href)
+                    } else {
+                        format!("{}/{}", site_url.trim_end_matches('/'), href)
+                    };
+                    feed_url = Some(resolved);
+                    break;
                 }
             }
         }
@@ -1464,7 +1464,7 @@ pub async fn update_rss_folder(
 
     if sets.is_empty() {
         // Re-borrow repo for the inner call
-        return get_rss_folder_by_id(id, tauri::State::from(repo.clone())).await;
+        return get_rss_folder_by_id(id, repo.clone()).await;
     }
 
     let query_str = format!("UPDATE rss_folders SET {} WHERE id = ?", sets.join(", "));
@@ -1480,7 +1480,7 @@ pub async fn update_rss_folder(
     query.execute(repo.pool()).await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update folder: {}", e)))?;
 
-    get_rss_folder_by_id(id, tauri::State::from(repo.clone())).await
+    get_rss_folder_by_id(id, repo.clone()).await
 }
 
 async fn get_rss_folder_by_id(id: String, repo: State<'_, Repository>) -> Result<RssFolder> {
@@ -2194,7 +2194,7 @@ pub async fn recompute_all_intelligence_scores_http(repo: &Repository) -> Result
             let mut score: f64 = 0.0;
             for (ct, val, sent) in &classifiers {
                 let val_l = val.to_lowercase();
-                let matches = match ct.as_str() { "author" => author_lower.as_ref().map_or(false, |a| a.contains(&val_l)), "title" => title_lower.contains(&val_l), "feed" => true, "tag" => title_lower.contains(&val_l), _ => false };
+                let matches = match ct.as_str() { "author" => author_lower.as_ref().is_some_and(|a| a.contains(&val_l)), "title" => title_lower.contains(&val_l), "feed" => true, "tag" => title_lower.contains(&val_l), _ => false };
                 if matches { match sent.as_str() { "like" => score += 1.0, "dislike" => score -= 1.0, _ => {} } }
             }
             let now = Utc::now().to_rfc3339();

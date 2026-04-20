@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Highlighter, Copy, MessageSquarePlus, X } from "lucide-react";
+import { Highlighter, Copy, MessageSquarePlus } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 
 export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";

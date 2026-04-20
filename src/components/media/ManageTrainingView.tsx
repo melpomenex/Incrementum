@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, ThumbsUp, ThumbsDown, X, Save, RotateCcw, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ThumbsUp, ThumbsDown, X, Save, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import type { RssClassifier, ClassifierUpdate } from "../../api/rss-classifiers";
 
@@ -18,7 +18,7 @@ export function ManageTrainingView({ onClose }: ManageTrainingViewProps) {
     useClassifiersStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
-  const [filterSentiment, setFilterSentiment] = useState<string | null>(null);
+  const [filterSentiment, _setFilterSentiment] = useState<string | null>(null);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingUpdates, setPendingUpdates] = useState<Map<string, string>>(new Map());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["liked", "disliked"]));

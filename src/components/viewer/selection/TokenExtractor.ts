@@ -8,14 +8,13 @@
  * 4. Detecting column boundaries for multi-column documents
  */
 
-import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type {
   TextToken,
   PageTokenData,
   LineBand,
   ColumnBoundary,
   TokenExtractorConfig,
-  DEFAULT_EXTRACTOR_CONFIG,
 } from "./types";
 
 const DEFAULT_CONFIG: TokenExtractorConfig = {
@@ -46,7 +45,7 @@ export class TokenExtractor {
     pageIndex: number
   ): Promise<PageTokenData> {
     // Check cache
-    const cacheKey = `${pageIndex}-${viewport.scale}`;
+    const _cacheKey = `${pageIndex}-${viewport.scale}`;
     const cached = this.pageDataCache.get(pageIndex);
     if (cached && cached.scale === viewport.scale) {
       return cached;
@@ -75,7 +74,7 @@ export class TokenExtractor {
         continue;
       }
 
-      const [scaleX, skewX, skewY, scaleY, translateX, translateY] = transform;
+      const [scaleX, _skewX, skewY, _scaleY, translateX, translateY] = transform;
 
       // Calculate font metrics
       const fontSize = Math.sqrt(scaleX * scaleX + skewY * skewY);
@@ -202,7 +201,7 @@ export class TokenExtractor {
    * Estimate character width based on font metrics.
    * This is a heuristic since PDF.js doesn't provide per-character widths.
    */
-  private estimateCharWidth(char: string, fontSize: number, fontName?: string): number {
+  private estimateCharWidth(char: string, fontSize: number, _fontName?: string): number {
     // Basic width estimation based on character type
     const code = char.charCodeAt(0);
 

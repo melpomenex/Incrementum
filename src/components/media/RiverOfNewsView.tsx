@@ -3,20 +3,19 @@
  * Merged chronological stream from all feeds in a folder
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { Clock, Loader2, ExternalLink, Rss, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, Loader2, Rss, ArrowLeft } from "lucide-react";
 import { getRiverOfNewsAuto } from "../../api/rss-folders";
-import type { Feed, FeedItem } from "../../api/rss";
 
 interface RiverOfNewsViewProps {
   folderId: string;
   folderName: string;
-  feeds: Feed[];
+  feeds: any[];
   onSelectArticle?: (item: any) => void;
   onBack?: () => void;
 }
 
-export function RiverOfNewsView({ folderId, folderName, feeds, onSelectArticle, onBack }: RiverOfNewsViewProps) {
+export function RiverOfNewsView({ folderId, folderName, feeds: _feeds, onSelectArticle, onBack }: RiverOfNewsViewProps) {
   const [articles, setArticles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 

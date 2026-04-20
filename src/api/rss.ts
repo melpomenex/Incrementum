@@ -762,7 +762,7 @@ export function exportOPML(): string {
         });
         opml += `    </outline>\n`;
       });
-    } catch {}
+    } catch { /* ignore feed iteration errors */ }
   }
 
   opml += `  </body>
@@ -1429,7 +1429,7 @@ export async function subscribeToFeedAuto(feed: Feed): Promise<void> {
         if (response.ok) {
           feed.icon = iconUrl;
         }
-      } catch {}
+      } catch { /* ignore feed iteration errors */ }
       return;
     } catch (error) {
       console.warn("[RSS] Tauri backend unavailable, storing feed locally.", error);
@@ -2238,7 +2238,7 @@ async function fetchFullContentWeb(
 /**
  * Extract readable content from HTML using DOM-based approach
  */
-function extractReadableContent(html: string, url: string): { title: string; content: string } {
+function extractReadableContent(html: string, _url: string): { title: string; content: string } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
 
@@ -2456,7 +2456,7 @@ export function pruneOldCachedContent(): number {
           prunedCount++;
         }
       }
-    } catch (error) {
+    } catch {
       // Invalid cache entry, remove it
       localStorage.removeItem(key);
       prunedCount++;

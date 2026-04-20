@@ -137,6 +137,7 @@ pub async fn start_review(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn submit_review(
     item_id: String,
     rating: i32,
@@ -172,6 +173,7 @@ pub async fn submit_review(
 
 /// Main review dispatcher — routes to the correct algorithm based on the caller's algorithm parameter,
 /// falling back to the item's stored algorithm_type.
+#[allow(clippy::too_many_arguments)]
 pub async fn apply_review(
     repo: &Repository,
     item_id: &str,

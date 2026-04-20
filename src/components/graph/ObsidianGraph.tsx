@@ -8,11 +8,6 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
 import { GraphNodeType, LayoutAlgorithm, type GraphNode, type GraphData } from "./KnowledgeGraph";
 import {
-  FileText,
-  Quote,
-  BrainCircuit,
-  Tag,
-  Folder,
   X,
   ZoomIn,
   ZoomOut,
@@ -470,12 +465,12 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
   const [repelForce, setRepelForce] = useState(300);
   const [showMinimap, setShowMinimap] = useState(true);
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
-  const [clusterAnimProgress, setClusterAnimProgress] = useState(1); // 1 = fully settled
+  const [_clusterAnimProgress, _setClusterAnimProgress] = useState(1); // 1 = fully settled
 
   const frameCountRef = useRef(0);
   const animatingTransformRef = useRef(false);
   const targetTransformRef = useRef<{ x: number; y: number; k: number } | null>(null);
-  const searchFitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const _searchFitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Build cluster index from data
   const clusterIndex = useMemo(() => buildClusterIndex(data.edges, data.nodes), [data.edges, data.nodes]);
@@ -639,7 +634,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
 
       const nodes = simulationNodes;
       const nodeMap = nodeMapRef.current;
-      const edges = data.edges;
+      const _edges = data.edges;
       const canvas = canvasRef.current;
       const width = canvas?.width || 800;
       const height = canvas?.height || 600;

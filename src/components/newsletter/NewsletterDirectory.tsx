@@ -44,7 +44,6 @@ import {
   getSubstackCategoryFeed,
   deriveSubstackFeedUrl,
   deriveFeedUrlFromSubdomain,
-  type SubstackSearchResponse,
   type SubstackSearchItem,
   type SubstackCategory,
   type SubstackPublication,

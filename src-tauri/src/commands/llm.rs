@@ -231,6 +231,7 @@ pub async fn llm_chat_with_context(
 
 // Streaming command - emits events to frontend
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn llm_stream_chat(
     app: AppHandle,
     provider: String,
@@ -279,6 +280,7 @@ pub async fn llm_stream_chat(
 }
 
 // Streaming implementations
+#[allow(clippy::too_many_arguments)]
 async fn stream_openai(
     app: &AppHandle,
     client: &Client,
@@ -373,6 +375,7 @@ async fn stream_openai(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn stream_anthropic(
     app: &AppHandle,
     client: &Client,
@@ -1308,7 +1311,7 @@ fn select_relevant_excerpt(
     }
 
     let mut best_chunks: Vec<(usize, usize, usize)> = Vec::new(); // (score, start, end)
-    let chunk_len = max_chars.min(1200).max(400).min(total_chars);
+    let chunk_len = max_chars.clamp(400, 1200).min(total_chars);
     let overlap = 200.min(chunk_len / 3);
     let mut start_char = 0;
 

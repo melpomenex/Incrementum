@@ -108,7 +108,7 @@ pub struct QuizItem {
     pub was_correct: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactPayload {
     pub flashcards: Vec<FlashcardItem>,
@@ -118,18 +118,6 @@ pub struct ArtifactPayload {
     pub json_content: Option<serde_json::Value>,
     /// URL or file path for media artifacts (audio, video)
     pub media_url: Option<String>,
-}
-
-impl Default for ArtifactPayload {
-    fn default() -> Self {
-        Self {
-            flashcards: vec![],
-            quiz_items: vec![],
-            raw_text: None,
-            json_content: None,
-            media_url: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -209,16 +197,10 @@ pub struct ArtifactExportResult {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JobsFile {
     jobs: Vec<NotebookLMJob>,
-}
-
-impl Default for JobsFile {
-    fn default() -> Self {
-        Self { jobs: vec![] }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,6 +305,7 @@ trait NotebookLMProvider: Send + Sync {
         notebook_id: &str,
         question: &str,
     ) -> Result<AskResponse, AppError>;
+    #[allow(clippy::too_many_arguments)]
     async fn research(
         &self,
         auth: &NotebookLMAuthState,
@@ -962,7 +945,7 @@ fn notebook_usize(v: &serde_json::Value, keys: &[&str]) -> Option<usize> {
 }
 
 async fn cli_use_notebook(ctx: &ProviderContext, notebook_id: &str) -> Result<(), AppError> {
-    run_notebooklm_command(ctx, &vec!["use".to_string(), notebook_id.to_string()]).await?;
+    run_notebooklm_command(ctx, &["use".to_string(), notebook_id.to_string()]).await?;
     Ok(())
 }
 
@@ -1003,7 +986,7 @@ fn parse_notebook_list(value: &serde_json::Value) -> Vec<NotebookSummary> {
 }
 
 fn normalize_cli_type(raw: &str) -> String {
-    raw.to_lowercase().replace('_', "-").replace(' ', "-")
+    raw.to_lowercase().replace(['_', ' '], "-")
 }
 
 fn cli_list_filter_for(app_artifact_type: &str) -> &'static str {
@@ -1151,7 +1134,7 @@ impl NotebookLMProvider for CliNotebookLMProvider {
         ctx: &ProviderContext,
         title: &str,
     ) -> Result<NotebookSummary, AppError> {
-        let result = run_notebooklm_command(ctx, &vec![
+        let result = run_notebooklm_command(ctx, &[
             "create".to_string(),
             title.to_string(),
             "--json".to_string(),
@@ -2212,15 +2195,17 @@ async fn ensure_managed_notebooklm_runtime(
     Ok((venv_python, None))
 }
 
-fn resolve_notebooklm_runtime(
-    app: &tauri::AppHandle,
-) -> (
+type NotebookLMRuntimeResult = (
     Option<PathBuf>,
     Option<PathBuf>,
     Option<PathBuf>,
     Option<PathBuf>,
     Option<String>,
-) {
+);
+
+fn resolve_notebooklm_runtime(
+    app: &tauri::AppHandle,
+) -> NotebookLMRuntimeResult {
     let mut first_error: Option<String> = None;
     let mut first_packaged_error: Option<String> = None;
 

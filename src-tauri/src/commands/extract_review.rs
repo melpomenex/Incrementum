@@ -78,13 +78,14 @@ pub async fn submit_extract_review(
     ).await?;
 
     // Advance progressive disclosure level for Good/Easy ratings
-    if (rating == 3 || rating == 4) && extract.max_disclosure_level > 0 {
-        if extract.progressive_disclosure_level < extract.max_disclosure_level {
-            repo.update_extract_disclosure_level(
-                &extract.id,
-                extract.progressive_disclosure_level + 1,
-            ).await?;
-        }
+    if (rating == 3 || rating == 4)
+        && extract.max_disclosure_level > 0
+        && extract.progressive_disclosure_level < extract.max_disclosure_level
+    {
+        repo.update_extract_disclosure_level(
+            &extract.id,
+            extract.progressive_disclosure_level + 1,
+        ).await?;
     }
 
     // Refresh object to return

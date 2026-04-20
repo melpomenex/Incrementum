@@ -323,7 +323,7 @@ impl BackupManager {
     }
 
     /// Export the database to a file
-    async fn export_database(&self, path: &PathBuf) -> Result<(), AppError> {
+    async fn export_database(&self, path: &StdPath) -> Result<(), AppError> {
         // TODO: Implement database export
         // For now, use SQLite's VACUUM INTO command to export
         let pool = self.db.pool();
@@ -338,7 +338,7 @@ impl BackupManager {
     }
 
     /// Copy document files to backup directory
-    async fn copy_documents(&self, dest_dir: &PathBuf) -> Result<(usize, u64), AppError> {
+    async fn copy_documents(&self, dest_dir: &StdPath) -> Result<(usize, u64), AppError> {
         // TODO: Get all documents from database
         // For now, return empty result
         let documents: Vec<crate::models::Document> = vec![];
