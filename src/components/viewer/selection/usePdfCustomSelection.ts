@@ -232,7 +232,7 @@ export function usePdfCustomSelection(
    * Handle pointer down - start selection.
    */
   const handlePointerDown = useCallback(
-    (_pageIndex: number, _event: React.PointerEvent): void => {
+    (pageIndex: number, event: React.PointerEvent): void => {
       if (!enabled || !engineRef.current) return;
 
       const coords = getViewportCoords(pageIndex, event);
@@ -253,7 +253,7 @@ export function usePdfCustomSelection(
    * Handle pointer move - extend selection.
    */
   const handlePointerMove = useCallback(
-    (_pageIndex: number, _event: React.PointerEvent): void => {
+    (pageIndex: number, event: React.PointerEvent): void => {
       if (!enabled || !engineRef.current) return;
 
       const coords = getViewportCoords(pageIndex, event);
