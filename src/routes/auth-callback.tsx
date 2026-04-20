@@ -29,14 +29,14 @@ export default function AuthCallback() {
         return;
       }
 
-      if (!code || !state || !pendingProvider) {
+      if (!code || !state) {
         console.error("Missing OAuth parameters");
         navigate("/settings?oauth_error=missing_parameters");
         return;
       }
 
       try {
-        // Determine provider from state parameter
+        // Determine provider from state parameter (no sessionStorage dependency)
         let providerType: string;
         if (state.startsWith("googledrive_")) {
           providerType = "google-drive";
@@ -58,10 +58,10 @@ export default function AuthCallback() {
         console.log("OAuth successful:", result);
 
         // Redirect back to settings with success
-        navigate("/settings?oauth_success=true");
+        navigate("/settings?oauth_success=true&provider=" + encodeURIComponent(providerType));
       } catch (err) {
         console.error("OAuth callback failed:", err);
-        navigate("/settings?oauth_error=" + encodeURIComponent(err as string));
+        navigate("/settings?oauth_error=" + encodeURIComponent(err instanceof Error ? err.message : String(err)));
       }
     };
 

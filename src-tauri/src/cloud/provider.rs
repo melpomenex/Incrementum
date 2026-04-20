@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppError;
 
 /// Cloud storage provider type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CloudProviderType {
     OneDrive,
@@ -163,6 +163,9 @@ pub trait CloudProvider: Send + Sync {
     /// Check if authenticated
     fn is_authenticated(&self) -> bool;
 
+    /// Get the current authentication token, if any
+    fn auth_token(&self) -> Option<AuthToken>;
+
     // ========== File Operations ==========
 
     /// Upload a file to cloud storage
@@ -204,6 +207,12 @@ pub struct BackupOptions {
     pub include_settings: bool,
     pub compress: bool,
     pub encrypt: bool,
+    /// Password for backup encryption (passed from frontend)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<String>,
+    /// Settings JSON to include in backup (passed from frontend)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_json: Option<String>,
 }
 
 impl Default for BackupOptions {
@@ -213,7 +222,9 @@ impl Default for BackupOptions {
             include_documents: true,
             include_settings: true,
             compress: true,
-            encrypt: true,
+            encrypt: false,
+            password: None,
+            settings_json: None,
         }
     }
 }
@@ -247,6 +258,9 @@ pub struct RestoreResult {
     pub restored_items: usize,
     pub conflicts: Vec<RestoreConflict>,
     pub error: Option<String>,
+    /// Settings JSON read from backup, returned to frontend for merging
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

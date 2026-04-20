@@ -173,6 +173,7 @@ export async function registerServiceWorker(): Promise<boolean> {
 
     if (registration.waiting) {
       console.log('[PWA] Waiting service worker detected');
+      registration.waiting.postMessage({ action: 'skipWaiting' });
     }
 
     const logInstallingWorker = () => {
@@ -183,12 +184,17 @@ export async function registerServiceWorker(): Promise<boolean> {
         console.log('[PWA] Service worker state:', installingWorker.state);
         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
           console.log('[PWA] New service worker available');
+          installingWorker.postMessage({ action: 'skipWaiting' });
         }
       });
     };
 
     registration.addEventListener('updatefound', logInstallingWorker);
     logInstallingWorker();
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    }, { once: true });
 
     return true;
   } catch (error) {

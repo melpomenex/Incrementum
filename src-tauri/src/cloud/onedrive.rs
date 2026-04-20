@@ -66,6 +66,22 @@ impl OneDriveProvider {
         }
     }
 
+    /// Create a provider with an existing authentication token
+    pub fn with_token(config: OneDriveConfig, token: AuthToken) -> Self {
+        Self {
+            config,
+            http_client: Client::new(),
+            auth_token: Some(token),
+            account_info: None,
+            pending_state: None,
+        }
+    }
+
+    /// Set the authentication token
+    pub fn set_token(&mut self, token: AuthToken) {
+        self.auth_token = Some(token);
+    }
+
     /// Get the Microsoft Graph API base URL
     fn api_base_url(&self) -> &str {
         "https://graph.microsoft.com/v1.0/me/drive"
@@ -377,6 +393,10 @@ impl CloudProvider for OneDriveProvider {
 
     fn is_authenticated(&self) -> bool {
         self.auth_token.is_some()
+    }
+
+    fn auth_token(&self) -> Option<AuthToken> {
+        self.auth_token.clone()
     }
 
     async fn upload_file(

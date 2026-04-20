@@ -226,7 +226,7 @@ interface AISettings {
  */
 interface SyncSettings {
   enabled: boolean;
-  provider: "dropbox" | "google-drive" | "icloud" | "webdav";
+  provider: "dropbox" | "google-drive" | "onedrive";
   interval: number;
   onStartup: boolean;
   lastSync?: string;
