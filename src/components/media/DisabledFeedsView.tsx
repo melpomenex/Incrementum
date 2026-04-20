@@ -3,7 +3,7 @@
  * List disabled feeds with enable action
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Power, Loader2 } from "lucide-react";
 import { toggleFeedActiveAuto } from "../../api/rss-folders";
 import type { Feed } from "../../api/rss";

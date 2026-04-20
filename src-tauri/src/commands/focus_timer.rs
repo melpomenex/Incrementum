@@ -190,7 +190,7 @@ impl FocusTimer {
         // Update session count and focus time if completing work
         if state.phase == TimerPhase::Work && state.state == TimerState::Running {
             if let Some(start) = *start_time {
-                let elapsed = start.elapsed().as_secs() as u64;
+                let elapsed = start.elapsed().as_secs();
                 state.total_focus_time += elapsed;
             }
             state.completed_sessions += 1;

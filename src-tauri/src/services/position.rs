@@ -81,14 +81,10 @@ impl PositionService {
         .await
         .map_err(|e| IncrementumError::Internal(format!("Failed to get position: {}", e)))?;
 
-        if let Some((position_json,)) = row {
-            if let Some(json) = position_json {
-                let position: DocumentPosition = serde_json::from_str(&json)
-                    .map_err(|e| IncrementumError::Internal(format!("Failed to deserialize position: {}", e)))?;
-                Ok(Some(position))
-            } else {
-                Ok(None)
-            }
+        if let Some((Some(json),)) = row {
+            let position: DocumentPosition = serde_json::from_str(&json)
+                .map_err(|e| IncrementumError::Internal(format!("Failed to deserialize position: {}", e)))?;
+            Ok(Some(position))
         } else {
             Ok(None)
         }
@@ -329,7 +325,7 @@ impl PositionService {
                 started_at: started,
                 ended_at: ended,
                 duration_seconds: duration,
-                pages_read: pages_read,
+                pages_read,
                 progress_start: progress_start as f32,
                 progress_end: progress_end as f32,
             }))

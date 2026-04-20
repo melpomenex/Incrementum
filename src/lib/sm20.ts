@@ -76,7 +76,7 @@ const ROUND_NARROW_UPPER = 2.0;
 const ROUND_NARROW_LOWER = 0.5;
 
 /** --- U-Factor Table (20 values) --- */
-const UFACTOR: readonly number[] = [
+const _UFACTOR: readonly number[] = [
   13.822076, 8.212571, 6.056511, 4.879609, 4.126662, 3.598557, 3.205138, 2.899285, 2.653822,
   2.451912, 2.282528, 2.138131, 2.013379, 1.904376, 1.808207, 1.722649, 1.645970, 1.576804,
   1.514055, 1.456836,
@@ -86,7 +86,7 @@ const UFACTOR: readonly number[] = [
 const MATRIX_DIM = 21;
 const MATRIX_STRIDE_R = MATRIX_DIM * MATRIX_DIM; // 441
 const MATRIX_STRIDE_S = MATRIX_DIM; // 21
-const MATRIX_SIZE = 9261;
+const _MATRIX_SIZE = 9261;
 
 // =============================================================================
 // FSRS-FAMILY BRANCH CONSTANTS
@@ -314,7 +314,7 @@ function stabilityToTransformed(sIdx: number): number {
 }
 
 /** FUN_00cf7250: floor(exp2(R * 20)), clamped to [0, 20]. */
-function retrievabilityToIndex(r: number): number {
+function _retrievabilityToIndex(r: number): number {
   return clamp(Math.floor(Math.pow(2, r * 20)), 0, 20);
 }
 

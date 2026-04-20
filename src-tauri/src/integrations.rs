@@ -334,7 +334,7 @@ fn generate_conversation_markdown(
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: \"{}\"\n", title));
     markdown.push_str(&format!("created: {}\n", now.format("%Y-%m-%d %H:%M")));
-    markdown.push_str(&format!("source: \"Incrementum AI Assistant\"\n"));
+    markdown.push_str("source: \"Incrementum AI Assistant\"\n");
     if let Some(context) = context_info {
         markdown.push_str(&format!("context: \"{}\"\n", context.replace('"', "\\\"")));
     }
@@ -381,7 +381,7 @@ fn generate_conversation_markdown(
                         markdown.push_str(&format!("> {}\n", line));
                     }
                 }
-                markdown.push_str("\n");
+                markdown.push('\n');
             }
             _ => {
                 markdown.push_str(&message.content);
@@ -410,7 +410,7 @@ fn generate_single_message_markdown(
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: \"{}\"\n", title));
     markdown.push_str(&format!("created: {}\n", now.format("%Y-%m-%d %H:%M")));
-    markdown.push_str(&format!("source: \"Incrementum AI Assistant\"\n"));
+    markdown.push_str("source: \"Incrementum AI Assistant\"\n");
     markdown.push_str(&format!("message-type: \"{}\"\n", message.role));
     if let Some(context) = context_info {
         markdown.push_str(&format!("context: \"{}\"\n", context.replace('"', "\\\"")));
@@ -437,7 +437,7 @@ fn generate_single_message_markdown(
             markdown.push_str(&format!("> {}\n", line));
         }
     }
-    markdown.push_str("\n");
+    markdown.push('\n');
 
     // Footer
     markdown.push_str("---\n\n");
@@ -748,8 +748,8 @@ fn strip_extract_metadata<'a>(body: &'a str, title: &str) -> &'a str {
 fn extract_title_from_content(content: &str) -> &str {
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("# ") {
-            return &trimmed[2..];
+        if let Some(title) = trimmed.strip_prefix("# ") {
+            return title;
         } else if !trimmed.is_empty() {
             return trimmed;
         }

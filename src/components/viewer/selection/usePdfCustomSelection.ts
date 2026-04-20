@@ -9,7 +9,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy, PageViewport } from "pdfjs-dist";
 import type { PdfSelectionContext } from "../../../types/selection";
 import type {
   SelectionState,
@@ -233,7 +232,7 @@ export function usePdfCustomSelection(
    * Handle pointer down - start selection.
    */
   const handlePointerDown = useCallback(
-    (pageIndex: number, event: React.PointerEvent): void => {
+    (_pageIndex: number, _event: React.PointerEvent): void => {
       if (!enabled || !engineRef.current) return;
 
       const coords = getViewportCoords(pageIndex, event);
@@ -254,7 +253,7 @@ export function usePdfCustomSelection(
    * Handle pointer move - extend selection.
    */
   const handlePointerMove = useCallback(
-    (pageIndex: number, event: React.PointerEvent): void => {
+    (_pageIndex: number, _event: React.PointerEvent): void => {
       if (!enabled || !engineRef.current) return;
 
       const coords = getViewportCoords(pageIndex, event);
@@ -269,7 +268,7 @@ export function usePdfCustomSelection(
    * Handle pointer up - complete selection.
    */
   const handlePointerUp = useCallback(
-    (pageIndex: number, event: React.PointerEvent): void => {
+    (_pageIndex: number, _event: React.PointerEvent): void => {
       if (!enabled || !engineRef.current || !pdf) return;
 
       const result = engineRef.current.handlePointerUp();

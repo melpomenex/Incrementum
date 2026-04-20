@@ -13,7 +13,7 @@ interface Node {
 
 export function KnowledgeSpherePage() {
   const { t } = useI18n();
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const [_nodes, setNodes] = useState<Node[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);

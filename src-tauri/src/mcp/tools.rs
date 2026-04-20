@@ -1417,17 +1417,15 @@ impl MCPToolRegistry {
         // Generate title if not provided
         let extract_title = if let Some(t) = title {
             t.to_string()
-        } else {
-            if let Some(desc) = description {
-                // Generate from description (capitalize first letter)
-                let mut chars = desc.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                }
-            } else {
-                format!("Segment at {}", format_seconds(found_start))
+        } else if let Some(desc) = description {
+            // Generate from description (capitalize first letter)
+            let mut chars = desc.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
             }
+        } else {
+            format!("Segment at {}", format_seconds(found_start))
         };
 
         // Create the video extract

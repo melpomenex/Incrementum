@@ -95,7 +95,7 @@ function pdfRectToViewportRect(
  * The conversion happens on every render to handle zoom changes.
  */
 export const HighlightLayer: React.FC<HighlightLayerProps> = ({
-  pageIndex,
+  pageIndex: _pageIndex,
   viewport,
   highlights,
   onHighlightClick,

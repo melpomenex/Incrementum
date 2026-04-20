@@ -108,9 +108,9 @@ impl OCRProcessor {
 
         // Check GLM-OCR
         if self.config.glm_ocr.is_some() {
-            if let Ok(provider) = create_provider(OCRProviderType::GLMOCR, &self.config) {
+            if let Ok(provider) = create_provider(OCRProviderType::Glmocr, &self.config) {
                 if provider.is_available() {
-                    available.push(OCRProviderType::GLMOCR);
+                    available.push(OCRProviderType::Glmocr);
                 }
             }
         }

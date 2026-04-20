@@ -3,9 +3,8 @@
  * Walkthrough mode stepping through feeds with trainable highlights
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, SkipForward, X } from "lucide-react";
-import type { Feed, FeedItem } from "../../api/rss";
+import { useState } from "react";
+import { ThumbsUp, ThumbsDown, SkipForward, X } from "lucide-react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 
 interface SiteBySiteTrainingProps {

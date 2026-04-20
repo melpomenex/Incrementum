@@ -29,7 +29,6 @@ import {
   type NotificationPermission,
 } from "../../utils/notificationService";
 import {
-  playNotificationSound,
   NOTIFICATION_SOUND_OPTIONS,
   NOTIFICATION_SOUND_FILES,
   playFile,

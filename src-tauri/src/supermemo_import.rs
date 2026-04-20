@@ -480,7 +480,7 @@ fn parse_generic_supermemo_xml(content: &str, source_file: &str) -> Result<Vec<S
     if !text_content.trim().is_empty() {
         items.push(SuperMemoItem {
             id: format!("sm-generic-{}", source_file.replace("/", "-")),
-            title: source_file.split('/').last().unwrap_or("Imported").to_string(),
+            title: source_file.split('/').next_back().unwrap_or("Imported").to_string(),
             content: text_content,
             question: None,
             answer: None,

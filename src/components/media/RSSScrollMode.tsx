@@ -11,7 +11,7 @@
  * - Feed source indicator
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   ChevronUp,
   ChevronDown,
@@ -213,7 +213,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   });
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryText, setSummaryText] = useState("");
-  const [displayedSummary, setDisplayedSummary] = useState("");
+  const [_displayedSummary, setDisplayedSummary] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [showTrainingMenu, setShowTrainingMenu] = useState(false);
 

@@ -29,7 +29,7 @@ export const SelectionRenderer: React.FC<SelectionRendererProps> = ({
   pageIndex,
   selectionState,
   highlightColor = "rgba(59, 130, 246, 0.4)",
-  highlightOpacity = 0.4,
+  highlightOpacity: _highlightOpacity = 0.4,
 }) => {
   // Get selection boxes for this page
   const selectionBoxes = useMemo(() => {
@@ -90,7 +90,7 @@ export const SVGSelectionRenderer: React.FC<SelectionRendererProps> = ({
   pageIndex,
   selectionState,
   highlightColor = "#3b82f6",
-  highlightOpacity = 0.4,
+  highlightOpacity: _highlightOpacity = 0.4,
 }) => {
   // Get selection boxes for this page
   const selectionBoxes = useMemo(() => {
@@ -103,7 +103,7 @@ export const SVGSelectionRenderer: React.FC<SelectionRendererProps> = ({
   }, [selectionState, pageIndex]);
 
   // Calculate SVG dimensions
-  const svgDimensions = useMemo(() => {
+  const _svgDimensions = useMemo(() => {
     if (selectionBoxes.length === 0) return { width: 0, height: 0 };
 
     let maxX = 0;

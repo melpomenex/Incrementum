@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { X, Settings, Download, FileText, Star, RefreshCw, HelpCircle, Eye, LayoutGrid } from "lucide-react";
+import { X, Settings, Download, FileText, Star, RefreshCw, LayoutGrid } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import type { Feed } from "../../api/rss";
-import { updateFeedAutoFetchPreference } from "../../api/rss";
 import { setFeedViewPreferencesAuto } from "../../api/rss-folders";
-import type { StoryViewMode } from "./StoryViewModeSwitcher";
+
 
 interface FeedSettingsDialogProps {
   feed: Feed | null;
@@ -21,7 +20,7 @@ type AutoFetchMode = "always" | "favorites" | "manual";
  * auto-mark-as-read timing, view mode, and layout preferences
  */
 export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSettingsDialogProps) {
-  const { t } = useI18n();
+  const { t: _t } = useI18n();
   const [autoFetchMode, setAutoFetchMode] = useState<AutoFetchMode>("manual");
   const [autoMarkDays, setAutoMarkDays] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<string | null>(null);

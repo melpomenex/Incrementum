@@ -13,7 +13,7 @@ if (typeof window !== 'undefined') {
         return false;
       }
     }, true); // capture phase to intercept before React's handler
-  } catch {}
+  } catch { /* ignore */ }
 
   window.addEventListener('error', (e) => {
     const root = document.getElementById('root');

@@ -102,7 +102,7 @@ describe("Wave5 performance checks", () => {
     expect(duration).toBeLessThan(2500);
 
     if (typeof originalLocalStorage === "undefined") {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+       
       delete (globalThis as any).localStorage;
     } else {
       Object.defineProperty(globalThis, "localStorage", {

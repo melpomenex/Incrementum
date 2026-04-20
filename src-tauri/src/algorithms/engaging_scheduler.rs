@@ -542,7 +542,7 @@ impl EngagingScheduler {
 
         // New session: start with some variety
         let variety_window = (total_items as f64 * 0.15).ceil() as usize;
-        let window_size = variety_window.max(3).min(10);
+        let window_size = variety_window.clamp(3, 10);
         
         // Use weighted random within the first window
         // Higher chance of starting near the beginning, but not always at 0

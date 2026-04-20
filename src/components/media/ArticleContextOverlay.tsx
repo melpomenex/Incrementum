@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { X, FileText, ExternalLink, Clock, User, Rss, BookOpen } from "lucide-react";
 import type { Feed, FeedItem } from "../../api/rss";
 

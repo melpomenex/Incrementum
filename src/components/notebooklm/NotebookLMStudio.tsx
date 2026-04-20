@@ -5,7 +5,7 @@ import {
   Loader2,
   Check,
   AlertCircle,
-  Download,
+
   Sparkles,
   Headphones,
   Video,
@@ -30,7 +30,6 @@ import {
   type NotebookLMJob,
   type ImportPreviewItem,
 } from "../../api/integrations";
-import { ArtifactViewer, type ArtifactType } from "./artifacts";
 
 interface NotebookLMStudioProps {
   notebookId: string;
@@ -104,7 +103,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
   const [generatingType, setGeneratingType] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<NotebookLMJob | null>(null);
   const [previewItems, setPreviewItems] = useState<ImportPreviewItem[]>([]);
-  const [previewMode, setPreviewMode] = useState<"all" | "missed-only">("all");
+  const [previewMode, _setPreviewMode] = useState<"all" | "missed-only">("all");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [showJobs, setShowJobs] = useState(true);
   const [deckName, setDeckName] = useState("NotebookLM Imports");

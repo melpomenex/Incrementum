@@ -288,6 +288,7 @@ pub struct SyncConflict {
 /// Conflict resolution strategy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::enum_variant_names)]
 pub enum ConflictResolution {
     KeepLocal,
     KeepRemote,

@@ -11,7 +11,7 @@ import {
   type BulkOperationResult,
   type QueueStats
 } from "../api/queue";
-import { getAllLearningItems, type LearningItem as ApiLearningItem } from "../api/learning-items";
+import { getAllLearningItems } from "../api/learning-items";
 import type { QueueItem, SortOptions, SearchFilters } from "../types";
 import { useCollectionStore } from "./collectionStore";
 import { useDocumentStore } from "./documentStore";
@@ -20,7 +20,6 @@ import {
   postponeElement,
   postponeAll as enginePostponeAll,
   computePriority,
-  defaultPostponeConfig,
   type PostponeConfig,
   type PostponeInput,
   type PostponeStats,

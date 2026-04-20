@@ -283,17 +283,17 @@ impl AnnaArchiveClient {
 
         // Find all table rows
         let row_regex = Regex::new(r#"<tr[^>]*>(.*?)</tr>"#).unwrap();
-        
+        let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
+
         for caps in row_regex.captures_iter(table_content) {
             let row = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            
+
             // Skip header rows
             if row.contains("<th") || row.len() < 100 {
                 continue;
             }
 
             // Extract MD5 from the mirrors column
-            let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
             let md5 = md5_re.captures(row)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().to_string())
@@ -324,17 +324,18 @@ impl AnnaArchiveClient {
 
         // Find all table rows
         let row_regex = Regex::new(r#"<tr[^>]*>(.*?)</tr>"#).unwrap();
-        
+        let cell_regex = Regex::new(r#"<td[^>]*>(.*?)</td>"#).unwrap();
+        let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
+
         for caps in row_regex.captures_iter(table_content) {
             let row = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            
+
             // Skip header rows
             if row.contains("<th") || row.len() < 50 {
                 continue;
             }
 
             // Extract cells
-            let cell_regex = Regex::new(r#"<td[^>]*>(.*?)</td>"#).unwrap();
             let cells: Vec<&str> = cell_regex.captures_iter(row)
                 .filter_map(|c| c.get(1))
                 .map(|m| m.as_str())
@@ -345,8 +346,7 @@ impl AnnaArchiveClient {
             }
 
             // Extract MD5 from the last column (mirrors/get link)
-            let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
-            let md5 = md5_re.captures(&cells[cells.len()-1])
+            let md5 = md5_re.captures(cells[cells.len()-1])
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().to_string())
                 .unwrap_or_default();
@@ -404,7 +404,7 @@ impl AnnaArchiveClient {
             return None;
         }
 
-        let title = self.extract_title_from_cell(cells.get(0).unwrap_or(&""))
+        let title = self.extract_title_from_cell(cells.first().unwrap_or(&""))
             .unwrap_or_else(|| "Unknown Title".to_string());
 
         let author = self.extract_author_from_cell(cells.get(1).unwrap_or(&""));

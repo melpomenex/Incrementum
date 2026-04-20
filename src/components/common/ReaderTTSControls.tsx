@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Pause, Play, SkipBack, SkipForward, Square, Volume2, Loader2 } from "lucide-react";
-import { useTTS } from "../../hooks/useTTS";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getVoicesForProvider } from "../../utils/ttsSettings";
 import { generateSpeech } from "../../api/tts";
@@ -116,7 +115,7 @@ export function ReaderTTSControls({
   const [isPaused, setIsPaused] = useState(false);
 
   // Track previous playing state
-  const wasPlayingRef = useRef(false);
+  const _wasPlayingRef = useRef(false);
   const intentionalStopRef = useRef(false);
 
   // Buffer underrun indicator

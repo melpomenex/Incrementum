@@ -1688,7 +1688,6 @@ async fn handle_ai_status(
 /// ============================================================================
 /// RSS API Handlers
 /// ============================================================================
-
 /// Handle RSS feed creation
 async fn handle_create_feed(
     State(state): State<ServerState>,
@@ -1961,11 +1960,11 @@ fn parse_opml_content(content: &str) -> Result<Vec<OpmlFeedData>, String> {
             if let Some(url) = node.attribute("xmlUrl") {
                 let url = url.trim();
                 let normalized_url = if url.starts_with("feed://") {
-                    format!("https://{}", &url["feed://".len()..])
-                } else if url.starts_with("feed:http://") {
-                    url["feed:".len()..].to_string()
-                } else if url.starts_with("feed:https://") {
-                    url["feed:".len()..].to_string()
+                    url.strip_prefix("feed://")
+                        .map(|rest| format!("https://{}", rest))
+                        .unwrap_or_else(|| url.to_string())
+                } else if let Some(rest) = url.strip_prefix("feed:") {
+                    rest.to_string()
                 } else {
                     url.to_string()
                 };

@@ -35,7 +35,7 @@ const POST_LAPSE_STABILITY_MOD = 0.87;
 const POST_LAPSE_INTERVAL = 2.4;
 
 /** BW weight for blended deviation */
-const BGW = 0.70;
+const _BGW = 0.70;
 
 /** Default difficulty for new items */
 const DEFAULT_DIFFICULTY = 0.5;
