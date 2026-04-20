@@ -4,9 +4,10 @@
 
 use tauri::State;
 
-use crate::cloud::{SyncResult, ConflictResolution};
+use crate::cloud::{SyncResult, ConflictResolution, CloudProviderType, FileInfo};
 use crate::database::{Database, Repository};
 use crate::cloud_sync::CloudSyncManager;
+use crate::cloud::auth_store::CloudAuthProvider;
 
 // Global cloud sync manager - use tokio Mutex for async safety
 static CLOUD_SYNC_MANAGER: tokio::sync::Mutex<Option<CloudSyncManager>> =
@@ -66,36 +67,50 @@ pub async fn cloud_sync_resolve_conflicts(
 #[tauri::command]
 pub async fn cloud_list_files(
     provider_type: String,
-    _path: String,
-) -> Result<Vec<crate::cloud::FileInfo>, String> {
-    use crate::cloud::CloudProviderType;
-
-    let _provider_type = CloudProviderType::from_str(&provider_type)
+    path: String,
+    auth_provider: State<'_, CloudAuthProvider>,
+) -> Result<Vec<FileInfo>, String> {
+    let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // TODO: Get authenticated provider instance
-    // For now, return error
-    Err("Cloud provider not authenticated".to_string())
+    let provider = auth_provider.get_provider(provider_type)
+        .ok_or_else(|| format!("No authenticated {} provider found. Please authenticate first.", provider_type))?;
+
+    let guard = provider.read().await;
+    guard.list_files(&path).await.map_err(|e| e.to_string())
 }
 
 /// Import files from cloud
 #[tauri::command]
 pub async fn cloud_import_files(
     provider_type: String,
-    _files: Vec<String>,
-    _repo: State<'_, Repository>,
+    files: Vec<String>,
+    repo: State<'_, Repository>,
+    auth_provider: State<'_, CloudAuthProvider>,
 ) -> Result<ImportResult, String> {
-    use crate::cloud::CloudProviderType;
-
-    let _provider_type = CloudProviderType::from_str(&provider_type)
+    let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // TODO: Implement file import
-    Ok(ImportResult {
-        imported: 0,
-        failed: 0,
-        errors: vec![],
-    })
+    let provider = auth_provider.get_provider(provider_type)
+        .ok_or_else(|| format!("No authenticated {} provider found. Please authenticate first.", provider_type))?;
+
+    let guard = provider.read().await;
+
+    let mut imported = 0;
+    let mut failed = 0;
+    let mut errors = Vec::new();
+
+    for file_path in &files {
+        match guard.download_file(file_path, None).await {
+            Ok(_) => imported += 1,
+            Err(e) => {
+                failed += 1;
+                errors.push(format!("{}: {}", file_path, e));
+            }
+        }
+    }
+
+    Ok(ImportResult { imported, failed, errors })
 }
 
 /// Import result

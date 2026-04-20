@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.10] - 2026-04-20
+
+### Changed
+
+- **Cloud backup upgrade** — expanded the cloud backup flow across Dropbox, Google Drive, and OneDrive with stronger backend orchestration, auth/token persistence, scheduler wiring, and settings/restore UI updates.
+
+### Fixed
+
+- **Browser/PWA document commands** — corrected browser-backend document/dashboard handlers that were throwing `ReferenceError: docs is not defined` in PWA mode.
+- **PWA update reliability** — hardened service-worker activation and cache invalidation so new deployments replace stale hashed assets more aggressively.
+- **Runtime hook crash** — restored missing `useCallback` imports in RSS scroll and NotebookLM login flows, eliminating the misleading React crash that surfaced during document viewing.
+
 ## [1.21.9] - 2026-04-20
 
 ### Changed
@@ -962,7 +974,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.10...HEAD
+[1.21.10]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.9...v1.21.10
 [1.19.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.7...v1.19.0
 [1.18.7]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.6...v1.18.7
 [1.18.6]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.5...v1.18.6

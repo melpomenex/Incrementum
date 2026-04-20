@@ -7,10 +7,12 @@ pub mod provider;
 pub mod onedrive;
 pub mod googledrive;
 pub mod dropbox;
+pub mod auth_store;
 
 // Re-export commonly used types
 pub use provider::{
     AccountInfo,
+    AuthToken,
     AuthResult,
     BackupIncludes,
     BackupInfo,
@@ -19,10 +21,14 @@ pub use provider::{
     CloudProviderType,
     ConflictResolution,
     FileInfo,
+    RestoreConflict,
     RestoreResult,
     SyncConflict,
     SyncResult,
 };
+
+// Re-export auth store types
+pub use auth_store::{AuthStore, CloudAuthProvider};
 
 // Re-export provider configurations and implementations
 pub use onedrive::{OneDriveConfig, OneDriveProvider};

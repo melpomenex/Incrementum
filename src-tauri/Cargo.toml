@@ -1,6 +1,6 @@
 [package]
 name = "incrementum-tauri"
-version = "1.21.9"
+version = "1.21.10"
 description = "Incrementum - Incremental Reading and Spaced Repetition"
 authors = ["Incrementum Team"]
 edition = "2021"
@@ -79,7 +79,7 @@ walkdir = "2"
 regex = "1"
 zip = "0.6"
 quick-xml = "0.37"
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.31", features = ["bundled", "backup"] }
 image = "0.24"
 # Screenshot capture - optional feature
 xcap = { version = "0.8", optional = true }
@@ -100,6 +100,12 @@ dotenvy = "0.15"
 
 # Config directories
 dirs = "5.0"
+
+# OS keychain for OAuth token persistence
+keyring = "3"
+
+# Encrypted fallback key derivation
+pbkdf2 = "0.12"
 
 [features]
 # Disable custom-protocol to use http://localhost instead of tauri://

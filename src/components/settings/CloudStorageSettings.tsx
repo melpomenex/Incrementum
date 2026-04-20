@@ -98,13 +98,13 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
   useEffect(() => {
     const oauthSuccess = searchParams.get("oauth_success");
     const oauthError = searchParams.get("oauth_error");
-    const pendingProvider = sessionStorage.getItem("pending_oauth_provider") as CloudProviderType;
+    const providerParam = searchParams.get("provider") as CloudProviderType | null;
 
-    if (oauthSuccess === "true" && pendingProvider) {
+    if (oauthSuccess === "true" && providerParam) {
       // OAuth was successful
       setState(prev => ({
         ...prev,
-        provider: pendingProvider,
+        provider: providerParam,
         isAuthenticated: true,
         accountInfo: {
           account_id: "connected",
@@ -113,13 +113,12 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       }));
       setConnectingProvider(null);
       setOauthUrl(null);
-      sessionStorage.removeItem("pending_oauth_provider");
 
       // Clean up URL params
       window.history.replaceState({}, "", "/settings");
 
       onChange();
-    } else if (oauthError && pendingProvider) {
+    } else if (oauthError) {
       // OAuth failed
       setError(decodeURIComponent(oauthError));
       setConnectingProvider(null);
@@ -129,7 +128,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       // Clean up URL params
       window.history.replaceState({}, "", "/settings");
     }
-  }, [searchParams]);
+  }, [searchParams, onChange]);
 
   const handleConnect = async (providerType: CloudProviderType) => {
     setConnectingProvider(providerType);
@@ -140,10 +139,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
         providerType,
       });
 
-      // Store the expected provider type for callback
-      sessionStorage.setItem("pending_oauth_provider", providerType);
-
-      // Open the OAuth URL in a new window
+      // Open the OAuth URL in the system browser
       if (isTauri()) {
         const { openUrl } = await import("@tauri-apps/plugin-opener");
         await openUrl(url);
@@ -153,7 +149,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
 
       setOauthUrl(url);
     } catch (err) {
-      setError(err as string);
+      setError(err instanceof Error ? err.message : String(err));
       setConnectingProvider(null);
     }
   };
@@ -172,7 +168,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
 
       onChange();
     } catch (err) {
-      setError(err as string);
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 

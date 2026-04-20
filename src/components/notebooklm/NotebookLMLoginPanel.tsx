@@ -6,7 +6,7 @@
  * - Guides user through login/logout process
  * - Shows authentication status
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2,
   XCircle,

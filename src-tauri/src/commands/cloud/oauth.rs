@@ -1,6 +1,9 @@
 //! OAuth commands for cloud storage providers
 //!
-//! Handles OAuth authentication flow for OneDrive, Google Drive, and Dropbox
+//! Handles OAuth authentication flow for OneDrive, Google Drive, and Dropbox.
+//! Persists tokens via AuthStore (OS keychain / encrypted file fallback).
+
+use tauri::State;
 
 use crate::cloud::{
     AccountInfo, AuthResult, CloudProvider, CloudProviderType,
@@ -8,6 +11,7 @@ use crate::cloud::{
     GoogleDriveConfig, GoogleDriveProvider,
     DropboxConfig, DropboxProvider,
 };
+use crate::cloud::auth_store::{CloudAuthProvider, AuthStore};
 
 /// Start OAuth authentication flow
 #[tauri::command]
@@ -41,6 +45,8 @@ pub async fn oauth_callback(
     provider_type: String,
     code: String,
     state: String,
+    auth_provider: State<'_, CloudAuthProvider>,
+    auth_store: State<'_, AuthStore>,
 ) -> Result<AuthResult, String> {
     let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
@@ -59,35 +65,68 @@ pub async fn oauth_callback(
     };
 
     // Handle the callback
-    provider
+    let result = provider
         .handle_callback(&code, &state)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    if result.success {
+        // Persist the token to the OS keychain / encrypted file
+        if let Some(token) = provider.auth_token() {
+            auth_store
+                .store_token(provider_type, &token)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+
+        // Store the authenticated provider in Tauri state
+        auth_provider.inner().set_provider(provider_type, provider);
+    }
+
+    Ok(result)
 }
 
 /// Get account info for authenticated provider
 #[tauri::command]
 pub async fn oauth_get_account(
     provider_type: String,
+    auth_provider: State<'_, CloudAuthProvider>,
 ) -> Result<AccountInfo, String> {
-    let _provider_type = CloudProviderType::from_str(&provider_type)
+    let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // TODO: Retrieve stored authenticated provider
-    // For now, return an error since we don't have persistent storage yet
-    Err(format!("No authenticated {} provider found. Please authenticate first.", provider_type))
+    let provider = auth_provider
+        .get_provider(provider_type)
+        .ok_or_else(|| {
+            format!(
+                "No authenticated {} provider found. Please authenticate first.",
+                provider_type
+            )
+        })?;
+
+    let guard = provider.read().await;
+    guard.get_account_info().await.map_err(|e| e.to_string())
 }
 
 /// Disconnect provider
 #[tauri::command]
 pub async fn oauth_disconnect(
     provider_type: String,
+    auth_provider: State<'_, CloudAuthProvider>,
+    auth_store: State<'_, AuthStore>,
 ) -> Result<(), String> {
-    let _provider_type = CloudProviderType::from_str(&provider_type)
+    let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // TODO: Retrieve and disconnect the stored provider
-    // For now, just return success
+    // Remove persisted token
+    auth_store
+        .remove_token(provider_type)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Remove provider from state
+    auth_provider.inner().remove_provider(provider_type);
+
     Ok(())
 }
 
@@ -95,10 +134,10 @@ pub async fn oauth_disconnect(
 #[tauri::command]
 pub async fn oauth_is_authenticated(
     provider_type: String,
+    auth_provider: State<'_, CloudAuthProvider>,
 ) -> Result<bool, String> {
-    let _provider_type = CloudProviderType::from_str(&provider_type)
+    let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // TODO: Check if there's a stored authenticated provider
-    Ok(false)
+    Ok(auth_provider.is_authenticated(provider_type))
 }
