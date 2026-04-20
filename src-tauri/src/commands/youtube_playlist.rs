@@ -127,7 +127,7 @@ pub async fn subscribe_to_playlist(
         .as_array()
         .and_then(|arr| arr.first())
         .and_then(|e| e["id"].as_str())
-        .map(|vid| youtube_thumbnail_url(vid));
+        .map(youtube_thumbnail_url);
 
     // Create subscription
     repo.create_playlist_subscription(
@@ -223,6 +223,7 @@ pub async fn get_playlist_subscription(
 
 /// Update playlist subscription settings
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_playlist_subscription(
     subscription_id: String,
     title: Option<String>,

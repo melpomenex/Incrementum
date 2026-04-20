@@ -29,6 +29,7 @@ pub async fn get_extract(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_extract(
     document_id: String,
     content: String,
@@ -61,6 +62,7 @@ pub async fn create_extract(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_extract(
     id: String,
     content: Option<String>,

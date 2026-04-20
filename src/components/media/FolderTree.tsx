@@ -3,7 +3,7 @@
  * Recursive sidebar rendering of RSS folders with expand/collapse
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { ChevronRight, ChevronDown, FolderOpen, Folder, Plus, MoreVertical, Trash2, Edit3 } from "lucide-react";
 import type { RssFolder } from "../../api/rss-folders";
 import type { Feed } from "../../api/rss";
@@ -60,7 +60,7 @@ function FolderNode({
   childFolders,
   feeds,
   allFeeds,
-  allFolders,
+  allFolders: _allFolders,
   selectedFeedId,
   onSelectFeed,
   onFolderAction,

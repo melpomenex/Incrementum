@@ -289,7 +289,7 @@ export const TokenUtils = {
 
     const mergedBoxes: { left: number; top: number; width: number; height: number }[] = [];
     let currentBox: { left: number; top: number; width: number; height: number } | null = null;
-    let lastToken: TextToken | null = null;
+    let _lastToken: TextToken | null = null;
 
     for (const token of sorted) {
       const box = {
@@ -301,7 +301,7 @@ export const TokenUtils = {
 
       if (!currentBox) {
         currentBox = { ...box };
-        lastToken = token;
+        _lastToken = token;
         continue;
       }
 
@@ -315,12 +315,12 @@ export const TokenUtils = {
         const newRight = token.viewportX + token.viewportW;
         currentBox.width = newRight - currentBox.left;
         currentBox.height = Math.max(currentBox.height, token.viewportH);
-        lastToken = token;
+        _lastToken = token;
       } else {
         // Push current box and start new one
         mergedBoxes.push(currentBox);
         currentBox = { ...box };
-        lastToken = token;
+        _lastToken = token;
       }
     }
 

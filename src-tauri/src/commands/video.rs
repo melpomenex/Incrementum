@@ -88,19 +88,17 @@ pub async fn import_video_file(
         .and_then(|n| n.to_str())
         .unwrap_or("video.mp4");
     let safe_filename = original_filename
-        .replace('/', "_")
-        .replace('\\', "_")
-        .replace(':', "_");
+        .replace(['/', '\\', ':'], "_");
     let stored_filename = format!("{}-{}", timestamp, safe_filename);
     let dest_path = data_dir.join(&stored_filename);
 
     // Get file size before copying
-    let file_size = std::fs::metadata(&source)
+    let file_size = std::fs::metadata(source)
         .map(|m| m.len() as i64)
         .unwrap_or(0);
 
     // Copy the file directly (avoids loading entire file into memory)
-    std::fs::copy(&source, &dest_path)
+    std::fs::copy(source, &dest_path)
         .map_err(|e| format!("Failed to copy video file: {}", e))?;
 
     // Create document for the video file
@@ -543,6 +541,7 @@ pub async fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
 
 /// Create a video extract
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_video_extract(
     document_id: String,
     start_time: f64,
@@ -659,7 +658,7 @@ pub async fn rate_video_extract(
     use crate::algorithms::DocumentScheduler;
 
     // Validate rating
-    if rating < 1 || rating > 4 {
+    if !(1..=4).contains(&rating) {
         return Err("Rating must be between 1 (Again) and 4 (Easy)".to_string());
     }
 

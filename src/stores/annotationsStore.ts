@@ -32,7 +32,7 @@ interface AnnotationsState {
   deleteAnnotation: (id: string) => Promise<void>;
 }
 
-export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
+export const useAnnotationsStore = create<AnnotationsState>((set, _get) => ({
   annotationsByArticle: new Map(),
   isLoading: false,
   error: null,

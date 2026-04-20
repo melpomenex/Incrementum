@@ -5,16 +5,14 @@
 
 import { useState } from "react";
 import {
-  Plus,
   Pencil,
   Trash2,
   FolderPlus,
   Image,
   Clock,
   BarChart3,
-  Folder,
 } from "lucide-react";
-import { createFolderAuto, updateFolderAuto, deleteFolderAuto } from "../../api/rss-folders";
+import { updateFolderAuto, deleteFolderAuto } from "../../api/rss-folders";
 import type { RssFolder } from "../../api/rss-folders";
 import { IconPicker } from "./IconPicker";
 

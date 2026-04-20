@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   fetchArticleFullContent,
   getArticleFullContent,
   isContentStale,
-  type FeedItem,
   type FullContentResponse,
 } from "../../api/rss";
 
 interface RSSFullContentViewProps {
   item: FeedItem;
-  onClose?: () => void;
+
 }
 
 /**
@@ -85,7 +84,7 @@ function SafeHTML({ html }: { html: string }) {
  * RSS Full Content View Component
  * Displays extracted full article content with fetching, caching, and error states
  */
-export function RSSFullContentView({ item, onClose }: RSSFullContentViewProps) {
+export function RSSFullContentView({ item, onClose: _onClose }: RSSFullContentViewProps) {
   const [content, setContent] = useState<string | null>(item.fullContent || null);
   const [fetchedAt, setFetchedAt] = useState<string | null>(item.fullContentFetchedAt || null);
   const [isLoading, setIsLoading] = useState(false);

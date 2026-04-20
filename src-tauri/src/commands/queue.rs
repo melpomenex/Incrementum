@@ -211,7 +211,7 @@ async fn get_queue_items_from_repo(
 
         // Calculate estimated time based on extract duration
         let duration_minutes = ((extract.end_time - extract.start_time) / 60.0).ceil() as i32;
-        let estimated_time = duration_minutes.max(1).min(10); // Cap at 10 minutes
+        let estimated_time = duration_minutes.clamp(1, 10); // Cap at 10 minutes
 
         // Get transcript preview for the question field
         let transcript_preview = extract.transcript_text.as_ref()
@@ -381,7 +381,7 @@ pub async fn get_due_documents_only(
 
         // Include documents that are due (next_reading_date <= now)
         // OR documents that have never been read (next_reading_date is NULL)
-        let is_due = document.next_reading_date.map_or(true, |next_date| next_date <= now);
+        let is_due = document.next_reading_date.is_none_or(|next_date| next_date <= now);
 
         if !is_due {
             continue; // Skip future-dated documents

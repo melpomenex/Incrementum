@@ -4,7 +4,7 @@
  */
 
 import { formatFeedDate } from "../../api/rss";
-import { ExternalLink, Star, StarOff } from "lucide-react";
+import { Star, StarOff } from "lucide-react";
 import type { FeedItem, Feed } from "../../api/rss";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 

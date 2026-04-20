@@ -146,8 +146,8 @@ export function latexToHTML(latex: string, options?: LatexRenderOptions): string
     .replace(/\\\[/g, "")
     .replace(/\\\]/g, "")
     // OCR/import sometimes emits derivative order as d(n), dx(n-1), etc.
-    .replace(/\bd\(([0-9nN+\-]+)\)(?=[A-Za-z\\])/g, "d^{$1}")
-    .replace(/\bd([A-Za-z])\(([0-9nN+\-]+)\)/g, "d$1^{$2}")
+    .replace(/\bd\(([0-9nN+-]+)\)(?=[A-Za-z\\])/g, "d^{$1}")
+    .replace(/\bd([A-Za-z])\(([0-9nN-]+)\)/g, "d$1^{$2}")
     .trim();
 
   // Expand macros if an expander is provided

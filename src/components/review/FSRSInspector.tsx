@@ -33,7 +33,7 @@ function calculateForgetCurve(
   stability: number,
   days: number[],
   algorithmType?: string,
-  elapsedDays?: number
+  _elapsedDays?: number
 ): { day: number; retrievability: number }[] {
   if (algorithmType === "sm18" || algorithmType === "sm20") {
     return days.map((day) => ({

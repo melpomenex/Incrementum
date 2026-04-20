@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays, X } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { getWorkloadData, type WorkloadDay } from "../../api/analytics";
@@ -12,7 +12,7 @@ const LEVEL_COLORS = [
   "bg-red-300 dark:bg-red-800/50",
 ];
 
-const LEVEL_COLORS_BORDER = [
+const _LEVEL_COLORS_BORDER = [
   "",
   "border-green-300 dark:border-green-600/40",
   "border-green-400 dark:border-green-500/50",

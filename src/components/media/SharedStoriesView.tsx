@@ -3,10 +3,9 @@
  * View all shared stories with comments
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { Share2, ExternalLink, MessageSquare, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare } from "lucide-react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
-import { openExternal } from "../../lib/tauri";
 
 interface SharedStoriesViewProps {
   onClose?: () => void;
@@ -21,7 +20,7 @@ interface SharedStory {
 }
 
 export function SharedStoriesView({ onClose }: SharedStoriesViewProps) {
-  const { annotationsByArticle, isLoading } = useAnnotationsStore();
+  const { annotationsByArticle, isLoading: _isLoading } = useAnnotationsStore();
   const [sharedStories, setSharedStories] = useState<SharedStory[]>([]);
 
   // Note: In a full implementation, we'd have a dedicated endpoint for shared stories.

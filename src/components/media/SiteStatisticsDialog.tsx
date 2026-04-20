@@ -3,9 +3,8 @@
  * Display frequency, article count, category overlap for discovered sites
  */
 
-import { useEffect, useState } from "react";
-import { X, BarChart3, Rss, Clock, Calendar, TrendingUp } from "lucide-react";
-import { getFeedStatisticsAuto, type RssFeedStatistics } from "../../api/rss-folders";
+import { useState } from "react";
+import { X, BarChart3, Rss } from "lucide-react";
 import { subscribeToFeedAuto, type Feed } from "../../api/rss";
 
 interface SiteStatisticsDialogProps {

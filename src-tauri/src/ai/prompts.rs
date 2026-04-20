@@ -37,7 +37,7 @@ impl PromptBuilder {
 
     /// Set temperature
     pub fn with_temperature(mut self, temp: f32) -> Self {
-        self.temperature = temp.max(0.0).min(2.0);
+        self.temperature = temp.clamp(0.0, 2.0);
         self
     }
 

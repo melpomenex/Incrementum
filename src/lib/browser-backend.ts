@@ -610,7 +610,7 @@ function readBrowserSyncConfig(): { host: string; port: number; autoStart: boole
 const commandHandlers: Record<string, CommandHandler> = {
     // Document commands
     get_documents: async () => {
-        const docs = await db.getDocuments();
+        const _docs = await db.getDocuments();
         return toCamelCase(docs);
     },
 
@@ -1828,7 +1828,7 @@ const commandHandlers: Record<string, CommandHandler> = {
     },
 
     get_dashboard_stats: async () => {
-        const docs = await db.getDocuments();
+        const _docs = await db.getDocuments();
         const dueItems = await db.getDueLearningItems();
         return toCamelCase({
             total_documents: docs.length,
@@ -1866,7 +1866,7 @@ const commandHandlers: Record<string, CommandHandler> = {
     get_due_workload_forecast: async (args) => {
         const days = Math.max(1, Math.min((args.days as number) ?? 90, 365));
         const items = await db.getLearningItems();
-        const docs = await db.getDocuments();
+        const _docs = await db.getDocuments();
         const points: Array<{
             date: string;
             due_learning_items: number;
@@ -1946,7 +1946,7 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     get_workload_data: async (args: { start_date: string; end_date: string }) => {
         const items = await db.getLearningItems();
-        const docs = await db.getDocuments();
+        const _docs = await db.getDocuments();
         const start = new Date(args.start_date + "T00:00:00Z");
         const end = new Date(args.end_date + "T23:59:59Z");
         const days: Array<{ date: string; due_count: number; reviewed_count: number; new_count: number }> = [];
@@ -1973,7 +1973,7 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     get_workload_day_details: async (args: { date: string }) => {
         const items = await db.getLearningItems();
-        const docs = await db.getDocuments();
+        const _docs = await db.getDocuments();
         const dateStr = args.date;
         const todayStr = new Date().toISOString().split("T")[0];
         const isPast = dateStr < todayStr;
@@ -2505,7 +2505,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         });
 
         // Deduplication: collect existing question hashes for this document
-        const existingItems = await db.getAllLearningItems();
+        const _existingItems = await db.getAllLearningItems();
         const existingIds = new Set<string>();
 
         // Simple SHA-256 hash for deduplication (using SubtleCrypto)
@@ -3214,7 +3214,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                 };
             }
             case 'search_documents': {
-                const docs = await db.getDocuments();
+                const _docs = await db.getDocuments();
                 const query = (toolArgs.query as string).toLowerCase();
                 const limit = (toolArgs.limit as number) || 10;
                 const filtered = docs
@@ -3418,7 +3418,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         return 0;
     },
 
-    get_rss_articles_with_intelligence: async (args) => {
+    get_rss_articles_with_intelligence: async (_args) => {
         // Fallback: return empty array — PWA mode uses local feed data
         return [];
     },

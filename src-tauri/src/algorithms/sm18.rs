@@ -71,6 +71,7 @@ const DEFAULT_S_BOUNDARIES: [f64; 20] = [
 /// Indices 0..19 active, index 20 = sentinel (value 0).
 ///
 /// Source: https://github.com/melpomenex/sm18-re/blob/main/alg17_data/StabilityIncrease.dat
+#[allow(clippy::large_const_arrays)]
 const SINC_MATRIX: [f64; 9261] = [
     14.244807054158343, 8.463742430189027, 6.241742514560372, 5.02884564545017, 4.25287141671599, 3.708614708359822, 3.3031636812584915, 2.9879558285658203, 2.734986123009467, 2.5269003730934725,
     2.3523361329443255, 2.203522978235435, 2.07495585923074, 1.9626188334201158, 1.8635091531777317, 1.7753338763813369, 1.6963099322977695, 1.6250285460016798, 1.560360989843888, 1.5013916175416644,
@@ -1102,7 +1103,7 @@ fn compute_bw(grade: i32, r: f64, grade_r: f64) -> f64 {
 /// Convert BW to difficulty: BW=+0.1 -> D=0.0, BW=-0.9 -> D=1.0.
 fn bw_to_difficulty(bw: f64) -> f64 {
     let d = 0.1 - bw;
-    d.max(0.0).min(1.0)
+    d.clamp(0.0, 1.0)
 }
 
 /// Update difficulty using trailing average.
@@ -1111,7 +1112,7 @@ fn bw_to_difficulty(bw: f64) -> f64 {
 fn update_difficulty(d_old: f64, bw: f64, rep_no: u32) -> f64 {
     let rep_diff = bw_to_difficulty(bw);
     let f = (0.80 - (rep_no.saturating_sub(1)) as f64 * 0.06).max(0.10);
-    (f * rep_diff + (1.0 - f) * d_old).max(0.0).min(1.0)
+    (f * rep_diff + (1.0 - f) * d_old).clamp(0.0, 1.0)
 }
 
 /// Map stability S to S-grade [1, 20] using log-spaced boundaries.
@@ -1133,7 +1134,7 @@ fn bin_s_grade(s: f64) -> usize {
 /// Map difficulty D in [0.0, 1.0] to D-grade [1, 20].
 fn bin_d_grade(d: f64) -> usize {
     let grade = (d * 19.0) as usize + 1;
-    grade.max(1).min(20)
+    grade.clamp(1, 20)
 }
 
 /// Map retrievability R in (0.0, 1.0] to R-grade [1, 20].
@@ -1143,7 +1144,7 @@ fn bin_r_grade(r: f64) -> usize {
     }
     let one_minus_r = 1.0 - r;
     let grade = (one_minus_r * 19.0) as usize + 1;
-    grade.max(1).min(20)
+    grade.clamp(1, 20)
 }
 
 /// Look up SInc from the default matrix (StabilityIncrease.dat).
@@ -1167,7 +1168,7 @@ fn get_grade_r(state: &SM18State, grade: i32) -> f64 {
         .grade_r
         .get(&grade)
         .copied()
-        .unwrap_or_else(|| match grade {
+        .unwrap_or(match grade {
             0 => 0.0,
             1 => 0.0,
             2 => 0.0,
@@ -1202,8 +1203,7 @@ pub fn review(
     } else {
         1.0
     }
-    .max(0.0)
-    .min(1.0);
+    .clamp(0.0, 1.0);
 
     // Step 2: Get grade-to-R mapping
     let grade_r = get_grade_r(state, grade);
@@ -1240,7 +1240,7 @@ pub fn review(
 
             // Update stability: S_new = S_old × SInc
             if sinc > 0.0 {
-                state.stability = state.stability * sinc;
+                state.stability *= sinc;
             }
 
             // Compute new interval
@@ -1249,7 +1249,7 @@ pub fn review(
     }
 
     // Step 4: Update difficulty (only for grades within valid range)
-    if grade >= 0 && grade <= 5 {
+    if (0..=5).contains(&grade) {
         state.difficulty = update_difficulty(state.difficulty, bw, state.repetition);
     }
 

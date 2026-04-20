@@ -23,7 +23,7 @@ import { useI18n } from "../../lib/i18n";
 export function NotebookLMWorkspace() {
   const addTab = useTabsStore((state) => state.addTab);
   const { t } = useI18n();
-  const { settings, updateSettingsCategory } = useSettingsStore();
+  const { settings: _settings, updateSettingsCategory } = useSettingsStore();
   const [health, setHealth] = useState<NotebookLMHealth | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -38,7 +38,7 @@ export function NotebookLMWorkspace() {
     try {
       const h = await notebooklmHealth();
       setHealth(h);
-    } catch (error) {
+    } catch {
       setHealth({ connected: false, provider: "cli", message: "Not connected" });
     } finally {
       setIsChecking(false);
@@ -67,7 +67,7 @@ export function NotebookLMWorkspace() {
     try {
       await notebooklmDisconnect();
       await checkHealth();
-    } catch (error) {
+    } catch {
       console.error("Failed to disconnect:", error);
     }
   };

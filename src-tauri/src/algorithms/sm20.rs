@@ -241,7 +241,7 @@ pub(crate) fn fsrs_expert2(t: f64, s: f64) -> f64 {
 /// FUN_00af8c90: Expert 3 — exponential forgetting.
 /// result = 2^(-|t/S| * 0.1053605) ≈ 0.9296^(t/S)
 pub(crate) fn fsrs_expert3(t: f64, s: f64) -> f64 {
-    if !(0.0 < t) {
+    if 0.0_f64.partial_cmp(&t) != Some(std::cmp::Ordering::Less) {
         return 0.0;
     }
     let ratio = if s > 0.0 { t / s } else { 0.0 };
@@ -334,8 +334,8 @@ pub(crate) fn fsrs_review_kernel(s: f64, d: f64, t: f64, grade: i32) -> (f64, f6
 
 /// FUN_00ceb590: Initialize a new FSRS item.
 pub fn fsrs_init_item(grade: i32, stability: f64, flag: bool) -> SM20State {
-    let d = if grade < 0 || grade > 5 { FSRS_PARAMS[5] } else { FSRS_PARAMS[6 + grade as usize] };
-    let s_factor = if grade < 0 || grade > 5 { FSRS_PARAMS[12] } else { FSRS_PARAMS[13 + grade as usize] };
+    let d = if !(0..=5).contains(&grade) { FSRS_PARAMS[5] } else { FSRS_PARAMS[6 + grade as usize] };
+    let s_factor = if !(0..=5).contains(&grade) { FSRS_PARAMS[12] } else { FSRS_PARAMS[13 + grade as usize] };
 
     SM20State {
         version: 2,

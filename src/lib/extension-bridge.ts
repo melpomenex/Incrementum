@@ -161,7 +161,7 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
           return;
         }
 
-        const { url, title, text, html_content, tags } = message.data;
+        const { url, title, text, html_content: _html_content, tags } = message.data;
 
         // Create document for this page
         const doc = await db.createDocument({

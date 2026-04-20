@@ -1,8 +1,8 @@
-import { latexToHTML, validateLatex, shouldUseDisplayMode } from "./mathOcr";
+import { latexToHTML } from "./mathOcr";
 import { MacroExpander } from "./latexMacros";
 
 const RAW_LATEX_HINT =
-  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|newcommand|renewcommand|DeclareMathOperator|ce|pu|operatorname|sin|cos|tan|log|ln|exp|lim|sup|inf|min|max|in|notin|subset|cup|cap|setminus|exists|forall|nabla|cdot|pm|equiv|sim|simeq|perp|angle|triangle|square|cong|propto|oplus|otimes|bigcup|bigcap|bigsqcup|binom|dfrac|tfrac|cfrac|mathrm|mathbf|mathit|mathsf|mathtt|mathscr|mathfrak|boldsymbol|coloneqq|coloneq)(?![a-zA-Z])|(?:\^|_)\{[^}]+\}|\\[a-zA-Z]+[\{_]|\\[a-zA-Z]+$/;
+  /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|newcommand|renewcommand|DeclareMathOperator|ce|pu|operatorname|sin|cos|tan|log|ln|exp|lim|sup|inf|min|max|in|notin|subset|cup|cap|setminus|exists|forall|nabla|cdot|pm|equiv|sim|simeq|perp|angle|triangle|square|cong|propto|oplus|otimes|bigcup|bigcap|bigsqcup|binom|dfrac|tfrac|cfrac|mathrm|mathbf|mathit|mathsf|mathtt|mathscr|mathfrak|boldsymbol|coloneqq|coloneq)(?![a-zA-Z])|(?:\^|_)\{[^}]+\}|\\[a-zA-Z]+[{_]|\\[a-zA-Z]+$/;
 
 const POTENTIAL_LATEX_HINT = /\[latex\]|\[\$\$\]|\[\$\]|\$\$|\$|\\\(|\\\[|\\\$|\\newcommand|\\DeclareMathOperator/i;
 
@@ -122,7 +122,7 @@ function escapeHtml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -132,7 +132,7 @@ function isLikelyMath(expression: string): boolean {
   return /\\[a-zA-Z]+|[=^_{}]|[+\-*/<>]|[α-ωΑ-Ω∫∑∏√∞±×÷≈≠≤≥]/.test(expr);
 }
 
-function extractUnsupportedCommands(expression: string): string[] {
+function _extractUnsupportedCommands(expression: string): string[] {
   const unsupported = new Set<string>();
   const commandRegex = /\\([a-zA-Z]+)\b/g;
   let match: RegExpExecArray | null;

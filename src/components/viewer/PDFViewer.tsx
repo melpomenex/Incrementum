@@ -28,7 +28,7 @@ import { useI18n } from "../../lib/i18n";
 import { usePdfCustomSelection } from "./selection";
 import { SelectionRenderer } from "./selection";
 // 3-layer architecture components
-import { HighlightLayer, useHighlightManager, type StoredHighlight } from "./HighlightLayer";
+import { HighlightLayer, useHighlightManager } from "./HighlightLayer";
 import { SelectionPopup, type HighlightColor } from "./SelectionPopup";
 import { OcrRegionSelector } from "./OcrRegionSelector";
 import { OcrProgressOverlay } from "./OcrProgressOverlay";
@@ -230,7 +230,7 @@ export function PDFViewer({
 
   // Highlight manager for persistent highlights
   const {
-    highlights: storedHighlights,
+    highlights: _storedHighlights,
     addHighlight: addStoredHighlight,
     getHighlightsForPage,
   } = useHighlightManager();
@@ -243,7 +243,7 @@ export function PDFViewer({
     if (ocr.flowState !== "idle") {
       ocr.exitOcrMode();
     }
-  }, [pageNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pageNumber]);  
 
   // Selection popup state
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);

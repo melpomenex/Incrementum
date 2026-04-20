@@ -3,9 +3,9 @@
  * Modal showing all keyboard shortcuts organized by category
  */
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { X, Keyboard } from "lucide-react";
-import { useKeyboardShortcutsStore, DEFAULT_SHORTCUTS, type KeyboardShortcut } from "../../stores/keyboardShortcutsStore";
+import { useKeyboardShortcutsStore, type KeyboardShortcut } from "../../stores/keyboardShortcutsStore";
 
 interface KeyboardHelpOverlayProps {
   isOpen: boolean;

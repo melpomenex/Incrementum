@@ -29,8 +29,6 @@ import {
   Trash2,
   BookOpen,
   FlaskConical,
-  ToggleLeft,
-  ToggleRight,
   Wand2,
   Save,
   AlertCircle,

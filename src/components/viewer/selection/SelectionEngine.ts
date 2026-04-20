@@ -8,8 +8,8 @@
  * 4. Cancel: Clear selection
  */
 
-import type { PageViewport } from "pdfjs-dist";
-import type { ViewportRect, PdfRect } from "../../../types/selection";
+
+import type { PdfRect } from "../../../types/selection";
 import type {
   TextToken,
   SelectionState,

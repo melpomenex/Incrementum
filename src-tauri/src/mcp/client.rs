@@ -21,7 +21,7 @@ pub struct MCPServerConnection {
 #[derive(Debug, Clone)]
 pub enum MCPTransport {
     Stdio,
-    SSE(String), // URL for SSE endpoint
+    Sse(String), // URL for SSE endpoint
 }
 
 /// Client for interacting with an external MCP server
@@ -51,7 +51,7 @@ impl MCPClient {
             MCPTransport::Stdio => {
                 self.start_stdio().await
             }
-            MCPTransport::SSE(url) => {
+            MCPTransport::Sse(url) => {
                 // SSE transport would be implemented here
                 // For now, return an error as it's not yet implemented
                 Err(format!("SSE transport not yet implemented: {}", url))
@@ -196,7 +196,7 @@ impl MCPClient {
             MCPTransport::Stdio => {
                 self.call_tool_stdio(name, arguments).await
             }
-            MCPTransport::SSE(_) => {
+            MCPTransport::Sse(_) => {
                 Err("SSE transport not yet implemented".to_string())
             }
         }

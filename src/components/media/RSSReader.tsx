@@ -21,7 +21,6 @@ import {
   FileText,
   MoreVertical,
   Globe,
-  Eye,
   EyeOff,
   GripVertical,
   Brain,
@@ -48,7 +47,6 @@ import {
   formatFeedDate,
   setRssPreferencesAuto,
   getRssPreferencesAuto,
-  updateFeedAutoFetchPreference,
   fetchArticleFullContent,
   generateArticleExcerpt,
   type RssUserPreference,
@@ -73,13 +71,11 @@ import { StoryView } from "./StoryView";
 import { StoryViewModeSwitcher, type StoryViewMode } from "./StoryViewModeSwitcher";
 import { ManageTrainingView } from "./ManageTrainingView";
 import { DiscoverSitesPanel } from "./DiscoverSitesPanel";
-import { AnnotationsPanel } from "./AnnotationsPanel";
 import { TagInput } from "./TagInput";
 import { searchArticlesAuto, type RssSearchResult } from "../../api/rss-search";
 import { markArticleUnreadAuto, migrateFoldersFromLocalStorageAuto } from "../../api/rss-folders";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import { useTagsStore } from "../../stores/tagsStore";
-import { getArticlesByTagAuto } from "../../api/rss-tags";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
 
@@ -126,7 +122,7 @@ export function RSSReader() {
   const [showAnnotations, setShowAnnotations] = useState(false);
   const [searchResults, setSearchResults] = useState<RssSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [showReadStories, setShowReadStories] = useState(false);
+  const [_showReadStories, setShowReadStories] = useState(false);
   const [draggedFeedId, setDraggedFeedId] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
   const [draggedFeedTitle, setDraggedFeedTitle] = useState<string | null>(null);
@@ -1152,11 +1148,7 @@ export function RSSReader() {
                 </button>
                 <button
                   onClick={() => setShowReadStories(true)}
-                  className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
-                    false
-                      ? "text-muted-foreground hover:bg-muted/70"
-                      : "bg-primary text-primary-foreground shadow-sm"
-                  }`}
+                  className="px-2 py-1.5 text-xs rounded-md transition-colors bg-primary text-primary-foreground shadow-sm"
                 >
                   Read
                 </button>

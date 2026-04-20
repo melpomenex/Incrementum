@@ -760,7 +760,7 @@ const _ANIM: Record<string, AnimFn> = {
         }
         if (Math.random() < 0.03) {
           const sy = Math.random() * cv.height, sh = Math.random() * 15 + 3;
-          try { const strip = ctx.getImageData(0, sy, cv.width, sh); ctx.putImageData(strip, Math.random() * 20 - 10, sy); } catch (_) { /* ignore */ }
+          try { const strip = ctx.getImageData(0, sy, cv.width, sh); ctx.putImageData(strip, Math.random() * 20 - 10, sy); } catch { /* ignore */ }
         }
       }
       frame(requestAnimationFrame(draw));

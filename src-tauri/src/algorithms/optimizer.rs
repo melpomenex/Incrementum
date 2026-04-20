@@ -189,7 +189,7 @@ impl ParameterOptimizer {
         // Shorter intervals = higher retention
         let max_interval = 365.0; // 1 year
         let retention = 1.0 - (interval / max_interval).min(1.0) * (1.0 - desired);
-        retention.max(0.0).min(1.0)
+        retention.clamp(0.0, 1.0)
     }
 
     /// Generate neighboring parameter sets for exploration
@@ -199,17 +199,17 @@ impl ParameterOptimizer {
         // Vary each parameter by ± learning rate
         for delta in &[-0.1, 0.1] {
             neighbors.push(OptimizationParams {
-                min_ease_factor: (params.min_ease_factor + delta).max(1.1).min(2.0),
+                min_ease_factor: (params.min_ease_factor + delta).clamp(1.1, 2.0),
                 ..params.clone()
             });
 
             neighbors.push(OptimizationParams {
-                initial_ease_factor: (params.initial_ease_factor + delta).max(1.5).min(3.5),
+                initial_ease_factor: (params.initial_ease_factor + delta).clamp(1.5, 3.5),
                 ..params.clone()
             });
 
             neighbors.push(OptimizationParams {
-                desired_retention: (params.desired_retention + delta).max(0.7).min(0.99),
+                desired_retention: (params.desired_retention + delta).clamp(0.7, 0.99),
                 ..params.clone()
             });
         }

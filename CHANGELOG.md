@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.21.9] - 2026-04-20
+
+### Changed
+
+- **App security hardening** — tightened RSS/OPML feed URL normalization and related feed-discovery handling to reduce malformed input edge cases and make feed imports safer.
+- **NotebookLM and backend maintenance** — cleaned up NotebookLM runtime/provider code paths and simplified several backend command implementations for more predictable behavior.
+- **RSS and browser-sync reliability cleanup** — refined RSS folder/feed update flows and related browser/backend integration paths to reduce brittle handling.
+
+### Fixed
+
+- **Linting and code-quality errors** — cleared a broad pass of TypeScript, ESLint, Clippy, and Rust style issues across the frontend and Tauri backend.
+- **RSS scoring and folder update edge cases** — fixed a few small correctness issues in RSS classifier matching and repository/state reuse during folder updates.
+- **Unused code and noisy warnings** — removed unused imports, variables, and redundant patterns that were generating avoidable warnings.
+
+### Performance
+
+- **Selection and excerpt processing efficiency** — tightened several PDF/document selection helpers and simplified excerpt chunk sizing logic to reduce unnecessary work in reading and extraction flows.
+
 ## [1.21.8] - 2026-04-19
 
 ### Added

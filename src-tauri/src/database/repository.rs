@@ -530,6 +530,7 @@ impl Repository {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_document_scheduling_with_consecutive(
         &self,
         id: &str,
@@ -570,6 +571,7 @@ impl Repository {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn restore_document_scheduling(
         &self,
         id: &str,
@@ -988,6 +990,7 @@ impl Repository {
         Ok(extracts)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_extract_scheduling(
         &self,
         id: &str,
@@ -1585,6 +1588,7 @@ impl Repository {
     }
 
     /// Create a review result record for a single card review
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_review_result(
         &self,
         id: &str,
@@ -1647,6 +1651,7 @@ impl Repository {
     }
 
     /// Update study statistics for a specific date
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_study_statistics(
         &self,
         date: &str,
@@ -2223,6 +2228,7 @@ impl Repository {
     // ============================================================================
 
     /// Create a new playlist subscription
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_playlist_subscription(
         &self,
         id: &str,
@@ -2355,6 +2361,7 @@ impl Repository {
     }
 
     /// Update a playlist subscription
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_playlist_subscription(
         &self,
         id: &str,
@@ -2428,6 +2435,7 @@ impl Repository {
     // ============================================================================
 
     /// Add a video to a playlist tracking
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_playlist_video(
         &self,
         id: &str,

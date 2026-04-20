@@ -154,7 +154,7 @@ export function AssistantPanel({
   onProviderChange,
   appendContextMessages = true,
 }: AssistantPanelProps) {
-  const { t } = useI18n();
+  const { t: _t } = useI18n();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem(ASSISTANT_WIDTH_KEY);

@@ -59,7 +59,7 @@ async function runOcrBackend(base64Data: string, language: string): Promise<OCRR
 
 /** Run OCR via Tesseract.js in-browser (fallback for PWA mode) */
 async function runOcrBrowser(dataUrl: string, language: string): Promise<OCRResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const Tesseract = await import("tesseract.js" as any);
   const worker = await Tesseract.createWorker(language);
 
