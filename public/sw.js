@@ -5,7 +5,7 @@
  * for the Progressive Web App (PWA) version of Incrementum.
  */
 
-const VERSION = 'incrementum-v5';
+const VERSION = 'incrementum-v7';
 
 // Disable SW on localhost/dev (unregister and bypass all caching)
 const IS_DEV_HOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
@@ -93,9 +93,10 @@ self.addEventListener('activate', (event) => {
     Promise.all([
       // Delete old caches
       caches.keys().then((cacheNames) => {
+        const activeCaches = new Set([CACHE_NAME, STATIC_CACHE, API_CACHE]);
         return Promise.all(
           cacheNames
-            .filter((name) => !name.startsWith(VERSION))
+            .filter((name) => name.startsWith('incrementum-') && !activeCaches.has(name))
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
@@ -321,9 +322,38 @@ async function handleImageRequest(request) {
 }
 
 /**
- * Handle static requests with cache-first strategy
+ * Handle static requests with appropriate strategy.
+ *
+ * Hashed Vite assets (e.g. DocumentViewer-lND-KinN.js) already have built-in
+ * cache busting via their content hash, so we use network-first to always get
+ * the correct version referenced by index.html.
+ *
+ * Truly static assets (fonts, icons, etc.) use cache-first for offline support.
  */
 async function handleStaticRequest(request) {
+  const url = new URL(request.url);
+  const isHashedAsset = /\.[a-zA-Z0-9_-]{8}\.(js|css|woff2?|ttf|svg)$/.test(url.pathname);
+
+  if (isHashedAsset) {
+    // Network-first for hashed assets: the hash guarantees uniqueness,
+    // so a cache hit means the content is correct. But serving stale
+    // cached versions of old hashes alongside a new index.html breaks
+    // module imports (e.g. "Can't find variable: useCallback").
+    const cache = await caches.open(CACHE_NAME);
+    try {
+      const response = await fetch(request);
+      if (response && response.status === 200) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) return cachedResponse;
+      return new Response('Resource not available offline', { status: 404 });
+    }
+  }
+
+  // Cache-first for truly static assets
   const cache = await caches.open(CACHE_NAME);
   const cachedResponse = await cache.match(request);
 
@@ -335,7 +365,6 @@ async function handleStaticRequest(request) {
     const response = await fetch(request);
 
     if (response && response.status === 200) {
-      // Cache successful responses
       const responseClone = response.clone();
       cache.put(request, responseClone);
     }

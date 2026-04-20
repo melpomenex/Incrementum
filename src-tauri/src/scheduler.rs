@@ -4,6 +4,7 @@
 
 use chrono::{DateTime, Datelike, Utc, Timelike, Weekday};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -154,6 +155,7 @@ pub struct SchedulerResult {
 /// Backup scheduler
 pub struct BackupScheduler {
     db: Database,
+    db_path: PathBuf,
     config: SchedulerConfig,
     running: Arc<Mutex<bool>>,
     next_scheduled: Arc<Mutex<Option<DateTime<Utc>>>>,
@@ -161,9 +163,10 @@ pub struct BackupScheduler {
 
 impl BackupScheduler {
     /// Create a new backup scheduler
-    pub fn new(db: Database, config: SchedulerConfig) -> Self {
+    pub fn new(db: Database, db_path: PathBuf, config: SchedulerConfig) -> Self {
         Self {
             db,
+            db_path,
             config,
             running: Arc::new(Mutex::new(false)),
             next_scheduled: Arc::new(Mutex::new(None)),
@@ -199,6 +202,7 @@ impl BackupScheduler {
         drop(running);
 
         let db = self.db.clone();
+        let db_path = self.db_path.clone();
         let config = self.config.clone();
         let running_flag = self.running.clone();
         let next_scheduled = self.next_scheduled.clone();
@@ -225,7 +229,7 @@ impl BackupScheduler {
 
                 // Perform backup
                 if config.enabled {
-                    let manager = BackupManager::new(db.clone());
+                    let manager = BackupManager::new(db.clone(), db_path.clone());
                     if let Ok(_manager) = manager {
                         // TODO: Get provider from somewhere
                         // For now, just log
@@ -269,7 +273,7 @@ impl BackupScheduler {
     ) -> Result<SchedulerResult, AppError> {
         let scheduled_at = Utc::now();
 
-        let manager = BackupManager::new(self.db.clone())?;
+        let manager = BackupManager::new(self.db.clone(), self.db_path.clone())?;
 
         let backup_info = manager
             .create_backup(provider, self.config.backup_options.clone())

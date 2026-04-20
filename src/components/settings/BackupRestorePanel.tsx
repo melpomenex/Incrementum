@@ -95,6 +95,10 @@ export function BackupRestorePanel({
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [encryptionPassword, setEncryptionPassword] = useState("");
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [backupProgress, setBackupProgress] = useState<{
     current: number;
     total: number;
@@ -130,16 +134,26 @@ export function BackupRestorePanel({
     }
   };
 
-  const handleCreateBackup = async () => {
+  const handleCreateBackup = async (password?: string) => {
     if (!provider) return;
 
+    const preset = BACKUP_PRESETS[selectedPreset];
+    if (preset.options.encrypt && !password) {
+      setShowPasswordPrompt(true);
+      return;
+    }
+
     setBackupInProgress(true);
+    setShowPasswordPrompt(false);
     setError(null);
     setSuccess(null);
+    setEncryptionPassword("");
+    setPasswordConfirm("");
+    setPasswordError(null);
     setBackupProgress({ current: 0, total: 100, message: t("backup.initializing") });
 
     try {
-      const options = BACKUP_PRESETS[selectedPreset].options;
+      const options = { ...preset.options, password: password || null };
 
       // Simulate progress (in real implementation, this would come from events)
       const progressInterval = setInterval(() => {
@@ -517,6 +531,115 @@ export function BackupRestorePanel({
                     {t("backup.restore")}
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Encryption Password Dialog */}
+      {showPasswordPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Encryption Password
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This backup will be encrypted. Enter a password to protect it. You will need this password to restore the backup.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={encryptionPassword}
+                  onChange={(e) => {
+                    setEncryptionPassword(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  placeholder="Enter encryption password"
+                  autoFocus
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (encryptionPassword && encryptionPassword === passwordConfirm) {
+                        handleCreateBackup(encryptionPassword);
+                      } else if (encryptionPassword !== passwordConfirm) {
+                        setPasswordError("Passwords do not match");
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => {
+                    setPasswordConfirm(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  placeholder="Confirm encryption password"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (encryptionPassword && encryptionPassword === passwordConfirm) {
+                        handleCreateBackup(encryptionPassword);
+                      } else if (encryptionPassword !== passwordConfirm) {
+                        setPasswordError("Passwords do not match");
+                      }
+                    }
+                  }}
+                />
+              </div>
+
+              {passwordError && (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              )}
+
+              {encryptionPassword && encryptionPassword.length > 0 && encryptionPassword.length < 8 && (
+                <p className="text-sm text-yellow-600 dark:text-yellow-300">
+                  Password should be at least 8 characters for strong encryption
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPasswordPrompt(false);
+                  setEncryptionPassword("");
+                  setPasswordConfirm("");
+                  setPasswordError(null);
+                }}
+                className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={() => {
+                  if (!encryptionPassword) {
+                    setPasswordError("Password is required for encrypted backups");
+                    return;
+                  }
+                  if (encryptionPassword !== passwordConfirm) {
+                    setPasswordError("Passwords do not match");
+                    return;
+                  }
+                  handleCreateBackup(encryptionPassword);
+                }}
+                disabled={!encryptionPassword || !passwordConfirm}
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Shield className="w-4 h-4" />
+                Create Encrypted Backup
               </button>
             </div>
           </div>

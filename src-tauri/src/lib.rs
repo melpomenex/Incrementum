@@ -244,7 +244,44 @@ pub fn run() {
                 // Create repository for use in commands
                 let repo = database::Repository::new(pool.clone());
 
+                // Initialize cloud auth provider with persisted tokens
+                let auth_store = cloud::auth_store::AuthStore::new(app_dir.clone());
+                let cloud_auth_provider = cloud::auth_store::CloudAuthProvider::new();
+
+                // Load persisted tokens for each provider type
+                for provider_type in &[
+                    cloud::CloudProviderType::OneDrive,
+                    cloud::CloudProviderType::GoogleDrive,
+                    cloud::CloudProviderType::Dropbox,
+                ] {
+                    if let Ok(Some(token)) = auth_store.get_token(*provider_type).await {
+                        let provider: Box<dyn cloud::CloudProvider> = match provider_type {
+                            cloud::CloudProviderType::OneDrive => {
+                                Box::new(cloud::OneDriveProvider::with_token(
+                                    cloud::OneDriveConfig::default(),
+                                    token,
+                                ))
+                            }
+                            cloud::CloudProviderType::GoogleDrive => {
+                                Box::new(cloud::GoogleDriveProvider::with_token(
+                                    cloud::GoogleDriveConfig::default(),
+                                    token,
+                                ))
+                            }
+                            cloud::CloudProviderType::Dropbox => {
+                                Box::new(cloud::DropboxProvider::with_token(
+                                    cloud::DropboxConfig::default(),
+                                    token,
+                                ))
+                            }
+                        };
+                        cloud_auth_provider.set_provider(*provider_type, provider);
+                    }
+                }
+
                 app.manage(state);
+                app.manage(cloud_auth_provider);
+                app.manage(auth_store);
                 app.manage(AIState::default());
                 app.manage(FocusTimer::new());
                 app.manage(pocket_tts::PocketTTSState::default());

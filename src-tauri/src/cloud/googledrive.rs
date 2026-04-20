@@ -69,6 +69,23 @@ impl GoogleDriveProvider {
         }
     }
 
+    /// Create a provider with an existing authentication token
+    pub fn with_token(config: GoogleDriveConfig, token: AuthToken) -> Self {
+        Self {
+            config,
+            http_client: Client::new(),
+            auth_token: Some(token),
+            account_info: None,
+            app_folder_id: None,
+            pending_state: None,
+        }
+    }
+
+    /// Set the authentication token
+    pub fn set_token(&mut self, token: AuthToken) {
+        self.auth_token = Some(token);
+    }
+
     /// Get the Google Drive API base URL
     fn api_base_url(&self) -> &str {
         "https://www.googleapis.com/drive/v3"
@@ -419,6 +436,10 @@ impl CloudProvider for GoogleDriveProvider {
 
     fn is_authenticated(&self) -> bool {
         self.auth_token.is_some()
+    }
+
+    fn auth_token(&self) -> Option<AuthToken> {
+        self.auth_token.clone()
     }
 
     async fn upload_file(
