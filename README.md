@@ -67,7 +67,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 
 ### 🎨 User Experience
 
-- 17 built-in themes plus custom theme creation/import/export
+- 146 built-in themes, 65 bundled fonts, plus custom theme creation/import/export
 - Command palette (`Ctrl+K` / `Cmd+K`) and full keyboard navigation
 - Vim-style navigation support in reading/review contexts
 - Mobile-responsive UI with PWA support
