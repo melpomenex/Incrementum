@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release tag to build, e.g. v1.21.12'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -47,6 +52,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref }}
           submodules: recursive
 
       - name: Install dependencies (Ubuntu only)
@@ -88,7 +94,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const version = context.ref.replace('refs/tags/', '');
+            const version = context.eventName === 'workflow_dispatch'
+              ? '${{ github.event.inputs.version_tag }}'
+              : context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
       - name: Validate tag matches app versions
@@ -262,6 +270,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref }}
           submodules: recursive
 
       - name: Install dependencies
@@ -297,7 +306,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const version = context.ref.replace('refs/tags/', '');
+            const version = context.eventName === 'workflow_dispatch'
+              ? '${{ github.event.inputs.version_tag }}'
+              : context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
       - name: Validate tag matches app versions
@@ -355,6 +366,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref }}
           submodules: recursive
 
       - name: Install Arch dependencies
@@ -370,7 +382,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const version = context.ref.replace('refs/tags/', '');
+            const version = context.eventName === 'workflow_dispatch'
+              ? '${{ github.event.inputs.version_tag }}'
+              : context.ref.replace('refs/tags/', '');
             core.setOutput('VERSION', version);
 
       - name: Validate tag matches app versions
@@ -492,6 +506,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref }}
           submodules: recursive
 
       - name: Create update manifest
@@ -499,7 +514,9 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const version = context.ref.replace('refs/tags/', '');
+            const version = context.eventName === 'workflow_dispatch'
+              ? '${{ github.event.inputs.version_tag }}'
+              : context.ref.replace('refs/tags/', '');
             const pubDate = new Date().toISOString().split('T')[0];
 
             const manifest = {
@@ -540,6 +557,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: latest.json
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref_name }}
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -550,11 +568,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref }}
 
       - name: Extract release notes from changelog
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
           awk -v version="$VERSION" '
             $0 ~ "^## \\[" version "\\]" { capture=1; next }
             capture && $0 ~ "^## \\[" { exit }
@@ -569,7 +590,7 @@ jobs:
       - name: Sync GitHub release body from changelog
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_tag || github.ref_name }}
           body_path: release_notes.md
           draft: false
           prerelease: false
