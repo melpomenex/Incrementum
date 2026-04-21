@@ -1020,6 +1020,11 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                           
                           <ItemDetailsPopover
                             target={buildDetailsTarget(item)}
+                            onDismissStateChange={(dismissed) => {
+                              if (dismissed) {
+                                void refreshQueue();
+                              }
+                            }}
                             renderTrigger={({ onClick, isOpen }) => (
                               <button
                                 onClick={(event) => {

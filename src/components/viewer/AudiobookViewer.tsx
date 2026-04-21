@@ -35,19 +35,17 @@ import {
 import { cn } from "../../utils";
 import { Document } from "../../types/document";
 import { useI18n } from "../../lib/i18n";
-import {
+import type {
   AudiobookMetadata,
   AudiobookChapter,
   AudiobookTranscript,
-  formatDuration,
-  extractAudioCoverArt,
-  searchAudiobookCover,
 } from "../../api/audiobooks";
+import * as audiobookApi from "../../api/audiobooks";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { startTranscription } from "../../api/transcription";
-import { isTauri } from "../../lib/tauri";
+import { convertFileSrc, isTauri } from "../../lib/tauri";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
 
@@ -115,6 +113,8 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const [localCoverUrl, setLocalCoverUrl] = useState<string | undefined>(document.coverImageUrl);
+  const [preparedPlaybackPath, setPreparedPlaybackPath] = useState<string | null>(null);
+  const [preparedPlaybackSrc, setPreparedPlaybackSrc] = useState<string | null>(null);
 
   const documentIdRef = useRef(document.id);
   const currentTimeRef = useRef(0);
@@ -123,6 +123,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const totalDurationSecondsRef = useRef<number | undefined>(undefined);
   const lastSavedGlobalTimeRef = useRef(0);
   const pendingSeekTimeRef = useRef<number | null>(null);
+  const pendingAutoplayAfterFallbackRef = useRef(false);
 
   // Auto-fetch cover if document has none
   useEffect(() => {
@@ -136,7 +137,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     const fetchCover = async () => {
       try {
         // Step 1: Try to extract embedded cover from audio file
-        const embeddedCover = await extractAudioCoverArt(document.filePath);
+        const embeddedCover = await audiobookApi.extractAudioCoverArt(document.filePath);
         if (cancelled) return;
 
         if (embeddedCover) {
@@ -150,7 +151,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
 
         // Step 2: Search Google Books using title/author
         const author = metadata.author || document.metadata?.author;
-        const covers = await searchAudiobookCover(document.title, author);
+        const covers = await audiobookApi.searchAudiobookCover(document.title, author);
         if (cancelled) return;
 
         if (covers.length > 0) {
@@ -210,6 +211,96 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     
     loadAudiobookData();
   }, [document.id]);
+
+  useEffect(() => {
+    const ext = document.filePath?.split(".").pop()?.toLowerCase();
+    if (!isTauri() || ext !== "m4b" || !document.filePath) {
+      setPreparedPlaybackPath(null);
+      setPreparedPlaybackSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const preparedPath = await audiobookApi.prepareAudiobookPlayback(document.filePath);
+        const preparedUrl = await convertFileSrc(preparedPath);
+        if (!cancelled) {
+          setPreparedPlaybackPath(preparedPath);
+          setPreparedPlaybackSrc(preparedUrl);
+        }
+      } catch (error) {
+        console.error("[AudiobookViewer] Failed to prepare m4b playback:", error);
+        if (!cancelled) {
+          setPreparedPlaybackPath(null);
+          setPreparedPlaybackSrc(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [document.filePath]);
+
+  useEffect(() => {
+    if (!isTauri() || !document.filePath || multiPartInfo) {
+      return;
+    }
+
+    const hasRealChapters = chapters.length > 1
+      || (chapters.length === 1 && chapters[0]?.title && chapters[0].title !== "Chapter 1");
+    const hasMetadataTitle = Boolean(metadata.title);
+    if (hasRealChapters && hasMetadataTitle) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const parsed = await audiobookApi.parseAudiobookMetadata(document.filePath);
+        if (cancelled) return;
+
+        setMetadata((prev) => ({
+          ...parsed,
+          ...prev,
+          title: prev.title || parsed.title,
+          author: prev.author || parsed.author,
+          duration: prev.duration || parsed.duration,
+        }));
+
+        if (!hasRealChapters && parsed.chapters?.length) {
+          setChapters(parsed.chapters);
+        }
+
+        const existingRaw = localStorage.getItem(`audiobook-${document.id}`);
+        if (existingRaw) {
+          try {
+            const existing = JSON.parse(existingRaw);
+            localStorage.setItem(`audiobook-${document.id}`, JSON.stringify({
+              ...existing,
+              metadata: {
+                ...parsed,
+                ...(existing.metadata || {}),
+                title: existing.metadata?.title || parsed.title,
+                author: existing.metadata?.author || parsed.author,
+                duration: existing.metadata?.duration || parsed.duration,
+              },
+              chapters: hasRealChapters ? existing.chapters : parsed.chapters,
+            }));
+          } catch {
+            // Ignore localStorage repair failures.
+          }
+        }
+      } catch (error) {
+        console.warn("[AudiobookViewer] Failed to refresh audiobook metadata:", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chapters, document.filePath, document.id, metadata.title, multiPartInfo]);
 
   const getTotalDurationSeconds = useCallback((): number | undefined => {
     if (multiPartInfo?.partDurations?.length) {
@@ -440,23 +531,6 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     }
   };
   
-  // Playback controls
-  const togglePlay = () => {
-    console.log('[AudiobookViewer] togglePlay:', { isPlaying, src: audioRef.current?.src, readyState: audioRef.current?.readyState });
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        console.log('[AudiobookViewer] Attempting to play...');
-        audioRef.current.play().catch(err => {
-          console.error('[AudiobookViewer] Play error:', err);
-        });
-      }
-    } else {
-      console.warn('[AudiobookViewer] No audio ref');
-    }
-  };
-
   const handlePause = () => {
     setIsPlaying(false);
     if (audioRef.current) {
@@ -486,29 +560,25 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     }
   };
 
-  const handleAudioError = async () => {
-    const error = audioRef.current?.error;
-    const src = audioRef.current?.currentSrc || audioRef.current?.src;
-    console.error("[AudiobookViewer] Audio error:", { code: error?.code, message: error?.message, src });
-
+  const loadFallbackAudioSource = useCallback(async (): Promise<boolean> => {
     if (hasTriedFallback) {
       showError(
         t("viewer.playbackFailed"),
         t("viewer.audioFormatNotSupported")
       );
-      return;
+      return false;
     }
 
-    if (!isTauri() || !document.filePath) {
+    const playbackFilePath = preparedPlaybackPath || document.filePath;
+    if (!isTauri() || !playbackFilePath) {
       showError(t("viewer.playbackFailed"), t("viewer.unableToLoadAudio"));
-      return;
+      return false;
     }
 
-    // Fallback: read file into memory and create a blob URL (slower, but avoids file-scope issues).
     try {
       setHasTriedFallback(true);
       showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
-      const base64Data = await readDocumentFile(document.filePath);
+      const base64Data = await readDocumentFile(playbackFilePath);
       if (!base64Data) {
         throw new Error("Empty file data");
       }
@@ -517,15 +587,63 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const mimeType = getAudioMimeType(document.filePath);
+      const mimeType = getAudioMimeType(playbackFilePath);
       const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-      setFallbackSrc(blobUrl);
-      showSuccess(t("viewer.audioLoaded"), t("viewer.retryPlay"));
+      setFallbackSrc((prev) => {
+        if (prev?.startsWith("blob:")) {
+          URL.revokeObjectURL(prev);
+        }
+        return blobUrl;
+      });
+      return true;
     } catch (err) {
       showError(
         t("viewer.playbackFailed"),
         err instanceof Error ? err.message : t("viewer.unableToLoadAudio")
       );
+      return false;
+    }
+  }, [document.filePath, hasTriedFallback, preparedPlaybackPath, showError, showInfo, t]);
+
+  // Playback controls
+  const togglePlay = async () => {
+    console.log('[AudiobookViewer] togglePlay:', { isPlaying, src: audioRef.current?.src, readyState: audioRef.current?.readyState });
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        console.log('[AudiobookViewer] Attempting to play...');
+        try {
+          await audioRef.current.play();
+        } catch (err) {
+          console.error('[AudiobookViewer] Play error:', err);
+          if (err instanceof DOMException && err.name === "NotSupportedError") {
+            pendingAutoplayAfterFallbackRef.current = true;
+            const loadedFallback = await loadFallbackAudioSource();
+            if (!loadedFallback) {
+              pendingAutoplayAfterFallbackRef.current = false;
+            }
+            return;
+          }
+          showError(
+            t("viewer.playbackFailed"),
+            err instanceof Error ? err.message : t("viewer.unableToLoadAudio")
+          );
+        }
+      }
+    } else {
+      console.warn('[AudiobookViewer] No audio ref');
+    }
+  };
+
+  const handleAudioError = async () => {
+    const error = audioRef.current?.error;
+    const src = audioRef.current?.currentSrc || audioRef.current?.src;
+    console.error("[AudiobookViewer] Audio error:", { code: error?.code, message: error?.message, src });
+    pendingAutoplayAfterFallbackRef.current = true;
+    const loadedFallback = await loadFallbackAudioSource();
+    if (!loadedFallback) {
+      pendingAutoplayAfterFallbackRef.current = false;
     }
   };
   
@@ -551,6 +669,35 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
 
     return () => window.clearInterval(id);
   }, [isPlaying, savePosition]);
+
+  useEffect(() => {
+    if (!fallbackSrc || !pendingAutoplayAfterFallbackRef.current || !audioRef.current) {
+      return;
+    }
+
+    pendingAutoplayAfterFallbackRef.current = false;
+    const audio = audioRef.current;
+    audio.load();
+    void audio.play()
+      .then(() => {
+        showSuccess(t("viewer.audioLoaded"), t("viewer.retryPlay"));
+      })
+      .catch((err) => {
+        console.error("[AudiobookViewer] Fallback play error:", err);
+        showError(
+          t("viewer.playbackFailed"),
+          err instanceof Error ? err.message : t("viewer.audioFormatNotSupported")
+        );
+      });
+  }, [fallbackSrc, showError, showSuccess, t]);
+
+  useEffect(() => {
+    return () => {
+      if (fallbackSrc?.startsWith("blob:")) {
+        URL.revokeObjectURL(fallbackSrc);
+      }
+    };
+  }, [fallbackSrc]);
 
   // Save on unmount
   useEffect(() => {
@@ -619,14 +766,14 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
     const newBookmark: AudiobookBookmark = {
       id: `bookmark-${Date.now()}`,
       time: currentTime,
-      title: chapter?.title || `${t("viewer.bookmark")} @ ${formatDuration(currentTime)}`,
+      title: chapter?.title || `${t("viewer.bookmark")} @ ${audiobookApi.formatDuration(currentTime)}`,
       createdAt: new Date().toISOString(),
     };
     
     const updated = [...bookmarks, newBookmark];
     setBookmarks(updated);
     localStorage.setItem(`audiobook-${document.id}-bookmarks`, JSON.stringify(updated));
-    showSuccess("Bookmark added", `Saved at ${formatDuration(currentTime)}`);
+    showSuccess("Bookmark added", `Saved at ${audiobookApi.formatDuration(currentTime)}`);
   };
   
   const deleteBookmark = (id: string) => {
@@ -825,7 +972,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       {/* Audio element - use fileContent (blob URL) when available, otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={fallbackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
+        src={fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
@@ -889,7 +1036,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 >
                   <p className="text-sm font-medium">{chapter.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatDuration(chapter.startTime)}
+                    {audiobookApi.formatDuration(chapter.startTime)}
                   </p>
                 </button>
               ))}
@@ -912,7 +1059,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                         >
                           <p className="text-sm font-medium">{bookmark.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatDuration(bookmark.time)}
+                            {audiobookApi.formatDuration(bookmark.time)}
                           </p>
                           {bookmark.note && (
                             <p className="text-xs text-muted-foreground mt-1">
@@ -1034,8 +1181,8 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>{formatDuration(currentTime)}</span>
-                <span>{formatDuration(duration)}</span>
+                <span>{audiobookApi.formatDuration(currentTime)}</span>
+                <span>{audiobookApi.formatDuration(duration)}</span>
               </div>
             </div>
             
@@ -1124,7 +1271,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                     title={t("viewer.cancelSleepTimer")}
                   >
                     <Moon className="h-3 w-3" />
-                    {formatDuration(Math.max(0, (sleepTimer.endTime - Date.now()) / 1000))}
+                    {audiobookApi.formatDuration(Math.max(0, (sleepTimer.endTime - Date.now()) / 1000))}
                   </button>
                 )}
                 
@@ -1257,7 +1404,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs text-muted-foreground">
-                              {formatDuration(startTime)}
+                              {audiobookApi.formatDuration(startTime)}
                             </span>
                             {(segment as any).speaker && (
                               <span className="text-xs text-primary">{(segment as any).speaker}</span>

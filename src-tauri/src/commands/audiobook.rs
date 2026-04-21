@@ -3,6 +3,7 @@ use crate::error::{IncrementumError, Result};
 use crate::database::Repository;
 use crate::models::{Document, FileType, DocumentMetadata};
 use std::path::Path;
+use std::hash::{Hash, Hasher};
 use serde::Serialize;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
@@ -61,20 +62,30 @@ pub struct PodcastImportResult {
     pub transcript_segments: i32,
 }
 
-#[tauri::command]
-pub async fn parse_audiobook_metadata(
-    app_handle: AppHandle,
-    file_path: String,
-) -> Result<AudiobookMetadata> {
-    let path = Path::new(&file_path);
-    let filename = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-    
-    // Default metadata from filename
+#[derive(Debug)]
+struct ParsedAudiobookInfo {
+    metadata: AudiobookMetadata,
+    ffmpeg_stderr: String,
+}
+
+fn parse_duration_seconds(ffmpeg_stderr: &str) -> Option<f64> {
+    let marker = "Duration:";
+    let start = ffmpeg_stderr.find(marker)?;
+    let remainder = ffmpeg_stderr[start + marker.len()..].trim_start();
+    let raw = remainder.split(',').next()?.trim();
+    let mut parts = raw.split(':');
+    let hours = parts.next()?.trim().parse::<f64>().ok()?;
+    let minutes = parts.next()?.trim().parse::<f64>().ok()?;
+    let seconds = parts.next()?.trim().parse::<f64>().ok()?;
+    Some(hours * 3600.0 + minutes * 60.0 + seconds)
+}
+
+fn parse_ffmetadata_output(filename: &str, output: &str, ffmpeg_stderr: &str) -> AudiobookMetadata {
     let mut metadata = AudiobookMetadata {
-        title: filename.clone(),
+        title: filename.to_string(),
         author: None,
         narrator: None,
-        duration: 0.0,
+        duration: parse_duration_seconds(ffmpeg_stderr).unwrap_or(0.0),
         chapters: vec![],
         cover_url: None,
         description: None,
@@ -84,67 +95,112 @@ pub async fn parse_audiobook_metadata(
         genre: None,
     };
 
-    // Try to use ffprobe to get metadata
-    // ffprobe -v quiet -print_format json -show_format -show_chapters input.mp3
-    
-    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)? // Uses system ffmpeg on Linux, sidecar on Windows/macOS
-        // Wait, did we download ffprobe? No.
-        // Can we use ffmpeg to get metadata?
-        // ffmpeg -i input.mp3 -f ffmetadata -
-        .args([
-            "-i", &file_path,
-            "-f", "ffmetadata",
-            "-" // output to stdout
-        ])
-        .spawn()?;
+    let mut current_section: Option<String> = None;
+    let mut current_chapter: Option<(String, String, String, Option<String>)> = None;
 
-    let mut output = String::new();
-    while let Some(event) = rx.recv().await {
-        if let CommandEvent::Stdout(line) = event {
-            output.push_str(&String::from_utf8_lossy(&line));
-        }
-    }
+    let finalize_chapter = |chapter: Option<(String, String, String, Option<String>)>, chapters: &mut Vec<AudiobookChapter>| {
+        let Some((timebase, start, end, title)) = chapter else {
+            return;
+        };
 
-    // Parse ffmpeg output (INI-like format)
-    // ;FFMETADATA1
-    // title=Song Title
-    // artist=Artist Name
-    
-    for line in output.lines() {
-        if let Some((key, value)) = line.split_once('=') {
-            match key.to_lowercase().as_str() {
-                "title" => metadata.title = value.to_string(),
-                "artist" | "author" | "album_artist" => metadata.author = Some(value.to_string()),
-                "album" => {
-                    if metadata.title == filename { // Only overwrite if title hasn't been found or is just filename
-                         metadata.title = value.to_string(); 
-                    }
-                },
-                "composer" => {
-                     if metadata.author.is_none() {
-                         metadata.author = Some(value.to_string());
-                     }
-                },
-                "comment" | "description" => metadata.description = Some(value.to_string()),
-                "date" | "creation_time" => {
-                    if let Ok(year) = value.chars().take(4).collect::<String>().parse::<i32>() {
-                        metadata.publish_year = Some(year);
-                    }
-                },
-                "genre" => metadata.genre = Some(vec![value.to_string()]),
-                _ => {}
+        let parse_fraction = |value: &str| -> Option<f64> {
+            let (num, den) = value.split_once('/')?;
+            let numerator = num.trim().parse::<f64>().ok()?;
+            let denominator = den.trim().parse::<f64>().ok()?;
+            if denominator <= 0.0 {
+                return None;
             }
+            Some(numerator / denominator)
+        };
+
+        let timebase_seconds = parse_fraction(&timebase).unwrap_or(1.0);
+        let start_raw = start.trim().parse::<f64>().ok();
+        let end_raw = end.trim().parse::<f64>().ok();
+        let start_time = start_raw.map(|v| v * timebase_seconds).unwrap_or(0.0);
+        let end_time = end_raw.map(|v| v * timebase_seconds);
+        let duration = end_time.map(|end| (end - start_time).max(0.0));
+
+        chapters.push(AudiobookChapter {
+            id: (chapters.len() as i32) + 1,
+            title: title.unwrap_or_else(|| format!("Chapter {}", chapters.len() + 1)),
+            start_time,
+            end_time,
+            duration,
+        });
+    };
+
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') {
+            continue;
+        }
+
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            if current_section.as_deref() == Some("CHAPTER") {
+                finalize_chapter(current_chapter.take(), &mut metadata.chapters);
+            }
+            current_section = Some(trimmed.trim_matches(['[', ']']).to_string());
+            if current_section.as_deref() == Some("CHAPTER") {
+                current_chapter = Some((
+                    "1/1000".to_string(),
+                    "0".to_string(),
+                    "0".to_string(),
+                    None,
+                ));
+            }
+            continue;
+        }
+
+        let Some((raw_key, raw_value)) = trimmed.split_once('=') else {
+            continue;
+        };
+
+        let key = raw_key.trim().to_lowercase();
+        let value = raw_value.trim().to_string();
+
+        if current_section.as_deref() == Some("CHAPTER") {
+            if let Some((timebase, start, end, title)) = current_chapter.as_mut() {
+                match key.as_str() {
+                    "timebase" => *timebase = value,
+                    "start" => *start = value,
+                    "end" => *end = value,
+                    "title" => *title = Some(value),
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        match key.as_str() {
+            "title" => metadata.title = value,
+            "artist" | "author" | "album_artist" => metadata.author = Some(value),
+            "album" => {
+                if metadata.title == filename {
+                    metadata.title = value;
+                }
+            }
+            "composer" => {
+                if metadata.author.is_none() {
+                    metadata.author = Some(value);
+                }
+            }
+            "comment" | "description" => metadata.description = Some(value),
+            "publisher" => metadata.publisher = Some(value),
+            "language" => metadata.language = Some(value),
+            "genre" => metadata.genre = Some(vec![value]),
+            "date" | "creation_time" => {
+                if let Ok(year) = value.chars().take(4).collect::<String>().parse::<i32>() {
+                    metadata.publish_year = Some(year);
+                }
+            }
+            _ => {}
         }
     }
-    
-    // We also need duration. ffmpeg output to stderr usually has duration.
-    // Let's run ffmpeg -i file_path and parse stderr for Duration.
-    // Or assume 0 if we can't easily get it without ffprobe.
-    
-    // Since we don't have ffprobe, obtaining duration/chapters accurately is harder.
-    // But basic metadata is better than nothing.
-    
-    // If chapters are missing, add a default one
+
+    if current_section.as_deref() == Some("CHAPTER") {
+        finalize_chapter(current_chapter.take(), &mut metadata.chapters);
+    }
+
     if metadata.chapters.is_empty() {
         metadata.chapters.push(AudiobookChapter {
             id: 1,
@@ -155,7 +211,55 @@ pub async fn parse_audiobook_metadata(
         });
     }
 
-    Ok(metadata)
+    metadata
+}
+
+async fn extract_audiobook_info(
+    app_handle: &AppHandle,
+    file_path: &str,
+) -> Result<ParsedAudiobookInfo> {
+    let path = Path::new(file_path);
+    let filename = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+
+    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(app_handle)?
+        .args([
+            "-i", file_path,
+            "-f", "ffmetadata",
+            "-"
+        ])
+        .spawn()?;
+
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+
+    while let Some(event) = rx.recv().await {
+        match event {
+            CommandEvent::Stdout(line) => stdout.push_str(&String::from_utf8_lossy(&line)),
+            CommandEvent::Stderr(line) => stderr.push_str(&String::from_utf8_lossy(&line)),
+            CommandEvent::Terminated(payload) => {
+                if payload.code != Some(0) && stdout.trim().is_empty() {
+                    return Err(IncrementumError::Internal(format!(
+                        "ffmpeg metadata extraction failed for {}: {}",
+                        file_path,
+                        stderr.trim()
+                    )));
+                }
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    let metadata = parse_ffmetadata_output(&filename, &stdout, &stderr);
+    Ok(ParsedAudiobookInfo { metadata, ffmpeg_stderr: stderr })
+}
+
+#[tauri::command]
+pub async fn parse_audiobook_metadata(
+    app_handle: AppHandle,
+    file_path: String,
+) -> Result<AudiobookMetadata> {
+    Ok(extract_audiobook_info(&app_handle, &file_path).await?.metadata)
 }
 
 #[tauri::command]
@@ -288,19 +392,109 @@ pub async fn scan_directory_for_audiobooks(
 
 #[tauri::command]
 pub async fn parse_audiobook_chapters(
-    _file_path: String,
+    app_handle: AppHandle,
+    file_path: String,
 ) -> Result<Vec<AudiobookChapter>> {
-    // Placeholder - implementing proper chapter parsing without ffprobe is tricky
-    // For now return empty or default
-    Ok(vec![
-        AudiobookChapter {
-            id: 1,
-            title: "Chapter 1".to_string(),
-            start_time: 0.0,
-            end_time: None,
-            duration: None,
+    Ok(extract_audiobook_info(&app_handle, &file_path).await?.metadata.chapters)
+}
+
+#[tauri::command]
+pub async fn prepare_audiobook_playback(
+    app_handle: AppHandle,
+    file_path: String,
+) -> Result<String> {
+    let input_path = Path::new(&file_path);
+    if !input_path.exists() {
+        return Err(IncrementumError::NotFound(format!(
+            "Audiobook file not found: {}",
+            file_path
+        )));
+    }
+
+    let ext = input_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+
+    if ext != "m4b" {
+        return Ok(file_path);
+    }
+
+    let source_metadata = std::fs::metadata(input_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to stat audiobook file: {}", e)))?;
+    let modified = source_metadata
+        .modified()
+        .ok()
+        .and_then(|ts| ts.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    file_path.hash(&mut hasher);
+    source_metadata.len().hash(&mut hasher);
+    modified.hash(&mut hasher);
+    let cache_key = hasher.finish();
+
+    let cache_dir = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve cache dir: {}", e)))?
+        .join("audiobook_playback");
+    std::fs::create_dir_all(&cache_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create audiobook cache dir: {}", e)))?;
+
+    let stem = input_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("audiobook");
+    let sanitized_stem = stem
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
+        .collect::<String>();
+    let output_path = cache_dir.join(format!("{sanitized_stem}-{cache_key}.mp3"));
+
+    if output_path.exists() {
+        return Ok(output_path.to_string_lossy().to_string());
+    }
+
+    let output_str = output_path.to_string_lossy().to_string();
+    let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get ffmpeg command: {}", e)))?
+        .args([
+            "-y",
+            "-i", &file_path,
+            "-vn",
+            "-map_metadata", "-1",
+            "-c:a", "libmp3lame",
+            "-b:a", "96k",
+            &output_str
+        ])
+        .spawn()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to spawn ffmpeg: {}", e)))?;
+
+    let mut stderr = String::new();
+    let mut exit_code = None;
+    while let Some(event) = rx.recv().await {
+        match event {
+            CommandEvent::Stderr(line) => stderr.push_str(&String::from_utf8_lossy(&line)),
+            CommandEvent::Terminated(payload) => {
+                exit_code = payload.code;
+                break;
+            }
+            _ => {}
         }
-    ])
+    }
+
+    if exit_code != Some(0) || !output_path.exists() {
+        let _ = std::fs::remove_file(&output_path);
+        return Err(IncrementumError::Internal(format!(
+            "Failed to prepare m4b playback. ffmpeg output: {}",
+            stderr.trim()
+        )));
+    }
+
+    Ok(output_str)
 }
 
 #[tauri::command]

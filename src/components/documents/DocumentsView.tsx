@@ -547,13 +547,21 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     });
   };
 
-  const handleDeleteDocument = async (doc: Document) => {
-    const confirmed = window.confirm(t("documentsView.deleteSingleMessage", { title: doc.title }));
-    if (!confirmed) return;
-    await deleteDocument(doc.id);
-    if (activeId === doc.id) {
-      setActiveId(null);
-    }
+  const handleDeleteDocument = (doc: Document) => {
+    confirmDialog.confirm({
+      title: t("documentsView.deleteTitle"),
+      message: t("documentsView.deleteSingleMessage", { title: doc.title }),
+      variant: "danger",
+      itemName: "document",
+      itemCount: 1,
+      details: [doc.title || "Untitled"],
+      onConfirm: async () => {
+        await deleteDocument(doc.id);
+        if (activeId === doc.id) {
+          setActiveId(null);
+        }
+      },
+    });
   };
 
   const handleBulkTag = () => {

@@ -59,6 +59,7 @@ interface ItemDetailsPopoverProps {
   renderTrigger: (props: { onClick: () => void; isOpen: boolean; }) => React.ReactNode;
   align?: "left" | "right";
   className?: string;
+  onDismissStateChange?: (dismissed: boolean) => void;
 }
 
 const EMPTY_DETAILS: ItemDetailsData = {
@@ -161,6 +162,7 @@ export function ItemDetailsPopover({
   renderTrigger,
   align = "right",
   className,
+  onDismissStateChange,
 }: ItemDetailsPopoverProps) {
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -248,6 +250,7 @@ export function ItemDetailsPopover({
       const newDismissedState = !details.isDismissed;
       await dismissDocument(target.id, newDismissedState);
       setDetails((prev) => ({ ...prev, isDismissed: newDismissedState }));
+      onDismissStateChange?.(newDismissedState);
       toast.success(
         newDismissedState ? t("itemDetails.documentDismissed") : t("itemDetails.documentRestored"),
         newDismissedState 

@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { useI18n } from "../../lib/i18n";
-import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw, DollarSign } from "lucide-react";
+import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw, DollarSign, Pencil } from "lucide-react";
 import { getAvailableModels, type ModelInfo } from "../../api/llm";
 
 export interface LLMProviderConfig {
@@ -87,6 +87,7 @@ export function LLMProviderSettings({
 }: LLMProviderSettingsProps) {
   const { t } = useI18n();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<LLMProviderConfig | null>(null);
   const [newProviderType, setNewProviderType] = useState<"openai" | "anthropic" | "ollama" | "openrouter">("openai");
   const [newProviderName, setNewProviderName] = useState("");
   const [newProviderApiKey, setNewProviderApiKey] = useState("");
@@ -97,9 +98,31 @@ export function LLMProviderSettings({
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [dynamicModels, setDynamicModels] = useState<Record<string, ModelInfo[]>>({});
   const [refreshingModels, setRefreshingModels] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<string | null>(null);
+
+  const isEditing = editingProvider !== null;
+
+  const startEditing = (provider: LLMProviderConfig) => {
+    setEditingProvider(provider);
+    setNewProviderType(provider.provider);
+    setNewProviderName(provider.name);
+    setNewProviderApiKey(provider.apiKey);
+    setNewProviderBaseUrl(provider.baseUrl || "");
+    setNewProviderModel(provider.model);
+    setShowAddForm(true);
+  };
+
+  const cancelEditing = () => {
+    setEditingProvider(null);
+    setShowAddForm(false);
+    setNewProviderName("");
+    setNewProviderApiKey("");
+    setNewProviderBaseUrl("");
+    setNewProviderModel("");
+  };
 
   const handleAddProvider = () => {
-    if (!newProviderName.trim() || !newProviderApiKey.trim()) {
+    if (!newProviderName.trim() || (newProviderType !== "ollama" && !newProviderApiKey.trim())) {
       return;
     }
 
@@ -123,6 +146,34 @@ export function LLMProviderSettings({
       enabled: true,
       modelPricing: Object.keys(modelPricing).length > 0 ? modelPricing : undefined,
     });
+  };
+
+  const handleSaveProvider = () => {
+    if (!editingProvider || !newProviderName.trim()) return;
+
+    const modelPricing: Record<string, ModelInfo> = {};
+    const models = dynamicModels[newProviderType];
+    if (models) {
+      models.forEach((model) => {
+        modelPricing[model.id] = model;
+      });
+    }
+
+    onUpdateProvider(editingProvider.id, {
+      name: newProviderName,
+      apiKey: newProviderApiKey,
+      baseUrl: newProviderBaseUrl || PROVIDER_INFO[newProviderType].baseUrl,
+      model: newProviderModel,
+      modelPricing: Object.keys(modelPricing).length > 0 ? modelPricing : undefined,
+    });
+  };
+
+  const handleSubmit = () => {
+    if (isEditing) {
+      handleSaveProvider();
+    } else {
+      handleAddProvider();
+    }
 
     // Reset form
     setNewProviderName("");
@@ -131,6 +182,18 @@ export function LLMProviderSettings({
     setNewProviderModel("");
     setDynamicModels({});
     setShowAddForm(false);
+    setEditingProvider(null);
+  };
+
+  const resetForm = () => {
+    setNewProviderName("");
+    setNewProviderApiKey("");
+    setNewProviderBaseUrl("");
+    setNewProviderModel("");
+    setDynamicModels({});
+    setOllamaStatus(null);
+    setShowAddForm(false);
+    setEditingProvider(null);
   };
 
   const handleTestConnection = async (providerId: string) => {
@@ -153,7 +216,7 @@ export function LLMProviderSettings({
   };
 
   const handleRefreshModels = async () => {
-    if (!newProviderApiKey.trim()) {
+    if (newProviderType !== "ollama" && !newProviderApiKey.trim()) {
       alert("Please enter an API key first to fetch models");
       return;
     }
@@ -162,7 +225,7 @@ export function LLMProviderSettings({
     try {
       const models = await getAvailableModels(
         newProviderType,
-        newProviderApiKey,
+        newProviderType === "ollama" ? undefined : newProviderApiKey,
         newProviderBaseUrl || PROVIDER_INFO[newProviderType].baseUrl
       );
       if (!models || !Array.isArray(models)) {
@@ -180,11 +243,25 @@ export function LLMProviderSettings({
       if (models.length > 0 && !models.find(m => m.id === newProviderModel)) {
         setNewProviderModel(models[0].id);
       }
+
+      if (newProviderType === "ollama") {
+        setOllamaStatus(null);
+      }
       
       return pricingMap;
     } catch (error) {
       console.error("Failed to fetch models:", error);
-      alert(`Failed to fetch models: ${error instanceof Error ? error.message : String(error)}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      if (newProviderType === "ollama") {
+        setOllamaStatus(msg);
+        setDynamicModels((prev) => {
+          const next = { ...prev };
+          delete next["ollama"];
+          return next;
+        });
+      } else {
+        alert(`Failed to fetch models: ${msg}`);
+      }
       return undefined;
     } finally {
       setRefreshingModels(false);
@@ -213,7 +290,7 @@ export function LLMProviderSettings({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">{t("llmProvider.configuredProviders")}</h3>
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => isEditing ? cancelEditing() : setShowAddForm(!showAddForm)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
           >
             <Plus className="w-4 h-4" />
@@ -263,6 +340,14 @@ export function LLMProviderSettings({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startEditing(provider)}
+                        className="p-2 hover:bg-muted rounded transition-colors"
+                        title="Edit provider"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
                       <button
                         onClick={() => handleTestConnection(provider.id)}
                         disabled={testingConnection === provider.id}
@@ -327,7 +412,7 @@ export function LLMProviderSettings({
       {/* Add Provider Form */}
       {showAddForm && (
         <div className="p-4 bg-card border rounded-lg space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">{t("llmProvider.addNewProvider")}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{isEditing ? "Edit Provider" : t("llmProvider.addNewProvider")}</h3>
 
           {/* Provider Type Selection */}
           <div>
@@ -341,17 +426,23 @@ export function LLMProviderSettings({
                   <button
                     key={type}
                     onClick={() => {
+                      if (isEditing) return;
                       setNewProviderType(type);
                       setNewProviderName(info.name);
                       setNewProviderBaseUrl(info.baseUrl);
                       setNewProviderModel(info.defaultModel);
-                      // Clear API key when switching provider types for security
                       setNewProviderApiKey("");
+                      setOllamaStatus(null);
                     }}
+                    disabled={isEditing}
                     className={`p-4 border-2 rounded-lg transition-all text-left ${
+                      isEditing && newProviderType !== type
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    } ${
                       newProviderType === type
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground"
+                        : !isEditing ? "border-border hover:border-muted-foreground" : "border-border"
                     }`}
                   >
                     <div className="text-2xl mb-2">{info.icon}</div>
@@ -420,7 +511,7 @@ export function LLMProviderSettings({
               </label>
               <button
                 onClick={handleRefreshModels}
-                disabled={refreshingModels || !newProviderApiKey.trim()}
+                disabled={refreshingModels || (newProviderType !== "ollama" && !newProviderApiKey.trim())}
                 className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={`Fetch latest models and pricing from ${PROVIDER_INFO[newProviderType].name}`}
               >
@@ -500,28 +591,28 @@ export function LLMProviderSettings({
                 {dynamicModels[newProviderType]!.length} models available from {PROVIDER_INFO[newProviderType].name}
               </p>
             )}
+
+            {newProviderType === "ollama" && ollamaStatus && (
+              <p className="text-xs text-destructive mt-1">
+                {ollamaStatus}
+              </p>
+            )}
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
-              onClick={() => {
-                setShowAddForm(false);
-                setNewProviderName("");
-                setNewProviderApiKey("");
-                setNewProviderBaseUrl("");
-                setNewProviderModel("");
-              }}
+              onClick={cancelEditing}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={handleAddProvider}
-              disabled={!newProviderName || !newProviderApiKey}
+              onClick={handleSubmit}
+              disabled={!newProviderName || (newProviderType !== "ollama" && !newProviderApiKey)}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Provider
+              {isEditing ? "Save Changes" : "Add Provider"}
             </button>
           </div>
         </div>

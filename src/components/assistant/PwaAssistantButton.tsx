@@ -5,6 +5,7 @@ import { renderMarkdown } from "../../utils/markdown";
 import { useLLMProvidersStore, useSettingsStore } from "../../stores";
 import type { AssistantContext } from "./AssistantPanel";
 import * as documentsApi from "../../api/documents";
+import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
 
 type Side = "left" | "right";
 
@@ -255,6 +256,18 @@ export function PwaAssistantButton({
         ? context.contextWindowTokens
         : settings.ai.maxTokens;
 
+      const resolvedContext = context.resolveForPrompt
+        ? await context.resolveForPrompt(trimmed)
+        : {
+            status: context.status ?? "ready",
+            content: context.content,
+            message: context.statusMessage,
+          };
+
+      if (resolvedContext.status !== "ready" || !resolvedContext.content?.trim()) {
+        throw new Error(resolvedContext.message || getAssistantContextErrorMessage(context.status));
+      }
+
       const response = await chatWithContext(
         provider.provider,
         provider.model,
@@ -264,7 +277,7 @@ export function PwaAssistantButton({
           documentId: context.documentId,
           url: context.url,
           selection: context.selection,
-          content: context.content,
+          content: resolvedContext.content,
           contextWindowTokens: contextWindow,
         },
         provider.apiKey,
@@ -290,7 +303,7 @@ export function PwaAssistantButton({
     if (!enabled) return;
 
     // Check if we have document context
-    if (!context.content && context.type === "document") {
+    if (!context.content && context.type === "document" && !context.resolveForPrompt) {
       console.warn("[PwaAssistantButton] No document content available:", { context });
 
       // Try to extract content on-demand

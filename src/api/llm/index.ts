@@ -96,6 +96,9 @@ export async function chatWithContext(
 ): Promise<LLMResponse> {
   // Normalize context content to ensure it's always a string
   const normalizedContent = normalizeContextContent(context.content);
+  if (context.type === "document" && !normalizedContent?.trim()) {
+    throw new Error("Document context is unavailable for this request.");
+  }
 
   const args = {
     provider,

@@ -1,7 +1,7 @@
 /**
  * Wrapper component that adds Assistant panel to DocumentViewer
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DocumentViewer as BaseDocumentViewer } from "./DocumentViewer";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../assistant/AssistantPanel";
 import { PwaAssistantButton } from "../assistant/PwaAssistantButton";
@@ -9,6 +9,12 @@ import { useDocumentStore, useSettingsStore } from "../../stores";
 import * as documentsApi from "../../api/documents";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { getDeviceInfo } from "../../lib/pwa";
+import {
+  getAssistantContextErrorMessage,
+  resolveGenericAssistantContext,
+  resolvePdfAssistantContext,
+  type ResolvedAssistantContext,
+} from "../../utils/assistantContext";
 
 const ASSISTANT_POSITION_KEY = "assistant-panel-position";
 
@@ -25,6 +31,7 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
   const [selection, setSelection] = useState("");
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
   const [pdfContextText, setPdfContextText] = useState<string | undefined>(undefined);
+  const [pdfOcrContextText, setPdfOcrContextText] = useState<string | null>(null);
   const [videoContext, setVideoContext] = useState<{
     videoId: string;
     title?: string;
@@ -33,12 +40,16 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
     duration?: number;
   } | null>(null);
   const currentDocument = useDocumentStore((state) => state.currentDocument);
+  const settings = useSettingsStore((state) => state.settings);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
   const aiModel = useSettingsStore((state) => state.settings.ai.model);
   const pwaAssistantEnabled = useSettingsStore((state) => state.settings.ai.pwaAssistantButtonEnabled);
   const pwaAssistantSide = useSettingsStore((state) => state.settings.ai.pwaAssistantButtonSide);
   const [documentContent, setDocumentContent] = useState<string | undefined>(undefined);
   const [assistantContent, setAssistantContent] = useState<string | undefined>(undefined);
+  const [assistantStatus, setAssistantStatus] = useState<"ready" | "loading" | "unavailable">("loading");
+  const [assistantStatusMessage, setAssistantStatusMessage] = useState<string | undefined>(undefined);
+  const [assistantSource, setAssistantSource] = useState<string | undefined>(undefined);
   const [assistantPosition, setAssistantPosition] = useState<AssistantPosition>(() => {
     const saved = localStorage.getItem(ASSISTANT_POSITION_KEY);
     return saved === "left" ? "left" : "right";
@@ -46,10 +57,53 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
   const deviceInfo = getDeviceInfo();
   // Only hide assistant on mobile devices (< 768px), not on tablets or small screens
   const isMobile = deviceInfo.isMobile;
+  const documents = useDocumentStore((state) => state.documents);
+  const currentDoc = documents.find((doc) => doc.id === documentId) ?? currentDocument ?? null;
+  const selectionRef = useRef(selection);
+  const pdfContextTextRef = useRef(pdfContextText);
+  const pdfOcrContextTextRef = useRef(pdfOcrContextText);
+  const videoContextRef = useRef(videoContext);
+  const scrollStateRef = useRef(scrollState);
+  const documentContentRef = useRef<string | undefined>(documentContent);
+  const assistantContentRef = useRef<string | undefined>(assistantContent);
+  const currentDocRef = useRef(currentDoc);
+
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
+  useEffect(() => {
+    pdfContextTextRef.current = pdfContextText;
+  }, [pdfContextText]);
+
+  useEffect(() => {
+    pdfOcrContextTextRef.current = pdfOcrContextText;
+  }, [pdfOcrContextText]);
+
+  useEffect(() => {
+    videoContextRef.current = videoContext;
+  }, [videoContext]);
+
+  useEffect(() => {
+    scrollStateRef.current = scrollState;
+  }, [scrollState]);
+
+  useEffect(() => {
+    documentContentRef.current = documentContent;
+  }, [documentContent]);
+
+  useEffect(() => {
+    assistantContentRef.current = assistantContent;
+  }, [assistantContent]);
+
+  useEffect(() => {
+    currentDocRef.current = currentDoc;
+  }, [currentDoc]);
 
   useEffect(() => {
     let isActive = true;
     setPdfContextText(undefined);
+    setPdfOcrContextText(null);
 
     const loadDocumentContent = async () => {
       try {
@@ -88,11 +142,17 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
         .then((trimmed) => {
           if (isActive) {
             setAssistantContent(trimmed);
+            setAssistantStatus("ready");
+            setAssistantStatusMessage(undefined);
+            setAssistantSource("video-transcript");
           }
         })
         .catch(() => {
           if (isActive) {
             setAssistantContent(videoText.slice(0, maxTokens * 4));
+            setAssistantStatus("ready");
+            setAssistantStatusMessage(undefined);
+            setAssistantSource("video-transcript");
           }
         });
       
@@ -102,10 +162,17 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
     }
 
     // Otherwise use regular document content
-    const baseContent = pdfContextText ?? currentDocument?.content ?? documentContent ?? selection;
+    const baseContent = pdfContextText ?? currentDoc?.content ?? documentContent ?? selection;
 
     if (!baseContent) {
       setAssistantContent(undefined);
+      setAssistantStatus(currentDoc?.fileType === "pdf" ? "loading" : "unavailable");
+      setAssistantStatusMessage(
+        currentDoc?.fileType === "pdf"
+          ? getAssistantContextErrorMessage("loading")
+          : getAssistantContextErrorMessage("unavailable")
+      );
+      setAssistantSource(undefined);
       return () => {
         isActive = false;
       };
@@ -115,18 +182,74 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
       .then((trimmed) => {
         if (isActive) {
           setAssistantContent(trimmed);
+          setAssistantStatus("ready");
+          setAssistantStatusMessage(undefined);
+          setAssistantSource(currentDoc?.fileType === "pdf" ? "pdf-window" : "document");
         }
       })
       .catch(() => {
         if (isActive) {
           setAssistantContent(baseContent.slice(0, maxTokens * 4));
+          setAssistantStatus("ready");
+          setAssistantStatusMessage(undefined);
+          setAssistantSource(currentDoc?.fileType === "pdf" ? "pdf-window" : "document");
         }
       });
 
     return () => {
       isActive = false;
     };
-  }, [currentDocument?.content, documentContent, selection, contextWindowTokens, aiModel, pdfContextText, videoContext]);
+  }, [currentDoc?.content, currentDoc?.fileType, documentContent, selection, contextWindowTokens, aiModel, pdfContextText, videoContext]);
+
+  const resolveContextForPrompt = useCallback(async (_prompt: string): Promise<ResolvedAssistantContext> => {
+    const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
+    const activeDoc = currentDocRef.current;
+    const activeSelection = selectionRef.current;
+    const pageNumber = scrollStateRef.current.pageNumber;
+
+    if (videoContextRef.current?.videoId) {
+      return resolveGenericAssistantContext(assistantContentRef.current, "video-transcript");
+    }
+
+    if (activeDoc?.fileType === "pdf") {
+      const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
+      const resolution = await resolvePdfAssistantContext({
+        document: activeDoc,
+        liveWindowText: pdfContextTextRef.current,
+        storedDocumentText: activeDoc.content ?? documentContentRef.current,
+        ocrText: pdfOcrContextTextRef.current,
+        selection: activeSelection,
+        pageNumber,
+        contextPageWindow: 2,
+        preferOcr,
+        extractedTextLoader: activeDoc.id
+          ? async () => {
+              const result = await documentsApi.extractDocumentText(activeDoc.id);
+              return result.content;
+            }
+          : undefined,
+      });
+
+      if (resolution.status !== "ready" || !resolution.content) {
+        return resolution;
+      }
+
+      try {
+        const trimmed = await trimToTokenWindow(resolution.content, maxTokens, aiModel, activeSelection);
+        return {
+          ...resolution,
+          content: trimmed,
+        };
+      } catch {
+        return {
+          ...resolution,
+          content: resolution.content.slice(0, maxTokens * 4),
+        };
+      }
+    }
+
+    return resolveGenericAssistantContext(assistantContentRef.current, "document");
+  }, [aiModel, contextWindowTokens, settings.documents.ocr.autoExtractOnLoad, settings.documents.ocr.autoOCR]);
 
   const assistantContext = useMemo<AssistantContext>(() => {
     const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
@@ -139,6 +262,10 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
         selection: selection || undefined,
         content: assistantContent,
         contextWindowTokens: maxTokens,
+        status: assistantStatus,
+        statusMessage: assistantStatusMessage,
+        source: assistantSource,
+        resolveForPrompt: resolveContextForPrompt,
         position: {
           currentTime: videoContext.currentTime,
         },
@@ -157,9 +284,24 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
       selection: selection || undefined,
       content: assistantContent,
       contextWindowTokens: maxTokens,
+      status: assistantStatus,
+      statusMessage: assistantStatusMessage,
+      source: assistantSource,
+      resolveForPrompt: resolveContextForPrompt,
       position: scrollState,
     };
-  }, [assistantContent, documentId, selection, contextWindowTokens, scrollState, videoContext]);
+  }, [
+    assistantContent,
+    assistantSource,
+    assistantStatus,
+    assistantStatusMessage,
+    contextWindowTokens,
+    documentId,
+    resolveContextForPrompt,
+    scrollState,
+    selection,
+    videoContext,
+  ]);
 
   const handlePositionChange = (newPosition: AssistantPosition) => {
     setAssistantPosition(newPosition);
@@ -188,6 +330,7 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
         initialJump={initialJump}
         autoPlay={autoPlay}
         onPdfContextTextChange={setPdfContextText}
+        onPdfOcrContextTextChange={setPdfOcrContextText}
         contextPageWindow={2}
         onVideoContextChange={setVideoContext}
       />
