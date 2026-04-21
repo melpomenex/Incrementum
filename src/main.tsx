@@ -1,5 +1,10 @@
 // Early error handler - must be first
+import { installPromiseCompat } from "./utils/promiseCompat";
+
 if (typeof window !== 'undefined') {
+  // PDF.js uses newer Promise helpers that are missing in older WebView2 builds on Windows.
+  installPromiseCompat(window);
+
   // Defensive patch for Tauri v2 event plugin bug (fallback — primary fix is in lib.rs init script):
   // https://github.com/tauri-apps/tauri/issues/8916
   // The unlisten JS injected by Tauri's Rust backend accesses listeners[eventId].handlerId

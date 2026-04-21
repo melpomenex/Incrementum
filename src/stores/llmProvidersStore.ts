@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../utils/id';
 import type { ModelInfo } from '../api/llm';
+import { providerAllowsKeylessAccess } from '../utils/llmProviderUtils';
 
 export interface LLMProviderConfig {
   id: string;
@@ -89,9 +90,9 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
         if (!persisted || !persisted.providers) {
           return currentState;
         }
-        // Remove providers with empty API keys (except ollama which doesn't require one)
+        // Remove providers with empty API keys only when the configured endpoint really requires one.
         const cleanedProviders = persisted.providers.filter((p) =>
-          p.provider === 'ollama' || (p.apiKey ? p.apiKey.trim().length > 0 : false)
+          providerAllowsKeylessAccess(p.provider, p.baseUrl) || (p.apiKey ? p.apiKey.trim().length > 0 : false)
         );
         const removed = persisted.providers.length - cleanedProviders.length;
         if (removed > 0) {

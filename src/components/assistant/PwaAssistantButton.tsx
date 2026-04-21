@@ -6,6 +6,7 @@ import { useLLMProvidersStore, useSettingsStore } from "../../stores";
 import type { AssistantContext } from "./AssistantPanel";
 import * as documentsApi from "../../api/documents";
 import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
+import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
 type Side = "left" | "right";
 
@@ -211,7 +212,7 @@ export function PwaAssistantButton({
     if (!candidate) {
       return { error: "No LLM providers are configured. Add one in Settings → AI Provider Settings.", provider: null as any };
     }
-    if (candidate.provider !== "ollama" && (!candidate.apiKey || !candidate.apiKey.trim())) {
+    if (providerRequiresApiKey(candidate.provider, candidate.baseUrl) && (!candidate.apiKey || !candidate.apiKey.trim())) {
       return { error: "Your selected provider is missing an API key. Fix it in Settings → AI Provider Settings.", provider: null as any };
     }
     return { error: null, provider: candidate };

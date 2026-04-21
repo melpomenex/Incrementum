@@ -33,6 +33,7 @@ import {
     isYouTubeApiEnabled,
     extractPlaylistId,
 } from './youtubeDataApi';
+import { providerRequiresApiKey } from '../utils/llmProviderUtils';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -2744,7 +2745,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         const apiKey = args.apiKey as string | undefined;
         const baseUrl = args.baseUrl as string | undefined;
 
-        if (!apiKey && provider !== 'ollama') {
+        if (providerRequiresApiKey(provider as 'openai' | 'anthropic' | 'ollama' | 'openrouter', baseUrl) && !apiKey) {
             throw new Error('API key is required');
         }
 
@@ -2803,8 +2804,10 @@ const commandHandlers: Record<string, CommandHandler> = {
         // OpenAI-compatible API (OpenAI, OpenRouter)
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
         };
+        if (apiKey) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+        }
 
         // Add OpenRouter-specific headers
         if (provider === 'openrouter') {
@@ -2990,6 +2993,49 @@ const commandHandlers: Record<string, CommandHandler> = {
                 createModelInfo('deepseek/deepseek-chat', 'DeepSeek Chat', 64000, { prompt: 0.00027, completion: 0.0011 }),
             ],
         };
+
+        if (provider === 'openai' && (apiKey?.trim() || !providerRequiresApiKey('openai', baseUrl))) {
+            try {
+                const url = baseUrl || 'https://api.openai.com/v1';
+                const headers: Record<string, string> = {};
+                if (apiKey?.trim()) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
+                const response = await fetch(`${url}/models`, { headers });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && Array.isArray(data.data)) {
+                        return data.data
+                            .map((m: { id: string }) => createModelInfo(m.id, m.id))
+                            .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+                    }
+                }
+            } catch (error) {
+                console.warn('[Browser] Failed to fetch OpenAI models, using defaults:', error);
+            }
+        }
+
+        if (provider === 'anthropic' && apiKey?.trim()) {
+            try {
+                const url = baseUrl || 'https://api.anthropic.com/v1';
+                const response = await fetch(`${url}/models`, {
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                    },
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && Array.isArray(data.data)) {
+                        return data.data
+                            .map((m: { id: string; display_name?: string }) => createModelInfo(m.id, m.display_name || m.id))
+                            .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+                    }
+                }
+            } catch (error) {
+                console.warn('[Browser] Failed to fetch Anthropic models, using defaults:', error);
+            }
+        }
 
         // For OpenRouter, try to fetch models from API if API key is provided
         if (provider === 'openrouter' && apiKey && apiKey.trim()) {

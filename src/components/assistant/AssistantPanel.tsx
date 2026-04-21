@@ -25,6 +25,7 @@ import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessag
 import { useI18n } from "../../lib/i18n";
 import type { ResolvedAssistantContext } from "../../utils/assistantContext";
 import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
+import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
 export interface AssistantContext {
   type: "document" | "web" | "video" | "general";
@@ -524,7 +525,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         };
       }
 
-      if (effectiveProvider !== "ollama" && (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim())) {
+      if (providerRequiresApiKey(selectedTypeProvider.provider, selectedTypeProvider.baseUrl) && (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim())) {
         return {
           content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Settings.`,
         };
