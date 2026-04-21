@@ -76,7 +76,7 @@ jobs:
           if-no-files-found: warn
 
   build:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     continue-on-error: ${{ !matrix.required }}
     strategy:
       fail-fast: false
@@ -161,6 +161,7 @@ jobs:
         run: npm run test:run -- src/utils/__tests__/ankiLatex.test.ts src/components/review/__tests__/FlashcardScrollItem.test.tsx
 
       - name: Validate tag matches app versions
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/github-script@v7
         with:
           script: |
@@ -280,7 +281,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
 
   build-appimage:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -336,6 +337,7 @@ jobs:
         run: npm ci
 
       - name: Validate tag matches app versions
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/github-script@v7
         with:
           script: |
@@ -403,7 +405,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
 
   build-arch:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
       image: archlinux:base-devel
@@ -429,6 +431,7 @@ jobs:
         run: npm ci
 
       - name: Validate tag matches app versions
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/github-script@v7
         with:
           script: |
@@ -539,7 +542,7 @@ jobs:
 
   release-readiness:
     needs: [build, build-appimage, build-arch]
-    if: ${{ startsWith(github.ref, 'refs/tags/') && always() }}
+    if: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Summarize required and optional architecture outcomes
