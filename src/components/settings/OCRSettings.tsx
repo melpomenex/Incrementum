@@ -46,83 +46,84 @@ interface OCRSettingsProps {
   onUpdateSettings: (updates: Partial<OCRSettingsProps["settings"]>) => void;
 }
 
-const OCR_PROVIDERS = [
-  {
-    id: "tesseract",
-    name: "Tesseract (Local)",
-    description: "Open-source OCR engine running locally",
-    icon: Server,
-    isCloud: false,
-  },
-  {
-    id: "glm",
-    name: "GLM-OCR (Local)",
-    description: "Multimodal OCR via llama.cpp or vLLM server",
-    icon: Cpu,
-    isCloud: false,
-    badge: "GPU recommended",
-  },
-  {
-    id: "google",
-    name: "Google Document AI",
-    description: "Google's cloud-based document AI service",
-    icon: Cloud,
-    isCloud: true,
-  },
-  {
-    id: "aws",
-    name: "AWS Textract",
-    description: "Amazon's text extraction service",
-    icon: Cloud,
-    isCloud: true,
-  },
-  {
-    id: "azure",
-    name: "Azure Computer Vision",
-    description: "Microsoft's vision API",
-    icon: Cloud,
-    isCloud: true,
-  },
-  {
-    id: "marker",
-    name: "Marker (Local)",
-    description: "Convert PDFs to markdown locally",
-    icon: FileText,
-    isCloud: false,
-  },
-  {
-    id: "nougat",
-    name: "Nougat (Local)",
-    description: "OCR for scientific documents with math",
-    icon: Brain,
-    isCloud: false,
-  },
-];
-
-const SUPPORTED_LANGUAGES = [
-  { code: "eng", name: "English" },
-  { code: "spa", name: "Spanish" },
-  { code: "fra", name: "French" },
-  { code: "deu", name: "German" },
-  { code: "ita", name: "Italian" },
-  { code: "por", name: "Portuguese" },
-  { code: "rus", name: "Russian" },
-  { code: "chi_sim", name: "Chinese (Simplified)" },
-  { code: "chi_tra", name: "Chinese (Traditional)" },
-  { code: "jpn", name: "Japanese" },
-  { code: "kor", name: "Korean" },
-  { code: "ara", name: "Arabic" },
-  { code: "hin", name: "Hindi" },
-];
-
-const MATH_OCR_MODELS = [
-  { id: "pix2tex", name: "pix2tex (LaTeX-OCR)" },
-  { id: "nougat", name: "Nougat (Meta)" },
-  { id: "latex-ocr", name: "LaTeX-OCR" },
-];
-
 export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
   const { t } = useI18n();
+
+  const OCR_PROVIDERS = [
+    {
+      id: "tesseract",
+      name: t("ocrSettings.tesseract"),
+      description: t("ocrSettings.tesseractDesc"),
+      icon: Server,
+      isCloud: false,
+    },
+    {
+      id: "glm",
+      name: t("ocrSettings.glmOcr"),
+      description: t("ocrSettings.glmOcrProviderDesc"),
+      icon: Cpu,
+      isCloud: false,
+      badge: t("ocrSettings.glmBadge"),
+    },
+    {
+      id: "google",
+      name: t("ocrSettings.googleDocAi"),
+      description: t("ocrSettings.googleDocAiProviderDesc"),
+      icon: Cloud,
+      isCloud: true,
+    },
+    {
+      id: "aws",
+      name: t("ocrSettings.awsTextract"),
+      description: t("ocrSettings.awsTextractProviderDesc"),
+      icon: Cloud,
+      isCloud: true,
+    },
+    {
+      id: "azure",
+      name: t("ocrSettings.azureVision"),
+      description: t("ocrSettings.azureVisionProviderDesc"),
+      icon: Cloud,
+      isCloud: true,
+    },
+    {
+      id: "marker",
+      name: t("ocrSettings.marker"),
+      description: t("ocrSettings.markerDesc"),
+      icon: FileText,
+      isCloud: false,
+    },
+    {
+      id: "nougat",
+      name: t("ocrSettings.nougat"),
+      description: t("ocrSettings.nougatDesc"),
+      icon: Brain,
+      isCloud: false,
+    },
+  ];
+
+  const MATH_OCR_MODELS = [
+    { id: "pix2tex", name: t("ocrSettings.mathModelPix2tex") },
+    { id: "nougat", name: t("ocrSettings.mathModelNougat") },
+    { id: "latex-ocr", name: t("ocrSettings.mathModelLatexOcr") },
+  ];
+
+  const SUPPORTED_LANGUAGES = [
+    { code: "eng", name: t("ocrSettings.langEng") },
+    { code: "spa", name: t("ocrSettings.langSpa") },
+    { code: "fra", name: t("ocrSettings.langFra") },
+    { code: "deu", name: t("ocrSettings.langDeu") },
+    { code: "ita", name: t("ocrSettings.langIta") },
+    { code: "por", name: t("ocrSettings.langPor") },
+    { code: "rus", name: t("ocrSettings.langRus") },
+    { code: "chi_sim", name: t("ocrSettings.langChiSim") },
+    { code: "chi_tra", name: t("ocrSettings.langChiTra") },
+    { code: "jpn", name: t("ocrSettings.langJpn") },
+    { code: "kor", name: t("ocrSettings.langKor") },
+    { code: "ara", name: t("ocrSettings.langAra") },
+    { code: "hin", name: t("ocrSettings.langHin") },
+  ];
+
   const selectedProvider = OCR_PROVIDERS.find((p) => p.id === settings.provider);
   const ProviderIcon = selectedProvider?.icon || ScanText;
   const [runtimeStatus, setRuntimeStatus] = useState<GLMRuntimeStatus | null>(null);
@@ -152,7 +153,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       setRuntimeStatus(status);
       setRuntimeError(null);
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to fetch runtime status");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.runtimeStatusFailed"));
     }
   };
 
@@ -175,7 +176,6 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       if (mounted) {
         unlistenProgress = unlisten;
       } else {
-        // Component unmounted before promise resolved, clean up immediately
         try { unlisten(); } catch { /* ignore */ }
       }
     }).catch(() => {
@@ -192,7 +192,6 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       if (mounted) {
         unlistenComplete = unlisten;
       } else {
-        // Component unmounted before promise resolved, clean up immediately
         try { unlisten(); } catch { /* ignore */ }
       }
     }).catch(() => {
@@ -228,7 +227,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
 
   const handleDownloadOllama = async () => {
     if (runtimeDisabled) {
-      setRuntimeError("Runtime setup is only available in the desktop app.");
+      setRuntimeError(t("ocrSettings.desktopOnly"));
       return;
     }
     setIsDownloadingInstaller(true);
@@ -236,7 +235,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       const path = await downloadOllamaInstaller();
       setInstallerPath(path);
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to download installer");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.downloadFailed"));
     } finally {
       setIsDownloadingInstaller(false);
     }
@@ -244,20 +243,20 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
 
   const handleOpenInstaller = async () => {
     if (runtimeDisabled) {
-      setRuntimeError("Runtime setup is only available in the desktop app.");
+      setRuntimeError(t("ocrSettings.desktopOnly"));
       return;
     }
     if (!installerPath) return;
     try {
       await openInstaller(installerPath);
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to open installer");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.openInstallerFailed"));
     }
   };
 
   const handleStartRuntime = async () => {
     if (runtimeDisabled) {
-      setRuntimeError("Runtime setup is only available in the desktop app.");
+      setRuntimeError(t("ocrSettings.desktopOnly"));
       return;
     }
     setIsStartingRuntime(true);
@@ -268,7 +267,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       });
       await refreshRuntimeStatus();
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to start runtime");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.startFailed"));
     } finally {
       setIsStartingRuntime(false);
     }
@@ -276,7 +275,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
 
   const handleStopRuntime = async () => {
     if (runtimeDisabled) {
-      setRuntimeError("Runtime setup is only available in the desktop app.");
+      setRuntimeError(t("ocrSettings.desktopOnly"));
       return;
     }
     setIsStoppingRuntime(true);
@@ -284,7 +283,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       await stopOllamaRuntime();
       await refreshRuntimeStatus();
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to stop runtime");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.stopFailed"));
     } finally {
       setIsStoppingRuntime(false);
     }
@@ -292,11 +291,11 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
 
   const handlePullModel = async () => {
     if (runtimeDisabled) {
-      setRuntimeError("Runtime setup is only available in the desktop app.");
+      setRuntimeError(t("ocrSettings.desktopOnly"));
       return;
     }
     if (!settings.glmModel) {
-      setRuntimeError("Set a model name before pulling.");
+      setRuntimeError(t("ocrSettings.setModelFirst"));
       return;
     }
     setIsPullingModel(true);
@@ -307,7 +306,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       });
       await refreshRuntimeStatus();
     } catch (error) {
-      setRuntimeError(error instanceof Error ? error.message : "Failed to pull model");
+      setRuntimeError(error instanceof Error ? error.message : t("ocrSettings.pullFailed"));
     } finally {
       setIsPullingModel(false);
     }
@@ -321,9 +320,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
         </div>
         <div>
           <h3 className="text-lg font-semibold text-foreground">{t("ocrSettings.title")}</h3>
-          <p className="text-sm text-muted-foreground">
-            Configure optical character recognition for documents
-          </p>
+          <p className="text-sm text-muted-foreground">{t("ocrSettings.desc")}</p>
         </div>
       </div>
 
@@ -335,9 +332,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Zap className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.autoOcr")}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Automatically OCR images and scanned documents on import
-                </div>
+                <div className="text-xs text-muted-foreground mt-1">{t("ocrSettings.autoOcrDesc")}</div>
               </div>
             </div>
             <button
@@ -361,9 +356,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <ProviderIcon className="w-5 h-5 text-muted-foreground" />
             <div>
               <div className="text-sm font-medium text-foreground">{t("ocrSettings.provider")}</div>
-              <div className="text-xs text-muted-foreground">
-                Select the OCR engine to use
-              </div>
+              <div className="text-xs text-muted-foreground">{t("ocrSettings.selectProvider")}</div>
             </div>
           </div>
 
@@ -402,9 +395,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             <Languages className="w-5 h-5 text-muted-foreground" />
             <div>
               <div className="text-sm font-medium text-foreground">{t("ocrSettings.language")}</div>
-              <div className="text-xs text-muted-foreground">
-                Primary language for text recognition
-              </div>
+              <div className="text-xs text-muted-foreground">{t("ocrSettings.primaryLanguage")}</div>
             </div>
           </div>
           <select
@@ -428,17 +419,13 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.googleDocAi")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Configure Google Cloud Document AI credentials
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.googleDocAiDesc")}</div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Project ID
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.projectId")}</label>
                 <input
                   type="text"
                   value={settings.googleProjectId || ""}
@@ -449,9 +436,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Location
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.location")}</label>
                 <input
                   type="text"
                   value={settings.googleLocation || "us"}
@@ -462,9 +447,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Processor ID
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.processorId")}</label>
                 <input
                   type="text"
                   value={settings.googleProcessorId || ""}
@@ -475,9 +458,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Credentials Path
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.credentialsPath")}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -488,7 +469,6 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                   />
                   <button
                     onClick={() => {
-                      // Trigger file picker for credentials
                       (window as any).api?.file?.openFileDialog?.({
                         filters: [{ name: "JSON", extensions: ["json"] }],
                       })?.then((path: string) => {
@@ -497,7 +477,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     }}
                     className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-lg text-sm transition-colors"
                   >
-                    Browse
+                    {t("ocrSettings.browse")}
                   </button>
                 </div>
               </div>
@@ -512,17 +492,13 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.awsTextract")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Configure AWS credentials for text extraction
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.awsTextractDesc")}</div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  AWS Region
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.awsRegion")}</label>
                 <select
                   value={settings.awsRegion || "us-east-1"}
                   onChange={(e) => onUpdateSettings({ awsRegion: e.target.value })}
@@ -536,9 +512,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Access Key ID
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.accessKeyId")}</label>
                 <input
                   type="password"
                   value={settings.awsAccessKey || ""}
@@ -549,9 +523,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Secret Access Key
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.secretAccessKey")}</label>
                 <input
                   type="password"
                   value={settings.awsSecretKey || ""}
@@ -571,17 +543,13 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Cloud className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.azureVision")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Configure Azure Vision API credentials
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.azureVisionDesc")}</div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Endpoint
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.endpoint")}</label>
                 <input
                   type="text"
                   value={settings.azureEndpoint || ""}
@@ -592,9 +560,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  API Key
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.apiKey")}</label>
                 <input
                   type="password"
                   value={settings.azureApiKey || ""}
@@ -614,17 +580,13 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Cpu className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.glmOcr")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Configure your local OpenAI-compatible endpoint
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.glmOcrDesc")}</div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Endpoint
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.endpoint")}</label>
                 <input
                   type="text"
                   value={settings.glmEndpoint || ""}
@@ -635,9 +597,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Model
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.model")}</label>
                 <input
                   type="text"
                   value={settings.glmModel || ""}
@@ -647,7 +607,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                 />
                 {glmBackend === "ollama" && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    Suggested Ollama models:{" "}
+                    {t("ocrSettings.suggestedModels")}:{" "}
                     <button
                       onClick={() => onUpdateSettings({ glmModel: "llava:7b" })}
                       className="text-primary underline decoration-dotted underline-offset-2 hover:decoration-solid"
@@ -673,9 +633,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  API Key (optional)
-                </label>
+                <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.apiKeyOptional")}</label>
                 <input
                   type="password"
                   value={settings.glmApiKey || ""}
@@ -695,9 +653,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <Cpu className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.glmRuntime")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Choose a backend and manage local runtime setup
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.glmRuntimeDesc")}</div>
               </div>
             </div>
 
@@ -710,7 +666,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Ollama (CPU)
+                {t("ocrSettings.ollamaCpu")}
               </button>
               <button
                 onClick={() => handleBackendChange("vllm")}
@@ -720,7 +676,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                llama.cpp / vLLM (GPU)
+                {t("ocrSettings.llamaCppVllm")}
               </button>
             </div>
 
@@ -728,31 +684,31 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
               <div className="space-y-4">
                 {runtimeDisabled && (
                   <div className="text-xs text-muted-foreground">
-                    Runtime setup is available in the desktop app only.
+                    {t("ocrSettings.desktopOnly")}
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="text-xs text-muted-foreground">
-                    Status:{" "}
+                    {t("ocrSettings.status")}:{" "}
                     <span className="text-foreground font-medium">
-                      {runtimeStatus?.running ? "Running" : "Stopped"}
+                      {runtimeStatus?.running ? t("ocrSettings.running") : t("ocrSettings.stopped")}
                     </span>
                     {" · "}
                     <span className="text-foreground font-medium">
-                      {runtimeStatus?.installed ? "Installed" : "Not installed"}
+                      {runtimeStatus?.installed ? t("ocrSettings.installed") : t("ocrSettings.notInstalled")}
                     </span>
                   </div>
                   <button
                     onClick={refreshRuntimeStatus}
                     className="px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-md text-xs transition-colors"
                   >
-                    Refresh
+                    {t("ocrSettings.refresh")}
                   </button>
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-xs font-medium text-foreground mb-1">
-                    Ollama Binary Path (optional)
+                    {t("ocrSettings.ollamaBinaryPath")}
                   </label>
                   <input
                     type="text"
@@ -769,7 +725,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     disabled={runtimeDisabled || isDownloadingInstaller}
                     className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-xs transition-colors disabled:opacity-50"
                   >
-                    {isDownloadingInstaller ? "Downloading..." : "Download Ollama"}
+                    {isDownloadingInstaller ? t("ocrSettings.downloading") : t("ocrSettings.downloadOllama")}
                   </button>
                   {installerPath && (
                     <button
@@ -777,7 +733,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                       disabled={runtimeDisabled}
                       className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-xs transition-colors"
                     >
-                      Open Installer
+                      {t("ocrSettings.openInstaller")}
                     </button>
                   )}
                   <button
@@ -785,21 +741,21 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     disabled={runtimeDisabled || !runtimeStatus?.installed || isStartingRuntime}
                     className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-xs transition-colors disabled:opacity-50"
                   >
-                    {isStartingRuntime ? "Starting..." : "Start Runtime"}
+                    {isStartingRuntime ? t("ocrSettings.starting") : t("ocrSettings.startRuntime")}
                   </button>
                   <button
                     onClick={handleStopRuntime}
                     disabled={runtimeDisabled || !runtimeStatus?.running || isStoppingRuntime}
                     className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-xs transition-colors disabled:opacity-50"
                   >
-                    {isStoppingRuntime ? "Stopping..." : "Stop Runtime"}
+                    {isStoppingRuntime ? t("ocrSettings.stopping") : t("ocrSettings.stopRuntime")}
                   </button>
                   <button
                     onClick={handlePullModel}
                     disabled={runtimeDisabled || !settings.glmModel || isPullingModel}
                     className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-xs transition-colors disabled:opacity-50"
                   >
-                    {isPullingModel ? "Pulling..." : "Pull Model"}
+                    {isPullingModel ? t("ocrSettings.pulling") : t("ocrSettings.pullModel")}
                   </button>
                 </div>
 
@@ -814,7 +770,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
 
                 {runtimeStatus?.models_dir && (
                   <div className="text-xs text-muted-foreground">
-                    Models directory: <span className="text-foreground">{runtimeStatus.models_dir}</span>
+                    {t("ocrSettings.modelsDir")}: <span className="text-foreground">{runtimeStatus.models_dir}</span>
                   </div>
                 )}
 
@@ -823,16 +779,14 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                 )}
 
                 <div className="text-xs text-muted-foreground">
-                  Linux users: after download, run the installer script with sudo if required.
+                  {t("ocrSettings.linuxSudoHint")}
                 </div>
               </div>
             ) : (
               <div className="space-y-3 text-xs text-muted-foreground">
-                <div>
-                  Run any OpenAI-compatible server on port 8080. <strong>llama.cpp</strong> (CPU) is the simplest option; vLLM (GPU) offers faster inference.
-                </div>
+                <div>{t("ocrSettings.vllmIntro")}</div>
                 <div className="rounded-md bg-muted/40 p-3">
-                  <div className="font-medium text-foreground mb-1">llama.cpp (recommended — CPU, no GPU needed)</div>
+                  <div className="font-medium text-foreground mb-1">{t("ocrSettings.llamaCppTitle")}</div>
                   <pre className="whitespace-pre-wrap text-xs text-foreground">
                     {`git clone https://github.com/ggml-org/llama.cpp.git
 cd llama.cpp && cmake -B build && cmake --build build -j$(nproc)
@@ -841,25 +795,20 @@ cd llama.cpp && cmake -B build && cmake --build build -j$(nproc)
                   </pre>
                 </div>
                 <div className="rounded-md bg-muted/40 p-3">
-                  <div className="font-medium text-foreground mb-1">vLLM (GPU accelerated)</div>
+                  <div className="font-medium text-foreground mb-1">{t("ocrSettings.vllmTitle")}</div>
                   <pre className="whitespace-pre-wrap text-xs text-foreground">
                     {`pip install -U vllm
 vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
                   </pre>
                 </div>
-                <div>
-                  After the server starts, set the endpoint to <strong>http://localhost:8080/v1</strong> and enter your model name.
-                </div>
-                <div>
-                  For detailed setup guidance, see the GLM-OCR README.
-                </div>
+                <div>{t("ocrSettings.serverStarted")}</div>
                 <a
                   href="https://github.com/zai-org/GLM-OCR#deployment"
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid"
                 >
-                  GLM-OCR deployment docs
+                  {t("ocrSettings.deploymentDocs")}
                 </a>
               </div>
             )}
@@ -873,18 +822,14 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
               <Server className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.localProcessing")}</div>
-                <div className="text-xs text-muted-foreground">
-                  Configure local OCR engine options
-                </div>
+                <div className="text-xs text-muted-foreground">{t("ocrSettings.localProcessingDesc")}</div>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">{t("ocrSettings.preferLocal")}</p>
-                <p className="text-xs text-muted-foreground">
-                  Always use local processing even when cloud providers are available
-                </p>
+                <p className="text-xs text-muted-foreground">{t("ocrSettings.preferLocalDesc")}</p>
               </div>
               <button
                 onClick={() => onUpdateSettings({ preferLocal: !settings.preferLocal })}
@@ -910,9 +855,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
                 <Brain className="w-5 h-5 text-muted-foreground" />
                 <div>
                   <div className="text-sm font-medium text-foreground">{t("ocrSettings.mathOcr")}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Extract mathematical equations and formulas
-                  </div>
+                  <div className="text-xs text-muted-foreground">{t("ocrSettings.mathOcrDesc")}</div>
                 </div>
               </div>
               <button
@@ -932,9 +875,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
             {settings.mathOcrEnabled && (
               <div className="space-y-3 pt-3 border-t border-border">
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    OCR Model
-                  </label>
+                  <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.ocrModel")}</label>
                   <select
                     value={settings.mathOcrCommand || "nougat"}
                     onChange={(e) => onUpdateSettings({ mathOcrCommand: e.target.value })}
@@ -949,9 +890,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Model Directory (optional)
-                  </label>
+                  <label className="block text-xs font-medium text-foreground mb-1">{t("ocrSettings.modelDirOptional")}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -970,7 +909,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
                       }}
                       className="px-3 py-2 bg-muted hover:bg-muted/80 rounded-lg text-sm transition-colors"
                     >
-                      Browse
+                      {t("ocrSettings.browse")}
                     </button>
                   </div>
                 </div>
@@ -986,9 +925,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
               <Eye className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.keyPhrase")}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Automatically extract important keywords and phrases
-                </div>
+                <div className="text-xs text-muted-foreground mt-1">{t("ocrSettings.keyPhraseDesc")}</div>
               </div>
             </div>
             <button
@@ -1013,9 +950,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
               <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.autoExtractOnLoad")}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Automatically extract content when opening documents
-                </div>
+                <div className="text-xs text-muted-foreground mt-1">{t("ocrSettings.autoExtractOnLoadDesc")}</div>
               </div>
             </div>
             <button
@@ -1036,9 +971,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
         {/* Info Box */}
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
           <p className="text-sm text-primary">
-            <strong>{t("ocrSettings.note")}</strong> Local OCR providers (Tesseract, GLM-OCR, Marker, Nougat) process
-            documents on your computer. Cloud providers (Google, AWS, Azure) may incur costs
-            and require internet access.
+            <strong>{t("ocrSettings.note")}</strong> {t("ocrSettings.noteDesc")}
           </p>
         </div>
       </div>
