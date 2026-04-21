@@ -175,14 +175,15 @@ pub async fn llm_chat(
     let max_tokens = if max_tokens == 0 { DEFAULT_MAX_TOKENS } else { max_tokens };
     let base_url = normalize_base_url(base_url, &provider);
     let api_key = normalize_api_key(api_key);
+    let requires_api_key = provider_requires_api_key(&provider, &base_url);
 
-    if api_key.is_none() && provider != "ollama" {
+    if api_key.is_none() && requires_api_key {
         return Err("API key is required".to_string());
     }
 
     let result = match provider.as_str() {
         "openai" => {
-            call_openai_with_key(&client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            call_openai_with_key(&client, &model, messages, temperature, max_tokens, api_key.as_deref(), &base_url).await?
         }
         "anthropic" => {
             call_anthropic_with_key(&client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
@@ -279,8 +280,9 @@ pub async fn llm_stream_chat(
     let max_tokens = if max_tokens == 0 { DEFAULT_MAX_TOKENS } else { max_tokens };
     let base_url = normalize_base_url(base_url, &provider);
     let api_key = normalize_api_key(api_key);
+    let requires_api_key = provider_requires_api_key(&provider, &base_url);
 
-    if api_key.is_none() && provider != "ollama" {
+    if api_key.is_none() && requires_api_key {
         let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
             "error": "API key is required"
         }));
@@ -289,7 +291,7 @@ pub async fn llm_stream_chat(
 
     match provider.as_str() {
         "openai" => {
-            stream_openai(&app, &client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            stream_openai(&app, &client, &model, messages, temperature, max_tokens, api_key.as_deref(), &base_url).await?
         }
         "anthropic" => {
             stream_anthropic(&app, &client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
@@ -298,7 +300,7 @@ pub async fn llm_stream_chat(
             stream_ollama(&app, &client, &model, messages, temperature, max_tokens, &base_url).await?
         }
         "openrouter" => {
-            stream_openai(&app, &client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            stream_openai(&app, &client, &model, messages, temperature, max_tokens, Some(api_key.as_deref().unwrap()), &base_url).await?
         }
         _ => {
             let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
@@ -320,7 +322,7 @@ async fn stream_openai(
     messages: Vec<LLMMessage>,
     temperature: f64,
     max_tokens: usize,
-    api_key: &str,
+    api_key: Option<&str>,
     base_url: &str,
 ) -> Result<(), String> {
     let request = OpenAIRequest {
@@ -337,9 +339,12 @@ async fn stream_openai(
         stream: Some(true),
     };
 
-    let response = client
-        .post(format!("{}/chat/completions", base_url))
-        .header("Authorization", format!("Bearer {}", api_key))
+    let mut request_builder = client.post(format!("{}/chat/completions", base_url));
+    if let Some(api_key) = api_key {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request_builder
         .json(&request)
         .send()
         .await
@@ -623,17 +628,53 @@ async fn stream_ollama(
 #[tauri::command]
 pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url: Option<String>) -> Result<Vec<ModelInfo>, String> {
     match provider.as_str() {
-        "openai" => Ok(vec![
-            ModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.0025), completion: Some(0.01), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
-            ModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.00015), completion: Some(0.0006), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
-            ModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.01), completion: Some(0.03), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
-            ModelInfo { id: "gpt-3.5-turbo".to_string(), name: "GPT-3.5 Turbo".to_string(), context_length: Some(16385), pricing: Some(ModelPricing { prompt: Some(0.0005), completion: Some(0.0015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
-        ]),
-        "anthropic" => Ok(vec![
-            ModelInfo { id: "claude-3-5-sonnet-20241022".to_string(), name: "Claude 3.5 Sonnet".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: Some(0.0003), cache_write: Some(0.00375), }) },
-            ModelInfo { id: "claude-3-5-haiku-20241022".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: Some(0.00008), cache_write: Some(0.001), }) },
-            ModelInfo { id: "claude-3-opus-20240229".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: Some(0.0015), cache_write: Some(0.01875), }) },
-        ]),
+        "openai" => {
+            let normalized_api_key = normalize_api_key(api_key.clone());
+            if normalized_api_key.is_some()
+                || provider_allows_keyless_access("openai", &normalize_base_url(base_url.clone(), "openai"))
+            {
+                let client = Client::new();
+                let url = normalize_base_url(base_url, "openai");
+                match fetch_openai_compatible_models(&client, &url, normalized_api_key.as_deref()).await {
+                    Ok(models) => Ok(models),
+                    Err(_) if normalized_api_key.is_none() => Ok(vec![
+                        ModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.0025), completion: Some(0.01), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                        ModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.00015), completion: Some(0.0006), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                        ModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.01), completion: Some(0.03), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                        ModelInfo { id: "gpt-3.5-turbo".to_string(), name: "GPT-3.5 Turbo".to_string(), context_length: Some(16385), pricing: Some(ModelPricing { prompt: Some(0.0005), completion: Some(0.0015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                    ]),
+                    Err(error) => Err(error),
+                }
+            } else {
+                Ok(vec![
+                    ModelInfo { id: "gpt-4o".to_string(), name: "GPT-4o".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.0025), completion: Some(0.01), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                    ModelInfo { id: "gpt-4o-mini".to_string(), name: "GPT-4o Mini".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.00015), completion: Some(0.0006), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                    ModelInfo { id: "gpt-4-turbo".to_string(), name: "GPT-4 Turbo".to_string(), context_length: Some(128000), pricing: Some(ModelPricing { prompt: Some(0.01), completion: Some(0.03), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                    ModelInfo { id: "gpt-3.5-turbo".to_string(), name: "GPT-3.5 Turbo".to_string(), context_length: Some(16385), pricing: Some(ModelPricing { prompt: Some(0.0005), completion: Some(0.0015), request: None, image: None, web_search: None, cache_read: None, cache_write: None }) },
+                ])
+            }
+        }
+        "anthropic" => {
+            let normalized_api_key = normalize_api_key(api_key);
+            if let Some(api_key) = normalized_api_key.as_deref() {
+                let client = Client::new();
+                let url = normalize_base_url(base_url, "anthropic");
+                match fetch_anthropic_models(&client, &url, api_key).await {
+                    Ok(models) => Ok(models),
+                    Err(_) => Ok(vec![
+                        ModelInfo { id: "claude-3-5-sonnet-20241022".to_string(), name: "Claude 3.5 Sonnet".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: Some(0.0003), cache_write: Some(0.00375), }) },
+                        ModelInfo { id: "claude-3-5-haiku-20241022".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: Some(0.00008), cache_write: Some(0.001), }) },
+                        ModelInfo { id: "claude-3-opus-20240229".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: Some(0.0015), cache_write: Some(0.01875), }) },
+                    ]),
+                }
+            } else {
+                Ok(vec![
+                    ModelInfo { id: "claude-3-5-sonnet-20241022".to_string(), name: "Claude 3.5 Sonnet".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.003), completion: Some(0.015), request: None, image: None, web_search: None, cache_read: Some(0.0003), cache_write: Some(0.00375), }) },
+                    ModelInfo { id: "claude-3-5-haiku-20241022".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: Some(0.00008), cache_write: Some(0.001), }) },
+                    ModelInfo { id: "claude-3-opus-20240229".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: Some(0.0015), cache_write: Some(0.01875), }) },
+                ])
+            }
+        }
         "ollama" => {
             let client = Client::new();
             let url = normalize_base_url(base_url, "ollama");
@@ -677,13 +718,13 @@ pub async fn llm_test_connection(
     let base_url = normalize_base_url(base_url, &provider);
     let api_key = normalize_api_key(Some(api_key)).unwrap_or_default();
 
-    if api_key.is_empty() && provider != "ollama" {
+    if provider_requires_api_key(&provider, &base_url) && api_key.is_empty() {
         return Err("API key is required".to_string());
     }
 
     let result = match provider.as_str() {
         "openai" => {
-            test_openai_connection(&client, &base_url, &api_key).await?
+            test_openai_connection(&client, &base_url, if api_key.is_empty() { None } else { Some(api_key.as_str()) }).await?
         }
         "anthropic" => {
             test_anthropic_connection(&client, &base_url, &api_key).await?
@@ -707,7 +748,7 @@ async fn call_openai_with_key(
     messages: Vec<LLMMessage>,
     temperature: f64,
     max_tokens: usize,
-    api_key: &str,
+    api_key: Option<&str>,
     base_url: &str,
 ) -> Result<LLMResponse, String> {
     let request = OpenAIRequest {
@@ -724,9 +765,12 @@ async fn call_openai_with_key(
         stream: None,
     };
 
-    let response = client
-        .post(format!("{}/chat/completions", base_url))
-        .header("Authorization", format!("Bearer {}", api_key))
+    let mut request_builder = client.post(format!("{}/chat/completions", base_url));
+    if let Some(api_key) = api_key {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request_builder
         .json(&request)
         .send()
         .await
@@ -964,23 +1008,18 @@ async fn call_openrouter_with_key(
 async fn test_openai_connection(
     client: &Client,
     base_url: &str,
-    api_key: &str,
+    api_key: Option<&str>,
 ) -> Result<bool, String> {
-    let request = OpenAIRequest {
-        model: "gpt-3.5-turbo".to_string(),
-        messages: vec![OpenAIMessage {
-            role: "user".to_string(),
-            content: "Test".to_string(),
-        }],
-        temperature: 0.5,
-        max_tokens: 5,
-        stream: None,
-    };
+    if api_key.is_none() && !is_local_base_url(base_url) {
+        return Err("API key is required".to_string());
+    }
 
-    let response = client
-        .post(format!("{}/chat/completions", base_url))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&request)
+    let mut request_builder = client.get(format!("{}/models", base_url));
+    if let Some(api_key) = api_key {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request_builder
         .send()
         .await
         .map_err(|e| format!("Connection failed: {}", e))?;
@@ -993,24 +1032,10 @@ async fn test_anthropic_connection(
     base_url: &str,
     api_key: &str,
 ) -> Result<bool, String> {
-    let request = AnthropicRequest {
-        model: "claude-3-haiku-20240307".to_string(),
-        messages: vec![AnthropicMessage {
-            role: "user".to_string(),
-            content: "Test".to_string(),
-        }],
-        max_tokens: 5,
-        temperature: 0.5,
-        anthropic_version: "2023-06-01".to_string(),
-        stream: None,
-    };
-
     let response = client
-        .post(format!("{}/messages", base_url))
+        .get(format!("{}/models", base_url))
         .header("x-api-key", api_key)
         .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&request)
         .send()
         .await
         .map_err(|e| format!("Connection failed: {}", e))?;
@@ -1182,6 +1207,125 @@ async fn fetch_openrouter_models(
     Ok(models)
 }
 
+async fn fetch_openai_compatible_models(
+    client: &Client,
+    base_url: &str,
+    api_key: Option<&str>,
+) -> Result<Vec<ModelInfo>, String> {
+    let mut request_builder = client.get(format!("{}/models", base_url));
+    if let Some(api_key) = api_key {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request_builder
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch models from OpenAI-compatible endpoint: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(format!("OpenAI-compatible models API error ({}): {}", status, error_text));
+    }
+
+    let payload: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse OpenAI-compatible models response: {}", e))?;
+
+    let data = payload
+        .get("data")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "Failed to parse OpenAI-compatible models response: missing `data` array".to_string())?;
+
+    let mut models: Vec<ModelInfo> = data
+        .iter()
+        .filter_map(|entry| {
+            let obj = entry.as_object()?;
+            let id = obj.get("id")?.as_str()?.trim().to_string();
+            if id.is_empty() {
+                return None;
+            }
+
+            Some(ModelInfo {
+                name: id.clone(),
+                id,
+                context_length: None,
+                pricing: None,
+            })
+        })
+        .collect();
+
+    if models.is_empty() {
+        return Err("OpenAI-compatible endpoint did not return any usable models".to_string());
+    }
+
+    models.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(models)
+}
+
+async fn fetch_anthropic_models(
+    client: &Client,
+    base_url: &str,
+    api_key: &str,
+) -> Result<Vec<ModelInfo>, String> {
+    let response = client
+        .get(format!("{}/models", base_url))
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch models from Anthropic: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(format!("Anthropic models API error ({}): {}", status, error_text));
+    }
+
+    let payload: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Anthropic models response: {}", e))?;
+
+    let data = payload
+        .get("data")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "Failed to parse Anthropic models response: missing `data` array".to_string())?;
+
+    let mut models: Vec<ModelInfo> = data
+        .iter()
+        .filter_map(|entry| {
+            let obj = entry.as_object()?;
+            let id = obj.get("id")?.as_str()?.trim().to_string();
+            if id.is_empty() {
+                return None;
+            }
+
+            let display_name = obj
+                .get("display_name")
+                .and_then(|v| v.as_str())
+                .map(|name| name.trim().to_string())
+                .filter(|name| !name.is_empty())
+                .unwrap_or_else(|| id.clone());
+
+            Some(ModelInfo {
+                id,
+                name: display_name,
+                context_length: None,
+                pricing: None,
+            })
+        })
+        .collect();
+
+    if models.is_empty() {
+        return Err("Anthropic models response did not contain any usable models".to_string());
+    }
+
+    models.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(models)
+}
+
 async fn fetch_ollama_models(
     client: &Client,
     base_url: &str,
@@ -1279,6 +1423,31 @@ fn normalize_model(model: Option<String>, provider: &str) -> String {
         .map(|name| name.trim().to_string())
         .filter(|name| !name.is_empty())
         .unwrap_or_else(|| get_default_model(provider))
+}
+
+fn provider_allows_keyless_access(provider: &str, base_url: &str) -> bool {
+    provider == "ollama" || (provider == "openai" && is_local_base_url(base_url))
+}
+
+fn provider_requires_api_key(provider: &str, base_url: &str) -> bool {
+    !provider_allows_keyless_access(provider, base_url)
+}
+
+fn is_local_base_url(base_url: &str) -> bool {
+    let trimmed = base_url.trim().to_ascii_lowercase();
+    let without_scheme = trimmed
+        .strip_prefix("http://")
+        .or_else(|| trimmed.strip_prefix("https://"))
+        .unwrap_or(trimmed.as_str());
+    let host_port = without_scheme.split('/').next().unwrap_or("");
+    let host = if host_port.starts_with('[') {
+        host_port.split(']').next().unwrap_or(host_port).trim_start_matches('[')
+    } else {
+        host_port.split(':').next().unwrap_or(host_port)
+    };
+
+    matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0" | "::1" | "host.docker.internal")
+        || host.ends_with(".local")
 }
 
 fn normalize_base_url(base_url: Option<String>, provider: &str) -> String {

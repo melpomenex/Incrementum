@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
 /**
  * Validation severity
@@ -252,7 +253,7 @@ export async function validateAllSettings(config: {
   }
 
   // Validate AI settings
-  if (config.ai?.provider && config.ai.provider !== "ollama") {
+  if (config.ai?.provider && providerRequiresApiKey(config.ai.provider, config.ai.baseUrl)) {
     if (!config.ai.apiKey) {
       validator.warning(
         "ai.apiKey",
