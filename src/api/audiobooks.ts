@@ -572,6 +572,15 @@ export async function parseChapters(filePath: string): Promise<AudiobookChapter[
   }];
 }
 
+export async function prepareAudiobookPlayback(filePath: string): Promise<string> {
+  if (!isTauri()) {
+    return filePath;
+  }
+
+  const { invokeCommand } = await import("../lib/tauri");
+  return await invokeCommand<string>("prepare_audiobook_playback", { filePath });
+}
+
 // Format duration in seconds to human readable
 export function formatDuration(seconds: number): string {
   if (!seconds || isNaN(seconds)) return "0:00";

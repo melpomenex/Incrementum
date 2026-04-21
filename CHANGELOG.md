@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.21.11] - 2026-04-21
+
+### Added
+
+- **Ollama model discovery** — the LLM provider settings now live-fetch installed models from a running local Ollama instance (`/api/tags`) instead of using a hardcoded list. Model names include size and family (e.g., "llama3.2 (llama, 2.0 GB)"), and a clear error message is shown when Ollama is unreachable or has no models installed.
+- **Assistant input history** — pressing Up/Down arrow keys on the first/last line of the assistant input field cycles through previously sent messages in the current conversation.
+- **Assistant context resolution** — PDF assistant context is now resolved lazily per-prompt using a `resolveForPrompt` callback, so the assistant picks up OCR text, page-window content, and on-demand text extraction as they become available rather than relying on a single stale content snapshot.
+- **Document dismiss in review queue** — the item details popover in the review queue now refreshes the queue when a document is dismissed, preventing stale items from lingering.
+- **Document dismiss in scroll queue** — dismissing a document from the scroll queue popover now advances to the next item and reloads the queue.
+- **Confirm dialog for single document deletion** — deleting a document from the documents list now uses the styled confirm dialog instead of a bare `window.confirm()`.
+- **Edit AI provider configurations** — provider cards in LLM settings now have an edit button that opens the form pre-populated with existing values, so API keys, models, and base URLs can be updated without deleting and re-adding the provider.
+
+### Fixed
+
+- **Ollama assistant API key check** — the assistant panel and PWA assistant button no longer require an API key when using Ollama, matching the existing backend behavior that skips auth for local models.
+- **Dismissed documents appearing in queue** — dismissed documents are now excluded from both the main reading queue and the due-documents view, with unit tests covering both paths.
+- **Browser-backend context window** — the browser-sync LLM backend now respects the caller’s `contextWindowTokens` setting instead of always defaulting to 2000.
+- **Audiobook chapter timebase parsing** — the ffmetadata chapter parser now correctly handles fractional timebase values (e.g., `1/1000`) and extracts chapter start/end times in seconds, with duration parsed from ffmpeg’s stderr output.
+- **M4B audiobook playback** — desktop audiobook playback now prepares `.m4b` files through an ffmpeg-backed conversion path so audiobook files that previously failed with `NotSupportedError` can play reliably in the viewer.
+- **Audiobook chapter extraction** — replaced the placeholder audiobook chapter parser with ffmpeg metadata parsing so embedded chapter titles and timings populate the existing chapter sidebar UI for supported audiobook files.
+- **Audiobook viewer import/runtime binding** — corrected the audiobook viewer’s API import path so the new playback-preparation flow loads cleanly at runtime.
+- **Ollama chat/stream response parsing** — fixed Ollama non-streaming and streaming calls deserializing responses into Ollama-native structs instead of the OpenAI-compatible format returned by the `/chat/completions` endpoint. The non-streaming path now uses `OpenAIResponse` and the streaming path now parses SSE `data:` lines with `OpenAIStreamChunk`.
+
 ## [1.21.10] - 2026-04-20
 
 ### Changed
@@ -974,7 +997,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup & restore functionality
 - OCR support for text extraction from images
 
-[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.10...HEAD
+[Unreleased]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.11...HEAD
+[1.21.11]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.10...v1.21.11
 [1.21.10]: https://github.com/melpomenex/incrementum-tauri/compare/v1.21.9...v1.21.10
 [1.19.0]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.7...v1.19.0
 [1.18.7]: https://github.com/melpomenex/incrementum-tauri/compare/v1.18.6...v1.18.7

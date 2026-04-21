@@ -68,8 +68,18 @@ EOF
   export CARGO_BUILD_JOBS=1
   # Linux WebKitGTK/EGL stability defaults for dev sessions.
   export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS="${WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS:-1}"
+  export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
+  export WEBKIT_DISABLE_COMPOSITING_MODE="${WEBKIT_DISABLE_COMPOSITING_MODE:-1}"
+  export WEBKIT_DISABLE_HARDWARE_ACCELERATION="${WEBKIT_DISABLE_HARDWARE_ACCELERATION:-1}"
   unset WEBKIT_FORCE_SANDBOX || true
   export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
+  # Prefer the X11 backend during dev on Linux. In mixed DISPLAY/WAYLAND
+  # sessions, WebKitGTK/Tauri can finish compiling but fail to surface a
+  # visible window under Wayland.
+  if [[ "$(uname -s)" == "Linux" && -n "${DISPLAY-}" ]]; then
+    export GDK_BACKEND="${GDK_BACKEND:-x11}"
+    export WINIT_UNIX_BACKEND="${WINIT_UNIX_BACKEND:-x11}"
+  fi
   # Explicitly select a known-good toolchain for reproducible dev builds.
   export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.89.0}"
   # Some crates (notably parts of sqlx) can trigger deep compiler stacks on

@@ -495,6 +495,7 @@ pub fn run() {
             commands::import_podcast_audio_file,
             commands::scan_directory_for_audiobooks,
             commands::parse_audiobook_chapters,
+            commands::prepare_audiobook_playback,
             commands::extract_audio_sample,
             commands::generate_audiobook_transcript,
             commands::extract_audio_cover_art,

@@ -33,6 +33,11 @@ transcript-tester
 
 # Rust compiler crash reports
 rustc-ice-*.txt
+*.rlib
+
+# Python caches
+__pycache__/
+*.pyc
 
 # Linux packaging tools
 linuxdeploy*.AppImage

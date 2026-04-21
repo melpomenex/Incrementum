@@ -2093,6 +2093,18 @@ export function QueueScrollPage() {
               {detailsTarget && (
                 <ItemDetailsPopover
                   target={detailsTarget}
+                  onDismissStateChange={(dismissed) => {
+                    if (!dismissed) return;
+
+                    if (
+                      detailsTarget.type === "document" &&
+                      currentItem?.type === "document" &&
+                      currentItem.documentId === detailsTarget.id
+                    ) {
+                      advanceAfterRemoval(currentItem.id);
+                    }
+                    void loadQueue();
+                  }}
                   renderTrigger={({ onClick, isOpen }) => (
                     <button
                       onClick={onClick}

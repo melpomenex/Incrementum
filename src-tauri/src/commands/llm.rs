@@ -208,25 +208,57 @@ pub async fn llm_chat_with_context(
     api_key: Option<String>,
     base_url: Option<String>,
 ) -> Result<LLMResponse, String> {
-    // Build context prompt using the latest user message for relevance
     let latest_user_message = messages
         .iter()
         .rev()
         .find(|message| message.role == "user")
-        .map(|message| message.content.as_str());
-    let context_prompt = build_context_prompt(&context, latest_user_message);
+        .map(|message| message.content.clone());
 
-    // Prepend context as a system message
-    let mut messages_with_context = vec![
-        LLMMessage {
-            role: "system".to_string(),
-            content: context_prompt,
+    let requested_max_tokens = context.context_window_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
+    let initial_messages =
+        prepend_context_message(messages.clone(), &context, latest_user_message.as_deref());
+
+    match llm_chat(
+        provider.clone(),
+        model.clone(),
+        initial_messages,
+        0.7,
+        requested_max_tokens,
+        api_key.clone(),
+        base_url.clone(),
+    )
+    .await
+    {
+        Ok(response) => Ok(response),
+        Err(error)
+            if provider == "ollama" && should_retry_ollama_with_smaller_context(&error) =>
+        {
+            let fallback_context_window = reduced_ollama_context_window(context.context_window_tokens);
+            let fallback_max_tokens = reduced_ollama_max_tokens(requested_max_tokens);
+            let mut reduced_context = context.clone();
+            reduced_context.context_window_tokens = Some(fallback_context_window);
+            let retry_messages =
+                prepend_context_message(messages, &reduced_context, latest_user_message.as_deref());
+
+            llm_chat(
+                provider,
+                model,
+                retry_messages,
+                0.7,
+                fallback_max_tokens,
+                api_key,
+                base_url,
+            )
+            .await
+            .map_err(|retry_error| {
+                format!(
+                    "{}. Retried Ollama with reduced context/max tokens and it still failed: {}",
+                    error, retry_error
+                )
+            })
         }
-    ];
-    messages_with_context.extend(messages);
-
-    // Call with default parameters
-    llm_chat(provider, model, messages_with_context, 0.7, DEFAULT_MAX_TOKENS, api_key, base_url).await
+        Err(error) => Err(error),
+    }
 }
 
 // Streaming command - emits events to frontend
@@ -555,26 +587,28 @@ async fn stream_ollama(
         buffer.extend_from_slice(&chunk);
         let data = String::from_utf8_lossy(&buffer);
 
-        // Ollama sends JSON objects separated by newlines
+        // Process SSE lines
         for line in data.lines() {
             let line = line.trim();
-            if line.is_empty() {
+            if line.is_empty() || line == "data: [DONE]" {
                 continue;
             }
 
-            if let Ok(chunk_data) = serde_json::from_str::<OllamaStreamChunk>(line) {
-                if let Some(message) = chunk_data.message {
-                    if !message.content.is_empty() {
-                        let _ = app.emit(LLM_STREAM_CHUNK, serde_json::json!({
-                            "content": message.content,
-                            "done": false
-                        }));
-                    }
-                }
+            if let Some(json_str) = line.strip_prefix("data: ") {
+                if let Ok(chunk_data) = serde_json::from_str::<OpenAIStreamChunk>(json_str) {
+                    if let Some(choice) = chunk_data.choices.first() {
+                        if let Some(content) = &choice.delta.content {
+                            let _ = app.emit(LLM_STREAM_CHUNK, serde_json::json!({
+                                "content": content,
+                                "done": choice.finish_reason.is_some()
+                            }));
 
-                if chunk_data.done {
-                    let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
-                    return Ok(());
+                            if choice.finish_reason.is_some() {
+                                let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+                                return Ok(());
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -600,12 +634,13 @@ pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url:
             ModelInfo { id: "claude-3-5-haiku-20241022".to_string(), name: "Claude 3.5 Haiku".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.0008), completion: Some(0.004), request: None, image: None, web_search: None, cache_read: Some(0.00008), cache_write: Some(0.001), }) },
             ModelInfo { id: "claude-3-opus-20240229".to_string(), name: "Claude 3 Opus".to_string(), context_length: Some(200000), pricing: Some(ModelPricing { prompt: Some(0.015), completion: Some(0.075), request: None, image: None, web_search: None, cache_read: Some(0.0015), cache_write: Some(0.01875), }) },
         ]),
-        "ollama" => Ok(vec![
-            ModelInfo { id: "llama3.2".to_string(), name: "Llama 3.2".to_string(), context_length: Some(128000), pricing: None },
-            ModelInfo { id: "mistral".to_string(), name: "Mistral".to_string(), context_length: Some(32000), pricing: None },
-            ModelInfo { id: "codellama".to_string(), name: "CodeLlama".to_string(), context_length: Some(16000), pricing: None },
-            ModelInfo { id: "phi3".to_string(), name: "Phi-3".to_string(), context_length: Some(128000), pricing: None },
-        ]),
+        "ollama" => {
+            let client = Client::new();
+            let url = normalize_base_url(base_url, "ollama");
+            // /api/tags is the native Ollama endpoint (strip /v1 suffix if present)
+            let tags_url = url.replace("/v1", "").replace("/chat/completions", "");
+            fetch_ollama_models(&client, &tags_url).await
+        }
         "openrouter" => {
             // Fetch from OpenRouter API if API key is provided
             let api_key = normalize_api_key(api_key);
@@ -836,17 +871,22 @@ async fn call_ollama_with_url(
         return Err(format!("Ollama API error ({}): {}", status, error_text));
     }
 
-    let ollama_response: OllamaResponse = response
-        .json()
+    let body = response
+        .text()
         .await
+        .map_err(|e| format!("Failed to read Ollama response: {}", e))?;
+    let openai_response: OpenAIResponse = serde_json::from_str(&body)
         .map_err(|e| format!("Failed to parse Ollama response: {}", e))?;
 
+    let choice = openai_response.choices.into_iter().next()
+        .ok_or_else(|| "Ollama response contained no choices".to_string())?;
+
     Ok(LLMResponse {
-        content: ollama_response.message.content,
-        usage: ollama_response.prompt_eval_count.map(|p| LLMUsage {
-            prompt_tokens: p,
-            completion_tokens: ollama_response.eval_count.unwrap_or(0),
-            total_tokens: p + ollama_response.eval_count.unwrap_or(0),
+        content: choice.message.content,
+        usage: openai_response.usage.map(|u| LLMUsage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
         }),
     })
 }
@@ -1142,6 +1182,80 @@ async fn fetch_openrouter_models(
     Ok(models)
 }
 
+async fn fetch_ollama_models(
+    client: &Client,
+    base_url: &str,
+) -> Result<Vec<ModelInfo>, String> {
+    let response = client
+        .get(format!("{}/api/tags", base_url))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to connect to Ollama at {}: {}", base_url, e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(format!("Ollama API error ({}): {}", status, error_text));
+    }
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read Ollama response: {}", e))?;
+    let payload: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Failed to parse Ollama response: {}", e))?;
+
+    let empty: Vec<serde_json::Value> = vec![];
+    let models = payload
+        .get("models")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty);
+
+    let format_size = |bytes: Option<&serde_json::Value>| -> Option<String> {
+        let b = bytes?.as_u64()?;
+        let gb = b as f64 / (1024.0 * 1024.0 * 1024.0);
+        if gb >= 1.0 {
+            Some(format!("{:.1} GB", gb))
+        } else {
+            let mb = b as f64 / (1024.0 * 1024.0);
+            Some(format!("{:.0} MB", mb))
+        }
+    };
+
+    let mut result: Vec<ModelInfo> = models
+        .iter()
+        .filter_map(|m| {
+            let name = m.get("name")?.as_str()?.to_string();
+            let size = m.get("size").and_then(|v| format_size(Some(v)));
+            let family = m.get("details")
+                .and_then(|d| d.get("family"))
+                .and_then(|f| f.as_str())
+                .map(|s| s.to_string());
+
+            let display_name = match (&size, &family) {
+                (Some(s), Some(f)) => format!("{} ({}, {})", name, f, s),
+                (Some(s), None) => format!("{} ({})", name, s),
+                (None, Some(f)) => format!("{} ({})", name, f),
+                (None, None) => name.clone(),
+            };
+
+            Some(ModelInfo {
+                id: name,
+                name: display_name,
+                context_length: None,
+                pricing: None,
+            })
+        })
+        .collect();
+
+    if result.is_empty() {
+        return Err("No models found in Ollama. Run `ollama pull <model>` to install one.".to_string());
+    }
+
+    result.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(result)
+}
+
 // Helper functions
 fn get_default_model(provider: &str) -> String {
     match provider {
@@ -1288,6 +1402,35 @@ If the answer is not in the provided context, say so.",
     }
 }
 
+fn prepend_context_message(
+    messages: Vec<LLMMessage>,
+    context: &LLMContextRequest,
+    latest_user_message: Option<&str>,
+) -> Vec<LLMMessage> {
+    let context_prompt = build_context_prompt(context, latest_user_message);
+    let mut messages_with_context = vec![LLMMessage {
+        role: "system".to_string(),
+        content: context_prompt,
+    }];
+    messages_with_context.extend(messages);
+    messages_with_context
+}
+
+fn should_retry_ollama_with_smaller_context(error: &str) -> bool {
+    let lowered = error.to_ascii_lowercase();
+    lowered.contains("unexpected eof")
+        || (lowered.contains("ollama api error (500") && lowered.contains("api_error"))
+}
+
+fn reduced_ollama_context_window(context_window_tokens: Option<usize>) -> usize {
+    let current = context_window_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
+    current.min(512).max(256)
+}
+
+fn reduced_ollama_max_tokens(max_tokens: usize) -> usize {
+    max_tokens.min(512).max(256)
+}
+
 fn select_relevant_excerpt(
     content: &str,
     context_window_tokens: Option<usize>,
@@ -1370,13 +1513,42 @@ fn extract_query_terms(query: &str) -> Vec<String> {
         "book", "document", "this", "that",
     ];
 
-    query
+    let mut terms: Vec<String> = query
         .to_lowercase()
         .split(|ch: char| !ch.is_alphanumeric())
         .filter(|term| term.len() >= 4)
         .filter(|term| !stop_words.contains(term))
         .map(|term| term.to_string())
-        .collect()
+        .collect();
+
+    let chars: Vec<(usize, char)> = query.char_indices().collect();
+    let mut index = 0;
+    while index < chars.len() {
+        if !chars[index].1.is_ascii_digit() {
+            index += 1;
+            continue;
+        }
+
+        let start = chars[index].0;
+        let mut end = query.len();
+        let mut cursor = index;
+        while cursor < chars.len() && (chars[cursor].1.is_ascii_digit() || chars[cursor].1 == '.') {
+            cursor += 1;
+        }
+        if cursor < chars.len() {
+            end = chars[cursor].0;
+        }
+
+        let candidate = query[start..end].trim();
+        if candidate.contains('.') && candidate.len() >= 3 {
+            terms.push(candidate.to_lowercase());
+        }
+        index = cursor;
+    }
+
+    terms.sort();
+    terms.dedup();
+    terms
 }
 
 fn score_chunk(chunk: &str, terms: &[String]) -> usize {
