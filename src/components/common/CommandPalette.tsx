@@ -279,22 +279,6 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
   const [isOpen, setIsOpen] = useState(false);
   const [commands] = useState<Command[]>([]);
 
-  // Handle global keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-
-      if ((isMac && e.metaKey && e.key === "k") ||
-          (!isMac && e.ctrlKey && e.key === "k")) {
-        e.preventDefault();
-        setIsOpen((prev) => !prev);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   return (
     <>
       {children}

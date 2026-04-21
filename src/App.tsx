@@ -180,6 +180,79 @@ function App() {
     };
   }, [loadAll, loadDocuments]);
 
+  // Capture-phase handler: preventDefault() early so webkit2gtk/GTK doesn't
+  // intercept shortcuts like Ctrl+Q (quit), Ctrl+N (new window), Ctrl+P (print).
+  useEffect(() => {
+    const captureShortcuts = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (["k", "p", ",", "d", "q", "r", "o", "n", "/"].includes(key)) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("keydown", captureShortcuts, true);
+    return () => document.removeEventListener("keydown", captureShortcuts, true);
+  }, []);
+
+  // Tauri-level global shortcut handler: receives shortcuts registered at the
+  // native level (lib.rs) which fire BEFORE webkit2gtk can intercept them.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen<string>("global-shortcut", (event) => {
+          const key = event.payload;
+          switch (key) {
+            case "KeyQ":
+              setCurrentPage("queue");
+              break;
+            case "KeyR":
+              setCurrentPage("queue");
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("start-review-session"));
+              }, 0);
+              break;
+            case "KeyD":
+              setCurrentPage("dashboard");
+              break;
+            case "KeyK":
+            case "KeyP":
+              window.dispatchEvent(new CustomEvent("command-palette-open"));
+              break;
+            case "Comma":
+              setCurrentPage("settings");
+              break;
+            case "KeyO":
+            case "KeyN":
+              setCurrentPage("documents");
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("import-document"));
+              }, 0);
+              break;
+            case "Slash":
+              setShowShortcutsHelp(true);
+              break;
+          }
+        });
+      } catch {
+        // Not running in Tauri (PWA mode) — JS handler is the fallback
+      }
+    })();
+    return () => { unlisten?.(); };
+  }, []);
+
   // Keyboard shortcut to show help
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

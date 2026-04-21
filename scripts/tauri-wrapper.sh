@@ -84,7 +84,7 @@ EOF
   export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.89.0}"
   # Some crates (notably parts of sqlx) can trigger deep compiler stacks on
   # this toolchain; keep this high to avoid rustc SIGSEGVs.
-  export RUST_MIN_STACK=1073741824
+  export RUST_MIN_STACK=2147483647
   # Linker selection is handled in `src-tauri/.cargo/config.toml` (we avoid
   # rustc's self-contained rust-lld on Linux).
 

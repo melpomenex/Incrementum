@@ -369,7 +369,7 @@ export function eventMatchesCombo(event: KeyboardEvent, combo: KeyCombo): boolea
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const usesPrimaryModifier = !!combo.ctrl && !!combo.meta;
   const ctrlMatches = usesPrimaryModifier
-    ? event.ctrlKey === false
+    ? event.ctrlKey === !isMac
     : !!event.ctrlKey === !!combo.ctrl;
   const metaMatches = usesPrimaryModifier
     ? event.metaKey === isMac

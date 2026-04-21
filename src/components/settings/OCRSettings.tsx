@@ -57,7 +57,7 @@ const OCR_PROVIDERS = [
   {
     id: "glm",
     name: "GLM-OCR (Local)",
-    description: "Multimodal OCR via vLLM server",
+    description: "Multimodal OCR via llama.cpp or vLLM server",
     icon: Cpu,
     isCloud: false,
     badge: "GPU recommended",
@@ -720,7 +720,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                vLLM (GPU)
+                llama.cpp / vLLM (GPU)
               </button>
             </div>
 
@@ -829,17 +829,26 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
             ) : (
               <div className="space-y-3 text-xs text-muted-foreground">
                 <div>
-                  vLLM GPU setup requires installing vLLM and running a local OpenAI-compatible server.
+                  Run any OpenAI-compatible server on port 8080. <strong>llama.cpp</strong> (CPU) is the simplest option; vLLM (GPU) offers faster inference.
                 </div>
                 <div className="rounded-md bg-muted/40 p-3">
+                  <div className="font-medium text-foreground mb-1">llama.cpp (recommended — CPU, no GPU needed)</div>
                   <pre className="whitespace-pre-wrap text-xs text-foreground">
-                    {`pip install -U vllm --extra-index-url https://wheels.vllm.ai/nightly
-pip install git+https://github.com/huggingface/transformers.git
-vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculative-config '{"method": "mtp", "num_speculative_tokens": 1}'`}
+                    {`git clone https://github.com/ggml-org/llama.cpp.git
+cd llama.cpp && cmake -B build && cmake --build build -j$(nproc)
+# Download a GGUF model, then start the server:
+./build/bin/llama-server -m models/YOUR-MODEL.gguf --port 8080 --host 0.0.0.0 -c 16384 -t $(nproc)`}
+                  </pre>
+                </div>
+                <div className="rounded-md bg-muted/40 p-3">
+                  <div className="font-medium text-foreground mb-1">vLLM (GPU accelerated)</div>
+                  <pre className="whitespace-pre-wrap text-xs text-foreground">
+                    {`pip install -U vllm
+vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
                   </pre>
                 </div>
                 <div>
-                  After the server starts, set the endpoint to <strong>http://localhost:8080/v1</strong> and choose your model.
+                  After the server starts, set the endpoint to <strong>http://localhost:8080/v1</strong> and enter your model name.
                 </div>
                 <div>
                   For detailed setup guidance, see the GLM-OCR README.
@@ -850,7 +859,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080 --speculativ
                   rel="noreferrer"
                   className="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid"
                 >
-                  Open GLM-OCR deployment docs
+                  GLM-OCR deployment docs
                 </a>
               </div>
             )}
