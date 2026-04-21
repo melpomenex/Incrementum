@@ -280,7 +280,7 @@ describe("postponeAll", () => {
   });
 
   test("empty input returns zero stats", () => {
-    const { results: _results, stats } = postponeAll([], defaultPostponeConfig);
+    const { results, stats } = postponeAll([], defaultPostponeConfig);
 
     expect(stats.totalItems).toBe(0);
     expect(stats.postponedCount).toBe(0);
