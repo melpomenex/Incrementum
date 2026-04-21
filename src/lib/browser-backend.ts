@@ -2929,7 +2929,9 @@ const commandHandlers: Record<string, CommandHandler> = {
             model,
             messages: messagesWithContext,
             temperature: 0.7,
-            maxTokens: 2000,
+            maxTokens: context.contextWindowTokens && context.contextWindowTokens > 0
+                ? context.contextWindowTokens
+                : 2000,
             apiKey,
             baseUrl,
         });

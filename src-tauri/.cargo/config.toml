@@ -2,11 +2,8 @@
 jobs = 1
 target-dir = "target"
 
-# Use gcc linker (GNU ld) — LLD 21 was segfaulting on this codebase.
+# GNU ld 2.46 is currently crashing during release Tauri links on this host.
+# Prefer clang + lld for Linux builds here.
 [target.x86_64-unknown-linux-gnu]
-linker = "gcc"
-
-# NOTE: We intentionally do NOT force `mold` here.
-# In some environments `-fuse-ld=mold` has caused non-deterministic build
-# crashes (e.g. `free(): invalid next size` / SIGABRT during compilation).
-# If you want to opt-in locally, set `RUSTFLAGS="-C link-arg=-fuse-ld=mold"`.
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]

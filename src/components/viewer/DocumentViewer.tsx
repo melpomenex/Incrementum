@@ -171,6 +171,7 @@ interface DocumentViewerProps {
   initialJump?: InitialJump;
   autoPlay?: boolean;
   onPdfContextTextChange?: (text: string) => void;
+  onPdfOcrContextTextChange?: (text: string | null) => void;
   contextPageWindow?: number;
   onExtractCreated?: (extract: Extract) => void;
   onVideoContextChange?: (context: { 
@@ -193,6 +194,7 @@ export function DocumentViewer({
   initialJump,
   autoPlay,
   onPdfContextTextChange,
+  onPdfOcrContextTextChange,
   contextPageWindow,
   onExtractCreated,
   onVideoContextChange,
@@ -2396,10 +2398,19 @@ export function DocumentViewer({
   useEffect(() => {
     if (docType !== "pdf") return;
     const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
+    onPdfOcrContextTextChange?.(ocrContextText);
     if (preferOcr && ocrContextText) {
       setReaderContextText(ocrContextText);
+      onPdfContextTextChange?.(ocrContextText);
     }
-  }, [docType, ocrContextText, settings.documents.ocr.autoOCR, settings.documents.ocr.autoExtractOnLoad]);
+  }, [
+    docType,
+    ocrContextText,
+    onPdfContextTextChange,
+    onPdfOcrContextTextChange,
+    settings.documents.ocr.autoOCR,
+    settings.documents.ocr.autoExtractOnLoad,
+  ]);
 
   // Handle extract creation
   const handleExtractCreated = (extract: Extract) => {

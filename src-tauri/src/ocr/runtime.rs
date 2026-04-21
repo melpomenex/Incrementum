@@ -3,6 +3,7 @@
 use crate::error::{IncrementumError, Result};
 use futures_util::StreamExt;
 use serde::Serialize;
+use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
@@ -130,16 +131,21 @@ fn resolve_ollama_binary(path_override: Option<String>) -> Result<String> {
         }
     }
 
-    let output = std::process::Command::new("ollama")
-        .arg("--version")
-        .output();
-
-    match output {
-        Ok(output) if output.status.success() => Ok("ollama".to_string()),
-        _ => Err(IncrementumError::Internal(
+    if executable_exists_in_path("ollama") {
+        Ok("ollama".to_string())
+    } else {
+        Err(IncrementumError::Internal(
             "Ollama not found in PATH. Please install Ollama or provide a binary path.".to_string(),
-        )),
+        ))
     }
+}
+
+fn executable_exists_in_path(binary: &str) -> bool {
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
+        .map(|dir| dir.join(binary))
+        .any(|path| path.is_file())
 }
 
 pub async fn get_runtime_status(
@@ -345,8 +351,7 @@ pub async fn pull_ollama_model(
     model: String,
     ollama_path: Option<String>,
 ) -> Result<String> {
-    let binary = resolve_ollama_binary(ollama_path.clone())?;
-    let (_, models_dir) = runtime_dirs(&app_handle)?;
+    resolve_ollama_binary(ollama_path.clone())?;
 
     // Check if ollama is running by attempting to connect
     let default_endpoint = "http://127.0.0.1:11434";
@@ -370,37 +375,47 @@ pub async fn pull_ollama_model(
         }
     }
 
-    let output = tokio::process::Command::new(binary)
-        .arg("pull")
-        .arg(&model)
-        .env("OLLAMA_MODELS", &models_dir)
-        .output()
+    let response = reqwest::Client::new()
+        .post(format!("{}/api/pull", default_endpoint))
+        .json(&json!({
+            "name": model,
+            "stream": false,
+        }))
+        .send()
         .await
-        .map_err(|e| IncrementumError::Internal(format!("Failed to run ollama pull: {}", e)))?;
+        .map_err(|e| IncrementumError::Internal(format!("Failed to call Ollama pull API: {}", e)))?;
 
-    if !output.status.success() {
-        let mut combined = String::new();
-        combined.push_str(&String::from_utf8_lossy(&output.stdout));
-        combined.push_str(&String::from_utf8_lossy(&output.stderr));
-        let cleaned = strip_ansi(&combined);
-        let cleaned = cleaned.trim();
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        let cleaned = strip_ansi(body.trim());
         let hint = if cleaned.contains("requires a newer version of Ollama") {
             " Please update Ollama to the latest version and try again."
-        } else if cleaned.contains("server not responding") || cleaned.contains("could not connect") {
+        } else if cleaned.contains("could not connect") || cleaned.contains("connection refused") {
             " Please ensure Ollama is running (try starting the runtime first)."
         } else {
             ""
         };
         return Err(IncrementumError::Internal(format!(
-            "Ollama pull failed: {}{}",
+            "Ollama pull failed ({}): {}{}",
+            status,
             if cleaned.is_empty() {
                 "Unknown error"
             } else {
-                cleaned
+                &cleaned
             },
             hint
         )));
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    let body = response
+        .text()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to read Ollama pull response: {}", e)))?;
+
+    Ok(if body.trim().is_empty() {
+        "Ollama pull completed successfully.".to_string()
+    } else {
+        body
+    })
 }

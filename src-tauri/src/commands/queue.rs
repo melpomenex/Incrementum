@@ -243,7 +243,7 @@ async fn get_queue_items_from_repo(
     // Get documents for incremental reading
     let documents = repo.list_documents().await?;
     for document in documents {
-        if document.is_archived {
+        if document.is_archived || document.is_dismissed {
             continue;
         }
 
@@ -363,9 +363,8 @@ pub async fn get_due_queue_items(
 /// This provides a "Due Today" view focused specifically on documents that
 /// are scheduled for reading via FSRS (next_reading_date <= now) or have
 /// never been read (next_reading_date is NULL).
-#[tauri::command]
-pub async fn get_due_documents_only(
-    repo: State<'_, Repository>,
+async fn get_due_documents_only_from_repo(
+    repo: &Repository,
 ) -> Result<Vec<QueueItem>> {
     let mut due_documents = Vec::new();
     let now = Utc::now();
@@ -374,8 +373,8 @@ pub async fn get_due_documents_only(
     let documents = repo.list_documents().await?;
 
     for document in documents {
-        // Skip archived documents
-        if document.is_archived {
+        // Skip archived and dismissed documents
+        if document.is_archived || document.is_dismissed {
             continue;
         }
 
@@ -430,6 +429,13 @@ pub async fn get_due_documents_only(
     selector.sort_queue_items(&mut due_documents);
 
     Ok(due_documents)
+}
+
+#[tauri::command]
+pub async fn get_due_documents_only(
+    repo: State<'_, Repository>,
+) -> Result<Vec<QueueItem>> {
+    get_due_documents_only_from_repo(repo.inner()).await
 }
 
 /// Get queue with playlist videos interspersed
@@ -579,5 +585,67 @@ fn format_seconds(seconds: f64) -> String {
         format!("{}:{:02}:{:02}", hours, minutes, secs)
     } else {
         format!("{}:{:02}", minutes, secs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::connection::Database;
+    use crate::database::Repository;
+    use crate::models::{Document, FileType};
+    use std::path::PathBuf;
+
+    async fn setup_repo() -> Repository {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate");
+        Repository::new(db.pool().clone())
+    }
+
+    async fn create_test_document(
+        repo: &Repository,
+        title: &str,
+        dismissed: bool,
+        archived: bool,
+    ) -> Document {
+        let mut document = Document::new(title.to_string(), format!("/tmp/{title}.pdf"), FileType::Pdf);
+        document.is_archived = archived;
+        let created = repo.create_document(&document).await.expect("create document");
+        if dismissed {
+            repo.update_document_dismiss(&created.id, true)
+                .await
+                .expect("dismiss document")
+        } else {
+            created
+        }
+    }
+
+    #[tokio::test]
+    async fn queue_excludes_dismissed_documents() {
+        let repo = setup_repo().await;
+        let visible = create_test_document(&repo, "visible-doc", false, false).await;
+        let dismissed = create_test_document(&repo, "dismissed-doc", true, false).await;
+
+        let queue = get_queue_items_from_repo(&repo).await.expect("queue");
+
+        assert!(queue.iter().any(|item| item.document_id == visible.id));
+        assert!(!queue.iter().any(|item| item.document_id == dismissed.id));
+    }
+
+    #[tokio::test]
+    async fn due_documents_exclude_dismissed_documents() {
+        let repo = setup_repo().await;
+        let visible = create_test_document(&repo, "visible-due-doc", false, false).await;
+        let dismissed = create_test_document(&repo, "dismissed-due-doc", true, false).await;
+
+        let due_document_ids: Vec<String> = get_due_documents_only_from_repo(&repo)
+            .await
+            .expect("due documents")
+            .into_iter()
+            .map(|item| item.document_id)
+            .collect();
+
+        assert!(due_document_ids.contains(&visible.id));
+        assert!(!due_document_ids.contains(&dismissed.id));
     }
 }

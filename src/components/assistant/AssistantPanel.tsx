@@ -23,6 +23,8 @@ import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { ShareMessageDialog } from "./ShareMessageDialog";
 import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessage } from "../../api/integrations";
 import { useI18n } from "../../lib/i18n";
+import type { ResolvedAssistantContext } from "../../utils/assistantContext";
+import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
 
 export interface AssistantContext {
   type: "document" | "web" | "video" | "general";
@@ -41,6 +43,10 @@ export interface AssistantContext {
     duration?: number;
     videoId?: string;
   };
+  status?: "ready" | "loading" | "unavailable";
+  statusMessage?: string;
+  source?: string;
+  resolveForPrompt?: (prompt: string) => Promise<ResolvedAssistantContext>;
 }
 
 interface Message {
@@ -142,6 +148,36 @@ const writeStoredConversations = (conversations: StoredConversationMap) => {
   }
 };
 
+const getUserInputHistory = (messages: Message[]): string[] => {
+  const seen = new Set<string>();
+  const history: string[] = [];
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "user") continue;
+    const content = message.content.trim();
+    if (!content || seen.has(content)) continue;
+    seen.add(content);
+    history.push(content);
+  }
+
+  return history;
+};
+
+const isCaretOnFirstLine = (textarea: HTMLTextAreaElement) => {
+  const caret = textarea.selectionStart;
+  const selectionEnd = textarea.selectionEnd;
+  if (caret !== selectionEnd) return false;
+  return !textarea.value.slice(0, caret).includes("\n");
+};
+
+const isCaretOnLastLine = (textarea: HTMLTextAreaElement) => {
+  const caret = textarea.selectionStart;
+  const selectionEnd = textarea.selectionEnd;
+  if (caret !== selectionEnd) return false;
+  return !textarea.value.slice(caret).includes("\n");
+};
+
 export function AssistantPanel({
   context,
   onToolCall: _onToolCall,
@@ -198,6 +234,8 @@ export function AssistantPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastContextSignatureRef = useRef<string | null>(null);
   const activeConversationKeyRef = useRef<string>("general");
+  const historyDraftRef = useRef("");
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null);
 
   const providers = [
     { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
@@ -229,6 +267,8 @@ export function AssistantPanel({
     const stored = readStoredConversations()[conversationKey];
     setMessages(stored?.messages ?? []);
     setInput(stored?.input ?? "");
+    historyDraftRef.current = stored?.input ?? "";
+    setHistoryIndex(null);
     lastContextSignatureRef.current = null;
   }, [context?.type, context?.documentId, context?.url, context?.metadata?.videoId, context?.metadata?.title]);
 
@@ -341,6 +381,8 @@ export function AssistantPanel({
     setMessages((prev) => [...prev, userMessage]);
     const userInput = input;
     setInput("");
+    historyDraftRef.current = "";
+    setHistoryIndex(null);
     setIsLoading(true);
 
     try {
@@ -482,7 +524,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         };
       }
 
-      if (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim()) {
+      if (effectiveProvider !== "ollama" && (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim())) {
         return {
           content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Settings.`,
         };
@@ -513,6 +555,18 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       const effectiveContextWindow = llmContext?.contextWindowTokens && llmContext.contextWindowTokens > 0
         ? llmContext.contextWindowTokens
         : contextWindow;
+      const resolvedContext = llmContext?.resolveForPrompt
+        ? await llmContext.resolveForPrompt(prompt)
+        : {
+            status: llmContext?.status ?? "ready",
+            content: llmContext?.content,
+            source: (llmContext?.source as any) ?? "document",
+            message: llmContext?.statusMessage,
+          };
+
+      if (resolvedContext.status !== "ready" || !resolvedContext.content?.trim()) {
+        throw new Error(resolvedContext.message || getAssistantContextErrorMessage(llmContext?.status));
+      }
 
       // Build context object for LLM API - ensure required fields are valid
       const llmContextData = {
@@ -520,7 +574,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         documentId: llmContext?.documentId,
         url: llmContext?.url,
         selection: llmContext?.selection,
-        content: llmContext?.content,
+        content: resolvedContext.content,
         contextWindowTokens: effectiveContextWindow,
       };
 
@@ -717,7 +771,59 @@ ${toolDescriptions}
 \`\`\``;
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleHistoryNavigation = (direction: "up" | "down") => {
+    const history = getUserInputHistory(messages);
+    if (history.length === 0) return;
+
+    if (direction === "up") {
+      if (historyIndex === null) {
+        historyDraftRef.current = input;
+        setHistoryIndex(0);
+        setInput(history[0]);
+        return;
+      }
+
+      const nextIndex = Math.min(historyIndex + 1, history.length - 1);
+      setHistoryIndex(nextIndex);
+      setInput(history[nextIndex]);
+      return;
+    }
+
+    if (historyIndex === null) return;
+
+    if (historyIndex === 0) {
+      setHistoryIndex(null);
+      setInput(historyDraftRef.current);
+      return;
+    }
+
+    const nextIndex = historyIndex - 1;
+    setHistoryIndex(nextIndex);
+    setInput(history[nextIndex]);
+  };
+
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    if (historyIndex === null) {
+      historyDraftRef.current = value;
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && textareaRef.current) {
+      if (e.key === "ArrowUp" && isCaretOnFirstLine(textareaRef.current)) {
+        e.preventDefault();
+        handleHistoryNavigation("up");
+        return;
+      }
+
+      if (e.key === "ArrowDown" && isCaretOnLastLine(textareaRef.current)) {
+        e.preventDefault();
+        handleHistoryNavigation("down");
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -1070,7 +1176,7 @@ ${toolDescriptions}
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsInputFocused(true)}
               onBlur={() => setIsInputFocused(false)}
