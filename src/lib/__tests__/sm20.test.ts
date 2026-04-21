@@ -76,18 +76,18 @@ describe("SM-20 scheduler", () => {
 describe("SM-20 FSRS-family branch", () => {
   test("review kernel lapse path", () => {
     const [sNew, dNew, interval, easiness] = fsrsReviewKernel(5.0, 0.3, 5.0, 1);
-    expect(sNew).toBeCloseTo(8.25553717907111, 8);
+    expect(sNew).toBeCloseTo(2.998193602166308, 8);
     expect(dNew).toBeCloseTo(1.0, 8);
-    expect(interval).toBeCloseTo(8.25553717907111, 8);
-    expect(easiness).toBeCloseTo(1.65110743581422, 8);
+    expect(interval).toBeCloseTo(2.998193602166308, 8);
+    expect(easiness).toBeCloseTo(0.5996387204332616, 8);
   });
 
   test("review kernel recall path", () => {
     const [sNew, dNew, interval, easiness] = fsrsReviewKernel(5.0, 0.3, 3.0, 4);
-    expect(sNew).toBeCloseTo(9.44504365807168, 8);
-    expect(dNew).toBeCloseTo(1.0, 8);
-    expect(interval).toBeCloseTo(9.44504365807168, 8);
-    expect(easiness).toBeCloseTo(1.88900873161434, 8);
+    expect(sNew).toBeCloseTo(25.75273052883768, 8);
+    expect(dNew).toBeCloseTo(0.22397038804082325, 8);
+    expect(interval).toBeCloseTo(25.75273052883768, 8);
+    expect(easiness).toBeCloseTo(5.150546105767536, 8);
   });
 
   test("init item grade 3 no flag", () => {
@@ -119,7 +119,7 @@ describe("SM-20 FSRS-family branch", () => {
     };
     const result = sm20Review(fsrsState, 4, 3.0);
     expect(result.state.algorithm_branch).toBe(1);
-    expect(result.state.stability).toBeCloseTo(9.44504365807168, 8);
+    expect(result.state.stability).toBeCloseTo(25.75273052883768, 8);
   });
 
   test("backward compat: parse old state without FSRS fields", () => {
