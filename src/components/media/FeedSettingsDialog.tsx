@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { X, Settings, Download, FileText, Star, RefreshCw, LayoutGrid } from "lucide-react";
+import { X, Settings, Download, FileText, Star, RefreshCw, LayoutGrid, Eye } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import type { Feed } from "../../api/rss";
+import { updateFeedAutoFetchPreference } from "../../api/rss";
 import { setFeedViewPreferencesAuto } from "../../api/rss-folders";
 
 

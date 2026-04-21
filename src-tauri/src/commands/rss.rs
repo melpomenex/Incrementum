@@ -5,7 +5,7 @@ use crate::database::Repository;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use sqlx::{sqlite::SqliteRow, Row};
+use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite};
 
 /// RSS feed model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -227,42 +227,51 @@ pub async fn update_rss_feed(
     auto_fetch_full_content: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<RssFeed> {
-    // Build dynamic update query
-    let mut updates = Vec::new();
-    let mut query = String::from("UPDATE rss_feeds SET ");
-
-    if title.is_some() {
-        updates.push(format!("title = '{}'", title.unwrap()));
-    }
-    if description.is_some() {
-        updates.push(format!("description = '{}'", description.unwrap()));
-    }
-    if category.is_some() {
-        updates.push(format!("category = '{}'", category.unwrap()));
-    }
-    if update_interval.is_some() {
-        updates.push(format!("update_interval = {}", update_interval.unwrap()));
-    }
-    if auto_queue.is_some() {
-        updates.push(format!("auto_queue = {}", if auto_queue.unwrap() { 1 } else { 0 }));
-    }
-    if is_active.is_some() {
-        updates.push(format!("is_active = {}", if is_active.unwrap() { 1 } else { 0 }));
-    }
-    if auto_fetch_full_content.is_some() {
-        updates.push(format!("auto_fetch_full_content = '{}'", auto_fetch_full_content.unwrap()));
-    }
-
-    if updates.is_empty() {
+    if title.is_none()
+        && description.is_none()
+        && category.is_none()
+        && update_interval.is_none()
+        && auto_queue.is_none()
+        && is_active.is_none()
+        && auto_fetch_full_content.is_none()
+    {
         return get_rss_feed(id, repo).await?.ok_or_else(|| {
             crate::error::IncrementumError::NotFound("Feed not found".to_string())
         });
     }
 
-    query.push_str(&updates.join(", "));
-    query.push_str(&format!(" WHERE id = '{}'", id));
+    let mut builder = QueryBuilder::<Sqlite>::new("UPDATE rss_feeds SET ");
+    let mut separated = builder.separated(", ");
 
-    sqlx::query(&query)
+    if let Some(title) = title {
+        separated.push("title = ").push_bind(title);
+    }
+    if let Some(description) = description {
+        separated.push("description = ").push_bind(description);
+    }
+    if let Some(category) = category {
+        separated.push("category = ").push_bind(category);
+    }
+    if let Some(update_interval) = update_interval {
+        separated.push("update_interval = ").push_bind(update_interval);
+    }
+    if let Some(auto_queue) = auto_queue {
+        separated.push("auto_queue = ").push_bind(auto_queue);
+    }
+    if let Some(is_active) = is_active {
+        separated.push("is_active = ").push_bind(is_active);
+    }
+    if let Some(auto_fetch_full_content) = auto_fetch_full_content {
+        separated
+            .push("auto_fetch_full_content = ")
+            .push_bind(auto_fetch_full_content);
+    }
+    drop(separated);
+
+    builder.push(" WHERE id = ").push_bind(&id);
+
+    builder
+        .build()
         .execute(repo.pool())
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS feed: {}", e)))?;
@@ -1041,38 +1050,45 @@ pub async fn update_rss_feed_http(
     is_active: Option<bool>,
     repo: &Repository,
 ) -> Result<RssFeed> {
-    let mut updates = Vec::new();
-    let mut query = String::from("UPDATE rss_feeds SET ");
-
-    if title.is_some() {
-        updates.push(format!("title = '{}'", title.as_ref().unwrap()));
-    }
-    if description.is_some() {
-        updates.push(format!("description = '{}'", description.as_ref().unwrap()));
-    }
-    if category.is_some() {
-        updates.push(format!("category = '{}'", category.as_ref().unwrap()));
-    }
-    if update_interval.is_some() {
-        updates.push(format!("update_interval = {}", update_interval.unwrap()));
-    }
-    if auto_queue.is_some() {
-        updates.push(format!("auto_queue = {}", if auto_queue.unwrap() { 1 } else { 0 }));
-    }
-    if is_active.is_some() {
-        updates.push(format!("is_active = {}", if is_active.unwrap() { 1 } else { 0 }));
-    }
-
-    if updates.is_empty() {
+    if title.is_none()
+        && description.is_none()
+        && category.is_none()
+        && update_interval.is_none()
+        && auto_queue.is_none()
+        && is_active.is_none()
+    {
         return get_rss_feed_http(id, repo).await?.ok_or_else(|| {
             crate::error::IncrementumError::NotFound("Feed not found".to_string())
         });
     }
 
-    query.push_str(&updates.join(", "));
-    query.push_str(&format!(" WHERE id = '{}'", id));
+    let mut builder = QueryBuilder::<Sqlite>::new("UPDATE rss_feeds SET ");
+    let mut separated = builder.separated(", ");
 
-    sqlx::query(&query)
+    if let Some(title) = title {
+        separated.push("title = ").push_bind(title);
+    }
+    if let Some(description) = description {
+        separated.push("description = ").push_bind(description);
+    }
+    if let Some(category) = category {
+        separated.push("category = ").push_bind(category);
+    }
+    if let Some(update_interval) = update_interval {
+        separated.push("update_interval = ").push_bind(update_interval);
+    }
+    if let Some(auto_queue) = auto_queue {
+        separated.push("auto_queue = ").push_bind(auto_queue);
+    }
+    if let Some(is_active) = is_active {
+        separated.push("is_active = ").push_bind(is_active);
+    }
+    drop(separated);
+
+    builder.push(" WHERE id = ").push_bind(id);
+
+    builder
+        .build()
         .execute(repo.pool())
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS feed: {}", e)))?;
