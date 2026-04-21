@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { Document, Extract } from "../types";
 import * as documentsApi from "../api/documents";
+import * as segmentationApi from "../api/segmentation";
 import { useCollectionStore } from "./collectionStore";
+import { useSettingsStore } from "./settingsStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 import { listen, isTauri } from "../lib/tauri";
 import { useToastStore } from "../components/common/Toast";
@@ -18,6 +20,7 @@ interface DocumentState {
   isLoading: boolean;
   isSaving: boolean;
   isImporting: boolean;
+  isSegmenting: boolean;
   importProgress: {
     current: number;
     total: number;
@@ -49,6 +52,7 @@ interface DocumentState {
   importFromUrl: (url: string) => Promise<Document>;
   importFromArxiv: (arxivIdOrUrl: string, format?: 'pdf' | 'html') => Promise<Document>;
   openFilePickerAndImport: () => Promise<Document[]>;
+  segmentDocument: (documentId: string, fileType?: string) => Promise<number>;
   setExtracts: (extracts: Extract[]) => void;
   setCurrentExtract: (extract: Extract | null) => void;
   addExtract: (extract: Extract) => void;
@@ -72,6 +76,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   isLoading: false,
   isSaving: false,
   isImporting: false,
+  isSegmenting: false,
   importProgress: { current: 0, total: 0 },
   error: null,
   searchQuery: "",
@@ -268,6 +273,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         documents: [...state.documents, doc],
         isImporting: false,
       }));
+
+      // Auto-segment if enabled
+      const settings = useSettingsStore.getState().settings;
+      if (settings.documents.autoProcessOnImport) {
+        await get().segmentDocument(doc.id, doc.fileType);
+      }
+
       return doc;
     } catch (error) {
       set({
@@ -281,6 +293,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   importFromFiles: async (filePaths) => {
     set({ isImporting: true, error: null, importProgress: { current: 0, total: filePaths.length } });
     const imported: Document[] = [];
+    const settings = useSettingsStore.getState().settings;
+    const autoSegment = settings.documents.autoProcessOnImport;
+    let totalExtracts = 0;
 
     try {
       for (let i = 0; i < filePaths.length; i++) {
@@ -298,9 +313,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
           if (activeCollectionId) {
             assignDocument(doc.id, activeCollectionId);
           }
+
+          if (autoSegment) {
+            set({ isSegmenting: true });
+            const count = await get().segmentDocument(doc.id, doc.fileType);
+            totalExtracts += count;
+            set({ isSegmenting: false });
+          }
         } catch (error) {
           console.error(`Failed to import ${fileName}:`, error);
-          // Continue with other files
         }
 
         set({
@@ -311,14 +332,25 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       set((state) => ({
         documents: [...state.documents, ...imported],
         isImporting: false,
+        isSegmenting: false,
         importProgress: { current: imported.length, total: filePaths.length }
       }));
+
+      // Show summary toast for multi-file auto-segmentation
+      if (autoSegment && totalExtracts > 0) {
+        useToastStore.getState().addToast({
+          type: ToastType.Success,
+          title: "Import complete",
+          message: `${imported.length} document${imported.length !== 1 ? "s" : ""} imported, ${totalExtracts} extract${totalExtracts !== 1 ? "s" : ""} created`,
+        });
+      }
 
       return imported;
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to import documents",
         isImporting: false,
+        isSegmenting: false,
         importProgress: { current: 0, total: 0 }
       });
       throw error;
@@ -331,6 +363,41 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       return [];
     }
     return get().importFromFiles(filePaths);
+  },
+
+  segmentDocument: async (documentId: string, fileType?: string) => {
+    const settings = useSettingsStore.getState().settings;
+    const { segmentation } = settings.documents;
+    const toast = useToastStore.getState();
+
+    try {
+      // Use the user's segmentation settings from the settings store
+      const config: segmentationApi.SegmentationConfig = {
+        method: segmentation.method,
+        targetLength: segmentation.targetLength,
+        overlap: segmentation.overlap,
+      };
+
+      console.log("[segmentDocument] Segmenting document", documentId, "with config:", config, "fileType:", fileType);
+
+      const extractIds = await segmentationApi.autoSegmentAndCreateExtracts(documentId, config);
+      console.log("[segmentDocument] Created", extractIds.length, "extracts");
+
+      toast.addToast({
+        type: ToastType.Success,
+        title: "Segmentation complete",
+        message: `${extractIds.length} extract${extractIds.length !== 1 ? "s" : ""} created`,
+      });
+      return extractIds.length;
+    } catch (error) {
+      console.error("[segmentDocument] Failed:", error);
+      toast.addToast({
+        type: ToastType.Error,
+        title: "Segmentation failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      return 0;
+    }
   },
 
   importFromUrl: async (url) => {

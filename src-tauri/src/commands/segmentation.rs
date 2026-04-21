@@ -50,6 +50,9 @@ pub async fn segment_document(
 #[tauri::command]
 pub async fn auto_segment_and_create_extracts(
     document_id: String,
+    method: Option<String>,
+    target_length: Option<usize>,
+    overlap: Option<usize>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<String>> {
     // Get the document
@@ -61,8 +64,22 @@ pub async fn auto_segment_and_create_extracts(
         return Err(crate::error::IncrementumError::Internal("Document has no content".to_string()));
     }
 
-    // Use smart segmentation
-    let config = SegmentConfig::default();
+    let mut config = SegmentConfig::default();
+    if let Some(m) = method {
+        config.method = match m.as_str() {
+            "semantic" => SegmentationMethod::Semantic,
+            "paragraph" => SegmentationMethod::Paragraph,
+            "fixed" => SegmentationMethod::Fixed,
+            "smart" => SegmentationMethod::Smart,
+            _ => SegmentationMethod::Smart,
+        };
+    }
+    if let Some(t) = target_length {
+        config.target_length = t;
+    }
+    if let Some(o) = overlap {
+        config.overlap = o;
+    }
     let segmenter = DocumentSegmenter::new(config);
     let result = segmenter.segment(&content)?;
 

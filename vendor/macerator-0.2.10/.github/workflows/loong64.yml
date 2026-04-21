@@ -1,0 +1,33 @@
+name: Rust loongarch64 QEMU
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: sandervocke/setup-qemu-container@v1
+      with:
+        container: ghcr.io/loong64/debian:trixie
+        arch: loong64
+    - name: Check arch
+      shell: run-in-container.sh {0}
+      run: |
+        echo "Arch in container: $(uname -m)"
+    - name: Set up Rust
+      shell: run-in-container.sh {0}
+      run: |
+        apt-get update
+        apt-get install -y curl build-essential
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+    - name: Build
+      shell: run-in-container.sh {0}
+      run: $HOME/.cargo/bin/cargo +nightly build --verbose --features nightly
+    - name: Run tests
+      shell: run-in-container.sh {0}
+      run: $HOME/.cargo/bin/cargo +nightly test --verbose --features nightly

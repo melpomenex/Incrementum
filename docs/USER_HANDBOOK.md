@@ -55,7 +55,7 @@ When you first launch Incrementum, you'll see the **Dashboard** with four main s
 ### Initial Setup
 
 1. **Choose a Theme** - Navigate to Settings → Appearance → Theme
-   - 17 built-in themes available (6 dark, 11 light)
+   - 147 built-in themes available (26 modern, 121 legacy)
    - Try "Modern Dark" or "Material You" for a modern look
 
 2. **Configure Review Settings** - Settings → Learning → Algorithm
@@ -77,7 +77,8 @@ Let's import your first document:
    - **Local File**: Select a PDF, EPUB, or text file
    - **URL**: Paste any web URL
    - **Arxiv**: Paste a research paper ID or URL
-4. Wait for processing (auto-segmentation begins automatically)
+4. Wait for processing
+   - If auto-segmentation is enabled in Settings, the document will be automatically split into extracts after import
 
 ---
 
@@ -107,9 +108,9 @@ Let's import your first document:
 3. Navigate to your file and select it
 4. Incrementum will:
    - Extract text content
-   - Auto-segment into sections
    - Calculate reading time and word count
    - Extract metadata (title, author, etc.)
+   - If auto-segmentation is enabled (Settings → Documents → Auto-process on import), automatically split the document into extracts
 
 #### Method 2: URL Import
 
@@ -578,7 +579,7 @@ Export your data for analysis:
 ### Appearance Settings
 
 #### Themes
-- **17 Built-in Themes**: Choose from dark and light themes
+- **147 Built-in Themes**: 26 modern curated themes and 121 legacy themes (dark and light)
 - **Live Preview**: See theme changes instantly
 - **Custom Themes**: Create your own color schemes
 
@@ -587,7 +588,7 @@ Export your data for analysis:
 - Material You (Material Design 3)
 - Aurora Light
 - Ice Blue
-- And 13 more...
+- Nocturne Dark, Snow, Cartographer, Focus, and many more...
 
 #### Custom Theme Creation
 
@@ -602,6 +603,12 @@ Export your data for analysis:
 
 #### Display Options
 - **Dense Mode**: Show more content per screen
+- **Font Family**: Choose from 65 built-in fonts across 5 categories:
+  - Sans-serif (25): Inter, Poppins, Montserrat, Space Grotesk, and more
+  - Serif (5): Merriweather, Playfair Display, Lora, Crimson Text, Bitter
+  - Monospace (31): JetBrains Mono, Fira Code, Source Code Pro, and more
+  - Display (2): Comic Neue, Major Mono Display
+  - System (4): System UI, System Serif, System Sans, System Mono
 - **Font Size**: Adjust text size
 - **Card Animation**: Enable/disable animations
 - **Show Preview Intervals**: Display next review dates
@@ -942,7 +949,9 @@ Configure AI providers for card generation:
 **Supported Providers:**
 - OpenAI (GPT-4, GPT-3.5)
 - Anthropic (Claude)
-- Local LLMs (Ollama, LM Studio)
+- Ollama (local models like Llama, Mistral, Qwen)
+- OpenRouter (access to many models, including free tiers)
+- llama.cpp / vLLM (any GGUF model via OpenAI-compatible API)
 - Custom API endpoints
 
 **Per-Provider Settings:**
@@ -1163,13 +1172,13 @@ Notes:
 Extract text from images:
 
 **Supported Providers:**
+- GLM-OCR (Local) — multimodal OCR via llama.cpp or vLLM
+- Tesseract (Local)
 - Google Cloud Vision
 - AWS Textract
-- Mistral OCR
-- Mathpix (for math equations)
-- GPT-4o
-- Claude Vision
-- Local OCR (Tesseract)
+- Azure Computer Vision
+- Marker (Local) — PDF to Markdown
+- Nougat (Local) — scientific documents with math
 
 **Use Cases:**
 - Screenshot capture
@@ -1177,12 +1186,72 @@ Extract text from images:
 - Images with text
 - Handwritten notes
 
-**Setup:**
+**Setup (Cloud Providers):**
 1. Settings → OCR
-2. Choose provider
-3. Configure API key
+2. Choose provider (Google, AWS, or Azure)
+3. Configure API key and credentials
 4. Select language(s)
 5. Test with sample image
+
+**Setup (GLM-OCR with llama.cpp):**
+
+llama.cpp provides a lightweight local LLM server for GLM-OCR without requiring a GPU. It uses the OpenAI-compatible API on port 8080.
+
+1. **Build llama.cpp** (if not already built):
+   ```bash
+   git clone https://github.com/ggml-org/llama.cpp.git
+   cd llama.cpp
+   cmake -B build
+   cmake --build build --config Release -j$(nproc)
+   ```
+
+2. **Download a multimodal model** (GGUF format):
+   ```bash
+   # Qwen2.5-VL (recommended for OCR)
+   huggingface-cli download bartowski/Qwen2.5-VL-7B-Instruct-GGUF \
+     Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf --local-dir models/
+   ```
+
+3. **Start the server**:
+   ```bash
+   ./build/bin/llama-server \
+     -m models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf \
+     --port 8080 --host 0.0.0.0 -c 16384 -t $(nproc)
+   ```
+
+4. **Configure in Incrementum**:
+   - Settings → OCR → Provider: **GLM-OCR (Local)**
+   - Backend: **vLLM (GPU)** (this is the llama.cpp/vLLM mode — works for both)
+   - Endpoint: `http://localhost:8080/v1`
+   - Model: your model filename (e.g., `Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf`)
+
+**Performance Tips:**
+- Use `-c 16384` or higher for long documents (default 4096 is too small for most OCR tasks)
+- Use `-t $(nproc)` to use all CPU threads
+- Q4_K_M quantization offers the best quality/speed tradeoff for CPU inference
+- For GPU acceleration, build llama.cpp with CUDA, Metal, or Vulkan support
+
+**Setup (GLM-OCR with vLLM):**
+
+vLLM provides GPU-accelerated inference for larger models. Requires an NVIDIA GPU with sufficient VRAM.
+
+```bash
+pip install -U vllm
+vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080
+```
+
+Then configure Incrementum the same way (endpoint `http://localhost:8080/v1`).
+
+**Setup (GLM-OCR with Ollama):**
+
+The simplest option for getting started — Ollama manages model downloads and runtime automatically.
+
+1. Settings → OCR → Provider: **GLM-OCR (Local)**
+2. Backend: **Ollama (CPU)**
+3. Click **Download Ollama** (if not installed)
+4. Click **Start Runtime**
+5. Set model (e.g., `llava:7b` or `qwen2-vl:7b`)
+6. Click **Pull Model**
 
 **Math OCR:**
 - Specialized handling for equations
@@ -1507,11 +1576,31 @@ The **Preview Interval** feature shows you exactly when each card will appear ne
 **Symptoms:** OCR fails or produces poor results
 
 **Solutions:**
-1. **Check API Key**: Valid and has credits
+1. **Check API Key**: Valid and has credits (cloud providers)
 2. **Check Image Quality**: Clear, high-resolution images work best
 3. **Check Language**: Correct language selected
 4. **Try Alternative Provider**: Some work better for certain content
 5. **Local OCR**: Use Tesseract if internet issues
+
+#### llama.cpp not responding
+
+**Symptoms:** "Error calling LLM" or connection refused to localhost:8080
+
+**Solutions:**
+1. **Check if server is running**: `curl http://localhost:8080/v1/models`
+2. **Start the server**: see [OCR Setup](#ocr-optical-character-recognition) above
+3. **Context size too small**: restart with `-c 16384` or higher
+4. **Port in use**: another process may be using port 8080; check with `lsof -i :8080`
+5. **Out of memory**: use a smaller quantization (Q3_K_M instead of Q4_K_M) or a smaller model
+
+#### Ollama not starting
+
+**Symptoms:** GLM-OCR Ollama runtime fails to start
+
+**Solutions:**
+1. **Install Ollama**: Use the Download button in Settings → OCR, or install from ollama.com
+2. **Check binary path**: Set the Ollama Binary Path if not in default location
+3. **Linux permissions**: You may need `sudo` to install or run the Ollama service
 
 ### Getting Help
 

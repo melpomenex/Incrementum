@@ -37,7 +37,7 @@ use anyhow::Context;
 use database::Database;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use url::Url;
 
 // Global state for the database
@@ -178,6 +178,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         // Temporarily disabled - may cause Windows crash on startup
         // TODO: Re-enable with proper Windows notification handling
         //.plugin(tauri_plugin_notification::init())
@@ -201,6 +202,50 @@ pub fn run() {
             let app_handle = app.handle().clone();
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
+
+            // Register global keyboard shortcuts to prevent webkit2gtk from
+            // intercepting Ctrl+R (reload), Ctrl+Q (quit), etc.
+            {
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+                let gs = app.global_shortcut();
+
+                let shortcuts: Vec<Shortcut> = [
+                    // Ctrl+key (Linux/Windows)
+                    (Modifiers::CONTROL, Code::KeyQ),
+                    (Modifiers::CONTROL, Code::KeyR),
+                    (Modifiers::CONTROL, Code::KeyD),
+                    (Modifiers::CONTROL, Code::KeyK),
+                    (Modifiers::CONTROL, Code::KeyP),
+                    (Modifiers::CONTROL, Code::Comma),
+                    (Modifiers::CONTROL, Code::KeyO),
+                    (Modifiers::CONTROL, Code::KeyN),
+                    (Modifiers::CONTROL, Code::Slash),
+                    // Cmd+key (macOS)
+                    (Modifiers::SUPER, Code::KeyQ),
+                    (Modifiers::SUPER, Code::KeyR),
+                    (Modifiers::SUPER, Code::KeyD),
+                    (Modifiers::SUPER, Code::KeyK),
+                    (Modifiers::SUPER, Code::KeyP),
+                    (Modifiers::SUPER, Code::Comma),
+                    (Modifiers::SUPER, Code::KeyO),
+                    (Modifiers::SUPER, Code::KeyN),
+                    (Modifiers::SUPER, Code::Slash),
+                ].iter().map(|(mods, code)| Shortcut::new(Some(*mods), *code)).collect();
+
+                let shortcut_app = app_handle.clone();
+                if let Err(e) = gs.on_shortcuts(shortcuts, move |_app, shortcut, event| {
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+                    let key_str = format!("{:?}", shortcut.key);
+                    let _ = shortcut_app.emit("global-shortcut", key_str);
+                }) {
+                    tracing::warn!("Failed to register shortcuts: {}", e);
+                }
+
+                log_startup(&app_handle, "startup: global shortcuts registered");
+            }
 
             // Initialize async runtime for database setup
             let result: anyhow::Result<()> = tauri::async_runtime::block_on(async {

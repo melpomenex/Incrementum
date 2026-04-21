@@ -139,6 +139,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     documents,
     isLoading,
     isImporting,
+    isSegmenting,
     importProgress,
     error,
     loadDocuments,
@@ -146,6 +147,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     importFromFiles,
     updateDocument,
     deleteDocument,
+    segmentDocument,
   } = useDocumentStore();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
   const documentAssignments = useCollectionStore((state) => state.documentAssignments);
@@ -1412,6 +1414,18 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                       >
                         {t("documentsView.extract")}
                       </button>
+                      {activeDocument.extractCount === 0 && (
+                        <button
+                          onClick={() => {
+                            if (!segmentDocument) return;
+                            segmentDocument(activeDocument.id, activeDocument.fileType);
+                          }}
+                          disabled={isSegmenting}
+                          className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground disabled:opacity-50"
+                        >
+                          {isSegmenting ? "Segmenting..." : "Segment"}
+                        </button>
+                      )}
                       <button
                         onClick={() =>
                           updateDocument(activeDocument.id, {
