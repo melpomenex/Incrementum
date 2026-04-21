@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw, DollarSign, Pencil } from "lucide-react";
 import { getAvailableModels, type ModelInfo } from "../../api/llm";
+import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
 export interface LLMProviderConfig {
   id: string;
@@ -101,6 +102,12 @@ export function LLMProviderSettings({
   const [ollamaStatus, setOllamaStatus] = useState<string | null>(null);
 
   const isEditing = editingProvider !== null;
+  const resolvedBaseUrl = (providerType: "openai" | "anthropic" | "ollama" | "openrouter", baseUrl: string) =>
+    baseUrl || PROVIDER_INFO[providerType].baseUrl;
+  const newProviderNeedsApiKey = providerRequiresApiKey(
+    newProviderType,
+    resolvedBaseUrl(newProviderType, newProviderBaseUrl)
+  );
 
   const startEditing = (provider: LLMProviderConfig) => {
     setEditingProvider(provider);
@@ -122,7 +129,7 @@ export function LLMProviderSettings({
   };
 
   const handleAddProvider = () => {
-    if (!newProviderName.trim() || (newProviderType !== "ollama" && !newProviderApiKey.trim())) {
+    if (!newProviderName.trim() || (newProviderNeedsApiKey && !newProviderApiKey.trim())) {
       return;
     }
 
@@ -216,7 +223,7 @@ export function LLMProviderSettings({
   };
 
   const handleRefreshModels = async () => {
-    if (newProviderType !== "ollama" && !newProviderApiKey.trim()) {
+    if (newProviderNeedsApiKey && !newProviderApiKey.trim()) {
       alert("Please enter an API key first to fetch models");
       return;
     }
@@ -478,30 +485,33 @@ export function LLMProviderSettings({
                 type={visibleKeys[newProviderType] ? "text" : "password"}
                 value={newProviderApiKey}
                 onChange={(e) => setNewProviderApiKey(e.target.value)}
-                placeholder={newProviderType === "ollama" ? "Optional for local Ollama" : "sk-..."}
+                placeholder={newProviderNeedsApiKey ? "sk-..." : "Optional for local endpoint"}
                 className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground font-mono text-sm"
               />
             </div>
+            {!newProviderNeedsApiKey && (
+              <p className="text-xs text-muted-foreground mt-1">
+                API key is optional for local Ollama or local OpenAI-compatible endpoints such as `llama.cpp`.
+              </p>
+            )}
           </div>
 
-          {/* Base URL (optional) - show for all providers except OpenAI */}
-          {newProviderType !== "openai" && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Base URL (Optional)
-              </label>
-              <input
-                type="url"
-                value={newProviderBaseUrl}
-                onChange={(e) => setNewProviderBaseUrl(e.target.value)}
-                placeholder={PROVIDER_INFO[newProviderType].baseUrl}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Default: {PROVIDER_INFO[newProviderType].baseUrl}
-              </p>
-            </div>
-          )}
+          {/* Base URL */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Base URL (Optional)
+            </label>
+            <input
+              type="url"
+              value={newProviderBaseUrl}
+              onChange={(e) => setNewProviderBaseUrl(e.target.value)}
+              placeholder={PROVIDER_INFO[newProviderType].baseUrl}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Default: {PROVIDER_INFO[newProviderType].baseUrl}
+            </p>
+          </div>
 
           {/* Model Selection */}
           <div>
@@ -511,7 +521,7 @@ export function LLMProviderSettings({
               </label>
               <button
                 onClick={handleRefreshModels}
-                disabled={refreshingModels || (newProviderType !== "ollama" && !newProviderApiKey.trim())}
+                disabled={refreshingModels || (newProviderNeedsApiKey && !newProviderApiKey.trim())}
                 className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={`Fetch latest models and pricing from ${PROVIDER_INFO[newProviderType].name}`}
               >
@@ -540,6 +550,13 @@ export function LLMProviderSettings({
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              value={newProviderModel}
+              onChange={(e) => setNewProviderModel(e.target.value)}
+              placeholder="Enter a custom model ID"
+              className="w-full mt-2 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground font-mono text-sm"
+            />
             
             {/* Pricing Display for Selected Model */}
             {(() => {
@@ -609,7 +626,7 @@ export function LLMProviderSettings({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!newProviderName || (newProviderType !== "ollama" && !newProviderApiKey)}
+              disabled={!newProviderName || (newProviderNeedsApiKey && !newProviderApiKey.trim())}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isEditing ? "Save Changes" : "Add Provider"}

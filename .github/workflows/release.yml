@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -336,7 +337,6 @@ jobs:
           files: src-tauri/target/release/bundle/appimage/*
           draft: false
           prerelease: false
-          generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           fail_on_unmatched_files: false
         env:
@@ -457,7 +457,6 @@ jobs:
           files: arch-pkg/*.pkg.tar.zst
           draft: false
           prerelease: false
-          generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           fail_on_unmatched_files: false
         env:
@@ -541,7 +540,39 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: latest.json
-          generate_release_notes: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-release-notes:
+    needs: [create-update-manifest]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract release notes from changelog
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\]" { capture=1; next }
+            capture && $0 ~ "^## \\[" { exit }
+            capture { print }
+          ' CHANGELOG.md > release_notes.md
+
+          if [ ! -s release_notes.md ]; then
+            echo "Failed to extract release notes for ${VERSION} from CHANGELOG.md"
+            exit 1
+          fi
+
+      - name: Sync GitHub release body from changelog
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
