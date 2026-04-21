@@ -203,6 +203,8 @@ export function DragDropUpload({
 
   // Process upload queue
   const processUploadQueue = async (files: UploadFile[]) => {
+    const successfulPaths: string[] = [];
+
     for (const uploadFile of files) {
       try {
         updateFileStatus(uploadFile.id, "uploading", 50);
@@ -210,7 +212,6 @@ export function DragDropUpload({
         // Handle Anki packages separately
         if (uploadFile.type === "apkg") {
           if (isTauri()) {
-            // In Tauri, use the native file path
             const filePath = (uploadFile.file as any).path;
             if (filePath) {
               updateFileStatus(uploadFile.id, "success", 100, filePath);
@@ -219,7 +220,6 @@ export function DragDropUpload({
               throw new Error("Could not get file path");
             }
           } else {
-            // Store in browser file store
             const virtualPath = storeBrowserFile(uploadFile.file);
             updateFileStatus(uploadFile.id, "success", 100, virtualPath);
             onAnkiPackageRef.current?.(virtualPath);
@@ -247,17 +247,17 @@ export function DragDropUpload({
 
         // Handle regular documents
         if (isTauri()) {
-          // In Tauri, use the native file path directly
           const filePath = (uploadFile.file as any).path;
           if (filePath) {
             updateFileStatus(uploadFile.id, "success", 100, filePath);
+            successfulPaths.push(filePath);
           } else {
             throw new Error("Could not get file path");
           }
         } else {
-          // In browser, store in virtual file store
           const virtualPath = storeBrowserFile(uploadFile.file);
           updateFileStatus(uploadFile.id, "success", 100, virtualPath);
+          successfulPaths.push(virtualPath);
         }
       } catch (error) {
         console.error("Failed to process file:", uploadFile.name, error);
@@ -271,13 +271,8 @@ export function DragDropUpload({
       }
     }
 
-    // Notify parent of completed imports
-    const successfulUploads = uploadQueue
-      .filter((f) => f.status === "success" && f.virtualPath && f.type !== "apkg" && f.type !== "json")
-      .map((f) => f.virtualPath!);
-
-    if (successfulUploads.length > 0) {
-      onFilesImportedRef.current?.(successfulUploads);
+    if (successfulPaths.length > 0) {
+      onFilesImportedRef.current?.(successfulPaths);
     }
   };
 
@@ -533,11 +528,13 @@ export function DragDropUpload({
       }
     };
 
-    // Browser mode listeners
-    window.addEventListener("dragenter", handleGlobalDragEnter);
-    window.addEventListener("dragleave", handleGlobalDragLeave);
-    window.addEventListener("dragover", handleGlobalDragOver);
-    window.addEventListener("drop", handleGlobalDrop);
+    // Browser mode listeners (only register in non-Tauri to avoid duplicate events)
+    if (!isTauri()) {
+      window.addEventListener("dragenter", handleGlobalDragEnter);
+      window.addEventListener("dragleave", handleGlobalDragLeave);
+      window.addEventListener("dragover", handleGlobalDragOver);
+      window.addEventListener("drop", handleGlobalDrop);
+    }
 
     // Tauri native drag-drop listeners (only in Tauri)
     // Note: unlistenFnsRef and isMountedRef are defined at component level to follow hooks rules
@@ -631,10 +628,12 @@ export function DragDropUpload({
 
     return () => {
       isMountedRef.current = false;
-      window.removeEventListener("dragenter", handleGlobalDragEnter);
-      window.removeEventListener("dragleave", handleGlobalDragLeave);
-      window.removeEventListener("dragover", handleGlobalDragOver);
-      window.removeEventListener("drop", handleGlobalDrop);
+      if (!isTauri()) {
+        window.removeEventListener("dragenter", handleGlobalDragEnter);
+        window.removeEventListener("dragleave", handleGlobalDragLeave);
+        window.removeEventListener("dragover", handleGlobalDragOver);
+        window.removeEventListener("drop", handleGlobalDrop);
+      }
 
       // Clean up all Tauri listeners that were actually registered
       // Capture the current array and clear the ref before calling unlisten
