@@ -22,7 +22,7 @@ export function formatShortcut(shortcut: Omit<KeyboardShortcut, "handler" | "des
   const parts: string[] = [];
 
   if (shortcut.ctrlKey) parts.push(isMac ? "⌃" : "Ctrl");
-  if (shortcut.metaKey) parts.push(isMac ? "⌘" : "Win");
+  if (shortcut.metaKey) parts.push(isMac ? "⌘" : "Ctrl");
   if (shortcut.shiftKey) parts.push(isMac ? "⇧" : "Shift");
   if (shortcut.altKey) parts.push(isMac ? "⌥" : "Alt");
   parts.push(shortcut.key.toUpperCase());
@@ -49,8 +49,10 @@ export function useKeyboardShortcuts(shortcutGroups: ShortcutGroup[]) {
           if (shortcut.disabled) continue;
 
           const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
-          const ctrlMatch = event.ctrlKey === (shortcut.ctrlKey || false);
-          const metaMatch = event.metaKey === (shortcut.metaKey || false);
+          // metaKey in a shortcut definition means "primary modifier" (Ctrl on Linux/Windows, Cmd on Mac)
+          const primaryMod = event.metaKey || event.ctrlKey;
+          const ctrlMatch = shortcut.ctrlKey ? event.ctrlKey === true : !shortcut.metaKey ? event.ctrlKey === false : true;
+          const metaMatch = shortcut.metaKey ? primaryMod === true : event.metaKey === false;
           const shiftMatch = event.shiftKey === (shortcut.shiftKey || false);
           const altMatch = event.altKey === (shortcut.altKey || false);
 
