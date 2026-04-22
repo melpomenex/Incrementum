@@ -73,6 +73,33 @@ export interface FeedFolder {
   feeds: string[]; // feed IDs
 }
 
+function extractImageUrlFromHtml(html?: string | null): string | undefined {
+  if (!html) return undefined;
+
+  const imgMatch = html.match(/<img[^>]+src=["']([^"'#?][^"']*)["']/i);
+  if (imgMatch?.[1]) {
+    return imgMatch[1];
+  }
+
+  return undefined;
+}
+
+function getFeedItemThumbnail(item: {
+  thumbnail?: string | null;
+  image_url?: string | null;
+  content?: string | null;
+  description?: string | null;
+  enclosure?: { url: string; type: string } | null;
+}): string | undefined {
+  if (item.thumbnail) return item.thumbnail;
+  if (item.image_url) return item.image_url;
+  if (item.enclosure?.type?.startsWith("image/") && item.enclosure.url) {
+    return item.enclosure.url;
+  }
+
+  return extractImageUrlFromHtml(item.content) || extractImageUrlFromHtml(item.description);
+}
+
 function normalizeKnownFeedUrl(feedUrl: string): string {
   switch (feedUrl.trim()) {
     case "https://feeds.nbcnews.com/nbcnews/topstories":
@@ -176,6 +203,18 @@ function parseRSSItem(item: Element): FeedItem | null {
     };
   }
 
+  const mediaContentEl =
+    item.querySelector("media\\:content[url]") ||
+    Array.from(item.children).find((child) => child.tagName.toLowerCase().includes("content"));
+  const mediaThumbnailEl =
+    item.querySelector("media\\:thumbnail[url]") ||
+    Array.from(item.children).find((child) => child.tagName.toLowerCase().includes("thumbnail"));
+  const itemImageUrl =
+    mediaThumbnailEl?.getAttribute("url") ||
+    getElementText(item, "itunes\\:image") ||
+    mediaContentEl?.getAttribute("url") ||
+    (enclosure?.type?.startsWith("image/") ? enclosure.url : undefined);
+
   // Extract content from content:encoded if available
   // Try multiple approaches to handle namespaced elements
   let content = description;
@@ -219,6 +258,12 @@ function parseRSSItem(item: Element): FeedItem | null {
     read: false,
     favorite: false,
     feedId: "", // Will be set by caller
+    thumbnail: getFeedItemThumbnail({
+      image_url: itemImageUrl,
+      content,
+      description,
+      enclosure,
+    }),
   };
 }
 
@@ -290,6 +335,17 @@ function parseAtomEntry(entry: Element): FeedItem | null {
     };
   }
 
+  const mediaThumbnailEl =
+    entry.querySelector("media\\:thumbnail[url]") ||
+    Array.from(entry.children).find((child) => child.tagName.toLowerCase().includes("thumbnail"));
+  const mediaContentEl =
+    entry.querySelector("media\\:content[url]") ||
+    Array.from(entry.children).find((child) => child.tagName.toLowerCase().includes("content"));
+  const itemImageUrl =
+    mediaThumbnailEl?.getAttribute("url") ||
+    mediaContentEl?.getAttribute("url") ||
+    (enclosure?.type?.startsWith("image/") ? enclosure.url : undefined);
+
   const id = getElementText(entry, "id") || generateItemId(link, pubDate);
 
   return {
@@ -306,6 +362,12 @@ function parseAtomEntry(entry: Element): FeedItem | null {
     read: false,
     favorite: false,
     feedId: "",
+    thumbnail: getFeedItemThumbnail({
+      image_url: itemImageUrl,
+      content,
+      description: content,
+      enclosure,
+    }),
   };
 }
 
@@ -385,6 +447,7 @@ export async function fetchFeed(feedUrl: string): Promise<Feed | null> {
         read: false,
         favorite: false,
         feedId: parsedFeed.id,
+        thumbnail: getFeedItemThumbnail(item),
       })),
       subscribeDate: new Date().toISOString(),
       unreadCount: parsedFeed.items.length,
@@ -927,6 +990,7 @@ function backendFeedToFrontend(
       favorite: item.is_queued,
       feedId: feed.id,
       intelligenceScore: item.intelligence_score ?? undefined,
+      thumbnail: getFeedItemThumbnail(item),
     })),
     subscribeDate: feed.date_added,
     unreadCount: feed.unread_count ?? 0,
@@ -961,6 +1025,7 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
       favorite: item.is_queued,
       feedId: feed.id,
       intelligenceScore: item.intelligence_score ?? undefined,
+      thumbnail: getFeedItemThumbnail(item),
     })),
     subscribeDate: feed.date_added,
     unreadCount: items.filter((item) => !item.is_read).length,
@@ -1042,8 +1107,8 @@ async function createArticlesViaTauri(feedId: string, items: FeedItem[]): Promis
         published_date: item.pubDate || null,
         content: item.content || null,
         summary: item.description || null,
-        imageUrl: item.enclosure?.url || null,
-        image_url: item.enclosure?.url || null,
+        imageUrl: getFeedItemThumbnail(item) || null,
+        image_url: getFeedItemThumbnail(item) || null,
       })
     )
   );

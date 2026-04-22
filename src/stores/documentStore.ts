@@ -370,8 +370,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     const { segmentation } = settings.documents;
     const toast = useToastStore.getState();
 
+    set({ isSegmenting: true });
+
     try {
-      // Use the user's segmentation settings from the settings store
       const config: segmentationApi.SegmentationConfig = {
         method: segmentation.method,
         targetLength: segmentation.targetLength,
@@ -388,6 +389,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         title: "Segmentation complete",
         message: `${extractIds.length} extract${extractIds.length !== 1 ? "s" : ""} created`,
       });
+
+      await get().loadDocuments();
       return extractIds.length;
     } catch (error) {
       console.error("[segmentDocument] Failed:", error);
@@ -397,6 +400,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         message: error instanceof Error ? error.message : "Unknown error",
       });
       return 0;
+    } finally {
+      set({ isSegmenting: false });
     }
   },
 

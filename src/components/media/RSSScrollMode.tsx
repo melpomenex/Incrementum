@@ -1729,6 +1729,17 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   {renderedItem.item.title}
                 </h1>
 
+                {renderedItem.item.thumbnail && (
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/60 bg-muted/30">
+                    <img
+                      src={renderedItem.item.thumbnail}
+                      alt=""
+                      className="h-auto max-h-[28rem] w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
                 {/* Summary Badge - shown when summary is available but panel is closed */}
                 {renderedItem &&
                   !showSummary &&
