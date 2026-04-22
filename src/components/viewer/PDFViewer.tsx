@@ -525,7 +525,7 @@ export function PDFViewer({
           }
           if (fileData) {
             sources.push({
-              data: fileData.slice(),
+              data: new Uint8Array(fileData),
               verbosity: 0,
               disableFontFace: shouldDisableFontFace,
             });

@@ -1030,10 +1030,14 @@ export function DocumentViewer({
         // because epubjs uses XMLHttpRequest internally, which is blocked on asset://.
         const base64Data = await documentsApi.readDocumentFile(doc.filePath);
         const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
+        const rawBytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+          rawBytes[i] = binaryString.charCodeAt(i);
         }
+        // Ensure the Uint8Array has its own independent ArrayBuffer.
+        // WebView2 (Windows) can detach the buffer during IPC transfer, causing
+        // structuredClone failures when pdfjs-dist passes data to its worker.
+        const bytes = new Uint8Array(rawBytes);
         console.log("[DocumentViewer] File data loaded via backend, type:", inferredType, "size:", bytes.byteLength);
         setFileData(bytes);
       } catch (error) {
