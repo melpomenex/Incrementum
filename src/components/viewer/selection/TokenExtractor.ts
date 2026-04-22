@@ -8,7 +8,7 @@
  * 4. Detecting column boundaries for multi-column documents
  */
 
-import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from "pdfjs-dist";
 import type {
   TextToken,
   PageTokenData,

@@ -15,6 +15,7 @@ import {
   resolvePdfAssistantContext,
   type ResolvedAssistantContext,
 } from "../../utils/assistantContext";
+import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extractNavigation";
 
 const ASSISTANT_POSITION_KEY = "assistant-panel-position";
 
@@ -22,11 +23,21 @@ interface DocumentViewerWithAssistantProps {
   documentId: string;
   initialViewMode?: "document" | "extracts" | "cards";
   highlightQuery?: string;
-  initialJump?: any;
+  initialJump?: DocumentInitialJump;
   autoPlay?: boolean;
+  focusedExtractId?: string;
+  extractSourceContext?: ExtractSourceContext;
 }
 
-export function DocumentViewer({ documentId, initialViewMode, highlightQuery, initialJump, autoPlay }: DocumentViewerWithAssistantProps) {
+export function DocumentViewer({
+  documentId,
+  initialViewMode,
+  highlightQuery,
+  initialJump,
+  autoPlay,
+  focusedExtractId,
+  extractSourceContext,
+}: DocumentViewerWithAssistantProps) {
   const [assistantInputActive, setAssistantInputActive] = useState(false);
   const [selection, setSelection] = useState("");
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
@@ -329,6 +340,8 @@ export function DocumentViewer({ documentId, initialViewMode, highlightQuery, in
         highlightQuery={highlightQuery}
         initialJump={initialJump}
         autoPlay={autoPlay}
+        focusedExtractId={focusedExtractId}
+        extractSourceContext={extractSourceContext}
         onPdfContextTextChange={setPdfContextText}
         onPdfOcrContextTextChange={setPdfOcrContextText}
         contextPageWindow={2}

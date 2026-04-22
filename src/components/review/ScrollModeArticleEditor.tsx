@@ -9,7 +9,7 @@ import {
   PencilLine,
   Scissors,
 } from "lucide-react";
-import { createExtract } from "../../api/extracts";
+import { createExtract, type Extract } from "../../api/extracts";
 import { updateDocumentContent } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import type { Document } from "../../types/document";
@@ -20,6 +20,8 @@ type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
 interface ScrollModeArticleEditorProps {
   document: Document;
+  onExtractCreated?: (extract: Extract) => void;
+  suppressSuccessToast?: boolean;
 }
 
 function htmlToPlainText(html?: string): string {
@@ -61,7 +63,11 @@ function renderPlainTextPreview(text: string): string {
     .join("");
 }
 
-export function ScrollModeArticleEditor({ document }: ScrollModeArticleEditorProps) {
+export function ScrollModeArticleEditor({
+  document,
+  onExtractCreated,
+  suppressSuccessToast = false,
+}: ScrollModeArticleEditorProps) {
   const toast = useToast();
   const { updateDocument } = useDocumentStore();
   const derivedArticleText = useMemo(
@@ -202,13 +208,16 @@ export function ScrollModeArticleEditor({ document }: ScrollModeArticleEditorPro
     }
 
     try {
-      await createExtract({
+      const created = await createExtract({
         document_id: document.id,
         content: selectionText,
         note: `Saved from web article: ${document.title}`,
       });
+      onExtractCreated?.(created);
       window.getSelection()?.removeAllRanges();
-      toast.success("Extract created");
+      if (!suppressSuccessToast) {
+        toast.success("Extract created");
+      }
     } catch (error) {
       console.error("Failed to create extract from article selection:", error);
       toast.error("Failed to create extract");

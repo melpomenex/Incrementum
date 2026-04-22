@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useI18n } from "../lib/i18n";
 import type { TabPane } from "../stores/tabsStore";
-import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff, FileText } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
@@ -36,6 +36,9 @@ import { createDocument, updateDocumentContent, dismissDocument } from "../api/d
 import { trimToTokenWindow } from "../utils/tokenizer";
 import { fetchYouTubeTranscript } from "../api/youtube";
 import { ReaderTTSControls } from "../components/common/ReaderTTSControls";
+import { usePaneId } from "../components/common/Tabs/TabContent";
+import { DocumentViewer as DocumentViewerTab } from "../components/tabs/TabRegistry";
+import type { ExtractSourceContext } from "../types/extractNavigation";
 
 const buildTranscriptText = (segments: Array<{ text: string }>): string =>
   segments
@@ -117,8 +120,9 @@ export function QueueScrollPage() {
   const { t } = useI18n();
   const { filteredItems: allQueueItems, loadQueue } = useQueueStore();
   const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore();
-  const { rootPane, closeTab, updateTab } = useTabsStore();
+  const { rootPane, closeTab, updateTab, addTab } = useTabsStore();
   const { settings, updateSettingsCategory } = useSettingsStore();
+  const paneId = usePaneId();
 
   // Get active tab ID from the first tab pane
   const activeTabId = useMemo(() => {
@@ -215,6 +219,38 @@ export function QueueScrollPage() {
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileRssSelectionTimeoutRef = useRef<number | null>(null);
   const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+
+  const buildQueueExtractSourceContext = useCallback((params: {
+    documentId: string;
+    title: string;
+    sourceKind: ExtractSourceContext["sourceKind"];
+  }): ExtractSourceContext => ({
+    documentId: params.documentId,
+    sourceTitle: params.title,
+    sourceKind: params.sourceKind,
+    queueType: "queue-scroll",
+  }), []);
+
+  const openExtractInDocumentTab = useCallback((params: {
+    documentId: string;
+    documentTitle: string;
+    extract: Extract;
+    sourceContext: ExtractSourceContext;
+  }) => {
+    addTab({
+      title: params.documentTitle,
+      icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+      type: "document-viewer",
+      content: DocumentViewerTab,
+      closable: true,
+      data: {
+        documentId: params.documentId,
+        initialViewMode: "extracts",
+        focusedExtractId: params.extract.id,
+        extractSourceContext: params.sourceContext,
+      },
+    }, paneId);
+  }, [addTab, paneId]);
 
   // Load session state on mount
   useEffect(() => {
@@ -1620,11 +1656,36 @@ export function QueueScrollPage() {
         });
       }
 
+      let createdExtract: Extract | null = null;
       if (documentId) {
-        await createExtract({ document_id: documentId, content: selectionText });
+        createdExtract = await createExtract({ document_id: documentId, content: selectionText });
       }
 
-      toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedFromRSS"));
+      const sourceContext = documentId
+        ? buildQueueExtractSourceContext({
+            documentId,
+            title: rssItem.title || renderedItem.documentTitle,
+            sourceKind: "article",
+          })
+        : null;
+
+      toast.success(
+        t("queueScroll.extractCreated"),
+        t("queueScroll.savedFromRSS"),
+        createdExtract && sourceContext
+          ? {
+              action: {
+                label: "View extract",
+                onClick: () => openExtractInDocumentTab({
+                  documentId,
+                  documentTitle: rssItem.title || renderedItem.documentTitle,
+                  extract: createdExtract,
+                  sourceContext,
+                }),
+              },
+            }
+          : undefined
+      );
       setRssSelectedText("");
       window.getSelection()?.removeAllRanges();
     } catch (error) {
@@ -1634,7 +1695,7 @@ export function QueueScrollPage() {
         error instanceof Error ? error.message : t("queueScroll.anErrorOccurred")
       );
     }
-  }, [renderedItem, rssSelectedText, documents, addDocument, updateDocument, toast]);
+  }, [renderedItem, rssSelectedText, documents, addDocument, updateDocument, toast, buildQueueExtractSourceContext, openExtractInDocumentTab]);
 
   // Mobile PWA: Handle extract creation from mobile RSS selection
   const handleMobileRssExtract = useCallback(async () => {
@@ -1752,6 +1813,25 @@ export function QueueScrollPage() {
                 <ScrollModeArticleEditor
                   key={renderedItem.documentId}
                   document={doc}
+                  suppressSuccessToast={true}
+                  onExtractCreated={(extract) => {
+                    const sourceContext = buildQueueExtractSourceContext({
+                      documentId: doc.id,
+                      title: doc.title,
+                      sourceKind: "article",
+                    });
+                    toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"), {
+                      action: {
+                        label: "View extract",
+                        onClick: () => openExtractInDocumentTab({
+                          documentId: doc.id,
+                          documentTitle: doc.title,
+                          extract,
+                          sourceContext,
+                        }),
+                      },
+                    });
+                  }}
                 />
               );
             }
@@ -1761,8 +1841,24 @@ export function QueueScrollPage() {
                 documentId={renderedItem.documentId!}
                 embedded={true}
                 disableHoverRating={true}
-                onExtractCreated={() => {
-                  toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"));
+                extractPostCreateBehavior="stay-in-reader"
+                onExtractCreated={(extract, sourceContext) => {
+                  const effectiveContext = sourceContext ?? buildQueueExtractSourceContext({
+                    documentId: renderedItem.documentId!,
+                    title: renderedItem.documentTitle,
+                    sourceKind: doc?.fileType === "html" || doc?.metadata?.source === "browser_extension" ? "article" : "book",
+                  });
+                  toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"), {
+                    action: {
+                      label: "View extract",
+                      onClick: () => openExtractInDocumentTab({
+                        documentId: renderedItem.documentId!,
+                        documentTitle: renderedItem.documentTitle,
+                        extract,
+                        sourceContext: effectiveContext,
+                      }),
+                    },
+                  });
                 }}
               />
             );

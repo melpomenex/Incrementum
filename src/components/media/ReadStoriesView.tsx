@@ -47,7 +47,7 @@ export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {articles.length === 0 && !isLoading ? (
+        {articles.length === 0 && !_isLoading ? (
           <div className="text-center py-12 text-muted-foreground">
             <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No read stories yet</p>
@@ -71,7 +71,7 @@ export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
           </div>
         )}
 
-        {isLoading && (
+        {_isLoading && (
           <div className="flex justify-center py-4">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>

@@ -1,6 +1,7 @@
 //! Queue commands
 
 use tauri::State;
+use std::collections::{HashMap, HashSet};
 use crate::database::Repository;
 use crate::algorithms::{calculate_fsrs_document_priority, QueueSelector};
 use crate::error::Result;
@@ -56,10 +57,41 @@ async fn get_queue_items_from_repo(
     repo: &Repository,
 ) -> Result<Vec<QueueItem>> {
     let mut queue_items = Vec::new();
+    let now = Utc::now();
 
     // Get learning items
     let learning_items = repo.get_all_learning_items().await?;
-    let now = Utc::now();
+
+    // Collect all unique document IDs upfront for batch lookup
+    let mut all_doc_ids: HashSet<String> = HashSet::new();
+    for item in &learning_items {
+        if let Some(doc_id) = &item.document_id {
+            all_doc_ids.insert(doc_id.clone());
+        }
+    }
+
+    // Get extracts for incremental reading processing
+    let due_extracts = repo.get_due_extracts(&now).await?;
+    let new_extracts = repo.get_new_extracts().await?;
+    let extracts: Vec<_> = due_extracts.into_iter().chain(new_extracts.into_iter()).collect();
+    for extract in &extracts {
+        all_doc_ids.insert(extract.document_id.clone());
+    }
+
+    // Get video extracts for spaced repetition review
+    let due_video_extracts = repo.get_due_video_extracts(&now).await?;
+    let all_video_extracts = repo.get_all_video_extracts().await.unwrap_or_default();
+    let new_video_extracts: Vec<_> = all_video_extracts.into_iter()
+        .filter(|e| e.review_count == 0 && e.next_review_date.is_none())
+        .collect();
+    let video_extracts: Vec<_> = due_video_extracts.into_iter().chain(new_video_extracts.into_iter()).collect();
+    for extract in &video_extracts {
+        all_doc_ids.insert(extract.document_id.clone());
+    }
+
+    // Single batch query for all document titles
+    let doc_ids: Vec<String> = all_doc_ids.into_iter().collect();
+    let doc_titles = repo.get_document_titles(&doc_ids).await?;
 
     for item in learning_items {
         // Skip suspended items
@@ -67,16 +99,11 @@ async fn get_queue_items_from_repo(
             continue;
         }
 
-        // Calculate priority based on due date and other factors
         let is_due = item.due_date <= now;
         let days_until_due = (item.due_date - now).num_days();
 
-        // Priority calculation:
-        // - Items that are due get higher priority (8-10)
-        // - Items due soon get medium priority (5-7)
-        // - Items due later get lower priority (1-4)
         let priority = if is_due {
-            10.0 - (item.interval / 10.0) // New items (interval 0) get priority 10
+            10.0 - (item.interval / 10.0)
         } else if days_until_due <= 1 {
             8.0
         } else if days_until_due <= 3 {
@@ -87,14 +114,12 @@ async fn get_queue_items_from_repo(
             2.0
         };
 
-        // Calculate estimated time based on item type
         let estimated_time = match item.item_type {
             crate::models::ItemType::Cloze => 2,
             crate::models::ItemType::Qa => 3,
             _ => 1,
         };
 
-        // Calculate progress (inverse of interval/reviews to show "learning progress")
         let progress = if item.review_count == 0 {
             0
         } else if item.interval >= 21.0 {
@@ -103,14 +128,10 @@ async fn get_queue_items_from_repo(
             ((item.interval) / 21.0 * 100.0) as i32
         };
 
-        // Get document title
-        let document_title = if let Some(doc_id) = &item.document_id {
-            repo.get_document(doc_id).await?
-                .map(|d| d.title)
-                .unwrap_or_else(|| "Unknown Document".to_string())
-        } else {
-            "Unknown Document".to_string()
-        };
+        let document_title = item.document_id.as_ref()
+            .and_then(|id| doc_titles.get(id))
+            .cloned()
+            .unwrap_or_else(|| "Unknown Document".to_string());
 
         queue_items.push(QueueItem {
             id: item.id.clone(),
@@ -128,34 +149,24 @@ async fn get_queue_items_from_repo(
             due_date: Some(item.due_date.to_rfc3339()),
             estimated_time,
             tags: item.tags.clone(),
-            category: None, // Could be derived from the extract's category
+            category: None,
             progress,
             source: None,
             position: None,
         });
     }
 
-    // Get extracts for incremental reading processing
-    // Include both new extracts (never reviewed) and due extracts (scheduled for review)
-    let due_extracts = repo.get_due_extracts(&now).await?;
-    let new_extracts = repo.get_new_extracts().await?;
-
-    // Combine into a single list, marking new ones
-    for extract in due_extracts.into_iter().chain(new_extracts.into_iter()) {
-        // Get parent document title
-        let document_title = repo.get_document(&extract.document_id).await?
-            .map(|d| d.title)
+    for extract in extracts {
+        let document_title = doc_titles.get(&extract.document_id)
+            .cloned()
             .unwrap_or_else(|| "Unknown Document".to_string());
 
-        // New extracts (review_count == 0) get highest priority (9.0)
-        // Previously reviewed extracts get medium-high priority (7.0)
         let priority = if extract.review_count == 0 {
-            9.0 // New extracts are urgent - need to be processed into flashcards
+            9.0
         } else {
-            7.0 // Reviewed extracts returning for another pass
+            7.0
         };
 
-        // Extract content preview (first 100 chars)
         let _content_preview = if extract.content.len() > 100 {
             format!("{}...", &extract.content[..100])
         } else {
@@ -176,44 +187,29 @@ async fn get_queue_items_from_repo(
             priority_slider: None,
             priority,
             due_date: extract.next_review_date.map(|d| d.to_rfc3339()),
-            estimated_time: 3, // Extracts take ~3 minutes to process
+            estimated_time: 3,
             tags: extract.tags.clone(),
             category: extract.category.clone(),
-            progress: 0, // Extracts don't track progress
+            progress: 0,
             source: None,
             position: None,
         });
     }
 
-    // Get video extracts for spaced repetition review
-    // Include both new video extracts (never reviewed) and due extracts (scheduled for review)
-    let due_video_extracts = repo.get_due_video_extracts(&now).await?;
-    let all_video_extracts = repo.get_all_video_extracts().await.unwrap_or_default();
-    let new_video_extracts: Vec<_> = all_video_extracts.into_iter()
-        .filter(|e| e.review_count == 0 && e.next_review_date.is_none())
-        .collect();
-
-    // Combine due and new video extracts
-    for extract in due_video_extracts.into_iter().chain(new_video_extracts.into_iter()) {
-        // Get parent document title
-        let document_title = repo.get_document(&extract.document_id).await?
-            .map(|d| d.title)
+    for extract in video_extracts {
+        let document_title = doc_titles.get(&extract.document_id)
+            .cloned()
             .unwrap_or_else(|| "Unknown Video".to_string());
 
-        // New video extracts (review_count == 0) get high priority (8.5)
-        // Previously reviewed video extracts get medium-high priority (6.5)
-        // Video extracts are slightly lower priority than text extracts since they take longer to review
         let priority = if extract.review_count == 0 {
-            8.5 // New video extracts are urgent
+            8.5
         } else {
-            6.5 // Reviewed video extracts returning for another pass
+            6.5
         };
 
-        // Calculate estimated time based on extract duration
         let duration_minutes = ((extract.end_time - extract.start_time) / 60.0).ceil() as i32;
-        let estimated_time = duration_minutes.clamp(1, 10); // Cap at 10 minutes
+        let estimated_time = duration_minutes.clamp(1, 10);
 
-        // Get transcript preview for the question field
         let transcript_preview = extract.transcript_text.as_ref()
             .map(|t| if t.len() > 100 { format!("{}...", &t[..100]) } else { t.clone() });
 
@@ -240,8 +236,8 @@ async fn get_queue_items_from_repo(
         });
     }
 
-    // Get documents for incremental reading
-    let documents = repo.list_documents().await?;
+    // Get documents for incremental reading (without content column)
+    let documents = repo.list_documents_for_queue().await?;
     for document in documents {
         if document.is_archived || document.is_dismissed {
             continue;
@@ -369,8 +365,8 @@ async fn get_due_documents_only_from_repo(
     let mut due_documents = Vec::new();
     let now = Utc::now();
 
-    // Get all documents
-    let documents = repo.list_documents().await?;
+    // Get all documents (without content column)
+    let documents = repo.list_documents_for_queue().await?;
 
     for document in documents {
         // Skip archived and dismissed documents

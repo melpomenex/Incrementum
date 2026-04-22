@@ -1,5 +1,5 @@
 import { invokeCommand } from "../lib/tauri";
-import type { PdfSelectionContext } from "../types/selection";
+import type { SelectionContext } from "../types/selection";
 
 export interface Extract {
   id: string;
@@ -12,7 +12,7 @@ export interface Extract {
   source_url?: string;
   page_title?: string;
   page_number?: number;
-  selection_context?: PdfSelectionContext;
+  selection_context?: SelectionContext;
   highlight_color?: string;
   notes?: string;
   progressive_disclosure_level: number;
@@ -48,7 +48,7 @@ export interface CreateExtractInput {
   category?: string;
   color?: string;
   page_number?: number;
-  selection_context?: PdfSelectionContext | Record<string, unknown>;
+  selection_context?: SelectionContext | Record<string, unknown>;
   max_disclosure_level?: number;
 }
 

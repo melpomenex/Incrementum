@@ -28,7 +28,7 @@ import { useI18n } from "../../lib/i18n";
 import { usePdfCustomSelection } from "./selection";
 import { SelectionRenderer } from "./selection";
 // 3-layer architecture components
-import { HighlightLayer, useHighlightManager } from "./HighlightLayer";
+import { HighlightLayer, type StoredHighlight } from "./HighlightLayer";
 import { SelectionPopup, type HighlightColor } from "./SelectionPopup";
 import { OcrRegionSelector } from "./OcrRegionSelector";
 import { OcrProgressOverlay } from "./OcrProgressOverlay";
@@ -146,6 +146,8 @@ interface PDFViewerProps {
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
   onTextSelectionCapabilityChange?: (capability: PdfTextSelectionCapability) => void;
   onOcrExtractText?: (text: string, pageNumber: number) => void;
+  persistedHighlights?: StoredHighlight[];
+  onHighlightSelection?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
 }
 
 type PdfTextLayerRenderer = {
@@ -188,6 +190,8 @@ export function PDFViewer({
   onSelectionChange,
   onTextSelectionCapabilityChange,
   onOcrExtractText,
+  persistedHighlights = [],
+  onHighlightSelection,
 }: PDFViewerProps) {
   const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -228,12 +232,11 @@ export function PDFViewer({
   const [showTOC, setShowTOC] = useState(false);
   const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
 
-  // Highlight manager for persistent highlights
-  const {
-    highlights: _storedHighlights,
-    addHighlight: addStoredHighlight,
-    getHighlightsForPage,
-  } = useHighlightManager();
+  const getHighlightsForPage = useCallback(
+    (pageNumberForHighlights: number) =>
+      persistedHighlights.filter((highlight) => highlight.pageNumber === pageNumberForHighlights),
+    [persistedHighlights],
+  );
 
   // OCR mode manager
   const ocr = usePdfOcrManager();
@@ -311,23 +314,14 @@ export function PDFViewer({
   const handleHighlight = useCallback(
     (color: HighlightColor) => {
       if (!pendingSelectionContext) return;
-
-      // Create a highlight for each page in the selection
-      for (const page of pendingSelectionContext.pages) {
-        addStoredHighlight({
-          pageNumber: page.pageNumber,
-          pdfRects: page.pdfRects,
-          color,
-          text: customSelection.selectionState.selectedText,
-        });
-      }
+      onHighlightSelection?.(color, customSelection.selectionState.selectedText, pendingSelectionContext);
 
       // Clear selection after highlighting
       customSelection.clearSelection();
       setShowSelectionPopup(false);
       setPendingSelectionContext(null);
     },
-    [pendingSelectionContext, addStoredHighlight, customSelection]
+    [customSelection, onHighlightSelection, pendingSelectionContext]
   );
 
   // Handle copy action from popup

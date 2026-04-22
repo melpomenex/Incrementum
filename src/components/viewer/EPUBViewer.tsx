@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react";
-import type { PdfSelectionContext } from "../../types/selection";
+import type { SelectionContext } from "../../types/selection";
 import ePub from "epubjs";
 import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -9,6 +9,7 @@ import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { normalizeHighlightColor } from "../../utils/highlightColors";
 
 // Define outside component to keep a stable reference across renders
 const FONT_FAMILY_MAP: Record<string, string> = {
@@ -23,11 +24,12 @@ interface EPUBViewerProps {
   fileName: string;
   documentId?: string;
   onLoad?: (toc: any[]) => void;
-  onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
+  onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
   onContextTextChange?: (text: string) => void;
   initialCfi?: string;
   highlightQuery?: string;
   onProgressChange?: (progressPercent: number) => void;
+  persistedHighlights?: Array<{ id: string; cfiRange: string; color?: string | null; text: string }>;
 }
 
 export function EPUBViewer({
@@ -41,6 +43,7 @@ export function EPUBViewer({
   initialCfi,
   highlightQuery,
   onProgressChange,
+  persistedHighlights = [],
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +62,7 @@ export function EPUBViewer({
   const selectionActiveRef = useRef(false);
   const initialDisplayCompleteRef = useRef(false);
   const activeSearchHighlightsRef = useRef<string[]>([]);
+  const activePersistedHighlightsRef = useRef<string[]>([]);
 
   // Get current theme colors
   const { theme } = useTheme();
@@ -199,6 +203,10 @@ export function EPUBViewer({
       * {
         color: ${textColor} !important;
         background-color: transparent !important;
+      }
+      .epub-persisted-highlight {
+        background-color: rgba(255, 235, 59, 0.5) !important;
+        border-radius: 0.12rem !important;
       }
       p {
         line-height: ${lineHeightRef.current} !important;
@@ -648,11 +656,16 @@ export function EPUBViewer({
           });
 
           // Enable text selection
-          rendition.on("selected", (_cfiRange: any, contents: any) => {
+          rendition.on("selected", (cfiRange: any, contents: any) => {
             const selection = contents.window.getSelection();
             if (selection && selection.toString()) {
               selectionActiveRef.current = true;
-              onSelectionChangeRef.current?.(selection.toString());
+              onSelectionChangeRef.current?.(selection.toString(), {
+                type: "epub",
+                documentId: documentId ?? "",
+                cfiRange: String(cfiRange),
+                selectedText: selection.toString(),
+              });
             }
           });
 
@@ -766,6 +779,45 @@ export function EPUBViewer({
       activeSearchHighlightsRef.current = [];
     };
   }, [applySearchHighlights, rendition]);
+
+  useEffect(() => {
+    if (!rendition) return;
+
+    try {
+      for (const cfi of activePersistedHighlightsRef.current) {
+        rendition.annotations?.remove?.(cfi, "highlight");
+      }
+    } catch {
+      // ignore
+    }
+    activePersistedHighlightsRef.current = [];
+
+    for (const highlight of persistedHighlights) {
+      try {
+        rendition.annotations?.highlight?.(
+          highlight.cfiRange,
+          {},
+          undefined,
+          "epub-persisted-highlight",
+          { "background-color": normalizeHighlightColor(highlight.color) }
+        );
+        activePersistedHighlightsRef.current.push(highlight.cfiRange);
+      } catch (error) {
+        console.warn("EPUBViewer: Failed to render persisted highlight", error);
+      }
+    }
+
+    return () => {
+      try {
+        for (const cfi of activePersistedHighlightsRef.current) {
+          rendition.annotations?.remove?.(cfi, "highlight");
+        }
+      } catch {
+        // ignore
+      }
+      activePersistedHighlightsRef.current = [];
+    };
+  }, [persistedHighlights, rendition]);
 
   const handlePrevPage = () => {
     if (rendition) {

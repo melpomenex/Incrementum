@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye, PencilLine, PanelsTopLeft } from "lucide-react";
 import { getExtracts, updateExtract, type Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
@@ -12,12 +12,82 @@ import { RichContentRenderer } from "../common/RichContentRenderer";
 import { useI18n } from "../../lib/i18n";
 import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
 import { EditableContentPalette } from "../common/EditableContentPalette";
+import { CreateExtractDialog } from "./CreateExtractDialog";
+import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
+import type { TextSelectionContext } from "../../types/selection";
+import { normalizeHighlightColor } from "../../utils/highlightColors";
+import type { ExtractSourceContext } from "../../types/extractNavigation";
 
 interface ExtractsListProps {
   documentId: string;
+  focusedExtractId?: string;
+  sourceContext?: ExtractSourceContext;
+  onBackToSource?: () => void;
+  onResumeQueue?: () => void;
 }
 
-export function ExtractsList({ documentId }: ExtractsListProps) {
+interface ExtractTextContentProps {
+  extract: Extract;
+  highlights: AnchoredTextHighlight[];
+  onSelection: (payload: { extractId: string; text: string; context: TextSelectionContext; color?: string }) => void;
+}
+
+function ExtractTextContent({ extract, highlights, onSelection }: ExtractTextContentProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const signature = `${extract.id}:${extract.content}`;
+
+  useEffect(() => {
+    applyAnchoredTextHighlights({
+      root: contentRef.current,
+      highlights,
+      signature,
+    });
+  }, [highlights, signature]);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root) return;
+
+    const publishSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        return;
+      }
+      const context = buildTextSelectionContext({
+        root,
+        range: selection.getRangeAt(0),
+        documentId: extract.document_id,
+        surface: "extract",
+        extractId: extract.id,
+      });
+      if (!context) return;
+      onSelection({ extractId: extract.id, text: context.selectedText, context, color: extract.highlight_color });
+    };
+
+    root.addEventListener("mouseup", publishSelection);
+    root.addEventListener("keyup", publishSelection);
+    return () => {
+      root.removeEventListener("mouseup", publishSelection);
+      root.removeEventListener("keyup", publishSelection);
+    };
+  }, [extract.document_id, extract.highlight_color, extract.id, onSelection]);
+
+  return (
+    <div
+      ref={contentRef}
+      className="text-foreground whitespace-pre-wrap"
+      dangerouslySetInnerHTML={{ __html: extract.content }}
+    />
+  );
+}
+
+export function ExtractsList({
+  documentId,
+  focusedExtractId,
+  sourceContext,
+  onBackToSource,
+  onResumeQueue,
+}: ExtractsListProps) {
   const [extracts, setExtracts] = useState<Extract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +113,13 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isManualStudioOpen, setIsManualStudioOpen] = useState(false);
+  const [pendingExtractSelection, setPendingExtractSelection] = useState<{
+    extractId: string;
+    text: string;
+    context: TextSelectionContext;
+    initialHighlightColor?: string;
+  } | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [manualStudioSeed, setManualStudioSeed] = useState<{
     key: string;
     documentId: string;
@@ -52,6 +129,26 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
     autoEditDraft: true;
   } | null>(null);
   const { t } = useI18n();
+
+  const extractHighlightsByParent = useMemo(() => {
+    const map = new Map<string, AnchoredTextHighlight[]>();
+    for (const extract of extracts) {
+      const context = extract.selection_context as TextSelectionContext | undefined;
+      if (!context || context.type !== "text" || context.surface !== "extract" || !context.extractId) {
+        continue;
+      }
+      const current = map.get(context.extractId) ?? [];
+      current.push({
+        id: extract.id,
+        startOffset: context.startOffset,
+        endOffset: context.endOffset,
+        color: extract.highlight_color,
+        title: extract.content,
+      });
+      map.set(context.extractId, current);
+    }
+    return map;
+  }, [extracts]);
 
   useEffect(() => {
     const loadExtracts = async () => {
@@ -71,22 +168,17 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
     loadExtracts();
   }, [documentId]);
 
+  useEffect(() => {
+    if (!focusedExtractId || extracts.length === 0) return;
+    const target = document.getElementById(`extract-card-${focusedExtractId}`);
+    if (!target) return;
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [extracts.length, focusedExtractId]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
-  };
-
-  const getColorClass = (color?: string) => {
-    if (!color) return "bg-transparent";
-    // Map color names to Tailwind classes
-    const colorMap: Record<string, string> = {
-      "bg-red-500": "bg-red-500",
-      "bg-orange-500": "bg-orange-500",
-      "bg-yellow-500": "bg-yellow-500",
-      "bg-green-500": "bg-green-500",
-      "bg-blue-500": "bg-blue-500",
-      "bg-purple-500": "bg-purple-500",
-    };
-    return colorMap[color] || "bg-transparent";
   };
 
   const handleGenerateCards = async (extractId: string) => {
@@ -134,6 +226,15 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
 
   const handleExtractUpdated = (updated: Extract) => {
     setExtracts(extracts.map((e) => (e.id === updated.id ? updated : e)));
+  };
+
+  const handleExtractSelection = (payload: { extractId: string; text: string; context: TextSelectionContext; color?: string }) => {
+    setPendingExtractSelection({
+      extractId: payload.extractId,
+      text: payload.text,
+      context: payload.context,
+      initialHighlightColor: payload.color || "#fef08a",
+    });
   };
 
   const handleExtractDeleted = (deletedId: string) => {
@@ -267,6 +368,37 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
 
   return (
     <div className="space-y-4">
+      {sourceContext && (onBackToSource || onResumeQueue) && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-medium text-foreground">
+                Back to {sourceContext.sourceKind === "book" ? "book" : sourceContext.sourceKind === "article" ? "article" : "source"}
+              </div>
+              <div className="text-sm text-muted-foreground">{sourceContext.sourceTitle}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {onBackToSource && (
+                <button
+                  onClick={onBackToSource}
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  {sourceContext.sourceKind === "book" ? "Back to book" : sourceContext.sourceKind === "article" ? "Back to article" : "Back to source"}
+                </button>
+              )}
+              {onResumeQueue && (
+                <button
+                  onClick={onResumeQueue}
+                  className="rounded-md bg-muted px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/80"
+                >
+                  Resume queue
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">
           {t("extracts.title")} ({extracts.length})
@@ -379,9 +511,11 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
         {extracts.map((extract) => (
           <div
             key={extract.id}
+            id={`extract-card-${extract.id}`}
             className={cn(
               "p-4 bg-card border border-border rounded-lg hover:shadow-md transition-shadow",
-              selectedIds.has(extract.id) && "ring-2 ring-primary"
+              selectedIds.has(extract.id) && "ring-2 ring-primary",
+              focusedExtractId === extract.id && "ring-2 ring-blue-500 ring-offset-2 ring-offset-background"
             )}
           >
             {/* Checkbox */}
@@ -400,10 +534,8 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
             {/* Color bar */}
             {extract.highlight_color && (
               <div
-                className={cn(
-                  "h-1 w-full rounded-t-lg mb-3",
-                  getColorClass(extract.highlight_color)
-                )}
+                className="mb-3 h-1 w-full rounded-t-lg"
+                style={{ backgroundColor: normalizeHighlightColor(extract.highlight_color) }}
               />
             )}
 
@@ -458,12 +590,42 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
                   maxHeight="250px"
                 />
               ) : (
-                <div
-                  className="text-foreground whitespace-pre-wrap"
-                  dangerouslySetInnerHTML={{ __html: extract.content }}
+                <ExtractTextContent
+                  extract={extract}
+                  highlights={extractHighlightsByParent.get(extract.id) ?? []}
+                  onSelection={handleExtractSelection}
                 />
               )}
             </div>
+
+            {pendingExtractSelection?.extractId === extract.id && (
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setPendingExtractSelection((prev) => prev ? { ...prev, initialHighlightColor: "#fef08a" } : prev);
+                    setIsCreateDialogOpen(true);
+                  }}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground"
+                >
+                  Highlight selection
+                </button>
+                <button
+                  onClick={() => {
+                    setPendingExtractSelection((prev) => prev ? { ...prev, initialHighlightColor: undefined } : prev);
+                    setIsCreateDialogOpen(true);
+                  }}
+                  className="rounded-md bg-muted px-3 py-1.5 text-xs text-foreground"
+                >
+                  Create extract
+                </button>
+                <button
+                  onClick={() => setPendingExtractSelection(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             {/* Notes */}
             {extract.notes && (
@@ -645,6 +807,24 @@ export function ExtractsList({ documentId }: ExtractsListProps) {
             }}
           />
         </div>
+      )}
+      {pendingExtractSelection && (
+        <CreateExtractDialog
+          documentId={documentId}
+          selectedText={pendingExtractSelection.text}
+          selectionContext={pendingExtractSelection.context}
+          initialHighlightColor={pendingExtractSelection.initialHighlightColor}
+          isOpen={isCreateDialogOpen}
+          onClose={() => {
+            setIsCreateDialogOpen(false);
+            setPendingExtractSelection(null);
+          }}
+          onCreate={(extract) => {
+            setExtracts((prev) => [...prev, extract]);
+            setIsCreateDialogOpen(false);
+            setPendingExtractSelection(null);
+          }}
+        />
       )}
     </div>
   );

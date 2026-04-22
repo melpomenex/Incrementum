@@ -1910,7 +1910,6 @@ export function RSSReader() {
                     ) : showFullContent ? (
                       <RSSFullContentView
                         item={selectedItem}
-                        onClose={() => setShowFullContent(false)}
                       />
                     ) : (
                       <div className="reading-surface" style={readingStyles}>

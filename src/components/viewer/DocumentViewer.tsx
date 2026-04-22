@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
-import { convertFileSrc, isTauri, isPWA } from "../../lib/tauri";
+import { isTauri, isPWA } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { PDFViewer } from "./PDFViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
@@ -16,7 +16,7 @@ import { LearningCardsList } from "../learning/LearningCardsList";
 import { EditableContentPalette } from "../common/EditableContentPalette";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
-import type { PdfSelectionContext } from "../../types/selection";
+import type { PdfSelectionContext, SelectionContext, TextSelectionContext, EpubSelectionContext } from "../../types/selection";
 import type { Extract } from "../../api/extracts";
 import { createExtract } from "../../api/extracts";
 import { QueueNavigationControls } from "../queue/QueueNavigationControls";
@@ -31,7 +31,6 @@ import * as documentsApi from "../../api/documents";
 import { createLearningItem, generateLearningItemsFromExtract } from "../../api/learning-items";
 import { updateDocumentProgressAuto } from "../../api/documents";
 import { rateDocument } from "../../api/algorithm";
-import { getBrowserFile } from "../../lib/browser-file-store";
 import type { ReviewRating } from "../../api/review";
 import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
 import { ocrPdfFile } from "../../api/ocrCommands";
@@ -39,6 +38,7 @@ import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
 import { lookupDictionary, type DictionaryResult } from "../../utils/dictionaryLookup";
 import { recordReadingSession } from "../../utils/readingSpeed";
+import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extractNavigation";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
@@ -62,6 +62,10 @@ import {
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
 import { useI18n } from "../../lib/i18n";
+import type { StoredHighlight } from "./HighlightLayer";
+import { normalizePdfHighlightColor } from "../../utils/highlightColors";
+import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
+import { resolveLocalMediaSource, type ResolvedLocalMediaSource } from "./localMediaSource";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -86,13 +90,6 @@ const MARKDOWN_MIN_WIDTH_CH = 80;
 const MARKDOWN_MAX_WIDTH_CH = 180;
 const MARKDOWN_DEFAULT_WIDTH_CH = 120;
 const MARKDOWN_LEGACY_DEFAULT_WIDTH_CH = 82;
-
-type InitialJump =
-  | { kind: "pdf"; pageNumber: number }
-  | { kind: "epub"; cfi: string }
-  | { kind: "html"; scrollPercent: number }
-  | { kind: "markdown"; scrollPercent: number }
-  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
 
 const DOCUMENT_TYPES: DocumentType[] = ["pdf", "epub", "markdown", "html", "youtube", "video", "audio"];
 const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "m4a", "m4b", "aac", "ogg", "flac", "opus"]);
@@ -126,6 +123,35 @@ const isEditableBrowserArticleDocument = (doc?: {
     (normalizedType === "html" || normalizedType === "markdown")
   );
 };
+
+function isPdfSelectionContext(value: unknown): value is PdfSelectionContext {
+  return Boolean(value && typeof value === "object" && (value as { type?: string }).type === "pdf");
+}
+
+function isTextSelectionContext(value: unknown): value is TextSelectionContext {
+  return Boolean(value && typeof value === "object" && (value as { type?: string }).type === "text");
+}
+
+function isEpubSelectionContext(value: unknown): value is EpubSelectionContext {
+  return Boolean(value && typeof value === "object" && (value as { type?: string }).type === "epub");
+}
+
+function toExtractDialogColor(color?: string): string | undefined {
+  switch (color) {
+    case "yellow":
+      return "#fef08a";
+    case "green":
+      return "#bbf7d0";
+    case "blue":
+      return "#bfdbfe";
+    case "pink":
+      return "#fbcfe8";
+    case "purple":
+      return "#e9d5ff";
+    default:
+      return color;
+  }
+}
 
 /**
  * Helper to convert scroll state to unified DocumentPosition
@@ -168,12 +194,15 @@ interface DocumentViewerProps {
   onScrollPositionChange?: (state: { pageNumber: number; scrollPercent: number }) => void;
   initialViewMode?: ViewMode;
   highlightQuery?: string;
-  initialJump?: InitialJump;
+  initialJump?: DocumentInitialJump;
   autoPlay?: boolean;
   onPdfContextTextChange?: (text: string) => void;
   onPdfOcrContextTextChange?: (text: string | null) => void;
   contextPageWindow?: number;
-  onExtractCreated?: (extract: Extract) => void;
+  onExtractCreated?: (extract: Extract, sourceContext?: ExtractSourceContext) => void;
+  extractPostCreateBehavior?: "show-extracts" | "stay-in-reader";
+  focusedExtractId?: string;
+  extractSourceContext?: ExtractSourceContext;
   onVideoContextChange?: (context: { 
     videoId: string; 
     title?: string; 
@@ -197,6 +226,9 @@ export function DocumentViewer({
   onPdfOcrContextTextChange,
   contextPageWindow,
   onExtractCreated,
+  extractPostCreateBehavior = "show-extracts",
+  focusedExtractId,
+  extractSourceContext,
   onVideoContextChange,
 }: DocumentViewerProps) {
   const toast = useToast();
@@ -207,7 +239,7 @@ export function DocumentViewer({
   // This allows multiple DocumentViewers to show different documents in split panes
   const localDocument = documents.find((d) => d.id === documentId);
   const currentDocument = localDocument || globalCurrentDocument;
-  const { closeTab, tabs, updateTab } = useTabsStore();
+  const { closeTab, tabs, updateTab, setActiveTab, findPaneContainingTab } = useTabsStore();
   const { items: queueItems, loadQueue } = useQueueStore();
   const { settings } = useSettingsStore();
 
@@ -219,8 +251,8 @@ export function DocumentViewer({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [epubUrl, setEpubUrl] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
-  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
-  const mediaSrcRef = useRef<string | null>(null);
+  const [mediaSource, setMediaSource] = useState<ResolvedLocalMediaSource | null>(null);
+  const mediaSourceRef = useRef<ResolvedLocalMediaSource | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setPagesRendered] = useState(false);
@@ -338,6 +370,17 @@ export function DocumentViewer({
   const scrollStorageKey = currentDocument?.id
     ? `document-scroll-position:${currentDocument.id}`
     : undefined;
+  const queueScrollTab = useMemo(
+    () => tabs.find((tab) => tab.type === "queue-scroll") ?? null,
+    [tabs]
+  );
+
+  const resumeQueueFromExtract = useCallback(() => {
+    if (!queueScrollTab) return;
+    const pane = findPaneContainingTab(queueScrollTab.id);
+    if (!pane) return;
+    setActiveTab(pane.id, queueScrollTab.id);
+  }, [findPaneContainingTab, queueScrollTab, setActiveTab]);
 
   // Listen for fullscreen changes (for PWA/browser environment)
   useEffect(() => {
@@ -427,47 +470,6 @@ export function DocumentViewer({
     return "other";
   };
 
-  const getVideoMimeType = (path?: string) => {
-    const ext = path?.split(".").pop()?.toLowerCase();
-    switch (ext) {
-      case "webm":
-        return "video/webm";
-      case "mov":
-        return "video/quicktime";
-      case "mkv":
-        return "video/x-matroska";
-      case "avi":
-        return "video/x-msvideo";
-      case "m4v":
-        return "video/x-m4v";
-      case "mp4":
-      default:
-        return "video/mp4";
-    }
-  };
-
-  const getAudioMimeType = (path?: string) => {
-    const ext = path?.split(".").pop()?.toLowerCase();
-    switch (ext) {
-      case "wav":
-        return "audio/wav";
-      case "m4a":
-      case "m4b": // Audiobook format (MP4 container with chapters)
-        return "audio/mp4";
-      case "aac":
-        return "audio/aac";
-      case "ogg":
-        return "audio/ogg";
-      case "flac":
-        return "audio/flac";
-      case "opus":
-        return "audio/opus";
-      case "mp3":
-      default:
-        return "audio/mpeg";
-    }
-  };
-
   const docType = inferFileType(currentDocument);
   const canUseEditPalette = viewMode === "document"
     && (
@@ -476,10 +478,58 @@ export function DocumentViewer({
       || docType === "epub"
       || isEditableBrowserArticleDocument(currentDocument)
     );
+  const buildExtractSourceContext = useCallback((): ExtractSourceContext | undefined => {
+    const title = currentDocument?.title || localDocument?.title;
+    if (!documentId || !title) return undefined;
+
+    let sourceKind: ExtractSourceContext["sourceKind"] = "source";
+    if (docType === "pdf" || docType === "epub" || docType === "markdown") {
+      sourceKind = "book";
+    } else if (
+      docType === "html" ||
+      docType === "youtube" ||
+      isEditableBrowserArticleDocument(currentDocument ?? localDocument ?? undefined)
+    ) {
+      sourceKind = "article";
+    }
+
+    let jump: DocumentInitialJump | undefined;
+    if (docType === "pdf") {
+      jump = { kind: "pdf", pageNumber };
+    } else if (docType === "epub" && currentDocument?.currentCfi) {
+      jump = { kind: "epub", cfi: currentDocument.currentCfi };
+    } else if (docType === "html") {
+      jump = {
+        kind: "html",
+        scrollPercent: lastScrollStateRef.current?.scrollPercent ?? currentDocument?.currentScrollPercent ?? 0,
+      };
+    } else if (docType === "markdown") {
+      jump = {
+        kind: "markdown",
+        scrollPercent: lastScrollStateRef.current?.scrollPercent ?? currentDocument?.currentScrollPercent ?? 0,
+      };
+    }
+
+    return {
+      documentId,
+      sourceTitle: title,
+      sourceKind,
+      queueType: embedded ? "queue-scroll" : undefined,
+      initialJump: jump,
+    };
+  }, [currentDocument, docType, documentId, embedded, localDocument, pageNumber]);
 
   useEffect(() => {
     setIsPaletteMode(false);
   }, [documentId]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaSourceRef.current?.revokeSrcOnDispose) {
+        URL.revokeObjectURL(mediaSourceRef.current.src);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (viewMode !== "document") {
@@ -573,7 +623,8 @@ export function DocumentViewer({
 
   // Extract creation state
   const [selectedText, setSelectedText] = useState("");
-  const [selectionContext, setSelectionContext] = useState<PdfSelectionContext | null>(null);
+  const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
+  const [initialHighlightColor, setInitialHighlightColor] = useState<string | undefined>(undefined);
   const [pdfTextSelectionCapability, setPdfTextSelectionCapability] = useState<PdfTextSelectionCapability | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
@@ -652,19 +703,84 @@ export function DocumentViewer({
     return segments;
   }, [extracts, currentDocument?.id, currentDocument?.totalPages]);
 
+  const persistedDocumentHighlights = useMemo(() => {
+    const relevantExtracts = extracts.filter((extract: any) => {
+      const extractDocumentId = extract.document_id ?? extract.documentId;
+      return extractDocumentId === currentDocument?.id;
+    });
+
+    const pdfHighlights: StoredHighlight[] = [];
+    const epubHighlights: Array<{ id: string; cfiRange: string; color?: string | null; text: string }> = [];
+    const markdownHighlights: AnchoredTextHighlight[] = [];
+    const htmlHighlights: AnchoredTextHighlight[] = [];
+
+    for (const extract of relevantExtracts) {
+      const context = extract.selection_context ?? extract.selectionContext;
+      const highlightColor = extract.highlight_color ?? extract.highlightColor;
+      const title = extract.content ?? extract.page_title ?? extract.pageTitle ?? "";
+
+      if (isPdfSelectionContext(context)) {
+        for (const page of context.pages) {
+          pdfHighlights.push({
+            id: `${extract.id}:${page.pageNumber}`,
+            pageNumber: page.pageNumber,
+            pdfRects: page.pdfRects,
+            color: normalizePdfHighlightColor(highlightColor),
+            text: title,
+            note: extract.notes ?? undefined,
+            createdAt: Date.parse(extract.date_created ?? extract.dateCreated ?? "") || Date.now(),
+          });
+        }
+        continue;
+      }
+
+      if (isEpubSelectionContext(context)) {
+        epubHighlights.push({
+          id: String(extract.id),
+          cfiRange: context.cfiRange,
+          color: highlightColor,
+          text: title,
+        });
+        continue;
+      }
+
+      if (isTextSelectionContext(context)) {
+        const descriptor: AnchoredTextHighlight = {
+          id: String(extract.id),
+          startOffset: context.startOffset,
+          endOffset: context.endOffset,
+          color: highlightColor,
+          title,
+        };
+        if (context.surface === "markdown") {
+          markdownHighlights.push(descriptor);
+        } else if (context.surface === "html") {
+          htmlHighlights.push(descriptor);
+        }
+      }
+    }
+
+    return {
+      pdfHighlights,
+      epubHighlights,
+      markdownHighlights,
+      htmlHighlights,
+    };
+  }, [currentDocument?.id, extracts]);
+
   const MAX_SELECTION_CHARS = 10000;
-  const updateSelection = useCallback((rawText: string | null | undefined, context?: PdfSelectionContext | null) => {
+  const updateSelection = useCallback((rawText: string | null | undefined, context?: SelectionContext | null) => {
     const text = rawText?.trim() ?? "";
     const hasText = text.length > 0 && text.length <= MAX_SELECTION_CHARS;
 
     if (docType === "pdf") {
-      if (hasText && isValidPdfSelection(text, context)) {
+      if (hasText && isPdfSelectionContext(context) && isValidPdfSelection(text, context)) {
         setSelectedText(text);
         lastSelectionRef.current = text;
         setSelectionContext(context ?? null);
       } else {
         setSelectedText("");
-        if (context === null || context === undefined || !isValidPdfSelection(text, context)) {
+        if (context === null || context === undefined || !isPdfSelectionContext(context) || !isValidPdfSelection(text, context)) {
           setSelectionContext(null);
         }
       }
@@ -693,6 +809,7 @@ export function DocumentViewer({
     setSelectedText("");
     lastSelectionRef.current = "";
     setSelectionContext(null);
+    setInitialHighlightColor(undefined);
     // Clear the browser's text selection
     window.getSelection()?.removeAllRanges();
   }, []);
@@ -1014,11 +1131,11 @@ export function DocumentViewer({
       needsFileData,
     });
 
-    if (mediaSrcRef.current?.startsWith("blob:")) {
-      URL.revokeObjectURL(mediaSrcRef.current);
+    if (mediaSourceRef.current?.revokeSrcOnDispose) {
+      URL.revokeObjectURL(mediaSourceRef.current.src);
     }
-    mediaSrcRef.current = null;
-    setMediaSrc(null);
+    mediaSourceRef.current = null;
+    setMediaSource(null);
     setPdfUrl(null);
     setEpubUrl(null);
 
@@ -1049,56 +1166,18 @@ export function DocumentViewer({
       try {
         console.log(`[DocumentViewer] Loading ${inferredType} file:`, doc.filePath);
         setMediaError(null);
-        const filePath = doc.filePath;
-        let mediaUrl: string | null = null;
-
-        // Browser/PWA: use in-memory file object URL directly when available.
-        // This avoids costly base64 decode for large local media files.
-        if (!isTauri() && filePath.startsWith("browser-file://")) {
-          const browserFile = getBrowserFile(filePath);
-          if (browserFile) {
-            mediaUrl = URL.createObjectURL(browserFile);
-            console.log(`[DocumentViewer] Using browser file object URL for media:`, filePath);
-          }
+        if (!doc.filePath) {
+          throw new Error("Media document is missing a file path.");
         }
-
-        // Tauri: prefer streamed asset URL and avoid blob fallback to prevent freezes.
-        if (!mediaUrl && isTauri()) {
-          try {
-            mediaUrl = await convertFileSrc(filePath);
-            console.log(`[DocumentViewer] Using Tauri convertFileSrc URL:`, mediaUrl);
-          } catch (convertError) {
-            console.error(`[DocumentViewer] convertFileSrc failed for media:`, convertError);
-            throw new Error("Failed to open media via Tauri asset protocol.");
-          }
-        }
-
-        // Web/PWA fallback: read and create blob URL from backend file payload.
-        if (!mediaUrl && !isTauri()) {
-          console.log(`[DocumentViewer] Using backend read for:`, filePath);
-          const base64Data = await documentsApi.readDocumentFile(filePath);
-          console.log(`[DocumentViewer] Got base64 data, length:`, base64Data?.length || 0);
-          if (!base64Data || base64Data.length === 0) {
-            throw new Error(`File not found or empty. The file may need to be re-imported.`);
-          }
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const mimeType = inferredType === "audio"
-            ? getAudioMimeType(filePath)
-            : getVideoMimeType(filePath);
-          console.log(`[DocumentViewer] Creating blob with MIME type:`, mimeType, `size:`, bytes.byteLength);
-          mediaUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-        }
-
-        if (!mediaUrl) {
-          throw new Error("Could not resolve a playable media source.");
-        }
-
-        mediaSrcRef.current = mediaUrl;
-        setMediaSrc(mediaUrl);
+        const resolvedSource = await resolveLocalMediaSource(doc.filePath, inferredType);
+        console.log("[DocumentViewer] Resolved local media source:", {
+          filePath: doc.filePath,
+          strategy: resolvedSource.strategy,
+          mimeType: resolvedSource.mimeType,
+          attempts: resolvedSource.attempts,
+        });
+        mediaSourceRef.current = resolvedSource;
+        setMediaSource(resolvedSource);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);
@@ -2009,7 +2088,7 @@ export function DocumentViewer({
 
   // Handle text selection
   useEffect(() => {
-    if (docType === "pdf") return;
+    if (docType === "pdf" || docType === "markdown" || docType === "html" || docType === "epub") return;
 
     const handleSelection = () => {
       const selection = window.getSelection();
@@ -2184,6 +2263,7 @@ export function DocumentViewer({
       // Ctrl/Cmd + E for create extract from current selection
       if (mod && lowerKey === "e") {
         e.preventDefault();
+        setInitialHighlightColor(undefined);
         openExtractDialog();
         return;
       }
@@ -2191,6 +2271,7 @@ export function DocumentViewer({
       // Ctrl/Cmd + H for highlight selection (mapped to extract dialog with highlight color)
       if (mod && lowerKey === "h") {
         e.preventDefault();
+        setInitialHighlightColor("#fef08a");
         openExtractDialog();
         return;
       }
@@ -2418,16 +2499,18 @@ export function DocumentViewer({
 
   // Handle extract creation
   const handleExtractCreated = (extract: Extract) => {
-    // Navigate to extracts tab to show the new extract
-    setViewMode("extracts");
-    onExtractCreated?.(extract);
+    const sourceContext = buildExtractSourceContext();
+    if (extractPostCreateBehavior === "show-extracts") {
+      setViewMode("extracts");
+    }
+    onExtractCreated?.(extract, sourceContext);
   };
 
   const openExtractDialog = () => {
     if (docType === "pdf") {
       const blockReason = getPdfExtractBlockReason({
         selectedText,
-        selectionContext,
+        selectionContext: isPdfSelectionContext(selectionContext) ? selectionContext : null,
         capability: pdfTextSelectionCapability,
       });
       if (blockReason === "no_text_layer") {
@@ -2450,6 +2533,14 @@ export function DocumentViewer({
     }
     setIsExtractDialogOpen(true);
   };
+
+  const handlePdfHighlightSelection = useCallback((color: string, text: string, context: PdfSelectionContext) => {
+    setSelectedText(text);
+    lastSelectionRef.current = text;
+    setSelectionContext(context);
+    setInitialHighlightColor(toExtractDialogColor(color));
+    setIsExtractDialogOpen(true);
+  }, []);
 
   // Mobile PWA: Open extract dialog from mobile selection
   const handleMobileExtract = () => {
@@ -2839,6 +2930,72 @@ export function DocumentViewer({
       return htmlSource;
     }
   }, [htmlSource, settings.documents.webImportPreserveImages, jumpHighlightQuery, currentDocument]);
+
+  useEffect(() => {
+    if (docType !== "html") return;
+    const frame = iframeRef.current;
+    if (!frame || !currentDocument?.id) return;
+
+    let teardown: (() => void) | null = null;
+
+    const attach = () => {
+      teardown?.();
+
+      const doc = frame.contentDocument;
+      const win = frame.contentWindow;
+      const body = doc?.body;
+      if (!doc || !win || !body) return;
+
+      applyAnchoredTextHighlights({
+        root: body,
+        highlights: persistedDocumentHighlights.htmlHighlights,
+        signature: `${currentDocument.id}:${htmlForDisplay}`,
+      });
+
+      const publishSelection = () => {
+        const selection = win.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+          updateSelection("", null);
+          return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const context = buildTextSelectionContext({
+          root: body,
+          range,
+          documentId: currentDocument.id,
+          surface: "html",
+        });
+        updateSelection(context?.selectedText ?? "", context);
+      };
+
+      doc.addEventListener("selectionchange", publishSelection);
+      doc.addEventListener("mouseup", publishSelection);
+      doc.addEventListener("keyup", publishSelection);
+
+      teardown = () => {
+        doc.removeEventListener("selectionchange", publishSelection);
+        doc.removeEventListener("mouseup", publishSelection);
+        doc.removeEventListener("keyup", publishSelection);
+      };
+    };
+
+    frame.addEventListener("load", attach);
+    if (frame.contentDocument?.readyState === "complete") {
+      attach();
+    }
+
+    return () => {
+      frame.removeEventListener("load", attach);
+      teardown?.();
+    };
+  }, [
+    currentDocument?.id,
+    docType,
+    htmlForDisplay,
+    persistedDocumentHighlights.htmlHighlights,
+    updateSelection,
+  ]);
 
   // Apply initial jump navigation (page/scroll/time) on document load.
   useEffect(() => {
@@ -3296,7 +3453,13 @@ export function DocumentViewer({
           </div>
         ) : viewMode === "extracts" ? (
           <div className="p-6 bg-background h-full overflow-auto">
-            <ExtractsList documentId={currentDocument.id} />
+            <ExtractsList
+              documentId={currentDocument.id}
+              focusedExtractId={focusedExtractId}
+              sourceContext={extractSourceContext}
+              onBackToSource={extractSourceContext ? () => setViewMode("document") : undefined}
+              onResumeQueue={extractSourceContext?.queueType === "queue-scroll" && queueScrollTab ? resumeQueueFromExtract : undefined}
+            />
           </div>
         ) : viewMode === "cards" ? (
           <div className="p-6 bg-background h-full overflow-auto">
@@ -3353,6 +3516,8 @@ export function DocumentViewer({
               setSelectionContext(null);
               setIsExtractDialogOpen(true);
             }}
+            persistedHighlights={persistedDocumentHighlights.pdfHighlights}
+            onHighlightSelection={handlePdfHighlightSelection}
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
           />
@@ -3368,6 +3533,7 @@ export function DocumentViewer({
             onContextTextChange={handlePdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
             initialCfi={initialJump?.kind === "epub" ? initialJump.cfi : undefined}
+            persistedHighlights={persistedDocumentHighlights.epubHighlights}
             onProgressChange={(percent) => {
               handleScrollPositionChange({
                 pageNumber: 1,
@@ -3380,10 +3546,10 @@ export function DocumentViewer({
             }}
           />
         ) : docType === "audio" ? (
-          mediaSrc ? (
+          mediaSource ? (
             <AudiobookViewer
               document={currentDocument}
-              fileContent={mediaSrc}
+              fileContent={mediaSource.src}
             />
           ) : mediaError ? (
             <div className="flex items-center justify-center h-full">
@@ -3414,10 +3580,15 @@ export function DocumentViewer({
             </div>
           )
         ) : docType === "video" ? (
-          mediaSrc ? (
+          mediaSource ? (
             <div className="h-full w-full bg-black">
               <LocalVideoPlayer
-                src={mediaSrc}
+                src={{
+                  src: mediaSource.src,
+                  mimeType: mediaSource.mimeType,
+                  strategy: mediaSource.strategy,
+                  alreadyPlayable: true,
+                }}
                 documentId={currentDocument.id}
                 title={currentDocument.title}
                 className="h-full w-full"
@@ -3484,6 +3655,8 @@ export function DocumentViewer({
               document={currentDocument}
               content={currentDocument.content}
               initialScrollPercent={initialJump?.kind === "markdown" ? initialJump.scrollPercent : currentDocument.currentScrollPercent}
+              highlights={persistedDocumentHighlights.markdownHighlights}
+              onSelectionChange={updateSelection}
               onScrollPositionChange={(scrollPercent) => {
                 handleScrollPositionChange({
                   pageNumber: 1,
@@ -3736,8 +3909,9 @@ export function DocumentViewer({
       <CreateExtractDialog
         documentId={currentDocument.id}
         selectedText={activeExtractSelection}
-        pageNumber={selectionContext?.pages[0]?.pageNumber ?? pageNumber}
+        pageNumber={isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber}
         selectionContext={selectionContext}
+        initialHighlightColor={initialHighlightColor}
         isOpen={isExtractDialogOpen}
         onClose={() => {
           setIsExtractDialogOpen(false);

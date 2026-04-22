@@ -147,7 +147,7 @@ export const SVGSelectionRenderer: React.FC<SelectionRendererProps> = ({
             width={rect.width}
             height={rect.height}
             fill={highlightColor}
-            fillOpacity={highlightOpacity}
+            fillOpacity={_highlightOpacity}
             rx={2}
             ry={2}
           />

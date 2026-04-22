@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { X, BarChart3, Rss } from "lucide-react";
+import { X, BarChart3, Rss, TrendingUp } from "lucide-react";
 import { subscribeToFeedAuto, type Feed } from "../../api/rss";
 
 interface SiteStatisticsDialogProps {
