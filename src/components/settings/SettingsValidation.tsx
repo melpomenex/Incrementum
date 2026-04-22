@@ -253,7 +253,7 @@ export async function validateAllSettings(config: {
   }
 
   // Validate AI settings
-  if (config.ai?.provider && providerRequiresApiKey(config.ai.provider, config.ai.baseUrl)) {
+  if (config.ai?.provider && providerRequiresApiKey(config.ai.provider as import("../../utils/llmProviderUtils").ConfiguredLLMProvider, (config.ai as any).baseUrl)) {
     if (!config.ai.apiKey) {
       validator.warning(
         "ai.apiKey",

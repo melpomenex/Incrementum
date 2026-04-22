@@ -37,9 +37,17 @@ import {
 } from "../../lib/videoTranscriptionQueue";
 import { isTauri } from "../../lib/tauri";
 import { TranscriptionButton } from "../transcription";
+import {
+  classifyLocalMediaError,
+  getLocalMediaSourceKey,
+  normalizeLocalMediaSources,
+  probeLocalMediaSource,
+  type LocalMediaProbeFailure,
+  type LocalMediaSourceInput,
+} from "./localMediaSources";
 
 interface LocalVideoPlayerProps {
-  src: string; // Local file URL or blob URL
+  src: LocalMediaSourceInput; // Local file URL or richer source descriptor
   documentId?: string;
   title?: string;
   onLoad?: (metadata: { duration: number; title: string }) => void;
@@ -73,6 +81,12 @@ export function LocalVideoPlayer({
     return saved ? parseFloat(saved) : 1;
   });
   const [playError, setPlayError] = useState<string | null>(null);
+  const [resolvedSourceIndex, setResolvedSourceIndex] = useState<number | null>(null);
+  const [isResolvingSource, setIsResolvingSource] = useState(true);
+  const [sourceFailure, setSourceFailure] = useState<LocalMediaProbeFailure | null>(null);
+  const [sourceFailureStrategy, setSourceFailureStrategy] = useState<string | null>(null);
+  const sourceResolutionRequestRef = useRef(0);
+  const [sourceRetryNonce, setSourceRetryNonce] = useState(0);
 
   // Transcript panel state
   const [showTranscript, setShowTranscript] = useState(() => {
@@ -119,6 +133,12 @@ export function LocalVideoPlayer({
   const documentIdRef = useRef(documentId);
   const currentTimeRef = useRef(0); // Track current time for unmount save
   const durationRef = useRef(0); // Track duration for unmount save
+  const resumePlaybackAfterFallbackRef = useRef(false);
+  const normalizedSources = useMemo(() => normalizeLocalMediaSources(src), [src]);
+  const sourceKey = useMemo(() => getLocalMediaSourceKey(normalizedSources), [normalizedSources]);
+  const activeSource = resolvedSourceIndex !== null ? normalizedSources[resolvedSourceIndex] ?? null : null;
+  const activeSrc = activeSource?.src ?? "";
+  const activeSourceStrategy = activeSource?.strategy ?? "unresolved";
 
   // Update refs when values change
   useEffect(() => {
@@ -132,6 +152,49 @@ export function LocalVideoPlayer({
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  const formatSourceFailureMessage = useCallback((failure: LocalMediaProbeFailure | null) => {
+    if (!failure) {
+      return mediaType === "audio"
+        ? "The audio file could not be loaded."
+        : "The video file could not be loaded.";
+    }
+
+    switch (failure.kind) {
+      case "source-access":
+        return mediaType === "audio"
+          ? "The app could not open this local audio source. The desktop media URL may be unreadable, or the file may need to be re-imported."
+          : "The app could not open this local video source. The desktop media URL may be unreadable, or the file may need to be re-imported.";
+      case "unsupported-format":
+        return mediaType === "audio"
+          ? "This audio format is not supported by the embedded browser. Try converting it to MP3, M4A, or WAV."
+          : "This video format is not supported by the embedded browser. Try converting it to MP4 with H.264 video and AAC audio.";
+      case "decode":
+        return mediaType === "audio"
+          ? "The file opened, but the embedded browser could not decode the audio stream."
+          : "The file opened, but the embedded browser could not decode the video stream.";
+      case "aborted":
+        return "Playback was interrupted before the media finished loading.";
+      default:
+        return failure.message || (mediaType === "audio"
+          ? "The audio file could not be loaded."
+          : "The video file could not be loaded.");
+    }
+  }, [mediaType]);
+
+  const resetResolvedPlaybackState = useCallback(() => {
+    setResolvedSourceIndex(null);
+    setIsResolvingSource(true);
+    setSourceFailure(null);
+    setSourceFailureStrategy(null);
+    setPlayError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    currentTimeRef.current = 0;
+    setDuration(0);
+    durationRef.current = 0;
+    resumePlaybackAfterFallbackRef.current = false;
+  }, []);
 
   // Seek to saved position when startTime changes and video is ready
   // This handles the race condition where metadata loads before saved position is fetched
@@ -387,6 +450,90 @@ export function LocalVideoPlayer({
   }, [loadSavedPosition]);
 
   useEffect(() => {
+    resetResolvedPlaybackState();
+
+    if (normalizedSources.length === 0) {
+      setIsResolvingSource(false);
+      setPlayError("Could not resolve a playable media source.");
+      return;
+    }
+
+    let cancelled = false;
+    const requestId = sourceResolutionRequestRef.current + 1;
+    sourceResolutionRequestRef.current = requestId;
+
+    const resolveSource = async () => {
+      let lastFailure: LocalMediaProbeFailure | null = null;
+      let lastStrategy: string | null = null;
+
+      for (let index = 0; index < normalizedSources.length; index += 1) {
+        const candidate = normalizedSources[index];
+        console.log("[LocalVideoPlayer] Probing local media source:", {
+          mediaType,
+          strategy: candidate.strategy,
+          mimeType: candidate.mimeType,
+          index,
+          total: normalizedSources.length,
+          src: candidate.src,
+        });
+
+        const result = await probeLocalMediaSource(candidate, mediaType);
+        if (cancelled || sourceResolutionRequestRef.current !== requestId) {
+          return;
+        }
+
+        if (result.ok) {
+          console.log("[LocalVideoPlayer] Resolved playable local media source:", {
+            mediaType,
+            strategy: candidate.strategy,
+            index,
+          });
+          setResolvedSourceIndex(index);
+          setIsResolvingSource(false);
+          setSourceFailure(null);
+          setSourceFailureStrategy(null);
+          setPlayError(null);
+          return;
+        }
+
+        lastFailure = result.failure ?? null;
+        lastStrategy = candidate.strategy ?? null;
+        console.warn("[LocalVideoPlayer] Local media source rejected during probe:", {
+          mediaType,
+          strategy: candidate.strategy,
+          index,
+          failure: result.failure,
+        });
+      }
+
+      console.error("[LocalVideoPlayer] Failed to resolve a playable local media source:", {
+        mediaType,
+        lastStrategy,
+        lastFailure,
+        candidateCount: normalizedSources.length,
+      });
+      setIsResolvingSource(false);
+      setResolvedSourceIndex(null);
+      setSourceFailure(lastFailure);
+      setSourceFailureStrategy(lastStrategy);
+      setPlayError(formatSourceFailureMessage(lastFailure));
+    };
+
+    void resolveSource();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    formatSourceFailureMessage,
+    mediaType,
+    normalizedSources,
+    resetResolvedPlaybackState,
+    sourceKey,
+    sourceRetryNonce,
+  ]);
+
+  useEffect(() => {
     if (!documentId) return;
     loadTranscript();
   }, [documentId, loadTranscript]);
@@ -542,8 +689,9 @@ export function LocalVideoPlayer({
   const buildPlayErrorMessage = useCallback((error: unknown) => {
     if (error instanceof DOMException) {
       if (error.name === 'NotSupportedError' || /not supported/i.test(error.message)) {
-        return 'This video codec is not supported. Please convert to MP4 (H.264/AAC). '
-          + 'Some MP4 files use HEVC/H.265 or AV1 which are unsupported.';
+        return mediaType === "audio"
+          ? 'This audio format is not supported by the embedded browser. Try converting it to MP3, M4A, or WAV.'
+          : 'This video codec is not supported. Please convert to MP4 (H.264/AAC). Some MP4 files use HEVC/H.265 or AV1 which are unsupported.';
       }
       if (error.name === 'NotAllowedError') {
         return 'Playback was blocked. Click the video to play.';
@@ -551,8 +699,8 @@ export function LocalVideoPlayer({
       return error.message || 'Failed to play video';
     }
     if (error instanceof Error) return error.message;
-    return 'Failed to play video';
-  }, []);
+    return mediaType === "audio" ? 'Failed to play audio' : 'Failed to play video';
+  }, [mediaType]);
 
   const attemptPlay = useCallback(async (context: string) => {
     if (!videoRef.current) return;
@@ -564,7 +712,42 @@ export function LocalVideoPlayer({
       setPlayError(errorMessage);
       toast.error(t("viewer.playbackError"), errorMessage);
     }
-  }, [buildPlayErrorMessage]);
+  }, [buildPlayErrorMessage, t, toast]);
+
+  const tryRuntimeFallback = useCallback((failure: LocalMediaProbeFailure | null) => {
+    if (resolvedSourceIndex === null || resolvedSourceIndex >= normalizedSources.length - 1) {
+      return false;
+    }
+
+    const resumeTime = currentTimeRef.current;
+    const nextIndex = resolvedSourceIndex + 1;
+    const nextSource = normalizedSources[nextIndex];
+    if (!nextSource) {
+      return false;
+    }
+
+    console.warn("[LocalVideoPlayer] Switching to fallback media source after runtime failure:", {
+      fromStrategy: activeSourceStrategy,
+      toStrategy: nextSource.strategy,
+      mediaType,
+      failure,
+      resumeTime,
+    });
+
+    if (resumeTime > 0) {
+      startTimeRef.current = resumeTime;
+      setStartTime(resumeTime);
+    }
+
+    resumePlaybackAfterFallbackRef.current = Boolean(videoRef.current && !videoRef.current.paused);
+    setPlayError(null);
+    setSourceFailure(failure);
+    setSourceFailureStrategy(activeSourceStrategy);
+    setIsResolvingSource(false);
+    setResolvedSourceIndex(nextIndex);
+    setCurrentTime(resumeTime);
+    return true;
+  }, [activeSourceStrategy, mediaType, normalizedSources, resolvedSourceIndex]);
 
   // Toggle play/pause
   const togglePlay = async () => {
@@ -741,7 +924,7 @@ export function LocalVideoPlayer({
   };
 
   const waveformBars = useMemo(() => {
-    const seedSource = `${title || ''}|${src}`;
+    const seedSource = `${title || ''}|${sourceKey}`;
     let hash = 2166136261;
     for (let i = 0; i < seedSource.length; i += 1) {
       hash ^= seedSource.charCodeAt(i);
@@ -767,7 +950,7 @@ export function LocalVideoPlayer({
     }
 
     return bars;
-  }, [src, title]);
+  }, [sourceKey, title]);
 
   // Handle scroll to seek
   const handleScroll = useCallback((e: React.WheelEvent) => {
@@ -794,157 +977,125 @@ export function LocalVideoPlayer({
   // Note: click/dblclick handlers are attached to the container so clicks on letterboxed
   // areas (not just the <video> pixels) still work. Controls opt-out via data attr.
 
+  const handleLoadedMetadata = useCallback(() => {
+    console.log('[LocalVideoPlayer] onLoadedMetadata fired:', {
+      strategy: activeSourceStrategy,
+      startTimeRef: startTimeRef.current,
+      duration: videoRef.current?.duration,
+      readyState: videoRef.current?.readyState,
+    });
+    if (videoRef.current) {
+      const mediaDuration = videoRef.current.duration;
+      setDuration(mediaDuration);
+      onLoad?.({ duration: mediaDuration, title: title || t(mediaType === "audio" ? "viewer.audio" : "viewer.video") });
+      if (startTimeRef.current > 0) {
+        videoRef.current.currentTime = startTimeRef.current;
+        console.log("[LocalVideoPlayer] Seeked media to saved time:", startTimeRef.current);
+      }
+      if (playbackRate !== 1) {
+        videoRef.current.playbackRate = playbackRate;
+        console.log("[LocalVideoPlayer] Applied saved playback rate:", playbackRate);
+      }
+    }
+  }, [activeSourceStrategy, mediaType, onLoad, playbackRate, t, title]);
+
+  const handleCanPlay = useCallback(() => {
+    console.log("[LocalVideoPlayer] Media can play:", {
+      mediaType,
+      strategy: activeSourceStrategy,
+    });
+    setPlayError(null);
+    setSourceFailure(null);
+    setSourceFailureStrategy(null);
+    if (resumePlaybackAfterFallbackRef.current) {
+      resumePlaybackAfterFallbackRef.current = false;
+      void attemptPlay('fallback-resume');
+    }
+  }, [activeSourceStrategy, attemptPlay, mediaType]);
+
+  const handlePause = useCallback(() => {
+    setIsPlaying(false);
+    if (videoRef.current && documentIdRef.current) {
+      savePosition(videoRef.current.currentTime);
+    }
+  }, [savePosition]);
+
+  const handleVolumeChange = useCallback(() => {
+    if (videoRef.current) {
+      setVolume(videoRef.current.volume * 100);
+      setIsMuted(videoRef.current.muted);
+    }
+  }, []);
+
+  const handleMediaElementError = useCallback((e: React.SyntheticEvent<HTMLAudioElement | HTMLVideoElement>) => {
+    const error = videoRef.current?.error;
+    const failure = activeSource
+      ? classifyLocalMediaError(activeSource, mediaType, error?.code)
+      : null;
+
+    if (tryRuntimeFallback(failure)) {
+      return;
+    }
+
+    const userFriendlyMessage = formatSourceFailureMessage(failure);
+    const titleKey = mediaType === "audio" ? "viewer.audioPlaybackError" : "viewer.videoPlaybackError";
+
+    console.error('[LocalVideoPlayer] Media error:', {
+      strategy: activeSourceStrategy,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+      failure,
+      event: e,
+    });
+
+    setSourceFailure(failure);
+    setSourceFailureStrategy(activeSourceStrategy);
+    setPlayError(userFriendlyMessage);
+    toast.error(t(titleKey), userFriendlyMessage);
+  }, [activeSource, activeSourceStrategy, formatSourceFailureMessage, mediaType, t, toast, tryRuntimeFallback]);
+
   const mediaElement = mediaType === "audio" ? (
     <audio
       ref={videoRef}
-      src={src}
+      src={activeSrc}
       preload="none"
       className="sr-only"
-      onLoadedMetadata={() => {
-        console.log('[LocalVideoPlayer] Audio onLoadedMetadata fired:', {
-          startTimeRef: startTimeRef.current,
-          duration: videoRef.current?.duration,
-          readyState: videoRef.current?.readyState,
-        });
-        if (videoRef.current) {
-          const mediaDuration = videoRef.current.duration;
-          setDuration(mediaDuration);
-          onLoad?.({ duration: mediaDuration, title: title || t("viewer.audio") });
-          if (startTimeRef.current > 0) {
-            videoRef.current.currentTime = startTimeRef.current;
-            console.log("[LocalVideoPlayer] Seeked audio to saved time:", startTimeRef.current);
-          } else {
-            console.log("[LocalVideoPlayer] No saved time to restore for audio (startTimeRef is 0)");
-          }
-          // Apply saved playback rate
-          if (playbackRate !== 1) {
-            videoRef.current.playbackRate = playbackRate;
-            console.log("[LocalVideoPlayer] Applied saved playback rate:", playbackRate);
-          }
-        }
-      }}
-      onCanPlay={() => {
-        console.log("[LocalVideoPlayer] Audio can play");
-        setPlayError(null);
-      }}
+      onLoadedMetadata={handleLoadedMetadata}
+      onCanPlay={handleCanPlay}
       onWaiting={() => {
         console.log("[LocalVideoPlayer] Audio waiting for data");
       }}
       onPlay={() => setIsPlaying(true)}
-      onPause={() => {
-        setIsPlaying(false);
-        if (videoRef.current && documentIdRef.current) {
-          savePosition(videoRef.current.currentTime);
-        }
-      }}
+      onPause={handlePause}
       // Use timeupdate as fallback for browsers without requestVideoFrameCallback
       onTimeUpdate={() => {
         handleTimeUpdate();
       }}
       onSeeked={() => handleTimeUpdate()}
-      onVolumeChange={() => {
-        if (videoRef.current) {
-          setVolume(videoRef.current.volume * 100);
-          setIsMuted(videoRef.current.muted);
-        }
-      }}
-      onError={(e) => {
-        const error = videoRef.current?.error;
-        let errorMessage = error
-          ? `Error code ${error.code}: ${error.message}`
-          : 'Unknown audio error';
-        let userFriendlyMessage = errorMessage;
-
-        // Provide codec-specific guidance for audio
-        if (error?.code === 3) {
-          userFriendlyMessage = 'This audio format is not supported by your browser. '
-            + 'Please try converting to MP3, M4A, or WAV format.';
-        } else if (error?.code === 4) {
-          userFriendlyMessage = 'The audio file could not be loaded. It may be corrupted or in an unsupported format.';
-        }
-
-        console.error('[LocalVideoPlayer] Audio error:', errorMessage, e);
-        setPlayError(userFriendlyMessage);
-        toast.error(t("viewer.audioPlaybackError"), userFriendlyMessage);
-      }}
+      onVolumeChange={handleVolumeChange}
+      onError={handleMediaElementError}
     />
   ) : (
     <video
       ref={videoRef}
-      src={src}
+      src={activeSrc}
       preload="none"
       playsInline
       className="w-full max-h-full bg-black cursor-pointer"
-      onLoadedMetadata={() => {
-        console.log('[LocalVideoPlayer] onLoadedMetadata fired:', {
-          startTimeRef: startTimeRef.current,
-          duration: videoRef.current?.duration,
-          readyState: videoRef.current?.readyState,
-        });
-        if (videoRef.current) {
-          const mediaDuration = videoRef.current.duration;
-          setDuration(mediaDuration);
-          onLoad?.({ duration: mediaDuration, title: title || t("viewer.video") });
-          if (startTimeRef.current > 0) {
-            videoRef.current.currentTime = startTimeRef.current;
-            console.log("[LocalVideoPlayer] Seeked video to saved time:", startTimeRef.current);
-          } else {
-            console.log("[LocalVideoPlayer] No saved time to restore (startTimeRef is 0)");
-          }
-          // Apply saved playback rate
-          if (playbackRate !== 1) {
-            videoRef.current.playbackRate = playbackRate;
-            console.log("[LocalVideoPlayer] Applied saved playback rate:", playbackRate);
-          }
-        }
-      }}
-      onCanPlay={() => {
-        console.log("[LocalVideoPlayer] Video can play");
-        setPlayError(null);
-      }}
+      onLoadedMetadata={handleLoadedMetadata}
+      onCanPlay={handleCanPlay}
       onWaiting={() => {
         console.log("[LocalVideoPlayer] Video waiting for data");
       }}
       onPlay={() => setIsPlaying(true)}
-      onPause={() => {
-        setIsPlaying(false);
-        if (videoRef.current && documentIdRef.current) {
-          savePosition(videoRef.current.currentTime);
-        }
-      }}
+      onPause={handlePause}
       // Use timeupdate as fallback for browsers without requestVideoFrameCallback
       onTimeUpdate={() => {
         handleTimeUpdate();
       }}
       onSeeked={() => handleTimeUpdate()}
-      onVolumeChange={() => {
-        if (videoRef.current) {
-          setVolume(videoRef.current.volume * 100);
-          setIsMuted(videoRef.current.muted);
-        }
-      }}
-      onError={(e) => {
-        const error = videoRef.current?.error;
-        let errorMessage = error
-          ? `Error code ${error.code}: ${error.message}`
-          : 'Unknown video error';
-        let userFriendlyMessage = errorMessage;
-
-        // Provide codec-specific guidance
-        if (error?.code === 3) {
-          // MEDIA_ERR_DECODE - codec not supported
-          userFriendlyMessage = 'This video format is not supported by your browser. '
-            + 'Please try converting the video to MP4 (H.264 codec). '
-            + 'Common incompatible formats include HEVC/H.265, AV1, and some MKV files.';
-        } else if (error?.code === 4) {
-          // MEDIA_ERR_SRC_NOT_SUPPORTED
-          userFriendlyMessage = 'The video file could not be loaded. It may be corrupted or in an unsupported format.';
-        }
-
-        console.error('[LocalVideoPlayer] Video error:', errorMessage, e);
-        setPlayError(userFriendlyMessage);
-        toast.error(t("viewer.videoPlaybackError"), userFriendlyMessage);
-      }}
+      onVolumeChange={handleVolumeChange}
+      onError={handleMediaElementError}
       onWheel={handleScroll}
     />
   );
@@ -983,7 +1134,20 @@ export function LocalVideoPlayer({
         }}
       >
         {/* Media Element */}
-        {mediaElement}
+        {activeSrc ? mediaElement : null}
+
+      {isResolvingSource && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+          <div className="text-center p-6 max-w-md">
+            <h3 className="text-lg font-semibold text-white mb-2">
+              {t(mediaType === "audio" ? "viewer.loadingAudio" : "viewer.loadingVideo")}
+            </h3>
+            <p className="text-sm text-gray-300">
+              Resolving a playable local {mediaType} source{normalizedSources.length > 1 ? " and checking fallback options" : ""}.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {playError && (
@@ -996,13 +1160,20 @@ export function LocalVideoPlayer({
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">{t("viewer.playbackError")}</h3>
             <p className="text-sm text-gray-300 mb-4">{playError}</p>
+            {sourceFailureStrategy && (
+              <p className="text-xs text-gray-400 mb-2">
+                Last source strategy: {sourceFailureStrategy}
+              </p>
+            )}
+            {sourceFailure?.kind && (
+              <p className="text-xs text-gray-400 mb-4">
+                Failure classification: {sourceFailure.kind}
+              </p>
+            )}
             <div className="flex gap-2 justify-center">
               <button
                 onClick={() => {
-                  setPlayError(null);
-                  if (videoRef.current) {
-                    videoRef.current.load();
-                  }
+                  setSourceRetryNonce((value) => value + 1);
                 }}
                 className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
               >

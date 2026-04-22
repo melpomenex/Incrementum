@@ -198,7 +198,7 @@ export function useDocumentMinimap(
           end: Math.min(1, pos + 0.02),
           type: "extracted",
           id: extract.id,
-          label: t("viewer.extracted"),
+          label: _t("viewer.extracted"),
         });
       }
     }

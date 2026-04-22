@@ -1,5 +1,5 @@
 import type { ViewState } from "./readerPosition";
-import type { PdfSelectionContext } from "./selection";
+import type { SelectionContext } from "./selection";
 
 // Document types matching the C++ schema
 export interface Document {
@@ -83,7 +83,7 @@ export interface Extract {
   content: string;
   pageTitle?: string;
   pageNumber?: number;
-  selectionContext?: PdfSelectionContext;
+  selectionContext?: SelectionContext;
   highlightColor?: string;
   notes?: string;
   progressiveDisclosureLevel: number;

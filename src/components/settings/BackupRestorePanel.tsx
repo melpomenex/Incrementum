@@ -316,7 +316,7 @@ export function BackupRestorePanel({
         </div>
 
         <button
-          onClick={handleCreateBackup}
+          onClick={() => handleCreateBackup()}
           disabled={backupInProgress}
           className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >

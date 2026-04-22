@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { ThumbsUp, ThumbsDown, SkipForward, X } from "lucide-react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
+import type { Feed } from "../../api/rss";
 
 interface SiteBySiteTrainingProps {
   feeds: Feed[];

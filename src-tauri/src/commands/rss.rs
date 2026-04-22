@@ -5,7 +5,7 @@ use crate::database::Repository;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
-use sqlx::{sqlite::SqliteRow, QueryBuilder, Row, Sqlite};
+use sqlx::{sqlite::SqliteRow, Row};
 
 /// RSS feed model
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -240,39 +240,45 @@ pub async fn update_rss_feed(
         });
     }
 
-    let mut builder = QueryBuilder::<Sqlite>::new("UPDATE rss_feeds SET ");
-    let mut separated = builder.separated(", ");
+    let mut sets: Vec<String> = Vec::new();
+    let mut bind_values: Vec<String> = Vec::new();
 
-    if let Some(title) = title {
-        separated.push("title = ").push_bind(title);
+    if let Some(v) = title {
+        sets.push("title = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(description) = description {
-        separated.push("description = ").push_bind(description);
+    if let Some(v) = description {
+        sets.push("description = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(category) = category {
-        separated.push("category = ").push_bind(category);
+    if let Some(v) = category {
+        sets.push("category = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(update_interval) = update_interval {
-        separated.push("update_interval = ").push_bind(update_interval);
+    if let Some(v) = update_interval {
+        sets.push("update_interval = ?".to_string());
+        bind_values.push(v.to_string());
     }
-    if let Some(auto_queue) = auto_queue {
-        separated.push("auto_queue = ").push_bind(auto_queue);
+    if let Some(v) = auto_queue {
+        sets.push("auto_queue = ?".to_string());
+        bind_values.push(if v { "1".to_string() } else { "0".to_string() });
     }
-    if let Some(is_active) = is_active {
-        separated.push("is_active = ").push_bind(is_active);
+    if let Some(v) = is_active {
+        sets.push("is_active = ?".to_string());
+        bind_values.push(if v { "1".to_string() } else { "0".to_string() });
     }
-    if let Some(auto_fetch_full_content) = auto_fetch_full_content {
-        separated
-            .push("auto_fetch_full_content = ")
-            .push_bind(auto_fetch_full_content);
+    if let Some(v) = auto_fetch_full_content {
+        sets.push("auto_fetch_full_content = ?".to_string());
+        bind_values.push(v);
     }
-    drop(separated);
 
-    builder.push(" WHERE id = ").push_bind(&id);
-
-    builder
-        .build()
-        .execute(repo.pool())
+    let sql = format!("UPDATE rss_feeds SET {} WHERE id = ?", sets.join(", "));
+    let mut query = sqlx::query(&sql);
+    for v in bind_values {
+        query = query.bind(v);
+    }
+    query = query.bind(&id);
+    query.execute(repo.pool())
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS feed: {}", e)))?;
 
@@ -1135,34 +1141,41 @@ pub async fn update_rss_feed_http(
         });
     }
 
-    let mut builder = QueryBuilder::<Sqlite>::new("UPDATE rss_feeds SET ");
-    let mut separated = builder.separated(", ");
+    let mut sets: Vec<String> = Vec::new();
+    let mut bind_values: Vec<String> = Vec::new();
 
-    if let Some(title) = title {
-        separated.push("title = ").push_bind(title);
+    if let Some(v) = title {
+        sets.push("title = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(description) = description {
-        separated.push("description = ").push_bind(description);
+    if let Some(v) = description {
+        sets.push("description = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(category) = category {
-        separated.push("category = ").push_bind(category);
+    if let Some(v) = category {
+        sets.push("category = ?".to_string());
+        bind_values.push(v);
     }
-    if let Some(update_interval) = update_interval {
-        separated.push("update_interval = ").push_bind(update_interval);
+    if let Some(v) = update_interval {
+        sets.push("update_interval = ?".to_string());
+        bind_values.push(v.to_string());
     }
-    if let Some(auto_queue) = auto_queue {
-        separated.push("auto_queue = ").push_bind(auto_queue);
+    if let Some(v) = auto_queue {
+        sets.push("auto_queue = ?".to_string());
+        bind_values.push(if v { "1".to_string() } else { "0".to_string() });
     }
-    if let Some(is_active) = is_active {
-        separated.push("is_active = ").push_bind(is_active);
+    if let Some(v) = is_active {
+        sets.push("is_active = ?".to_string());
+        bind_values.push(if v { "1".to_string() } else { "0".to_string() });
     }
-    drop(separated);
 
-    builder.push(" WHERE id = ").push_bind(id);
-
-    builder
-        .build()
-        .execute(repo.pool())
+    let sql = format!("UPDATE rss_feeds SET {} WHERE id = ?", sets.join(", "));
+    let mut query = sqlx::query(&sql);
+    for v in bind_values {
+        query = query.bind(v);
+    }
+    query = query.bind(id);
+    query.execute(repo.pool())
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to update RSS feed: {}", e)))?;
 

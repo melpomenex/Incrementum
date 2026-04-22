@@ -2,6 +2,7 @@
 
 use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
+use std::collections::HashMap;
 use crate::error::Result;
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset};
 
@@ -184,6 +185,20 @@ impl Repository {
         }
     }
 
+    pub async fn get_document_titles(&self, ids: &[String]) -> Result<HashMap<String, String>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let sql = format!("SELECT id, title FROM documents WHERE id IN ({})", placeholders.join(", "));
+        let mut query = sqlx::query_as::<_, (String, String)>(&sql);
+        for id in ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+        Ok(rows.into_iter().collect())
+    }
+
     pub async fn find_document_by_url(&self, url: &str) -> Result<Option<Document>> {
         let row = sqlx::query("SELECT * FROM documents WHERE file_path = ? LIMIT 1")
             .bind(url)
@@ -292,6 +307,72 @@ impl Repository {
                 cover_image_url: row.try_get("cover_image_url").ok(),
                 cover_image_source: row.try_get("cover_image_source").ok(),
                 // Scheduling fields - use try_get for compatibility with existing databases
+                next_reading_date: row.try_get("next_reading_date").ok(),
+                reading_count: row.try_get("reading_count").unwrap_or(0),
+                stability: row.try_get("stability").ok(),
+                difficulty: row.try_get("difficulty").ok(),
+                reps: row.try_get("reps").ok(),
+                total_time_spent: row.try_get("total_time_spent").ok(),
+                consecutive_count: row.try_get("consecutive_count").ok(),
+            });
+        }
+
+        Ok(docs)
+    }
+
+    pub async fn list_documents_for_queue(&self) -> Result<Vec<Document>> {
+        let rows = sqlx::query(
+            "SELECT id, title, file_path, file_type, content_hash, total_pages, current_page, \
+             current_scroll_percent, current_cfi, current_view_state, position_json, \
+             progress_percent, category, tags, date_added, date_modified, date_last_reviewed, \
+             extract_count, learning_item_count, priority_rating, priority_slider, priority_score, \
+             is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source, \
+             next_reading_date, reading_count, stability, difficulty, reps, total_time_spent, consecutive_count \
+             FROM documents ORDER BY date_added DESC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut docs = Vec::new();
+        for row in rows {
+            let file_type: String = row.get("file_type");
+            let tags_json: String = row.get("tags");
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            let metadata_json: Option<String> = row.try_get("metadata")?;
+            let metadata: Option<DocumentMetadata> = metadata_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            docs.push(Document {
+                id: row.get("id"),
+                title: row.get("title"),
+                file_path: row.get("file_path"),
+                file_type: Self::parse_file_type(&file_type),
+                content: None,
+                content_hash: row.get("content_hash"),
+                total_pages: row.get("total_pages"),
+                current_page: row.get("current_page"),
+                current_scroll_percent: row.try_get("current_scroll_percent").ok(),
+                current_cfi: row.try_get("current_cfi").ok(),
+                current_view_state: row.try_get("current_view_state").ok(),
+                position_json: row.try_get("position_json").ok(),
+                progress_percent: row.try_get("progress_percent").ok(),
+                category: row.get("category"),
+                tags,
+                date_added: row.get("date_added"),
+                date_modified: row.get("date_modified"),
+                date_last_reviewed: row.get("date_last_reviewed"),
+                extract_count: row.get("extract_count"),
+                learning_item_count: row.get("learning_item_count"),
+                priority_rating: row.get("priority_rating"),
+                priority_slider: row.get("priority_slider"),
+                priority_score: row.get("priority_score"),
+                is_archived: row.get("is_archived"),
+                is_favorite: row.get("is_favorite"),
+                is_dismissed: row.try_get("is_dismissed").unwrap_or(false),
+                metadata,
+                cover_image_url: row.try_get("cover_image_url").ok(),
+                cover_image_source: row.try_get("cover_image_source").ok(),
                 next_reading_date: row.try_get("next_reading_date").ok(),
                 reading_count: row.try_get("reading_count").unwrap_or(0),
                 stability: row.try_get("stability").ok(),

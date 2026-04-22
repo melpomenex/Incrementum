@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Tag as TagIcon, FolderOpen, Lightbulb, Bold, Italic, Code, List, Layers, Eye, BookOpen } from "lucide-react";
 import { createExtract, CreateExtractInput, Extract } from "../../api/extracts";
-import type { PdfSelectionContext } from "../../types/selection";
+import type { SelectionContext } from "../../types/selection";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { ClozeCreatorPopup } from "./ClozeCreatorPopup";
 import { QACreatorPopup } from "./QACreatorPopup";
@@ -13,7 +13,8 @@ interface CreateExtractDialogProps {
   documentId: string;
   selectedText?: string;
   pageNumber?: number;
-  selectionContext?: PdfSelectionContext | null;
+  selectionContext?: SelectionContext | null;
+  initialHighlightColor?: string;
   isOpen: boolean;
   onClose: () => void;
   onCreate?: (extract: Extract) => void;
@@ -55,6 +56,7 @@ export function CreateExtractDialog({
   selectedText = "",
   pageNumber = 0,
   selectionContext = null,
+  initialHighlightColor,
   isOpen,
   onClose,
   onCreate,
@@ -64,7 +66,7 @@ export function CreateExtractDialog({
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value);
+  const [highlightColor, setHighlightColor] = useState(initialHighlightColor || HIGHLIGHT_COLORS[0].value);
   const [progressiveLevel, setProgressiveLevel] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -90,13 +92,14 @@ export function CreateExtractDialog({
       setCategory("");
       setTags([]);
       setTagInput("");
+      setHighlightColor(initialHighlightColor || HIGHLIGHT_COLORS[0].value);
       setProgressiveLevel(0);
       setShowPreview(false);
       setError(null);
       setCreationMode("edit");
       setSavedExtractId(null);
     }
-  }, [isOpen, selectedText]);
+  }, [initialHighlightColor, isOpen, selectedText]);
 
   // Annotation functions
   const applyAnnotation = (annotation: typeof ANNOTATIONS[0]) => {

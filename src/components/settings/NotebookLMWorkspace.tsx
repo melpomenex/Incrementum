@@ -67,8 +67,8 @@ export function NotebookLMWorkspace() {
     try {
       await notebooklmDisconnect();
       await checkHealth();
-    } catch {
-      console.error("Failed to disconnect:", error);
+    } catch (err) {
+      console.error("Failed to disconnect:", err);
     }
   };
 

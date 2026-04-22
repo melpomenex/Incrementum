@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Share2 } from "lucide-react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
 
 interface SharedStoriesViewProps {

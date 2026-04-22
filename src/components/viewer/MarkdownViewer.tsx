@@ -2,6 +2,8 @@ import { useMemo, useRef, useEffect, useCallback } from "react";
 import { Document } from "../../types";
 import { renderMarkdown } from "../../utils/markdown";
 import { useI18n } from "../../lib/i18n";
+import type { SelectionContext } from "../../types/selection";
+import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 
 interface MarkdownViewerProps {
   document: Document;
@@ -10,6 +12,8 @@ interface MarkdownViewerProps {
   initialScrollPercent?: number;
   /** Callback when scroll position changes */
   onScrollPositionChange?: (scrollPercent: number) => void;
+  highlights?: AnchoredTextHighlight[];
+  onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
 }
 
 export function MarkdownViewer({
@@ -17,9 +21,12 @@ export function MarkdownViewer({
   content,
   initialScrollPercent,
   onScrollPositionChange,
+  highlights = [],
+  onSelectionChange,
 }: MarkdownViewerProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
 
@@ -108,6 +115,43 @@ export function MarkdownViewer({
     };
   }, []);
 
+  useEffect(() => {
+    applyAnchoredTextHighlights({
+      root: contentRef.current,
+      highlights,
+      signature: `${document.id}:${content ?? ""}`,
+    });
+  }, [content, document.id, highlights, html]);
+
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container || !onSelectionChange) return;
+
+    const publishSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        onSelectionChange("", null);
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const context = buildTextSelectionContext({
+        root: container,
+        range,
+        documentId: document.id,
+        surface: "markdown",
+      });
+      onSelectionChange(context?.selectedText ?? "", context);
+    };
+
+    container.addEventListener("mouseup", publishSelection);
+    container.addEventListener("keyup", publishSelection);
+    return () => {
+      container.removeEventListener("mouseup", publishSelection);
+      container.removeEventListener("keyup", publishSelection);
+    };
+  }, [document.id, onSelectionChange]);
+
   return (
     <div
       ref={containerRef}
@@ -117,7 +161,7 @@ export function MarkdownViewer({
     >
       <h1 className="reading-title">{document.title}</h1>
       {content ? (
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <div ref={contentRef} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <div className="text-muted-foreground italic">{t("viewer.noContentAvailable")}</div>
       )}

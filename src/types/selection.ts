@@ -38,3 +38,24 @@ export interface PdfSelectionContext {
   /** Token identifiers for custom selection engine (only when source='custom') */
   tokenData?: PdfSelectionTokenData;
 }
+
+export interface EpubSelectionContext {
+  type: "epub";
+  documentId: string;
+  cfiRange: string;
+  selectedText: string;
+}
+
+export type TextSelectionSurface = "html" | "markdown" | "extract";
+
+export interface TextSelectionContext {
+  type: "text";
+  surface: TextSelectionSurface;
+  documentId: string;
+  extractId?: string;
+  startOffset: number;
+  endOffset: number;
+  selectedText: string;
+}
+
+export type SelectionContext = PdfSelectionContext | EpubSelectionContext | TextSelectionContext;
