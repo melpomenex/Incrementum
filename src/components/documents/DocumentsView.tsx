@@ -1416,9 +1416,9 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                       </button>
                       {activeDocument.extractCount === 0 && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (!segmentDocument) return;
-                            segmentDocument(activeDocument.id, activeDocument.fileType);
+                            await segmentDocument(activeDocument.id, activeDocument.fileType);
                           }}
                           disabled={isSegmenting}
                           className="px-3 py-2 bg-background border border-border rounded text-sm text-foreground disabled:opacity-50"

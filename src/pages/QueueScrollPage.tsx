@@ -1803,6 +1803,17 @@ export function QueueScrollPage() {
                   </div>
                 </div>
 
+                {renderedItem.rssItem?.thumbnail && (
+                  <div className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-muted/30">
+                    <img
+                      src={renderedItem.rssItem.thumbnail}
+                      alt=""
+                      className="h-auto max-h-[32rem] w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
                 {/* RSS Article Content */}
                 {(renderedItem.rssItem?.content || renderedItem.rssItem?.description) ? (
                   <div

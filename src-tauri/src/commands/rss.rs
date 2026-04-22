@@ -593,6 +593,7 @@ pub struct ParsedFeedItem {
     pub author: Option<String>,
     pub categories: Vec<String>,
     pub guid: Option<String>,
+    pub image_url: Option<String>,
 }
 
 /// Parsed feed for frontend
@@ -845,6 +846,32 @@ fn parse_rss_item_node(item: &roxmltree::Node) -> Option<ParsedFeedItem> {
         .filter_map(|n| n.text().map(|s| s.to_string()))
         .collect();
 
+    let enclosure_image = item
+        .children()
+        .find(|n| {
+            n.tag_name().name() == "enclosure"
+                && n.attribute("type")
+                    .map(|value| value.starts_with("image/"))
+                    .unwrap_or(false)
+        })
+        .and_then(|n| n.attribute("url"))
+        .map(|s| s.to_string());
+
+    let image_url = item
+        .descendants()
+        .find(|n| n.tag_name().name() == "thumbnail" && n.attribute("url").is_some())
+        .and_then(|n| n.attribute("url"))
+        .map(|s| s.to_string())
+        .or_else(|| {
+            item.descendants()
+                .find(|n| n.tag_name().name() == "content" && n.attribute("url").is_some())
+                .and_then(|n| n.attribute("url"))
+                .map(|s| s.to_string())
+        })
+        .or(enclosure_image)
+        .or_else(|| extract_first_image_url(&content))
+        .or_else(|| extract_first_image_url(&description));
+
     Some(ParsedFeedItem {
         id,
         title,
@@ -855,6 +882,7 @@ fn parse_rss_item_node(item: &roxmltree::Node) -> Option<ParsedFeedItem> {
         author,
         categories,
         guid,
+        image_url,
     })
 }
 
@@ -916,6 +944,32 @@ fn parse_atom_entry_node(entry: &roxmltree::Node) -> Option<ParsedFeedItem> {
         .filter_map(|n| n.attribute("label").or(n.attribute("term")).map(|s| s.to_string()))
         .collect();
 
+    let enclosure_image = entry
+        .descendants()
+        .find(|n| {
+            n.tag_name().name() == "link"
+                && n.attribute("rel") == Some("enclosure")
+                && n.attribute("type")
+                    .map(|value| value.starts_with("image/"))
+                    .unwrap_or(false)
+        })
+        .and_then(|n| n.attribute("href"))
+        .map(|s| s.to_string());
+
+    let image_url = entry
+        .descendants()
+        .find(|n| n.tag_name().name() == "thumbnail" && n.attribute("url").is_some())
+        .and_then(|n| n.attribute("url"))
+        .map(|s| s.to_string())
+        .or_else(|| {
+            entry.descendants()
+                .find(|n| n.tag_name().name() == "content" && n.attribute("url").is_some())
+                .and_then(|n| n.attribute("url"))
+                .map(|s| s.to_string())
+        })
+        .or(enclosure_image)
+        .or_else(|| extract_first_image_url(&content));
+
     Some(ParsedFeedItem {
         id: id.clone(),
         title,
@@ -926,7 +980,26 @@ fn parse_atom_entry_node(entry: &roxmltree::Node) -> Option<ParsedFeedItem> {
         author,
         categories,
         guid: Some(id),
+        image_url,
     })
+}
+
+fn extract_first_image_url(html: &str) -> Option<String> {
+    let lower = html.to_ascii_lowercase();
+    let img_index = lower.find("<img")?;
+    let src_segment = &html[img_index..];
+    let src_attr_index = src_segment.to_ascii_lowercase().find("src=")?;
+    let attr_start = img_index + src_attr_index + 4;
+    let quote = html[attr_start..].chars().next()?;
+
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+
+    let value_start = attr_start + quote.len_utf8();
+    let rest = &html[value_start..];
+    let value_end = rest.find(quote)?;
+    Some(rest[..value_end].to_string())
 }
 
 // ============================================================================
