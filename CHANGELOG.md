@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.22.1] - 2026-04-22
+
+### Fixed
+
+- **Windows PDF loading crash** — PDF.js `structuredClone` failed on Windows 11 WebView2 with "ArrayBuffer at index 0 is already detached" because the `Uint8Array` passed to `pdfjsLib.getDocument()` could share a detached backing buffer. Fixed by ensuring a fully independent `ArrayBuffer` copy at both the base64 decode stage and the PDF.js data source construction.
+
 ## [1.22.0] - 2026-04-21
 
 ### Added
