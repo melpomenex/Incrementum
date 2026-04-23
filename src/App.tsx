@@ -259,6 +259,23 @@ function App() {
     return () => { unlisten?.(); };
   }, []);
 
+  // Direct Ctrl+K / Ctrl+P handler as fallback for Linux AppImage where
+  // WebKitGTK may consume the keydown before the JS handler or global-shortcut plugin can catch it.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "k" && e.key !== "K" && e.key !== "p" && e.key !== "P") return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.shiftKey || e.altKey) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.dispatchEvent(new CustomEvent("command-palette-open"));
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
+
   // Keyboard shortcut to show help
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
