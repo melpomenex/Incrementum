@@ -464,7 +464,7 @@ pub fn run() {
                     // The accelerators still work via the on_menu_event handler above.
                     #[cfg(target_os = "windows")]
                     {
-                        window.set_menu_bar_visible(false).ok();
+                        let _ = window.hide_menu();
                     }
                 }
 
