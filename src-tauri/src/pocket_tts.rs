@@ -105,7 +105,19 @@ pub async fn check_pocket_tts_available(app_handle: &AppHandle) -> Result<Pocket
 
     match sidecar_result {
         Ok(cmd) => {
-            let (mut rx, _) = cmd.args(["--help"]).spawn()?;
+            // Clean environment to avoid AppImage LD contamination
+            let home = std::env::var("HOME").unwrap_or_default();
+            let user = std::env::var("USER").unwrap_or_default();
+            let path = std::env::var("PATH").unwrap_or_else(|_| {
+                "/usr/local/bin:/usr/bin:/bin".to_string()
+            });
+            let (mut rx, _) = cmd
+                .env_clear()
+                .env("HOME", &home)
+                .env("USER", &user)
+                .env("PATH", &path)
+                .args(["--help"])
+                .spawn()?;
 
             let mut available = false;
             while let Some(event) = rx.recv().await {
@@ -160,6 +172,28 @@ pub async fn generate_pocket_speech(
     std::fs::write(&text_file, &text)?;
     let text_file_str = text_file.to_str()
         .ok_or_else(|| anyhow!("Invalid text file path"))?;
+
+    // Clear the environment to prevent AppImage LD_LIBRARY_PATH/LD_PRELOAD
+    // from corrupting the sidecar's child processes (symbol lookup errors).
+    let home = std::env::var("HOME").unwrap_or_default();
+    let user = std::env::var("USER").unwrap_or_default();
+    let path = std::env::var("PATH").unwrap_or_else(|_| {
+        "/usr/local/bin:/usr/bin:/bin".to_string()
+    });
+    let xdg_cache = std::env::var("XDG_CACHE_HOME").ok();
+    let xdg_config = std::env::var("XDG_CONFIG_HOME").ok();
+    let xdg_data = std::env::var("XDG_DATA_HOME").ok();
+    let display = std::env::var("DISPLAY").ok();
+
+    let mut cmd = cmd
+        .env_clear()
+        .env("HOME", &home)
+        .env("USER", &user)
+        .env("PATH", &path);
+    if let Some(ref v) = xdg_cache { cmd = cmd.env("XDG_CACHE_HOME", v); }
+    if let Some(ref v) = xdg_config { cmd = cmd.env("XDG_CONFIG_HOME", v); }
+    if let Some(ref v) = xdg_data { cmd = cmd.env("XDG_DATA_HOME", v); }
+    if let Some(ref v) = display { cmd = cmd.env("DISPLAY", v); }
 
     let (mut rx, _) = cmd
         .args([
