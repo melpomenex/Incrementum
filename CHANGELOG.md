@@ -8,6 +8,8 @@
 - **Text highlight persistence** — anchored text highlights can be rendered inside extract cards and the document viewer using character-offset positions, with a new `textHighlights` utility that walks text nodes, wraps ranges in `<mark>` elements, and avoids re-highlighting already-wrapped content.
 - **Extract color highlighting** — extracts now display their highlight color inline, and a unified `highlightColors` utility normalizes named colors (yellow, green, blue, pink, purple) across PDF, EPUB, and text surfaces.
 - **Source-aware extract creation from queue** — creating an extract in queue scroll mode records the document, queue type, and source kind, enabling round-trip navigation between queue items and their extracts.
+- **Image registry library** — new library page for browsing, searching, and filtering uploaded images with grid and list views, accessible from the command palette and main navigation.
+- **AI image occlusion flashcards** — flashcard studio now supports an image occlusion mode that sends uploaded images to a vision-capable model to auto-generate cloze-deletion flashcards, with model-agnostic prompt messaging.
 
 ### Changed
 

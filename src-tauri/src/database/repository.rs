@@ -4,7 +4,7 @@ use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
 use std::collections::HashMap;
 use crate::error::Result;
-use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset};
+use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage};
 
 #[derive(Clone)]
 pub struct Repository {
@@ -1547,6 +1547,47 @@ impl Repository {
                 height: r.try_get("height").ok(),
                 created_at: r.try_get("created_at").unwrap_or_else(|_| Utc::now()),
                 updated_at: r.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+            })
+            .collect())
+    }
+
+    pub async fn list_image_assets_with_usage(&self) -> Result<Vec<ImageAssetWithUsage>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                ia.*,
+                COALESCE(asset_refs.reference_count, 0) AS reference_count
+            FROM image_assets ia
+            LEFT JOIN (
+                SELECT
+                    json_each.value AS asset_id,
+                    COUNT(DISTINCT li.id) AS reference_count
+                FROM learning_items li,
+                     json_each(COALESCE(li.image_asset_ids, '[]'))
+                GROUP BY json_each.value
+            ) asset_refs ON asset_refs.asset_id = ia.id
+            ORDER BY ia.created_at DESC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| ImageAssetWithUsage {
+                asset: ImageAsset {
+                    id: r.try_get("id").unwrap_or_default(),
+                    mime_type: r.try_get("mime_type").unwrap_or_else(|_| "image/png".to_string()),
+                    file_name: r.try_get("file_name").ok(),
+                    content: r.try_get("content").unwrap_or_default(),
+                    byte_size: r.try_get("byte_size").unwrap_or_default(),
+                    sha256: r.try_get("sha256").unwrap_or_default(),
+                    width: r.try_get("width").ok(),
+                    height: r.try_get("height").ok(),
+                    created_at: r.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+                    updated_at: r.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+                },
+                reference_count: r.try_get("reference_count").unwrap_or_default(),
             })
             .collect())
     }
@@ -3121,6 +3162,32 @@ mod tests {
             .await
             .expect("delete");
         assert!(!deleted);
+    }
+
+    #[tokio::test]
+    async fn list_image_assets_reports_reference_counts() {
+        let repo = setup_repo().await;
+        let bytes = vec![137, 80, 78, 71];
+        let sha = "usage-sha";
+        let asset = repo
+            .create_or_get_image_asset("image/png", Some("asset.png"), &bytes, sha, Some(10), Some(10))
+            .await
+            .expect("create image asset");
+
+        let mut item = LearningItem::new_flashcard("prompt".to_string(), "answer".to_string());
+        item.image_asset_ids = vec![asset.id.clone()];
+        repo.create_learning_item(&item).await.expect("create learning item");
+
+        let assets = repo
+            .list_image_assets_with_usage()
+            .await
+            .expect("list image assets with usage");
+        let matching = assets
+            .into_iter()
+            .find(|candidate| candidate.asset.id == asset.id)
+            .expect("matching asset present");
+
+        assert_eq!(matching.reference_count, 1);
     }
 
 }

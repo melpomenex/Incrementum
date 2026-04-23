@@ -25,7 +25,28 @@ struct OpenAIRequest {
 #[derive(Debug, Serialize)]
 struct OpenAIMessage {
     role: String,
-    content: String,
+    content: OpenAIMessageContent,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum OpenAIMessageContent {
+    Text(String),
+    Parts(Vec<OpenAIContentPart>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+enum OpenAIContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image_url")]
+    ImageUrl { image_url: OpenAIImageUrl },
+}
+
+#[derive(Debug, Serialize)]
+struct OpenAIImageUrl {
+    url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,11 +57,11 @@ struct OpenAIResponse {
 
 #[derive(Debug, Deserialize)]
 struct OpenAIChoice {
-    message: OpenAIMessageContent,
+    message: OpenAIResponseMessageContent,
 }
 
 #[derive(Debug, Deserialize)]
-struct OpenAIMessageContent {
+struct OpenAIResponseMessageContent {
     content: String,
 }
 
@@ -83,7 +104,31 @@ struct AnthropicRequest {
 #[derive(Debug, Serialize)]
 struct AnthropicMessage {
     role: String,
-    content: String,
+    content: AnthropicMessageContent,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum AnthropicMessageContent {
+    Text(String),
+    Parts(Vec<AnthropicInputContentPart>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+enum AnthropicInputContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image")]
+    Image { source: AnthropicImageSource },
+}
+
+#[derive(Debug, Serialize)]
+struct AnthropicImageSource {
+    #[serde(rename = "type")]
+    source_type: String,
+    media_type: String,
+    data: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,7 +184,7 @@ struct OllamaOptions {
 
 #[derive(Debug, Deserialize)]
 struct OllamaResponse {
-    message: OpenAIMessageContent,
+    message: OpenAIResponseMessageContent,
     prompt_eval_count: Option<usize>,
     eval_count: Option<usize>,
 }
@@ -213,7 +258,7 @@ pub async fn llm_chat_with_context(
         .iter()
         .rev()
         .find(|message| message.role == "user")
-        .map(|message| message.content.clone());
+        .and_then(|message| extract_text_from_message_content(&message.content));
 
     let requested_max_tokens = context.context_window_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
     let initial_messages =
@@ -327,13 +372,7 @@ async fn stream_openai(
 ) -> Result<(), String> {
     let request = OpenAIRequest {
         model: model.to_string(),
-        messages: messages
-            .into_iter()
-            .map(|m| OpenAIMessage {
-                role: m.role,
-                content: m.content,
-            })
-            .collect(),
+        messages: map_openai_messages(messages)?,
         temperature,
         max_tokens,
         stream: Some(true),
@@ -428,18 +467,7 @@ async fn stream_anthropic(
         .into_iter()
         .partition(|m| m.role == "system");
 
-    let _system_content = system_message
-        .first()
-        .map(|m| m.content.clone())
-        .unwrap_or_default();
-
-    let anthropic_messages: Vec<AnthropicMessage> = chat_messages
-        .into_iter()
-        .map(|m| AnthropicMessage {
-            role: m.role,
-            content: m.content,
-        })
-        .collect();
+    let anthropic_messages = map_anthropic_messages(chat_messages)?;
 
     let request = AnthropicRequest {
         model: model.to_string(),
@@ -542,13 +570,7 @@ async fn stream_ollama(
 ) -> Result<(), String> {
     let request = OllamaRequest {
         model: model.to_string(),
-        messages: messages
-            .into_iter()
-            .map(|m| OpenAIMessage {
-                role: m.role,
-                content: m.content,
-            })
-            .collect(),
+        messages: map_openai_messages(messages)?,
         stream: true,
         options: OllamaOptions {
             temperature,
@@ -753,13 +775,7 @@ async fn call_openai_with_key(
 ) -> Result<LLMResponse, String> {
     let request = OpenAIRequest {
         model: model.to_string(),
-        messages: messages
-            .into_iter()
-            .map(|m| OpenAIMessage {
-                role: m.role,
-                content: m.content,
-            })
-            .collect(),
+        messages: map_openai_messages(messages)?,
         temperature,
         max_tokens,
         stream: None,
@@ -817,18 +833,7 @@ async fn call_anthropic_with_key(
         .into_iter()
         .partition(|m| m.role == "system");
 
-    let _system_content = system_message
-        .first()
-        .map(|m| m.content.clone())
-        .unwrap_or_default();
-
-    let anthropic_messages: Vec<AnthropicMessage> = chat_messages
-        .into_iter()
-        .map(|m| AnthropicMessage {
-            role: m.role,
-            content: m.content,
-        })
-        .collect();
+    let anthropic_messages = map_anthropic_messages(chat_messages)?;
 
     let request = AnthropicRequest {
         model: model.to_string(),
@@ -888,13 +893,7 @@ async fn call_ollama_with_url(
 ) -> Result<LLMResponse, String> {
     let request = OllamaRequest {
         model: model.to_string(),
-        messages: messages
-            .into_iter()
-            .map(|m| OpenAIMessage {
-                role: m.role,
-                content: m.content,
-            })
-            .collect(),
+        messages: map_openai_messages(messages)?,
         stream: false,
         options: OllamaOptions {
             temperature,
@@ -953,13 +952,7 @@ async fn call_openrouter_with_key(
 
     let request = OpenAIRequest {
         model: model.to_string(),
-        messages: messages
-            .into_iter()
-            .map(|m| OpenAIMessage {
-                role: m.role,
-                content: m.content,
-            })
-            .collect(),
+        messages: map_openai_messages(messages)?,
         temperature,
         max_tokens,
         stream: None,
@@ -1579,10 +1572,115 @@ fn prepend_context_message(
     let context_prompt = build_context_prompt(context, latest_user_message);
     let mut messages_with_context = vec![LLMMessage {
         role: "system".to_string(),
-        content: context_prompt,
+        content: LLMMessageContent::Text(context_prompt),
     }];
     messages_with_context.extend(messages);
     messages_with_context
+}
+
+fn extract_text_from_message_content(content: &LLMMessageContent) -> Option<String> {
+    match content {
+        LLMMessageContent::Text(text) => Some(text.clone()),
+        LLMMessageContent::Parts(parts) => {
+            let text = parts
+                .iter()
+                .filter_map(|part| match part {
+                    LLMMessageContentPart::Text { text } => Some(text.trim()),
+                    LLMMessageContentPart::ImageUrl { .. } => None,
+                })
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        }
+    }
+}
+
+fn map_openai_messages(messages: Vec<LLMMessage>) -> Result<Vec<OpenAIMessage>, String> {
+    messages
+        .into_iter()
+        .map(|message| {
+            Ok(OpenAIMessage {
+                role: message.role,
+                content: map_openai_message_content(message.content),
+            })
+        })
+        .collect()
+}
+
+fn map_openai_message_content(content: LLMMessageContent) -> OpenAIMessageContent {
+    match content {
+        LLMMessageContent::Text(text) => OpenAIMessageContent::Text(text),
+        LLMMessageContent::Parts(parts) => OpenAIMessageContent::Parts(
+            parts.into_iter().map(map_openai_content_part).collect(),
+        ),
+    }
+}
+
+fn map_openai_content_part(part: LLMMessageContentPart) -> OpenAIContentPart {
+    match part {
+        LLMMessageContentPart::Text { text } => OpenAIContentPart::Text { text },
+        LLMMessageContentPart::ImageUrl { image_url } => OpenAIContentPart::ImageUrl {
+            image_url: OpenAIImageUrl { url: image_url },
+        },
+    }
+}
+
+fn map_anthropic_messages(messages: Vec<LLMMessage>) -> Result<Vec<AnthropicMessage>, String> {
+    messages
+        .into_iter()
+        .map(|message| {
+            Ok(AnthropicMessage {
+                role: message.role,
+                content: map_anthropic_message_content(message.content)?,
+            })
+        })
+        .collect()
+}
+
+fn map_anthropic_message_content(content: LLMMessageContent) -> Result<AnthropicMessageContent, String> {
+    match content {
+        LLMMessageContent::Text(text) => Ok(AnthropicMessageContent::Text(text)),
+        LLMMessageContent::Parts(parts) => Ok(AnthropicMessageContent::Parts(
+            parts.into_iter().map(map_anthropic_content_part).collect::<Result<Vec<_>, _>>()?,
+        )),
+    }
+}
+
+fn map_anthropic_content_part(part: LLMMessageContentPart) -> Result<AnthropicInputContentPart, String> {
+    match part {
+        LLMMessageContentPart::Text { text } => Ok(AnthropicInputContentPart::Text { text }),
+        LLMMessageContentPart::ImageUrl { image_url } => {
+            let (media_type, data) = parse_data_url(&image_url)
+                .ok_or_else(|| "Anthropic image inputs must be provided as data URLs".to_string())?;
+            Ok(AnthropicInputContentPart::Image {
+                source: AnthropicImageSource {
+                    source_type: "base64".to_string(),
+                    media_type,
+                    data,
+                },
+            })
+        }
+    }
+}
+
+fn parse_data_url(url: &str) -> Option<(String, String)> {
+    let trimmed = url.trim();
+    let rest = trimmed.strip_prefix("data:")?;
+    let (meta, data) = rest.split_once(',')?;
+    if !meta.contains(";base64") {
+        return None;
+    }
+    let media_type = meta.split(';').next()?.trim();
+    if media_type.is_empty() || data.trim().is_empty() {
+        return None;
+    }
+    Some((media_type.to_string(), data.trim().to_string()))
 }
 
 fn should_retry_ollama_with_smaller_context(error: &str) -> bool {
@@ -1733,7 +1831,26 @@ fn score_chunk(chunk: &str, terms: &[String]) -> usize {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LLMMessage {
     pub role: String,
-    pub content: String,
+    pub content: LLMMessageContent,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum LLMMessageContent {
+    Text(String),
+    Parts(Vec<LLMMessageContentPart>),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type")]
+pub enum LLMMessageContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image_url")]
+    ImageUrl {
+        #[serde(rename = "imageUrl", alias = "image_url")]
+        image_url: String,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

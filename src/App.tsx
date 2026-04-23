@@ -29,6 +29,7 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ContinueReadingPage } from "./pages/ContinueReadingPage";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
+import { ImageRegistryPage } from "./pages/ImageRegistryPage";
 import { CommandCenter } from "./components/search/CommandCenter";
 import { useI18n } from "./lib/i18n";
 
@@ -41,6 +42,7 @@ type AppPage =
   | "continue-reading"
   | "dashboard"
   | "documents"
+  | "image-registry"
   | "queue"
   | "queue-scroll"
   | "analytics"
@@ -75,6 +77,8 @@ function normalizePathToPage(path?: string): AppPage | null {
       return "continue-reading";
     case "/documents":
       return "documents";
+    case "/image-registry":
+      return "image-registry";
     case "/queue":
       return "queue";
     case "/queue-scroll":
@@ -95,6 +99,7 @@ function isAppPage(page: string): page is AppPage {
     "continue-reading",
     "dashboard",
     "documents",
+    "image-registry",
     "queue",
     "queue-scroll",
     "analytics",
@@ -422,6 +427,8 @@ function App() {
         return <DashboardPage onNavigate={handleNavigate} />;
       case "documents":
         return <DocumentsPage />;
+      case "image-registry":
+        return <ImageRegistryPage />;
       case "queue":
         return <QueuePage />;
       case "queue-scroll":

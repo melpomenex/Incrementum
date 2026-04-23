@@ -7,9 +7,21 @@ import { invokeCommand, listen, type UnlistenFn } from "../../lib/tauri";
 
 export type LLMProvider = "openai" | "anthropic" | "ollama" | "openrouter";
 
+export interface LLMTextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface LLMImageContentPart {
+  type: "image_url";
+  imageUrl: string;
+}
+
+export type LLMMessageContentPart = LLMTextContentPart | LLMImageContentPart;
+
 export interface LLMMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | LLMMessageContentPart[];
 }
 
 export interface LLMRequest {
