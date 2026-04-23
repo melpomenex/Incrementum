@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Incrementum sprout icon">
+  <title>Incrementum Sprout Icon</title>
+  <defs>
+    <linearGradient id="leafLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a9c94b"/>
+      <stop offset="100%" stop-color="#8db84a"/>
+    </linearGradient>
+    <linearGradient id="leafOuter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#96c04a"/>
+      <stop offset="100%" stop-color="#73ac44"/>
+    </linearGradient>
+    <linearGradient id="leafInner" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f6f39"/>
+      <stop offset="100%" stop-color="#4f8f43"/>
+    </linearGradient>
+    <linearGradient id="stemGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5aa13e"/>
+      <stop offset="100%" stop-color="#3f8038"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left leaf -->
+  <path fill="url(#leafLight)" d="M238 360
+    C218 317, 170 306, 133 277
+    C93 246, 73 201, 62 143
+    C138 135, 204 156, 247 203
+    C285 246, 294 302, 238 360 Z"/>
+
+  <!-- Right outer leaf -->
+  <path fill="url(#leafOuter)" d="M270 369
+    C290 308, 341 286, 386 266
+    C443 240, 485 183, 474 81
+    C379 77, 288 123, 250 203
+    C228 251, 234 314, 270 369 Z"/>
+
+  <!-- Right inner layered leaf -->
+  <path fill="url(#leafInner)" d="M268 345
+    C286 295, 333 260, 382 225
+    C422 196, 435 148, 431 127
+    C355 133, 288 170, 253 228
+    C235 258, 234 309, 268 345 Z"/>
+
+  <!-- Stem -->
+  <path fill="url(#stemGrad)" d="M243 352
+    C249 330, 262 330, 270 352
+    C277 373, 281 401, 280 437
+    C280 453, 268 465, 256 465
+    C244 465, 232 453, 232 437
+    C231 401, 235 373, 243 352 Z"/>
+</svg>

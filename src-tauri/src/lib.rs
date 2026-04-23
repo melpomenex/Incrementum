@@ -189,7 +189,96 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
     }
 
-    #[cfg(desktop)]
+    // On Windows (WebView2) and macOS (WKWebView), the webview intercepts
+    // Ctrl/Cmd+key combos before they reach JavaScript or the global-shortcut plugin.
+    // Menu accelerators fire at the native event loop level, before the webview can
+    // intercept them. On Linux, the global-shortcut plugin already works, so we skip
+    // menu accelerators there to avoid GTK conflicts.
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        builder = builder.menu(|app| {
+            use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+            let mut menu = Menu::new(app)?;
+
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::Submenu;
+                let app_submenu = Submenu::with_items(
+                    app,
+                    "Incrementum",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "about", "About Incrementum", true, None::<&str>)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "hide", "Hide Incrementum", true, Some("Cmd+H"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "quit", "Quit Incrementum", true, Some("Cmd+Q"))?,
+                    ],
+                )?;
+                menu.append(&app_submenu)?;
+            }
+
+            #[cfg(target_os = "windows")]
+            let accel_items: &[(&str, &str, &str)] = &[
+                ("accel-k",     "Command Palette (K)", "Control+k"),
+                ("accel-p",     "Command Palette (P)", "Control+p"),
+                ("accel-q",     "Queue",                "Control+q"),
+                ("accel-r",     "Review",               "Control+r"),
+                ("accel-d",     "Dashboard",            "Control+d"),
+                ("accel-o",     "Open Document",        "Control+o"),
+                ("accel-n",     "New Document",         "Control+n"),
+                ("accel-comma", "Settings",             "Control+,"),
+                ("accel-slash", "Shortcuts Help",       "Control+/"),
+            ];
+            #[cfg(target_os = "macos")]
+            let accel_items: &[(&str, &str, &str)] = &[
+                ("accel-k",     "Command Palette (K)", "Cmd+k"),
+                ("accel-p",     "Command Palette (P)", "Cmd+p"),
+                ("accel-q",     "Queue",                "Cmd+q"),
+                ("accel-r",     "Review",               "Cmd+r"),
+                ("accel-d",     "Dashboard",            "Cmd+d"),
+                ("accel-o",     "Open Document",        "Cmd+o"),
+                ("accel-n",     "New Document",         "Cmd+n"),
+                ("accel-comma", "Settings",             "Cmd+,"),
+                ("accel-slash", "Shortcuts Help",       "Cmd+/"),
+            ];
+
+            for (id, label, accel) in accel_items {
+                let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
+                menu.append(&item)?;
+            }
+
+            Ok(menu)
+        }).on_menu_event(|app, event| {
+            let id = event.id.as_ref();
+            tracing::debug!("menu event: {}", id);
+
+            #[cfg(target_os = "macos")]
+            {
+                if matches!(id, "quit" | "hide" | "about") {
+                    return;
+                }
+            }
+
+            let key_str = match id {
+                "accel-k" => "KeyK",
+                "accel-p" => "KeyP",
+                "accel-q" => "KeyQ",
+                "accel-r" => "KeyR",
+                "accel-d" => "KeyD",
+                "accel-o" => "KeyO",
+                "accel-n" => "KeyN",
+                "accel-comma" => "Comma",
+                "accel-slash" => "Slash",
+                _ => return,
+            };
+
+            let _ = app.emit_to("main", "global-shortcut", key_str);
+        });
+    }
+
+    // On Linux, keep an empty menu to avoid the default GTK menu bar appearance.
+    #[cfg(target_os = "linux")]
     {
         builder = builder.menu(|app| {
             use tauri::menu::Menu;
@@ -203,14 +292,15 @@ pub fn run() {
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
 
-            // Register global keyboard shortcuts to prevent webkit2gtk from
-            // intercepting Ctrl+R (reload), Ctrl+Q (quit), etc.
+            // Register global keyboard shortcuts to prevent webview engines
+            // (webkit2gtk on Linux, WebView2 on Windows, WKWebView on macOS)
+            // from intercepting Ctrl/Cmd+key combos before JavaScript.
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
                 let gs = app.global_shortcut();
 
-                let shortcuts: Vec<Shortcut> = [
+                let shortcut_defs: &[(Modifiers, Code)] = &[
                     // Ctrl+key (Linux/Windows)
                     (Modifiers::CONTROL, Code::KeyQ),
                     (Modifiers::CONTROL, Code::KeyR),
@@ -231,7 +321,12 @@ pub fn run() {
                     (Modifiers::SUPER, Code::KeyO),
                     (Modifiers::SUPER, Code::KeyN),
                     (Modifiers::SUPER, Code::Slash),
-                ].iter().map(|(mods, code)| Shortcut::new(Some(*mods), *code)).collect();
+                ];
+
+                let shortcuts: Vec<Shortcut> = shortcut_defs
+                    .iter()
+                    .map(|(mods, code)| Shortcut::new(Some(*mods), *code))
+                    .collect();
 
                 let shortcut_app = app_handle.clone();
                 if let Err(e) = gs.on_shortcuts(shortcuts, move |_app, shortcut, event| {
@@ -239,9 +334,14 @@ pub fn run() {
                         return;
                     }
                     let key_str = format!("{:?}", shortcut.key);
-                    let _ = shortcut_app.emit("global-shortcut", key_str);
+                    tracing::debug!("global-shortcut fired: {}", key_str);
+                    // Target the main window specifically — app_handle.emit() broadcasts
+                    // to all listeners and may not reliably reach the webview on all platforms.
+                    let _ = shortcut_app.emit_to("main", "global-shortcut", key_str.as_str());
                 }) {
-                    tracing::warn!("Failed to register shortcuts: {}", e);
+                    tracing::warn!("Failed to register global shortcuts: {}", e);
+                } else {
+                    tracing::info!("global shortcuts registered ({} shortcuts)", shortcut_defs.len());
                 }
 
                 log_startup(&app_handle, "startup: global shortcuts registered");

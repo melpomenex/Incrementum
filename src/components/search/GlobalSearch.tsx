@@ -10,6 +10,7 @@ import { useURLDetector, URLType } from "../../hooks/useURLDetector";
 import { useURLMetadata, useURLImport, useDuplicateCheck } from "../../hooks/useURLMetadata";
 import { ImportPreview, type ImportOptions } from "../import/ImportPreview";
 import { useToast } from "../../components/common/Toast";
+import type { SearchHit } from "../../types/searchHit";
 
 /**
  * Search result types
@@ -21,19 +22,6 @@ export enum SearchResultType {
   Category = "category",
   Tag = "tag",
   Command = "command",
-}
-
-export type SearchHitLocation =
-  | { kind: "pdf"; pageNumber: number }
-  | { kind: "epub"; cfi: string }
-  | { kind: "html"; scrollPercent: number }
-  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
-
-export interface SearchHit {
-  id: string;
-  location: SearchHitLocation;
-  excerptHtml?: string;
-  label?: string;
 }
 
 /**

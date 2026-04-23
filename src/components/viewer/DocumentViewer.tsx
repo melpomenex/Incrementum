@@ -39,6 +39,7 @@ import { processHtmlContent } from "../../utils/documentImport";
 import { lookupDictionary, type DictionaryResult } from "../../utils/dictionaryLookup";
 import { recordReadingSession } from "../../utils/readingSpeed";
 import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extractNavigation";
+import type { DocumentSearchState } from "../../types/searchHit";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
@@ -212,6 +213,23 @@ interface DocumentViewerProps {
   } | null) => void;
 }
 
+type ViewerSearchDirection = "next" | "prev";
+
+interface ViewerSearchNavigationRequest {
+  direction: ViewerSearchDirection;
+  nonce: number;
+  targetIndex?: number;
+}
+
+type ViewerSearchState = DocumentSearchState;
+
+const DEFAULT_VIEWER_SEARCH_STATE: ViewerSearchState = {
+  supported: true,
+  available: true,
+  totalMatches: 0,
+  activeMatchIndex: 0,
+};
+
 export function DocumentViewer({
   documentId,
   disableHoverRating = false,
@@ -311,6 +329,8 @@ export function DocumentViewer({
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewerSearchState, setViewerSearchState] = useState<ViewerSearchState>(DEFAULT_VIEWER_SEARCH_STATE);
+  const [viewerSearchNavRequest, setViewerSearchNavRequest] = useState<ViewerSearchNavigationRequest | null>(null);
   const [markdownWidthCh, setMarkdownWidthCh] = useState<number>(() => {
     if (typeof window === "undefined") return MARKDOWN_DEFAULT_WIDTH_CH;
     const raw = window.localStorage.getItem(MARKDOWN_WIDTH_STORAGE_KEY);
@@ -320,9 +340,15 @@ export function DocumentViewer({
     if (parsed === MARKDOWN_LEGACY_DEFAULT_WIDTH_CH) return MARKDOWN_DEFAULT_WIDTH_CH;
     return Math.min(MARKDOWN_MAX_WIDTH_CH, Math.max(MARKDOWN_MIN_WIDTH_CH, parsed));
   });
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  const jumpHighlightQuery = highlightQuery?.trim() ? highlightQuery.trim() : undefined;
+  const htmlSearchMatchesRef = useRef<HTMLElement[]>([]);
+  const viewerSearchNavCounterRef = useRef(0);
+  const jumpTextQuote =
+    initialJump && "textQuote" in initialJump && typeof initialJump.textQuote === "string" && initialJump.textQuote.trim()
+      ? initialJump.textQuote.trim()
+      : undefined;
+  const jumpHighlightQuery = jumpTextQuote ?? (highlightQuery?.trim() ? highlightQuery.trim() : undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [minimapPosition, setMinimapPosition] = useState(0); // 0-1
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
@@ -471,6 +497,19 @@ export function DocumentViewer({
   };
 
   const docType = inferFileType(currentDocument);
+  const viewerSearchSupported = docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html" || docType === "youtube";
+  const normalizedViewerSearchQuery = searchQuery.trim();
+  const reportViewerSearchState = useCallback((next: Partial<ViewerSearchState>) => {
+    setViewerSearchState((prev) => ({
+      ...prev,
+      ...next,
+      supported: next.supported ?? prev.supported,
+      available: next.available ?? prev.available,
+      totalMatches: next.totalMatches ?? prev.totalMatches,
+      activeMatchIndex: next.activeMatchIndex ?? prev.activeMatchIndex,
+      unavailableReason: next.unavailableReason,
+    }));
+  }, []);
   const canUseEditPalette = viewMode === "document"
     && (
       docType === "markdown"
@@ -518,6 +557,29 @@ export function DocumentViewer({
       initialJump: jump,
     };
   }, [currentDocument, docType, documentId, embedded, localDocument, pageNumber]);
+
+  useEffect(() => {
+    htmlSearchMatchesRef.current = [];
+    setViewerSearchNavRequest(null);
+    setViewerSearchState({
+      ...DEFAULT_VIEWER_SEARCH_STATE,
+      supported: viewerSearchSupported,
+      available: viewerSearchSupported,
+      unavailableReason: undefined,
+    });
+  }, [documentId, viewerSearchSupported]);
+
+  useEffect(() => {
+    if (normalizedViewerSearchQuery) return;
+    setViewerSearchState((prev) => ({
+      ...prev,
+      supported: viewerSearchSupported,
+      available: viewerSearchSupported,
+      totalMatches: 0,
+      activeMatchIndex: 0,
+      unavailableReason: undefined,
+    }));
+  }, [normalizedViewerSearchQuery, viewerSearchSupported]);
 
   useEffect(() => {
     setIsPaletteMode(false);
@@ -2237,6 +2299,17 @@ export function DocumentViewer({
     onSelectionChange?.(selectedText);
   }, [selectedText, onSelectionChange]);
 
+  const closeViewerSearch = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery("");
+    setViewerSearchNavRequest(null);
+    setViewerSearchState({
+      ...DEFAULT_VIEWER_SEARCH_STATE,
+      supported: viewerSearchSupported,
+      available: viewerSearchSupported,
+    });
+  }, [viewerSearchSupported]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2257,7 +2330,14 @@ export function DocumentViewer({
       // Ctrl/Cmd + F for search
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
-        setShowSearch(!showSearch);
+        if (viewerSearchSupported) {
+          setShowSearch(true);
+          requestAnimationFrame(() => {
+            searchInputRef.current?.focus();
+            searchInputRef.current?.select();
+          });
+        }
+        return;
       }
 
       // Ctrl/Cmd + E for create extract from current selection
@@ -2304,7 +2384,7 @@ export function DocumentViewer({
 
       // Escape to close dialogs, clear selection, or exit fullscreen
       if (e.key === "Escape") {
-        if (showSearch) setShowSearch(false);
+        if (showSearch) closeViewerSearch();
         if (isExtractDialogOpen) {
           setIsExtractDialogOpen(false);
           clearTextSelection();
@@ -2320,7 +2400,7 @@ export function DocumentViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeExtractSelection, viewMode, showSearch, isExtractDialogOpen, isFullscreen]);
+  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode]);
 
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {
@@ -2564,11 +2644,58 @@ export function DocumentViewer({
     }
   };
 
-  // Handle search
-  const handleSearch = () => {
-    // TODO: Implement actual document search
-    console.log("Searching for:", searchQuery);
-  };
+  const handleSearch = useCallback((direction: ViewerSearchDirection = "next") => {
+    if (!viewerSearchSupported) {
+      setViewerSearchState({
+        supported: false,
+        available: false,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: "Search is not available for this document type.",
+      });
+      return;
+    }
+
+    if (!normalizedViewerSearchQuery) {
+      setViewerSearchState((prev) => ({
+        ...prev,
+        supported: true,
+        available: true,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: undefined,
+      }));
+      return;
+    }
+
+    setViewerSearchState((prev) => {
+      if (prev.totalMatches <= 0) {
+        setViewerSearchNavRequest({
+          direction,
+          nonce: ++viewerSearchNavCounterRef.current,
+          targetIndex: 0,
+        });
+        return {
+          ...prev,
+          supported: true,
+          available: prev.available,
+          activeMatchIndex: 0,
+        };
+      }
+
+      const delta = direction === "next" ? 1 : -1;
+      const nextIndex = ((prev.activeMatchIndex + delta) % prev.totalMatches + prev.totalMatches) % prev.totalMatches;
+      setViewerSearchNavRequest({
+        direction,
+        nonce: ++viewerSearchNavCounterRef.current,
+        targetIndex: nextIndex,
+      });
+      return {
+        ...prev,
+        activeMatchIndex: nextIndex,
+      };
+    });
+  }, [normalizedViewerSearchQuery, viewerSearchSupported]);
 
   const toggleFullscreen = async () => {
     try {
@@ -2997,6 +3124,219 @@ export function DocumentViewer({
     updateSelection,
   ]);
 
+  useEffect(() => {
+    if (docType !== "html") return;
+    const frame = iframeRef.current;
+    const doc = frame?.contentDocument;
+    const win = frame?.contentWindow;
+    const body = doc?.body;
+    if (!doc || !win || !body) return;
+
+    const unwrapPreviousSearchMarks = () => {
+      const marks = Array.from(doc.querySelectorAll("mark[data-viewer-search='true']")) as HTMLElement[];
+      for (const mark of marks) {
+        const parent = mark.parentNode;
+        if (!parent) continue;
+        const textNode = doc.createTextNode(mark.textContent ?? "");
+        parent.replaceChild(textNode, mark);
+        parent.normalize();
+      }
+    };
+
+    const query = normalizedViewerSearchQuery;
+    unwrapPreviousSearchMarks();
+    htmlSearchMatchesRef.current = [];
+
+    if (!viewerSearchSupported) {
+      reportViewerSearchState({
+        supported: false,
+        available: false,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: "Search is not available for this document type.",
+      });
+      return;
+    }
+
+    if (!query) {
+      reportViewerSearchState({
+        supported: true,
+        available: true,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: undefined,
+      });
+      return;
+    }
+
+    const bodyText = (body.innerText || body.textContent || "").trim();
+    if (!bodyText) {
+      reportViewerSearchState({
+        supported: true,
+        available: false,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: "This document has no searchable text.",
+      });
+      return;
+    }
+
+    const terms = Array.from(new Set(query.split(/\s+/).map((term) => term.trim()).filter(Boolean))).slice(0, 8);
+    if (terms.length === 0) {
+      reportViewerSearchState({
+        supported: true,
+        available: true,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: undefined,
+      });
+      return;
+    }
+
+    const regex = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+    const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (!node.nodeValue || !node.nodeValue.trim()) continue;
+      if (node.parentElement?.closest("script, style, mark[data-viewer-search='true']")) continue;
+      textNodes.push(node);
+    }
+
+    for (const node of textNodes) {
+      const value = node.nodeValue ?? "";
+      if (!regex.test(value)) continue;
+      regex.lastIndex = 0;
+      const fragment = doc.createDocumentFragment();
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(value)) !== null) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (start > lastIndex) fragment.append(value.slice(lastIndex, start));
+        const mark = doc.createElement("mark");
+        mark.setAttribute("data-viewer-search", "true");
+        mark.style.background = "rgba(245, 158, 11, 0.28)";
+        mark.style.borderRadius = "2px";
+        mark.style.padding = "0 1px";
+        mark.textContent = value.slice(start, end);
+        fragment.append(mark);
+        htmlSearchMatchesRef.current.push(mark);
+        lastIndex = end;
+      }
+
+      if (lastIndex < value.length) fragment.append(value.slice(lastIndex));
+      node.parentNode?.replaceChild(fragment, node);
+    }
+
+    const totalMatches = htmlSearchMatchesRef.current.length;
+    if (totalMatches === 0) {
+      reportViewerSearchState({
+        supported: true,
+        available: true,
+        totalMatches: 0,
+        activeMatchIndex: 0,
+        unavailableReason: undefined,
+      });
+      return;
+    }
+
+    const normalizedIndex = ((viewerSearchState.activeMatchIndex % totalMatches) + totalMatches) % totalMatches;
+    htmlSearchMatchesRef.current.forEach((mark, index) => {
+      if (index === normalizedIndex) {
+        mark.style.background = "rgba(245, 158, 11, 0.52)";
+        mark.style.outline = "2px solid rgba(217, 119, 6, 0.85)";
+      } else {
+        mark.style.background = "rgba(245, 158, 11, 0.28)";
+        mark.style.outline = "none";
+      }
+    });
+
+    const activeMark = htmlSearchMatchesRef.current[normalizedIndex];
+    activeMark?.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+
+    reportViewerSearchState({
+      supported: true,
+      available: true,
+      totalMatches,
+      activeMatchIndex: normalizedIndex,
+      unavailableReason: undefined,
+    });
+  }, [
+    currentDocument?.id,
+    docType,
+    htmlForDisplay,
+    normalizedViewerSearchQuery,
+    reportViewerSearchState,
+    viewerSearchState.activeMatchIndex,
+    viewerSearchSupported,
+  ]);
+
+  const scrollHtmlFrameToInitialHit = useCallback(() => {
+    if (!initialJump || initialJump.kind !== "html") return;
+    const frame = iframeRef.current;
+    const win = frame?.contentWindow;
+    const doc = frame?.contentDocument;
+    if (!win || !doc) return;
+
+    const searchMarks = Array.from(doc.querySelectorAll("mark[data-search-highlight='true']")) as HTMLElement[];
+    const normalizedQuote = initialJump.textQuote?.trim().toLowerCase();
+    const targetMark =
+      (normalizedQuote
+        ? searchMarks.find((mark) => (mark.textContent ?? "").trim().toLowerCase() === normalizedQuote) ??
+          searchMarks.find((mark) => (mark.textContent ?? "").trim().toLowerCase().includes(normalizedQuote))
+        : undefined) ??
+      searchMarks[0];
+
+    if (targetMark) {
+      targetMark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+      return;
+    }
+
+    // No existing search marks — search DOM for the text quote and highlight it
+    if (normalizedQuote) {
+      const body = doc.body;
+      if (body) {
+        const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+        let matchNode: Text | null = null;
+        let matchOffset = -1;
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          const value = node.nodeValue ?? "";
+          const idx = value.toLowerCase().indexOf(normalizedQuote);
+          if (idx >= 0 && node.parentElement?.closest("script, style") === null) {
+            matchNode = node;
+            matchOffset = idx;
+            break;
+          }
+        }
+        if (matchNode && matchOffset >= 0) {
+          const range = doc.createRange();
+          range.setStart(matchNode, matchOffset);
+          range.setEnd(matchNode, matchOffset + normalizedQuote.length);
+          const mark = doc.createElement("mark");
+          mark.setAttribute("data-search-highlight", "true");
+          mark.style.background = "rgba(245, 158, 11, 0.35)";
+          mark.style.borderRadius = "2px";
+          mark.style.padding = "0 1px";
+          range.surroundContents(mark);
+          range.detach();
+          mark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+          return;
+        }
+      }
+    }
+
+    if (typeof initialJump.scrollPercent === "number") {
+      const pct = Math.max(0, Math.min(100, initialJump.scrollPercent));
+      const el = doc.scrollingElement || doc.documentElement || doc.body;
+      const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
+      win.scrollTo(0, (pct / 100) * maxScroll);
+    }
+  }, [initialJump]);
+
   // Apply initial jump navigation (page/scroll/time) on document load.
   useEffect(() => {
     if (!currentDocument) return;
@@ -3009,20 +3349,14 @@ export function DocumentViewer({
       return;
     }
 
-    if (docType === "html" && initialJump.kind === "html" && typeof initialJump.scrollPercent === "number") {
-      const pct = Math.max(0, Math.min(100, initialJump.scrollPercent));
+    if (docType === "html" && initialJump.kind === "html") {
+      // iframe onLoad handles the initial call; retry after a short delay in case onLoad fires before content is parsed
       setTimeout(() => {
-        const frame = iframeRef.current;
-        const win = frame?.contentWindow;
-        const doc = frame?.contentDocument;
-        if (!win || !doc) return;
-        const el = doc.scrollingElement || doc.documentElement || doc.body;
-        const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
-        win.scrollTo(0, (pct / 100) * maxScroll);
-      }, 150);
+        scrollHtmlFrameToInitialHit();
+      }, 300);
       return;
     }
-  }, [currentDocument?.id, docType, initialJump]);
+  }, [currentDocument?.id, docType, initialJump, scrollHtmlFrameToInitialHit]);
 
   // Make Cmd/Ctrl+K work even when an embedded same-origin iframe has focus (eg HTML imports).
   // Key events inside iframes do not bubble to the parent window, so we also bind to the frame window.
@@ -3101,26 +3435,53 @@ export function DocumentViewer({
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder={t("viewer.searchInDocument")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    handleSearch();
+                    e.preventDefault();
+                    handleSearch(e.shiftKey ? "prev" : "next");
                   } else if (e.key === "Escape") {
-                    setShowSearch(false);
-                    setSearchQuery("");
+                    closeViewerSearch();
                   }
                 }}
                 className="flex-1 md:flex-none px-3 py-1.5 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary md:w-64 min-h-[36px]"
                 autoFocus
               />
+              {normalizedViewerSearchQuery ? (
+                <>
+                  <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground px-2">
+                    {!viewerSearchState.available && viewerSearchState.unavailableReason ? (
+                      <span className="max-w-[220px] truncate">{viewerSearchState.unavailableReason}</span>
+                    ) : viewerSearchState.totalMatches > 0 ? (
+                      <span>{viewerSearchState.activeMatchIndex + 1} / {viewerSearchState.totalMatches}</span>
+                    ) : (
+                      <span>0 matches</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleSearch("prev")}
+                    disabled={!viewerSearchState.available || viewerSearchState.totalMatches <= 0}
+                    className="p-2 hover:bg-background rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    title="Previous match"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={() => handleSearch("next")}
+                    disabled={!viewerSearchState.available || viewerSearchState.totalMatches <= 0}
+                    className="p-2 hover:bg-background rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    title="Next match"
+                  >
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </>
+              ) : null}
               <button
-                onClick={() => {
-                  setShowSearch(false);
-                  setSearchQuery("");
-                }}
+                onClick={closeViewerSearch}
                 className="p-2 hover:bg-background rounded-md transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -3128,7 +3489,14 @@ export function DocumentViewer({
             </div>
           ) : (
             <button
-              onClick={() => setShowSearch(true)}
+              onClick={() => {
+                if (!viewerSearchSupported) return;
+                setShowSearch(true);
+                requestAnimationFrame(() => {
+                  searchInputRef.current?.focus();
+                });
+              }}
+              disabled={!viewerSearchSupported}
               className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
               title={t("viewer.searchInDocumentShortcut")}
             >
@@ -3494,6 +3862,16 @@ export function DocumentViewer({
             pageNumber={pageNumber}
             scale={scale}
             zoomMode={zoomMode}
+            searchQuery={normalizedViewerSearchQuery}
+            searchNavigationRequest={
+              normalizedViewerSearchQuery
+                ? {
+                    requestId: viewerSearchNavRequest?.nonce ?? 0,
+                    direction: viewerSearchNavRequest?.direction === "prev" ? "previous" : "next",
+                    targetIndex: viewerSearchNavRequest?.targetIndex,
+                  }
+                : null
+            }
             // On mobile, opening the extract modal (or the on-screen keyboard)
             // can cause rapid viewport/container resizes. Avoid resize-driven
             // re-render loops while the modal is open.
@@ -3516,10 +3894,23 @@ export function DocumentViewer({
               setSelectionContext(null);
               setIsExtractDialogOpen(true);
             }}
+            onSearchResultsChange={(state) => {
+              reportViewerSearchState({
+                supported: true,
+                available: state.isSearchable && state.status !== "unavailable",
+                totalMatches: state.totalMatches,
+                activeMatchIndex: state.activeMatchIndex >= 0 ? state.activeMatchIndex : 0,
+                unavailableReason:
+                  state.status === "unavailable" || !state.isSearchable
+                    ? "This PDF has no searchable text layer. Run OCR or extract text first."
+                    : undefined,
+              });
+            }}
             persistedHighlights={persistedDocumentHighlights.pdfHighlights}
             onHighlightSelection={handlePdfHighlightSelection}
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
+            highlightTextQuote={jumpTextQuote}
           />
           )
         ) : docType === "epub" && (fileData || epubUrl) ? (
@@ -3532,7 +3923,19 @@ export function DocumentViewer({
             onSelectionChange={updateSelection}
             onContextTextChange={handlePdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
-            initialCfi={initialJump?.kind === "epub" ? initialJump.cfi : undefined}
+            initialSearchMatchIndex={initialJump?.kind === "epub" ? initialJump.matchIndex : undefined}
+            searchQuery={normalizedViewerSearchQuery}
+            searchMatchIndex={viewerSearchState.activeMatchIndex}
+            onSearchResultsChange={(results) => {
+              reportViewerSearchState({
+                supported: true,
+                available: true,
+                totalMatches: results.total,
+                activeMatchIndex: results.activeIndex >= 0 ? results.activeIndex : 0,
+                unavailableReason: undefined,
+              });
+            }}
+            initialCfi={initialJump?.kind === "epub" ? initialJump.cfi || undefined : undefined}
             persistedHighlights={persistedDocumentHighlights.epubHighlights}
             onProgressChange={(percent) => {
               handleScrollPositionChange({
@@ -3655,6 +4058,19 @@ export function DocumentViewer({
               document={currentDocument}
               content={currentDocument.content}
               initialScrollPercent={initialJump?.kind === "markdown" ? initialJump.scrollPercent : currentDocument.currentScrollPercent}
+              searchQuery={normalizedViewerSearchQuery}
+              activeSearchMatchIndex={viewerSearchState.activeMatchIndex}
+              onSearchResultsChange={(totalMatches, activeMatchIndex) => {
+                reportViewerSearchState({
+                  supported: true,
+                  available: true,
+                  totalMatches,
+                  activeMatchIndex: activeMatchIndex,
+                  unavailableReason: undefined,
+                });
+              }}
+              highlightQuery={jumpHighlightQuery}
+              initialSearchTextQuote={jumpTextQuote}
               highlights={persistedDocumentHighlights.markdownHighlights}
               onSelectionChange={updateSelection}
               onScrollPositionChange={(scrollPercent) => {
@@ -3678,15 +4094,7 @@ export function DocumentViewer({
               sandbox="allow-same-origin"
               srcDoc={htmlForDisplay}
               onLoad={() => {
-                if (!initialJump || initialJump.kind !== "html") return;
-                const pct = Math.max(0, Math.min(100, initialJump.scrollPercent));
-                const frame = iframeRef.current;
-                const win = frame?.contentWindow;
-                const doc = frame?.contentDocument;
-                if (!win || !doc) return;
-                const el = doc.scrollingElement || doc.documentElement || doc.body;
-                const maxScroll = Math.max(0, el.scrollHeight - win.innerHeight);
-                win.scrollTo(0, (pct / 100) * maxScroll);
+                scrollHtmlFrameToInitialHit();
               }}
             />
           </div>
@@ -3698,6 +4106,17 @@ export function DocumentViewer({
               title={currentDocument.title}
               onLoad={handleYouTubeLoad}
               initialSeekTime={initialJump?.kind === "youtube" ? initialJump.timeSeconds : undefined}
+              transcriptSearchQuery={normalizedViewerSearchQuery}
+              activeTranscriptMatchIndex={viewerSearchState.activeMatchIndex}
+              onTranscriptSearchStateChange={(state) => {
+                reportViewerSearchState({
+                  supported: true,
+                  available: state.available,
+                  totalMatches: state.totalMatches,
+                  activeMatchIndex: state.activeMatchIndex >= 0 ? state.activeMatchIndex : 0,
+                  unavailableReason: state.available ? undefined : "Transcript search is unavailable for this video.",
+                });
+              }}
               initialTranscriptHighlightQuery={jumpHighlightQuery}
               initialTranscriptSegmentId={initialJump?.kind === "youtube" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}

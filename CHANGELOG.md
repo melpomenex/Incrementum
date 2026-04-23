@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.23.1] - 2026-04-23
+
+### Added
+
+- **Unified `DocumentSearchState` type** — shared interface for search state across all document viewers, replacing the local-only `ViewerSearchState` in `DocumentViewer`.
+- **HTML text-quote highlighting on initial jump** — command-palette hits for HTML documents now search the iframe DOM for the exact text quote, wrap it in a visible highlight, and scroll to it (previously only reused existing search marks).
+- **EPUB DOM-based fallback for command-palette highlights** — when `book.search()` returns no results for an initial-jump highlight query, the EPUB viewer now falls back to `searchVisibleContents()` to find and highlight the match in rendered content.
+
+### Changed
+
+- **EPUB initial-jump resolution** — `applySearchHighlights()` now uses the DOM-based visible-content search as a fallback when `book.search()` fails, and has a 3-second timeout to avoid hanging on slow EPUBs.
+- **PDF highlight page window** — PDF initial-jump highlights now search a ±3 page window around the estimated page instead of only the exact estimated page, making navigation resilient to page-estimation errors.
+- **HTML initial-jump timing** — increased retry delay from 150ms to 300ms alongside the existing `onLoad` handler for more reliable iframe content resolution.
+
+### Fixed
+
+- **EPUB command-palette hits with empty CFI** — opening an EPUB from a command-palette sub-hit now resolves the match even when the CFI is empty, by searching rendered content for the text quote at the specified match index.
+- **PDF page-estimation misses** — PDF highlights that missed the correct page due to linear percentage estimation now work because the viewer searches adjacent pages.
+- **HTML command-palette hits with no prior search marks** — HTML viewer now independently locates and highlights the text quote instead of depending on pre-existing search marks from the in-document search flow.
+- **Command-palette sub-hit navigation** — clicking a secondary match under a search result now opens the chosen occurrence instead of falling back to the document’s primary match or top position.
+- **EPUB visible-word search misses** — searching from the document viewer on an EPUB now finds words that are plainly visible on screen even when the book-wide EPUB search API fails to return them.
+- **PDF in-document search** — PDF search now scans extracted page text, highlights active matches in the text layer, moves across pages correctly, and reports when a PDF has no searchable text layer instead of silently failing.
+- **HTML and markdown result jumps** — document search hits for rendered text surfaces now preserve text quotes and scroll targets so opening a match lands closer to the exact selected occurrence.
+- **Chrome-installed PWA icon caching** — versioned manifest/icon links, sprout-specific manifest entries, and updated service-worker icon references now force Chrome and related install surfaces to pick up the new sprout icon instead of stale launcher artwork.
+- **Linux desktop launcher icon** — the local `incrementum.desktop` entry now points directly at the regenerated sprout-based desktop icon so the application launcher no longer resolves an older themed icon.
+
 ## [1.23.0] - 2026-04-23
 
 ### Added

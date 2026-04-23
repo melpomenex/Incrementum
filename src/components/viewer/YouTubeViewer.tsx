@@ -12,7 +12,7 @@ import {
   CreateVideoExtractDialog,
   VideoExtractsList,
 } from '../video/VideoExtracts';
-import { TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
+import { TranscriptSearchState, TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import { getYouTubeWatchURL, formatDuration } from "../../api/youtube";
 import { fetchYouTubeTranscript } from "../../utils/youtubeTranscriptBrowser";
@@ -43,6 +43,10 @@ interface YouTubeViewerProps {
   onArchive?: () => void;
   initialSeekTime?: number;
   autoPlayOnOpen?: boolean;
+  transcriptSearchQuery?: string;
+  onTranscriptSearchQueryChange?: (query: string) => void;
+  activeTranscriptMatchIndex?: number;
+  onTranscriptSearchStateChange?: (state: TranscriptSearchState) => void;
   initialTranscriptHighlightQuery?: string;
   initialTranscriptSegmentId?: string;
 }
@@ -58,6 +62,10 @@ export function YouTubeViewer({
   onArchive,
   initialSeekTime,
   autoPlayOnOpen,
+  transcriptSearchQuery,
+  onTranscriptSearchQueryChange,
+  activeTranscriptMatchIndex,
+  onTranscriptSearchStateChange,
   initialTranscriptHighlightQuery,
   initialTranscriptSegmentId,
 }: YouTubeViewerProps) {
@@ -109,6 +117,7 @@ export function YouTubeViewer({
   const [forceInlinePlayback, setForceInlinePlayback] = useState(false);
   const [normalizedVideoId, setNormalizedVideoId] = useState(() => extractYouTubeVideoId(videoId) ?? "");
   const networkDebugEnabled = useMemo(() => isNetworkDebugEnabled(), []);
+  const effectiveTranscriptSearchQuery = transcriptSearchQuery ?? initialTranscriptHighlightQuery ?? "";
 
   // SponsorBlock state
   const [segments, setSegments] = useState<SponsorBlockSegment[]>([]);
@@ -231,6 +240,40 @@ export function YouTubeViewer({
     localStorage.setItem('video-features-panel-width', String(videoFeaturesWidth));
   }, [videoFeaturesWidth]);
 
+  useEffect(() => {
+    if (!effectiveTranscriptSearchQuery.trim() && !initialTranscriptSegmentId && activeTranscriptMatchIndex === undefined) {
+      return;
+    }
+    setShowTranscript(true);
+  }, [activeTranscriptMatchIndex, effectiveTranscriptSearchQuery, initialTranscriptSegmentId]);
+
+  useEffect(() => {
+    if (!onTranscriptSearchStateChange || isLoadingTranscript) return;
+
+    const normalizedQuery = effectiveTranscriptSearchQuery.trim().toLowerCase();
+    const matches = normalizedQuery
+      ? transcript.filter((segment) => segment.text.toLowerCase().includes(normalizedQuery))
+      : [];
+    const resolvedActiveMatchIndex = matches.length > 0
+      ? Math.max(0, Math.min(matches.length - 1, activeTranscriptMatchIndex ?? 0))
+      : -1;
+
+    onTranscriptSearchStateChange({
+      available: transcript.length > 0 && !transcriptError,
+      query: effectiveTranscriptSearchQuery,
+      totalMatches: matches.length,
+      activeMatchIndex: resolvedActiveMatchIndex,
+      activeSegmentId: resolvedActiveMatchIndex >= 0 ? matches[resolvedActiveMatchIndex].id : null,
+    });
+  }, [
+    activeTranscriptMatchIndex,
+    effectiveTranscriptSearchQuery,
+    isLoadingTranscript,
+    onTranscriptSearchStateChange,
+    transcript,
+    transcriptError,
+  ]);
+
   // Handle resize start
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -348,6 +391,13 @@ export function YouTubeViewer({
         if (!transcriptData || !Array.isArray(transcriptData)) {
           setTranscript([]);
           onTranscriptLoadRef.current?.([]);
+          onTranscriptSearchStateChange?.({
+            available: false,
+            query: effectiveTranscriptSearchQuery,
+            totalMatches: 0,
+            activeMatchIndex: -1,
+            activeSegmentId: null,
+          });
           return;
         }
 
@@ -384,10 +434,17 @@ export function YouTubeViewer({
       setTranscriptError(errorMsg);
       setTranscript([]);
       onTranscriptLoadRef.current?.([]);
+      onTranscriptSearchStateChange?.({
+        available: false,
+        query: effectiveTranscriptSearchQuery,
+        totalMatches: 0,
+        activeMatchIndex: -1,
+        activeSegmentId: null,
+      });
     } finally {
       setIsLoadingTranscript(false);
     }
-  }, [normalizedVideoId, documentId, onLoad]);
+  }, [documentId, effectiveTranscriptSearchQuery, normalizedVideoId, onLoad, onTranscriptSearchStateChange]);
 
   // Handle videoId changes for transcript
   useEffect(() => {
@@ -1236,7 +1293,11 @@ export function YouTubeViewer({
                   onSeek={handleSeek}
                   onSelectionChange={onSelectionChange}
                   className="flex-1 min-h-0"
-                  highlightQuery={initialTranscriptHighlightQuery}
+                  searchQuery={effectiveTranscriptSearchQuery}
+                  onSearchQueryChange={onTranscriptSearchQueryChange}
+                  activeMatchIndex={activeTranscriptMatchIndex}
+                  onSearchStateChange={onTranscriptSearchStateChange}
+                  highlightQuery={effectiveTranscriptSearchQuery}
                   highlightedSegmentId={initialTranscriptSegmentId}
                 />
               )}

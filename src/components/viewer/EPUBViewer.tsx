@@ -18,6 +18,10 @@ const FONT_FAMILY_MAP: Record<string, string> = {
   monospace: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
 };
 
+function escapeRegex(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 interface EPUBViewerProps {
   fileData?: Uint8Array | null;
   fileUrl?: string | null;
@@ -27,7 +31,16 @@ interface EPUBViewerProps {
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
   onContextTextChange?: (text: string) => void;
   initialCfi?: string;
+  initialSearchMatchIndex?: number;
   highlightQuery?: string;
+  searchQuery?: string;
+  searchMatchIndex?: number | null;
+  onSearchResultsChange?: (results: {
+    query: string;
+    total: number;
+    activeIndex: number;
+    activeCfi: string | null;
+  }) => void;
   onProgressChange?: (progressPercent: number) => void;
   persistedHighlights?: Array<{ id: string; cfiRange: string; color?: string | null; text: string }>;
 }
@@ -41,7 +54,11 @@ export function EPUBViewer({
   onSelectionChange,
   onContextTextChange,
   initialCfi,
+  initialSearchMatchIndex,
   highlightQuery,
+  searchQuery,
+  searchMatchIndex,
+  onSearchResultsChange,
   onProgressChange,
   persistedHighlights = [],
 }: EPUBViewerProps) {
@@ -62,6 +79,10 @@ export function EPUBViewer({
   const selectionActiveRef = useRef(false);
   const initialDisplayCompleteRef = useRef(false);
   const activeSearchHighlightsRef = useRef<string[]>([]);
+  const liveSearchHighlightsRef = useRef<string[]>([]);
+  const liveSearchResultsRef = useRef<string[]>([]);
+  const liveSearchVersionRef = useRef(0);
+  const activeLiveSearchCfiRef = useRef<string | null>(null);
   const activePersistedHighlightsRef = useRef<string[]>([]);
 
   // Get current theme colors
@@ -83,6 +104,8 @@ export function EPUBViewer({
   onSelectionChangeRef.current = onSelectionChange;
   const onProgressChangeRef = useRef(onProgressChange);
   onProgressChangeRef.current = onProgressChange;
+  const onSearchResultsChangeRef = useRef(onSearchResultsChange);
+  onSearchResultsChangeRef.current = onSearchResultsChange;
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
@@ -269,6 +292,12 @@ export function EPUBViewer({
       .epub-search-highlight {
         background: rgba(245, 158, 11, 0.35) !important;
         border-radius: 2px !important;
+        padding: 0 2px !important;
+      }
+      .epub-search-highlight-active {
+        background: rgba(249, 115, 22, 0.55) !important;
+        outline: 2px solid rgba(194, 65, 12, 0.45) !important;
+        border-radius: 3px !important;
         padding: 0 2px !important;
       }
       * {
@@ -715,6 +744,135 @@ export function EPUBViewer({
     applyRenditionTheme();
   }, [applyRenditionTheme, epubSettings.fontFamily, epubSettings.fontSize, epubSettings.lineHeight, theme]);
 
+  const removeSearchAnnotations = useCallback((cfis: string[]) => {
+    if (!rendition || cfis.length === 0) return;
+    for (const cfi of cfis) {
+      try {
+        rendition.annotations?.remove?.(cfi, "highlight");
+      } catch {
+        // ignore
+      }
+    }
+  }, [rendition]);
+
+  const reportLiveSearchResults = useCallback((query: string, results: string[], requestedIndex?: number | null) => {
+    const total = results.length;
+    const activeIndex = total === 0
+      ? -1
+      : typeof requestedIndex === "number" && Number.isFinite(requestedIndex)
+        ? ((Math.trunc(requestedIndex) % total) + total) % total
+        : 0;
+
+    onSearchResultsChangeRef.current?.({
+      query,
+      total,
+      activeIndex,
+      activeCfi: total > 0 ? results[activeIndex] : null,
+    });
+  }, []);
+
+  const searchVisibleContents = useCallback((query: string): string[] => {
+    if (!rendition || !query.trim()) return [];
+
+    const terms = query
+      .split(/\s+/)
+      .map((term) => term.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    if (terms.length === 0) return [];
+
+    const regex = new RegExp(`(${terms.map(escapeRegex).join("|")})`, "gi");
+    const cfis: string[] = [];
+    const seen = new Set<string>();
+
+    try {
+      const contentsList = rendition.getContents?.() ?? [];
+      for (const contents of contentsList) {
+        const doc = contents?.document as Document | undefined;
+        const body = doc?.body;
+        if (!body) continue;
+
+        const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          const value = node.nodeValue ?? "";
+          if (!value.trim()) continue;
+
+          let match: RegExpExecArray | null;
+          regex.lastIndex = 0;
+          while ((match = regex.exec(value)) !== null) {
+            try {
+              const range = doc.createRange();
+              range.setStart(node, match.index);
+              range.setEnd(node, match.index + match[0].length);
+              const cfi = contents.cfiFromRange?.(range);
+              range.detach?.();
+              if (cfi && !seen.has(cfi)) {
+                seen.add(cfi);
+                cfis.push(String(cfi));
+              }
+            } catch {
+              // ignore individual range failures
+            }
+
+            if (match[0].length === 0) {
+              regex.lastIndex += 1;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("EPUBViewer: visible-content search failed:", error);
+    }
+
+    return cfis;
+  }, [rendition]);
+
+  const renderLiveSearchHighlights = useCallback(async (
+    results: string[],
+    requestedIndex?: number | null,
+    options?: { navigate?: boolean }
+  ) => {
+    if (!rendition) return;
+
+    removeSearchAnnotations(liveSearchHighlightsRef.current);
+    liveSearchHighlightsRef.current = [];
+    activeLiveSearchCfiRef.current = null;
+
+    if (results.length === 0) {
+      reportLiveSearchResults(searchQuery?.trim() ?? "", [], requestedIndex);
+      return;
+    }
+
+    const activeIndex = typeof requestedIndex === "number" && Number.isFinite(requestedIndex)
+      ? ((Math.trunc(requestedIndex) % results.length) + results.length) % results.length
+      : 0;
+    const activeCfi = results[activeIndex] ?? null;
+
+    for (let i = 0; i < results.length; i++) {
+      const cfi = results[i];
+      const className = i === activeIndex ? "epub-search-highlight-active" : "epub-search-highlight";
+      try {
+        rendition.annotations?.highlight?.(cfi, {}, undefined, className);
+        liveSearchHighlightsRef.current.push(cfi);
+      } catch {
+        // ignore
+      }
+    }
+
+    activeLiveSearchCfiRef.current = activeCfi;
+
+    if (activeCfi && options?.navigate !== false) {
+      try {
+        await rendition.display(activeCfi);
+      } catch {
+        // ignore
+      }
+    }
+
+    reportLiveSearchResults(searchQuery?.trim() ?? "", results, activeIndex);
+  }, [removeSearchAnnotations, rendition, reportLiveSearchResults, searchQuery]);
+
   const applySearchHighlights = useCallback(async () => {
     if (!highlightQuery || !highlightQuery.trim()) return;
     if (!rendition || !book) return;
@@ -740,35 +898,61 @@ export function EPUBViewer({
       results = [];
     }
 
-    const cfis = (results || [])
+    let cfis = (results || [])
       .map((r: any) => r?.cfi)
       .filter(Boolean)
       .slice(0, 30)
       .map((cfi: any) => String(cfi));
 
+    // Fall back to visible-content DOM search when book.search returns nothing
+    if (cfis.length === 0) {
+      cfis = searchVisibleContents(query);
+    }
+
     if (cfis.length > 0) {
-      if (!initialCfi) {
+      const targetIndex =
+        typeof initialSearchMatchIndex === "number" && Number.isFinite(initialSearchMatchIndex)
+          ? ((Math.trunc(initialSearchMatchIndex) % cfis.length) + cfis.length) % cfis.length
+          : 0;
+      const targetCfi = cfis[targetIndex] ?? cfis[0];
+
+      if (!initialCfi && targetCfi) {
         try {
-          await rendition.display(cfis[0]);
+          await rendition.display(targetCfi);
         } catch {
           // ignore
         }
       }
 
-      for (const cfi of cfis) {
+      for (let i = 0; i < cfis.length; i++) {
+        const cfi = cfis[i];
         try {
-          rendition.annotations?.highlight?.(cfi, {}, undefined, "epub-search-highlight");
+          rendition.annotations?.highlight?.(
+            cfi,
+            {},
+            undefined,
+            i === targetIndex ? "epub-search-highlight-active" : "epub-search-highlight"
+          );
           activeSearchHighlightsRef.current.push(cfi);
         } catch {
           // ignore
         }
       }
     }
-  }, [book, highlightQuery, initialCfi, rendition]);
+  }, [book, highlightQuery, initialCfi, initialSearchMatchIndex, rendition, searchVisibleContents]);
 
   useEffect(() => {
-    void applySearchHighlights();
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      console.warn("EPUBViewer: applySearchHighlights timed out, skipping exact navigation");
+    }, 3000);
+    applySearchHighlights().finally(() => {
+      clearTimeout(timeout);
+    });
     return () => {
+      cancelled = true;
+      clearTimeout(timeout);
       try {
         for (const cfi of activeSearchHighlightsRef.current) {
           rendition?.annotations?.remove?.(cfi, "highlight");
@@ -779,6 +963,67 @@ export function EPUBViewer({
       activeSearchHighlightsRef.current = [];
     };
   }, [applySearchHighlights, rendition]);
+
+  useEffect(() => {
+    if (!rendition || !book) return;
+
+    const trimmedQuery = searchQuery?.trim() ?? "";
+    const searchVersion = ++liveSearchVersionRef.current;
+
+    if (!trimmedQuery) {
+      liveSearchResultsRef.current = [];
+      activeLiveSearchCfiRef.current = null;
+      removeSearchAnnotations(liveSearchHighlightsRef.current);
+      liveSearchHighlightsRef.current = [];
+      reportLiveSearchResults("", [], null);
+      return;
+    }
+
+    const runSearch = async () => {
+      let results: any[] = [];
+      let visibleCfis: string[] = [];
+      try {
+        if (typeof (book as any).search === "function") {
+          results = await (book as any).search(trimmedQuery);
+        }
+      } catch (error) {
+        console.warn("EPUBViewer: live search failed:", error);
+        results = [];
+      }
+
+      visibleCfis = searchVisibleContents(trimmedQuery);
+
+      if (liveSearchVersionRef.current !== searchVersion) {
+        return;
+      }
+
+      const indexedCfis = (results || [])
+        .map((result: any) => result?.cfi ?? result?.cfiRange)
+        .filter(Boolean)
+        .map((cfi: any) => String(cfi));
+      const cfis = Array.from(new Set([
+        ...visibleCfis,
+        ...indexedCfis,
+      ]));
+
+      liveSearchResultsRef.current = cfis;
+      await renderLiveSearchHighlights(cfis, searchMatchIndex, {
+        navigate: cfis.length > 0,
+      });
+    };
+
+    void runSearch();
+  }, [book, rendition, removeSearchAnnotations, renderLiveSearchHighlights, reportLiveSearchResults, searchQuery, searchVisibleContents]);
+
+  useEffect(() => {
+    if (!rendition) return;
+    if (!(searchQuery?.trim())) return;
+    if (liveSearchResultsRef.current.length === 0) return;
+
+    void renderLiveSearchHighlights(liveSearchResultsRef.current, searchMatchIndex, {
+      navigate: true,
+    });
+  }, [rendition, renderLiveSearchHighlights, searchMatchIndex, searchQuery]);
 
   useEffect(() => {
     if (!rendition) return;
@@ -817,7 +1062,16 @@ export function EPUBViewer({
       }
       activePersistedHighlightsRef.current = [];
     };
-  }, [persistedHighlights, rendition]);
+  }, [persistedHighlights, removeSearchAnnotations, rendition]);
+
+  useEffect(() => {
+    return () => {
+      removeSearchAnnotations(liveSearchHighlightsRef.current);
+      liveSearchHighlightsRef.current = [];
+      liveSearchResultsRef.current = [];
+      activeLiveSearchCfiRef.current = null;
+    };
+  }, [removeSearchAnnotations]);
 
   const handlePrevPage = () => {
     if (rendition) {

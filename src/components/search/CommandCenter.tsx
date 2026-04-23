@@ -15,7 +15,8 @@ import {
   ReviewTab,
   DocumentsTab,
   AnalyticsTab,
-  SettingsTab
+  SettingsTab,
+  ImageRegistryTab,
 } from "../../components/tabs/TabRegistry";
 import { Command, CommandCategory, getDefaultCommands } from "../common/CommandPalette";
 import {
@@ -31,6 +32,7 @@ import {
   Palette,
   Sun,
   Moon,
+  Images,
 } from "lucide-react";
 import type { Document } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
@@ -39,19 +41,7 @@ import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
 import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
-
-type SearchHitLocation =
-  | { kind: "pdf"; pageNumber: number }
-  | { kind: "epub"; cfi: string }
-  | { kind: "html"; scrollPercent: number }
-  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
-
-type SearchHit = {
-  id: string;
-  location: SearchHitLocation;
-  excerptHtml?: string;
-  label?: string;
-};
+import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
 
 const STOPWORDS = new Set([
   "a",
@@ -308,6 +298,14 @@ export function CommandCenter() {
       return excerpt;
     };
 
+    const exactQuoteFromIndex = (source: string, index: number, matchedText: string): string => {
+      if (!matchedText) return "";
+      return source
+        .slice(index, index + matchedText.length)
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
     const buildPdfPageFromIndex = (doc: Document, index: number, contentLength: number): number => {
       const totalPages = doc.totalPages ?? doc.metadata?.pageCount ?? 1;
       if (!contentLength || totalPages <= 1) return 1;
@@ -413,6 +411,14 @@ export function CommandCenter() {
       closable: true,
     }); };
 
+    const openImageRegistry = () => { addTab({
+      title: "Image Registry",
+      icon: <Images className="w-4 h-4" />,
+      type: "image-registry",
+      content: ImageRegistryTab,
+      closable: true,
+    }); };
+
     const sectionActions: Record<string, () => void> = {
       dashboard: openDashboard,
       documents: openDocuments,
@@ -475,6 +481,15 @@ export function CommandCenter() {
         category: CommandCategory.Navigation,
         action: () => { openReview(); },
         keywords: ["review", "study"],
+      },
+      {
+        id: "nav-image-registry",
+        label: "Image Registry",
+        description: "View and manage image registry",
+        icon: <Images className="w-4 h-4" />,
+        category: CommandCategory.Navigation,
+        action: () => { openImageRegistry(); },
+        keywords: ["images", "screenshots", "registry", "library", "flashcards"],
       },
     ];
 
@@ -569,15 +584,10 @@ export function CommandCenter() {
         "go-documents",
         "go-queue",
         "go-analytics",
+        "go-image-registry",
         "open-settings",
       ].includes(cmd.id)),
-      ...navigationCommands.filter((cmd) => ![
-        "nav-dashboard",
-        "nav-documents",
-        "nav-queue",
-        "nav-analytics",
-        "nav-settings",
-      ].includes(cmd.id)),
+      ...navigationCommands,
       ...themeCommands,
       ...themeSwitchCommands,
     ];
@@ -682,7 +692,12 @@ export function CommandCenter() {
                     const { excerpt } = highlightSearchTerms(seg.text, query.query, 200);
                     hits.push({
                       id: `yt-hit-${doc.id}-${i}`,
-                      location: { kind: "youtube", timeSeconds: seg.start, segmentId: `seg-${idx}` },
+                      location: {
+                        kind: "youtube",
+                        timeSeconds: seg.start,
+                        segmentId: `seg-${idx}`,
+                        textQuote: seg.text,
+                      },
                       label: formatTimestamp(seg.start),
                       excerptHtml: excerpt,
                     });
@@ -708,20 +723,29 @@ export function CommandCenter() {
           for (const t of searchTerms) {
             if (hits.length >= 6) break;
             const occ = findAllOccurrences(contentLower, t, 6 - hits.length);
-            occ.forEach((index) => {
+            occ.forEach((index, occIndex) => {
               if (doc.fileType === "pdf") {
                 const pageNum = buildPdfPageFromIndex(doc, index, Math.max(1, contentLower.length));
                 hits.push({
                   id: `hit-${doc.id}-${t}-${index}`,
-                  location: { kind: "pdf", pageNumber: pageNum },
+                  location: {
+                    kind: "pdf",
+                    pageNumber: pageNum,
+                    textQuote: exactQuoteFromIndex(content, index, t),
+                    textOffsetHint: index,
+                  },
                   label: `Page ${pageNum}`,
                   excerptHtml: excerptFromIndex(content, index, query.query),
                 });
               } else if (doc.fileType === "epub") {
-                // EPUB hits prefer real CFIs; fill later if we can.
                 hits.push({
                   id: `hit-${doc.id}-${t}-${index}`,
-                  location: { kind: "html", scrollPercent: clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100) },
+                  location: {
+                    kind: "epub",
+                    cfi: "",
+                    textQuote: exactQuoteFromIndex(content, index, t),
+                    matchIndex: occIndex,
+                  },
                   label: "EPUB",
                   excerptHtml: excerptFromIndex(content, index, query.query),
                 });
@@ -729,7 +753,23 @@ export function CommandCenter() {
                 const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
                 hits.push({
                   id: `hit-${doc.id}-${t}-${index}`,
-                  location: { kind: "html", scrollPercent: pct },
+                  location: {
+                    kind: "html",
+                    scrollPercent: pct,
+                    textQuote: exactQuoteFromIndex(content, index, t),
+                  },
+                  label: `${pct}%`,
+                  excerptHtml: excerptFromIndex(content, index, query.query),
+                });
+              } else if (doc.fileType === "markdown") {
+                const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
+                hits.push({
+                  id: `hit-${doc.id}-${t}-${index}`,
+                  location: {
+                    kind: "markdown",
+                    scrollPercent: pct,
+                    textQuote: exactQuoteFromIndex(content, index, t),
+                  },
                   label: `${pct}%`,
                   excerptHtml: excerptFromIndex(content, index, query.query),
                 });
@@ -737,7 +777,11 @@ export function CommandCenter() {
                 const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
                 hits.push({
                   id: `hit-${doc.id}-${t}-${index}`,
-                  location: { kind: "html", scrollPercent: pct },
+                  location: {
+                    kind: "html",
+                    scrollPercent: pct,
+                    textQuote: exactQuoteFromIndex(content, index, t),
+                  },
                   label: `${pct}%`,
                   excerptHtml: excerptFromIndex(content, index, query.query),
                 });
@@ -790,7 +834,11 @@ export function CommandCenter() {
         const pageNum = extract.pageNumber && extract.pageNumber > 0 ? extract.pageNumber : 1;
         entry.hits.push({
           id: `extract-hit-${extract.id}`,
-          location: { kind: "pdf", pageNumber: pageNum },
+          location: {
+            kind: "pdf",
+            pageNumber: pageNum,
+            textQuote: query.query.trim() || undefined,
+          },
           label: `Page ${pageNum}`,
           excerptHtml: excerpt,
         });
@@ -854,7 +902,7 @@ export function CommandCenter() {
     }
   }, [documents, addTab]);
 
-  const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: SearchHit["location"] }) => {
+  const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: ExactSearchHitLocation }) => {
     const doc = documents.find(d => d.id === documentId);
     if (doc) {
       addTab({
@@ -889,6 +937,9 @@ export function CommandCenter() {
             closable: true,
             data: {
               documentId: freshDoc.id,
+              highlightQuery: options?.highlightQuery,
+              initialJump: options?.initialJump,
+              autoPlay: options?.initialJump?.kind === "youtube",
             },
           });
         }

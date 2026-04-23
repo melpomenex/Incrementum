@@ -1,9 +1,6 @@
-export type DocumentInitialJump =
-  | { kind: "pdf"; pageNumber: number }
-  | { kind: "epub"; cfi: string }
-  | { kind: "html"; scrollPercent: number }
-  | { kind: "markdown"; scrollPercent: number }
-  | { kind: "youtube"; timeSeconds: number; segmentId?: string };
+import type { ExactSearchHitLocation } from "./searchHit";
+
+export type DocumentInitialJump = ExactSearchHitLocation;
 
 export interface ExtractSourceContext {
   documentId: string;

@@ -219,6 +219,11 @@
   padding: 0 1px;
 }
 
+.pdf-search-highlight-target {
+  background: rgba(245, 158, 11, 0.6);
+  outline: 1px solid rgba(217, 119, 6, 0.75);
+}
+
 /* Canvas sits below the text layer - handled by canvas layer section above */
 /* This rule is now in the LAYER 1 section at the top of the file */
 

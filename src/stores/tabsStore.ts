@@ -18,7 +18,8 @@ export type TabType =
   | "newsletter"
   | "web-browser"
   | "doc-qa"
-  | "notebooklm";
+  | "notebooklm"
+  | "image-registry";
 
 export interface Tab {
   id: string;

@@ -49,8 +49,8 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/apple-touch-icon.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  '/icons/sprout-192x192.png',
+  '/icons/sprout-512x512.png',
 ];
 
 // API endpoints that should be cached
@@ -437,7 +437,7 @@ self.addEventListener('push', (event) => {
   const options = event.data?.json() || {
     title: 'Incrementum',
     body: 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
+    icon: '/icons/sprout-192x192.png',
     badge: '/icons/badge-72x72.png',
     tag: 'general',
     requireInteraction: false,
@@ -528,7 +528,7 @@ self.addEventListener('message', (event) => {
       if (payload) {
         self.registration.showNotification(payload.title, {
           body: payload.body,
-          icon: payload.icon || '/icons/icon-192x192.png',
+          icon: payload.icon || '/icons/sprout-192x192.png',
           badge: payload.badge || '/icons/badge-72x72.png',
           tag: payload.tag || 'default',
           requireInteraction: payload.requireInteraction || false,
@@ -616,7 +616,7 @@ async function checkDueCardsAndNotify() {
     if (dueCount > 0) {
       await self.registration.showNotification('Cards Due for Review', {
         body: `You have ${dueCount} card${dueCount > 1 ? 's' : ''} due for review. Keep your streak going!`,
-        icon: '/icons/icon-192x192.png',
+        icon: '/icons/sprout-192x192.png',
         badge: '/icons/badge-72x72.png',
         tag: 'due-cards',
         requireInteraction: false,
