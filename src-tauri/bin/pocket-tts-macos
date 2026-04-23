@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Clean environment for consistency
 unset LD_LIBRARY_PATH LD_PRELOAD PYTHONHOME PYTHONPATH
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/macos"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
@@ -28,9 +28,13 @@ if [ -z "$PYTHON" ]; then
   exit 1
 fi
 
-# Check for --text-file flag to avoid ARG_MAX issues with long text
+if [ -d "$RUNTIME_SITE" ]; then
+  export PYTHONHOME="$RUNTIME_BASE/python"
+  export PYTHONPATH="$RUNTIME_SITE"
+fi
+
 TEXT_FILE=""
-REMAINING_ARGS=""
+NEW_ARGS=""
 skip=false
 for arg in "$@"; do
   if "$skip"; then
@@ -46,39 +50,35 @@ for arg in "$@"; do
       TEXT_FILE="${arg#--text-file=}"
       ;;
     *)
-      REMAINING_ARGS="$REMAINING_ARGS $(printf '%s' "$arg" | sed "s/'/'\\\\''/g")"
+      NEW_ARGS="$NEW_ARGS
+$arg"
       ;;
   esac
 done
 
 if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
-  TEXT_FILE_ESC="$(printf '%s' "$TEXT_FILE" | sed "s/'/'\\\\''/g")"
-  if [ -d "$RUNTIME_SITE" ]; then
-    export PYTHONHOME="$RUNTIME_BASE/python"
-    export PYTHONPATH="$RUNTIME_SITE"
-  fi
-  exec "$PYTHON" -c "
-import sys, os
-sys.argv = ['pocket_tts', 'generate'$REMAINING_ARGS, '--text', open('$TEXT_FILE_ESC').read()]
-os.unlink('$TEXT_FILE_ESC')
-from pocket_tts.__main__ import cli_app
-cli_app()
-"
+  ARGS_FILE="$(mktemp "${TMPDIR:-/tmp}/pocket-tts-args-XXXXXX.json")"
+  "$PYTHON" -c "
+import json, sys
+args = ['pocket_tts', 'generate']
+for a in sys.argv[1:]:
+    args.append(a)
+with open('$ARGS_FILE', 'w') as f:
+    json.dump(args, f)
+" $NEW_ARGS
+  WRAPPER="$(mktemp "${TMPDIR:-/tmp}/pocket-tts-wrapper-XXXXXX.py")"
+  printf '%s\n' \
+    'import sys, os, json' \
+    "with open('$ARGS_FILE') as f: sys.argv = json.load(f)" \
+    "sys.argv.append('--text')" \
+    "sys.argv.append(open('$TEXT_FILE').read())" \
+    "os.unlink('$ARGS_FILE')" \
+    "os.unlink('$TEXT_FILE')" \
+    "os.unlink('$WRAPPER')" \
+    'from pocket_tts.__main__ import cli_app' \
+    'cli_app()' \
+    > "$WRAPPER"
+  exec "$PYTHON" "$WRAPPER"
 else
-  if [ -d "$RUNTIME_SITE" ]; then
-    export PYTHONHOME="$RUNTIME_BASE/python"
-    export PYTHONPATH="$RUNTIME_SITE"
-    exec "$PYTHON" -m pocket_tts "$@"
-  fi
-  if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
-    PATH="$PATH:$HOME/.local/bin"
-  fi
-  PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-  export PATH
-  for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do
-    if [ -x "$CANDIDATE" ]; then
-      exec "$CANDIDATE" "$@"
-    fi
-  done
-  exec pocket-tts "$@"
+  exec "$PYTHON" -m pocket_tts "$@"
 fi
