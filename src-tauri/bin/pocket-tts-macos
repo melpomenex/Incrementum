@@ -1,5 +1,8 @@
 #!/bin/sh
 set -eu
+
+# Clean environment for consistency
+unset LD_LIBRARY_PATH LD_PRELOAD PYTHONHOME PYTHONPATH
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/macos"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
