@@ -459,6 +459,13 @@ pub fn run() {
                     let _ = window.eval(
                         "console.log('Webview location:', window.location.href);",
                     );
+
+                    // Hide the menu bar on Windows so it doesn't clutter the UI.
+                    // The accelerators still work via the on_menu_event handler above.
+                    #[cfg(target_os = "windows")]
+                    {
+                        window.set_menu_bar_visible(false).ok();
+                    }
                 }
 
                 Ok(())

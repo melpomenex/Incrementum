@@ -16,30 +16,99 @@ RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/x86_64-unknown-linux-gnu"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
 RUNTIME_SITE="$RUNTIME_BASE/site-packages"
 
-# Try bundled runtime first
-if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
-  export PYTHONHOME="$RUNTIME_BASE/python"
-  export PYTHONPATH="$RUNTIME_SITE"
-  exec "$RUNTIME_PY" -m pocket_tts "$@"
-fi
-
-# Fall back to system-installed pocket-tts
-if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
-  PATH="$PATH:$HOME/.local/bin"
-fi
-PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-export PATH
-
-for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do
-  if [ -x "$CANDIDATE" ]; then
-    exec "$CANDIDATE" "$@"
+find_python() {
+  if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
+    echo "$RUNTIME_PY"
+    return
   fi
+  # Try system python3
+  for p in python3 python; do
+    if command -v "$p" >/dev/null 2>&1; then
+      echo "$p"
+      return
+    fi
+  done
+  echo ""
+}
+
+find_site_packages() {
+  if [ -d "$RUNTIME_SITE" ]; then
+    echo "$RUNTIME_SITE"
+    return
+  fi
+  # Find system-installed pocket_tts
+  for p in python3 python; do
+    if command -v "$p" >/dev/null 2>&1; then
+      sp="$("$p" -c "import pocket_tts; import os; print(os.path.dirname(pocket_tts.__file__))" 2>/dev/null || true)"
+      if [ -n "$sp" ] && [ -d "$sp" ]; then
+        dirname "$sp"
+        return
+      fi
+    fi
+  done
+  echo ""
+}
+
+PYTHON="$(find_python)"
+if [ -z "$PYTHON" ]; then
+  echo "error: Python not found" >&2
+  exit 1
+fi
+
+# Check for --text-file flag and expand it by having Python read the file.
+# This avoids shell ARG_MAX limits when text is long.
+# The approach: if --text-file <path> is in args, we create a small inline
+# Python invocation that reads the file and calls pocket_tts directly.
+
+TEXT_FILE=""
+REMAINING_ARGS=""
+skip=false
+for arg in "$@"; do
+  if "$skip"; then
+    skip=false
+    TEXT_FILE="$arg"
+    continue
+  fi
+  case "$arg" in
+    --text-file)
+      skip=true
+      ;;
+    --text-file=*)
+      TEXT_FILE="${arg#--text-file=}"
+      ;;
+    *)
+      REMAINING_ARGS="$REMAINING_ARGS $(printf '%s' "$arg" | sed "s/'/'\\\\''/g")"
+      ;;
+  esac
 done
 
-echo "error: Pocket TTS not found" >&2
-echo "" >&2
-echo "To install:" >&2
-echo "  uv tool install pocket-tts" >&2
-echo "  or" >&2
-echo "  pip install --user pocket-tts" >&2
-exit 1
+if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
+  # Use Python to read the file and invoke pocket_tts, avoiding ARG_MAX
+  TEXT_FILE_ESC="$(printf '%s' "$TEXT_FILE" | sed "s/'/'\\\\''/g")"
+  if [ -d "$RUNTIME_SITE" ]; then
+    export PYTHONHOME="$RUNTIME_BASE/python"
+    export PYTHONPATH="$RUNTIME_SITE"
+  fi
+  exec "$PYTHON" -c "
+import sys, os
+sys.argv = ['pocket_tts', 'generate'$REMAINING_ARGS, '--text', open('$TEXT_FILE_ESC').read()]
+os.unlink('$TEXT_FILE_ESC')
+from pocket_tts.__main__ import cli_app
+cli_app()
+"
+else
+  # No --text-file, pass through normally
+  if [ -d "$RUNTIME_SITE" ]; then
+    export PYTHONHOME="$RUNTIME_BASE/python"
+    export PYTHONPATH="$RUNTIME_SITE"
+    exec "$PYTHON" -m pocket_tts "$@"
+  else
+    # System-installed pocket-tts
+    if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
+      PATH="$PATH:$HOME/.local/bin"
+    fi
+    PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export PATH
+    exec pocket-tts "$@"
+  fi
+fi
