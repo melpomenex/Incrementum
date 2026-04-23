@@ -22,3 +22,4 @@ export const NewsletterDirectoryTab = lazy(() => import("../newsletter/Newslette
 export const ScreenshotTab = lazy(() => import("./ScreenshotTab").then(m => ({ default: m.ScreenshotTab })));
 export const DocumentQATab = lazy(() => import("./DocumentQATab").then(m => ({ default: m.DocumentQATab })));
 export const NotebookLMTab = lazy(() => import("../../pages/NotebookLMPage").then(m => ({ default: m.NotebookLMPage })));
+export const ImageRegistryTab = lazy(() => import("./ImageRegistryTab").then(m => ({ default: m.ImageRegistryTab })));

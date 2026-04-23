@@ -124,6 +124,13 @@ interface PDFViewerProps {
   suppressAutoScroll?: boolean;
   highlightQuery?: string;
   highlightPageNumber?: number;
+  highlightTextQuote?: string;
+  searchQuery?: string;
+  searchNavigationRequest?: {
+    requestId: number;
+    direction?: "next" | "previous";
+    targetIndex?: number;
+  } | null;
   onPageChange?: (pageNumber: number) => void;
   onLoad?: (numPages: number, outline: any[]) => void;
   onPagesRendered?: () => void;
@@ -145,10 +152,23 @@ interface PDFViewerProps {
   onTextWindowChange?: (text: string) => void;
   onSelectionChange?: (text: string, context?: PdfSelectionContext | null) => void;
   onTextSelectionCapabilityChange?: (capability: PdfTextSelectionCapability) => void;
+  onSearchResultsChange?: (state: {
+    query: string;
+    totalMatches: number;
+    activeMatchIndex: number;
+    isSearchable: boolean;
+    status: "idle" | "searching" | "ready" | "unavailable";
+  }) => void;
   onOcrExtractText?: (text: string, pageNumber: number) => void;
   persistedHighlights?: StoredHighlight[];
   onHighlightSelection?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
 }
+
+type PdfSearchMatch = {
+  pageNumber: number;
+  pageMatchIndex: number;
+  globalIndex: number;
+};
 
 type PdfTextLayerRenderer = {
   cancel?: () => void;
@@ -177,6 +197,9 @@ export function PDFViewer({
   suppressAutoScroll = false,
   highlightQuery,
   highlightPageNumber,
+  highlightTextQuote,
+  searchQuery,
+  searchNavigationRequest,
   onPageChange,
   onLoad,
   onPagesRendered,
@@ -189,6 +212,7 @@ export function PDFViewer({
   onTextWindowChange,
   onSelectionChange,
   onTextSelectionCapabilityChange,
+  onSearchResultsChange,
   onOcrExtractText,
   persistedHighlights = [],
   onHighlightSelection,
@@ -224,6 +248,15 @@ export function PDFViewer({
   const restorationWindowRef = useRef<number>(0);
   // Track initial load to suppress resize during first render
   const initialLoadWindowRef = useRef<number>(Date.now() + 5000); // 5 second initial protection
+  const searchResultsRef = useRef<PdfSearchMatch[]>([]);
+  const pageSearchMatchesRef = useRef<Map<number, PdfSearchMatch[]>>(new Map());
+  const searchQueryRef = useRef("");
+  const searchStatusRef = useRef<"idle" | "searching" | "ready" | "unavailable">("idle");
+  const isSearchableRef = useRef(true);
+  const activeSearchMatchIndexRef = useRef(-1);
+  const pendingSearchScrollRef = useRef<number | null>(null);
+  const searchRequestTokenRef = useRef(0);
+  const lastProcessedSearchNavRequestRef = useRef<number | null>(null);
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -357,29 +390,73 @@ export function PDFViewer({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const scrollPositionRef = useRef({ x: 0, y: 0 });
 
-  const highlightConfigRef = useRef<{ query: string; pageNumber: number } | null>(null);
+  const highlightConfigRef = useRef<{ query: string; pageNumber: number; textQuote?: string; resolved: boolean } | null>(null);
   useEffect(() => {
     if (highlightQuery && highlightPageNumber) {
-      highlightConfigRef.current = { query: highlightQuery, pageNumber: highlightPageNumber };
+      highlightConfigRef.current = {
+        query: highlightQuery,
+        pageNumber: highlightPageNumber,
+        textQuote: highlightTextQuote?.trim() || undefined,
+        resolved: false,
+      };
     } else {
       highlightConfigRef.current = null;
     }
-  }, [highlightQuery, highlightPageNumber]);
+  }, [highlightQuery, highlightPageNumber, highlightTextQuote]);
+
+  const publishSearchResults = useCallback(
+    (overrides?: Partial<{
+      query: string;
+      totalMatches: number;
+      activeMatchIndex: number;
+      isSearchable: boolean;
+      status: "idle" | "searching" | "ready" | "unavailable";
+    }>) => {
+      onSearchResultsChange?.({
+        query: overrides?.query ?? searchQueryRef.current,
+        totalMatches: overrides?.totalMatches ?? searchResultsRef.current.length,
+        activeMatchIndex: overrides?.activeMatchIndex ?? activeSearchMatchIndexRef.current,
+        isSearchable: overrides?.isSearchable ?? isSearchableRef.current,
+        status: overrides?.status ?? searchStatusRef.current,
+      });
+    },
+    [onSearchResultsChange],
+  );
+
+  const extractPdfPageText = useCallback(
+    async (pdfDoc: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
+      if (textCacheRef.current.has(pageNum)) {
+        return textCacheRef.current.get(pageNum) ?? "";
+      }
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const content = await page.getTextContent();
+        const text = content.items
+          .map((item: any) => ("str" in item ? item.str : ""))
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+        textCacheRef.current.set(pageNum, text);
+        return text;
+      } catch (err) {
+        console.warn("Failed to extract PDF text for page", pageNum, err);
+        textCacheRef.current.set(pageNum, "");
+        return "";
+      }
+    },
+    [],
+  );
+
+  const getSearchHighlightPattern = useCallback((query: string) => {
+    const normalized = query.trim().replace(/\s+/g, " ");
+    if (!normalized) return null;
+    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(escaped.replace(/\s+/g, "\\s+"), "gi");
+  }, []);
 
   const applyTextLayerHighlights = useCallback((pageIndex: number) => {
-    const cfg = highlightConfigRef.current;
-    if (!cfg) return;
-    if (cfg.pageNumber - 1 !== pageIndex) return;
     const root = textLayerRootsRef.current[pageIndex];
     if (!root) return;
-
-    const query = cfg.query.trim();
-    if (!query) return;
-    const terms = Array.from(new Set(query.split(/\s+/).map((t) => t.trim()).filter((t) => t.length >= 2))).slice(0, 8);
-    if (terms.length === 0) return;
-
-    const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    const re = new RegExp(`(${escaped.join("|")})`, "gi");
 
     const spans = Array.from(root.querySelectorAll("span"));
     for (const span of spans) {
@@ -389,12 +466,144 @@ export function PDFViewer({
       } else {
         el.innerHTML = el.dataset.origHtml;
       }
+      delete el.dataset.searchMarkCount;
+    }
+
+    const normalizedSearchQuery = searchQueryRef.current.trim();
+    const searchRe = normalizedSearchQuery ? getSearchHighlightPattern(normalizedSearchQuery) : null;
+    if (searchRe) {
+      const pageMatches = pageSearchMatchesRef.current.get(pageIndex + 1) ?? [];
+      let pageSearchMarkCount = 0;
+      for (const span of spans) {
+        const el = span as HTMLElement;
+        const text = el.textContent ?? "";
+        if (!text) continue;
+        if (!searchRe.test(text)) {
+          searchRe.lastIndex = 0;
+          continue;
+        }
+        searchRe.lastIndex = 0;
+        let localMatchCount = 0;
+        el.innerHTML = text.replace(searchRe, (match) => {
+          localMatchCount += 1;
+          const pageOrder = pageSearchMarkCount;
+          pageSearchMarkCount += 1;
+          return `<mark class="pdf-search-highlight" data-search-match="true" data-search-match-page-order="${pageOrder}">${match}</mark>`;
+        });
+        if (localMatchCount > 0) {
+          el.dataset.searchMarkCount = String(localMatchCount);
+        }
+      }
+
+      const activeMatch = searchResultsRef.current[activeSearchMatchIndexRef.current];
+      const activePageOrder =
+        activeMatch && activeMatch.pageNumber === pageIndex + 1 ? activeMatch.pageMatchIndex : -1;
+      const marks = Array.from(root.querySelectorAll("mark[data-search-match='true']")) as HTMLElement[];
+      const activeMark = activePageOrder >= 0 ? marks[activePageOrder] : null;
+      if (activeMark) {
+        activeMark.classList.add("pdf-search-highlight-target");
+        if (pendingSearchScrollRef.current === activeSearchMatchIndexRef.current) {
+          requestAnimationFrame(() => {
+            activeMark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+            pendingSearchScrollRef.current = null;
+          });
+        }
+      } else if (pageMatches.length === 0 && pendingSearchScrollRef.current === activeSearchMatchIndexRef.current) {
+        pendingSearchScrollRef.current = null;
+      }
+      return;
+    }
+
+    const cfg = highlightConfigRef.current;
+    if (!cfg) return;
+    // Search a window of pages around the estimated page to handle page estimation errors
+    if (cfg.resolved && cfg.pageNumber - 1 !== pageIndex) return;
+    const pageDelta = Math.abs(pageIndex - (cfg.pageNumber - 1));
+    if (pageDelta > 3) return;
+
+    const query = cfg.query.trim();
+    if (!query) return;
+    const terms = Array.from(new Set(query.split(/\s+/).map((t) => t.trim()).filter((t) => t.length >= 2))).slice(0, 8);
+    if (terms.length === 0) return;
+
+    const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+
+    for (const span of spans) {
+      const el = span as HTMLElement;
       const text = el.textContent ?? "";
       if (!re.test(text)) continue;
       re.lastIndex = 0;
       el.innerHTML = text.replace(re, `<mark class="pdf-search-highlight">$1</mark>`);
     }
-  }, []);
+
+    const marks = Array.from(root.querySelectorAll("mark.pdf-search-highlight")) as HTMLElement[];
+    const normalizedQuote = cfg.textQuote?.toLowerCase();
+    const targetMark =
+      (normalizedQuote
+        ? marks.find((mark) => (mark.textContent ?? "").trim().toLowerCase() === normalizedQuote) ??
+          marks.find((mark) => (mark.textContent ?? "").trim().toLowerCase().includes(normalizedQuote))
+        : undefined) ??
+      marks[0];
+
+    if (!targetMark) return;
+
+    // Mark as resolved so other pages don't also try to highlight
+    cfg.resolved = true;
+    cfg.pageNumber = pageIndex + 1;
+
+    targetMark.classList.add("pdf-search-highlight-target");
+    requestAnimationFrame(() => {
+      targetMark.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    });
+  }, [getSearchHighlightPattern]);
+
+  const reapplyVisibleTextLayerHighlights = useCallback(() => {
+    textLayerRootsRef.current.forEach((root, pageIndex) => {
+      if (root) {
+        applyTextLayerHighlights(pageIndex);
+      }
+    });
+  }, [applyTextLayerHighlights]);
+
+  const focusSearchMatch = useCallback(
+    (requestedIndex: number, options?: { scroll?: boolean }) => {
+      if (searchResultsRef.current.length === 0) {
+        activeSearchMatchIndexRef.current = -1;
+        publishSearchResults({ activeMatchIndex: -1 });
+        return;
+      }
+
+      const clampedIndex = Math.max(0, Math.min(requestedIndex, searchResultsRef.current.length - 1));
+      activeSearchMatchIndexRef.current = clampedIndex;
+      if (options?.scroll !== false) {
+        pendingSearchScrollRef.current = clampedIndex;
+      }
+      publishSearchResults({ activeMatchIndex: clampedIndex });
+      reapplyVisibleTextLayerHighlights();
+
+      const target = searchResultsRef.current[clampedIndex];
+      if (!target) return;
+
+      if (pageNumber !== target.pageNumber) {
+        const token = ++navTokenCounterRef.current;
+        activeNavTokenRef.current = token;
+        pendingNavRef.current = { token, pageNumber: target.pageNumber, destArray: null };
+        isProgrammaticScrollRef.current = true;
+        onPageChange?.(target.pageNumber);
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        applyTextLayerHighlights(target.pageNumber - 1);
+      });
+    },
+    [applyTextLayerHighlights, onPageChange, pageNumber, publishSearchResults, reapplyVisibleTextLayerHighlights],
+  );
+
+  useEffect(() => {
+    reapplyVisibleTextLayerHighlights();
+  }, [highlightPageNumber, highlightQuery, highlightTextQuote, reapplyVisibleTextLayerHighlights]);
 
   const publishTextSelectionCapability = useCallback(
     (availability: ReadonlyMap<number, boolean>, totalPagesOverride?: number) => {
@@ -935,21 +1144,9 @@ export function PDFViewer({
     };
 
     const extractPageText = async (pageNum: number) => {
-      if (textCacheRef.current.has(pageNum)) return;
-      try {
-        const page = await pdf.getPage(pageNum);
-        const content = await page.getTextContent();
-        const text = content.items
-          .map((item: any) => ("str" in item ? item.str : ""))
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
-        if (text) {
-          textCacheRef.current.set(pageNum, text);
-          updateWindow();
-        }
-      } catch (err) {
-        console.warn("Failed to extract PDF text for page", pageNum, err);
+      const text = await extractPdfPageText(pdf, pageNum);
+      if (text) {
+        updateWindow();
       }
     };
 
@@ -959,7 +1156,157 @@ export function PDFViewer({
     }
     // Note: onTextWindowChange is intentionally excluded from deps - callbacks
     // shouldn't trigger effect re-runs, only data changes should
-  }, [pdf, pageNumber, contextPageWindow]);
+  }, [contextPageWindow, extractPdfPageText, onTextWindowChange, pageNumber, pdf]);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery?.trim() ?? "";
+    const requestToken = ++searchRequestTokenRef.current;
+
+    if (!pdf || numPages <= 0) {
+      searchResultsRef.current = [];
+      pageSearchMatchesRef.current = new Map();
+      activeSearchMatchIndexRef.current = -1;
+      pendingSearchScrollRef.current = null;
+      searchStatusRef.current = "idle";
+      isSearchableRef.current = true;
+      publishSearchResults({
+        query: searchQueryRef.current,
+        totalMatches: 0,
+        activeMatchIndex: -1,
+        isSearchable: true,
+        status: "idle",
+      });
+      reapplyVisibleTextLayerHighlights();
+      return;
+    }
+
+    if (!searchQueryRef.current) {
+      searchResultsRef.current = [];
+      pageSearchMatchesRef.current = new Map();
+      activeSearchMatchIndexRef.current = -1;
+      pendingSearchScrollRef.current = null;
+      searchStatusRef.current = "idle";
+      isSearchableRef.current = true;
+      publishSearchResults({
+        query: "",
+        totalMatches: 0,
+        activeMatchIndex: -1,
+        isSearchable: true,
+        status: "idle",
+      });
+      reapplyVisibleTextLayerHighlights();
+      return;
+    }
+
+    const queryPattern = getSearchHighlightPattern(searchQueryRef.current);
+    searchStatusRef.current = "searching";
+    publishSearchResults({
+      query: searchQueryRef.current,
+      totalMatches: searchResultsRef.current.length,
+      activeMatchIndex: activeSearchMatchIndexRef.current,
+      isSearchable: isSearchableRef.current,
+      status: "searching",
+    });
+
+    const run = async () => {
+      const nextResults: PdfSearchMatch[] = [];
+      const matchesByPage = new Map<number, PdfSearchMatch[]>();
+      let anySearchableText = false;
+
+      for (let page = 1; page <= numPages; page += 1) {
+        const text = await extractPdfPageText(pdf, page);
+        if (requestToken !== searchRequestTokenRef.current) {
+          return;
+        }
+        if (text) {
+          anySearchableText = true;
+        }
+        if (!text || !queryPattern) {
+          continue;
+        }
+
+        const pageMatches: PdfSearchMatch[] = [];
+        let match: RegExpExecArray | null;
+        while ((match = queryPattern.exec(text)) !== null) {
+          const result: PdfSearchMatch = {
+            pageNumber: page,
+            pageMatchIndex: pageMatches.length,
+            globalIndex: nextResults.length,
+          };
+          pageMatches.push(result);
+          nextResults.push(result);
+          if (match[0].length === 0) {
+            queryPattern.lastIndex += 1;
+          }
+        }
+        queryPattern.lastIndex = 0;
+        if (pageMatches.length > 0) {
+          matchesByPage.set(page, pageMatches);
+        }
+      }
+
+      if (requestToken !== searchRequestTokenRef.current) {
+        return;
+      }
+
+      searchResultsRef.current = nextResults;
+      pageSearchMatchesRef.current = matchesByPage;
+      isSearchableRef.current = anySearchableText;
+      searchStatusRef.current = anySearchableText ? "ready" : "unavailable";
+
+      const nextActiveIndex = nextResults.length > 0 ? 0 : -1;
+      activeSearchMatchIndexRef.current = nextActiveIndex;
+      pendingSearchScrollRef.current = nextActiveIndex >= 0 ? nextActiveIndex : null;
+
+      publishSearchResults({
+        query: searchQueryRef.current,
+        totalMatches: nextResults.length,
+        activeMatchIndex: nextActiveIndex,
+        isSearchable: anySearchableText,
+        status: searchStatusRef.current,
+      });
+      reapplyVisibleTextLayerHighlights();
+
+      if (nextActiveIndex >= 0) {
+        focusSearchMatch(nextActiveIndex);
+      }
+    };
+
+    void run();
+  }, [
+    extractPdfPageText,
+    focusSearchMatch,
+    getSearchHighlightPattern,
+    numPages,
+    pdf,
+    publishSearchResults,
+    reapplyVisibleTextLayerHighlights,
+    searchQuery,
+  ]);
+
+  useEffect(() => {
+    if (!searchNavigationRequest) return;
+    if (lastProcessedSearchNavRequestRef.current === searchNavigationRequest.requestId) return;
+    lastProcessedSearchNavRequestRef.current = searchNavigationRequest.requestId;
+
+    if (searchResultsRef.current.length === 0) {
+      publishSearchResults({ activeMatchIndex: -1 });
+      return;
+    }
+
+    const currentIndex = activeSearchMatchIndexRef.current >= 0 ? activeSearchMatchIndexRef.current : 0;
+    if (typeof searchNavigationRequest.targetIndex === "number") {
+      focusSearchMatch(searchNavigationRequest.targetIndex);
+      return;
+    }
+
+    if (searchNavigationRequest.direction === "previous") {
+      focusSearchMatch((currentIndex - 1 + searchResultsRef.current.length) % searchResultsRef.current.length);
+      return;
+    }
+
+    focusSearchMatch((currentIndex + 1) % searchResultsRef.current.length);
+  }, [focusSearchMatch, publishSearchResults, searchNavigationRequest]);
 
   // ResizeObserver to handle container resize (e.g., when assistant panel is resized)
   useEffect(() => {

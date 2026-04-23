@@ -10,16 +10,35 @@ interface MarkdownViewerProps {
   content?: string;
   /** Initial scroll percent to restore (0-100) */
   initialScrollPercent?: number;
+  highlightQuery?: string;
+  initialSearchTextQuote?: string;
+  searchQuery?: string;
+  activeSearchMatchIndex?: number;
+  onSearchResultsChange?: (totalMatches: number, activeMatchIndex: number) => void;
   /** Callback when scroll position changes */
   onScrollPositionChange?: (scrollPercent: number) => void;
   highlights?: AnchoredTextHighlight[];
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
 }
 
+function escapeRegex(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeMatchIndex(index: number, total: number): number {
+  if (total <= 0) return -1;
+  return ((index % total) + total) % total;
+}
+
 export function MarkdownViewer({
   document,
   content,
   initialScrollPercent,
+  highlightQuery,
+  initialSearchTextQuote,
+  searchQuery,
+  activeSearchMatchIndex,
+  onSearchResultsChange,
   onScrollPositionChange,
   highlights = [],
   onSelectionChange,
@@ -122,6 +141,109 @@ export function MarkdownViewer({
       signature: `${document.id}:${content ?? ""}`,
     });
   }, [content, document.id, highlights, html]);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root) return;
+
+    const signature = `${document.id}:${content ?? ""}:${highlights.length}`;
+    if (root.dataset.searchHighlightSignature !== signature) {
+      root.dataset.searchHighlightSignature = signature;
+      root.dataset.searchHighlightOriginalHtml = root.innerHTML;
+    }
+
+    root.innerHTML = root.dataset.searchHighlightOriginalHtml ?? root.innerHTML;
+
+    const query = searchQuery?.trim() || highlightQuery?.trim();
+    if (!query) {
+      onSearchResultsChange?.(0, -1);
+      return;
+    }
+
+    const terms = Array.from(new Set(query.split(/\s+/).map((term) => term.trim()).filter(Boolean))).slice(0, 8);
+    if (terms.length === 0) {
+      onSearchResultsChange?.(0, -1);
+      return;
+    }
+
+    const escaped = terms.map(escapeRegex);
+    const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+    const browserDocument = window.document;
+    const walker = browserDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (!node.nodeValue || !node.nodeValue.trim()) continue;
+      if (node.parentElement?.closest("[data-highlight-wrapper='true']")) continue;
+      textNodes.push(node);
+    }
+
+    for (const node of textNodes) {
+      const value = node.nodeValue ?? "";
+      if (!regex.test(value)) continue;
+      regex.lastIndex = 0;
+      const frag = browserDocument.createDocumentFragment();
+      let last = 0;
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(value)) !== null) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (start > last) frag.append(value.slice(last, start));
+        const mark = browserDocument.createElement("mark");
+        mark.setAttribute("data-search-highlight", "true");
+        mark.style.background = "rgba(245, 158, 11, 0.35)";
+        mark.style.borderRadius = "2px";
+        mark.textContent = value.slice(start, end);
+        frag.append(mark);
+        last = end;
+      }
+
+      if (last < value.length) frag.append(value.slice(last));
+      node.parentNode?.replaceChild(frag, node);
+    }
+
+    const marks = Array.from(root.querySelectorAll("mark[data-search-highlight='true']")) as HTMLElement[];
+    if (marks.length === 0) {
+      onSearchResultsChange?.(0, -1);
+      return;
+    }
+
+    const normalizedQuote = initialSearchTextQuote?.trim().toLowerCase();
+    const quoteMatchIndex = normalizedQuote
+      ? marks.findIndex((mark) => (mark.textContent ?? "").trim().toLowerCase() === normalizedQuote)
+      : -1;
+    const quotePartialMatchIndex =
+      quoteMatchIndex >= 0 || !normalizedQuote
+        ? -1
+        : marks.findIndex((mark) => (mark.textContent ?? "").trim().toLowerCase().includes(normalizedQuote));
+
+    const defaultActiveIndex =
+      quoteMatchIndex >= 0 ? quoteMatchIndex : quotePartialMatchIndex >= 0 ? quotePartialMatchIndex : 0;
+    const resolvedActiveIndex = normalizeMatchIndex(activeSearchMatchIndex ?? defaultActiveIndex, marks.length);
+    const activeMark = marks[resolvedActiveIndex];
+
+    marks.forEach((mark, index) => {
+      const isActive = index === resolvedActiveIndex;
+      mark.setAttribute("data-search-active", isActive ? "true" : "false");
+      mark.style.background = isActive ? "rgba(249, 115, 22, 0.55)" : "rgba(245, 158, 11, 0.35)";
+      mark.style.borderRadius = "2px";
+      mark.style.boxShadow = isActive ? "0 0 0 1px rgba(194, 65, 12, 0.35)" : "none";
+    });
+
+    onSearchResultsChange?.(marks.length, resolvedActiveIndex);
+    activeMark?.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+  }, [
+    activeSearchMatchIndex,
+    content,
+    document.id,
+    highlightQuery,
+    highlights.length,
+    initialSearchTextQuote,
+    onSearchResultsChange,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     const container = contentRef.current;

@@ -1,6 +1,6 @@
 //! Database connection management
 
-use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
+use sqlx::{Sqlite, SqlitePool, sqlite::SqliteConnectOptions, pool::PoolOptions};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -29,8 +29,12 @@ impl Database {
             // Enable foreign keys
             .pragma("foreign_keys", "ON");
 
-        // Create connection pool
-        let pool = SqlitePool::connect_with(options).await?;
+        // Create connection pool with increased limits for heavy workloads
+        let pool = PoolOptions::<Sqlite>::new()
+            .max_connections(20)
+            .acquire_timeout(Duration::from_secs(30))
+            .connect_with(options)
+            .await?;
 
         // Enable WAL mode for better concurrency
         sqlx::query("PRAGMA journal_mode = WAL")

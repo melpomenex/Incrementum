@@ -219,6 +219,7 @@ function App() {
         const { listen } = await import("@tauri-apps/api/event");
         unlisten = await listen<string>("global-shortcut", (event) => {
           const key = event.payload;
+          console.debug("[global-shortcut] received:", key);
           switch (key) {
             case "KeyQ":
               setCurrentPage("queue");
