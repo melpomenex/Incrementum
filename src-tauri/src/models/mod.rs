@@ -22,4 +22,4 @@ pub use reading_goal::{ReadingGoal, GoalType, GoalProgress, Achievement, Achieve
 pub use collection::{Collection, CollectionType, DocumentCollection, SmartCollectionFilter};
 pub use playlist::{PlaylistSubscription, PlaylistVideo, PlaylistSettings};
 pub use video_extract::VideoExtract;
-pub use image_asset::ImageAsset;
+pub use image_asset::{ImageAsset, ImageAssetWithUsage};

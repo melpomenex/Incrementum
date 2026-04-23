@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette } from "lucide-react";
+import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette, Images } from "lucide-react";
 import { useI18n, t } from "../../lib/i18n";
 
 /**
@@ -355,6 +355,15 @@ export function getDefaultCommands(): Command[] {
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/documents' })); },
       keywords: ["documents", "files", "library"],
       shortcut: "⌘1",
+    }),
+    createCommand({
+      id: "go-image-registry",
+      label: t("imageRegistry.pageTitle"),
+      description: t("imageRegistry.pageSubtitle"),
+      icon: <Images className="w-4 h-4" />,
+      category: CommandCategory.Navigation,
+      action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/image-registry' })); },
+      keywords: ["images", "screenshots", "registry", "library", "flashcards"],
     }),
     createCommand({
       id: "go-queue",

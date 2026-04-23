@@ -62,14 +62,14 @@ import {
   DollarSign,
   BarChart3,
   Type,
-  ImagePlus,
-  ClipboardPaste,
+  Images,
+  Expand,
 } from "lucide-react";
 import {
   createLearningItem,
   type CreateLearningItemInput,
 } from "../../api/learning-items";
-import { chatWithContext, type LLMMessage } from "../../api/llm";
+import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "../../api/llm";
 import {
   notebooklmGenerateArtifact,
   notebooklmGetSettings,
@@ -78,7 +78,7 @@ import {
   notebooklmSelectNotebook,
   type NotebookSummary,
 } from "../../api/integrations";
-import { deleteImageAsset, ingestImageBlob, ingestImageFile, listImageAssets, type ImageAsset } from "../../api/image-registry";
+import { getImageAssetById, ingestImageFile, listImageAssets, type ImageAsset } from "../../api/image-registry";
 import { getVideoTranscript } from "../../api/video-extracts";
 import { extractYouTubeID, fetchYouTubeTranscript } from "../../api/youtube";
 import { renderMarkdown } from "../../utils/markdown";
@@ -88,6 +88,7 @@ import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 import { buildChapterQAContext, getChapterTitles } from "../../utils/chapterUtils";
 import type { ImageOcclusionRegion, MultipleChoiceOption } from "../../types/learningItemInteractions";
+import { ImageRegistryLibrary } from "../image-registry/ImageRegistryLibrary";
 
 // =============================================================================
 // TYPES
@@ -241,6 +242,37 @@ Rules for excellent flashcards:
 - Create 3-7 cards per request unless specified otherwise
 - If the user is just chatting, answer normally without JSON`;
 
+const IMAGE_OCCLUSION_SYSTEM_PROMPT = `You create image occlusion flashcards from one or more study images.
+
+Return a JSON code block with this exact schema:
+
+\`\`\`json
+{
+  "cards": [
+    {
+      "type": "image-occlusion",
+      "imageAssetId": "exact-registry-asset-id",
+      "question": "What is hidden here?",
+      "answer": "Short reveal explanation",
+      "regions": [
+        { "x": 12.5, "y": 18.2, "width": 24.0, "height": 10.4, "label": "optional short label" }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Rules:
+- Return ONLY the JSON code block.
+- Use the provided imageAssetId values exactly as given.
+- Regions use percentages from 0 to 100 relative to the full image.
+- Create 1-4 useful hidden regions per image when the image supports it.
+- Hide labels, terms, callouts, diagram parts, answers, or key visual anchors.
+- Do not create tiny unusable boxes. Keep regions readable and reasonably tight.
+- Skip images that do not contain good occlusion targets.
+- Keep the question and answer concise.
+- Never invent imageAssetId values that were not provided.`;
+
 const QUICK_TEMPLATES: QuickTemplate[] = [
   {
     id: "summarize",
@@ -320,6 +352,60 @@ function normalizeCardType(value?: string): DraftCardType | null {
     return "image-occlusion";
   }
   return null;
+}
+
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function normalizeOcclusionRegions(value: unknown): ImageOcclusionRegion[] {
+  if (!Array.isArray(value)) return [];
+  const normalized: ImageOcclusionRegion[] = [];
+  value.forEach((entry, index) => {
+      const region = entry as Partial<ImageOcclusionRegion>;
+      const x = clampPercent(Number(region.x));
+      const y = clampPercent(Number(region.y));
+      const width = clampPercent(Number(region.width));
+      const height = clampPercent(Number(region.height));
+      if (width <= 0 || height <= 0) return;
+      normalized.push({
+        id: region.id || `region-${index + 1}`,
+        x,
+        y,
+        width: Math.min(width, 100 - x),
+        height: Math.min(height, 100 - y),
+        label: typeof region.label === "string" ? region.label : undefined,
+        color: typeof region.color === "string" ? region.color : undefined,
+      });
+    });
+  return normalized;
+}
+
+function modelSupportsImageInput(provider: string, model?: string, baseUrl?: string): boolean {
+  const normalizedModel = (model || "").trim().toLowerCase();
+  const normalizedBaseUrl = (baseUrl || "").trim().toLowerCase();
+
+  if (!normalizedModel) return false;
+
+  if (provider === "anthropic") {
+    return /claude-3|claude-3-5|claude-3\.5|claude-3-7|claude-sonnet|claude-opus|claude-haiku/.test(normalizedModel);
+  }
+
+  if (provider === "openai") {
+    return /gpt-4o|gpt-4\.1|gpt-4-turbo|vision|vl|llava|glm-4v|qwen.*vl|minicpm-v|gemma3|llama-3\.2-vision/.test(normalizedModel)
+      || (normalizedBaseUrl.includes("localhost") && /llava|vision|vl|glm-4v|qwen.*vl|minicpm-v|gemma3/.test(normalizedModel));
+  }
+
+  if (provider === "openrouter") {
+    return /gpt-4o|claude|gemini|vision|vl|llava|pixtral|glm-4v|qwen.*vl|minicpm-v|gemma3|llama-3\.2-vision/.test(normalizedModel);
+  }
+
+  if (provider === "ollama") {
+    return /llava|bakllava|vision|vl|qwen.*vl|minicpm-v|gemma3|llama-3\.2-vision/.test(normalizedModel);
+  }
+
+  return false;
 }
 
 function parseCardsFromResponse(content: string, sourceMessageId: string): { cards: DraftCard[]; cleaned: string } {
@@ -448,6 +534,10 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
         text?: string;
         options?: Array<string | MultipleChoiceOption>;
         correctOptionId?: string;
+        imageAssetId?: string;
+        imageOcclusionAssetId?: string;
+        regions?: unknown;
+        imageOcclusionRegions?: unknown;
       };
       let type = normalizeCardType(e?.type);
 
@@ -455,6 +545,7 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
       if (!type) {
         if (typeof e?.question === "string" && typeof e?.answer === "string") type = "qa";
         else if (typeof e?.question === "string" && Array.isArray(e?.options)) type = "multiple-choice";
+        else if ((typeof e?.imageAssetId === "string" || typeof e?.imageOcclusionAssetId === "string") && (Array.isArray(e?.regions) || Array.isArray(e?.imageOcclusionRegions))) type = "image-occlusion";
         else if (typeof e?.text === "string") type = "cloze";
       }
       if (!type) return;
@@ -503,6 +594,23 @@ function parseCardsFromResponse(content: string, sourceMessageId: string): { car
           answer: typeof e.answer === "string" ? e.answer.trim() : "",
           multipleChoiceOptions: options,
           multipleChoiceCorrectOptionId: correctOptionId,
+        });
+      } else if (type === "image-occlusion") {
+        const imageOcclusionAssetId =
+          typeof e.imageAssetId === "string"
+            ? e.imageAssetId.trim()
+            : typeof e.imageOcclusionAssetId === "string"
+            ? e.imageOcclusionAssetId.trim()
+            : "";
+        const imageOcclusionRegions = normalizeOcclusionRegions(e.regions ?? e.imageOcclusionRegions);
+        if (!imageOcclusionAssetId || imageOcclusionRegions.length === 0) return;
+        cards.push({
+          ...baseCard,
+          type: "image-occlusion",
+          question: typeof e.question === "string" ? e.question.trim() : "",
+          answer: typeof e.answer === "string" ? e.answer.trim() : "",
+          imageOcclusionAssetId,
+          imageOcclusionRegions,
         });
       }
     });
@@ -1178,6 +1286,7 @@ function CardPreview({
   const { t } = useI18n();
   const clozeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const sourceExcerptRef = useRef<HTMLDivElement>(null);
+  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
   const [sourceSelection, setSourceSelection] = useState<{
     text: string;
     startOffset: number;
@@ -1646,6 +1755,17 @@ function CardPreview({
                 <div className="text-sm font-medium text-foreground">{card.question || t("flashcardStudio.imageOcclusionCard")}</div>
                 {previewAsset ? (
                   <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIsImageLightboxOpen(true);
+                      }}
+                      className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-black/80"
+                    >
+                      <Expand className="h-3 w-3" />
+                      {t("flashcardStudio.expandImage")}
+                    </button>
                     <img src={previewAsset.data_url} alt={previewAsset.file_name || t("flashcardStudio.occlusionSource")} className="w-full object-contain" />
                     {!isFlipped &&
                       (card.imageOcclusionRegions || []).map((region, index) => (
@@ -1669,6 +1789,15 @@ function CardPreview({
                 {isFlipped && card.answer && (
                   <div className="text-xs text-muted-foreground">{card.answer}</div>
                 )}
+                {previewAsset ? (
+                  <ImageOcclusionLightbox
+                    isOpen={isImageLightboxOpen}
+                    asset={previewAsset}
+                    regions={(card.imageOcclusionRegions || []) as ImageOcclusionRegion[]}
+                    title={card.question || previewAsset.file_name || t("flashcardStudio.imageOcclusionCard")}
+                    onClose={() => setIsImageLightboxOpen(false)}
+                  />
+                ) : null}
               </div>
             ) : (
               <div className="text-sm text-foreground/90 leading-relaxed">
@@ -1702,6 +1831,7 @@ function ImageOcclusionEditor({
 }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
   const [draftRegion, setDraftRegion] = useState<ImageOcclusionRegion | null>(null);
 
@@ -1764,6 +1894,17 @@ function ImageOcclusionEditor({
         onPointerUp={commitDraft}
         onPointerLeave={commitDraft}
       >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsLightboxOpen(true);
+          }}
+          className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-black/80"
+        >
+          <Expand className="h-3 w-3" />
+          {t("flashcardStudio.expandImage")}
+        </button>
         <img src={asset.data_url} alt={asset.file_name || t("flashcardStudio.occlusionEditor")} className="w-full object-contain select-none" />
         {[...regions, ...(draftRegion ? [draftRegion] : [])].map((region, index) => (
           <div
@@ -1788,6 +1929,94 @@ function ImageOcclusionEditor({
         >
           {t("flashcardStudio.undoRegion")}
         </button>
+      </div>
+      <ImageOcclusionLightbox
+        isOpen={isLightboxOpen}
+        asset={asset}
+        regions={regions}
+        title={asset.file_name || t("flashcardStudio.occlusionEditor")}
+        onClose={() => setIsLightboxOpen(false)}
+      />
+    </div>
+  );
+}
+
+function ImageOcclusionLightbox({
+  isOpen,
+  asset,
+  regions,
+  title,
+  onClose,
+}: {
+  isOpen: boolean;
+  asset: ImageAsset | null;
+  regions: ImageOcclusionRegion[];
+  title: string;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !asset) {
+    return null;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 text-white">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">{title}</div>
+            <div className="text-xs text-slate-300">{t("flashcardStudio.imageLightboxHint")}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-white/10 p-2 text-slate-100 transition-colors hover:bg-white/20"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <div className="relative mx-auto w-full overflow-hidden rounded-2xl bg-black/40">
+            <img
+              src={asset.data_url}
+              alt={asset.file_name || title}
+              className="mx-auto block max-h-[calc(92vh-8rem)] w-full object-contain"
+            />
+            {regions.map((region, index) => (
+              <div
+                key={region.id || `${region.x}-${region.y}-${index}`}
+                className="absolute rounded border border-white/50 bg-slate-950/75"
+                style={{
+                  left: `${region.x}%`,
+                  top: `${region.y}%`,
+                  width: `${region.width}%`,
+                  height: `${region.height}%`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2057,6 +2286,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const [imageAssets, setImageAssets] = useState<ImageAsset[]>([]);
   const [selectedImageAssetIds, setSelectedImageAssetIds] = useState<string[]>([]);
   const [isImageImporting, setIsImageImporting] = useState(false);
+  const [isImageRegistryOpen, setIsImageRegistryOpen] = useState(false);
   const appliedSeedKeyRef = useRef<string | null>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -2064,7 +2294,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftCardsContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
-  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize provider
   useEffect(() => {
@@ -2114,20 +2343,19 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     }
   }, [isOpen, documents.length, loadDocuments]);
 
+  const refreshImageAssets = useCallback(async () => {
+    try {
+      const assets = await listImageAssets();
+      setImageAssets(Array.isArray(assets) ? assets : []);
+    } catch (error) {
+      console.error("Failed to load image registry assets", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
-
-    const loadImageAssets = async () => {
-      try {
-        const assets = await listImageAssets();
-        setImageAssets(Array.isArray(assets) ? assets : []);
-      } catch (error) {
-        console.error("Failed to load image registry assets", error);
-      }
-    };
-
-    void loadImageAssets();
-  }, [isOpen]);
+    void refreshImageAssets();
+  }, [isOpen, refreshImageAssets]);
 
   // Load saved state
   useEffect(() => {
@@ -2256,6 +2484,18 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     return enabledProviders.find((p) => p.id === selectedProviderId) || null;
   }, [enabledProviders, selectedProviderId]);
   const isNotebookProviderSelected = selectedProviderId === NOTEBOOKLM_PROVIDER_ID;
+  const canUseVisionOcclusion = useMemo(
+    () =>
+      Boolean(
+        currentProvider &&
+          modelSupportsImageInput(
+            currentProvider.provider,
+            currentProvider.model,
+            currentProvider.baseUrl?.trim() || undefined
+          )
+      ),
+    [currentProvider]
+  );
 
   // Get pricing for current provider's selected model
   const currentModelPricing = useMemo(() => {
@@ -2463,6 +2703,140 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       setViewMode("chat");
     }
   }, [isOpen, seed, createBlankDraftCard]);
+
+  const handleGenerateImageOcclusions = async () => {
+    if (isSending) return;
+    if (!currentProvider) {
+      toast.error(t("flashcardStudio.noLlmProvider"), t("flashcardStudio.noLlmProviderDesc"));
+      return;
+    }
+    if (!canUseVisionOcclusion) {
+      toast.error(t("flashcardStudio.imageOcclusionVisionUnsupported"), t("flashcardStudio.imageOcclusionVisionUnsupportedDesc"));
+      return;
+    }
+    if (selectedImageAssetIds.length === 0) {
+      toast.error(t("flashcardStudio.noImageSelected"), t("flashcardStudio.noImageSelectedDesc"));
+      return;
+    }
+
+    setIsSending(true);
+    setViewMode("chat");
+
+    const promptText = input.trim() || t("flashcardStudio.imageOcclusionAutoPrompt");
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: promptText,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const fullAssets = (
+        await Promise.all(selectedImageAssetIds.map((assetId) => getImageAssetById(assetId)))
+      ).filter((asset): asset is ImageAsset => Boolean(asset));
+
+      if (fullAssets.length === 0) {
+        throw new Error(t("flashcardStudio.noImageSelectedDesc"));
+      }
+
+      const userContent: LLMMessageContentPart[] = [];
+      const contextBlocks: string[] = [];
+
+      if (selectedDocument?.title) {
+        contextBlocks.push(`Related document: ${selectedDocument.title}`);
+      }
+      if (selectedDeck?.name) {
+        contextBlocks.push(`Target deck: ${selectedDeck.name}`);
+      }
+      if (contextContent?.trim()) {
+        contextBlocks.push(`Reference context:\n${contextContent.trim()}`);
+      }
+
+      userContent.push({
+        type: "text",
+        text: [
+          promptText,
+          "",
+          "Create image occlusion flashcards from the study images below.",
+          "Use the exact imageAssetId assigned to each image.",
+          "Return one JSON code block only.",
+          contextBlocks.length > 0 ? `\nSupporting context:\n${contextBlocks.join("\n\n")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
+
+      fullAssets.forEach((asset, index) => {
+        userContent.push({
+          type: "text",
+          text: `Image ${index + 1}\nimageAssetId: ${asset.id}\nfileName: ${asset.file_name || "untitled"}\nTask: hide the most useful answer-bearing labels or regions in this image.`,
+        });
+        userContent.push({
+          type: "image_url",
+          imageUrl: asset.data_url,
+        });
+      });
+
+      const llmMessages: LLMMessage[] = [
+        { role: "system", content: IMAGE_OCCLUSION_SYSTEM_PROMPT },
+        { role: "user", content: userContent },
+      ];
+
+      const response = await chatWithContext(
+        currentProvider.provider,
+        currentProvider.model,
+        llmMessages,
+        {
+          type: selectedDocument ? "document" : "general",
+          documentId: selectedDocument?.id,
+          content: contextContent,
+          contextWindowTokens: maxTokens,
+        },
+        currentProvider.apiKey,
+        currentProvider.baseUrl?.trim() || undefined
+      );
+
+      const assistantId = `assistant-${Date.now()}`;
+      const { cards, cleaned } = parseCardsFromResponse(response.content, assistantId);
+      const occlusionCards = cards.filter((card) => card.type === "image-occlusion");
+
+      const assistantMessage: ChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        content: cleaned || response.content,
+        timestamp: Date.now(),
+        cardsGenerated: occlusionCards.length,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      if (occlusionCards.length === 0) {
+        throw new Error(t("flashcardStudio.imageOcclusionNoCards"));
+      }
+
+      setDraftCards((prev) => [...occlusionCards, ...prev]);
+      toast.success(
+        t("flashcardStudio.imageOcclusionCardsGenerated", { count: occlusionCards.length }),
+        t("flashcardStudio.imageOcclusionCardsGeneratedDesc")
+      );
+    } catch (error) {
+      toast.error(
+        t("flashcardStudio.imageOcclusionGenerationFailed"),
+        error instanceof Error ? error.message : t("flashcardStudio.failedReachLlm")
+      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: "system",
+          content: `Error: ${error instanceof Error ? error.message : t("flashcardStudio.imageOcclusionGenerationFailed")}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleSend = async (customPrompt?: string) => {
     const promptText = customPrompt || input;
@@ -2753,107 +3127,43 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     setIsSaving(false);
   };
 
-  const handleImportImageClick = () => {
-    imageFileInputRef.current?.click();
-  };
-
-  const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
+  const ingestFilesIntoRegistry = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
     setIsImageImporting(true);
     try {
-      const imported = await Promise.all(Array.from(files).map((file) => ingestImageFile(file)));
+      const previousIds = new Set(imageAssets.map((asset) => asset.id));
+      const imported = await Promise.all(files.map((file) => ingestImageFile(file)));
+      const importedIds = imported.map((asset) => asset.id);
+      const duplicateCount = importedIds.filter((id) => previousIds.has(id)).length;
+
       setImageAssets((prev) => {
         const merged = [...imported, ...prev];
         const dedup = new Map(merged.map((asset) => [asset.id, asset]));
         return Array.from(dedup.values());
       });
-      const importedIds = imported.map((asset) => asset.id);
       setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
-      toast.success(t("flashcardStudio.imagesImported"), t("flashcardStudio.imagesImportedDesc", { count: imported.length }));
+
+      if (duplicateCount > 0 && duplicateCount === imported.length) {
+        toast.info(t("imageRegistry.duplicateReused"), t("imageRegistry.duplicateReusedDesc", { count: duplicateCount }));
+      } else {
+        toast.success(
+          t("flashcardStudio.imagesImported"),
+          duplicateCount > 0
+            ? t("imageRegistry.assetsAddedWithDuplicates", { added: imported.length - duplicateCount, duplicates: duplicateCount })
+            : t("flashcardStudio.imagesImportedDesc", { count: imported.length })
+        );
+      }
     } catch (error) {
       toast.error(t("flashcardStudio.imageImportFailed"), error instanceof Error ? error.message : t("flashcardStudio.unableImportImage"));
     } finally {
       setIsImageImporting(false);
-      event.target.value = "";
     }
-  };
-
-  const handlePasteImage = async () => {
-    setIsImageImporting(true);
-    try {
-      if (!navigator.clipboard?.read) {
-        throw new Error("Clipboard image read is not available in this environment.");
-      }
-      const clipboardItems = await navigator.clipboard.read();
-      const imageBlobPromises: Promise<Blob>[] = [];
-
-      for (const item of clipboardItems) {
-        const imageType = item.types.find((type) => type.startsWith("image/"));
-        if (imageType) {
-          imageBlobPromises.push(item.getType(imageType));
-        }
-      }
-
-      if (imageBlobPromises.length === 0) {
-        throw new Error("Clipboard does not contain an image.");
-      }
-
-      const blobs = await Promise.all(imageBlobPromises);
-      const imported = await Promise.all(
-        blobs.map((blob, index) => ingestImageBlob(blob, `clipboard-image-${Date.now()}-${index}.png`))
-      );
-
-      setImageAssets((prev) => {
-        const merged = [...imported, ...prev];
-        const dedup = new Map(merged.map((asset) => [asset.id, asset]));
-        return Array.from(dedup.values());
-      });
-      const importedIds = imported.map((asset) => asset.id);
-      setSelectedImageAssetIds((prev) => Array.from(new Set([...prev, ...importedIds])));
-      toast.success(t("flashcardStudio.imagePasted"), t("flashcardStudio.imagePastedDesc", { count: imported.length }));
-    } catch (error) {
-      toast.error(t("flashcardStudio.pasteFailed"), error instanceof Error ? error.message : t("flashcardStudio.unablePasteImage"));
-    } finally {
-      setIsImageImporting(false);
-    }
-  };
+  }, [imageAssets, t, toast]);
 
   const toggleSelectedImageAsset = (assetId: string) => {
     setSelectedImageAssetIds((prev) =>
       prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
     );
-  };
-
-  const handleDeleteSelectedImages = async () => {
-    if (selectedImageAssetIds.length === 0) return;
-    setIsImageImporting(true);
-    try {
-      const results = await Promise.all(selectedImageAssetIds.map((id) => deleteImageAsset(id)));
-      const deletedIds = selectedImageAssetIds.filter((_, index) => results[index]?.deleted);
-      const blockedReasons = results
-        .filter((result) => !result.deleted && result.reason)
-        .map((result) => result.reason)
-        .filter((reason, index, arr) => reason && arr.indexOf(reason) === index);
-
-      if (deletedIds.length > 0) {
-        setImageAssets((prev) => prev.filter((asset) => !deletedIds.includes(asset.id)));
-      }
-
-      if (blockedReasons.length > 0) {
-        toast.warning(t("flashcardStudio.someImagesFailedDelete"), blockedReasons.join(" "));
-      }
-      if (deletedIds.length > 0) {
-        toast.success(t("flashcardStudio.imagesDeleted"), t("flashcardStudio.imagesDeletedDesc", { count: deletedIds.length }));
-      }
-
-      setSelectedImageAssetIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
-    } catch (error) {
-      toast.error(t("flashcardStudio.deleteFailed"), error instanceof Error ? error.message : t("flashcardStudio.unableDeleteImages"));
-    } finally {
-      setIsImageImporting(false);
-    }
   };
 
   const handleTemplateSelect = (template: QuickTemplate) => {
@@ -2933,7 +3243,17 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onPasteCapture={(event) => {
+        if (isImageRegistryOpen) return;
+        const imageFiles = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"));
+        if (imageFiles.length === 0) return;
+
+        event.preventDefault();
+        void ingestFilesIntoRegistry(imageFiles);
+      }}
+    >
       <div className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-6 py-4">
@@ -3067,40 +3387,30 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           )}
 
           <div className="ml-auto flex items-center gap-2">
-            <input
-              ref={imageFileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleImageFileChange}
-            />
             <button
               type="button"
-              onClick={handleImportImageClick}
-              disabled={isImageImporting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
+              onClick={() => void handleGenerateImageOcclusions()}
+              disabled={isImageImporting || isSending || selectedImageAssetIds.length === 0 || !canUseVisionOcclusion}
+              title={
+                selectedImageAssetIds.length === 0
+                  ? t("flashcardStudio.noImageSelectedDesc")
+                  : !canUseVisionOcclusion
+                  ? t("flashcardStudio.imageOcclusionVisionUnsupportedDesc")
+                  : t("flashcardStudio.generateImageOcclusions")
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-50"
             >
-              <ImagePlus className="w-3.5 h-3.5" />
-              {t("flashcardStudio.importImage")}
+              {isSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {t("flashcardStudio.generateImageOcclusions")}
             </button>
             <button
               type="button"
-              onClick={handlePasteImage}
+              onClick={() => setIsImageRegistryOpen(true)}
               disabled={isImageImporting}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-60"
             >
-              <ClipboardPaste className="w-3.5 h-3.5" />
-              {t("flashcardStudio.pasteImage")}
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteSelectedImages}
-              disabled={isImageImporting || selectedImageAssetIds.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-60"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {t("flashcardStudio.deleteSelected")}
+              <Images className="w-3.5 h-3.5" />
+              {t("flashcardStudio.openImageLibrary")}
             </button>
           </div>
           {imageAssets.length > 0 && (
@@ -3124,6 +3434,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               })}
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {t("flashcardStudio.selectedCount", { count: selectedImageAssetIds.length })}
+              </span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {t("flashcardStudio.imagePasteHint")}
               </span>
             </div>
           )}
@@ -3620,6 +3933,28 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           </div>
         </div>
       </div>
+
+      {isImageRegistryOpen && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/60 p-4">
+          <div className="h-[88vh] w-full max-w-7xl">
+            <ImageRegistryLibrary
+              initialSelectedIds={selectedImageAssetIds}
+              onSelectedIdsChange={setSelectedImageAssetIds}
+              onAssetsChange={setImageAssets}
+              onClose={() => setIsImageRegistryOpen(false)}
+              onConfirmSelection={(ids) => {
+                setSelectedImageAssetIds(ids);
+                setIsImageRegistryOpen(false);
+              }}
+              showCloseButton
+              showConfirmButton
+              title={t("flashcardStudio.imageLibraryTitle")}
+              subtitle={t("flashcardStudio.imageLibrarySubtitle")}
+              confirmLabel={t("flashcardStudio.useSelectedImages")}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
       {showShortcuts && (

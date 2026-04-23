@@ -22,6 +22,7 @@ interface BreadcrumbProps {
 const routeToBreadcrumb: Record<string, BreadcrumbItem[]> = {
   "/dashboard": [{ label: "Dashboard" }],
   "/documents": [{ label: "Documents" }],
+  "/image-registry": [{ label: "Image Registry" }],
   "/queue": [{ label: "Queue" }],
   "/queue-scroll": [{ label: "Queue" }, { label: "Scroll View" }],
   "/review": [{ label: "Review" }],

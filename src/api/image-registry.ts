@@ -9,6 +9,8 @@ export interface ImageAsset {
   width?: number;
   height?: number;
   created_at: string;
+  reference_count?: number;
+  is_referenced?: boolean;
   data_url: string;
 }
 

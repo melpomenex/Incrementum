@@ -16,3 +16,9 @@ pub struct ImageAsset {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageAssetWithUsage {
+    pub asset: ImageAsset,
+    pub reference_count: i64,
+}
