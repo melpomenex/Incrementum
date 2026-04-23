@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.23.0] - 2026-04-23
+
+### Added
+
+- **Extract-to-document navigation** — extracts created from the queue scroll page now carry source context, so jumping back to the source document lands on the exact extract. The extracts list highlights the focused extract and offers a "back to source" button.
+- **Text highlight persistence** — anchored text highlights can be rendered inside extract cards and the document viewer using character-offset positions, with a new `textHighlights` utility that walks text nodes, wraps ranges in `<mark>` elements, and avoids re-highlighting already-wrapped content.
+- **Extract color highlighting** — extracts now display their highlight color inline, and a unified `highlightColors` utility normalizes named colors (yellow, green, blue, pink, purple) across PDF, EPUB, and text surfaces.
+- **Source-aware extract creation from queue** — creating an extract in queue scroll mode records the document, queue type, and source kind, enabling round-trip navigation between queue items and their extracts.
+
+### Changed
+
+- **Document viewer refactored for extract navigation** — `DocumentViewer` accepts `focusedExtractId`, `extractSourceContext`, and `extractPostCreateBehavior` props, enabling external callers (queue, extracts list) to drive extract-focused workflows without embedding application logic in the viewer.
+- **Local video player media source abstraction** — the video and audio player now resolves local media through a new `localMediaSources` module that classifies errors (access denied, unsupported format, decode failure) and supports multi-source fallback, replacing the previous single-string `src` prop.
+
+### Fixed
+
+- **Queue performance** — the queue command now batch-fetches all document titles in a single query instead of issuing per-item lookups, reducing N+1 database round-trips when the queue contains many items with extracts.
+- **Source context lost after extract creation** — creating extracts from the queue previously discarded the source navigation context; the full document/queue/scroll state is now preserved so the "return to source" flow works correctly.
+- **Toast notification on segment action** — clicking the segment button now shows a toast confirming the action was triggered.
+
 ## [1.22.1] - 2026-04-22
 
 ### Fixed
