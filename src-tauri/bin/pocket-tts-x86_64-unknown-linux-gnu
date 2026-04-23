@@ -8,8 +8,9 @@
 set -eu
 
 # Strip AppImage environment variables that interfere with Python's
-# ability to locate its standard library (encodings module, etc.).
-unset APPDIR APPIMAGE OWD LD_LIBRARY_PATH PYTHONHOME PYTHONPATH
+# ability to locate its standard library (encodings module, etc.)
+# and with the system shell/readline (symbol lookup errors).
+unset APPDIR APPIMAGE OWD LD_LIBRARY_PATH LD_PRELOAD PYTHONHOME PYTHONPATH
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/x86_64-unknown-linux-gnu"
