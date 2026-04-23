@@ -147,16 +147,26 @@ pub async fn generate_pocket_speech(
     std::fs::create_dir_all(&cache_dir)?;
     let output_path = cache_dir.join(format!("pocket-tts-{}.wav", uuid::Uuid::new_v4()));
 
+    let output_str = output_path.to_str()
+        .ok_or_else(|| anyhow!("Invalid output path"))?;
+
     let shell = app_handle.shell();
     let cmd = shell.sidecar("pocket-tts")
         .map_err(|e| anyhow!("Pocket TTS sidecar not found: {}", e))?;
 
+    // For long text, write to a temp file and pass --text-file instead of --text
+    // to avoid OS ARG_MAX limits (especially inside AppImages).
+    let text_file = cache_dir.join(format!("pocket-tts-input-{}.txt", uuid::Uuid::new_v4()));
+    std::fs::write(&text_file, &text)?;
+    let text_file_str = text_file.to_str()
+        .ok_or_else(|| anyhow!("Invalid text file path"))?;
+
     let (mut rx, _) = cmd
         .args([
             "generate",
-            "--text", &text,
+            "--text-file", text_file_str,
             "--voice", voice_id.as_str(),
-            "--output-path", output_path.to_str().unwrap(),
+            "--output-path", output_str,
         ])
         .spawn()?;
 
@@ -173,6 +183,8 @@ pub async fn generate_pocket_speech(
             }
             CommandEvent::Terminated(payload) => {
                 success = payload.code == Some(0);
+                // Clean up text file if the wrapper didn't consume it
+                let _ = std::fs::remove_file(&text_file);
                 break;
             }
             _ => {}

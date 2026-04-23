@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.23.2] - 2026-04-23
+
+### Fixed
+
+- **Windows menu bar clutter** — the native menu bar (showing keyboard shortcuts) is now hidden on Windows; all shortcuts still work via the registered accelerators and global-shortcut plugin.
+- **Pocket TTS "Argument list too long"** — long text passed to the Pocket TTS sidecar exceeded OS ARG_MAX limits, especially inside AppImages; text is now written to a temp file and read by the wrapper script to avoid shell argument limits.
+- **PWA maskable icon background** — maskable icons had transparent backgrounds causing Android to fill with a default purple; regenerated with solid dark background matching the manifest's `background_color`.
+
 ## [1.23.1] - 2026-04-23
 
 ### Added
