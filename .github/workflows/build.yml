@@ -633,7 +633,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test:run
+        run: npm run test:run -- --no-file-parallelism --maxWorkers=1
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
