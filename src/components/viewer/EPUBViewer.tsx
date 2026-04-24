@@ -10,6 +10,7 @@ import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { normalizeHighlightColor } from "../../utils/highlightColors";
+import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 
 // Define outside component to keep a stable reference across renders
 const FONT_FAMILY_MAP: Record<string, string> = {
@@ -1265,9 +1266,9 @@ export function EPUBViewer({
   };
 
   const handleCommandPaletteHotkey = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    if (isCommandPaletteOpenShortcut(e)) {
       e.preventDefault();
-      window.dispatchEvent(new CustomEvent("command-palette-open"));
+      dispatchCommandPaletteOpen();
     }
   }, []);
 

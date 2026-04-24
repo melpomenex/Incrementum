@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.4] - 2026-04-24
+
+### Fixed
+
+- **Command palette hotkey regression** — restored reliable command palette activation with `Ctrl+K` on Linux and Windows and `Cmd+K` on macOS by routing app-shell, native shortcut, search, and reader-surface handlers through the shared `command-palette-open` event.
+- **Reader-focused command palette shortcuts** — document and EPUB viewer shortcut bridges now use the same cross-platform matcher as the app shell, including `Ctrl/Cmd+P` as the existing alternate palette shortcut and editable-field safeguards.
+
 ## [1.23.3] - 2026-04-24
 
 ### Fixed

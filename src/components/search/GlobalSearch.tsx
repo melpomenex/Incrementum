@@ -11,6 +11,7 @@ import { useURLMetadata, useURLImport, useDuplicateCheck } from "../../hooks/use
 import { ImportPreview, type ImportOptions } from "../import/ImportPreview";
 import { useToast } from "../../components/common/Toast";
 import type { SearchHit } from "../../types/searchHit";
+import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 
 /**
  * Search result types
@@ -265,10 +266,9 @@ export function GlobalSearch({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) {
-        // Open on Ctrl+K or Cmd+K
-        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        if (isCommandPaletteOpenShortcut(e)) {
           e.preventDefault();
-          setIsOpen(true);
+          dispatchCommandPaletteOpen();
         }
         return;
       }
