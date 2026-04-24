@@ -26,6 +26,8 @@ import { useToast } from "../common/Toast";
 
 type SortMode = "newest" | "oldest" | "name" | "size";
 
+const EMPTY_SELECTED_IDS: string[] = [];
+
 export interface ImageRegistryLibraryProps {
   className?: string;
   initialSelectedIds?: string[];
@@ -42,7 +44,7 @@ export interface ImageRegistryLibraryProps {
 
 export function ImageRegistryLibrary({
   className,
-  initialSelectedIds = [],
+  initialSelectedIds = EMPTY_SELECTED_IDS,
   onSelectedIdsChange,
   onConfirmSelection,
   onClose,
@@ -78,7 +80,7 @@ export function ImageRegistryLibrary({
       console.error("Failed to load image registry library", error);
       toast.error(t("imageRegistry.loadFailed"), error instanceof Error ? error.message : undefined);
     }
-  }, [onAssetsChange, t, toast]);
+  }, [onAssetsChange]);
 
   useEffect(() => {
     void loadAssets();

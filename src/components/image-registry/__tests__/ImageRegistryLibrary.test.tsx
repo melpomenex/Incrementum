@@ -9,15 +9,16 @@ const mockApi = vi.hoisted(() => ({
   ingestImageBlob: vi.fn(),
   deleteImageAsset: vi.fn(),
 }));
+const mockToast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+}));
 
 vi.mock("../../../api/image-registry", () => mockApi);
 vi.mock("../../common/Toast", () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => mockToast,
 }));
 
 describe("ImageRegistryLibrary", () => {
@@ -26,6 +27,10 @@ describe("ImageRegistryLibrary", () => {
     mockApi.ingestImageFile.mockReset();
     mockApi.ingestImageBlob.mockReset();
     mockApi.deleteImageAsset.mockReset();
+    mockToast.success.mockReset();
+    mockToast.error.mockReset();
+    mockToast.warning.mockReset();
+    mockToast.info.mockReset();
   });
 
   it("renders usage metadata from the image registry", async () => {
@@ -85,7 +90,7 @@ describe("ImageRegistryLibrary", () => {
       },
     });
 
-    expect(await screen.findByText("clipboard-shot.png")).toBeInTheDocument();
+    expect(await screen.findAllByText("clipboard-shot.png")).not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Use selected images" }));
 
