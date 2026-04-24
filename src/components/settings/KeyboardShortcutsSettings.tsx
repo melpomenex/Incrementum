@@ -8,6 +8,7 @@ import {
   ShortcutCategory,
   formatKeyCombo,
   useShortcutStore,
+  findConflicts,
 } from "../common/KeyboardShortcuts";
 import { useVimiumEnabled } from "../common/VimiumNavigation";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
@@ -183,6 +184,11 @@ function ShortcutRecorder({
         return;
       }
 
+      const modifierKeys = ["Control", "Alt", "Shift", "Meta", "OS"];
+      if (modifierKeys.includes(event.key)) {
+        return;
+      }
+
       onUpdate({
         key: event.key,
         ctrl: event.ctrlKey,
@@ -219,6 +225,32 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
   const { t } = useI18n();
   const { shortcuts, updateShortcut, resetShortcut, resetAll } = useShortcutStore();
   const [vimiumEnabled, setVimiumEnabled] = useVimiumEnabled();
+  const [conflicts, setConflicts] = useState<Record<string, string>>({});
+
+  const handleUpdateShortcut = (id: string, combo: { key: string; ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }) => {
+    updateShortcut(id, combo);
+
+    const newConflicts = { ...conflicts };
+    delete newConflicts[id];
+    const conflicting = findConflicts(combo, id, useShortcutStore.getState().shortcuts);
+    if (conflicting.length > 0) {
+      const names = conflicting.map((s) => s.name).join(", ");
+      newConflicts[id] = names;
+    }
+    setConflicts(newConflicts);
+
+    onChange();
+  };
+
+  const handleResetShortcut = (id: string) => {
+    resetShortcut(id);
+    setConflicts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    onChange();
+  };
 
   const grouped = shortcuts.reduce((acc, shortcut) => {
     if (!acc[shortcut.category]) {
@@ -271,19 +303,13 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
                       {shortcut.editable !== false && (
                         <ShortcutRecorder
                           combo={combo}
-                          onUpdate={(newCombo) => {
-                            updateShortcut(shortcut.id, newCombo);
-                            onChange();
-                          }}
+                          onUpdate={(newCombo) => handleUpdateShortcut(shortcut.id, newCombo)}
                         />
                       )}
 
                       {shortcut.currentCombo && (
                         <button
-                          onClick={() => {
-                            resetShortcut(shortcut.id);
-                            onChange();
-                          }}
+                          onClick={() => handleResetShortcut(shortcut.id)}
                           className="p-2 hover:bg-destructive/10 hover:text-destructive rounded"
                           title={t("settings.resetToDefault")}
                         >
@@ -291,6 +317,12 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
                         </button>
+                      )}
+
+                      {conflicts[shortcut.id] && (
+                        <span className="text-xs text-destructive ml-2">
+                          {t("settings.shortcutConflict")}: {conflicts[shortcut.id]}
+                        </span>
                       )}
                     </div>
                   </SettingsRow>

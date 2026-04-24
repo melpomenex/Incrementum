@@ -2216,6 +2216,7 @@ export const ja: Dict = {
   "settings.refreshInterval": "更新間隔",
   "settings.refreshIntervalDesc": "新しい期限項目を確認する頻度",
   "settings.resetAllDefaults": "すべてデフォルトにリセット",
+  "settings.shortcutConflict": "競合:",
   "settings.rssAutoRemoveOld": "古い項目を自動削除",
   "settings.rssExcludeAll": "すべて除外",
   "settings.rssExcludeFromQueue": "キューから除外",

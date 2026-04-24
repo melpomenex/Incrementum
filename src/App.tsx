@@ -9,6 +9,10 @@ import { WelcomeScreen } from "./components/onboarding/WelcomeScreen";
 import { SignupPrompt } from "./components/onboarding/SignupPrompt";
 import { InteractiveTutorial } from "./components/onboarding/InteractiveTutorial";
 import { KeyboardShortcutsHelp } from "./components/common/KeyboardShortcutsHelp";
+import {
+  eventMatchesCombo,
+  useShortcutStore,
+} from "./components/common/KeyboardShortcuts";
 import { hasImportedDemoContent, markDemoContentImported } from "./utils/demoContent";
 import { useToast } from "./components/common/Toast";
 import { initializeNotifications } from "./utils/notificationService";
@@ -113,6 +117,30 @@ function isAppPage(page: string): page is AppPage {
   ].includes(page);
 }
 
+interface ShortcutDispatch {
+  setCurrentPage: (page: AppPage) => void;
+  setShowShortcutsHelp: (show: boolean) => void;
+}
+
+const SHORTCUT_ACTION_HANDLERS: Record<string, (d: ShortcutDispatch) => void> = {
+  "nav.command-palette": () => dispatchCommandPaletteOpen(),
+  "gen.settings": (d) => d.setCurrentPage("settings"),
+  "gen.help": (d) => d.setShowShortcutsHelp(true),
+  "gen.quit": (d) => d.setCurrentPage("queue"),
+  "review.start": (d) => {
+    d.setCurrentPage("queue");
+    setTimeout(() => window.dispatchEvent(new CustomEvent("start-review-session")), 0);
+  },
+  "doc.import": (d) => {
+    d.setCurrentPage("documents");
+    setTimeout(() => window.dispatchEvent(new CustomEvent("import-document")), 0);
+  },
+  "edit.new-document": (d) => {
+    d.setCurrentPage("documents");
+    setTimeout(() => window.dispatchEvent(new CustomEvent("import-document")), 0);
+  },
+};
+
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const loadAll = useAnalyticsStore((state) => state.loadAll);
@@ -208,6 +236,20 @@ function App() {
     return () => document.removeEventListener("keydown", captureShortcuts, true);
   }, []);
 
+  // Direct capture-phase fallback for command palette defaults. This keeps
+  // Ctrl/Cmd+K and Ctrl/Cmd+P working when the webview or native menu stack
+  // consumes the event before the normal window handler sees it.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isCommandPaletteOpenShortcut(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dispatchCommandPaletteOpen();
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
+
   // Tauri-level global shortcut handler: receives shortcuts registered at the
   // native level (lib.rs) which fire BEFORE webkit2gtk can intercept them.
   useEffect(() => {
@@ -257,65 +299,37 @@ function App() {
     return () => { unlisten?.(); };
   }, []);
 
-  // Direct Ctrl+K / Ctrl+P handler as fallback for Linux AppImage where
-  // WebKitGTK may consume the keydown before the JS handler or global-shortcut plugin can catch it.
+  // Consolidated JS keydown handler: iterates over customizable store shortcuts,
+  // matches via eventMatchesCombo, and dispatches via the action handler map.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isCommandPaletteOpenShortcut(e)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      dispatchCommandPaletteOpen();
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, []);
+      if (isEditableShortcutTarget(e.target)) return;
 
-  // Keyboard shortcut to show help
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      const isTyping = isEditableShortcutTarget(e.target);
+      const shortcuts = useShortcutStore.getState().shortcuts;
+      const dispatch: ShortcutDispatch = {
+        setCurrentPage,
+        setShowShortcutsHelp,
+      };
 
-      if (isTyping) {
-        return;
+      for (const shortcut of shortcuts) {
+        const combo = shortcut.currentCombo || shortcut.defaultCombo;
+        if (eventMatchesCombo(e, combo)) {
+          const handler = SHORTCUT_ACTION_HANDLERS[shortcut.id];
+          if (handler) {
+            e.preventDefault();
+            handler(dispatch);
+            return;
+          }
+        }
       }
 
+      // Handle shortcuts not in the customizable store
+      const mod = e.metaKey || e.ctrlKey;
       if (mod) {
         const key = e.key.toLowerCase();
-        if (isCommandPaletteOpenShortcut(e)) {
-          e.preventDefault();
-          dispatchCommandPaletteOpen();
-          return;
-        }
-        if (key === ",") {
-          e.preventDefault();
-          setCurrentPage("settings");
-          return;
-        }
         if (key === "d") {
           e.preventDefault();
           setCurrentPage("dashboard");
-          return;
-        }
-        if (key === "q") {
-          e.preventDefault();
-          setCurrentPage("queue");
-          return;
-        }
-        if (key === "r") {
-          e.preventDefault();
-          setCurrentPage("queue");
-          window.setTimeout(() => {
-            window.dispatchEvent(new CustomEvent("start-review-session"));
-          }, 0);
-          return;
-        }
-        if (key === "o" || key === "n") {
-          e.preventDefault();
-          setCurrentPage("documents");
-          window.setTimeout(() => {
-            window.dispatchEvent(new CustomEvent("import-document"));
-          }, 0);
           return;
         }
         if (e.key === "/") {
@@ -325,13 +339,10 @@ function App() {
         }
       }
 
-      // Show shortcuts help on '?' key (but not when typing in inputs)
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
-        if (isTyping) {
-          return;
-        }
         e.preventDefault();
         setShowShortcutsHelp(true);
+        return;
       }
     };
 

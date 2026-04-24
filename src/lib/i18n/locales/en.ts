@@ -2926,6 +2926,7 @@ export const en: Dict = {
   "settings.keyboardShortcutsDesc": "Customize keyboard shortcuts for quick actions",
   "settings.pressKeys": "Press keys...",
   "settings.resetAllDefaults": "Reset all to defaults",
+  "settings.shortcutConflict": "Conflicts with",
   "settings.vimiumNavigation": "Vimium Navigation",
   "settings.vimiumNavigationDesc": "Vimium-style keyboard navigation settings",
   "settings.enableVimium": "Enable Vimium Navigation",
