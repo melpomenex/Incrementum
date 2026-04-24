@@ -474,6 +474,7 @@ jobs:
           RUST_MIN_STACK: 33554432
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "1"
           SQLITE3_STATIC: "0"
+          ZSTD_SYS_USE_PKG_CONFIG: "1"
           RUSTFLAGS: -C link-arg=-lsqlite3 -C link-arg=-lzstd
 
       - name: Create Pacman package
@@ -493,8 +494,8 @@ jobs:
           arch=('x86_64')
           url="https://github.com/melpomenex/incrementum-tauri"
           license=('MIT')
-          depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc')
-          makedepends=('rust')
+          depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc' 'zstd')
+          makedepends=('rust' 'pkgconf')
           optdepends=('notebooklm-py: NotebookLM integration for AI-powered flashcard generation'
                       'python-notebooklm: Alternative NotebookLM package')
           source=("\$pkgname-\$pkgver::git+https://github.com/melpomenex/incrementum-tauri.git#tag=v\$pkgver")
@@ -505,7 +506,7 @@ jobs:
             npm ci
             npm run build
             cd src-tauri
-            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 RUSTFLAGS="-C link-arg=-lsqlite3 -C link-arg=-lzstd" cargo build --release
+            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 ZSTD_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-C link-arg=-lsqlite3 -C link-arg=-lzstd" cargo build --release
           }
 
           package() {
