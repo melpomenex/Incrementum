@@ -54,7 +54,7 @@ describe("ImageRegistryLibrary", () => {
 
     expect(await screen.findByText("diagram.png")).toBeInTheDocument();
     expect(screen.getByText("In use")).toBeInTheDocument();
-    expect(screen.getByText("Used in 2 flashcard(s)")).toBeInTheDocument();
+    expect(await screen.findByText("Used in 2 flashcard(s)")).toBeInTheDocument();
   });
 
   it("ingests pasted image files and returns the selection", async () => {
