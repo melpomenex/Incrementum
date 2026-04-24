@@ -43,6 +43,7 @@ import type { DocumentSearchState } from "../../types/searchHit";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
+import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 import {
   flushAllViewStateWrites,
   getPreferredViewStateKey,
@@ -3368,9 +3369,9 @@ export function DocumentViewer({
     if (!win) return;
 
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k" || e.key.toLowerCase() === "p")) {
+      if (isCommandPaletteOpenShortcut(e)) {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent("command-palette-open"));
+        dispatchCommandPaletteOpen();
       }
     };
 

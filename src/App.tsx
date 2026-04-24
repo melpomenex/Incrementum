@@ -20,6 +20,11 @@ import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
 import { QuickReviewWidget, InlineQuickReview, FloatingReviewButton } from "./components/review/QuickReviewWidget";
 import { ShortcutTooltip } from "./components/common/ShortcutTooltip";
 import { ClipboardQuickAddWatcher } from "./components/common/ClipboardQuickAddWatcher";
+import {
+  dispatchCommandPaletteOpen,
+  isCommandPaletteOpenShortcut,
+  isEditableShortcutTarget,
+} from "./utils/commandPaletteShortcut";
 
 // Page components
 import { DocumentsPage } from "./pages/DocumentsPage";
@@ -191,14 +196,7 @@ function App() {
     const captureShortcuts = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
+      if (isEditableShortcutTarget(e.target)) {
         return;
       }
       const key = e.key.toLowerCase();
@@ -235,7 +233,7 @@ function App() {
               break;
             case "KeyK":
             case "KeyP":
-              window.dispatchEvent(new CustomEvent("command-palette-open"));
+              dispatchCommandPaletteOpen();
               break;
             case "Comma":
               setCurrentPage("settings");
@@ -263,14 +261,10 @@ function App() {
   // WebKitGTK may consume the keydown before the JS handler or global-shortcut plugin can catch it.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "k" && e.key !== "K" && e.key !== "p" && e.key !== "P") return;
-      if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.shiftKey || e.altKey) return;
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      if (!isCommandPaletteOpenShortcut(e)) return;
       e.preventDefault();
       e.stopPropagation();
-      window.dispatchEvent(new CustomEvent("command-palette-open"));
+      dispatchCommandPaletteOpen();
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
@@ -280,13 +274,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        !!target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable);
+      const isTyping = isEditableShortcutTarget(e.target);
 
       if (isTyping) {
         return;
@@ -294,9 +282,9 @@ function App() {
 
       if (mod) {
         const key = e.key.toLowerCase();
-        if (key === "k" || key === "p") {
+        if (isCommandPaletteOpenShortcut(e)) {
           e.preventDefault();
-          window.dispatchEvent(new CustomEvent("command-palette-open"));
+          dispatchCommandPaletteOpen();
           return;
         }
         if (key === ",") {

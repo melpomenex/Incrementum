@@ -42,6 +42,7 @@ import { fetchYouTubeTranscript } from "../../api/youtube";
 import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
 import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
+import { registerCommandPaletteOpenEvents } from "../../utils/commandPaletteEvents";
 
 const STOPWORDS = new Set([
   "a",
@@ -948,21 +949,10 @@ export function CommandCenter() {
   }, [documents, addTab, loadDocuments]);
 
   useEffect(() => {
-    const handleToggle = () => {
-      const { commandPaletteOpen: isOpen } = useUIStore.getState();
-      setCommandPaletteOpen(!isOpen);
-    };
-
-    const handleOpen = () => {
-      setCommandPaletteOpen(true);
-    };
-
-    window.addEventListener("command-palette-toggle", handleToggle as EventListener);
-    window.addEventListener("command-palette-open", handleOpen as EventListener);
-    return () => {
-      window.removeEventListener("command-palette-toggle", handleToggle as EventListener);
-      window.removeEventListener("command-palette-open", handleOpen as EventListener);
-    };
+    return registerCommandPaletteOpenEvents(
+      setCommandPaletteOpen,
+      () => useUIStore.getState().commandPaletteOpen
+    );
   }, [setCommandPaletteOpen]);
 
   return (
