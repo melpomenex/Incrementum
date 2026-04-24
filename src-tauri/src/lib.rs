@@ -230,22 +230,26 @@ pub fn run() {
                 ("accel-comma", "Settings",             "Control+,"),
                 ("accel-slash", "Shortcuts Help",       "Control+/"),
             ];
-            #[cfg(target_os = "macos")]
-            let accel_items: &[(&str, &str, &str)] = &[
-                ("accel-k",     "Command Palette (K)", "Cmd+k"),
-                ("accel-p",     "Command Palette (P)", "Cmd+p"),
-                ("accel-q",     "Queue",                "Cmd+q"),
-                ("accel-r",     "Review",               "Cmd+r"),
-                ("accel-d",     "Dashboard",            "Cmd+d"),
-                ("accel-o",     "Open Document",        "Cmd+o"),
-                ("accel-n",     "New Document",         "Cmd+n"),
-                ("accel-comma", "Settings",             "Cmd+,"),
-                ("accel-slash", "Shortcuts Help",       "Cmd+/"),
-            ];
-
+            #[cfg(target_os = "windows")]
             for (id, label, accel) in accel_items {
                 let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
                 menu.append(&item)?;
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::Submenu;
+                let command_submenu = Submenu::new(app, "Commands", true)?;
+                let accel_items: &[(&str, &str, &str)] = &[
+                    ("accel-k",     "Command Palette", "Cmd+K"),
+                    ("accel-p",     "Command Palette Alternate", "Cmd+P"),
+                ];
+
+                for (id, label, accel) in accel_items {
+                    let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
+                    command_submenu.append(&item)?;
+                }
+                menu.append(&command_submenu)?;
             }
 
             Ok(menu)
