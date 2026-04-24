@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.23.3] - 2026-04-24
+
+### Fixed
+
+- **Windows PDF loading retry crash** — PDF.js now receives a freshly copied `Uint8Array` for each load attempt, including the `disableWorker` fallback. This prevents Windows 11 WebView2 from reusing a buffer that PDF.js detached during the first worker transfer and fixes `Failed to execute 'structuredClone' on 'Window': ArrayBuffer at index 0 is already detached` when opening PDFs.
+
 ## [1.23.2] - 2026-04-23
 
 ### Fixed

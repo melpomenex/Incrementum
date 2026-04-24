@@ -34,6 +34,7 @@ import { OcrRegionSelector } from "./OcrRegionSelector";
 import { OcrProgressOverlay } from "./OcrProgressOverlay";
 import { OcrTextPreview } from "./OcrTextPreview";
 import { usePdfOcrManager } from "./PdfOcrManager";
+import { createPdfLoadSourceFactories } from "./pdfLoadSources";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
@@ -708,45 +709,32 @@ export function PDFViewer({
 
       try {
         const loadDocument = async () => {
-          const sources: Array<Record<string, unknown>> = [];
-
           // In WebKitGTK/Tauri, embedded fonts in some PDFs can trigger excessive glyph parsing.
           // Use path-based font rendering for better stability, but keep worker enabled first.
           const shouldDisableFontFace = isTauriRuntime;
+          const sources = createPdfLoadSourceFactories({
+            fileUrl,
+            fileData,
+            disableFontFace: shouldDisableFontFace,
+          });
 
-          if (fileUrl) {
-            // Tauri custom asset protocol can fail with range/stream loading in Linux WebView.
-            // Force a simpler fetch path first.
-            sources.push({
-              url: fileUrl,
-              verbosity: 0,
-              disableRange: true,
-              disableStream: true,
-              disableAutoFetch: true,
-              disableFontFace: shouldDisableFontFace,
-            });
-          }
-          if (fileData) {
-            sources.push({
-              data: new Uint8Array(fileData),
-              verbosity: 0,
-              disableFontFace: shouldDisableFontFace,
-            });
-          }
           if (sources.length === 0) {
             throw new Error("No PDF source available.");
           }
 
           let lastError: unknown = null;
-          for (const source of sources) {
+          for (const sourceFactory of sources) {
             try {
+              const source = sourceFactory.create();
               const loadingTask = pdfjsLib.getDocument(source as any);
               return await loadingTask.promise;
             } catch (workerError) {
               // Some packaged runtimes fail to initialize the PDF worker.
-              // Retry without a worker so PDFs still render.
+              // Retry without a worker so PDFs still render. Create a fresh source:
+              // PDF.js may detach data buffers while trying to transfer them to its worker.
               try {
                 console.warn("[PDFViewer] Worker/source load failed, retrying with disableWorker=true:", workerError);
+                const source = sourceFactory.create();
                 const fallbackTask = pdfjsLib.getDocument({ ...(source as any), disableWorker: true } as any);
                 return await fallbackTask.promise;
               } catch (fallbackError) {
