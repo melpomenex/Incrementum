@@ -634,6 +634,8 @@ jobs:
 
       - name: Run tests
         run: npm run test:run
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
