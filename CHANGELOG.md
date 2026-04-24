@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.23.5] - 2026-04-24
+
+### Fixed
+
+- **macOS command palette accelerator reliability** — moved the native `Cmd+K` and `Cmd+P` accelerators into a dedicated macOS Commands submenu and made the shared shortcut matcher accept either primary modifier, avoiding platform-detection misses while keeping editable-field safeguards.
+
 ## [1.23.4] - 2026-04-24
 
 ### Fixed

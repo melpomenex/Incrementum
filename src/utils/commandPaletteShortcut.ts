@@ -20,13 +20,8 @@ export function isEditableShortcutTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function isMacPlatform(platform = navigator.platform): boolean {
-  return /Mac|iPhone|iPad|iPod/i.test(platform);
-}
-
 export function isCommandPaletteOpenShortcut(
-  event: KeyboardShortcutEvent,
-  platform = navigator.platform
+  event: KeyboardShortcutEvent
 ): boolean {
   if (event.altKey || event.shiftKey) {
     return false;
@@ -41,11 +36,7 @@ export function isCommandPaletteOpenShortcut(
     return false;
   }
 
-  if (isMacPlatform(platform)) {
-    return event.metaKey && !event.ctrlKey;
-  }
-
-  return event.ctrlKey && !event.metaKey;
+  return event.ctrlKey || event.metaKey;
 }
 
 export function dispatchCommandPaletteOpen(): void {

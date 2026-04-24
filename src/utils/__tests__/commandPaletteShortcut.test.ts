@@ -23,24 +23,25 @@ function keyboardEvent(init: Partial<KeyboardEvent> & { target?: EventTarget | n
 }
 
 describe("command palette shortcut matching", () => {
-  it("matches Ctrl+K and Ctrl+P on Linux and Windows platforms", () => {
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true }), "Linux x86_64")).toBe(true);
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "P", ctrlKey: true }), "Win32")).toBe(true);
+  it("matches Ctrl+K and Ctrl+P", () => {
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true }))).toBe(true);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "P", ctrlKey: true }))).toBe(true);
   });
 
-  it("matches Cmd+K and Cmd+P on macOS", () => {
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", metaKey: true }), "MacIntel")).toBe(true);
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "P", metaKey: true }), "MacIntel")).toBe(true);
+  it("matches Cmd+K and Cmd+P", () => {
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", metaKey: true }))).toBe(true);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "P", metaKey: true }))).toBe(true);
   });
 
-  it("rejects non-primary modifiers for the current platform", () => {
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", metaKey: true }), "Linux x86_64")).toBe(false);
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true }), "MacIntel")).toBe(false);
+  it("does not depend on platform detection for Ctrl or Cmd delivery", () => {
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", metaKey: true }))).toBe(true);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true }))).toBe(true);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, metaKey: true }))).toBe(true);
   });
 
   it("rejects shifted or alternate variants", () => {
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, shiftKey: true }), "Linux x86_64")).toBe(false);
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, altKey: true }), "Linux x86_64")).toBe(false);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, shiftKey: true }))).toBe(false);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, altKey: true }))).toBe(false);
   });
 
   it("rejects editable targets", () => {
@@ -54,7 +55,7 @@ describe("command palette shortcut matching", () => {
     expect(isEditableShortcutTarget(textarea)).toBe(true);
     expect(isEditableShortcutTarget(select)).toBe(true);
     expect(isEditableShortcutTarget(editable)).toBe(true);
-    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, target: input }), "Linux x86_64")).toBe(false);
+    expect(isCommandPaletteOpenShortcut(keyboardEvent({ key: "k", ctrlKey: true, target: input }))).toBe(false);
   });
 
   it("dispatches the shared command-palette-open event", () => {
