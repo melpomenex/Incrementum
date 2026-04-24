@@ -2272,6 +2272,7 @@ export const fr: Dict = {
   "settings.refreshInterval": "Intervalle d'actualisation",
   "settings.refreshIntervalDesc": "Fréquence de vérification des nouveaux éléments dus",
   "settings.resetAllDefaults": "Tout réinitialiser par défaut",
+  "settings.shortcutConflict": "Conflit avec",
   "settings.rssAutoRemoveOld": "Suppression automatique des anciens éléments",
   "settings.rssExcludeAll": "Tout exclure",
   "settings.rssExcludeFromQueue": "Exclure de la file",

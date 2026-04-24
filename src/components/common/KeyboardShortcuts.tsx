@@ -366,13 +366,14 @@ export function formatKeyCombo(combo: KeyCombo): string {
 export function eventMatchesCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
   const key = event.key.toLowerCase();
   const comboKey = combo.key.toLowerCase();
-  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const isMac = typeof navigator !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const usesPrimaryModifier = !!combo.ctrl && !!combo.meta;
+
   const ctrlMatches = usesPrimaryModifier
-    ? event.ctrlKey === !isMac
+    ? true
     : !!event.ctrlKey === !!combo.ctrl;
   const metaMatches = usesPrimaryModifier
-    ? event.metaKey === isMac
+    ? true
     : !!event.metaKey === !!combo.meta;
   const primaryModifierMatches = usesPrimaryModifier
     ? (isMac ? event.metaKey : event.ctrlKey)
@@ -485,6 +486,16 @@ export function useShortcutRecorder() {
       e.preventDefault();
       e.stopPropagation();
 
+      if (e.key === "Escape") {
+        setIsRecording(false);
+        return;
+      }
+
+      const modifierKeys = ["Control", "Alt", "Shift", "Meta", "OS"];
+      if (modifierKeys.includes(e.key)) {
+        return;
+      }
+
       const combo: KeyCombo = {
         key: e.key,
         ctrl: e.ctrlKey,
@@ -507,6 +518,34 @@ export function useShortcutRecorder() {
     startRecording,
     stopRecording,
   };
+}
+
+/**
+ * Check if two key combos are equivalent
+ */
+export function combosEqual(a: KeyCombo, b: KeyCombo): boolean {
+  return (
+    a.key.toLowerCase() === b.key.toLowerCase() &&
+    !!a.ctrl === !!b.ctrl &&
+    !!a.alt === !!b.alt &&
+    !!a.shift === !!b.shift &&
+    !!a.meta === !!b.meta
+  );
+}
+
+/**
+ * Find shortcuts that conflict with the given combo (excluding a specific shortcut ID)
+ */
+export function findConflicts(
+  combo: KeyCombo,
+  excludeId: string,
+  shortcuts: ShortcutAction[]
+): ShortcutAction[] {
+  return shortcuts.filter((s) => {
+    if (s.id === excludeId) return false;
+    const otherCombo = s.currentCombo || s.defaultCombo;
+    return combosEqual(combo, otherCombo);
+  });
 }
 
 /**

@@ -2254,6 +2254,7 @@ export const es: Dict = {
   "settings.refreshInterval": "Intervalo de actualización",
   "settings.refreshIntervalDesc": "Cada cuánto comprobar si hay nuevos elementos pendientes",
   "settings.resetAllDefaults": "Restablecer todo a los valores predeterminados",
+  "settings.shortcutConflict": "Conflictos con",
   "settings.rssAutoRemoveOld": "Eliminar elementos antiguos automáticamente",
   "settings.rssExcludeAll": "Excluir todo",
   "settings.rssExcludeFromQueue": "Excluir de la cola",

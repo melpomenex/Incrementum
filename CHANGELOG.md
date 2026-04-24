@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.6] - 2026-04-24
+
+### Fixed
+
+- **Cross-platform command palette shortcuts** — restored an early capture-phase `Ctrl/Cmd+K` and `Ctrl/Cmd+P` bridge while keeping the native Tauri shortcut path and customizable shortcut store dispatch, so the command palette opens reliably across Linux AppImage, Windows, macOS, and reader/search surfaces.
+- **Custom shortcut matching** — hardened primary-modifier matching for shortcuts displayed as `Ctrl` on Linux/Windows and `Cmd` on macOS, and added regression coverage for platform-specific command palette matching and shortcut conflict detection.
+
 ## [1.23.5] - 2026-04-24
 
 ### Fixed

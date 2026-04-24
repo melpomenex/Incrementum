@@ -2290,6 +2290,7 @@ export const zh: Dict = {
   "settings.refreshInterval": "刷新间隔",
   "settings.refreshIntervalDesc": "检查新到期项目的频率",
   "settings.resetAllDefaults": "全部恢复默认",
+  "settings.shortcutConflict": "与以下项目冲突",
   "settings.rssAutoRemoveOld": "自动移除旧项目",
   "settings.rssExcludeAll": "全部排除",
   "settings.rssExcludeFromQueue": "从队列中排除",
