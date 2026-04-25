@@ -101,6 +101,15 @@ interface EPUBSettings {
 }
 
 /**
+ * HTML Viewer Settings
+ */
+interface HTMLSettings {
+  fontSize: number;
+  fontFamily: "serif" | "sans-serif" | "monospace";
+  lineHeight: number;
+}
+
+/**
  * Segmentation Settings
  */
 interface SegmentationSettings {
@@ -151,6 +160,7 @@ interface DocumentSettings {
   webImportPreserveImages: boolean;
   pdfSettings: PDFSettings;
   epubSettings: EPUBSettings;
+  htmlSettings: HTMLSettings;
   segmentation: SegmentationSettings;
   ocr: OCRSettings;
   cacheContent: boolean;
@@ -482,6 +492,11 @@ export const defaultSettings: Settings = {
       lineHeight: 1.6,
       autoScroll: true,
     },
+    htmlSettings: {
+      fontSize: 16,
+      fontFamily: "serif",
+      lineHeight: 1.6,
+    },
     segmentation: {
       method: "semantic",
       targetLength: 200,
@@ -707,6 +722,10 @@ export const useSettingsStore = create<SettingsState>()(
             epubSettings: {
               ...defaultSettings.documents.epubSettings,
               ...persisted.documents?.epubSettings,
+            },
+            htmlSettings: {
+              ...defaultSettings.documents.htmlSettings,
+              ...persisted.documents?.htmlSettings,
             },
             segmentation: {
               ...defaultSettings.documents.segmentation,

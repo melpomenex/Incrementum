@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri, isPWA } from "../../lib/tauri";
@@ -64,6 +64,7 @@ import {
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
 import { useI18n } from "../../lib/i18n";
+import { useTheme } from "../../contexts/ThemeContext";
 import type { StoredHighlight } from "./HighlightLayer";
 import { normalizePdfHighlightColor } from "../../utils/highlightColors";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
@@ -124,6 +125,15 @@ const isEditableBrowserArticleDocument = (doc?: {
     doc.metadata?.source === "browser_extension" &&
     (normalizedType === "html" || normalizedType === "markdown")
   );
+};
+
+const sanitizeHtmlDocumentForIframe = (html: string): string => {
+  if (typeof DOMParser === "undefined") return html;
+
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  parsed.querySelectorAll("script").forEach((node) => node.remove());
+
+  return `<!DOCTYPE html>\n${parsed.documentElement.outerHTML}`;
 };
 
 function isPdfSelectionContext(value: unknown): value is PdfSelectionContext {
@@ -252,6 +262,7 @@ export function DocumentViewer({
 }: DocumentViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
+  const { theme } = useTheme();
   const { documents, setCurrentDocument, currentDocument: globalCurrentDocument, updateDocument } = useDocumentStore();
   
   // Use local document lookup by documentId prop instead of global currentDocument
@@ -260,7 +271,7 @@ export function DocumentViewer({
   const currentDocument = localDocument || globalCurrentDocument;
   const { closeTab, tabs, updateTab, setActiveTab, findPaneContainingTab } = useTabsStore();
   const { items: queueItems, loadQueue } = useQueueStore();
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
 
   const [pageNumber, setPageNumber] = useState(1);
   const [totalPages, setTotalPages] = useState<number>(0);
@@ -343,7 +354,9 @@ export function DocumentViewer({
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const htmlViewerContainerRef = useRef<HTMLDivElement | null>(null);
   const htmlSearchMatchesRef = useRef<HTMLElement[]>([]);
+  const [showHtmlSettings, setShowHtmlSettings] = useState(false);
   const viewerSearchNavCounterRef = useRef(0);
   const jumpTextQuote =
     initialJump && "textQuote" in initialJump && typeof initialJump.textQuote === "string" && initialJump.textQuote.trim()
@@ -706,7 +719,7 @@ export function DocumentViewer({
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileSelectionTimeoutRef = useRef<number | null>(null);
   const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
-  const activeExtractSelection = docType === "epub"
+  const activeExtractSelection = docType === "epub" || (docType === "pdf" && pdfViewMode === "ocr-html")
     ? (selectedText || lastSelectionRef.current)
     : selectedText;
 
@@ -836,7 +849,7 @@ export function DocumentViewer({
     const text = rawText?.trim() ?? "";
     const hasText = text.length > 0 && text.length <= MAX_SELECTION_CHARS;
 
-    if (docType === "pdf") {
+    if (docType === "pdf" && pdfViewMode !== "ocr-html") {
       if (hasText && isPdfSelectionContext(context) && isValidPdfSelection(text, context)) {
         setSelectedText(text);
         lastSelectionRef.current = text;
@@ -866,7 +879,7 @@ export function DocumentViewer({
       // Don't clear lastSelectionRef on empty selection - preserve it for the toolbar button
       // The floating action button is controlled by selectedText state, so it will hide appropriately
     }
-  }, [MAX_SELECTION_CHARS, docType]);
+  }, [MAX_SELECTION_CHARS, docType, pdfViewMode]);
 
   const clearTextSelection = useCallback(() => {
     setSelectedText("");
@@ -2588,7 +2601,7 @@ export function DocumentViewer({
   };
 
   const openExtractDialog = () => {
-    if (docType === "pdf") {
+    if (docType === "pdf" && pdfViewMode !== "ocr-html") {
       const blockReason = getPdfExtractBlockReason({
         selectedText,
         selectionContext: isPdfSelectionContext(selectionContext) ? selectionContext : null,
@@ -2606,8 +2619,15 @@ export function DocumentViewer({
       return;
     }
 
-    const selection = window.getSelection()?.toString().trim();
-    const selectionText = selectedText.trim() || selection || lastSelectionRef.current;
+    // For iframe-based viewers, read selection directly from the iframe
+    let iframeSelection = "";
+    const frame = iframeRef.current;
+    if (frame?.contentWindow) {
+      iframeSelection = frame.contentWindow.getSelection()?.toString().trim() || "";
+    }
+
+    const parentSelection = window.getSelection()?.toString().trim();
+    const selectionText = iframeSelection || selectedText.trim() || parentSelection || lastSelectionRef.current;
     if (selectionText) {
       setSelectedText(selectionText);
       lastSelectionRef.current = selectionText;
@@ -2917,45 +2937,75 @@ export function DocumentViewer({
     });
   };
 
-  // Convert PDF to HTML for better text selection
+  // Convert PDF to HTML for better text selection and extraction.
   const handleConvertToHtml = async () => {
     if (!currentDocument || docType !== 'pdf' || !currentDocument.filePath) return;
 
     setIsOcrConverting(true);
     try {
-      await ensureOCRConfig(settings.documents.ocr);
-      await ensureGLMOllamaRuntime(settings.documents.ocr);
+      try {
+        const conversionResult = await documentsApi.convertDocumentPdfToHtml(currentDocument.id, true);
+        const renderedHtml = sanitizeHtmlDocumentForIframe(conversionResult.html_content);
 
-      const ocrResult = await ocrPdfFile({
-        pdf_path: currentDocument.filePath,
-        provider: settings.documents.ocr.provider,
-        language: settings.documents.ocr.language,
-      });
+        if (!renderedHtml.trim()) {
+          throw new Error("PDF conversion returned no HTML content");
+        }
 
-      if (!ocrResult.success || !ocrResult.combined_text.trim()) {
-        throw new Error(ocrResult.error || "OCR returned no text");
+        setOcrResult({
+          pages: [{ pageNumber: 1, text: renderedHtml }],
+          combinedText: renderedHtml,
+          format: "html",
+          pageCount: currentDocument.totalPages || 1,
+        });
+        setPdfViewMode("ocr-html");
+
+        toast.success(
+          "Converted to HTML",
+          conversionResult.saved_path
+            ? `Saved HTML to ${conversionResult.saved_path}`
+            : "Rendered the converted HTML view"
+        );
+        return;
+      } catch (conversionError) {
+        const conversionMessage = conversionError instanceof Error ? conversionError.message : String(conversionError);
+        if (!conversionMessage.toLowerCase().includes("no usable text layer")) {
+          throw conversionError;
+        }
+
+        await ensureOCRConfig(settings.documents.ocr);
+        await ensureGLMOllamaRuntime(settings.documents.ocr);
+
+        const fallbackResult = await ocrPdfFile({
+          pdf_path: currentDocument.filePath,
+          provider: settings.documents.ocr.provider,
+          language: settings.documents.ocr.language,
+        });
+
+        if (!fallbackResult.success || !fallbackResult.combined_text.trim()) {
+          throw new Error(fallbackResult.error || "OCR fallback returned no text");
+        }
+
+        const format = (fallbackResult.format || "markdown") as "text" | "markdown" | "html";
+        const pages = fallbackResult.pages.map((page) => ({
+          pageNumber: page.page_number,
+          text: page.text,
+        }));
+
+        setOcrResult({
+          pages,
+          combinedText: fallbackResult.combined_text,
+          format,
+          pageCount: fallbackResult.page_count,
+        });
+        setPdfViewMode("ocr-html");
+
+        toast.success("Converted to HTML", "Rendered OCR-derived HTML for this image-only PDF");
       }
-
-      const format = (ocrResult.format || "markdown") as "text" | "markdown" | "html";
-      const pages = ocrResult.pages.map((page) => ({
-        pageNumber: page.page_number,
-        text: page.text,
-      }));
-
-      setOcrResult({
-        pages,
-        combinedText: ocrResult.combined_text,
-        format,
-        pageCount: ocrResult.page_count,
-      });
-      setPdfViewMode("ocr-html");
-
-      toast.success(t("viewer.ocrComplete"), t("viewer.ocrRenderedAsHtml"));
     } catch (error) {
-      console.error("Failed to OCR PDF:", error);
+      console.error("Failed to convert PDF to HTML:", error);
       toast.error(
-        "OCR failed",
-        error instanceof Error ? error.message : "Failed to OCR the document"
+        "PDF conversion failed",
+        error instanceof Error ? error.message : "Failed to convert the document to HTML"
       );
     } finally {
       setIsOcrConverting(false);
@@ -3059,8 +3109,11 @@ export function DocumentViewer({
     }
   }, [htmlSource, settings.documents.webImportPreserveImages, jumpHighlightQuery, currentDocument]);
 
+  const isOcrHtml = docType === "pdf" && pdfViewMode === "ocr-html" && ocrResult?.format === "html";
+  const isHtmlViewer = docType === "html" || isOcrHtml;
+
   useEffect(() => {
-    if (docType !== "html") return;
+    if (!isHtmlViewer) return;
     const frame = iframeRef.current;
     if (!frame || !currentDocument?.id) return;
 
@@ -3088,13 +3141,32 @@ export function DocumentViewer({
         }
 
         const range = selection.getRangeAt(0);
-        const context = buildTextSelectionContext({
-          root: body,
-          range,
-          documentId: currentDocument.id,
+        const selectedText = range.toString().trim();
+        if (!selectedText) {
+          updateSelection("", null);
+          return;
+        }
+
+        let context: TextSelectionContext | null = null;
+        try {
+          context = buildTextSelectionContext({
+            root: body,
+            range,
+            documentId: currentDocument.id,
+            surface: "html",
+          });
+        } catch {
+          // buildTextSelectionContext may fail with cross-document range issues
+        }
+
+        updateSelection(context?.selectedText ?? selectedText, context ?? {
+          type: "text",
           surface: "html",
+          documentId: currentDocument.id,
+          startOffset: 0,
+          endOffset: selectedText.length,
+          selectedText,
         });
-        updateSelection(context?.selectedText ?? "", context);
       };
 
       doc.addEventListener("selectionchange", publishSelection);
@@ -3119,14 +3191,70 @@ export function DocumentViewer({
     };
   }, [
     currentDocument?.id,
-    docType,
+    isHtmlViewer,
     htmlForDisplay,
     persistedDocumentHighlights.htmlHighlights,
     updateSelection,
   ]);
 
+  // Track current page number based on scroll position in OCR HTML iframe
   useEffect(() => {
-    if (docType !== "html") return;
+    if (!isOcrHtml) return;
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    let teardown: (() => void) | null = null;
+
+    const attach = () => {
+      teardown?.();
+      const doc = frame.contentDocument;
+      const win = frame.contentWindow;
+      if (!doc || !win) return;
+
+      const updatePage = () => {
+        const pages = doc.querySelectorAll<HTMLDivElement>(".page[id^='page-']");
+        if (pages.length === 0) return;
+
+        const scrollTop = win.scrollY || doc.documentElement?.scrollTop || 0;
+        const viewportMid = scrollTop + (win.innerHeight / 2);
+        let currentPage = 1;
+
+        for (const page of pages) {
+          const rect = page.getBoundingClientRect();
+          const absoluteTop = rect.top + scrollTop;
+          if (absoluteTop <= viewportMid) {
+            const match = page.id.match(/^page-(\d+)$/);
+            if (match) currentPage = parseInt(match[1], 10);
+          }
+        }
+
+        setPageNumber(currentPage);
+        setTotalPages(pages.length);
+      };
+
+      win.addEventListener("scroll", updatePage, { passive: true });
+      doc.addEventListener("scroll", updatePage, { passive: true });
+      updatePage();
+
+      teardown = () => {
+        win.removeEventListener("scroll", updatePage);
+        doc.removeEventListener("scroll", updatePage);
+      };
+    };
+
+    frame.addEventListener("load", attach);
+    if (frame.contentDocument?.readyState === "complete") {
+      attach();
+    }
+
+    return () => {
+      frame.removeEventListener("load", attach);
+      teardown?.();
+    };
+  }, [isOcrHtml]);
+
+  useEffect(() => {
+    if (!isHtmlViewer) return;
     const frame = iframeRef.current;
     const doc = frame?.contentDocument;
     const win = frame?.contentWindow;
@@ -3267,13 +3395,169 @@ export function DocumentViewer({
     });
   }, [
     currentDocument?.id,
-    docType,
+    isHtmlViewer,
     htmlForDisplay,
     normalizedViewerSearchQuery,
     reportViewerSearchState,
     viewerSearchState.activeMatchIndex,
     viewerSearchSupported,
   ]);
+
+  // --- HTML Viewer: CSS injection for font settings and theming ---
+  const htmlSettings = settings.documents.htmlSettings;
+  const { theme: appTheme } = useTheme();
+
+  const injectHtmlViewerStyles = useCallback(() => {
+    const frame = iframeRef.current;
+    const doc = frame?.contentDocument;
+    if (!doc) return;
+
+    let style = doc.getElementById("html-viewer-styles") as HTMLStyleElement | null;
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = "html-viewer-styles";
+      doc.head.appendChild(style);
+    }
+
+    const fs = settings.documents.htmlSettings;
+    const fontFamilyMap: Record<string, string> = {
+      serif: "Georgia, 'Times New Roman', serif",
+      "sans-serif": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      monospace: "'Courier New', Courier, monospace",
+    };
+    const ff = fontFamilyMap[fs.fontFamily] || fontFamilyMap.serif;
+
+    const root = document.documentElement;
+    const cs = getComputedStyle(root);
+    const bg = cs.getPropertyValue("--color-background").trim() || appTheme.colors.background;
+    const fg = cs.getPropertyValue("--color-foreground").trim() || appTheme.colors.onBackground || appTheme.colors.text;
+    const muted = cs.getPropertyValue("--color-muted").trim() || appTheme.colors.surfaceVariant || appTheme.colors.surface;
+    const mutedFg = cs.getPropertyValue("--color-muted-foreground").trim() || appTheme.colors.textSecondary || appTheme.colors.onSurface;
+    const border = cs.getPropertyValue("--color-border").trim() || appTheme.colors.border || appTheme.colors.outline;
+    const primary = cs.getPropertyValue("--color-primary").trim() || appTheme.colors.primary;
+    const card = cs.getPropertyValue("--color-card").trim() || appTheme.colors.card || appTheme.colors.surface;
+
+    style.textContent = `
+      :root {
+        --bg-color: ${bg} !important;
+        --text-color: ${fg} !important;
+        --page-border: ${border} !important;
+        --page-bg: ${card} !important;
+      }
+      html {
+        background: ${bg} !important;
+      }
+      body {
+        font-size: ${fs.fontSize}px !important;
+        line-height: ${fs.lineHeight} !important;
+        font-family: ${ff} !important;
+        color: ${fg} !important;
+        background: ${bg} !important;
+        max-width: 900px !important;
+        margin: 0 auto !important;
+        padding: 2rem !important;
+      }
+      * { color: ${fg} !important; background-color: transparent !important; }
+      html, body { background: ${bg} !important; }
+      a { color: ${primary} !important; }
+      h1, h2, h3, h4, h5, h6 { color: ${fg} !important; }
+      .pdf-header { border-color: ${border} !important; }
+      .pdf-header .meta { color: ${mutedFg} !important; }
+      .page {
+        background-color: ${card} !important;
+        border-color: ${border} !important;
+      }
+      code, pre {
+        background: ${muted} !important;
+        color: ${fg} !important;
+        border: 1px solid ${border} !important;
+      }
+      table { border-collapse: collapse !important; }
+      td, th { border: 1px solid ${border} !important; padding: 0.5em !important; color: ${fg} !important; }
+      blockquote { border-left: 3px solid ${border} !important; color: ${mutedFg} !important; }
+      img { max-width: 100% !important; height: auto !important; }
+      ::selection { background: ${primary}33; }
+      mark[data-search-highlight], mark[data-viewer-search] { color: ${fg} !important; }
+    `;
+  }, [settings.documents.htmlSettings, appTheme]);
+
+  useEffect(() => {
+    if (!isHtmlViewer) return;
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    const onLoad = () => injectHtmlViewerStyles();
+    frame.addEventListener("load", onLoad);
+    if (frame.contentDocument?.readyState === "complete") {
+      injectHtmlViewerStyles();
+    }
+    return () => frame.removeEventListener("load", onLoad);
+  }, [isHtmlViewer, injectHtmlViewerStyles]);
+
+  const updateHtmlSettings = useCallback(
+    (updates: Partial<typeof htmlSettings>) => {
+      updateSettings({
+        documents: {
+          ...settings.documents,
+          htmlSettings: { ...settings.documents.htmlSettings, ...updates },
+        },
+      });
+    },
+    [settings.documents, updateSettings],
+  );
+
+  const increaseHtmlFontSize = useCallback(() => {
+    const next = Math.min(32, settings.documents.htmlSettings.fontSize + 1);
+    updateHtmlSettings({ fontSize: next });
+  }, [settings.documents.htmlSettings.fontSize, updateHtmlSettings]);
+
+  const decreaseHtmlFontSize = useCallback(() => {
+    const next = Math.max(12, settings.documents.htmlSettings.fontSize - 1);
+    updateHtmlSettings({ fontSize: next });
+  }, [settings.documents.htmlSettings.fontSize, updateHtmlSettings]);
+
+  const resetHtmlFontSize = useCallback(() => {
+    updateHtmlSettings({ fontSize: 16 });
+  }, [updateHtmlSettings]);
+
+  // Keyboard shortcuts for HTML viewer zoom
+  useEffect(() => {
+    if (!isHtmlViewer) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          increaseHtmlFontSize();
+        } else if (e.key === "-" || e.key === "_") {
+          e.preventDefault();
+          decreaseHtmlFontSize();
+        } else if (e.key === "0") {
+          e.preventDefault();
+          resetHtmlFontSize();
+        }
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) increaseHtmlFontSize();
+        else decreaseHtmlFontSize();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const container = htmlViewerContainerRef.current;
+    if (container) {
+      container.addEventListener("wheel", handleWheel, { passive: false });
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (container) container.removeEventListener("wheel", handleWheel);
+    };
+  }, [isHtmlViewer, increaseHtmlFontSize, decreaseHtmlFontSize, resetHtmlFontSize]);
 
   const scrollHtmlFrameToInitialHit = useCallback(() => {
     if (!initialJump || initialJump.kind !== "html") return;
@@ -3363,7 +3647,7 @@ export function DocumentViewer({
   // Key events inside iframes do not bubble to the parent window, so we also bind to the frame window.
   useEffect(() => {
     if (!currentDocument) return;
-    if (docType !== "html") return;
+    if (!isHtmlViewer) return;
     const frame = iframeRef.current;
     const win = frame?.contentWindow;
     if (!win) return;
@@ -3377,7 +3661,7 @@ export function DocumentViewer({
 
     win.addEventListener("keydown", handler, true);
     return () => win.removeEventListener("keydown", handler, true);
-  }, [currentDocument?.id, docType]);
+  }, [currentDocument?.id, isHtmlViewer]);
 
   if (!currentDocument) {
     return (
@@ -3570,7 +3854,7 @@ export function DocumentViewer({
                 )}
                 title={t("viewer.viewOcrHtml")}
               >
-                OCR HTML
+                HTML
               </button>
             </div>
           )}
@@ -3849,12 +4133,83 @@ export function DocumentViewer({
           />
         ) : docType === "pdf" && (fileData || pdfUrl) ? (
           pdfViewMode === "ocr-html" && ocrResult ? (
-            <div className="reading-surface min-h-[500px]">
-              <h1 className="reading-title">{currentDocument.title}</h1>
-              <div className="prose prose-sm max-w-none dark:prose-invert reading-prose">
-                {renderOcrPages()}
+            ocrResult.format === "html" ? (
+              <div ref={htmlViewerContainerRef} className="h-full w-full overflow-hidden bg-background relative">
+                {/* Floating settings toggle */}
+                <button
+                  onClick={() => setShowHtmlSettings(!showHtmlSettings)}
+                  className="absolute top-3 right-3 z-30 p-2 bg-card border border-border rounded-lg shadow-md hover:shadow-lg transition-all"
+                  title={t("viewer.fontSizeSettings")}
+                >
+                  <Settings className="w-4 h-4 text-foreground" />
+                </button>
+
+                {/* Settings panel */}
+                <div
+                  className={cn(
+                    "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",
+                    showHtmlSettings ? "opacity-100" : "opacity-0 pointer-events-none",
+                  )}
+                >
+                  <div className="p-3 space-y-3 min-w-[200px]">
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.fontSize")}</div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={decreaseHtmlFontSize} className="p-1 rounded hover:bg-muted transition-colors" title={t("viewer.decreaseFontSize")}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                        </button>
+                        <span className="text-sm font-medium min-w-[50px] text-center">{htmlSettings.fontSize}px</span>
+                        <button onClick={increaseHtmlFontSize} className="p-1 rounded hover:bg-muted transition-colors" title={t("viewer.increaseFontSize")}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </button>
+                      </div>
+                      <button onClick={resetHtmlFontSize} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors mt-1">
+                        {t("viewer.reset")}
+                      </button>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.lineHeight")}</div>
+                      <div className="flex items-center gap-2">
+                        <input type="range" min="1.2" max="2.2" step="0.1" value={htmlSettings.lineHeight} onChange={(e) => updateHtmlSettings({ lineHeight: parseFloat(e.target.value) })} className="flex-1" />
+                        <span className="text-xs text-muted-foreground min-w-[32px] text-right">{htmlSettings.lineHeight.toFixed(1)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.font")}</div>
+                      <div className="flex gap-1">
+                        {(["serif", "sans-serif", "monospace"] as const).map((family) => (
+                          <button
+                            key={family}
+                            onClick={() => updateHtmlSettings({ fontFamily: family })}
+                            className={cn("px-2 py-1 text-xs rounded transition-colors", htmlSettings.fontFamily === family ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80")}
+                          >
+                            {family === "serif" ? t("viewer.serif") : family === "sans-serif" ? t("viewer.sans") : t("viewer.mono")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <iframe
+                  title={`${currentDocument.title} HTML`}
+                  ref={iframeRef}
+                  className="h-full w-full border-0"
+                  sandbox="allow-same-origin allow-scripts"
+                  srcDoc={ocrResult.combinedText}
+                  onLoad={() => {
+                    injectHtmlViewerStyles();
+                  }}
+                />
               </div>
-            </div>
+            ) : (
+              <div className="reading-surface min-h-[500px]">
+                <h1 className="reading-title">{currentDocument.title}</h1>
+                <div className="prose prose-sm max-w-none dark:prose-invert reading-prose">
+                  {renderOcrPages()}
+                </div>
+              </div>
+            )
           ) : (
           <PDFViewer
             documentId={currentDocument.id}
@@ -4087,12 +4442,101 @@ export function DocumentViewer({
             />
           </div>
         ) : docType === "html" ? (
-          <div className="h-full w-full overflow-hidden bg-background">
+          <div ref={htmlViewerContainerRef} className="h-full w-full overflow-hidden bg-background relative">
+            {/* Floating settings toggle */}
+            <button
+              onClick={() => setShowHtmlSettings(!showHtmlSettings)}
+              className="absolute top-3 right-3 z-30 p-2 bg-card border border-border rounded-lg shadow-md hover:shadow-lg transition-all"
+              title={t("viewer.fontSizeSettings")}
+            >
+              <Settings className="w-4 h-4 text-foreground" />
+            </button>
+
+            {/* Settings panel */}
+            <div
+              className={cn(
+                "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",
+                showHtmlSettings ? "opacity-100" : "opacity-0 pointer-events-none",
+              )}
+            >
+              <div className="p-3 space-y-3 min-w-[200px]">
+                {/* Font size */}
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.fontSize")}</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={decreaseHtmlFontSize}
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                      title={t("viewer.decreaseFontSize")}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <span className="text-sm font-medium min-w-[50px] text-center">{htmlSettings.fontSize}px</span>
+                    <button
+                      onClick={increaseHtmlFontSize}
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                      title={t("viewer.increaseFontSize")}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                  <button
+                    onClick={resetHtmlFontSize}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
+                  >
+                    {t("viewer.reset")}
+                  </button>
+                </div>
+
+                {/* Line height */}
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.lineHeight")}</div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1.2"
+                      max="2.2"
+                      step="0.1"
+                      value={htmlSettings.lineHeight}
+                      onChange={(e) => updateHtmlSettings({ lineHeight: parseFloat(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-muted-foreground min-w-[32px] text-right">{htmlSettings.lineHeight.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                {/* Font family */}
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.font")}</div>
+                  <div className="flex gap-1">
+                    {(["serif", "sans-serif", "monospace"] as const).map((family) => (
+                      <button
+                        key={family}
+                        onClick={() => updateHtmlSettings({ fontFamily: family })}
+                        className={cn(
+                          "px-2 py-1 text-xs rounded transition-colors",
+                          htmlSettings.fontFamily === family
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted hover:bg-muted/80",
+                        )}
+                      >
+                        {family === "serif" ? t("viewer.serif") : family === "sans-serif" ? t("viewer.sans") : t("viewer.mono")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <iframe
               title={currentDocument.title}
               ref={iframeRef}
               className="h-full w-full border-0"
-              sandbox="allow-same-origin"
+              sandbox="allow-same-origin allow-scripts"
               srcDoc={htmlForDisplay}
               onLoad={() => {
                 scrollHtmlFrameToInitialHit();

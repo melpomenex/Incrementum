@@ -1,31 +1,31 @@
-# Tasks: Fix Convert to HTML Button
+# Tasks
 
-## 1. Fix parameter naming in `convertPdfToHtml()` API function
-- Update the Tauri mode invocation in `src/api/documents.ts`
-- Change `saveToFile` to `save_to_file`
-- Change `outputPath` to `output_path`
-- Ensure the browser mode parameters remain unchanged (they already use correct snake_case)
+## 1. Audit current conversion flow
+- [x] Confirm the PDF toolbar button calls `convertDocumentPdfToHtml` for the active document.
+- [x] Confirm desktop and web-mode API parameter names match their command handlers.
+- [x] Identify where converted HTML is stored in viewer state and how the PDF/HTML toggle is shown.
 
-## 2. Fix parameter naming in `convertDocumentPdfToHtml()` API function
-- Update the Tauri mode invocation in `src/api/documents.ts`
-- Change `saveToFile` to `save_to_file`
-- Change `outputPath` to `output_path`
-- Ensure the browser mode parameters remain unchanged (they already use correct snake_case)
+## 2. Improve PDF-to-HTML extraction
+- [x] Update the backend conversion pipeline to process every PDF page in order.
+- [x] Preserve page containers with stable page numbers and source page metadata.
+- [x] Preserve text blocks, headings, paragraph breaks, lists, emphasis, and approximate reading order when the PDF text layer supports it.
+- [x] Preserve tables and embedded images where they can be extracted without corrupting text flow.
+- [x] Escape and sanitize generated HTML before returning it to the renderer.
 
-## 3. Test the fix
-- Build and run the Tauri application
-- Open a PDF document
-- Click the "Convert to HTML" button (FileCode icon)
-- Verify that:
-  - The conversion executes successfully
-  - A success toast is displayed
-  - The HTML file is saved alongside the PDF
-  - The button shows loading state during conversion
+## 3. Add fallback behavior
+- [x] Detect PDFs with missing or unusable text extraction output.
+- [x] Route image-only or low-quality PDFs through the existing OCR-to-HTML pipeline when OCR is available.
+- [x] Return a clear actionable error when neither structured extraction nor OCR fallback can produce usable HTML.
 
-## Dependencies
+## 4. Wire viewer UX
+- [x] Keep the `Convert to HTML` button disabled with a spinner while conversion is running.
+- [x] Switch to the generated HTML view after successful conversion.
+- [x] Keep a PDF/HTML toggle available after conversion.
+- [x] Show success feedback, including saved-file feedback when a sidecar HTML file is written.
+- [x] Show specific failure feedback for conversion, save, and OCR fallback failures.
 
-None - this is a standalone fix.
-
-## Parallelizable
-
-Tasks 1 and 2 can be done together (they are in the same file and follow the same pattern).
+## 5. Verify behavior
+- [x] Add or update unit tests for API parameter mapping and conversion result handling.
+- [x] Add backend tests or fixtures for text-layer, multi-page, table/image, and image-only PDFs where practical.
+- [ ] Manually verify conversion from the PDF toolbar in the Tauri app.
+- [x] Run `openspec validate fix-convert-to-html-button --strict`.
