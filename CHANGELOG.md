@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.1] - 2026-04-25
+
+### Fixed
+
+- **Yellow line on extract cards** — removed the thin highlight color bar that appeared across extract cards in the document viewer.
+- **Highlight rendering in themed HTML view** — extract highlights now render correctly without being stripped by the theme's background override. Removed the inset box-shadow artifact from highlight marks.
+
 ## [1.24.0] - 2026-04-25
 
 ### Added

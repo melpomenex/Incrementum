@@ -98,7 +98,6 @@ function wrapTextNodeRange(node: Text, start: number, end: number, color?: strin
   wrapper.style.backgroundColor = normalizeHighlightColor(color);
   wrapper.style.padding = "0";
   wrapper.style.borderRadius = "0.12rem";
-  wrapper.style.boxShadow = "inset 0 -1px 0 rgba(0,0,0,0.06)";
   if (title) {
     wrapper.title = title;
   }

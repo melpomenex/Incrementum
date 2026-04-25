@@ -3457,7 +3457,7 @@ export function DocumentViewer({
         margin: 0 auto !important;
         padding: 2rem !important;
       }
-      * { color: ${fg} !important; background-color: transparent !important; }
+      *:not(.persisted-text-highlight):not(mark[data-highlight-wrapper]) { color: ${fg} !important; background-color: transparent !important; }
       html, body { background: ${bg} !important; }
       a { color: ${primary} !important; }
       h1, h2, h3, h4, h5, h6 { color: ${fg} !important; }
