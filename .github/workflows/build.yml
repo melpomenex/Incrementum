@@ -494,6 +494,7 @@ jobs:
           arch=('x86_64')
           url="https://github.com/melpomenex/incrementum-tauri"
           license=('MIT')
+          options=('!lto')
           depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc' 'zstd')
           makedepends=('rust' 'pkgconf')
           optdepends=('notebooklm-py: NotebookLM integration for AI-powered flashcard generation'
