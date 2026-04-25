@@ -79,6 +79,51 @@ function commandExists(cmd) {
   }
 }
 
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function downloadFile(urls, outputPath) {
+  const failures = [];
+
+  for (const url of urls) {
+    try {
+      console.log(`Downloading ${url}...`);
+      execSync(
+        `curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 180 ${shellQuote(url)} -o ${shellQuote(outputPath)}`,
+        { stdio: 'inherit' },
+      );
+      return;
+    } catch (error) {
+      failures.push(`${url}: ${error.message}`);
+      try {
+        fs.unlinkSync(outputPath);
+      } catch {
+        // best-effort cleanup
+      }
+      console.warn(`Download failed for ${url}; trying next source if available.`);
+    }
+  }
+
+  throw new Error(`Failed to download ${outputPath}:\n${failures.join('\n')}`);
+}
+
+function findFileRecursive(rootDir, fileName) {
+  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+    const entryPath = path.join(rootDir, entry.name);
+    if (entry.isFile() && entry.name === fileName) {
+      return entryPath;
+    }
+    if (entry.isDirectory()) {
+      const found = findFileRecursive(entryPath, fileName);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
 function resolvePythonCommand() {
   if (process.platform === 'win32') {
     try {
@@ -668,12 +713,27 @@ async function main() {
   if (platform === 'linux') {
     // Linux FFmpeg
     console.log('Downloading FFmpeg (Linux)...');
-    execSync('curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o ffmpeg.tar.xz');
-    execSync('tar -xf ffmpeg.tar.xz');
-    // Find the binary in the extracted folder (it has a version name)
-    const folder = fs.readdirSync('.').find(f => f.startsWith('ffmpeg-') && fs.statSync(f).isDirectory());
-    fs.copyFileSync(path.join(folder, 'ffmpeg'), path.join(BIN_DIR, ffmpegName));
-    execSync('rm -rf ffmpeg.tar.xz ' + folder);
+    const ffmpegArchive = 'ffmpeg-linux-x64.tar.xz';
+    downloadFile([
+      'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz',
+      'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
+    ], ffmpegArchive);
+    execSync(`tar -xf ${shellQuote(ffmpegArchive)}`);
+    const extractedFolders = fs.readdirSync('.')
+      .filter(f => f.startsWith('ffmpeg-') && fs.statSync(f).isDirectory());
+    const ffmpegBinary = extractedFolders
+      .map(folder => findFileRecursive(folder, 'ffmpeg'))
+      .find(Boolean);
+
+    if (!ffmpegBinary) {
+      throw new Error('Downloaded FFmpeg archive did not contain an ffmpeg binary.');
+    }
+
+    fs.copyFileSync(ffmpegBinary, path.join(BIN_DIR, ffmpegName));
+    fs.rmSync(ffmpegArchive, { force: true });
+    for (const folder of extractedFolders) {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
 
     // Linux Whisper (building from source using CMake)
     console.log('Building Whisper (Linux)...');
