@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.24.0] - 2026-04-25
+
+### Added
+
+- **HTML viewer reading controls** — font size increase/decrease (A-/A+), line height slider, and font family selection (serif/sans-serif/monospace) for the PDF-to-HTML converted view, matching the EPUB reader experience.
+- **Keyboard shortcuts for HTML viewer** — Ctrl+/- for font size, Ctrl+0 to reset, Ctrl+scroll to zoom.
+- **Persistent HTML viewer settings** — font size, line height, and font family preferences are saved across sessions.
+- **Themed HTML viewer** — the converted HTML view now inherits the app's active theme (dark, light, or custom), dynamically updating colors, backgrounds, and code blocks.
+- **Extract creation for OCR HTML** — text selection in the PDF-to-HTML view now populates the floating extract button and works with the lightbulb toolbar icon, with iframe selection preserved across focus changes.
+- **Page tracking for OCR HTML** — scroll position in the converted HTML view updates the page number indicator at the top to match the currently visible page section.
+
+### Fixed
+
+- **PDF convert-to-HTML viewer had no reading controls** — added zoom, font, and theme controls to the previously bare iframe.
+- **Extracts broken in OCR HTML view** — text selection was silently cleared because the PDF-specific selection guard intercepted iframe selections.
+- **Theme not applied to converted PDFs** — OCR HTML content now overrides its built-in light/dark styles with the app's active theme colors.
+
 ## [1.23.6] - 2026-04-24
 
 ### Fixed
