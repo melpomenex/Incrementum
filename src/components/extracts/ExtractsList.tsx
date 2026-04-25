@@ -531,14 +531,6 @@ export function ExtractsList({
               )}
             </button>
 
-            {/* Color bar */}
-            {extract.highlight_color && (
-              <div
-                className="mb-3 h-1 w-full rounded-t-lg"
-                style={{ backgroundColor: normalizeHighlightColor(extract.highlight_color) }}
-              />
-            )}
-
             {/* Header */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 flex items-center gap-2 flex-wrap">
