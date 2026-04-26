@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useI18n } from "../lib/i18n";
 import type { TabPane } from "../stores/tabsStore";
-import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff, FileText } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff, FileText, List, Brain } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
@@ -17,6 +17,9 @@ import { createExtract, type Extract } from "../api/extracts";
 import { ExtractScrollItem } from "../components/review/ExtractScrollItem";
 import { ClozeCreatorPopup } from "../components/extracts/ClozeCreatorPopup";
 import { QACreatorPopup } from "../components/extracts/QACreatorPopup";
+import { CreateExtractDialog } from "../components/extracts/CreateExtractDialog";
+import { ExtractsList } from "../components/extracts/ExtractsList";
+import { LearningCardsList } from "../components/learning/LearningCardsList";
 import { submitReview } from "../api/review";
 import {
   getUnreadItemsAuto,
@@ -164,11 +167,7 @@ export function QueueScrollPage() {
   });
   const transcriptCacheRef = useRef<Map<string, string>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
-  const ASSISTANT_VISIBILITY_KEY = "scroll-mode-assistant-visible";
-  const [isAssistantVisible, setIsAssistantVisible] = useState(() => {
-    const stored = localStorage.getItem(ASSISTANT_VISIBILITY_KEY);
-    return stored !== "false";
-  });
+
   const [selectedProvider, setSelectedProvider] = useState<"openai" | "anthropic" | "ollama" | "openrouter">(() => {
     const stored = localStorage.getItem("assistant-llm-provider");
     if (stored === "openai" || stored === "anthropic" || stored === "ollama" || stored === "openrouter") {
@@ -177,22 +176,20 @@ export function QueueScrollPage() {
     return "openai";
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scrollViewMode, setScrollViewMode] = useState<"document" | "extracts" | "cards">("document");
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
   const [rssSelectedText, setRssSelectedText] = useState("");
   const MAX_SELECTION_CHARS = 10000;
-  const toggleAssistantVisibility = useCallback(() => {
-    setIsAssistantVisible(prev => {
-      const next = !prev;
-      localStorage.setItem(ASSISTANT_VISIBILITY_KEY, String(next));
-      return next;
-    });
-  }, []);
-
   // Persist provider selection
   useEffect(() => {
     localStorage.setItem("assistant-llm-provider", selectedProvider);
   }, [selectedProvider]);
+
+  // Reset view mode when scrolling to a new item
+  useEffect(() => {
+    setScrollViewMode("document");
+  }, [currentIndex]);
 
   const providers = [
     { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
@@ -204,6 +201,7 @@ export function QueueScrollPage() {
   // Popup state
   const [activeExtractForCloze, setActiveExtractForCloze] = useState<{ id: string, text: string, extractContent?: string, range: [number, number] } | null>(null);
   const [activeExtractForQA, setActiveExtractForQA] = useState<string | null>(null);
+  const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
 
   const lastScrollTime = useRef(0);
   const scrollCooldown = 500; // ms between scroll actions
@@ -1765,7 +1763,7 @@ export function QueueScrollPage() {
           }
         }}
       >
-        {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "left" && (
+        {!isMobile && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "left" && (
           <>
             {/* Model Chooser - Above Assistant */}
             <div className="flex-shrink-0 flex flex-col items-center gap-2 p-2 border-r border-border bg-card z-10">
@@ -1806,7 +1804,13 @@ export function QueueScrollPage() {
             isTransitioning ? "opacity-0" : "opacity-100"
           )}
         >
-          {renderedItem?.type === "document" ? (() => {
+          {renderedItem?.type === "document" && scrollViewMode !== "document" ? (
+            scrollViewMode === "extracts" ? (
+              <ExtractsList documentId={renderedItem.documentId!} />
+            ) : (
+              <LearningCardsList documentId={renderedItem.documentId!} />
+            )
+          ) : renderedItem?.type === "document" ? (() => {
             const doc = documents.find(d => d.id === renderedItem.documentId);
             if (renderedItem.isImportedWebArticle && doc) {
               return (
@@ -1840,7 +1844,6 @@ export function QueueScrollPage() {
                 key={renderedItem.documentId}
                 documentId={renderedItem.documentId!}
                 embedded={true}
-                disableHoverRating={true}
                 extractPostCreateBehavior="stay-in-reader"
                 onExtractCreated={(extract, sourceContext) => {
                   const effectiveContext = sourceContext ?? buildQueueExtractSourceContext({
@@ -1959,7 +1962,7 @@ export function QueueScrollPage() {
             />
           )}
         </div>
-        {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
+        {!isMobile && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
           <>
             <div className="flex-shrink-0 h-full min-h-0 z-10">
               <AssistantPanel
@@ -2022,30 +2025,34 @@ export function QueueScrollPage() {
         />
       )}
 
-      {/* Assistant Toggle */}
-      {!isMobile && renderedItem && renderedItem.type !== "flashcard" && (
-        <div
-          className={cn(
-            "fixed bottom-20 md:bottom-6 left-4 md:left-6 z-[70] transition-opacity duration-300",
-            showControls ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          )}
-        >
-          <button
-            onClick={toggleAssistantVisibility}
-            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-black/70 text-white rounded-lg shadow-lg hover:bg-black/80 transition-colors min-h-[44px] text-sm md:text-base"
-            title={isAssistantVisible ? t("queueScroll.hideAssistant") : t("queueScroll.showAssistant")}
-            aria-pressed={!isAssistantVisible}
-          >
-            <Sparkles className="w-5 h-5" />
-            <span className="font-medium hidden sm:inline">
-              {isAssistantVisible ? t("queueScroll.hideAssistant") : t("queueScroll.showAssistant")}
-            </span>
-            <span className="font-medium sm:hidden">
-              {isAssistantVisible ? t("queueScroll.hideAssistantShort") : t("queueScroll.showAssistantShort")}
-            </span>
-          </button>
-        </div>
+      {/* Create Extract Dialog for document items in scroll mode */}
+      {renderedItem?.type === "document" && renderedItem.documentId && (
+        <CreateExtractDialog
+          documentId={renderedItem.documentId}
+          isOpen={isExtractDialogOpen}
+          onClose={() => setIsExtractDialogOpen(false)}
+          onCreate={(extract) => {
+            setIsExtractDialogOpen(false);
+            const sourceContext = buildQueueExtractSourceContext({
+              documentId: renderedItem.documentId!,
+              title: renderedItem.documentTitle,
+              sourceKind: "book",
+            });
+            toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"), {
+              action: {
+                label: "View extract",
+                onClick: () => openExtractInDocumentTab({
+                  documentId: renderedItem.documentId!,
+                  documentTitle: renderedItem.documentTitle,
+                  extract,
+                  sourceContext,
+                }),
+              },
+            });
+          }}
+        />
       )}
+
 
       {/* RSS Extract Action */}
       {renderedItem?.type === "rss" && rssSelectedText && (
@@ -2272,6 +2279,57 @@ export function QueueScrollPage() {
             </div>
           </div>
         </div>
+
+        {/* Scroll Mode Toolbar - Document/RSS items only */}
+        {(currentItem.type === "document" || currentItem.type === "rss") && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-auto">
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-black/40 backdrop-blur-sm rounded-lg">
+              {currentItem.documentId && (
+                <div className="flex items-center gap-0.5 bg-white/10 rounded-md p-0.5">
+                  <button
+                    onClick={() => setScrollViewMode("document")}
+                    className={cn(
+                      "p-1.5 rounded-md transition-colors",
+                      scrollViewMode === "document" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
+                    )}
+                    title={t("viewer.viewDocument")}
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setScrollViewMode("extracts")}
+                    className={cn(
+                      "p-1.5 rounded-md transition-colors",
+                      scrollViewMode === "extracts" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
+                    )}
+                    title={t("viewer.viewExtracts")}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setScrollViewMode("cards")}
+                    className={cn(
+                      "p-1.5 rounded-md transition-colors",
+                      scrollViewMode === "cards" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
+                    )}
+                    title={t("viewer.viewLearningCards")}
+                  >
+                    <Brain className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              {scrollViewMode === "document" && currentItem.type === "document" && (
+                <button
+                  onClick={() => setIsExtractDialogOpen(true)}
+                  className="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                  title={t("viewer.createExtract")}
+                >
+                  <Lightbulb className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Side Rating Controls - Only for documents and RSS (flashcards have inline rating) */}
         {currentItem.type !== "flashcard" && (

@@ -225,6 +225,7 @@ export function AssistantPanel({
   const effectiveProvider = externalSelectedProvider ?? selectedProvider;
   const [isInputHovered, setIsInputHovered] = useState(false);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
+  const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
 
   // Share dialog state
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -586,7 +587,12 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         llmMessages,
         llmContextData,
         provider.apiKey,
-        provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined
+        provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined,
+        provider.temperature,
+        provider.maxTokens,
+        provider.systemPrompt,
+        aiControls?.contextFromRelatedCards,
+        aiControls?.documentSnippetLength
       );
 
       return { content: response.content };

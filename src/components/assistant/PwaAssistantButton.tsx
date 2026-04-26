@@ -282,7 +282,12 @@ export function PwaAssistantButton({
           contextWindowTokens: contextWindow,
         },
         provider.apiKey,
-        provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined
+        provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined,
+        provider.temperature,
+        provider.maxTokens,
+        provider.systemPrompt,
+        settings.ai.aiControls?.contextFromRelatedCards,
+        settings.ai.aiControls?.documentSnippetLength
       );
 
       const assistant: ChatMessage = {

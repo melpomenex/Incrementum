@@ -25,6 +25,7 @@ import { QuickReviewWidget, InlineQuickReview, FloatingReviewButton } from "./co
 import { ShortcutTooltip } from "./components/common/ShortcutTooltip";
 import { ClipboardQuickAddWatcher } from "./components/common/ClipboardQuickAddWatcher";
 import {
+  dispatchCommandPaletteOpenFromNativeShortcut,
   dispatchCommandPaletteOpen,
   isCommandPaletteOpenShortcut,
   isEditableShortcutTarget,
@@ -299,7 +300,7 @@ function App() {
               break;
             case "KeyK":
             case "KeyP":
-              dispatchCommandPaletteOpen();
+              dispatchCommandPaletteOpenFromNativeShortcut(key);
               break;
             case "Comma":
               setCurrentPage("settings");

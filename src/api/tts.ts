@@ -6,6 +6,8 @@ import {
   type TTSSettings,
   type TTSVoiceProfile,
 } from "../utils/ttsSettings";
+import { makeCacheKey, getCachedAudio, setCachedAudio } from "../utils/ttsCache";
+import { isTauri } from "../lib/tauri";
 
 const DEFAULT_FAL_BASE_URL = "https://fal.run";
 const DEFAULT_GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -364,6 +366,18 @@ export async function cloneVoice(
   };
 }
 
+async function cacheAudio(tts: TTSSettings, cacheKey: string, audioUrl: string, durationSec?: number): Promise<void> {
+  try {
+    const response = await fetch(audioUrl);
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      await setCachedAudio(cacheKey, arrayBuffer, durationSec ?? 0);
+    }
+  } catch {
+    // Cache write failure is non-critical
+  }
+}
+
 export async function generateSpeech(
   settings: Settings,
   request: GenerateSpeechRequest
@@ -376,17 +390,52 @@ export async function generateSpeech(
   const preset = resolvePreset(tts, request.presetId);
   const voice = resolveVoice(tts, request.voiceId);
 
+  // Determine the actual voice identifier used for API calls
+  let voiceIdForCache: string;
+  let speedForCache: number;
+  if (tts.provider === "pocket") {
+    voiceIdForCache = typeof voice.voice === "string" ? voice.voice : "alba";
+    speedForCache = tts.pocketSpeed ?? 1.0;
+  } else if (tts.provider === "groq") {
+    voiceIdForCache = typeof voice.voice === "string" ? voice.voice.toLowerCase() : "fiora";
+    speedForCache = Math.max(0.5, Math.min(2, 1 + (preset.temperature - 0.9) * 0.4));
+  } else {
+    voiceIdForCache = typeof voice.voice === "string" ? voice.voice : voice.id;
+    speedForCache = 1.0;
+  }
+
+  const cacheKey = makeCacheKey(tts.provider, voiceIdForCache, speedForCache, request.text);
+
+  // Check cache first
+  try {
+    const cached = await getCachedAudio(cacheKey);
+    if (cached) {
+      const mimeType = tts.provider === "groq" && tts.groqResponseFormat === "wav" ? "audio/wav" : "audio/mpeg";
+      const blob = new Blob([cached.audioData], { type: mimeType });
+      const audioUrl = URL.createObjectURL(blob);
+      return {
+        audioUrl,
+        durationSec: cached.durationSec,
+        rawOutput: { provider: tts.provider, fromCache: true },
+      };
+    }
+  } catch {
+    // Cache unavailable, proceed with generation
+  }
+
   // Pocket TTS - local sidecar
   if (tts.provider === "pocket") {
     const { generatePocketSpeech } = await import("./pocketTts");
-    const pocketVoice = typeof voice.voice === "string" ? voice.voice : "alba";
-    const speed = tts.pocketSpeed ?? 1.0;
+    const pocketVoice = voiceIdForCache;
+    const speed = speedForCache;
 
     const result = await generatePocketSpeech({
       text: request.text,
       voice: pocketVoice,
       speed,
     });
+
+    void cacheAudio(tts, cacheKey, result.audioUrl, result.durationSec);
 
     return {
       audioUrl: result.audioUrl,
@@ -396,16 +445,20 @@ export async function generateSpeech(
   }
 
   if (tts.provider === "groq") {
-    const groqVoice = typeof voice.voice === "string" ? voice.voice.toLowerCase() : "fiora";
-    const speed = Math.max(0.5, Math.min(2, 1 + (preset.temperature - 0.9) * 0.4));
+    const groqVoice = voiceIdForCache;
+    const speed = speedForCache;
 
-    return invokeGroqSpeech(settings, tts, {
+    const result = await invokeGroqSpeech(settings, tts, {
       model: tts.groqModelId,
       voice: groqVoice,
       input: request.text,
       response_format: tts.groqResponseFormat,
       speed,
     });
+
+    void cacheAudio(tts, cacheKey, result.audioUrl, result.durationSec);
+
+    return result;
   }
 
   const input: Record<string, unknown> = {
@@ -438,6 +491,8 @@ export async function generateSpeech(
     typeof (output as { duration?: unknown }).duration === "number"
       ? ((output as { duration: number }).duration)
       : undefined;
+
+  void cacheAudio(tts, cacheKey, audioUrl, durationSec);
 
   return {
     audioUrl,

@@ -51,6 +51,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify command palette shortcut contract
+        run: npm run test:run -- src/utils/__tests__/commandPaletteShortcut.test.ts src/utils/__tests__/commandPaletteEvents.test.ts
+
       - name: Build frontend
         run: npm run build
 

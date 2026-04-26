@@ -138,6 +138,8 @@ export const defaultSettings: Settings = {
     speakerDiarization: false,
     confidenceScores: false,
     confidenceThreshold: 0.5,
+    idleTranscriptionEnabled: true,
+    idleThresholdMinutes: 5,
     groq: {
       apiKey: '',
       model: 'whisper-large-v3-turbo',

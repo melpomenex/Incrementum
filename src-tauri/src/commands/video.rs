@@ -59,6 +59,7 @@ pub struct VideoTranscriptionStatus {
 /// Accepts a file path and copies the file to the app's video storage directory
 #[tauri::command]
 pub async fn import_video_file(
+    app_handle: AppHandle,
     source_path: String,
     title: String,
     repo: State<'_, Repository>,
@@ -128,6 +129,20 @@ pub async fn import_video_file(
     let created = repo.create_document(&document)
         .await
         .map_err(|e| format!("Failed to create document: {}", e))?;
+
+    // Auto-transcribe if enabled
+    // Note: Frontend should call enqueue_auto_transcription if autoTranscription is true.
+    // We enqueue here as a default behavior; the frontend can skip calling enqueue if disabled.
+    if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
+        let entry = crate::models::TranscriptionQueueEntry::new(
+            created.id.clone(),
+            dest_path.to_string_lossy().to_string(),
+            "local".to_string(),
+            "distil-small.en".to_string(),
+            "en".to_string(),
+        );
+        let _ = transcription_state.auto_queue.enqueue(entry);
+    }
 
     Ok(created)
 }
@@ -323,7 +338,7 @@ pub async fn generate_video_transcript(
             }
 
             let _ = app_for_cb.emit("video-transcription://segment", segment);
-        }).await.map_err(|e| format!("Transcription failed: {}", e))?;
+        }, None).await.map_err(|e| format!("Transcription failed: {}", e))?;
 
         Ok::<(), String>(())
     }.await;

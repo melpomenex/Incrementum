@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Pause, Play, SkipBack, SkipForward, Square, Volume2, Loader2 } from "lucide-react";
+import { Pause, Play, SkipBack, SkipForward, Square, Volume2, Loader2, Highlighter } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getVoicesForProvider } from "../../utils/ttsSettings";
 import { generateSpeech } from "../../api/tts";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
+import { TextPositionIndex } from "../../utils/ttsTextExtraction";
+import { WordHighlightLayer } from "./WordHighlightLayer";
+
+interface TTSStartPosition {
+  pageNumber: number | null;
+  scrollPercent: number | null;
+}
 
 interface ReaderTTSControlsProps {
   text: string;
@@ -15,14 +22,29 @@ interface ReaderTTSControlsProps {
   autoAdvance?: boolean;
   /** Called when a chunk starts playing, useful for highlighting */
   onChunkStart?: (chunkIndex: number, text: string) => void;
+  /** Document position to start reading from */
+  startPosition?: TTSStartPosition;
+  /** Document type for position mapping */
+  docType?: "pdf" | "epub" | "scroll";
+  /** Called when the active chunk changes (useful for auto-scroll / position sync) */
+  onChunkChange?: (chunkIndex: number, scrollPercent: number) => void;
+  /** Whether word highlighting is enabled */
+  highlightEnabled?: boolean;
+  /** Called when highlight toggle is clicked */
+  onHighlightToggle?: () => void;
+  /** Whether auto-scroll is paused (user scrolled manually) */
+  autoScrollPaused?: boolean;
+  /** Called when user clicks re-center */
+  onReCenter?: () => void;
+  /** Ref for the element to highlight text in */
+  highlightContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
 const CHUNK_TARGET = 420;
 const CHUNK_MAX = 700;
-const BUFFER_TARGET_SEC = 12;   // target seconds of audio buffered ahead
-const MAX_CONCURRENT_GEN = 2;   // max parallel sidecar invocations
+const BUFFER_TARGET_SEC = 60;   // target seconds of audio buffered ahead
+const MAX_CONCURRENT_GEN = 3;   // max parallel generation invocations
 const EVICT_BEHIND_COUNT = 3;   // keep N already-played chunks in memory
-const CLOUD_PREFETCH_COUNT = 3; // simple fire-and-forget for fast cloud providers
 
 function normalizeText(text: string): string {
   return text
@@ -90,6 +112,14 @@ export function ReaderTTSControls({
   onComplete,
   autoAdvance = true,
   onChunkStart,
+  startPosition,
+  docType = "scroll",
+  onChunkChange,
+  highlightEnabled = false,
+  onHighlightToggle,
+  autoScrollPaused = false,
+  onReCenter,
+  highlightContainerRef,
 }: ReaderTTSControlsProps) {
   const { t } = useI18n();
   const tts = useSettingsStore((state) => state.settings.tts);
@@ -117,11 +147,40 @@ export function ReaderTTSControls({
   // Track previous playing state
   const _wasPlayingRef = useRef(false);
   const intentionalStopRef = useRef(false);
+  const advancingRef = useRef(false);
+
+  // Word highlighting
+  const [highlightOn, setHighlightOn] = useState(false);
 
   // Buffer underrun indicator
   const [isBuffering, setIsBuffering] = useState(false);
 
   const chunks = useMemo(() => buildChunks(text), [text]);
+
+  // TextPositionIndex for position-aware start
+  const positionIndexRef = useRef<TextPositionIndex>(new TextPositionIndex(docType));
+
+  useEffect(() => {
+    positionIndexRef.current = new TextPositionIndex(docType);
+    if (chunks.length > 0) {
+      positionIndexRef.current.build(chunks);
+    }
+  }, [chunks, docType]);
+
+  // Determine initial chunk index from startPosition
+  const initialChunkRef = useRef<number | null>(null);
+  const startPositionRef = useRef(startPosition);
+  startPositionRef.current = startPosition;
+
+  const getInitialChunk = useCallback(() => {
+    const sp = startPositionRef.current;
+    if (!sp) return 0;
+    const pos = positionIndexRef.current.getPosition(
+      sp.pageNumber,
+      sp.scrollPercent
+    );
+    return pos?.chunkIndex ?? 0;
+  }, []);
 
   // Sync refs for values read in callbacks (avoids stale closures)
   const isAutoPlayingRef = useRef(isAutoPlaying);
@@ -130,19 +189,19 @@ export function ReaderTTSControls({
   bufferStatusRef.current = bufferStatus;
   const chunksLenRef = useRef(chunks.length);
   chunksLenRef.current = chunks.length;
+  const onChunkChangeRef = useRef(onChunkChange);
+  onChunkChangeRef.current = onChunkChange;
 
-  // Buffer manager — tracks adaptive state for Pocket TTS
+  // Waterfall buffer manager — tracks generation concurrency across all providers
   const bufferMgrRef = useRef({
     activeGenCount: 0,
     queuedIndices: new Set<number>(),
-    avgGenTimeMs: 0,
-    avgPlaybackDurationMs: 0,
     getBufferedSecondsAhead(index: number): number {
       let total = 0;
       for (let i = index; i < chunksLenRef.current; i++) {
         const entry = audioBufferRef.current.get(i);
         if (!entry) break;
-        total += entry.durationSec ?? 3; // fallback ~3s if unknown
+        total += entry.durationSec ?? 3;
       }
       return total;
     },
@@ -153,7 +212,6 @@ export function ReaderTTSControls({
           audioBufferRef.current.delete(key);
         }
       }
-      // Also clean bufferStatus
       setBufferStatus(prev => {
         const next = new Map(prev);
         let changed = false;
@@ -169,13 +227,8 @@ export function ReaderTTSControls({
     reset() {
       this.activeGenCount = 0;
       this.queuedIndices.clear();
-      this.avgGenTimeMs = 0;
-      this.avgPlaybackDurationMs = 0;
     },
   });
-
-  // Detect if we're using Pocket TTS (local/slow provider)
-  const isPocketProvider = tts?.provider === "pocket";
 
   // Create a text fingerprint to detect when content actually changes
   const textFingerprint = useMemo(
@@ -199,16 +252,25 @@ export function ReaderTTSControls({
 
   // Reset when text changes
   useEffect(() => {
-    setChunkIndex(0);
-    setIsAutoPlaying(false);
+    const initialChunk = getInitialChunk();
+    setChunkIndex(initialChunk);
+    initialChunkRef.current = initialChunk;
     setIsBuffering(false);
-    intentionalStopRef.current = true;
     stopAudio();
 
-    // Clear buffer
     audioBufferRef.current.clear();
     setBufferStatus(new Map());
     bufferMgrRef.current.reset();
+
+    if (advancingRef.current) {
+      advancingRef.current = false;
+      setIsAutoPlaying(true);
+      intentionalStopRef.current = false;
+      playChunkAtIndexRef.current(initialChunk);
+    } else {
+      setIsAutoPlaying(false);
+      intentionalStopRef.current = true;
+    }
   }, [textFingerprint]);
 
   // Stop audio helper
@@ -232,12 +294,10 @@ export function ReaderTTSControls({
     try {
       setBufferStatus(prev => new Map(prev).set(index, "loading"));
 
-      const t0 = performance.now();
       const result = await generateSpeech(settings, {
         text: chunk,
         voiceId,
       });
-      const genTimeMs = performance.now() - t0;
 
       const buffered: BufferedAudio = {
         audioUrl: result.audioUrl,
@@ -247,24 +307,8 @@ export function ReaderTTSControls({
       audioBufferRef.current.set(index, buffered);
       setBufferStatus(prev => new Map(prev).set(index, "ready"));
 
-      // Update EMA averages for adaptive buffering
-      const mgr = bufferMgrRef.current;
-      const alpha = 0.3; // smoothing factor
-      if (mgr.avgGenTimeMs === 0) {
-        mgr.avgGenTimeMs = genTimeMs;
-      } else {
-        mgr.avgGenTimeMs = alpha * genTimeMs + (1 - alpha) * mgr.avgGenTimeMs;
-      }
-      const durMs = (result.durationSec ?? 3) * 1000;
-      if (mgr.avgPlaybackDurationMs === 0) {
-        mgr.avgPlaybackDurationMs = durMs;
-      } else {
-        mgr.avgPlaybackDurationMs = alpha * durMs + (1 - alpha) * mgr.avgPlaybackDurationMs;
-      }
-
-      // Decrement active gen count
-      mgr.activeGenCount = Math.max(0, mgr.activeGenCount - 1);
-      mgr.queuedIndices.delete(index);
+      bufferMgrRef.current.activeGenCount = Math.max(0, bufferMgrRef.current.activeGenCount - 1);
+      bufferMgrRef.current.queuedIndices.delete(index);
 
       return buffered;
     } catch (error) {
@@ -276,73 +320,35 @@ export function ReaderTTSControls({
     }
   }, [chunks, settings, voiceId]);
 
-  // Pre-buffer upcoming chunks
+  // Pre-buffer upcoming chunks — unified waterfall for all providers
   const preBufferChunks = useCallback((fromIndex: number) => {
-    // Evict old chunks
     bufferMgrRef.current.evictPlayedChunks(fromIndex);
 
-    if (isPocketProvider) {
-      // --- Pocket TTS: adaptive time-based lookahead ---
-      const mgr = bufferMgrRef.current;
-      const secondsAhead = mgr.getBufferedSecondsAhead(fromIndex);
+    const mgr = bufferMgrRef.current;
+    const secondsAhead = mgr.getBufferedSecondsAhead(fromIndex);
+    if (secondsAhead >= BUFFER_TARGET_SEC) return;
 
-      // If gen is slower than playback, scale target up proportionally
-      let target = BUFFER_TARGET_SEC;
-      if (mgr.avgGenTimeMs > 0 && mgr.avgPlaybackDurationMs > 0) {
-        const ratio = mgr.avgGenTimeMs / mgr.avgPlaybackDurationMs;
-        if (ratio > 1) target = BUFFER_TARGET_SEC * ratio;
-      }
-
-      if (secondsAhead >= target) return;
-
-      // Find next unbuffered chunks until we hit target
-      let bufferedSec = secondsAhead;
-      let idx = fromIndex;
-      while (idx < chunks.length && bufferedSec < target) {
-        if (!audioBufferRef.current.has(idx) && !mgr.queuedIndices.has(idx)) {
-          // Check buffer status too (might be loading/pending)
-          const status = bufferStatusRef.current.get(idx);
-          if (!status || status === "error") {
-            // Concurrency gate
-            if (mgr.activeGenCount < MAX_CONCURRENT_GEN) {
-              mgr.activeGenCount++;
-              mgr.queuedIndices.add(idx);
-              setBufferStatus(prev => new Map(prev).set(idx, "pending"));
-              generateChunkAudio(idx).catch(err => {
-                console.warn(`Background generation failed for chunk ${idx}:`, err);
-              });
-            }
+    let bufferedSec = secondsAhead;
+    let idx = fromIndex;
+    while (idx < chunks.length && bufferedSec < BUFFER_TARGET_SEC) {
+      if (!audioBufferRef.current.has(idx) && !mgr.queuedIndices.has(idx)) {
+        const status = bufferStatusRef.current.get(idx);
+        if (!status || status === "error") {
+          if (mgr.activeGenCount < MAX_CONCURRENT_GEN) {
+            mgr.activeGenCount++;
+            mgr.queuedIndices.add(idx);
+            setBufferStatus(prev => new Map(prev).set(idx, "pending"));
+            generateChunkAudio(idx).catch(err => {
+              console.warn(`Background generation failed for chunk ${idx}:`, err);
+            });
           }
         }
-        const entry = audioBufferRef.current.get(idx);
-        if (entry) bufferedSec += entry.durationSec ?? 3;
-        idx++;
       }
-    } else {
-      // --- Cloud providers (Fal, Groq): simple fire-and-forget ---
-      const indicesToBuffer: number[] = [];
-      for (let i = 0; i < CLOUD_PREFETCH_COUNT; i++) {
-        const idx = fromIndex + i;
-        if (idx < chunks.length && !audioBufferRef.current.has(idx)) {
-          indicesToBuffer.push(idx);
-        }
-      }
-
-      for (const idx of indicesToBuffer) {
-        setBufferStatus(prev => {
-          const next = new Map(prev);
-          if (!next.has(idx)) next.set(idx, "pending");
-          return next;
-        });
-      }
-
-      for (const idx of indicesToBuffer) {
-        generateChunkAudio(idx).catch(err => {
-          console.warn(`Background generation failed for chunk ${idx}:`, err);
-        });
-      }
+      const entry = audioBufferRef.current.get(idx);
+      if (entry) bufferedSec += entry.durationSec ?? 3;
+      idx++;
     }
-  }, [chunks.length, generateChunkAudio, isPocketProvider]);
+  }, [chunks.length, generateChunkAudio]);
 
   // Ref so audio.onended always calls the latest playChunkAtIndex (avoids stale closure)
   const playChunkAtIndexRef = useRef<(index: number) => Promise<void>>(() => Promise.resolve());
@@ -354,6 +360,7 @@ export function ReaderTTSControls({
     const chunk = chunks[index];
     setChunkIndex(index);
     onChunkStart?.(index, chunk);
+    onChunkChangeRef.current?.(index, positionIndexRef.current.getScrollPercent(index));
 
     // Check buffer
     let buffered = audioBufferRef.current.get(index);
@@ -394,13 +401,13 @@ export function ReaderTTSControls({
       setIsPlaying(false);
       setIsPaused(false);
 
-      // Auto-advance if still in auto-play mode (use ref to avoid stale closure)
       if (isAutoPlayingRef.current && autoAdvance && !intentionalStopRef.current) {
         const nextIndex = index + 1;
         if (nextIndex < chunksLenRef.current) {
           playChunkAtIndexRef.current(nextIndex);
         } else {
-          // All done
+          // All done — signal advance so new text triggers auto-continue
+          advancingRef.current = true;
           setIsAutoPlaying(false);
           onComplete?.();
         }
@@ -427,7 +434,8 @@ export function ReaderTTSControls({
   // Start pre-buffering when component mounts or text changes
   useEffect(() => {
     if (chunks.length > 0 && ttsEnabled) {
-      preBufferChunks(0);
+      const startIdx = initialChunkRef.current ?? 0;
+      preBufferChunks(startIdx);
     }
   }, [chunks.length, ttsEnabled, preBufferChunks]);
 
@@ -494,6 +502,16 @@ export function ReaderTTSControls({
   const isLoading = currentBufferStatus === "loading" || currentBufferStatus === "pending";
 
   return (
+    <>
+    {highlightEnabled && currentChunk && highlightContainerRef?.current && (
+      <WordHighlightLayer
+        enabled={highlightEnabled}
+        chunkText={currentChunk}
+        wordOffset={0}
+        containerRef={highlightContainerRef}
+        useChunkLevel={true}
+      />
+    )}
     <div
       className={cn(
         "pointer-events-auto rounded-xl border border-border/80 bg-card/95 px-3 py-2 shadow-lg backdrop-blur",
@@ -579,13 +597,40 @@ export function ReaderTTSControls({
           </select>
         </div>
 
-        <span className="text-[11px] text-muted-foreground">
-          {Math.min(chunkIndex + 1, chunks.length)}/{chunks.length}
-        </span>
+          <button
+            onClick={() => {
+              setHighlightOn(!highlightOn);
+              onHighlightToggle?.();
+            }}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs hover:bg-muted",
+              highlightEnabled
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground"
+            )}
+            title={highlightEnabled ? "Disable word highlighting" : "Enable word highlighting"}
+          >
+            <Highlighter className="h-3.5 w-3.5" />
+          </button>
+
+          {autoScrollPaused && (
+            <button
+              onClick={() => onReCenter?.()}
+              className="rounded-md border border-amber-500 bg-amber-500/10 px-2 py-1 text-xs text-amber-600 hover:bg-amber-500/20"
+              title="Re-center to current TTS position"
+            >
+              Re-center
+            </button>
+          )}
+
+          <span className="text-[11px] text-foreground/80">
+            {Math.min(chunkIndex + 1, chunks.length)}/{chunks.length}
+          </span>
       </div>
-      <p className="mt-1 max-w-[26rem] truncate text-[11px] text-muted-foreground" title={currentChunk}>
+      <p className="mt-1 max-w-[26rem] truncate text-[11px] text-foreground/80" title={currentChunk}>
         {isBuffering && isAutoPlaying ? t("readerTts.bufferingNextSegment") : isLoading ? t("readerTts.generatingAudio") : currentChunk}
       </p>
     </div>
+    </>
   );
 }

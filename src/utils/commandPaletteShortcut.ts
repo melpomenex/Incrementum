@@ -39,6 +39,33 @@ export function isCommandPaletteOpenShortcut(
   return event.ctrlKey || event.metaKey;
 }
 
+export function isCommandPaletteNativeShortcutCode(code: string): boolean {
+  return code === "KeyK" || code === "KeyP";
+}
+
+export function shouldOpenCommandPaletteFromNativeShortcut(
+  code: string,
+  activeTarget: EventTarget | null = document.activeElement
+): boolean {
+  if (!isCommandPaletteNativeShortcutCode(code)) {
+    return false;
+  }
+
+  return !isEditableShortcutTarget(activeTarget);
+}
+
 export function dispatchCommandPaletteOpen(): void {
   window.dispatchEvent(new CustomEvent("command-palette-open"));
+}
+
+export function dispatchCommandPaletteOpenFromNativeShortcut(
+  code: string,
+  activeTarget: EventTarget | null = document.activeElement
+): boolean {
+  if (!shouldOpenCommandPaletteFromNativeShortcut(code, activeTarget)) {
+    return false;
+  }
+
+  dispatchCommandPaletteOpen();
+  return true;
 }

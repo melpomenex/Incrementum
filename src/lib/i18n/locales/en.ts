@@ -577,10 +577,6 @@ export const en: Dict = {
   "queueScroll.cardShort": "CARD",
   "queueScroll.rssShort": "RSS",
   "queueScroll.extractShort": "EXTRACT",
-  "queueScroll.hideAssistant": "Hide assistant",
-  "queueScroll.showAssistant": "Show assistant",
-  "queueScroll.hideAssistantShort": "Hide",
-  "queueScroll.showAssistantShort": "Show",
   "queueScroll.createExtract": "Create Extract",
   "queueScroll.createExtractShort": "Extract",
   "queueScroll.createExtractFromSelection": "Create extract from selection",
@@ -2920,6 +2916,13 @@ export const en: Dict = {
   "settings.audioLargeFileSupport":
     "Files over 25MB are automatically split into chunks and transcribed seamlessly. No file size limits!",
   "settings.audioFreeTierCovers": "For most users, the free tier covers ~8 hours of audio per day.",
+  "settings.audioTranscriptionQueue": "Transcription Queue",
+  "settings.audioTranscribeAll": "Transcribe All",
+  "settings.audioNoPendingTranscriptions": "No pending transcriptions",
+  "settings.audioNoPendingTranscriptionsDesc": "Media documents will be automatically transcribed when imported, or click \"Transcribe All\" to enqueue existing untranscribed documents.",
+  "settings.audioCancel": "Cancel",
+  "settings.audioRetry": "Retry",
+  "settings.audioPrioritize": "Prioritize",
 
   // --- Keyboard Shortcuts Settings ---
   "settings.keyboardShortcuts": "Keyboard Shortcuts",

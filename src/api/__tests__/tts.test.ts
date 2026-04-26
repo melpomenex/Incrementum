@@ -3,6 +3,16 @@ import { cloneVoice, generateSpeech, TTSServiceError } from "../tts";
 import { defaultSettings } from "../../stores/settingsStore";
 import { createDefaultTTSSettings } from "../../utils/ttsSettings";
 
+vi.mock("../../utils/ttsCache", () => ({
+  makeCacheKey: vi.fn(() => "test:cache:key"),
+  getCachedAudio: vi.fn(() => Promise.resolve(null)),
+  setCachedAudio: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("../../lib/tauri", () => ({
+  isTauri: () => false,
+}));
+
 function makeSettings() {
   return {
     ...defaultSettings,
@@ -22,21 +32,34 @@ describe("tts api", () => {
   });
 
   it("generates speech and returns playable URL", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+    const mockCacheResponse = {
       ok: true,
-      status: 200,
-      json: async () => ({ data: { audio: { url: "https://cdn.fal.ai/audio.mp3" } } }),
-    } as Response);
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as Response;
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch" as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { audio: { url: "https://cdn.fal.ai/audio.mp3" } } }),
+      } as Response)
+      .mockResolvedValue(mockCacheResponse);
 
     const result = await generateSpeech(makeSettings(), {
       text: "Hello from tests",
     });
 
     expect(result.audioUrl).toBe("https://cdn.fal.ai/audio.mp3");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("retries transient rate-limit failures", async () => {
+    const mockCacheResponse = {
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    } as Response;
+
     const fetchMock = vi
       .spyOn(globalThis, "fetch" as any)
       .mockResolvedValueOnce({
@@ -48,14 +71,15 @@ describe("tts api", () => {
         ok: true,
         status: 200,
         json: async () => ({ data: { audio_url: "https://cdn.fal.ai/retry.mp3" } }),
-      } as Response);
+      } as Response)
+      .mockResolvedValue(mockCacheResponse);
 
     const result = await generateSpeech(makeSettings(), {
       text: "Retry sample",
     });
 
     expect(result.audioUrl).toContain("retry.mp3");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("creates voice profile from clone output", async () => {

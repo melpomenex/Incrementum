@@ -75,3 +75,75 @@ export const getTranscript = (
   }
   return invokeCommand("get_transcript", { bookId, chapterId });
 };
+
+// Auto-transcription queue types
+export type TranscriptionJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
+export interface TranscriptionQueueEntry {
+  id: string;
+  documentId: string;
+  audioPath: string;
+  provider: string;
+  modelId: string;
+  language: string;
+  status: TranscriptionJobStatus;
+  errorMessage: string | null;
+  priority: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  retryCount: number;
+  progress: number;
+}
+
+export interface TranscriptionQueueEntryWithDoc extends TranscriptionQueueEntry {
+  documentTitle: string;
+}
+
+export const enqueueAutoTranscription = (
+  documentId: string,
+  audioPath: string,
+  provider: string,
+  modelId: string,
+  language: string,
+  priority?: number,
+): Promise<void> => {
+  if (!isTauri()) return Promise.reject(new Error("Transcription requires desktop app"));
+  return invokeCommand("enqueue_auto_transcription", {
+    documentId, audioPath, provider, modelId, language, priority,
+  });
+};
+
+export const getTranscriptionQueue = (): Promise<TranscriptionQueueEntryWithDoc[]> => {
+  if (!isTauri()) return Promise.resolve([]);
+  return invokeCommand("get_transcription_queue");
+};
+
+export const cancelTranscriptionJob = (id: string): Promise<void> => {
+  if (!isTauri()) return Promise.reject(new Error("Transcription requires desktop app"));
+  return invokeCommand("cancel_transcription_job", { id });
+};
+
+export const retryTranscriptionJob = (id: string): Promise<void> => {
+  if (!isTauri()) return Promise.reject(new Error("Transcription requires desktop app"));
+  return invokeCommand("retry_transcription_job", { id });
+};
+
+export const prioritizeTranscriptionJob = (id: string): Promise<void> => {
+  if (!isTauri()) return Promise.reject(new Error("Transcription requires desktop app"));
+  return invokeCommand("prioritize_transcription_job", { id });
+};
+
+export const getTranscriptionStatus = (documentId: string): Promise<TranscriptionQueueEntry | null> => {
+  if (!isTauri()) return Promise.resolve(null);
+  return invokeCommand("get_transcription_status", { documentId });
+};
+
+export const enqueueAllUntranscribed = (
+  provider: string,
+  modelId: string,
+  language: string,
+): Promise<number> => {
+  if (!isTauri()) return Promise.resolve(0);
+  return invokeCommand("enqueue_all_untranscribed", { provider, modelId, language });
+};

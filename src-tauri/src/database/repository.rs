@@ -4,7 +4,7 @@ use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
 use std::collections::HashMap;
 use crate::error::Result;
-use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage};
+use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage, TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
 
 #[derive(Clone)]
 pub struct Repository {
@@ -3087,6 +3087,265 @@ impl Repository {
             }
         }
 
+        Ok(())
+    }
+
+    // ---- Transcription queue operations ----
+
+    fn parse_job_status(s: &str) -> TranscriptionJobStatus {
+        match s {
+            "pending" => TranscriptionJobStatus::Pending,
+            "processing" => TranscriptionJobStatus::Processing,
+            "completed" => TranscriptionJobStatus::Completed,
+            "failed" => TranscriptionJobStatus::Failed,
+            "cancelled" => TranscriptionJobStatus::Cancelled,
+            _ => TranscriptionJobStatus::Pending,
+        }
+    }
+
+    pub async fn enqueue_transcription(&self, entry: &TranscriptionQueueEntry) -> Result<()> {
+        let status_str = match entry.status {
+            TranscriptionJobStatus::Pending => "pending",
+            TranscriptionJobStatus::Processing => "processing",
+            TranscriptionJobStatus::Completed => "completed",
+            TranscriptionJobStatus::Failed => "failed",
+            TranscriptionJobStatus::Cancelled => "cancelled",
+        };
+        sqlx::query(
+            "INSERT INTO transcription_queue (id, document_id, audio_path, provider, model_id, language, status, error_message, priority, created_at, started_at, completed_at, retry_count, progress) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"
+        )
+        .bind(&entry.id)
+        .bind(&entry.document_id)
+        .bind(&entry.audio_path)
+        .bind(&entry.provider)
+        .bind(&entry.model_id)
+        .bind(&entry.language)
+        .bind(status_str)
+        .bind(&entry.error_message)
+        .bind(entry.priority)
+        .bind(entry.created_at.to_rfc3339())
+        .bind(entry.started_at.map(|t| t.to_rfc3339()))
+        .bind(entry.completed_at.map(|t| t.to_rfc3339()))
+        .bind(entry.retry_count)
+        .bind(entry.progress)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn dequeue_next_transcription(&self) -> Result<Option<TranscriptionQueueEntry>> {
+        let row = sqlx::query_as::<_, (String, String, String, String, String, String, String, Option<String>, i32, String, Option<String>, Option<String>, i32, i32)>(
+            "SELECT id, document_id, audio_path, provider, model_id, language, status, error_message, priority, created_at, started_at, completed_at, retry_count, progress FROM transcription_queue WHERE status = 'pending' ORDER BY priority DESC, created_at ASC LIMIT 1"
+        )
+        .fetch_optional(self.pool())
+        .await?;
+
+        match row {
+            Some((id, document_id, audio_path, provider, model_id, language, status_str, error_message, priority, created_at, started_at, completed_at, retry_count, progress)) => {
+                Ok(Some(TranscriptionQueueEntry {
+                    id,
+                    document_id,
+                    audio_path,
+                    provider,
+                    model_id,
+                    language,
+                    status: Self::parse_job_status(&status_str),
+                    error_message,
+                    priority,
+                    created_at: created_at.parse().unwrap_or(Utc::now()),
+                    started_at: started_at.and_then(|t| t.parse().ok()),
+                    completed_at: completed_at.and_then(|t| t.parse().ok()),
+                    retry_count,
+                    progress,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn update_transcription_status(&self, id: &str, status: TranscriptionJobStatus, error_message: Option<&str>, progress: Option<i32>) -> Result<()> {
+        let status_str = match status {
+            TranscriptionJobStatus::Pending => "pending",
+            TranscriptionJobStatus::Processing => "processing",
+            TranscriptionJobStatus::Completed => "completed",
+            TranscriptionJobStatus::Failed => "failed",
+            TranscriptionJobStatus::Cancelled => "cancelled",
+        };
+        let now = Utc::now().to_rfc3339();
+
+        match status {
+            TranscriptionJobStatus::Processing => {
+                sqlx::query("UPDATE transcription_queue SET status = ?1, started_at = ?2, progress = ?3 WHERE id = ?4")
+                    .bind(status_str)
+                    .bind(&now)
+                    .bind(progress.unwrap_or(0))
+                    .bind(id)
+                    .execute(self.pool())
+                    .await?;
+            }
+            TranscriptionJobStatus::Completed => {
+                sqlx::query("UPDATE transcription_queue SET status = ?1, completed_at = ?2, progress = ?3 WHERE id = ?4")
+                    .bind(status_str)
+                    .bind(&now)
+                    .bind(progress.unwrap_or(100))
+                    .bind(id)
+                    .execute(self.pool())
+                    .await?;
+            }
+            TranscriptionJobStatus::Failed => {
+                sqlx::query("UPDATE transcription_queue SET status = ?1, error_message = ?2, retry_count = retry_count + 1 WHERE id = ?3")
+                    .bind(status_str)
+                    .bind(error_message)
+                    .bind(id)
+                    .execute(self.pool())
+                    .await?;
+            }
+            _ => {
+                sqlx::query("UPDATE transcription_queue SET status = ?1 WHERE id = ?2")
+                    .bind(status_str)
+                    .bind(id)
+                    .execute(self.pool())
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn reset_transcription_to_pending(&self, id: &str, retry_count: i32) -> Result<()> {
+        sqlx::query("UPDATE transcription_queue SET status = 'pending', retry_count = ?1, error_message = NULL, started_at = NULL, progress = 0 WHERE id = ?2")
+            .bind(retry_count)
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_transcription_queue_entry(&self, document_id: &str) -> Result<Option<TranscriptionQueueEntry>> {
+        let row = sqlx::query_as::<_, (String, String, String, String, String, String, String, Option<String>, i32, String, Option<String>, Option<String>, i32, i32)>(
+            "SELECT id, document_id, audio_path, provider, model_id, language, status, error_message, priority, created_at, started_at, completed_at, retry_count, progress FROM transcription_queue WHERE document_id = ?1 ORDER BY created_at DESC LIMIT 1"
+        )
+        .bind(document_id)
+        .fetch_optional(self.pool())
+        .await?;
+
+        match row {
+            Some((id, document_id, audio_path, provider, model_id, language, status_str, error_message, priority, created_at, started_at, completed_at, retry_count, progress)) => {
+                Ok(Some(TranscriptionQueueEntry {
+                    id,
+                    document_id,
+                    audio_path,
+                    provider,
+                    model_id,
+                    language,
+                    status: Self::parse_job_status(&status_str),
+                    error_message,
+                    priority,
+                    created_at: created_at.parse().unwrap_or(Utc::now()),
+                    started_at: started_at.and_then(|t| t.parse().ok()),
+                    completed_at: completed_at.and_then(|t| t.parse().ok()),
+                    retry_count,
+                    progress,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn get_transcription_queue_by_status(&self, status: TranscriptionJobStatus) -> Result<Vec<TranscriptionQueueEntry>> {
+        let status_str = match status {
+            TranscriptionJobStatus::Pending => "pending",
+            TranscriptionJobStatus::Processing => "processing",
+            TranscriptionJobStatus::Completed => "completed",
+            TranscriptionJobStatus::Failed => "failed",
+            TranscriptionJobStatus::Cancelled => "cancelled",
+        };
+        let rows = sqlx::query_as::<_, (String, String, String, String, String, String, String, Option<String>, i32, String, Option<String>, Option<String>, i32, i32)>(
+            "SELECT id, document_id, audio_path, provider, model_id, language, status, error_message, priority, created_at, started_at, completed_at, retry_count, progress FROM transcription_queue WHERE status = ?1 ORDER BY priority DESC, created_at ASC"
+        )
+        .bind(status_str)
+        .fetch_all(self.pool())
+        .await?;
+
+        Ok(rows.into_iter().map(|(id, document_id, audio_path, provider, model_id, language, status_str, error_message, priority, created_at, started_at, completed_at, retry_count, progress)| {
+            TranscriptionQueueEntry {
+                id,
+                document_id,
+                audio_path,
+                provider,
+                model_id,
+                language,
+                status: Self::parse_job_status(&status_str),
+                error_message,
+                priority,
+                created_at: created_at.parse().unwrap_or(Utc::now()),
+                started_at: started_at.and_then(|t| t.parse().ok()),
+                completed_at: completed_at.and_then(|t| t.parse().ok()),
+                retry_count,
+                progress,
+            }
+        }).collect())
+    }
+
+    pub async fn get_full_transcription_queue(&self) -> Result<Vec<TranscriptionQueueEntryWithDoc>> {
+        let rows = sqlx::query_as::<_, (String, String, String, String, String, String, String, Option<String>, i32, String, Option<String>, Option<String>, i32, i32, String)>(
+            "SELECT tq.id, tq.document_id, tq.audio_path, tq.provider, tq.model_id, tq.language, tq.status, tq.error_message, tq.priority, tq.created_at, tq.started_at, tq.completed_at, tq.retry_count, tq.progress, COALESCE(d.title, 'Unknown') FROM transcription_queue tq LEFT JOIN documents d ON tq.document_id = d.id ORDER BY tq.priority DESC, tq.created_at ASC"
+        )
+        .fetch_all(self.pool())
+        .await?;
+
+        Ok(rows.into_iter().map(|(id, document_id, audio_path, provider, model_id, language, status_str, error_message, priority, created_at, started_at, completed_at, retry_count, progress, document_title)| {
+            TranscriptionQueueEntryWithDoc {
+                entry: TranscriptionQueueEntry {
+                    id,
+                    document_id,
+                    audio_path,
+                    provider,
+                    model_id,
+                    language,
+                    status: Self::parse_job_status(&status_str),
+                    error_message,
+                    priority,
+                    created_at: created_at.parse().unwrap_or(Utc::now()),
+                    started_at: started_at.and_then(|t| t.parse().ok()),
+                    completed_at: completed_at.and_then(|t| t.parse().ok()),
+                    retry_count,
+                    progress,
+                },
+                document_title,
+            }
+        }).collect())
+    }
+
+    pub async fn cancel_transcription_job(&self, id: &str) -> Result<()> {
+        sqlx::query("UPDATE transcription_queue SET status = 'cancelled' WHERE id = ?1")
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_untranscribed_media_documents(&self) -> Result<Vec<(String, String, String)>> {
+        let rows = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT d.id, d.title, d.file_path FROM documents d WHERE d.file_type IN ('audio', 'video') AND (d.content IS NULL OR d.content = '') AND d.id NOT IN (SELECT document_id FROM transcription_queue WHERE status IN ('pending', 'processing', 'completed'))"
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn reset_processing_transcriptions(&self) -> Result<()> {
+        sqlx::query("UPDATE transcription_queue SET status = 'pending', started_at = NULL WHERE status = 'processing'")
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_transcription_progress(&self, id: &str, progress: i32) -> Result<()> {
+        sqlx::query("UPDATE transcription_queue SET progress = ?1 WHERE id = ?2")
+            .bind(progress)
+            .bind(id)
+            .execute(self.pool())
+            .await?;
         Ok(())
     }
 }

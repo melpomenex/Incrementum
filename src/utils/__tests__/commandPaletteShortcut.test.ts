@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  dispatchCommandPaletteOpenFromNativeShortcut,
   dispatchCommandPaletteOpen,
   isCommandPaletteOpenShortcut,
   isEditableShortcutTarget,
+  isCommandPaletteNativeShortcutCode,
+  shouldOpenCommandPaletteFromNativeShortcut,
 } from "../commandPaletteShortcut";
 
 function keyboardEvent(init: Partial<KeyboardEvent> & { target?: EventTarget | null }): KeyboardEvent {
@@ -69,5 +72,49 @@ describe("command palette shortcut matching", () => {
     window.removeEventListener("command-palette-open", listener);
 
     expect(opened).toBe(true);
+  });
+
+  it("matches native command palette shortcut payloads", () => {
+    expect(isCommandPaletteNativeShortcutCode("KeyK")).toBe(true);
+    expect(isCommandPaletteNativeShortcutCode("KeyP")).toBe(true);
+    expect(isCommandPaletteNativeShortcutCode("KeyQ")).toBe(false);
+  });
+
+  it("opens from native command palette shortcuts unless an editable field is focused", () => {
+    const input = document.createElement("input");
+
+    expect(shouldOpenCommandPaletteFromNativeShortcut("KeyK", document.body)).toBe(true);
+    expect(shouldOpenCommandPaletteFromNativeShortcut("KeyP", document.body)).toBe(true);
+    expect(shouldOpenCommandPaletteFromNativeShortcut("KeyK", input)).toBe(false);
+    expect(shouldOpenCommandPaletteFromNativeShortcut("KeyQ", document.body)).toBe(false);
+  });
+
+  it("dispatches the shared open event from native command palette shortcuts", () => {
+    let opened = false;
+    const listener = () => {
+      opened = true;
+    };
+
+    window.addEventListener("command-palette-open", listener);
+    const dispatched = dispatchCommandPaletteOpenFromNativeShortcut("KeyK", document.body);
+    window.removeEventListener("command-palette-open", listener);
+
+    expect(dispatched).toBe(true);
+    expect(opened).toBe(true);
+  });
+
+  it("does not dispatch native command palette shortcuts from editable targets", () => {
+    const input = document.createElement("input");
+    let opened = false;
+    const listener = () => {
+      opened = true;
+    };
+
+    window.addEventListener("command-palette-open", listener);
+    const dispatched = dispatchCommandPaletteOpenFromNativeShortcut("KeyK", input);
+    window.removeEventListener("command-palette-open", listener);
+
+    expect(dispatched).toBe(false);
+    expect(opened).toBe(false);
   });
 });

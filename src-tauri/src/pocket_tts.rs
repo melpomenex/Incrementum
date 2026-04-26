@@ -120,18 +120,36 @@ pub async fn check_pocket_tts_available(app_handle: &AppHandle) -> Result<Pocket
                 .spawn()?;
 
             let mut available = false;
+            let mut stderr_buf = String::new();
             while let Some(event) = rx.recv().await {
-                if let CommandEvent::Terminated(payload) = event {
-                    available = payload.code == Some(0);
-                    break;
+                match event {
+                    CommandEvent::Stderr(line) => {
+                        let line_str = String::from_utf8_lossy(&line);
+                        if stderr_buf.len() < 2000 {
+                            stderr_buf.push_str(&line_str);
+                        }
+                    }
+                    CommandEvent::Terminated(payload) => {
+                        available = payload.code == Some(0);
+                        break;
+                    }
+                    _ => {}
                 }
             }
+
+            let error = if available {
+                None
+            } else if stderr_buf.contains("ModuleNotFoundError") || stderr_buf.contains("No module named 'pocket_tts'") {
+                Some("pocket_tts is not installed. Install with: uv tool install pocket-tts".to_string())
+            } else {
+                Some("Pocket TTS sidecar not found".to_string())
+            };
 
             Ok(PocketTTSStatus {
                 available,
                 downloading: false,
                 download_progress: None,
-                error: if available { None } else { Some("Pocket TTS sidecar not found".to_string()) },
+                error,
             })
         }
         Err(e) => {

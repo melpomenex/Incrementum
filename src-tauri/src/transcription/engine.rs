@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use tauri::{AppHandle, Manager, Emitter};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct TranscriptSegment {
@@ -18,17 +19,59 @@ struct ProgressPayload {
     progress: i32,
 }
 
+#[derive(Clone, Serialize)]
+struct PhasePayload {
+    phase: String,
+}
+
 pub struct TranscriptionEngine {
     app_handle: AppHandle,
 }
+
+static VULKAN_CHECKED: AtomicBool = AtomicBool::new(false);
+static VULKAN_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 impl TranscriptionEngine {
     pub fn new(app_handle: AppHandle) -> Self {
         Self { app_handle }
     }
 
-    /// Converts audio to 16kHz WAV as required by whisper.cpp
+    /// Returns the directory where sidecar binaries live (resource dir + "bin" in production,
+    /// src-tauri/bin in dev). Returns None if the directory can't be resolved.
+    fn sidecar_bin_dir(&self) -> Option<PathBuf> {
+        let dir = self.app_handle.path().resource_dir().ok()?.join("bin");
+        if dir.is_dir() {
+            return Some(dir);
+        }
+        // Dev fallback
+        let dev_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin");
+        if dev_dir.is_dir() {
+            return Some(dev_dir);
+        }
+        None
+    }
+
+    /// Checks whether libggml-vulkan.so is present in the sidecar bin directory.
+    /// Caches the result after the first check.
+    fn vulkan_available(&self) -> bool {
+        if VULKAN_CHECKED.load(Ordering::Relaxed) {
+            return VULKAN_AVAILABLE.load(Ordering::Relaxed);
+        }
+        let available = self.sidecar_bin_dir()
+            .map(|dir| dir.join("libggml-vulkan.so").exists())
+            .unwrap_or(false);
+        if available {
+            println!("[TranscriptionEngine] Vulkan GPU backend detected");
+        }
+        VULKAN_AVAILABLE.store(available, Ordering::Relaxed);
+        VULKAN_CHECKED.store(true, Ordering::Relaxed);
+        available
+    }
+
+    /// Converts audio to 16kHz WAV as required by whisper.cpp.
+    /// Emits "transcription://phase" with "preparing" so the UI can show a preparing state.
     pub async fn prepare_audio(&self, input_path: &Path) -> Result<PathBuf> {
+        let _ = self.app_handle.emit("transcription://phase", PhasePayload { phase: "preparing".to_string() });
         let temp_dir = self.app_handle.path().app_cache_dir()?.join("transcription");
         if !temp_dir.exists() {
             std::fs::create_dir_all(&temp_dir)?;
@@ -42,7 +85,7 @@ impl TranscriptionEngine {
                 "-ar", "16000",
                 "-ac", "1",
                 "-c:a", "pcm_s16le",
-                "-y", // overwrite
+                "-y",
                 output_path.to_str().unwrap()
             ])
             .spawn()?;
@@ -79,6 +122,7 @@ impl TranscriptionEngine {
         model_path: &Path,
         language: &str,
         on_segment: impl Fn(TranscriptSegment),
+        on_progress: Option<Box<dyn Fn(i32) + Send + Sync>>,
     ) -> Result<()> {
         if !model_path.exists() {
             return Err(anyhow!(
@@ -101,9 +145,28 @@ impl TranscriptionEngine {
             args.push(language.to_string());
         }
 
-        // Use the bundled sidecar binary ("whisper"). The repo config only ships this name.
-        let cmd = self.app_handle.shell().sidecar("whisper")
+        let use_gpu = self.vulkan_available();
+
+        let phase = if use_gpu { "transcribing-gpu" } else { "transcribing-cpu" };
+        let _ = self.app_handle.emit("transcription://phase", PhasePayload { phase: phase.to_string() });
+
+        // Use the bundled sidecar binary ("whisper").
+        let mut cmd = self.app_handle.shell().sidecar("whisper")
             .map_err(|e| anyhow!("Whisper sidecar not found: {}", e))?;
+
+        // Set LD_LIBRARY_PATH so whisper can find libggml-vulkan.so and other shared backends
+        if let Some(bin_dir) = self.sidecar_bin_dir() {
+            if let Some(bin_str) = bin_dir.to_str() {
+                let existing = std::env::var("LD_LIBRARY_PATH").unwrap_or_default();
+                let new_path = if existing.is_empty() {
+                    bin_str.to_string()
+                } else {
+                    format!("{}:{}", bin_str, existing)
+                };
+                cmd = cmd.env("LD_LIBRARY_PATH", new_path);
+            }
+        }
+
         let (mut rx, _) = cmd.args(args).spawn().map_err(|e| {
             anyhow!("Failed to launch sidecar 'whisper': {}", e)
         })?;
@@ -139,6 +202,9 @@ impl TranscriptionEngine {
                             if let Some(end) = rest.find('%') {
                                 if let Ok(p) = rest[..end].trim().parse::<i32>() {
                                     let _ = self.app_handle.emit("transcription://progress", ProgressPayload { progress: p });
+                                    if let Some(ref cb) = on_progress {
+                                        cb(p);
+                                    }
                                 }
                             }
                         }
@@ -205,3 +271,4 @@ impl TranscriptionEngine {
         Ok(())
     }
 }
+

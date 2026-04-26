@@ -64,6 +64,7 @@ import { getDeviceInfo } from "../../lib/pwa";
 import { invokeCommand, isTauri, isMac } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
+import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
 const SAVED_VIEWS_KEY = "documentsSavedViews";
@@ -1165,6 +1166,25 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                             <span className="px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">
                               {doc.fileType}
                             </span>
+                            {(doc.fileType === 'audio' || doc.fileType === 'video') && (() => {
+                              const store = useTranscriptionQueueStore.getState();
+                              const entry = store.getEntryForDocument(doc.id);
+                              if (!entry || entry.status === 'completed') return null;
+                              const progress = entry.status === 'processing' ? store.activeProgress : 0;
+                              const isPreparing = entry.status === 'processing' && store.activePhase === 'preparing';
+                              return (
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                                  entry.status === 'processing' ? 'bg-blue-500/20 text-blue-600' :
+                                  entry.status === 'failed' ? 'bg-red-500/20 text-red-600' :
+                                  'bg-amber-500/20 text-amber-600'
+                                }`}>
+                                  {isPreparing ? '⏳ Preparing...' :
+                                   entry.status === 'processing' ? `⏳ ${progress}%` :
+                                   entry.status === 'failed' ? '✗ Failed' :
+                                   '⏎ Pending'}
+                                </span>
+                              );
+                            })()}
                             <ProgressBar doc={doc} />
                             {showNextAction && (
                               <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">

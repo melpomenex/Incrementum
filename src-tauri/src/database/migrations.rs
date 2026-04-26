@@ -1480,6 +1480,33 @@ pub const MIGRATIONS: &[Migration] = &[
         END;
         "#,
     ),
+    // Migration 040: Auto-transcription queue
+    Migration::new(
+        "040_auto_transcription_queue",
+        r#"
+        CREATE TABLE IF NOT EXISTS transcription_queue (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            audio_path TEXT NOT NULL,
+            provider TEXT NOT NULL DEFAULT 'local',
+            model_id TEXT NOT NULL,
+            language TEXT NOT NULL DEFAULT 'en',
+            status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+            error_message TEXT,
+            priority INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            completed_at TEXT,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            progress INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_transcription_queue_status
+        ON transcription_queue(status, priority DESC, created_at ASC);
+        CREATE INDEX IF NOT EXISTS idx_transcription_queue_document
+        ON transcription_queue(document_id);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

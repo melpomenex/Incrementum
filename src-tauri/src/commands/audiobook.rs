@@ -311,9 +311,10 @@ pub async fn import_podcast_audio_file(
         .map(|profile| profile.id);
 
     let mut transcript_segments = 0_i32;
+    let had_model = selected_model.is_some();
     if let Some(model_id) = selected_model {
         let model_path = model_manager.get_model_path(&model_id);
-        let engine = TranscriptionEngine::new(app_handle);
+        let engine = TranscriptionEngine::new(app_handle.clone());
         let wav_path = engine
             .prepare_audio(path)
             .await
@@ -333,6 +334,7 @@ pub async fn import_podcast_audio_file(
                         state.1 += 1;
                     }
                 },
+                None,
             )
             .await
             .is_ok()
@@ -359,6 +361,20 @@ pub async fn import_podcast_audio_file(
         }
 
         let _ = std::fs::remove_file(wav_path);
+    }
+
+    // If no model was available for inline transcription, enqueue for auto-transcription
+    if !had_model {
+        if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
+            let entry = crate::models::TranscriptionQueueEntry::new(
+                created.id.clone(),
+                file_path.clone(),
+                "local".to_string(),
+                "distil-small.en".to_string(),
+                language.as_deref().unwrap_or("en").to_string(),
+            );
+            let _ = transcription_state.auto_queue.enqueue(entry);
+        }
     }
 
     Ok(PodcastImportResult {
@@ -647,7 +663,7 @@ pub async fn generate_audiobook_transcript(
                 if let Ok(mut guard) = segments_for_cb.lock() {
                     guard.push(seg);
                 }
-            })
+            }, None)
             .await
             .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
 

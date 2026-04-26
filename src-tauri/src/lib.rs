@@ -189,12 +189,11 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
     }
 
-    // On Windows (WebView2) and macOS (WKWebView), the webview intercepts
-    // Ctrl/Cmd+key combos before they reach JavaScript or the global-shortcut plugin.
-    // Menu accelerators fire at the native event loop level, before the webview can
-    // intercept them. On Linux, the global-shortcut plugin already works, so we skip
-    // menu accelerators there to avoid GTK conflicts.
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    // Packaged webviews can intercept Ctrl/Cmd+key combos before JavaScript sees
+    // them. Menu accelerators fire at the native event loop level and provide a
+    // second delivery path when the global-shortcut plugin is unavailable or
+    // behaves differently in release artifacts.
+    #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
     {
         builder = builder.menu(|app| {
             use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -218,7 +217,7 @@ pub fn run() {
                 menu.append(&app_submenu)?;
             }
 
-            #[cfg(target_os = "windows")]
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
             let accel_items: &[(&str, &str, &str)] = &[
                 ("accel-k",     "Command Palette (K)", "Control+k"),
                 ("accel-p",     "Command Palette (P)", "Control+p"),
@@ -230,7 +229,7 @@ pub fn run() {
                 ("accel-comma", "Settings",             "Control+,"),
                 ("accel-slash", "Shortcuts Help",       "Control+/"),
             ];
-            #[cfg(target_os = "windows")]
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
             for (id, label, accel) in accel_items {
                 let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
                 menu.append(&item)?;
@@ -277,16 +276,8 @@ pub fn run() {
                 _ => return,
             };
 
+            tracing::debug!("menu accelerator shortcut emitted: {}", key_str);
             let _ = app.emit_to("main", "global-shortcut", key_str);
-        });
-    }
-
-    // On Linux, keep an empty menu to avoid the default GTK menu bar appearance.
-    #[cfg(target_os = "linux")]
-    {
-        builder = builder.menu(|app| {
-            use tauri::menu::Menu;
-            Menu::new(app)
         });
     }
 
@@ -452,6 +443,7 @@ pub fn run() {
                 app.manage(pocket_tts::PocketTTSState::default());
                 app.manage(transcription::TranscriptionState {
                     job_queue: transcription::job_queue::JobQueue::new(app.handle().clone(), repo.clone()),
+                    auto_queue: transcription::auto_queue::AutoTranscriptionQueue::new(app.handle().clone(), repo.clone()),
                 });
 
                 // Check and import demo content on first run (before repo is moved)
@@ -480,9 +472,9 @@ pub fn run() {
                         "console.log('Webview location:', window.location.href);",
                     );
 
-                    // Hide the menu bar on Windows so it doesn't clutter the UI.
+                    // Hide the menu bar where it would otherwise clutter the UI.
                     // The accelerators still work via the on_menu_event handler above.
-                    #[cfg(target_os = "windows")]
+                    #[cfg(any(target_os = "linux", target_os = "windows"))]
                     {
                         let _ = window.hide_menu();
                     }
@@ -786,6 +778,10 @@ pub fn run() {
             commands::get_read_rss_articles,
             commands::get_river_of_news,
             commands::search_rss_articles,
+            commands::fts_search,
+            commands::fts_search_suggestions,
+            commands::fts_get_stats,
+            commands::fts_reindex,
             commands::compute_story_clusters,
             commands::get_rss_article_clusters,
             commands::invalidate_clusters_for_feed,
@@ -928,6 +924,13 @@ pub fn run() {
             transcription::delete_transcription_model,
             transcription::start_transcription,
             transcription::get_transcript,
+            transcription::enqueue_auto_transcription,
+            transcription::get_transcription_queue,
+            transcription::cancel_transcription_job,
+            transcription::retry_transcription_job,
+            transcription::prioritize_transcription_job,
+            transcription::get_transcription_status,
+            transcription::enqueue_all_untranscribed,
             // Semantic search commands - TEMPORARILY DISABLED for debugging Windows startup crash
             // commands::generate_embedding,
             // commands::generate_embeddings_batch,

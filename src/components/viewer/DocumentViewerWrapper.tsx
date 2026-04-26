@@ -38,7 +38,6 @@ export function DocumentViewer({
   focusedExtractId,
   extractSourceContext,
 }: DocumentViewerWithAssistantProps) {
-  const [assistantInputActive, setAssistantInputActive] = useState(false);
   const [selection, setSelection] = useState("");
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
   const [pdfContextText, setPdfContextText] = useState<string | undefined>(undefined);
@@ -323,7 +322,6 @@ export function DocumentViewer({
     <AssistantPanel
       context={assistantContext}
       className="flex-shrink-0"
-      onInputHoverChange={setAssistantInputActive}
       position={assistantPosition}
       onPositionChange={handlePositionChange}
     />
@@ -333,7 +331,6 @@ export function DocumentViewer({
     <div className="flex-1 h-full min-h-0 overflow-hidden">
       <BaseDocumentViewer
         documentId={documentId}
-        disableHoverRating={assistantInputActive}
         onSelectionChange={setSelection}
         onScrollPositionChange={setScrollState}
         initialViewMode={initialViewMode}

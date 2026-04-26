@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invokeCommand } from "../lib/tauri";
+import { ftsSearch, type FtsSearchResult } from "../api/ftsSearch";
 import {
   Search as SearchIcon,
   FileText,
@@ -25,6 +26,7 @@ interface SearchResult {
   tags?: string[];
   excerpt?: string;
   relevance?: number;
+  fileType?: string;
 }
 
 export function SearchPage() {
@@ -52,14 +54,25 @@ export function SearchPage() {
     setIsSearching(true);
 
     try {
-      const searchResults = await invokeCommand<SearchResult[]>("global_search", {
-        query,
-        filters: Array.from(selectedFilters),
+      const activeTypes = Array.from(selectedFilters);
+      const ftsResults = await ftsSearch({
+        query: query.trim(),
+        limit: 50,
+        resultTypes: activeTypes,
       });
 
-      setResults(searchResults);
+      const mapped: SearchResult[] = ftsResults.map((r: FtsSearchResult) => ({
+        id: r.id,
+        type: r.resultType as SearchResultType,
+        title: r.title || (r.excerpt ? r.excerpt.substring(0, 50) + "..." : r.id),
+        excerpt: r.excerpt,
+        relevance: r.score,
+        documentTitle: r.resultType === "extract" ? r.documentId : undefined,
+        fileType: r.fileType,
+      }));
+
+      setResults(mapped);
     } catch {
-      // Backend search might not be implemented, use client-side fallback
       await clientSideSearch();
     } finally {
       setIsSearching(false);
@@ -67,7 +80,6 @@ export function SearchPage() {
   };
 
   const clientSideSearch = async () => {
-    // Fallback: search through all items client-side
     const allResults: SearchResult[] = [];
 
     try {
@@ -92,9 +104,7 @@ export function SearchPage() {
       if (selectedFilters.has("extract")) {
         const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
         extracts.forEach((extract: any) => {
-          if (
-            extract.content?.toLowerCase().includes(query.toLowerCase())
-          ) {
+          if (extract.content?.toLowerCase().includes(query.toLowerCase())) {
             allResults.push({
               id: extract.id,
               type: "extract",
@@ -127,8 +137,7 @@ export function SearchPage() {
       }
 
       setResults(allResults);
-    } catch (error) {
-      console.error("Search error:", error);
+    } catch {
       setResults([]);
     }
   };
@@ -176,21 +185,17 @@ export function SearchPage() {
     setSelectedFilters(newFilters);
   };
 
-  const highlightText = (text: string, highlight: string) => {
-    if (!highlight) return text;
-
-    const regex = new RegExp(`(${highlight})`, "gi");
-    const parts = text.split(regex);
-
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark key={i} className="bg-yellow-200 text-foreground">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
+  const highlightMarks = (text: string) => {
+    if (!text) return text;
+    return text.replace(/<mark>/g, '««').replace(/<\/mark>/g, '»»').split('««').map((part, i) => {
+      const endIdx = part.indexOf('»»');
+      if (endIdx !== -1) {
+        const highlighted = part.substring(0, endIdx);
+        const rest = part.substring(endIdx + 2);
+        return <span key={i}><mark className="bg-yellow-200 text-foreground">{highlighted}</mark>{rest}</span>;
+      }
+      return part;
+    });
   };
 
   return (
@@ -289,24 +294,18 @@ export function SearchPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-medium text-foreground">
-                          {highlightText(result.title, query)}
+                          {result.title}
                         </h3>
-                        {result.relevance && (
-                          <span className="text-xs text-foreground-secondary">
-                            {Math.round(result.relevance * 100)}% match
+                        {result.fileType && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+                            {result.fileType}
                           </span>
                         )}
                       </div>
 
-                      {result.documentTitle && (
-                        <div className="text-xs text-foreground-secondary mb-2">
-                          in {highlightText(result.documentTitle, query)}
-                        </div>
-                      )}
-
                       {result.excerpt && (
                         <div className="text-sm text-foreground-secondary line-clamp-2">
-                          {highlightText(result.excerpt, query)}
+                          {highlightMarks(result.excerpt)}
                         </div>
                       )}
 
@@ -316,13 +315,6 @@ export function SearchPage() {
                           <div className="flex items-center gap-1">
                             <Folder className="w-3 h-3" />
                             {result.category}
-                          </div>
-                        )}
-                        {result.tags && result.tags.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Hash className="w-3 h-3" />
-                            {result.tags.slice(0, 3).join(", ")}
-                            {result.tags.length > 3 && "..."}
                           </div>
                         )}
                         <div className="flex items-center gap-1">

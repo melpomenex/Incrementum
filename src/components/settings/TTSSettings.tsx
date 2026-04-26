@@ -587,7 +587,14 @@ export function TTSSettings() {
               </div>
             )}
             {pocketStatus.error && (
-              <p className="mt-2 text-xs text-destructive">{pocketStatus.error}</p>
+              <div className="mt-2">
+                <p className="text-xs text-destructive">{pocketStatus.error}</p>
+                {pocketStatus.error.includes("not installed") && (
+                  <code className="mt-1 block rounded bg-muted px-2 py-1 text-xs font-mono text-foreground">
+                    uv tool install pocket-tts
+                  </code>
+                )}
+              </div>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
               {t("settings.ttsPocketOfflineNote")}
