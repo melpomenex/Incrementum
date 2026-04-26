@@ -11,6 +11,7 @@ import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { normalizeHighlightColor } from "../../utils/highlightColors";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
+import { getShortcutCombo, eventMatchesCombo } from "../common/KeyboardShortcuts";
 
 // Define outside component to keep a stable reference across renders
 const FONT_FAMILY_MAP: Record<string, string> = {
@@ -555,6 +556,7 @@ export function EPUBViewer({
             // Key events inside the EPUB iframe don't reliably reach the parent window.
             // Bind Cmd/Ctrl+K here so the command palette always opens while reading.
             contents.window.addEventListener("keydown", handleCommandPaletteHotkey, true);
+            contents.window.addEventListener("keydown", handleExtractTextHotkey, true);
             console.log("EPUBViewer: Injected override styles into content");
           });
 
@@ -1269,6 +1271,14 @@ export function EPUBViewer({
     if (isCommandPaletteOpenShortcut(e)) {
       e.preventDefault();
       dispatchCommandPaletteOpen();
+    }
+  }, []);
+
+  const handleExtractTextHotkey = useCallback((e: KeyboardEvent) => {
+    const combo = getShortcutCombo("edit.extract-text");
+    if (combo && eventMatchesCombo(e, combo)) {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("extract-text"));
     }
   }, []);
 

@@ -6,6 +6,11 @@
 import { useEffect, useCallback } from "react";
 import { X, Command, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import {
+  useShortcutStore,
+  ShortcutCategory,
+  formatKeyCombo,
+} from "./KeyboardShortcuts";
 
 interface ShortcutGroup {
   name: string;
@@ -15,64 +20,47 @@ interface ShortcutGroup {
   }[];
 }
 
+const CATEGORY_LABEL_KEYS: Record<ShortcutCategory, string> = {
+  [ShortcutCategory.Navigation]: "keyboardShortcutsHelp.global",
+  [ShortcutCategory.Editing]: "keyboardShortcutsHelp.global",
+  [ShortcutCategory.View]: "keyboardShortcutsHelp.global",
+  [ShortcutCategory.Review]: "keyboardShortcutsHelp.review",
+  [ShortcutCategory.Documents]: "keyboardShortcutsHelp.queue",
+  [ShortcutCategory.Flashcards]: "keyboardShortcutsHelp.global",
+  [ShortcutCategory.General]: "keyboardShortcutsHelp.global",
+};
+
+const CATEGORY_ORDER: ShortcutCategory[] = [
+  ShortcutCategory.General,
+  ShortcutCategory.Navigation,
+  ShortcutCategory.Editing,
+  ShortcutCategory.View,
+  ShortcutCategory.Review,
+  ShortcutCategory.Documents,
+  ShortcutCategory.Flashcards,
+];
+
 function getShortcutGroups(t: (key: string) => string): ShortcutGroup[] {
-  return [
-    {
-      name: t("keyboardShortcutsHelp.global"),
-      shortcuts: [
-        { keys: ["Ctrl/⌘", "K"], description: t("keyboardShortcutsHelp.openCommandPalette") },
-        { keys: ["Ctrl/⌘", "P"], description: t("keyboardShortcutsHelp.quickNavigation") },
-        { keys: ["Ctrl/⌘", ","], description: t("keyboardShortcutsHelp.openSettings") },
-        { keys: ["Ctrl/⌘", "D"], description: t("keyboardShortcutsHelp.goToDashboard") },
-        { keys: ["Ctrl/⌘", "Q"], description: t("keyboardShortcutsHelp.goToQueue") },
-        { keys: ["Ctrl/⌘", "R"], description: t("keyboardShortcutsHelp.startReview") },
-        { keys: ["Ctrl/⌘", "O"], description: t("keyboardShortcutsHelp.openDocumentImport") },
-        { keys: ["Ctrl/⌘", "N"], description: t("keyboardShortcutsHelp.newItem") },
-        { keys: ["Ctrl/⌘", "/"], description: t("keyboardShortcutsHelp.showKeyboardShortcuts") },
-        { keys: ["?"], description: t("keyboardShortcutsHelp.showThisHelp") },
-      ],
-    },
-    {
-      name: t("keyboardShortcutsHelp.review"),
-      shortcuts: [
-        { keys: ["Space"], description: t("keyboardShortcutsHelp.showAnswer") },
-        { keys: ["1"], description: t("keyboardShortcutsHelp.rateAgain") },
-        { keys: ["2"], description: t("keyboardShortcutsHelp.rateHard") },
-        { keys: ["3"], description: t("keyboardShortcutsHelp.rateGood") },
-        { keys: ["4"], description: t("keyboardShortcutsHelp.rateEasy") },
-        { keys: ["Ctrl/⌘", "Enter"], description: t("keyboardShortcutsHelp.showAnswerAlternative") },
-        { keys: ["Ctrl/⌘", "1/2/3/4"], description: t("keyboardShortcutsHelp.rateWithoutShowingAnswer") },
-        { keys: ["Esc"], description: t("keyboardShortcutsHelp.endSession") },
-        { keys: ["Ctrl/⌘", "E"], description: t("keyboardShortcutsHelp.editCurrentCard") },
-        { keys: ["Ctrl/⌘", "D"], description: t("keyboardShortcutsHelp.deleteCurrentCard") },
-        { keys: ["Ctrl/⌘", "S"], description: t("keyboardShortcutsHelp.suspendCard") },
-        { keys: ["Ctrl/⌘", "H"], description: t("keyboardShortcutsHelp.cardHistory") },
-      ],
-    },
-    {
-      name: t("keyboardShortcutsHelp.queue"),
-      shortcuts: [
-        { keys: ["Ctrl/⌘", "F"], description: t("keyboardShortcutsHelp.focusSearch") },
-        { keys: ["Ctrl/⌘", "A"], description: t("keyboardShortcutsHelp.selectAll") },
-        { keys: ["Delete"], description: t("keyboardShortcutsHelp.deleteSelected") },
-        { keys: ["Ctrl/⌘", "Click"], description: t("keyboardShortcutsHelp.multiSelect") },
-        { keys: ["Shift", "Click"], description: t("keyboardShortcutsHelp.rangeSelect") },
-      ],
-    },
-    {
-      name: t("keyboardShortcutsHelp.documentViewer"),
-      shortcuts: [
-        { keys: ["Ctrl/⌘", "F"], description: t("keyboardShortcutsHelp.searchInDocument") },
-        { keys: ["Ctrl/⌘", "C"], description: t("keyboardShortcutsHelp.copySelectedText") },
-        { keys: ["Ctrl/⌘", "E"], description: t("keyboardShortcutsHelp.createExtractFromSelection") },
-        { keys: ["Ctrl/⌘", "H"], description: t("keyboardShortcutsHelp.highlightSelection") },
-        { keys: ["Ctrl/⌘", "+"], description: t("keyboardShortcutsHelp.zoomIn") },
-        { keys: ["Ctrl/⌘", "-"], description: t("keyboardShortcutsHelp.zoomOut") },
-        { keys: ["Ctrl/⌘", "0"], description: t("keyboardShortcutsHelp.resetZoom") },
-        { keys: ["F11"], description: t("keyboardShortcutsHelp.fullScreen") },
-      ],
-    },
-  ];
+  const shortcuts = useShortcutStore.getState().shortcuts;
+  const grouped = new Map<ShortcutCategory, ShortcutGroup>();
+
+  for (const cat of CATEGORY_ORDER) {
+    grouped.set(cat, {
+      name: t(CATEGORY_LABEL_KEYS[cat]),
+      shortcuts: [],
+    });
+  }
+
+  for (const s of shortcuts) {
+    const combo = s.currentCombo || s.defaultCombo;
+    const formatted = formatKeyCombo(combo);
+    grouped.get(s.category)?.shortcuts.push({
+      keys: [formatted],
+      description: s.description,
+    });
+  }
+
+  return CATEGORY_ORDER.map((cat) => grouped.get(cat)!).filter((g) => g.shortcuts.length > 0);
 }
 
 interface KeyboardShortcutsHelpProps {

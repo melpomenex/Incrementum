@@ -163,6 +163,7 @@ interface PDFViewerProps {
   onOcrExtractText?: (text: string, pageNumber: number) => void;
   persistedHighlights?: StoredHighlight[];
   onHighlightSelection?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
+  onHighlightSelectionWithDialog?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
 }
 
 type PdfSearchMatch = {
@@ -217,6 +218,7 @@ export function PDFViewer({
   onOcrExtractText,
   persistedHighlights = [],
   onHighlightSelection,
+  onHighlightSelectionWithDialog,
 }: PDFViewerProps) {
   const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -356,6 +358,18 @@ export function PDFViewer({
       setPendingSelectionContext(null);
     },
     [customSelection, onHighlightSelection, pendingSelectionContext]
+  );
+
+  const handleHighlightWithDialog = useCallback(
+    (color: HighlightColor) => {
+      if (!pendingSelectionContext) return;
+      onHighlightSelectionWithDialog?.(color, customSelection.selectionState.selectedText, pendingSelectionContext);
+
+      customSelection.clearSelection();
+      setShowSelectionPopup(false);
+      setPendingSelectionContext(null);
+    },
+    [customSelection, onHighlightSelectionWithDialog, pendingSelectionContext]
   );
 
   // Handle copy action from popup
@@ -2068,6 +2082,8 @@ export function PDFViewer({
           targetScrollTop = restoreState.scrollTop;
         }
         targetScrollLeft = scrollLeft;
+      } else if (pageEl && pageEl.offsetTop !== undefined) {
+        targetScrollTop = pageEl.offsetTop;
       }
 
       const hasEnoughLayout =
@@ -2818,6 +2834,7 @@ export function PDFViewer({
         selectionRect={selectionPopupRect}
         selectedText={customSelection.selectionState.selectedText}
         onHighlight={handleHighlight}
+        onHighlightWithDialog={handleHighlightWithDialog}
         onCopy={handleCopy}
         onAddNote={handleAddNote}
         onDismiss={handlePopupDismiss}

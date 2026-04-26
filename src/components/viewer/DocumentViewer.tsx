@@ -16,6 +16,7 @@ import { LearningCardsList } from "../learning/LearningCardsList";
 import { EditableContentPalette } from "../common/EditableContentPalette";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
+import { EditExtractDialog } from "../extracts/EditExtractDialog";
 import type { PdfSelectionContext, SelectionContext, TextSelectionContext, EpubSelectionContext } from "../../types/selection";
 import type { Extract } from "../../api/extracts";
 import { createExtract } from "../../api/extracts";
@@ -24,9 +25,11 @@ import { HoverRatingControls } from "../review/HoverRatingControls";
 import { PriorityControl } from "./PriorityControl";
 import { DocumentMinimap, type MinimapSegment } from "./DocumentMinimap";
 import { useInlineExtraction, flashAnimationStyles } from "../../hooks/useInlineExtraction";
+import { useToastExtract } from "../../hooks/useToastExtract";
 import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
+import { eventMatchesCombo, useShortcutStore } from "../common/KeyboardShortcuts";
 import * as documentsApi from "../../api/documents";
 import { createLearningItem, generateLearningItemsFromExtract } from "../../api/learning-items";
 import { updateDocumentProgressAuto } from "../../api/documents";
@@ -384,6 +387,8 @@ export function DocumentViewer({
   const restoreScrollDoneRef = useRef(false);
   const restorationInProgressRef = useRef(false);
   const scrollSaveTimeoutRef = useRef<number | null>(null);
+  const htmlScrollTimeoutRef = useRef<number | null>(null);
+  const htmlRestorationPendingRef = useRef<ViewState | null>(null);
   const restoreRequestIdRef = useRef(0);
   const restoreAttemptRef = useRef(0);
   const restoreReadyAttemptsRef = useRef(0);
@@ -888,6 +893,10 @@ export function DocumentViewer({
     setInitialHighlightColor(undefined);
     // Clear the browser's text selection
     window.getSelection()?.removeAllRanges();
+    // Also clear selection inside the HTML iframe if present
+    try {
+      iframeRef.current?.contentWindow?.getSelection()?.removeAllRanges();
+    } catch { /* cross-origin guard */ }
   }, []);
 
   const persistScrollState = useCallback(
@@ -1074,25 +1083,59 @@ export function DocumentViewer({
     }
   }, [restoreState, suppressPdfAutoScroll]);
 
+  const captureHtmlScrollState = useCallback(() => {
+    try {
+      const win = iframeRef.current?.contentWindow;
+      const doc = iframeRef.current?.contentDocument;
+      if (!win || !doc) return null;
+      const el = doc.scrollingElement || doc.documentElement;
+      const scrollTop = win.scrollY ?? el?.scrollTop ?? 0;
+      const scrollLeft = win.scrollX ?? el?.scrollLeft ?? 0;
+      const scrollHeight = el?.scrollHeight ?? 0;
+      const clientHeight = el?.clientHeight ?? win.innerHeight ?? 0;
+      const maxScroll = Math.max(0, scrollHeight - clientHeight);
+      const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+      return {
+        pageNumber,
+        scrollTop,
+        scrollLeft,
+        scrollHeight,
+        clientHeight,
+        scrollPercent,
+        scale,
+      };
+    } catch {
+      return null;
+    }
+  }, [pageNumber, scale]);
+
   const captureScrollState = useCallback(() => {
     const container = document.querySelector(
       "[data-document-scroll-container]"
     ) as HTMLElement | null;
-    if (!container) return null;
-    const scrollTop = container.scrollTop;
-    const scrollLeft = container.scrollLeft;
-    const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-    const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
-    return {
-      pageNumber,
-      scrollTop,
-      scrollLeft,
-      scrollHeight: container.scrollHeight,
-      clientHeight: container.clientHeight,
-      scrollPercent,
-      scale,
-    };
-  }, [pageNumber, scale]);
+    if (container) {
+      const scrollTop = container.scrollTop;
+      const scrollLeft = container.scrollLeft;
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+      const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+      return {
+        pageNumber,
+        scrollTop,
+        scrollLeft,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+        scrollPercent,
+        scale,
+      };
+    }
+    // Fall back to HTML iframe scroll for HTML/OCR-HTML documents
+    const isHtml = (currentDocument?.fileType as DocumentType) === "html" ||
+      ((currentDocument?.fileType as DocumentType) === "pdf" && pdfViewMode === "ocr-html");
+    if (isHtml) {
+      return captureHtmlScrollState();
+    }
+    return null;
+  }, [pageNumber, scale, currentDocument?.fileType, pdfViewMode, captureHtmlScrollState]);
 
   // Persist view-state changes that affect coordinate resolution even if the user doesn't scroll.
   // Example: zoom mode/scale changes should not cause us to "forget" the exact anchor in the document.
@@ -1128,15 +1171,16 @@ export function DocumentViewer({
     if (legacyKey && legacyKey !== primaryKey) setViewState(legacyKey, nextViewState);
   }, [captureScrollState, currentDocument?.id, docType, resolvePreferredViewStateKey, scale, suppressPdfAutoScroll, viewMode, zoomMode]);
 
-  const savePdfProgress = useCallback((reason: string) => {
-    if (docType !== "pdf" || viewMode !== "document") return;
+  const saveScrollProgress = useCallback((reason: string) => {
+    const isSupportedDoc = docType === "pdf" || docType === "html";
+    if (!isSupportedDoc || viewMode !== "document") return;
     if (!scrollStorageKey) return;
     const state = lastScrollStateRef.current ?? captureScrollState();
     if (!state) return;
     const viewState = lastViewStateRef.current
       ? { ...lastViewStateRef.current, updatedAt: Date.now() }
       : null;
-    console.log("[DocumentViewer] Saving PDF progress:", reason, state);
+    console.log("[DocumentViewer] Saving scroll progress:", reason, state);
     persistScrollState(state, undefined, viewState);
   }, [captureScrollState, docType, persistScrollState, scrollStorageKey, viewMode]);
 
@@ -1186,6 +1230,29 @@ export function DocumentViewer({
     onExtract: handleInlineExtract,
     onCloze: handleInlineCloze,
     enabled: viewMode === "document",
+  });
+
+  // Listen for app-wide Ctrl+E extract-text shortcut
+  const selectedTextRef = useRef(selectedText);
+  selectedTextRef.current = selectedText;
+  useEffect(() => {
+    const handleExtractText = () => {
+      const text = selectedTextRef.current;
+      if (!text?.trim() || !documentId) return;
+      handleInlineExtract({ documentId, text });
+    };
+    window.addEventListener("extract-text", handleExtractText);
+    return () => window.removeEventListener("extract-text", handleExtractText);
+  }, [documentId, handleInlineExtract]);
+
+  // Toast-based instant extract creation
+  const [editExtractFromToast, setEditExtractFromToast] = useState<Extract | null>(null);
+  const [isEditExtractDialogOpen, setIsEditExtractDialogOpen] = useState(false);
+  const { createInstantExtract } = useToastExtract({
+    onEditExtract: (extract) => {
+      setEditExtractFromToast(extract);
+      setIsEditExtractDialogOpen(true);
+    },
   });
 
   const loadDocumentData = useCallback(async (doc: typeof currentDocument) => {
@@ -1415,14 +1482,21 @@ export function DocumentViewer({
     setPagesRendered(false);
   }, [docType, scale, zoomMode, currentDocument?.id]);
 
-  // Save PDF progress when switching away from document view (e.g., to extracts or cards)
+  // Save scroll progress when switching away from document view (e.g., to extracts or cards)
   const prevViewModeRef = useRef<ViewMode | null>(null);
   useEffect(() => {
     if (prevViewModeRef.current === "document" && viewMode !== "document") {
-      savePdfProgress("viewMode change");
+      // Flush any pending HTML iframe scroll capture
+      if (htmlScrollTimeoutRef.current !== null) {
+        clearTimeout(htmlScrollTimeoutRef.current);
+        htmlScrollTimeoutRef.current = null;
+        const state = captureHtmlScrollState();
+        if (state) lastScrollStateRef.current = state;
+      }
+      saveScrollProgress("viewMode change");
     }
     prevViewModeRef.current = viewMode;
-  }, [viewMode, savePdfProgress]);
+  }, [viewMode, saveScrollProgress, captureHtmlScrollState]);
 
   // Track if this tab is currently visible/active
   const isVisibleRef = useRef(true);
@@ -1455,8 +1529,8 @@ export function DocumentViewer({
           }
         }
         
-        // Also call savePdfProgress for any additional cleanup
-        savePdfProgress("tab-hidden");
+        // Also call saveScrollProgress for any additional cleanup
+        saveScrollProgress("tab-hidden");
         
         // CRITICAL: Also write directly to localStorage to bypass setViewState debounce
         // This ensures the position is available immediately when tab becomes visible again
@@ -1611,7 +1685,7 @@ export function DocumentViewer({
         }
       }
       
-      savePdfProgress("pagehide");
+      saveScrollProgress("pagehide");
     };
 
     // Handle beforeunload as an extra safety measure (especially for desktop browsers)
@@ -1628,7 +1702,7 @@ export function DocumentViewer({
         }
       }
       
-      savePdfProgress("beforeunload");
+      saveScrollProgress("beforeunload");
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -1640,7 +1714,7 @@ export function DocumentViewer({
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [documentId, docType, currentDocument?.id, savePdfProgress, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, persistScrollState]);
+  }, [documentId, docType, currentDocument?.id, saveScrollProgress, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, persistScrollState]);
 
   // Parse URL fragment and restore state after document is loaded
   useEffect(() => {
@@ -1736,7 +1810,7 @@ export function DocumentViewer({
       restorationInProgress: restorationInProgressRef.current,
     });
     if (viewModeRef.current !== "document") return;
-    if (docType !== "pdf") return;
+    if (docType !== "pdf" && docType !== "html") return;
     if (isLoading) return;
     if (!currentDocument?.id) return;
     if (restoreScrollDoneRef.current) return;
@@ -1905,6 +1979,15 @@ export function DocumentViewer({
     pendingViewStateRef.current = selectedViewState;
     lastViewStateRef.current = selectedViewState;
     currentPageRef.current = selectedViewState.pageNumber;
+
+    // For HTML documents, queue restoration for the iframe onLoad handler
+    if (docType === "html") {
+      htmlRestorationPendingRef.current = selectedViewState;
+      restoreScrollDoneRef.current = true;
+      restorationInProgressRef.current = true;
+      return;
+    }
+
     setRestoreState(selectedViewState);
     setSuppressPdfAutoScroll(true);
 
@@ -2035,6 +2118,10 @@ export function DocumentViewer({
       if (scrollSaveTimeoutRef.current !== null) {
         clearTimeout(scrollSaveTimeoutRef.current);
         scrollSaveTimeoutRef.current = null;
+      }
+      if (htmlScrollTimeoutRef.current !== null) {
+        clearTimeout(htmlScrollTimeoutRef.current);
+        htmlScrollTimeoutRef.current = null;
       }
 
       const storageKey = lastScrollMetaRef.current?.storageKey;
@@ -2341,8 +2428,16 @@ export function DocumentViewer({
         toggleFullscreen();
       }
 
-      // Ctrl/Cmd + F for search
+      // Ctrl/Cmd + F for search — respect customizable shortcut binding
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        const docSearchCombo = useShortcutStore.getState().shortcuts.find(
+          (s) => s.id === "doc.search"
+        )?.currentCombo || useShortcutStore.getState().shortcuts.find(
+          (s) => s.id === "doc.search"
+        )?.defaultCombo;
+        if (!docSearchCombo || !eventMatchesCombo(e, docSearchCombo)) {
+          return; // not the current binding — let browser handle it
+        }
         e.preventDefault();
         if (viewerSearchSupported) {
           setShowSearch(true);
@@ -2636,33 +2731,34 @@ export function DocumentViewer({
   };
 
   const handlePdfHighlightSelection = useCallback((color: string, text: string, context: PdfSelectionContext) => {
-    setSelectedText(text);
-    lastSelectionRef.current = text;
-    setSelectionContext(context);
-    setInitialHighlightColor(toExtractDialogColor(color));
-    setIsExtractDialogOpen(true);
-  }, []);
+    const extractColor = toExtractDialogColor(color);
+    createInstantExtract({
+      documentId,
+      text,
+      color: extractColor,
+      pageNumber: context.pages[0]?.pageNumber,
+      selectionContext: context,
+    });
+    clearTextSelection();
+  }, [documentId, createInstantExtract, clearTextSelection]);
 
-  // Mobile PWA: Open extract dialog from mobile selection
+  // Mobile PWA: Create extract from mobile selection (instant, no dialog)
   const handleMobileExtract = () => {
-    if (docType === "pdf") {
-      setMobileSelection(prev => ({ ...prev, showButton: false }));
-      if (mobileSelectionTimeoutRef.current) {
-        clearTimeout(mobileSelectionTimeoutRef.current);
-      }
-      openExtractDialog();
-      return;
+    const text = mobileSelection.text || activeExtractSelection;
+    if (!text) return;
+
+    setMobileSelection(prev => ({ ...prev, showButton: false }));
+    if (mobileSelectionTimeoutRef.current) {
+      clearTimeout(mobileSelectionTimeoutRef.current);
     }
 
-    if (mobileSelection.text) {
-      setSelectedText(mobileSelection.text);
-      lastSelectionRef.current = mobileSelection.text;
-      setIsExtractDialogOpen(true);
-      setMobileSelection(prev => ({ ...prev, showButton: false }));
-      if (mobileSelectionTimeoutRef.current) {
-        clearTimeout(mobileSelectionTimeoutRef.current);
-      }
-    }
+    createInstantExtract({
+      documentId,
+      text,
+      pageNumber: isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber,
+      selectionContext: selectionContext ?? undefined,
+    });
+    clearTextSelection();
   };
 
   const handleSearch = useCallback((direction: ViewerSearchDirection = "next") => {
@@ -3253,6 +3349,30 @@ export function DocumentViewer({
     };
   }, [isOcrHtml]);
 
+  // Scroll OCR HTML iframe to the current page when switching from PDF to HTML view
+  useEffect(() => {
+    if (!isOcrHtml) return;
+    const frame = iframeRef.current;
+    if (!frame) return;
+
+    const scrollToPage = () => {
+      const doc = frame.contentDocument;
+      const win = frame.contentWindow;
+      if (!doc || !win) return;
+
+      const pageEl = doc.querySelector<HTMLElement>(`#page-${pageNumber}`);
+      if (pageEl) {
+        win.scrollTo({ top: pageEl.offsetTop, behavior: "instant" });
+      }
+    };
+
+    frame.addEventListener("load", scrollToPage);
+    if (frame.contentDocument?.readyState === "complete") {
+      scrollToPage();
+    }
+    return () => frame.removeEventListener("load", scrollToPage);
+  }, [isOcrHtml, pageNumber]);
+
   useEffect(() => {
     if (!isHtmlViewer) return;
     const frame = iframeRef.current;
@@ -3622,6 +3742,25 @@ export function DocumentViewer({
     }
   }, [initialJump]);
 
+  // Fallback selection handler: read text selection from the iframe when the user
+  // releases the mouse inside it. This ensures the extract button appears even if
+  // the iframe-internal selectionchange listener didn't attach (race condition on load).
+  const handleIframeMouseUp = useCallback(() => {
+    if (viewMode !== "document") return;
+    try {
+      const win = iframeRef.current?.contentWindow;
+      const doc = iframeRef.current?.contentDocument;
+      if (!win || !doc) return;
+      const selection = win.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      const text = selection.toString().trim();
+      if (text) {
+        setSelectedText(text);
+        lastSelectionRef.current = text;
+      }
+    } catch { /* cross-origin guard */ }
+  }, [viewMode]);
+
   // Apply initial jump navigation (page/scroll/time) on document load.
   useEffect(() => {
     if (!currentDocument) return;
@@ -3662,6 +3801,36 @@ export function DocumentViewer({
     win.addEventListener("keydown", handler, true);
     return () => win.removeEventListener("keydown", handler, true);
   }, [currentDocument?.id, isHtmlViewer]);
+
+  // Capture scroll position from HTML iframe for persistence.
+  useEffect(() => {
+    if (!isHtmlViewer) return;
+    if (viewMode !== "document") return;
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+
+    const onScroll = () => {
+      if (restorationInProgressRef.current) return;
+      if (htmlScrollTimeoutRef.current !== null) return;
+      htmlScrollTimeoutRef.current = window.setTimeout(() => {
+        htmlScrollTimeoutRef.current = null;
+        const state = captureHtmlScrollState();
+        if (state) {
+          lastScrollStateRef.current = state;
+          handleScrollPositionChange(state);
+        }
+      }, 500);
+    };
+
+    win.addEventListener("scroll", onScroll, true);
+    return () => {
+      if (htmlScrollTimeoutRef.current !== null) {
+        clearTimeout(htmlScrollTimeoutRef.current);
+        htmlScrollTimeoutRef.current = null;
+      }
+      win.removeEventListener("scroll", onScroll, true);
+    };
+  }, [isHtmlViewer, viewMode, captureHtmlScrollState, handleScrollPositionChange]);
 
   if (!currentDocument) {
     return (
@@ -3833,7 +4002,19 @@ export function DocumentViewer({
           {docType === "pdf" && ocrResult && viewMode === "document" && (
             <div className="flex items-center bg-muted rounded-md p-1">
               <button
-                onClick={() => setPdfViewMode("pdf")}
+                onClick={() => {
+                  if (pdfViewMode === "ocr-html") {
+                    setRestoreState({
+                      docId: documentId,
+                      pageNumber,
+                      scale,
+                      zoomMode,
+                      updatedAt: Date.now(),
+                    });
+                    setRestoreRequestId((prev) => prev + 1);
+                  }
+                  setPdfViewMode("pdf");
+                }}
                 className={cn(
                   "px-2 py-1 text-xs rounded-md transition-colors",
                   pdfViewMode === "pdf"
@@ -4130,6 +4311,7 @@ export function DocumentViewer({
               : "Edit the document text here..."}
             emptyPreviewMessage="The live preview will appear here as you edit."
             onSave={({ content }) => saveEditableDocumentContent(content)}
+            onSelectionChange={(text) => updateSelection(text, undefined)}
           />
         ) : docType === "pdf" && (fileData || pdfUrl) ? (
           pdfViewMode === "ocr-html" && ocrResult ? (
@@ -4197,6 +4379,7 @@ export function DocumentViewer({
                   className="h-full w-full border-0"
                   sandbox="allow-same-origin allow-scripts"
                   srcDoc={ocrResult.combinedText}
+                  onMouseUp={handleIframeMouseUp}
                   onLoad={() => {
                     injectHtmlViewerStyles();
                   }}
@@ -4264,6 +4447,14 @@ export function DocumentViewer({
             }}
             persistedHighlights={persistedDocumentHighlights.pdfHighlights}
             onHighlightSelection={handlePdfHighlightSelection}
+            onHighlightSelectionWithDialog={(color, text, context) => {
+              setSelectedText(text);
+              lastSelectionRef.current = text;
+              setSelectionContext(context);
+              setInitialHighlightColor(toExtractDialogColor(color));
+              setEditExtractFromToast(null);
+              setIsExtractDialogOpen(true);
+            }}
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
             highlightTextQuote={jumpTextQuote}
@@ -4538,8 +4729,23 @@ export function DocumentViewer({
               className="h-full w-full border-0"
               sandbox="allow-same-origin allow-scripts"
               srcDoc={htmlForDisplay}
+              onMouseUp={handleIframeMouseUp}
               onLoad={() => {
                 scrollHtmlFrameToInitialHit();
+                // Restore saved scroll position (skip if initialJump already scrolled)
+                const pending = htmlRestorationPendingRef.current;
+                if (pending && !initialJump) {
+                  try {
+                    const win = iframeRef.current?.contentWindow;
+                    if (win) {
+                      const scrollTop = pending.scrollTop ?? 0;
+                      const scrollLeft = pending.scrollLeft ?? 0;
+                      win.scrollTo(scrollLeft, scrollTop);
+                    }
+                  } catch { /* ignore cross-origin errors */ }
+                }
+                htmlRestorationPendingRef.current = null;
+                restorationInProgressRef.current = false;
               }}
             />
           </div>
@@ -4667,13 +4873,25 @@ export function DocumentViewer({
 
       {/* Floating Action Button for Extract Creation */}
       {activeExtractSelection && viewMode === "document" && (
-        <div 
+        <div
           className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[70] pointer-events-auto animate-in slide-in-from-bottom-4 duration-200"
           data-extract-button="true"
         >
           <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/92 p-2 shadow-2xl backdrop-blur-md">
             <button
-              onClick={openExtractDialog}
+              onClick={(e) => {
+                if (e.shiftKey) {
+                  openExtractDialog();
+                } else {
+                  createInstantExtract({
+                    documentId,
+                    text: activeExtractSelection,
+                    pageNumber: isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber,
+                    selectionContext: selectionContext ?? undefined,
+                  });
+                  clearTextSelection();
+                }
+              }}
               className="group flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-all min-h-[52px] text-sm font-semibold hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:translate-y-0"
               title={t("viewer.createExtractFromSelection")}
               aria-label={t("viewer.createExtractFromSelectionChars", { count: activeExtractSelection.length })}
@@ -4783,6 +5001,23 @@ export function DocumentViewer({
         }}
         onCreate={handleExtractCreated}
       />
+
+      {/* Edit Extract Dialog (opened from toast "Edit" action) */}
+      {editExtractFromToast && (
+        <EditExtractDialog
+          extract={editExtractFromToast}
+          isOpen={isEditExtractDialogOpen}
+          onClose={() => {
+            setIsEditExtractDialogOpen(false);
+            setEditExtractFromToast(null);
+          }}
+          onUpdate={(extract) => {
+            setIsEditExtractDialogOpen(false);
+            setEditExtractFromToast(null);
+            loadExtracts(extract.document_id);
+          }}
+        />
+      )}
 
       {/* Floating Fullscreen Control Bar (visible on hover in fullscreen mode) */}
       {isFullscreen && (

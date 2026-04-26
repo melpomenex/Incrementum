@@ -111,6 +111,12 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
     loadStats();
   }, []);
 
+  useEffect(() => {
+    const handler = () => setIsFlashcardStudioOpen(true);
+    window.addEventListener("open-flashcard-studio", handler);
+    return () => window.removeEventListener("open-flashcard-studio", handler);
+  }, []);
+
   const activeDecks = useMemo(
     () => activeDeckIds.map((id) => (decks || []).find((d) => d.id === id)).filter((d): d is StudyDeck => d != null),
     [decks, activeDeckIds]

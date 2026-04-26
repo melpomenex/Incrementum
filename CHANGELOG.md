@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.24.2] - 2026-04-26
+
+### Added
+
+- **Toast-based instant extracts** — clicking the lightbulb button or selecting text now creates an extract immediately with a success toast. The toast includes an "Edit" action to open the full extract dialog. Shift+click still opens the dialog directly. Applies to PDF, HTML, OCR HTML, and RSS scroll mode. Mobile extract button also creates instantly.
+- **Shift+click highlight opens dialog** — shift+clicking a highlight color dot in the selection popup opens the highlight with the full extract dialog instead of creating it silently.
+- **Ctrl+E keyboard shortcut for extract text** — new customizable `Ctrl/Cmd+E` shortcut creates an extract from the current text selection. Works across PDF, HTML, EPUB, and YouTube viewers.
+- **Keyboard shortcut dispatch for all actions** — shortcut handlers now dispatch events for navigation, review ratings, document search, zoom, fullscreen, sidebar toggle, flashcard studio, undo/redo, and more. All shortcuts defined in the shortcut store are now wired to real behavior.
+- **Keyboard shortcuts help driven by shortcut store** — the shortcuts help overlay now reads shortcuts dynamically from the customizable shortcut store instead of using a hardcoded list, so rebindings are reflected immediately.
+- **Shortcut store persistence with migration** — added version-based merge migration so newly added shortcuts (like `edit.extract-text`) appear for users with existing persisted shortcut preferences.
+- **Additional Tauri-registered shortcuts** — registered `Ctrl/Cmd+B`, `F`, `S`, `E`, `[`, `]`, `Shift+F`, and `Shift+S` with the OS-level shortcut system so they aren't swallowed by the webview on all platforms.
+
+### Fixed
+
+- **Page lost when toggling PDF ↔ HTML** — switching between PDF and converted HTML (OCR) view now preserves the current page number in both directions. Previously the viewer reset to page 1 on each toggle.
+- **Scroll position not saved for HTML documents** — scroll progress is now persisted for HTML documents (same as PDFs), so reopening a document restores the last position. Includes debounced scroll capture from the HTML iframe and position restoration on load.
+- **Iframe text selection unreliable** — added a mouseup fallback handler for HTML/OCR-HTML iframes so the extract button appears even when the `selectionchange` listener misses iframe selections due to load race conditions.
+- **EditableContentPalette selection in extract view** — text selection inside the extract palette's preview pane (including HTML content in iframes) now propagates back to the parent viewer, allowing re-extraction from the palette.
+- **EPUB extract shortcut** — the `Ctrl/Cmd+E` shortcut now works inside EPUB iframe content by injecting the hotkey listener into the epubjs content window.
+
 ## [1.24.1] - 2026-04-25
 
 ### Fixed

@@ -49,6 +49,10 @@ const shortcutLabels: Record<string, { name: string; description: string }> = {
     name: "settings.shortcuts.edit.newExtract.name",
     description: "settings.shortcuts.edit.newExtract.description",
   },
+  "edit.extract-text": {
+    name: "settings.shortcuts.edit.extractText.name",
+    description: "settings.shortcuts.edit.extractText.description",
+  },
   "edit.new-flashcard": {
     name: "settings.shortcuts.edit.newFlashcard.name",
     description: "settings.shortcuts.edit.newFlashcard.description",

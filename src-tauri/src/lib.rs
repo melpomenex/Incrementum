@@ -315,6 +315,14 @@ pub fn run() {
                     (Modifiers::CONTROL, Code::KeyO),
                     (Modifiers::CONTROL, Code::KeyN),
                     (Modifiers::CONTROL, Code::Slash),
+                    (Modifiers::CONTROL, Code::KeyB),
+                    (Modifiers::CONTROL, Code::KeyF),
+                    (Modifiers::CONTROL, Code::KeyS),
+                    (Modifiers::CONTROL, Code::KeyE),
+                    (Modifiers::CONTROL, Code::BracketLeft),
+                    (Modifiers::CONTROL, Code::BracketRight),
+                    (Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyF),
+                    (Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyS),
                     // Cmd+key (macOS)
                     (Modifiers::SUPER, Code::KeyQ),
                     (Modifiers::SUPER, Code::KeyR),
@@ -325,6 +333,14 @@ pub fn run() {
                     (Modifiers::SUPER, Code::KeyO),
                     (Modifiers::SUPER, Code::KeyN),
                     (Modifiers::SUPER, Code::Slash),
+                    (Modifiers::SUPER, Code::KeyB),
+                    (Modifiers::SUPER, Code::KeyF),
+                    (Modifiers::SUPER, Code::KeyS),
+                    (Modifiers::SUPER, Code::KeyE),
+                    (Modifiers::SUPER, Code::BracketLeft),
+                    (Modifiers::SUPER, Code::BracketRight),
+                    (Modifiers::SUPER | Modifiers::SHIFT, Code::KeyF),
+                    (Modifiers::SUPER | Modifiers::SHIFT, Code::KeyS),
                 ];
 
                 let shortcuts: Vec<Shortcut> = shortcut_defs
