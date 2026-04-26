@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.25.1] - 2026-04-26
+
+### Fixed
+
+- **AppImage core dump on non-Ubuntu systems** — the AppImage no longer crashes at startup on Arch Linux and other distributions with newer GStreamer versions. The root cause was a broken `.desktop` symlink (absolute path to CI runner) that crashed `AppRun` in `__getdelim`, combined with a missing `libgstgl-1.0.so.0` library that caused a symbol lookup error when the system's GStreamer 1.28 clashed with the bundled 1.24.
+- **Absolute symlinks in portable Python runtimes** — the NotebookLM and Pocket TTS portable Python runtimes no longer contain absolute symlinks pointing to CI runner system paths. Symlinks like `_sysconfigdata__linux_x86_64-linux-gnu.py` and `sitecustomize.py` are now dereferenced at build time.
+- **AppImage GStreamer plugin discovery** — the AppImage now sets `GST_PLUGIN_PATH` at runtime so GStreamer loads bundled plugins instead of system ones, preventing version-mismatch crashes.
+- **Duplicate rating orbs in scroll mode** — rating orbs no longer appear alongside the scroll mode document viewer, removing visual clutter.
+
 ## [1.25.0] - 2026-04-26
 
 ### Added

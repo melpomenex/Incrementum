@@ -218,13 +218,14 @@ interface DocumentViewerProps {
   extractPostCreateBehavior?: "show-extracts" | "stay-in-reader";
   focusedExtractId?: string;
   extractSourceContext?: ExtractSourceContext;
-  onVideoContextChange?: (context: { 
-    videoId: string; 
-    title?: string; 
-    transcript?: string; 
+  onVideoContextChange?: (context: {
+    videoId: string;
+    title?: string;
+    transcript?: string;
     currentTime?: number;
     duration?: number;
   } | null) => void;
+  hideRatingOrbs?: boolean;
 }
 
 type ViewerSearchDirection = "next" | "prev";
@@ -261,6 +262,7 @@ export function DocumentViewer({
   focusedExtractId,
   extractSourceContext,
   onVideoContextChange,
+  hideRatingOrbs = false,
 }: DocumentViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
@@ -4909,7 +4911,7 @@ export function DocumentViewer({
         )}
 
         {/* Orb Rating Buttons - right side of viewer */}
-        {viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && queueNav.totalDocuments > 0 && (
+        {!hideRatingOrbs && viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && queueNav.totalDocuments > 0 && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto z-40">
             {!hasDocumentHistory ? (
               <button
