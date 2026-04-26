@@ -812,6 +812,16 @@ export function YouTubeViewer({
     toast.success(t("viewer.videoExtractCreated"));
   }, [toast]);
 
+  // Listen for app-wide Ctrl+E extract-text shortcut
+  useEffect(() => {
+    const handleExtractText = () => {
+      if (showCreateExtract) return;
+      handleOpenCreateExtract();
+    };
+    window.addEventListener("extract-text", handleExtractText);
+    return () => window.removeEventListener("extract-text", handleExtractText);
+  }, [showCreateExtract, handleOpenCreateExtract]);
+
   // YouTube Player Event Handlers
   const onPlayerReady = (event: any) => {
     playerRef.current = event.target;

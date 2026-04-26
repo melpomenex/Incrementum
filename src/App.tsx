@@ -124,21 +124,45 @@ interface ShortcutDispatch {
 
 const SHORTCUT_ACTION_HANDLERS: Record<string, (d: ShortcutDispatch) => void> = {
   "nav.command-palette": () => dispatchCommandPaletteOpen(),
+  "nav.forward": () => window.dispatchEvent(new CustomEvent("navigate", { detail: "forward" })),
+  "nav.back": () => window.dispatchEvent(new CustomEvent("navigate", { detail: "back" })),
+  "nav.up": () => window.dispatchEvent(new CustomEvent("navigate", { detail: "up" })),
   "gen.settings": (d) => d.setCurrentPage("settings"),
   "gen.help": (d) => d.setShowShortcutsHelp(true),
   "gen.quit": (d) => d.setCurrentPage("queue"),
+  "gen.screenshot": () => window.dispatchEvent(new CustomEvent("capture-screenshot")),
   "review.start": (d) => {
     d.setCurrentPage("queue");
     setTimeout(() => window.dispatchEvent(new CustomEvent("start-review-session")), 0);
   },
+  "review.again": () => window.dispatchEvent(new CustomEvent("review-rate", { detail: "again" })),
+  "review.hard": () => window.dispatchEvent(new CustomEvent("review-rate", { detail: "hard" })),
+  "review.good": () => window.dispatchEvent(new CustomEvent("review-rate", { detail: "good" })),
+  "review.easy": () => window.dispatchEvent(new CustomEvent("review-rate", { detail: "easy" })),
+  "review.skip": () => window.dispatchEvent(new CustomEvent("review-skip")),
   "doc.import": (d) => {
     d.setCurrentPage("documents");
     setTimeout(() => window.dispatchEvent(new CustomEvent("import-document")), 0);
   },
+  "doc.search": () => window.dispatchEvent(new CustomEvent("document-search")),
+  "doc.next": () => window.dispatchEvent(new CustomEvent("document-next")),
+  "doc.prev": () => window.dispatchEvent(new CustomEvent("document-prev")),
   "edit.new-document": (d) => {
     d.setCurrentPage("documents");
     setTimeout(() => window.dispatchEvent(new CustomEvent("import-document")), 0);
   },
+  "edit.extract-text": () => {
+    window.dispatchEvent(new CustomEvent("extract-text"));
+  },
+  "edit.new-extract": () => window.dispatchEvent(new CustomEvent("new-extract")),
+  "edit.new-flashcard": () => window.dispatchEvent(new CustomEvent("open-flashcard-studio")),
+  "edit.save": () => window.dispatchEvent(new CustomEvent("save-current")),
+  "edit.undo": () => window.dispatchEvent(new CustomEvent("undo")),
+  "edit.redo": () => window.dispatchEvent(new CustomEvent("redo")),
+  "view.zoom-in": () => window.dispatchEvent(new CustomEvent("view-zoom-in")),
+  "view.zoom-out": () => window.dispatchEvent(new CustomEvent("view-zoom-out")),
+  "view.fullscreen": () => window.dispatchEvent(new CustomEvent("view-fullscreen")),
+  "view.sidebar": () => window.dispatchEvent(new CustomEvent("toggle-sidebar")),
 };
 
 function App() {
@@ -228,7 +252,7 @@ function App() {
         return;
       }
       const key = e.key.toLowerCase();
-      if (["k", "p", ",", "d", "q", "r", "o", "n", "/"].includes(key)) {
+      if (["k", "p", ",", "d", "q", "r", "o", "n", "/", "b", "f", "s", "e", "[", "]"].includes(key)) {
         e.preventDefault();
       }
     };
@@ -289,6 +313,18 @@ function App() {
               break;
             case "Slash":
               setShowShortcutsHelp(true);
+              break;
+            case "KeyB":
+              window.dispatchEvent(new CustomEvent("toggle-sidebar"));
+              break;
+            case "KeyE":
+              window.dispatchEvent(new CustomEvent("extract-text"));
+              break;
+            case "BracketLeft":
+              window.dispatchEvent(new CustomEvent("document-prev"));
+              break;
+            case "BracketRight":
+              window.dispatchEvent(new CustomEvent("document-next"));
               break;
           }
         });

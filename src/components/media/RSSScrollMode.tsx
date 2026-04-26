@@ -45,6 +45,9 @@ import { createDocument, updateDocumentContent } from "../../api/documents";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
+import { EditExtractDialog } from "../extracts/EditExtractDialog";
+import type { Extract } from "../../api/extracts";
+import { useToastExtract } from "../../hooks/useToastExtract";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { summarizeContent } from "../../api/ai";
 import { isTauri, openExternal } from "../../lib/tauri";
@@ -151,6 +154,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const { settings } = useSettingsStore();
   const { addClassifier } = useClassifiersStore();
   const toast = useToast();
+  const { createInstantExtract } = useToastExtract({
+    onEditExtract: (extract) => {
+      setEditExtractFromToast(extract);
+      setIsEditExtractDialogOpen(true);
+    },
+  });
   const [scrollItems, setScrollItems] = useState<RSSScrollItem[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -161,6 +170,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [selectedText, setSelectedText] = useState("");
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
   const [extractDocumentId, setExtractDocumentId] = useState<string | null>(null);
+  const [editExtractFromToast, setEditExtractFromToast] = useState<Extract | null>(null);
+  const [isEditExtractDialogOpen, setIsEditExtractDialogOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const selectedTextRef = useRef("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1144,7 +1155,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     window.getSelection()?.removeAllRanges();
   }, [renderedIndex]);
 
-  // Handle prepare extract - creates document and opens dialog
+  // Handle prepare extract - creates document and creates extract instantly
   const handlePrepareExtract = useCallback(async () => {
     const currentItem = visibleScrollItems[renderedIndex];
     // Use ref to get text in case selection was cleared
@@ -1155,24 +1166,24 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const rssContent = rssItem.content || rssItem.description || "";
     const rssLink = rssItem.link || `rss:${rssItem.id}`;
     const existingDoc = documents.find((doc) => doc.filePath === rssLink);
-    let documentId = existingDoc?.id;
+    let docId = existingDoc?.id;
 
     try {
       // Create document if it doesn't exist
-      if (!documentId) {
+      if (!docId) {
         const created = await createDocument(
           rssItem.title || currentItem.feed.title,
           rssLink,
           "html"
         );
         addDocument(created);
-        documentId = created.id;
+        docId = created.id;
       }
 
       // Update document content
-      if (rssContent && documentId) {
-        await updateDocumentContent(documentId, rssContent);
-        updateDocument(documentId, {
+      if (rssContent && docId) {
+        await updateDocumentContent(docId, rssContent);
+        updateDocument(docId, {
           content: rssContent,
           title: rssItem.title || currentItem.feed.title,
           filePath: rssLink,
@@ -1180,8 +1191,79 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         });
       }
 
-      // Store document ID and open dialog
-      setExtractDocumentId(documentId);
+      // Create extract instantly with toast feedback
+      if (docId) {
+        await createInstantExtract({
+          documentId: docId,
+          text: textToExtract,
+        });
+      }
+
+      // Clear selection
+      setSelectedText("");
+      selectedTextRef.current = "";
+      window.getSelection()?.removeAllRanges();
+    } catch (error) {
+      console.error("Failed to prepare extract:", error);
+      toast.error(
+        "Failed to prepare extract",
+        error instanceof Error ? error.message : "An error occurred"
+      );
+    }
+  }, [
+    visibleScrollItems,
+    renderedIndex,
+    selectedText,
+    documents,
+    addDocument,
+    updateDocument,
+    toast,
+    createInstantExtract,
+  ]);
+
+  // Handle extract created (from full dialog)
+  const handleExtractCreated = useCallback(() => {
+    setSelectedText("");
+    selectedTextRef.current = "";
+    window.getSelection()?.removeAllRanges();
+    setIsExtractDialogOpen(false);
+    toast.success("Extract created", "Saved from RSS article.");
+  }, [toast]);
+
+  // Handle Shift+click: prepare document then open full dialog
+  const handlePrepareExtractForDialog = useCallback(async () => {
+    const currentItem = visibleScrollItems[renderedIndex];
+    const textToExtract = selectedTextRef.current || selectedText;
+    if (!currentItem || !textToExtract) return;
+
+    const rssItem = currentItem.item;
+    const rssContent = rssItem.content || rssItem.description || "";
+    const rssLink = rssItem.link || `rss:${rssItem.id}`;
+    const existingDoc = documents.find((doc) => doc.filePath === rssLink);
+    let docId = existingDoc?.id;
+
+    try {
+      if (!docId) {
+        const created = await createDocument(
+          rssItem.title || currentItem.feed.title,
+          rssLink,
+          "html"
+        );
+        addDocument(created);
+        docId = created.id;
+      }
+
+      if (rssContent && docId) {
+        await updateDocumentContent(docId, rssContent);
+        updateDocument(docId, {
+          content: rssContent,
+          title: rssItem.title || currentItem.feed.title,
+          filePath: rssLink,
+          fileType: "html",
+        });
+      }
+
+      setExtractDocumentId(docId ?? null);
       setIsExtractDialogOpen(true);
     } catch (error) {
       console.error("Failed to prepare extract:", error);
@@ -1199,14 +1281,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     updateDocument,
     toast,
   ]);
-
-  // Handle extract created
-  const handleExtractCreated = useCallback(() => {
-    setSelectedText("");
-    selectedTextRef.current = "";
-    window.getSelection()?.removeAllRanges();
-    toast.success("Extract created", "Saved from RSS article.");
-  }, [toast]);
 
   // Save summary mode preference
   useEffect(() => {
@@ -2038,9 +2112,16 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               // Prevent mousedown from clearing selection
               e.preventDefault();
             }}
-            onClick={handlePrepareExtract}
+            onClick={(e) => {
+              if (e.shiftKey) {
+                // Shift+click: open full dialog
+                handlePrepareExtractForDialog();
+              } else {
+                handlePrepareExtract();
+              }
+            }}
             className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity"
-            title="Create extract from selection"
+            title="Create extract from selection (Shift+click for options)"
           >
             <Lightbulb className="w-5 h-5" />
             <span className="font-medium">Extract</span>
@@ -2048,7 +2129,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         </div>
       )}
 
-      {/* Extract Dialog */}
+      {/* Extract Dialog (opened via Shift+click) */}
       {extractDocumentId && (
         <CreateExtractDialog
           documentId={extractDocumentId}
@@ -2061,6 +2142,22 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             window.getSelection()?.removeAllRanges();
           }}
           onCreate={handleExtractCreated}
+        />
+      )}
+
+      {/* Edit Extract Dialog (opened from toast "Edit" action) */}
+      {editExtractFromToast && (
+        <EditExtractDialog
+          extract={editExtractFromToast}
+          isOpen={isEditExtractDialogOpen}
+          onClose={() => {
+            setIsEditExtractDialogOpen(false);
+            setEditExtractFromToast(null);
+          }}
+          onUpdate={() => {
+            setIsEditExtractDialogOpen(false);
+            setEditExtractFromToast(null);
+          }}
         />
       )}
 

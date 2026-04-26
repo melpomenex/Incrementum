@@ -32,6 +32,7 @@ interface EditableContentPaletteProps {
   notesPlaceholder?: string;
   emptyPreviewMessage?: string;
   onSave: (payload: { content: string; notes?: string }) => Promise<void>;
+  onSelectionChange?: (text: string) => void;
   onClose?: () => void;
 }
 
@@ -102,6 +103,7 @@ export function EditableContentPalette({
   notesPlaceholder = "Add notes...",
   emptyPreviewMessage = "Nothing to preview yet.",
   onSave,
+  onSelectionChange,
   onClose,
 }: EditableContentPaletteProps) {
   const [draftContent, setDraftContent] = useState(content);
@@ -112,6 +114,8 @@ export function EditableContentPalette({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -169,6 +173,72 @@ export function EditableContentPalette({
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
   }, []);
+
+  // Propagate text selection from the preview pane to the parent
+  useEffect(() => {
+    if (!onSelectionChange) return;
+    if (paletteMode === "write") return;
+
+    const el = previewRef.current;
+    if (!el) return;
+
+    // Handler for markdown preview (same-document selection)
+    const handleDocSelectionChange = () => {
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? "";
+      if (text && el.contains(sel?.anchorNode)) {
+        onSelectionChange(text);
+      } else {
+        onSelectionChange("");
+      }
+    };
+
+    document.addEventListener("selectionchange", handleDocSelectionChange);
+
+    // For HTML content rendered in an iframe, selection events fire on the iframe's document
+    let iframeCleanup: (() => void) | null = null;
+    if (contentKind === "html") {
+      const iframe = iframeRef.current;
+      if (iframe) {
+        const attachIframeListener = () => {
+          try {
+            const iframeDoc = iframe.contentDocument;
+            if (!iframeDoc) return;
+            const handleIframeSelectionChange = () => {
+              try {
+                const sel = iframe.contentWindow?.getSelection();
+                const text = sel?.toString().trim() ?? "";
+                onSelectionChange(text);
+              } catch { /* cross-origin guard */ }
+            };
+            iframeDoc.addEventListener("selectionchange", handleIframeSelectionChange);
+            iframeCleanup = () => {
+              try {
+                iframeDoc.removeEventListener("selectionchange", handleIframeSelectionChange);
+              } catch { /* iframe may be gone */ }
+            };
+          } catch { /* cross-origin guard */ }
+        };
+
+        // If iframe is already loaded, attach immediately
+        if (iframe.contentDocument?.readyState === "complete") {
+          attachIframeListener();
+        }
+        iframe.addEventListener("load", attachIframeListener);
+        const origCleanup = iframeCleanup;
+        iframeCleanup = () => {
+          iframe.removeEventListener("load", attachIframeListener);
+          origCleanup?.();
+        };
+      }
+    }
+
+    return () => {
+      document.removeEventListener("selectionchange", handleDocSelectionChange);
+      iframeCleanup?.();
+      onSelectionChange("");
+    };
+  }, [paletteMode, onSelectionChange, contentKind]);
 
   const images = useMemo(() => extractImages(draftContent), [draftContent]);
 
@@ -327,10 +397,11 @@ export function EditableContentPalette({
                   <div className="border-b border-border px-4 py-3 text-sm font-medium text-foreground">
                     Preview
                   </div>
-                  <div className="min-h-0 flex-1 overflow-auto p-4">
+                  <div ref={previewRef} className="min-h-0 flex-1 overflow-auto p-4">
                     {previewHtml ? (
                       contentKind === "html" ? (
                         <iframe
+                          ref={iframeRef}
                           title={`${title} preview`}
                           sandbox="allow-same-origin"
                           className="min-h-[58vh] w-full rounded-2xl border border-border bg-background"

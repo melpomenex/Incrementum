@@ -93,6 +93,13 @@ export const DEFAULT_SHORTCUTS: ShortcutAction[] = [
     defaultCombo: { key: "e", ctrl: true, meta: true },
   },
   {
+    id: "edit.extract-text",
+    name: "Extract Text",
+    description: "Create extract from selected text",
+    category: ShortcutCategory.Editing,
+    defaultCombo: { key: "e", ctrl: true },
+  },
+  {
     id: "edit.new-flashcard",
     name: "New Flashcard",
     description: "Create a new flashcard",
@@ -321,6 +328,23 @@ export const useShortcutStore = create<ShortcutStore>()(
     }),
     {
       name: "shortcut-storage",
+      version: 1,
+      merge: (persisted: unknown, current: ShortcutStore) => {
+        const persistedState = persisted as Partial<ShortcutStore>;
+        if (!persistedState?.shortcuts || !Array.isArray(persistedState.shortcuts)) {
+          return current;
+        }
+        const mergedShortcuts = current.shortcuts.map((defaultShortcut) => {
+          const persistedShortcut = persistedState.shortcuts!.find(
+            (s: ShortcutAction) => s.id === defaultShortcut.id
+          );
+          if (persistedShortcut?.currentCombo) {
+            return { ...defaultShortcut, currentCombo: persistedShortcut.currentCombo };
+          }
+          return defaultShortcut;
+        });
+        return { ...current, shortcuts: mergedShortcuts };
+      },
     }
   )
 );

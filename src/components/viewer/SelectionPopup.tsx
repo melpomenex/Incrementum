@@ -38,6 +38,8 @@ export interface SelectionPopupProps {
   selectionRect: DOMRect | null;
   /** Callback when highlight button is clicked */
   onHighlight?: (color: HighlightColor) => void;
+  /** Callback when highlight button is Shift+clicked (opens full dialog) */
+  onHighlightWithDialog?: (color: HighlightColor) => void;
   /** Callback when copy button is clicked */
   onCopy?: () => void;
   /** Callback when add note button is clicked */
@@ -94,6 +96,7 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
   visible,
   selectionRect,
   onHighlight,
+  onHighlightWithDialog,
   onCopy,
   onAddNote,
   onDismiss,
@@ -165,12 +168,16 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
 
   // Handle highlight with color
   const handleHighlight = useCallback(
-    (color: HighlightColor) => {
-      onHighlight?.(color);
+    (color: HighlightColor, shiftKey: boolean = false) => {
+      if (shiftKey && onHighlightWithDialog) {
+        onHighlightWithDialog(color);
+      } else {
+        onHighlight?.(color);
+      }
       setShowColorPicker(false);
       onDismiss?.();
     },
-    [onHighlight, onDismiss]
+    [onHighlight, onHighlightWithDialog, onDismiss]
   );
 
   // Handle add note
@@ -210,31 +217,31 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
         <div className="selection-popup-color-picker">
           <button
             className="color-dot yellow"
-            onClick={() => handleHighlight("yellow")}
+            onClick={(e) => handleHighlight("yellow", e.shiftKey)}
             title={t("viewer.yellowHighlight")}
             aria-label={t("viewer.yellowHighlight")}
           />
           <button
             className="color-dot green"
-            onClick={() => handleHighlight("green")}
+            onClick={(e) => handleHighlight("green", e.shiftKey)}
             title={t("viewer.greenHighlight")}
             aria-label={t("viewer.greenHighlight")}
           />
           <button
             className="color-dot blue"
-            onClick={() => handleHighlight("blue")}
+            onClick={(e) => handleHighlight("blue", e.shiftKey)}
             title={t("viewer.blueHighlight")}
             aria-label={t("viewer.blueHighlight")}
           />
           <button
             className="color-dot pink"
-            onClick={() => handleHighlight("pink")}
+            onClick={(e) => handleHighlight("pink", e.shiftKey)}
             title={t("viewer.pinkHighlight")}
             aria-label={t("viewer.pinkHighlight")}
           />
           <button
             className="color-dot purple"
-            onClick={() => handleHighlight("purple")}
+            onClick={(e) => handleHighlight("purple", e.shiftKey)}
             title={t("viewer.purpleHighlight")}
             aria-label={t("viewer.purpleHighlight")}
           />

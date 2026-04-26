@@ -4,15 +4,18 @@ import { invokeCommand } from "../lib/tauri";
 interface ExtractState {
   extracts: any[];
   isLoading: boolean;
+  lastHighlightColor: string;
   loadExtracts: (documentId?: string) => Promise<void>;
   createExtract: (data: any) => Promise<void>;
   updateExtract: (id: string, data: any) => Promise<void>;
   deleteExtract: (id: string) => Promise<void>;
+  setLastHighlightColor: (color: string) => void;
 }
 
 export const useExtractStore = create<ExtractState>((set) => ({
   extracts: [],
   isLoading: false,
+  lastHighlightColor: "#fef08a",
   loadExtracts: async (documentId) => {
     set({ isLoading: true });
     try {
@@ -47,4 +50,5 @@ export const useExtractStore = create<ExtractState>((set) => ({
       throw error;
     }
   },
+  setLastHighlightColor: (color) => set({ lastHighlightColor: color }),
 }));
