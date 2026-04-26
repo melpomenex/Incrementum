@@ -1844,6 +1844,7 @@ export function QueueScrollPage() {
                 key={renderedItem.documentId}
                 documentId={renderedItem.documentId!}
                 embedded={true}
+                hideRatingOrbs={true}
                 extractPostCreateBehavior="stay-in-reader"
                 onExtractCreated={(extract, sourceContext) => {
                   const effectiveContext = sourceContext ?? buildQueueExtractSourceContext({

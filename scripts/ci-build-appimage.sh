@@ -102,6 +102,7 @@ bundle_gstreamer_plugins() {
   # - libgstvorbis.so, libgstopus.so (audio codecs)
   # - libgstisomp4.so (MP4 container)
   # - libgsttypefindfunctions.so (media type detection)
+  # - libgstgl.so (OpenGL rendering, required by WebKitGTK)
   local PLUGINS=(
     "libgstcoreelements.so"
     "libgstcoretracers.so"
@@ -118,6 +119,7 @@ bundle_gstreamer_plugins() {
     "libgstautodetect.so"
     "libgstpulse.so"
     "libgstalsa.so"
+    "libgstgl.so"
   )
 
   local copied=0
@@ -128,25 +130,6 @@ bundle_gstreamer_plugins() {
     fi
   done
 
-  # Also copy any dependent libraries for libgstlibav (ffmpeg-based)
-  # Copy gstreamer libraries if they exist in a separate location
-  local GST_LIB_DIR=""
-  for dir in "/usr/lib" "/usr/lib/x86_64-linux-gnu" "/usr/lib64"; do
-    if [[ -f "$dir/libgstreamer-1.0.so.0" ]]; then
-      GST_LIB_DIR="$dir"
-      break
-    fi
-  done
-
-  if [[ -n "$GST_LIB_DIR" ]]; then
-    # Copy gstreamer library dependencies
-    for lib in "libgstreamer-1.0.so.0" "libgstbase-1.0.so.0" "libgstaudio-1.0.so.0" "libgstvideo-1.0.so.0" "libgsttag-1.0.so.0"; do
-      if [[ -f "$GST_LIB_DIR/$lib" ]]; then
-        cp -L "$GST_LIB_DIR/$lib" "$APPDIR/usr/lib/" 2>/dev/null || true
-      fi
-    done
-  fi
-
   echo "Copied $copied GStreamer plugins to AppDir"
 
   # List what was copied
@@ -154,9 +137,33 @@ bundle_gstreamer_plugins() {
     echo "Bundled GStreamer plugins:"
     ls -la "$GST_DEST"/*.so 2>/dev/null || echo "  (none)"
   fi
+
+  # Remove any GStreamer core libraries that tauri-bundler/linuxdeploy may have placed
+  # in the AppDir. Bundled core libs (from Ubuntu's older GStreamer) conflict with
+  # system WebKitGTK on distros like Arch that ship newer GStreamer versions.
+  # Plugins are loaded via GST_PLUGIN_PATH set in main.rs; core libs come from the system.
+  echo "Removing any bundled GStreamer core libraries..."
+  rm -f "$APPDIR/usr/lib"/libgst*.so.* "$APPDIR/usr/lib"/libgstreamer*.so.*
 }
 
 bundle_gstreamer_plugins
+
+# Fix absolute symlinks in the AppDir (Python stdlib, linuxdeploy artifacts, etc.)
+# Absolute symlinks break on user machines since they point to CI runner paths.
+fixed=0
+broken=0
+find "$APPDIR" -type l | while read -r link; do
+  target="$(readlink "$link")"
+  if [[ "$target" = /* ]]; then
+    if [[ -e "$target" ]]; then
+      rm "$link"
+      cp -aL "$target" "$link"
+    else
+      rm "$link"
+    fi
+  fi
+done
+echo "Absolute symlinks in AppDir cleaned up"
 
 mkdir -p "$WORK_DIR"
 if [[ ! -x "$APPIMAGETOOL_BIN" ]]; then

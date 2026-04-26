@@ -40,6 +40,13 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         // Disable hardware acceleration (required for YouTube video playback)
         std::env::set_var("WEBKIT_DISABLE_HARDWARE_ACCELERATION", "1");
+
+        // Point GStreamer at bundled plugins when running from an AppImage
+        if let Ok(appdir) = std::env::var("APPDIR") {
+            let plugin_path = format!("{appdir}/usr/lib/gstreamer-1.0");
+            std::env::set_var("GST_PLUGIN_PATH", &plugin_path);
+            std::env::set_var("GST_REGISTRY", "/dev/null");
+        }
     }
     incrementum_tauri_lib::run()
 }

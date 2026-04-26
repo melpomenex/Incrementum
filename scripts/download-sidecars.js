@@ -13,6 +13,27 @@ if (!fs.existsSync(BIN_DIR)) {
   fs.mkdirSync(BIN_DIR, { recursive: true });
 }
 
+function dereferenceAbsoluteSymlinks(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      dereferenceAbsoluteSymlinks(fullPath);
+    } else if (entry.isSymbolicLink()) {
+      const target = fs.readlinkSync(fullPath);
+      if (path.isAbsolute(target) && fs.existsSync(target)) {
+        const stat = fs.statSync(target);
+        fs.rmSync(fullPath);
+        if (stat.isDirectory()) {
+          fs.cpSync(target, fullPath, { recursive: true });
+        } else {
+          fs.copyFileSync(target, fullPath);
+        }
+      }
+    }
+  }
+}
+
 function getTargetTriple() {
   const envTarget = process.env.TARGET_TRIPLE
     || process.env.TAURI_ENV_TARGET_TRIPLE
@@ -298,6 +319,7 @@ function buildPortablePocketTTSRuntime(targetTriple, pythonCmd) {
       return true;
     },
   });
+  dereferenceAbsoluteSymlinks(stdlibDest);
 
   // Remove distro-managed marker for the bundled private runtime
   const externallyManagedMarker = path.join(stdlibDest, 'EXTERNALLY-MANAGED');
@@ -486,6 +508,7 @@ function buildPortableNotebookLMRuntime(targetTriple, pythonCmd) {
       return true;
     },
   });
+  dereferenceAbsoluteSymlinks(stdlibDest);
   // Remove distro-managed marker for the bundled private runtime so pip can install packages.
   const externallyManagedMarker = path.join(stdlibDest, 'EXTERNALLY-MANAGED');
   if (fs.existsSync(externallyManagedMarker)) {
