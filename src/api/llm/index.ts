@@ -104,7 +104,12 @@ export async function chatWithContext(
   messages: LLMMessage[],
   context: LLMContext,
   apiKey?: string,
-  baseUrl?: string
+  baseUrl?: string,
+  temperature?: number,
+  maxTokens?: number,
+  systemPrompt?: string,
+  contextFromRelatedCards?: boolean,
+  documentSnippetLength?: number
 ): Promise<LLMResponse> {
   // Normalize context content to ensure it's always a string
   const normalizedContent = normalizeContextContent(context.content);
@@ -112,17 +117,28 @@ export async function chatWithContext(
     throw new Error("Document context is unavailable for this request.");
   }
 
+  // Prepend system message if systemPrompt is provided
+  const effectiveMessages = systemPrompt
+    ? [{ role: "system" as const, content: systemPrompt }, ...messages]
+    : messages;
+
+  const effectiveMaxTokens = maxTokens ?? context.contextWindowTokens ?? 4096;
+
   const args = {
     provider,
     model,
-    messages,
+    messages: effectiveMessages,
+    temperature: temperature ?? 0.7,
+    maxTokens: effectiveMaxTokens,
     context: {
       type: context.type,
       documentId: context.documentId,
       url: context.url,
       selection: context.selection,
       content: normalizedContent,
-      contextWindowTokens: context.contextWindowTokens,
+      contextWindowTokens: effectiveMaxTokens,
+      contextFromRelatedCards,
+      documentSnippetLength,
     },
     apiKey,
     baseUrl,

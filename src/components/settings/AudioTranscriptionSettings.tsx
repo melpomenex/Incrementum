@@ -1,21 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { 
+import {
   Mic, Languages, Download, Trash2, CheckCircle2, Loader2, Info, AlertCircle,
   Cloud, Zap, Settings2, Key, TrendingUp, Clock, AlertTriangle, Check,
-  ExternalLink, Monitor, Lock
+  ExternalLink, Monitor, Lock, ListMusic, XCircle, RotateCcw, ArrowUp, FileAudio
 } from "lucide-react";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
-import { downloadTranscriptionModel, deleteTranscriptionModel } from "../../api/transcription";
+import { downloadTranscriptionModel, deleteTranscriptionModel, enqueueAllUntranscribed } from "../../api/transcription";
+import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { isTauri } from "../../lib/tauri";
-import { 
-  isGroqConfigured, 
-  validateGroqApiKey, 
-  getUsageStats, 
+import {
+  isGroqConfigured,
+  validateGroqApiKey,
+  getUsageStats,
   getRateLimitStatus,
   GROQ_FREE_TIER,
   GROQ_PRICING,
-  type UsageStats 
+  type UsageStats
 } from "../../api/groqTranscription";
 import { cn } from "../../utils";
 import { useI18n } from "../../lib/i18n";
@@ -26,9 +27,11 @@ export function AudioTranscriptionSettings() {
   const { t } = useI18n();
   const { profiles, fetchProfiles, downloadProgress, currentStatus } = useTranscriptionStore();
   const { settings, updateSettings } = useSettingsStore();
+  const queueStore = useTranscriptionQueueStore();
   const audioSettings = settings.audioTranscription;
   const isDesktop = isTauri();
   const [activeTab, setActiveTab] = useState<Provider>(audioSettings.provider);
+  const [enqueuingAll, setEnqueuingAll] = useState(false);
   
   // Local state for form inputs
   const [apiKeyInput, setApiKeyInput] = useState(audioSettings.groq.apiKey);
@@ -52,7 +55,10 @@ export function AudioTranscriptionSettings() {
 
   useEffect(() => {
     fetchProfiles().catch(() => undefined);
-  }, [fetchProfiles]);
+    if (isDesktop) {
+      queueStore.fetchQueue().catch(() => undefined);
+    }
+  }, [fetchProfiles, isDesktop]);
 
   // In web/PWA mode, force provider to 'groq' since local is not available
   useEffect(() => {
@@ -736,6 +742,159 @@ export function AudioTranscriptionSettings() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transcription Queue - Desktop only */}
+      {isDesktop && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListMusic className="w-5 h-5 text-muted-foreground" />
+              <h4 className="font-semibold text-foreground">{t("settings.audioTranscriptionQueue")}</h4>
+            </div>
+            <button
+              onClick={async () => {
+                setEnqueuingAll(true);
+                try {
+                  const provider = audioSettings.provider;
+                  const modelId = provider === 'groq'
+                    ? audioSettings.groq.model
+                    : (audioSettings.preferredModelId || 'distil-small.en');
+                  const count = await enqueueAllUntranscribed(provider, modelId, audioSettings.language);
+                  await queueStore.fetchQueue();
+                  if (count > 0) {
+                    console.log(`Enqueued ${count} documents for transcription`);
+                  }
+                } catch (e) {
+                  console.error("Failed to enqueue:", e);
+                } finally {
+                  setEnqueuingAll(false);
+                }
+              }}
+              disabled={enqueuingAll}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/50 disabled:opacity-50"
+            >
+              {enqueuingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileAudio className="h-4 w-4" />
+              )}
+              {t("settings.audioTranscribeAll")}
+            </button>
+          </div>
+
+          {queueStore.entries.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center">
+              <FileAudio className="mx-auto h-8 w-8 text-muted-foreground/50" />
+              <p className="mt-3 text-sm text-muted-foreground">{t("settings.audioNoPendingTranscriptions")}</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">{t("settings.audioNoPendingTranscriptionsDesc")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {queueStore.entries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {entry.documentTitle}
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase",
+                          entry.status === "processing" && "bg-blue-500/20 text-blue-600",
+                          entry.status === "pending" && "bg-amber-500/20 text-amber-600",
+                          entry.status === "completed" && "bg-green-500/20 text-green-600",
+                          entry.status === "failed" && "bg-red-500/20 text-red-600",
+                          entry.status === "cancelled" && "bg-gray-500/20 text-gray-600",
+                        )}
+                      >
+                        {entry.status}
+                      </span>
+                    </div>
+                    {entry.status === "processing" && (
+                      <div className="mt-1.5">
+                        {queueStore.activePhase === "preparing" ? (
+                          <>
+                            <div className="flex items-center gap-1.5 text-[10px] text-blue-600">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Preparing audio...
+                            </div>
+                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div className="h-full bg-blue-400 animate-pulse transition-all" style={{ width: '100%' }} />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full bg-primary transition-all"
+                                  style={{ width: `${queueStore.activeProgress}%` }}
+                                />
+                              </div>
+                              {queueStore.activePhase === "transcribing-gpu" && (
+                                <span className="shrink-0 rounded-full bg-green-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-green-600">
+                                  GPU
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {queueStore.activeProgress}% complete
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {entry.errorMessage && (
+                      <p className="mt-1 text-xs text-destructive truncate">{entry.errorMessage}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {(entry.status === "pending" || entry.status === "processing") && (
+                      <button
+                        onClick={() => queueStore.cancel(entry.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                        title={t("settings.audioCancel")}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                    {entry.status === "failed" && (
+                      <>
+                        <button
+                          onClick={() => queueStore.retry(entry.id)}
+                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                          title={t("settings.audioRetry")}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => queueStore.cancel(entry.id)}
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          title={t("settings.audioCancel")}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                    {entry.status === "pending" && entry.priority < 10 && (
+                      <button
+                        onClick={() => queueStore.prioritize(entry.id)}
+                        className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                        title={t("settings.audioPrioritize")}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

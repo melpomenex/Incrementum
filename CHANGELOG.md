@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.25.0] - 2026-04-26
+
+### Added
+
+- **Auto-transcription for media documents** — audio and video files are now automatically transcribed in the background when imported. Transcripts are saved to the document and become searchable and extractable via the existing text extraction flow.
+- **Transcription queue management** — new queue section in Audio Transcription settings shows all pending, active, and completed transcription jobs with real-time progress bars. Jobs can be cancelled, retried, or prioritized. A "Transcribe All" button enqueues any existing untranscribed media documents.
+- **Real-time transcription progress** — document cards show a live progress percentage (e.g. "47%") during transcription. The settings queue displays a filling progress bar with percentage label, so users know exactly when a transcription is done and it's safe to close the app.
+- **Idle-time backfill scanner** — when auto-transcription is enabled, a background scanner discovers untranscribed media documents during idle periods and enqueues them at low priority.
+- **Persistent transcription queue** — transcription jobs survive app restarts. Interrupted processing jobs are automatically resumed on next launch.
+- **Per-provider advanced settings** — each LLM provider now has configurable temperature (0.0–2.0), max tokens (1–128000), and system prompt fields in provider settings.
+- **AI global controls** — new Auto-Generation, Summarization, and Context Window sub-sections in AI settings. Auto-generation controls include enable toggle, cards-per-extract (1–20), quality threshold (0.0–1.0), and optional approval workflow. Summarization controls include auto-summarize toggle, summary length (short/medium/long), and toggle to include summary in card content. Context window controls include max-tokens-per-request, include-related-cards toggle, and document-snippet-length input.
+- **Auto-extract workflows** — extracts created via toast or inline actions now automatically generate flashcards and summaries based on global AI settings, with pending cards held for manual approval when enabled.
+- **Global settings wired to chat** — context-from-related-cards and document-snippet-length settings are passed through to all chat completion requests (Assistant tab, PWA Assistant, Document QA, Flashcard Studio).
+- **Scroll mode view toggle** — new document/extracts/cards view switcher in scroll mode. A floating toolbar with FileText, List, and Brain icons lets you switch between the document reader, an extracts list for the current document, and a learning cards list. View resets to document when scrolling to the next item. The assistant panel is now always visible (toggle button removed).
+- **Extract dialog in scroll mode** — a lightbulb toolbar button in scroll mode opens the full Create Extract dialog, with a toast and "View extract" action on completion.
+- **Linux command palette shortcuts via menu accelerators** — packaged Linux builds now register Ctrl+K and Ctrl+P as menu accelerators (same as Windows/macOS), fixing shortcut delivery in AppImage and other packaged artifacts. The menu bar is hidden on Linux to match Windows behavior. Native shortcut dispatch now guards against firing when an editable field is focused.
+- **Vulkan GPU acceleration for local transcription** — whisper.cpp now uses Vulkan GPU backends on Linux when available (NVIDIA, AMD, Intel). Auto-detects `libggml-vulkan.so` in the sidecar directory and enables GPU automatically — no configuration needed. The transcription settings queue shows a green "GPU" badge when GPU mode is active. Falls back to CPU when no GPU is present.
+- **FTS5 full-text search** — the search page now uses SQLite FTS5 for fast, relevance-ranked search across all document content including auto-generated transcripts and extracts. Results include highlighted excerpts with match context. FTS5 index is maintained automatically via triggers; a reindex command is available in case of drift.
+- **Transcript phase indicators** — document cards and the settings queue now show "Preparing audio..." during the ffmpeg conversion phase before whisper starts, preventing the progress bar from appearing stuck at 0% for large files.
+
+### Fixed
+
+- **Pocket TTS error reporting and PATH discovery** — the TTS settings page now shows actionable install instructions (`uv tool install pocket-tts`) when pocket_tts is not found. The Linux sidecar wrapper enhances PATH to find user-local `uv tool` and `pip --user` installations, validates the module is importable before execution, and fixes a duplicate `generate` subcommand argument that caused synthesis failures.
+
 ## [1.24.2] - 2026-04-26
 
 ### Added

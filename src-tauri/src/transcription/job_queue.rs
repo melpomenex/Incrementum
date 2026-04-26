@@ -125,7 +125,7 @@ impl JobQueue {
                     app_handle.emit("transcription://segment", seg).unwrap();
                 }
             });
-        }).await?;
+        }, None).await?;
 
         // 5. Update status to completed
         sqlx::query("UPDATE transcripts SET status = 'completed' WHERE book_id = ? AND chapter_id = ?")

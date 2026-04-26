@@ -216,6 +216,22 @@ interface InterfaceSettings {
 }
 
 /**
+ * AI Controls Settings (auto-generation, summarization, context window)
+ */
+export interface AIControlsSettings {
+  autoGenerate: boolean;
+  cardsPerExtract: number;
+  qualityThreshold: number;
+  requireApproval: boolean;
+  autoSummarize: boolean;
+  summaryLength: "short" | "medium" | "long";
+  includeSummaryInCards: boolean;
+  maxTokensPerRequest: number;
+  contextFromRelatedCards: boolean;
+  documentSnippetLength: number;
+}
+
+/**
  * AI Settings
  */
 interface AISettings {
@@ -229,6 +245,7 @@ interface AISettings {
   // PWA-only: floating voice assistant button while reading documents.
   pwaAssistantButtonEnabled: boolean;
   pwaAssistantButtonSide: "left" | "right";
+  aiControls: AIControlsSettings;
 }
 
 /**
@@ -541,6 +558,18 @@ export const defaultSettings: Settings = {
     maxTokens: 4096,
     pwaAssistantButtonEnabled: true,
     pwaAssistantButtonSide: "right",
+    aiControls: {
+      autoGenerate: false,
+      cardsPerExtract: 5,
+      qualityThreshold: 0.0,
+      requireApproval: false,
+      autoSummarize: false,
+      summaryLength: "medium",
+      includeSummaryInCards: false,
+      maxTokensPerRequest: 4096,
+      contextFromRelatedCards: false,
+      documentSnippetLength: 2000,
+    },
   },
   sync: {
     enabled: false,
@@ -736,7 +765,7 @@ export const useSettingsStore = create<SettingsState>()(
               ...persisted.documents?.ocr,
             },
           },
-          ai: { ...defaultSettings.ai, ...persisted.ai },
+          ai: { ...defaultSettings.ai, ...persisted.ai, aiControls: { ...defaultSettings.ai.aiControls, ...persisted.ai?.aiControls } },
           sync: { ...defaultSettings.sync, ...persisted.sync },
           importExport: { ...defaultSettings.importExport, ...persisted.importExport },
           notifications: { ...defaultSettings.notifications, ...persisted.notifications },

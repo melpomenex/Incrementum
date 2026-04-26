@@ -18,6 +18,9 @@ export interface LLMProviderConfig {
   enabled: boolean;
   // Store pricing information for cost calculations
   modelPricing?: Record<string, ModelInfo>;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt?: string;
 }
 
 interface LLMProviderSettingsProps {
@@ -94,6 +97,9 @@ export function LLMProviderSettings({
   const [newProviderApiKey, setNewProviderApiKey] = useState("");
   const [newProviderBaseUrl, setNewProviderBaseUrl] = useState("");
   const [newProviderModel, setNewProviderModel] = useState("");
+  const [newProviderTemperature, setNewProviderTemperature] = useState(0.7);
+  const [newProviderMaxTokens, setNewProviderMaxTokens] = useState(4096);
+  const [newProviderSystemPrompt, setNewProviderSystemPrompt] = useState("");
   const [testingConnection, setTestingConnection] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
@@ -116,6 +122,9 @@ export function LLMProviderSettings({
     setNewProviderApiKey(provider.apiKey);
     setNewProviderBaseUrl(provider.baseUrl || "");
     setNewProviderModel(provider.model);
+    setNewProviderTemperature(provider.temperature ?? 0.7);
+    setNewProviderMaxTokens(provider.maxTokens ?? 4096);
+    setNewProviderSystemPrompt(provider.systemPrompt ?? "");
     setShowAddForm(true);
   };
 
@@ -126,6 +135,9 @@ export function LLMProviderSettings({
     setNewProviderApiKey("");
     setNewProviderBaseUrl("");
     setNewProviderModel("");
+    setNewProviderTemperature(0.7);
+    setNewProviderMaxTokens(4096);
+    setNewProviderSystemPrompt("");
   };
 
   const handleAddProvider = () => {
@@ -152,6 +164,9 @@ export function LLMProviderSettings({
       model: newProviderModel || info.defaultModel,
       enabled: true,
       modelPricing: Object.keys(modelPricing).length > 0 ? modelPricing : undefined,
+      temperature: newProviderTemperature,
+      maxTokens: newProviderMaxTokens,
+      systemPrompt: newProviderSystemPrompt || undefined,
     });
   };
 
@@ -172,6 +187,9 @@ export function LLMProviderSettings({
       baseUrl: newProviderBaseUrl || PROVIDER_INFO[newProviderType].baseUrl,
       model: newProviderModel,
       modelPricing: Object.keys(modelPricing).length > 0 ? modelPricing : undefined,
+      temperature: newProviderTemperature,
+      maxTokens: newProviderMaxTokens,
+      systemPrompt: newProviderSystemPrompt || undefined,
     });
   };
 
@@ -187,6 +205,9 @@ export function LLMProviderSettings({
     setNewProviderApiKey("");
     setNewProviderBaseUrl("");
     setNewProviderModel("");
+    setNewProviderTemperature(0.7);
+    setNewProviderMaxTokens(4096);
+    setNewProviderSystemPrompt("");
     setDynamicModels({});
     setShowAddForm(false);
     setEditingProvider(null);
@@ -197,6 +218,9 @@ export function LLMProviderSettings({
     setNewProviderApiKey("");
     setNewProviderBaseUrl("");
     setNewProviderModel("");
+    setNewProviderTemperature(0.7);
+    setNewProviderMaxTokens(4096);
+    setNewProviderSystemPrompt("");
     setDynamicModels({});
     setOllamaStatus(null);
     setShowAddForm(false);
@@ -343,6 +367,14 @@ export function LLMProviderSettings({
                         <p className="text-xs text-muted-foreground mt-1">
                           Model: <span className="font-mono">{provider.model}</span>
                         </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Temp: {provider.temperature?.toFixed(1)} · Max tokens: {provider.maxTokens ?? "default"}
+                        </p>
+                        {provider.systemPrompt && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
+                            System: {provider.systemPrompt}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -614,6 +646,55 @@ export function LLMProviderSettings({
                 {ollamaStatus}
               </p>
             )}
+          </div>
+
+          {/* Temperature */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Temperature: {newProviderTemperature.toFixed(1)}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={newProviderTemperature}
+              onChange={(e) => setNewProviderTemperature(parseFloat(e.target.value))}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <span>Precise (0.0)</span>
+              <span>Creative (2.0)</span>
+            </div>
+          </div>
+
+          {/* Max Tokens */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Max Tokens
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="128000"
+              value={newProviderMaxTokens}
+              onChange={(e) => setNewProviderMaxTokens(parseInt(e.target.value) || 4096)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+            />
+          </div>
+
+          {/* System Prompt */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              System Prompt (optional)
+            </label>
+            <textarea
+              value={newProviderSystemPrompt}
+              onChange={(e) => setNewProviderSystemPrompt(e.target.value)}
+              placeholder="You are a helpful assistant..."
+              rows={3}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+            />
           </div>
 
           {/* Actions */}

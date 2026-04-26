@@ -11,6 +11,7 @@ pub mod collection;
 pub mod playlist;
 pub mod video_extract;
 pub mod image_asset;
+pub mod transcription_queue;
 
 pub use document::{Document, DocumentImageAsset, FileType, DocumentMetadata};
 pub use extract::Extract;
@@ -23,3 +24,4 @@ pub use collection::{Collection, CollectionType, DocumentCollection, SmartCollec
 pub use playlist::{PlaylistSubscription, PlaylistVideo, PlaylistSettings};
 pub use video_extract::VideoExtract;
 pub use image_asset::{ImageAsset, ImageAssetWithUsage};
+pub use transcription_queue::{TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};

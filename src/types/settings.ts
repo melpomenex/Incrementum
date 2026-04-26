@@ -157,6 +157,8 @@ export interface AudioTranscriptionSettings {
   speakerDiarization: boolean;
   confidenceScores: boolean;
   confidenceThreshold: number;
+  idleTranscriptionEnabled: boolean;
+  idleThresholdMinutes: number;
   groq: GroqTranscriptionSettings;
 }
 

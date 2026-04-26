@@ -63,12 +63,12 @@ export function AISettings({ onChange }: { onChange: () => void }) {
     return true;
   };
 
-  const handleAddProvider = (provider: Omit<{ id: string; provider: "openai" | "anthropic" | "ollama" | "openrouter"; name: string; apiKey: string; baseUrl?: string; model: string; enabled: boolean }, "id">) => {
+  const handleAddProvider = (provider: Omit<{ id: string; provider: "openai" | "anthropic" | "ollama" | "openrouter"; name: string; apiKey: string; baseUrl?: string; model: string; enabled: boolean; temperature: number; maxTokens: number; systemPrompt?: string }, "id">) => {
     addProvider(provider);
     onChange();
   };
 
-  const handleUpdateProvider = (id: string, updates: Partial<{ id: string; provider: "openai" | "anthropic" | "ollama" | "openrouter"; name: string; apiKey: string; baseUrl?: string; model: string; enabled: boolean }>) => {
+  const handleUpdateProvider = (id: string, updates: Partial<{ id: string; provider: "openai" | "anthropic" | "ollama" | "openrouter"; name: string; apiKey: string; baseUrl?: string; model: string; enabled: boolean; temperature: number; maxTokens: number; systemPrompt?: string }>) => {
     updateProvider(id, updates);
     onChange();
   };
@@ -133,6 +133,261 @@ export function AISettings({ onChange }: { onChange: () => void }) {
         onTestServer={handleTestMCPServer}
         maxServers={3}
       />
+
+      {/* Auto-Generation Settings */}
+      <SettingsSection
+        title="Auto-Generation"
+        description="Automatically generate flashcards from new extracts"
+      >
+        <SettingsRow
+          label="Auto-generate flashcards"
+          description="Generate flashcards automatically when new extracts are created"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={settings.ai.aiControls.autoGenerate}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, autoGenerate: e.target.checked },
+                  },
+                });
+                onChange();
+              }}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Cards per extract"
+          description="Number of flashcards to generate per extract (1-20)"
+        >
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={settings.ai.aiControls.cardsPerExtract}
+            onChange={(e) => {
+              updateSettings({
+                ai: {
+                  ...settings.ai,
+                  aiControls: { ...settings.ai.aiControls, cardsPerExtract: parseInt(e.target.value) || 5 },
+                },
+              });
+              onChange();
+            }}
+            disabled={!settings.ai.aiControls.autoGenerate}
+            className="w-24 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-50"
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Quality threshold"
+          description="Minimum confidence score (0.0-1.0) to keep generated flashcards"
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={settings.ai.aiControls.qualityThreshold}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, qualityThreshold: parseFloat(e.target.value) },
+                  },
+                });
+                onChange();
+              }}
+              disabled={!settings.ai.aiControls.autoGenerate}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground w-10">
+              {settings.ai.aiControls.qualityThreshold.toFixed(2)}
+            </span>
+          </div>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Require manual approval"
+          description="Hold generated cards for review before saving"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={settings.ai.aiControls.requireApproval}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, requireApproval: e.target.checked },
+                  },
+                });
+                onChange();
+              }}
+              disabled={!settings.ai.aiControls.autoGenerate}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary disabled:opacity-50"></div>
+          </label>
+        </SettingsRow>
+      </SettingsSection>
+
+      {/* Summarization Settings */}
+      <SettingsSection
+        title="Summarization"
+        description="Automatically summarize long extracts"
+      >
+        <SettingsRow
+          label="Auto-summarize long extracts"
+          description="Generate summaries for extracts exceeding length threshold"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={settings.ai.aiControls.autoSummarize}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, autoSummarize: e.target.checked },
+                  },
+                });
+                onChange();
+              }}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Summary length"
+          description="Target length for auto-generated summaries"
+        >
+          <select
+            value={settings.ai.aiControls.summaryLength}
+            onChange={(e) => {
+              updateSettings({
+                ai: {
+                  ...settings.ai,
+                  aiControls: { ...settings.ai.aiControls, summaryLength: e.target.value as "short" | "medium" | "long" },
+                },
+              });
+              onChange();
+            }}
+            disabled={!settings.ai.aiControls.autoSummarize}
+            className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-50"
+          >
+            <option value="short">Short (~100 words)</option>
+            <option value="medium">Medium (~250 words)</option>
+            <option value="long">Long (~500 words)</option>
+          </select>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Include summary in card content"
+          description="Prepend summary to flashcard generation prompt as context"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={settings.ai.aiControls.includeSummaryInCards}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, includeSummaryInCards: e.target.checked },
+                  },
+                });
+                onChange();
+              }}
+              disabled={!settings.ai.aiControls.autoSummarize}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary disabled:opacity-50"></div>
+          </label>
+        </SettingsRow>
+      </SettingsSection>
+
+      {/* Context Window Settings */}
+      <SettingsSection
+        title="Context Window"
+        description="Configure how much context is sent in AI requests"
+      >
+        <SettingsRow
+          label="Max tokens per request"
+          description="Global fallback for max tokens (256-128000); overridden by per-provider value"
+        >
+          <input
+            type="number"
+            min="256"
+            max="128000"
+            value={settings.ai.aiControls.maxTokensPerRequest}
+            onChange={(e) => {
+              updateSettings({
+                ai: {
+                  ...settings.ai,
+                  aiControls: { ...settings.ai.aiControls, maxTokensPerRequest: parseInt(e.target.value) || 4096 },
+                },
+              });
+              onChange();
+            }}
+            className="w-28 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
+        </SettingsRow>
+
+        <SettingsRow
+          label="Context from related cards"
+          description="Include semantically related card content as context"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={settings.ai.aiControls.contextFromRelatedCards}
+              onChange={(e) => {
+                updateSettings({
+                  ai: {
+                    ...settings.ai,
+                    aiControls: { ...settings.ai.aiControls, contextFromRelatedCards: e.target.checked },
+                  },
+                });
+                onChange();
+              }}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Document snippet length"
+          description="Characters per context snippet from source documents (200-10000)"
+        >
+          <input
+            type="number"
+            min="200"
+            max="10000"
+            value={settings.ai.aiControls.documentSnippetLength}
+            onChange={(e) => {
+              updateSettings({
+                ai: {
+                  ...settings.ai,
+                  aiControls: { ...settings.ai.aiControls, documentSnippetLength: parseInt(e.target.value) || 2000 },
+                },
+              });
+              onChange();
+            }}
+            className="w-28 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
+        </SettingsRow>
+      </SettingsSection>
     </>
   );
 }

@@ -221,3 +221,77 @@ export function formatReadingTime(seconds: number): string {
   const remainingMinutes = minutes % 60;
   return `${hours}h ${remainingMinutes}m`;
 }
+
+export interface TextPositionIndexEntry {
+  chunkIndex: number;
+  wordOffset: number;
+}
+
+interface ChunkPosition {
+  charStart: number;
+  charEnd: number;
+}
+
+export class TextPositionIndex {
+  private chunkPositions: ChunkPosition[] = [];
+  private totalChars = 0;
+  private pageCharOffsets: Map<number, number> = new Map();
+  private docType: "pdf" | "epub" | "scroll" = "scroll";
+
+  constructor(docType?: "pdf" | "epub" | "scroll") {
+    if (docType) this.docType = docType;
+  }
+
+  build(chunks: string[]): void {
+    this.chunkPositions = [];
+    let charOffset = 0;
+    for (const chunk of chunks) {
+      this.chunkPositions.push({ charStart: charOffset, charEnd: charOffset + chunk.length });
+      charOffset += chunk.length + 1;
+    }
+    this.totalChars = Math.max(1, charOffset);
+  }
+
+  setPageCharOffsets(offsets: Map<number, number>): void {
+    this.pageCharOffsets = offsets;
+  }
+
+  getPosition(
+    pageNumber: number | null,
+    scrollPercent: number | null
+  ): TextPositionIndexEntry | null {
+    if (this.chunkPositions.length === 0) return null;
+
+    if (this.docType === "pdf" && pageNumber !== null) {
+      const pageOffset = this.pageCharOffsets.get(pageNumber);
+      if (pageOffset !== undefined) {
+        return this.charOffsetToChunkIndex(pageOffset);
+      }
+    }
+
+    if (scrollPercent !== null) {
+      const charTarget = Math.round((scrollPercent / 100) * this.totalChars);
+      return this.charOffsetToChunkIndex(charTarget);
+    }
+
+    return { chunkIndex: 0, wordOffset: 0 };
+  }
+
+  getScrollPercent(chunkIndex: number): number {
+    if (chunkIndex >= this.chunkPositions.length) return 100;
+    const pos = this.chunkPositions[chunkIndex];
+    return (pos.charStart / this.totalChars) * 100;
+  }
+
+  private charOffsetToChunkIndex(charOffset: number): TextPositionIndexEntry {
+    for (let i = 0; i < this.chunkPositions.length; i++) {
+      const pos = this.chunkPositions[i];
+      if (charOffset >= pos.charStart && charOffset < pos.charEnd) {
+        const wordOffset = Math.max(0, Math.round((charOffset - pos.charStart) / 5));
+        return { chunkIndex: i, wordOffset };
+      }
+    }
+    const lastIdx = Math.max(0, this.chunkPositions.length - 1);
+    return { chunkIndex: lastIdx, wordOffset: 0 };
+  }
+}

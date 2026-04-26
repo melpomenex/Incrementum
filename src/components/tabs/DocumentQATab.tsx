@@ -93,6 +93,7 @@ export function DocumentQATab() {
   const { documents } = useDocumentStore();
   const getEnabledProviders = useLLMProvidersStore((state) => state.getEnabledProviders);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
+  const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
   const notebookFeatureEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
   const analyticsEnabled = useSettingsStore((state) => state.settings.privacy.analyticsEnabled);
   const { t } = useI18n();
@@ -755,7 +756,12 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
           content: documentContext,
         },
         provider.apiKey,
-        provider.baseUrl
+        provider.baseUrl,
+        provider.temperature,
+        provider.maxTokens,
+        provider.systemPrompt,
+        aiControls?.contextFromRelatedCards,
+        aiControls?.documentSnippetLength
       );
 
       const { cleanedContent, toolCalls } = parseToolCalls(response.content);

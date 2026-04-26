@@ -9,6 +9,7 @@ import { useCallback, useRef } from "react";
 import { createExtract, CreateExtractInput, Extract } from "../api/extracts";
 import { useToast } from "../components/common/Toast";
 import { useExtractStore } from "../stores/extractStore";
+import { handleAutoGeneration, handleAutoSummarization } from "../utils/aiExtractUtils";
 
 interface UseToastExtractOptions {
   onEditExtract?: (extract: Extract) => void;
@@ -51,6 +52,17 @@ export function useToastExtract(options?: UseToastExtractOptions) {
         const extract = await createExtract(input);
         setLastHighlightColor(extractColor);
         loadExtracts(documentId);
+
+        handleAutoGeneration(extract.id, extract.content).catch((err) =>
+          console.error("Auto-generation failed:", err)
+        );
+        handleAutoSummarization(extract.content).then((summary) => {
+          if (summary) {
+            console.log(`Auto-summary generated: ${summary.length} chars`);
+          }
+        }).catch((err) =>
+          console.error("Auto-summarization failed:", err)
+        );
 
         toast.success("Highlight saved", undefined, {
           action: {

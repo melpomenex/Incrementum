@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri, isPWA } from "../../lib/tauri";
@@ -21,7 +21,6 @@ import type { PdfSelectionContext, SelectionContext, TextSelectionContext, EpubS
 import type { Extract } from "../../api/extracts";
 import { createExtract } from "../../api/extracts";
 import { QueueNavigationControls } from "../queue/QueueNavigationControls";
-import { HoverRatingControls } from "../review/HoverRatingControls";
 import { PriorityControl } from "./PriorityControl";
 import { DocumentMinimap, type MinimapSegment } from "./DocumentMinimap";
 import { useInlineExtraction, flashAnimationStyles } from "../../hooks/useInlineExtraction";
@@ -32,8 +31,9 @@ import { cn } from "../../utils";
 import { eventMatchesCombo, useShortcutStore } from "../common/KeyboardShortcuts";
 import * as documentsApi from "../../api/documents";
 import { createLearningItem, generateLearningItemsFromExtract } from "../../api/learning-items";
+import { handleAutoGeneration, handleAutoSummarization } from "../../utils/aiExtractUtils";
 import { updateDocumentProgressAuto } from "../../api/documents";
-import { rateDocument } from "../../api/algorithm";
+import { rateDocumentEngaging } from "../../api/algorithm";
 import type { ReviewRating } from "../../api/review";
 import { autoExtractWithCache, ensureGLMOllamaRuntime, ensureOCRConfig, isAutoExtractEnabled } from "../../utils/documentAutoExtract";
 import { ocrPdfFile } from "../../api/ocrCommands";
@@ -44,6 +44,7 @@ import { recordReadingSession } from "../../utils/readingSpeed";
 import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extractNavigation";
 import type { DocumentSearchState } from "../../types/searchHit";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
+import { WordHighlightLayer } from "../common/WordHighlightLayer";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
@@ -199,7 +200,6 @@ function getUnifiedPositionForDocument(
 
 interface DocumentViewerProps {
   documentId: string;
-  disableHoverRating?: boolean;
   /**
    * When true, the viewer is being rendered inside another reading surface
    * (eg Scroll Mode) and should not render its own top chrome.
@@ -246,7 +246,6 @@ const DEFAULT_VIEWER_SEARCH_STATE: ViewerSearchState = {
 
 export function DocumentViewer({
   documentId,
-  disableHoverRating = false,
   embedded = false,
   onSelectionChange,
   onScrollPositionChange,
@@ -370,6 +369,17 @@ export function DocumentViewer({
   const [minimapPosition, setMinimapPosition] = useState(0); // 0-1
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [readerContextText, setReaderContextText] = useState<string>("");
+
+  const [epubAdvanceSignal, setEpubAdvanceSignal] = useState(0);
+
+  // Word highlighting state
+  const [ttsChunkText, setTtsChunkText] = useState("");
+  const [wordHighlightEnabled, setWordHighlightEnabled] = useState(false);
+  const highlightContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll TTS state
+  const ttsScrollTargetRef = useRef(0);
+  const ttsScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ocrResult, setOcrResult] = useState<{
     pages: Array<{ pageNumber: number; text: string }>;
     combinedText: string;
@@ -516,6 +526,16 @@ export function DocumentViewer({
   };
 
   const docType = inferFileType(currentDocument);
+
+  // Set highlight container ref based on doc type
+  useEffect(() => {
+    if (docType === "markdown" || docType === "html") {
+      highlightContainerRef.current = document.querySelector("[data-document-scroll-container]");
+    } else {
+      highlightContainerRef.current = document.querySelector(".viewer-content-area") as HTMLDivElement | null;
+    }
+  }, [docType]);
+
   const viewerSearchSupported = docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html" || docType === "youtube";
   const normalizedViewerSearchQuery = searchQuery.trim();
   const reportViewerSearchState = useCallback((next: Partial<ViewerSearchState>) => {
@@ -1193,11 +1213,23 @@ export function DocumentViewer({
   // Inline extraction handlers
   const handleInlineExtract = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
     try {
-      await createExtract({
+      const extract = await createExtract({
         document_id: options.documentId,
         content: options.text,
         note: options.context,
       });
+
+      handleAutoGeneration(extract.id, extract.content).catch((err) =>
+        console.error("Auto-generation failed:", err)
+      );
+      handleAutoSummarization(extract.content).then((summary) => {
+        if (summary) {
+          console.log(`Auto-summary generated: ${summary.length} chars`);
+        }
+      }).catch((err) =>
+        console.error("Auto-summarization failed:", err)
+      );
+
       toast.success(t("viewer.extractCreated"));
       // Refresh extracts for minimap
       loadExtracts(options.documentId);
@@ -2482,6 +2514,15 @@ export function DocumentViewer({
         return;
       }
 
+      // Rating shortcuts (1-4) — only when viewing documents in queue
+      if (viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && queueNav.totalDocuments > 0) {
+        if (e.key >= "1" && e.key <= "4") {
+          e.preventDefault();
+          handleRatingRef.current?.(parseInt(e.key) as ReviewRating);
+          return;
+        }
+      }
+
       // Arrow keys for navigation when in document mode
       if (viewMode === "document") {
         if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
@@ -2509,7 +2550,7 @@ export function DocumentViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode]);
+  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments]);
 
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {
@@ -2640,19 +2681,56 @@ export function DocumentViewer({
     [onPdfContextTextChange, ocrContextText, settings.documents.ocr.autoOCR, settings.documents.ocr.autoExtractOnLoad]
   );
 
-  // Handle TTS completion - advance to next page if available
+  // Handle TTS completion - advance to next chapter/page if available
   const handleTTSComplete = useCallback(() => {
-    // Only auto-advance for paginated documents (PDF/EPUB)
-    if (docType !== "pdf" && docType !== "epub") return;
+    if (docType === "epub") {
+      setEpubAdvanceSignal((prev) => prev + 1);
+      return;
+    }
 
-    const nextPage = pageNumber + 1;
-    if (nextPage <= totalPages) {
-      console.log(`TTS: Auto-advancing to page ${nextPage}`);
-      setPageNumber(nextPage);
-    } else {
-      console.log("TTS: Reached end of document");
+    if (docType === "pdf") {
+      const nextPage = pageNumber + 1;
+      if (nextPage <= totalPages) {
+        console.log(`TTS: Auto-advancing to page ${nextPage}`);
+        setPageNumber(nextPage);
+      } else {
+        console.log("TTS: Reached end of document");
+      }
     }
   }, [docType, pageNumber, totalPages]);
+
+  // Handle TTS chunk change - auto-scroll for scroll-based documents
+  const handleTTSChunkChange = useCallback((chunkIndex: number, scrollPercent: number) => {
+    if (docType === "pdf") return;
+
+    if (ttsScrollTimerRef.current) {
+      clearTimeout(ttsScrollTimerRef.current);
+    }
+
+    ttsScrollTimerRef.current = setTimeout(() => {
+      ttsScrollTargetRef.current = scrollPercent;
+
+      const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
+      if (container) {
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        const targetScroll = (scrollPercent / 100) * maxScroll;
+        container.scrollTo({ top: targetScroll, behavior: "smooth" });
+        return;
+      }
+
+      // Fallback for EPUB: try scrolling the main viewer area
+      const epubContainer = document.querySelector("[data-epub-viewer]") as HTMLElement | null;
+      if (epubContainer) {
+        const maxScroll = Math.max(0, epubContainer.scrollHeight - epubContainer.clientHeight);
+        const targetScroll = (scrollPercent / 100) * maxScroll;
+        epubContainer.scrollTo({ top: targetScroll, behavior: "smooth" });
+      }
+    }, 100);
+  }, [docType]);
+
+  const handleTTSChunkStart = useCallback((_chunkIndex: number, text: string) => {
+    setTtsChunkText(text);
+  }, []);
 
   useEffect(() => {
     if (docType === "pdf" || docType === "epub") return;
@@ -2878,14 +2956,15 @@ export function DocumentViewer({
   };
 
   // Handle rating from keyboard shortcuts
+  const handleRatingRef = useRef<(rating: ReviewRating) => Promise<void>>(null);
   const handleRating = async (rating: ReviewRating) => {
     try {
       const timeTaken = Math.round((Date.now() - startTimeRef.current) / 1000);
 
       console.log(`DocumentViewer: Rating document ${documentId} as ${rating} (time: ${timeTaken}s)`);
 
-      await rateDocument(documentId, rating, timeTaken);
-      
+      await rateDocumentEngaging(documentId, rating, timeTaken);
+
       // Mark as rated in session
       markItemViewed(documentId, true);
 
@@ -2919,6 +2998,19 @@ export function DocumentViewer({
       }
     } catch (error) {
       console.error("Failed to rate document:", error);
+    }
+  };
+  handleRatingRef.current = handleRating;
+
+  // Handle dismissing document from queue
+  const handleDismiss = async () => {
+    try {
+      await documentsApi.dismissDocument(documentId, true);
+      markItemViewed(documentId, false);
+      toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
+    } catch (error) {
+      console.error("Failed to dismiss document:", error);
+      toast.error(t("queueScroll.dismissFailed"));
     }
   };
 
@@ -4484,6 +4576,7 @@ export function DocumentViewer({
             }}
             initialCfi={initialJump?.kind === "epub" ? initialJump.cfi || undefined : undefined}
             persistedHighlights={persistedDocumentHighlights.epubHighlights}
+            advanceChapterSignal={epubAdvanceSignal}
             onProgressChange={(percent) => {
               handleScrollPositionChange({
                 pageNumber: 1,
@@ -4815,16 +4908,86 @@ export function DocumentViewer({
           </div>
         )}
 
-        {/* Hover Rating Controls - for quick document rating (non-PDF docs, only when in queue) */}
-        {viewMode === "document" && !disableHoverRating && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && hasDocumentHistory && queueNav.totalDocuments > 0 && (
-          <HoverRatingControls
-            context="document"
-            documentId={documentId}
-            onRatingSubmitted={handleRating}
-            position="absolute"
-            disableBackdropBlur={docType === "epub"}
-            compactMode={docType === "epub" && isPWA()}
-          />
+        {/* Orb Rating Buttons - right side of viewer */}
+        {viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && queueNav.totalDocuments > 0 && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto z-40">
+            {!hasDocumentHistory ? (
+              <button
+                type="button"
+                onClick={() => handleRating(3)}
+                className="group relative p-4 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg active:scale-95"
+                title={t("queueScroll.markAsReadGood")}
+              >
+                <CheckCircle className="w-7 h-7 text-white" />
+                <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  {t("queueScroll.markAsReadGood")}
+                </span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleRating(1)}
+                  className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg"
+                  title={t("queueScroll.againTitle")}
+                >
+                  <AlertCircle className="w-6 h-6 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {t("queueScroll.again")}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRating(2)}
+                  className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg"
+                  title={t("queueScroll.hardTitle")}
+                >
+                  <Star className="w-6 h-6 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {t("queueScroll.hard")}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRating(3)}
+                  className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg"
+                  title={t("queueScroll.goodTitle")}
+                >
+                  <CheckCircle className="w-6 h-6 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {t("queueScroll.good")}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRating(4)}
+                  className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg"
+                  title={t("queueScroll.easyTitle")}
+                >
+                  <Sparkles className="w-6 h-6 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {t("queueScroll.easy")}
+                  </span>
+                </button>
+
+                {/* Dismiss */}
+                <button
+                  type="button"
+                  onClick={handleDismiss}
+                  className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg mt-2"
+                  title={t("queueScroll.dismissTitle")}
+                >
+                  <EyeOff className="w-6 h-6 text-white" />
+                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {t("queueScroll.dismissLabel")}
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
         )}
 
         {/* Document Minimap - VS Code style */}
@@ -4863,6 +5026,20 @@ export function DocumentViewer({
             text={readerContextText}
             onComplete={handleTTSComplete}
             autoAdvance={true}
+            docType={docType === "pdf" ? "pdf" : docType === "epub" ? "epub" : "scroll"}
+            startPosition={{
+              pageNumber: docType === "pdf" || docType === "epub" ? pageNumber : null,
+              scrollPercent: docType !== "pdf" && docType !== "epub"
+                ? (lastScrollStateRef.current?.scrollPercent ?? currentDocument?.currentScrollPercent ?? 0)
+                : docType === "epub"
+                  ? currentDocument?.currentScrollPercent ?? 0
+                  : null,
+            }}
+            onChunkChange={handleTTSChunkChange}
+            onChunkStart={handleTTSChunkStart}
+            highlightEnabled={wordHighlightEnabled}
+            onHighlightToggle={() => setWordHighlightEnabled((v) => !v)}
+            highlightContainerRef={highlightContainerRef}
             className={cn(
               "absolute z-40",
               embedded ? "bottom-3 left-3 right-3" : "bottom-4 left-1/2 -translate-x-1/2"

@@ -45,6 +45,8 @@ interface EPUBViewerProps {
   }) => void;
   onProgressChange?: (progressPercent: number) => void;
   persistedHighlights?: Array<{ id: string; cfiRange: string; color?: string | null; text: string }>;
+  /** Increment to trigger rendition.next() for TTS chapter auto-advance */
+  advanceChapterSignal?: number;
 }
 
 export function EPUBViewer({
@@ -63,6 +65,7 @@ export function EPUBViewer({
   onSearchResultsChange,
   onProgressChange,
   persistedHighlights = [],
+  advanceChapterSignal,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1088,6 +1091,15 @@ export function EPUBViewer({
     }
   };
 
+  // Watch for TTS chapter advance signal
+  const chapterSignalRef = useRef(advanceChapterSignal);
+  useEffect(() => {
+    if (advanceChapterSignal !== undefined && advanceChapterSignal !== chapterSignalRef.current) {
+      chapterSignalRef.current = advanceChapterSignal;
+      handleNextPage();
+    }
+  }, [advanceChapterSignal]);
+
   const handleTocClick = async (href: string) => {
     if (!rendition || !book) {
       console.warn("EPUBViewer: Cannot navigate - rendition or book not ready");
@@ -1705,6 +1717,7 @@ export function EPUBViewer({
           <div
             ref={viewerRef}
             className="absolute inset-0"
+            data-epub-viewer="true"
             style={{ opacity: isLoading ? 0 : 1 }}
           />
         </div>

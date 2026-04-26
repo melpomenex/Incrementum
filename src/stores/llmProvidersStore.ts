@@ -14,6 +14,9 @@ export interface LLMProviderConfig {
   enabled: boolean;
   // Store pricing information for cost calculations
   modelPricing?: Record<string, ModelInfo>;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt?: string;
 }
 
 interface LLMProvidersState {
@@ -35,6 +38,8 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
         const newProvider: LLMProviderConfig = {
           ...provider,
           id: generateId(),
+          temperature: provider.temperature ?? 0.7,
+          maxTokens: provider.maxTokens ?? 4096,
         };
         console.log("Adding provider:", { ...newProvider, apiKey: newProvider.apiKey ? "***" : "EMPTY" });
         set((state) => ({

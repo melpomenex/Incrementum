@@ -2259,6 +2259,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const providers = useLLMProvidersStore((state) => state.providers);
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
   const maxTokens = useSettingsStore((state) => state.settings.ai.maxTokens) || 4000;
+  const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
   const preferredProviderType = useSettingsStore((state) => state.settings.ai.provider);
   const notebookLmEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
 
@@ -2794,7 +2795,12 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           contextWindowTokens: maxTokens,
         },
         currentProvider.apiKey,
-        currentProvider.baseUrl?.trim() || undefined
+        currentProvider.baseUrl?.trim() || undefined,
+        currentProvider.temperature,
+        currentProvider.maxTokens,
+        currentProvider.systemPrompt,
+        aiControls.contextFromRelatedCards,
+        aiControls.documentSnippetLength
       );
 
       const assistantId = `assistant-${Date.now()}`;
@@ -2988,7 +2994,12 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           contextWindowTokens: maxTokens,
         },
         currentProvider.apiKey,
-        currentProvider.baseUrl?.trim() || undefined
+        currentProvider.baseUrl?.trim() || undefined,
+        currentProvider.temperature,
+        currentProvider.maxTokens,
+        currentProvider.systemPrompt,
+        aiControls.contextFromRelatedCards,
+        aiControls.documentSnippetLength
       );
 
       const assistantId = `assistant-${Date.now()}`;
