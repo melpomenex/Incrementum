@@ -8,8 +8,39 @@ use crate::models::{Document, FileType, DocumentMetadata, Extract};
 use crate::commands::anna_archive::AnnaArchiveClient;
 use crate::processor;
 use crate::youtube;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use lopdf::{Document as LoDocument, Object};
+
+/// Copy a media file to app-managed storage so it survives macOS sandbox revocation.
+/// Returns the destination path.
+fn copy_media_to_app_storage(source_path: &str, subdir: &str) -> Result<PathBuf> {
+    let source = Path::new(source_path);
+    if !source.exists() {
+        return Err(IncrementumError::NotFound(format!("Source file not found: {}", source_path)));
+    }
+
+    let dest_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("incrementum")
+        .join(subdir);
+
+    std::fs::create_dir_all(&dest_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create {} directory: {}", subdir, e)))?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let original_filename = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("media");
+    let safe_filename = original_filename.replace(['/', '\\', ':'], "_");
+    let stored_filename = format!("{}-{}", timestamp, safe_filename);
+    let dest_path = dest_dir.join(&stored_filename);
+
+    std::fs::copy(source, &dest_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to copy file: {}", e)))?;
+
+    Ok(dest_path)
+}
 
 fn build_youtube_thumbnail_url(video_id: &str) -> String {
     format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", video_id)
@@ -120,6 +151,12 @@ pub async fn import_document(
     // Extract content from the file
     let extracted = processor::extract_content(&file_path, file_type.clone()).await?;
 
+    // For media files, copy to app-managed storage to avoid macOS sandbox issues
+    let stored_path = match file_type {
+        FileType::Audio => copy_media_to_app_storage(&file_path, "audio")?.to_string_lossy().to_string(),
+        _ => file_path.clone(),
+    };
+
     // Generate content hash for duplicate detection
     let content_hash = if !extracted.text.is_empty() {
         Some(processor::generate_content_hash(&extracted.text))
@@ -167,7 +204,7 @@ pub async fn import_document(
     });
 
     // Create the document
-    let mut doc = Document::new(title, file_path, file_type);
+    let mut doc = Document::new(title, stored_path, file_type);
     doc.content = Some(extracted.text);
     doc.tags = suggest_auto_tags(&doc.title, doc.content.as_deref().unwrap_or(""));
     doc.content_hash = content_hash;
