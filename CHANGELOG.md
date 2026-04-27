@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **Transcription "No such file or directory" on macOS** — audio files are now copied to app-managed storage at import time, preventing macOS sandbox permission errors when transcription runs later. Previously, files imported via the file picker were referenced by their original path, which becomes inaccessible once the security-scoped bookmark expires. The system also validates file existence before enqueueing and at process time, skipping missing files with clear feedback.
+- **Transcription "No such file or directory" on macOS** — the app now correctly finds ffmpeg installed via Homebrew. macOS GUI apps don't inherit the shell PATH, so ffmpeg at `/opt/homebrew/bin/ffmpeg` (Apple Silicon) or `/usr/local/bin/ffmpeg` (Intel) was invisible. The ffmpeg resolver now checks Homebrew locations directly. Audio files are also copied to app-managed storage at import time to prevent sandbox permission errors.
 - **Transcription queue entries cannot be removed** — the transcription queue now supports clearing entries. New "Clear Failed", "Clear Completed", and "Clear All Finished" buttons appear above the queue when relevant entries exist. Individual entries can also be removed with a per-row remove button. Previously, failed and completed entries accumulated indefinitely with no way to clean them up.
 
 ## [1.25.2] - 2026-04-27
