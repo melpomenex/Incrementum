@@ -5,6 +5,8 @@ import {
   cancelTranscriptionJob,
   retryTranscriptionJob,
   prioritizeTranscriptionJob,
+  clearTranscriptionQueue,
+  removeTranscriptionEntry,
   TranscriptionQueueEntryWithDoc,
   TranscriptionQueueEntry,
   TranscriptSegment,
@@ -22,6 +24,8 @@ interface TranscriptionQueueState {
   cancel: (id: string) => Promise<void>;
   retry: (id: string) => Promise<void>;
   prioritize: (id: string) => Promise<void>;
+  clearByStatus: (statuses: string[]) => Promise<void>;
+  removeEntry: (id: string) => Promise<void>;
   getEntryForDocument: (documentId: string) => TranscriptionQueueEntryWithDoc | undefined;
 }
 
@@ -56,6 +60,16 @@ export const useTranscriptionQueueStore = create<TranscriptionQueueState>((set, 
 
   prioritize: async (id: string) => {
     await prioritizeTranscriptionJob(id);
+    await get().fetchQueue();
+  },
+
+  clearByStatus: async (statuses: string[]) => {
+    await clearTranscriptionQueue(statuses);
+    await get().fetchQueue();
+  },
+
+  removeEntry: async (id: string) => {
+    await removeTranscriptionEntry(id);
     await get().fetchQueue();
   },
 

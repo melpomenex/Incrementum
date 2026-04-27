@@ -165,6 +165,12 @@ impl AutoTranscriptionQueue {
             return Err(anyhow::anyhow!("Whisper model not found: {}", entry.model_id));
         }
 
+        // Check if audio file exists
+        let audio_path = std::path::Path::new(&entry.audio_path);
+        if !audio_path.exists() {
+            return Err(anyhow::anyhow!("Audio file not found: {}", entry.audio_path));
+        }
+
         // Prepare audio
         let wav_path = engine.prepare_audio(std::path::Path::new(&entry.audio_path)).await?;
 
