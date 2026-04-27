@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useReviewStore } from "../../stores/reviewStore";
 import { ReviewHome } from "../../components/review/ReviewHome";
 import { ReviewSession } from "../../components/review/ReviewSession";
+import { DeckManager } from "../../components/review/DeckManager";
+
+type Mode = "home" | "session" | "deck-manager";
 
 export function ReviewTab() {
   const { loadQueue, resetSession, queue, currentCard } = useReviewStore();
-  const [mode, setMode] = useState<"home" | "session">("home");
+  const [mode, setMode] = useState<Mode>("home");
 
   const handleStartReview = async () => {
     await loadQueue();
@@ -38,5 +41,14 @@ export function ReviewTab() {
     return <ReviewSession onExit={handleExit} />;
   }
 
-  return <ReviewHome onStartReview={handleStartReview} />;
+  if (mode === "deck-manager") {
+    return <DeckManager onBack={() => setMode("home")} />;
+  }
+
+  return (
+    <ReviewHome
+      onStartReview={handleStartReview}
+      onOpenDeckManager={() => setMode("deck-manager")}
+    />
+  );
 }

@@ -10,14 +10,15 @@
 2. [Getting Started](#getting-started)
 3. [Document Management](#document-management)
 4. [The Learning System](#the-learning-system)
-5. [Review Process](#review-process)
-6. [Queue Management](#queue-management)
-7. [Analytics & Progress Tracking](#analytics--progress-tracking)
-8. [Settings & Customization](#settings--customization)
+5. [Deck Manager](#deck-manager)
+6. [Review Process](#review-process)
+7. [Queue Management](#queue-management)
+8. [Analytics & Progress Tracking](#analytics--progress-tracking)
+9. [Settings & Customization](#settings--customization)
    - [NotebookLM Integration](#notebooklm-integration)
-9. [Advanced Features](#advanced-features)
-10. [Tips & Best Practices](#tips--best-practices)
-11. [Troubleshooting](#troubleshooting)
+10. [Advanced Features](#advanced-features)
+11. [Tips & Best Practices](#tips--best-practices)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -319,6 +320,76 @@ If you have AI configured:
 3. AI will create multiple cards automatically
 4. Review and edit as needed
 5. Save the best ones
+
+---
+
+## Deck Manager
+
+The **Deck Manager** is a full-screen view for browsing, inspecting, and editing your flashcard decks and their cards. Open it from the **Deck Manager** button on the Review home page.
+
+### Browsing Decks
+
+- The left sidebar lists all your decks with card counts and due-today indicators.
+- Click a deck to expand it — only one deck is expanded at a time.
+- Tag filters for each deck are shown as small pills below the deck name.
+
+### Card List
+
+When a deck is expanded, its cards appear in a virtualized, scrollable list. Each card row shows:
+
+- **State badge** — color-coded: blue (New), orange (Learning), green (Review), red (Relearning)
+- **Question preview** — up to 80 characters
+- **Due date** — relative label (Today, Tomorrow, 5d, overdue)
+- **Difficulty** — 1–10 mini progress bar
+- **Interval** — current review interval in days
+- **Review count** — how many times the card has been reviewed
+- **Leech indicator** — yellow warning icon for cards with 5+ lapses
+
+### Sorting & Filtering
+
+**Sort** cards by due date, state, difficulty, interval, review count, or lapses. Click a sort button again to toggle ascending/descending.
+
+**Filter** by:
+- **State** — New, Learning, Review, Relearning
+- **Due status** — Due today, Overdue, Not due
+
+**Search** by question text or tag name using the search bar at the top.
+
+### Inline Card Editor
+
+Click any card row to expand an inline editor beneath it:
+
+- Edit **question**, **answer**, and **tags** directly — no modal needed.
+- **Cloze cards** display the cloze text with highlighted deletion ranges.
+- **Complex card types** (multiple-choice, image occlusion) show a read-only preview with an "Edit in Studio" link.
+- **Suspend/Unsuspend** toggle with a single click.
+- Changes are saved with **optimistic updates** — the UI updates instantly and rolls back if the save fails.
+
+### Deck Statistics Panel
+
+The right sidebar shows statistics for the expanded deck:
+
+- **Due today** — count of cards due now
+- **Retention rate** — estimated based on lapse ratio
+- **Average difficulty** — across all cards in the deck
+- **Leech count** — cards with 5+ lapses (click to filter to leeches only)
+- **Maturity breakdown** — stacked bar showing New / Learning / Young / Mature card distribution
+- **7-day forecast** — sparkline showing projected due counts for the next week
+- **FSRS memory health** — average stability and difficulty with a color-coded health indicator
+
+### Bulk Operations
+
+Select multiple cards using the checkboxes, then use the bulk action toolbar:
+
+- **Suspend / Unsuspend** — batch toggle suspension
+- **Delete** — remove selected cards (with confirmation)
+- **Retag** — add or remove tags across all selected cards at once
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Escape` | Collapse inline editor, or collapse expanded deck |
 
 ---
 
