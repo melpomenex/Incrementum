@@ -931,6 +931,8 @@ pub fn run() {
             transcription::prioritize_transcription_job,
             transcription::get_transcription_status,
             transcription::enqueue_all_untranscribed,
+            transcription::clear_transcription_queue,
+            transcription::remove_transcription_entry,
             // Semantic search commands - TEMPORARILY DISABLED for debugging Windows startup crash
             // commands::generate_embedding,
             // commands::generate_embeddings_batch,

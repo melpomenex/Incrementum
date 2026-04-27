@@ -4,7 +4,7 @@ pub mod job_queue;
 pub mod auto_queue;
 pub mod idle_scanner;
 
-use tauri::{AppHandle, Manager, State, command};
+use tauri::{AppHandle, Emitter, Manager, State, command};
 use crate::database::Repository;
 use crate::error::Result;
 use crate::models::{TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
@@ -13,6 +13,7 @@ use job_queue::{JobQueue, TranscriptionJob};
 use auto_queue::AutoTranscriptionQueue;
 use serde::{Serialize, Deserialize};
 use chrono::Utc;
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TranscriptResponse {
@@ -178,6 +179,18 @@ pub async fn get_transcription_status(
         .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnqueueAllResult {
+    pub enqueued: u32,
+    pub skipped: Vec<SkippedEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkippedEntry {
+    pub title: String,
+    pub reason: String,
+}
+
 #[command]
 pub async fn enqueue_all_untranscribed(
     repo: State<'_, Repository>,
@@ -185,12 +198,22 @@ pub async fn enqueue_all_untranscribed(
     provider: String,
     model_id: String,
     language: String,
-) -> Result<u32> {
+) -> Result<EnqueueAllResult> {
     let untranscribed = repo.get_untranscribed_media_documents().await
         .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
 
-    let mut count = 0u32;
-    for (doc_id, _title, file_path) in untranscribed {
+    let mut enqueued = 0u32;
+    let mut skipped = Vec::new();
+
+    for (doc_id, title, file_path) in untranscribed {
+        if !Path::new(&file_path).exists() {
+            skipped.push(SkippedEntry {
+                title,
+                reason: format!("File not found: {}", file_path),
+            });
+            continue;
+        }
+
         let entry = TranscriptionQueueEntry::new(
             doc_id,
             file_path,
@@ -199,9 +222,33 @@ pub async fn enqueue_all_untranscribed(
             language.clone(),
         );
         if state.auto_queue.enqueue(entry).is_ok() {
-            count += 1;
+            enqueued += 1;
         }
     }
 
-    Ok(count)
+    Ok(EnqueueAllResult { enqueued, skipped })
+}
+
+#[command]
+pub async fn clear_transcription_queue(
+    repo: State<'_, Repository>,
+    app_handle: AppHandle,
+    statuses: Vec<String>,
+) -> Result<u64> {
+    let deleted = repo.delete_transcription_queue_by_status(&statuses).await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+    let _ = app_handle.emit("transcription://queue-updated", ());
+    Ok(deleted)
+}
+
+#[command]
+pub async fn remove_transcription_entry(
+    repo: State<'_, Repository>,
+    app_handle: AppHandle,
+    id: String,
+) -> Result<()> {
+    repo.delete_transcription_queue_entry(&id).await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+    let _ = app_handle.emit("transcription://queue-updated", ());
+    Ok(())
 }

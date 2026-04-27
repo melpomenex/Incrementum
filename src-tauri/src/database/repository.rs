@@ -3348,6 +3348,28 @@ impl Repository {
             .await?;
         Ok(())
     }
+
+    pub async fn delete_transcription_queue_by_status(&self, statuses: &[String]) -> Result<u64> {
+        if statuses.is_empty() {
+            return Ok(0);
+        }
+        let placeholders: Vec<String> = statuses.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let query = format!("DELETE FROM transcription_queue WHERE status IN ({})", placeholders.join(","));
+        let mut q = sqlx::query(&query);
+        for status in statuses {
+            q = q.bind(status);
+        }
+        let result = q.execute(self.pool()).await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_transcription_queue_entry(&self, id: &str) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM transcription_queue WHERE id = ?1")
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 // Helper struct for study statistics rows

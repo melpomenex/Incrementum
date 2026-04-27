@@ -139,11 +139,31 @@ export const getTranscriptionStatus = (documentId: string): Promise<Transcriptio
   return invokeCommand("get_transcription_status", { documentId });
 };
 
+export interface SkippedEntry {
+  title: string;
+  reason: string;
+}
+
+export interface EnqueueAllResult {
+  enqueued: number;
+  skipped: SkippedEntry[];
+}
+
 export const enqueueAllUntranscribed = (
   provider: string,
   modelId: string,
   language: string,
-): Promise<number> => {
-  if (!isTauri()) return Promise.resolve(0);
+): Promise<EnqueueAllResult> => {
+  if (!isTauri()) return Promise.resolve({ enqueued: 0, skipped: [] });
   return invokeCommand("enqueue_all_untranscribed", { provider, modelId, language });
+};
+
+export const clearTranscriptionQueue = (statuses: string[]): Promise<number> => {
+  if (!isTauri()) return Promise.resolve(0);
+  return invokeCommand("clear_transcription_queue", { statuses });
+};
+
+export const removeTranscriptionEntry = (id: string): Promise<void> => {
+  if (!isTauri()) return Promise.resolve();
+  return invokeCommand("remove_transcription_entry", { id });
 };

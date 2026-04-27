@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Mic, Languages, Download, Trash2, CheckCircle2, Loader2, Info, AlertCircle,
   Cloud, Zap, Settings2, Key, TrendingUp, Clock, AlertTriangle, Check,
-  ExternalLink, Monitor, Lock, ListMusic, XCircle, RotateCcw, ArrowUp, FileAudio
+  ExternalLink, Monitor, Lock, ListMusic, XCircle, RotateCcw, ArrowUp, FileAudio,
+  X
 } from "lucide-react";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { downloadTranscriptionModel, deleteTranscriptionModel, enqueueAllUntranscribed } from "../../api/transcription";
@@ -760,10 +761,14 @@ export function AudioTranscriptionSettings() {
                   const modelId = provider === 'groq'
                     ? audioSettings.groq.model
                     : (audioSettings.preferredModelId || 'distil-small.en');
-                  const count = await enqueueAllUntranscribed(provider, modelId, audioSettings.language);
+                  const result = await enqueueAllUntranscribed(provider, modelId, audioSettings.language);
                   await queueStore.fetchQueue();
-                  if (count > 0) {
-                    console.log(`Enqueued ${count} documents for transcription`);
+                  if (result.enqueued > 0) {
+                    console.log(`Enqueued ${result.enqueued} documents for transcription`);
+                  }
+                  if (result.skipped.length > 0) {
+                    const names = result.skipped.map(s => `"${s.title}"`).join(", ");
+                    console.warn(`Skipped ${result.skipped.length} file(s) — not found: ${names}`);
                   }
                 } catch (e) {
                   console.error("Failed to enqueue:", e);
@@ -790,6 +795,43 @@ export function AudioTranscriptionSettings() {
               <p className="mt-1 text-xs text-muted-foreground/70">{t("settings.audioNoPendingTranscriptionsDesc")}</p>
             </div>
           ) : (
+            <>
+              {(() => {
+                const hasFailed = queueStore.entries.some(e => e.status === "failed");
+                const hasCompleted = queueStore.entries.some(e => e.status === "completed");
+                const hasCancelled = queueStore.entries.some(e => e.status === "cancelled");
+                return (hasFailed || hasCompleted || hasCancelled) ? (
+                  <div className="flex flex-wrap gap-2">
+                    {hasFailed && (
+                      <button
+                        onClick={() => queueStore.clearByStatus(["failed"])}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs text-red-700 hover:bg-red-100 transition-colors"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        Clear Failed
+                      </button>
+                    )}
+                    {hasCompleted && (
+                      <button
+                        onClick={() => queueStore.clearByStatus(["completed"])}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-700 hover:bg-green-100 transition-colors"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        Clear Completed
+                      </button>
+                    )}
+                    {(hasFailed || hasCompleted || hasCancelled) && (
+                      <button
+                        onClick={() => queueStore.clearByStatus(["failed", "completed", "cancelled"])}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Clear All Finished
+                      </button>
+                    )}
+                  </div>
+                ) : null;
+              })()}
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {queueStore.entries.map((entry) => (
                 <div
@@ -889,10 +931,20 @@ export function AudioTranscriptionSettings() {
                         <ArrowUp className="h-4 w-4" />
                       </button>
                     )}
+                    {entry.status !== "processing" && (
+                      <button
+                        onClick={() => queueStore.removeEntry(entry.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                        title="Remove from queue"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+            </>
           )}
         </section>
       )}
