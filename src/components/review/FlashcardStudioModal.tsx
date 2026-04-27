@@ -67,8 +67,10 @@ import {
 } from "lucide-react";
 import {
   createLearningItem,
+  generateLearningItemsFromExtract,
   type CreateLearningItemInput,
 } from "../../api/learning-items";
+import { getExtracts, type Extract } from "../../api/extracts";
 import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "../../api/llm";
 import {
   notebooklmGenerateArtifact,
@@ -89,13 +91,14 @@ import { cn } from "../../utils";
 import { buildChapterQAContext, getChapterTitles } from "../../utils/chapterUtils";
 import type { ImageOcclusionRegion, MultipleChoiceOption } from "../../types/learningItemInteractions";
 import { ImageRegistryLibrary } from "../image-registry/ImageRegistryLibrary";
+import { ExtractBrowserPanel } from "./ExtractBrowserPanel";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 type DraftCardType = "qa" | "cloze" | "multiple-choice" | "image-occlusion";
-type ViewMode = "chat" | "templates" | "history";
+type ViewMode = "chat" | "templates" | "history" | "extracts";
 type ContextMode = "full" | "chapters" | "pages" | "excerpt" | "search";
 
 interface DraftCard {
@@ -1287,6 +1290,9 @@ function CardPreview({
   const clozeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const sourceExcerptRef = useRef<HTMLDivElement>(null);
   const [isImageLightboxOpen, setIsImageLightboxOpen] = useState(false);
+  const [isEditLightboxOpen, setIsEditLightboxOpen] = useState(false);
+  const [canUndoCloze, setCanUndoCloze] = useState(false);
+  const lastClozeTextRef = useRef<string | null>(null);
   const [sourceSelection, setSourceSelection] = useState<{
     text: string;
     startOffset: number;
@@ -1378,6 +1384,8 @@ function CardPreview({
     const wrapped = `{{${selectedText}}}`;
     const nextText = currentText.slice(0, start) + wrapped + currentText.slice(end);
 
+    lastClozeTextRef.current = currentText;
+    setCanUndoCloze(true);
     setEditForm((form) => ({ ...form, text: nextText }));
     requestAnimationFrame(() => {
       if (!clozeTextareaRef.current) return;
@@ -1385,6 +1393,13 @@ function CardPreview({
       clozeTextareaRef.current.selectionStart = start;
       clozeTextareaRef.current.selectionEnd = start + wrapped.length;
     });
+  };
+
+  const undoClozeWrap = () => {
+    if (lastClozeTextRef.current === null) return;
+    setEditForm((form) => ({ ...form, text: lastClozeTextRef.current! }));
+    lastClozeTextRef.current = null;
+    setCanUndoCloze(false);
   };
 
   const updateSourceSelection = useCallback(() => {
@@ -1433,28 +1448,57 @@ function CardPreview({
       sourceSelection.endOffset
     );
 
+    lastClozeTextRef.current = baseText;
+    setCanUndoCloze(true);
     setEditForm((form) => ({ ...form, text: nextText }));
     setSourceSelection(null);
     window.getSelection()?.removeAllRanges();
     requestAnimationFrame(() => clozeTextareaRef.current?.focus());
   };
 
+  const editLightbox = (
+    <CardEditLightbox
+      isOpen={isEditLightboxOpen}
+      card={card}
+      editForm={editForm}
+      onEditFormChange={setEditForm}
+      sourceExcerpt={sourceExcerpt}
+      imageAssets={imageAssets}
+      defaultImageAssetId={defaultImageAssetId}
+      onSave={() => {
+        onSaveEdit(editForm);
+        setIsEditLightboxOpen(false);
+      }}
+      onCancel={() => setIsEditLightboxOpen(false)}
+      onClose={() => setIsEditLightboxOpen(false)}
+    />
+  );
+
   if (isEditing) {
     return (
+      <>
       <div className="space-y-3 p-3">
-        <div>
+        <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.cardTypeLabel")}</label>
-          <select
-            value={activeType}
-            onChange={(e) => setType(e.target.value as DraftCardType)}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          <button
+            type="button"
+            onClick={() => setIsEditLightboxOpen(true)}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={t("flashcardStudio.expandEditor")}
           >
-            <option value="qa">{t("flashcardStudio.cardTypeQaShort")}</option>
-            <option value="cloze">{t("flashcardStudio.cardTypeCloze")}</option>
-            <option value="multiple-choice">{t("flashcardStudio.cardTypeMultipleChoice")}</option>
-            <option value="image-occlusion">{t("flashcardStudio.cardTypeImageOcclusion")}</option>
-          </select>
+            <Expand className="w-3.5 h-3.5" />
+          </button>
         </div>
+        <select
+          value={activeType}
+          onChange={(e) => setType(e.target.value as DraftCardType)}
+          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          <option value="qa">{t("flashcardStudio.cardTypeQaShort")}</option>
+          <option value="cloze">{t("flashcardStudio.cardTypeCloze")}</option>
+          <option value="multiple-choice">{t("flashcardStudio.cardTypeMultipleChoice")}</option>
+          <option value="image-occlusion">{t("flashcardStudio.cardTypeImageOcclusion")}</option>
+        </select>
 
         {activeType === "qa" ? (
           <>
@@ -1542,13 +1586,24 @@ function CardPreview({
               <p className="text-[11px] text-muted-foreground">
                 Select text and press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+B</kbd> to wrap it as a Cloze deletion.
               </p>
-              <button
-                type="button"
-                onClick={wrapClozeSelection}
-                className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/15"
-              >
-                Wrap selection
-              </button>
+              <div className="flex items-center gap-1.5">
+                {canUndoCloze && (
+                  <button
+                    type="button"
+                    onClick={undoClozeWrap}
+                    className="shrink-0 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  >
+                    {t("flashcardStudio.undoCloze")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={wrapClozeSelection}
+                  className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/15"
+                >
+                  Wrap selection
+                </button>
+              </div>
             </div>
           </div>
         ) : activeType === "multiple-choice" ? (
@@ -1697,6 +1752,8 @@ function CardPreview({
           </button>
         </div>
       </div>
+      {editLightbox}
+      </>
     );
   }
 
@@ -1816,6 +1873,7 @@ function CardPreview({
           </button>
         </div>
       </div>
+      {editLightbox}
     </div>
   );
 }
@@ -2015,6 +2073,475 @@ function ImageOcclusionLightbox({
                 }}
               />
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardEditLightbox({
+  isOpen,
+  card,
+  editForm,
+  onEditFormChange,
+  sourceExcerpt,
+  imageAssets,
+  defaultImageAssetId,
+  onSave,
+  onCancel,
+  onClose,
+}: {
+  isOpen: boolean;
+  card: DraftCard;
+  editForm: Partial<DraftCard>;
+  onEditFormChange: React.Dispatch<React.SetStateAction<Partial<DraftCard>>>;
+  sourceExcerpt?: string;
+  imageAssets: ImageAsset[];
+  defaultImageAssetId?: string;
+  onSave: () => void;
+  onCancel: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const clozeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const sourceExcerptRef = useRef<HTMLDivElement>(null);
+  const [sourceSelection, setSourceSelection] = useState<{
+    text: string;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
+  const [canUndoCloze, setCanUndoCloze] = useState(false);
+  const lastClozeTextRef = useRef<string | null>(null);
+
+  const activeType = (editForm.type as DraftCardType | undefined) || card.type;
+  const trimmedSourceExcerpt = sourceExcerpt?.trim() || "";
+
+  const setType = (type: DraftCardType) => {
+    onEditFormChange((form) => ({
+      ...form,
+      type,
+      question: type === "cloze" ? undefined : (form.question as string) || "",
+      answer: type === "cloze" ? undefined : (form.answer as string) || "",
+      text:
+        type === "cloze"
+          ? ((form.text as string) || trimmedSourceExcerpt || "")
+          : undefined,
+      multipleChoiceOptions:
+        type === "multiple-choice"
+          ? (Array.isArray(form.multipleChoiceOptions) && form.multipleChoiceOptions.length > 0
+              ? form.multipleChoiceOptions
+              : [{ id: "choice-1", text: "" }, { id: "choice-2", text: "" }])
+          : undefined,
+      multipleChoiceCorrectOptionId:
+        type === "multiple-choice"
+          ? (form.multipleChoiceCorrectOptionId as string | undefined) || "choice-1"
+          : undefined,
+      imageOcclusionAssetId:
+        type === "image-occlusion"
+          ? ((form.imageOcclusionAssetId as string | undefined) || defaultImageAssetId)
+          : undefined,
+      imageOcclusionRegions:
+        type === "image-occlusion"
+          ? (Array.isArray(form.imageOcclusionRegions) ? form.imageOcclusionRegions : [])
+          : undefined,
+    }));
+  };
+
+  const wrapClozeSelection = () => {
+    const textarea = clozeTextareaRef.current;
+    const currentText = ((editForm.text as string) || "");
+    if (!textarea || textarea.selectionStart === textarea.selectionEnd) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = currentText.slice(start, end);
+    const wrapped = `{{${selectedText}}}`;
+    const nextText = currentText.slice(0, start) + wrapped + currentText.slice(end);
+
+    lastClozeTextRef.current = currentText;
+    setCanUndoCloze(true);
+    onEditFormChange((form) => ({ ...form, text: nextText }));
+    requestAnimationFrame(() => {
+      if (!clozeTextareaRef.current) return;
+      clozeTextareaRef.current.focus();
+      clozeTextareaRef.current.selectionStart = start;
+      clozeTextareaRef.current.selectionEnd = start + wrapped.length;
+    });
+  };
+
+  const undoClozeWrap = () => {
+    if (lastClozeTextRef.current === null) return;
+    onEditFormChange((form) => ({ ...form, text: lastClozeTextRef.current! }));
+    lastClozeTextRef.current = null;
+    setCanUndoCloze(false);
+  };
+
+  const updateSourceSelection = useCallback(() => {
+    const selection = window.getSelection();
+    const container = sourceExcerptRef.current;
+    if (!selection || selection.isCollapsed || !container || !selection.rangeCount) {
+      setSourceSelection(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!container.contains(range.commonAncestorContainer)) {
+      setSourceSelection(null);
+      return;
+    }
+
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(container);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const startOffset = preRange.toString().length;
+    const text = selection.toString();
+    const endOffset = startOffset + text.length;
+
+    if (!text.trim() || endOffset <= startOffset) {
+      setSourceSelection(null);
+      return;
+    }
+
+    setSourceSelection({ text, startOffset, endOffset });
+  }, []);
+
+  const applySourceSelectionAsCloze = () => {
+    if (!sourceSelection || !trimmedSourceExcerpt) return;
+
+    const currentText = ((editForm.text as string) || "").trim();
+    const hasCompatibleBase =
+      currentText.length > 0 && stripClozeMarkup(currentText) === trimmedSourceExcerpt;
+    const baseText = hasCompatibleBase ? currentText : trimmedSourceExcerpt;
+    const nextText = wrapMarkedTextByPlainOffsets(
+      baseText,
+      sourceSelection.startOffset,
+      sourceSelection.endOffset
+    );
+
+    lastClozeTextRef.current = baseText;
+    setCanUndoCloze(true);
+    onEditFormChange((form) => ({ ...form, text: nextText }));
+    setSourceSelection(null);
+    window.getSelection()?.removeAllRanges();
+    requestAnimationFrame(() => clozeTextareaRef.current?.focus());
+  };
+
+  const previewContent = activeType === "qa"
+    ? `${editForm.question || ""}\n---\n${editForm.answer || ""}`
+    : activeType === "cloze"
+    ? (editForm.text || "")
+    : activeType === "multiple-choice"
+    ? `${editForm.question || ""}\n${(editForm.multipleChoiceOptions || []).map((option) => option.text).join("\n")}\n${editForm.answer || ""}`
+    : `${editForm.question || ""}\n${editForm.answer || ""}`;
+  const { html: previewHtml, isPending: previewPending } = useLatexPreview(previewContent);
+
+  const previewAssetId = (editForm.imageOcclusionAssetId as string | undefined) || defaultImageAssetId;
+  const previewAsset = imageAssets.find((asset) => asset.id === previewAssetId) || null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
+  const labelCls = "text-xs font-medium text-muted-foreground mb-1.5 block";
+
+  return (
+    <div
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
+          <div>
+            <div className="text-sm font-semibold text-foreground">{t("flashcardStudio.editCardTitle")}</div>
+            <div className="text-xs text-muted-foreground">{t("flashcardStudio.editCardHint")}</div>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              value={activeType}
+              onChange={(e) => setType(e.target.value as DraftCardType)}
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="qa">{t("flashcardStudio.cardTypeQaShort")}</option>
+              <option value="cloze">{t("flashcardStudio.cardTypeCloze")}</option>
+              <option value="multiple-choice">{t("flashcardStudio.cardTypeMultipleChoice")}</option>
+              <option value="image-occlusion">{t("flashcardStudio.cardTypeImageOcclusion")}</option>
+            </select>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+          {activeType === "cloze" ? (
+            <div className="flex gap-6 h-full">
+              {/* Source extract pane */}
+              {trimmedSourceExcerpt && (
+                <div className="w-[38%] flex flex-col min-h-0">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className={labelCls}>{t("flashcardStudio.sourceExtractLabel")}</span>
+                    <div className="flex items-center gap-2">
+                      {sourceSelection && (
+                        <button
+                          type="button"
+                          onClick={applySourceSelectionAsCloze}
+                          className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                        >
+                          Cloze selection
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onEditFormChange((form) => ({ ...form, text: trimmedSourceExcerpt }))}
+                        className="text-xs font-medium text-primary hover:opacity-80"
+                      >
+                        Use full extract
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    ref={sourceExcerptRef}
+                    onMouseUp={updateSourceSelection}
+                    onKeyUp={updateSourceSelection}
+                    className="flex-1 min-h-0 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground select-text rounded-md border border-border/60 bg-muted/20 px-3 py-2"
+                  >
+                    {trimmedSourceExcerpt}
+                  </div>
+                  {sourceSelection && (
+                    <div className="mt-2 rounded-md bg-background px-2 py-1 text-xs text-muted-foreground">
+                      Selected: <span className="text-foreground font-medium">{sourceSelection.text.trim()}</span>
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Highlight a word or phrase, then click <span className="font-medium text-foreground">Cloze selection</span>.
+                  </p>
+                </div>
+              )}
+              {/* Cloze editor pane */}
+              <div className={`flex flex-col min-h-0 ${trimmedSourceExcerpt ? "w-[62%]" : "w-full"}`}>
+                <span className={labelCls}>{t("flashcardStudio.clozeTextLabel")}</span>
+                <textarea
+                  ref={clozeTextareaRef}
+                  value={(editForm.text as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, text: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+                      e.preventDefault();
+                      wrapClozeSelection();
+                    }
+                  }}
+                  className={`${inputCls} flex-1 min-h-[200px] resize-y font-mono`}
+                  placeholder="Enter text with {{cloze deletions}}..."
+                />
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Select text and press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+B</kbd> to wrap as Cloze.
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    {canUndoCloze && (
+                      <button
+                        type="button"
+                        onClick={undoClozeWrap}
+                        className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      >
+                        {t("flashcardStudio.undoCloze")}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={wrapClozeSelection}
+                      className="shrink-0 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15"
+                    >
+                      Wrap selection
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : activeType === "qa" ? (
+            <div className="space-y-4 max-w-3xl mx-auto">
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.question")}</span>
+                <textarea
+                  value={(editForm.question as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, question: e.target.value }))}
+                  className={inputCls}
+                  rows={4}
+                />
+              </div>
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.answer")}</span>
+                <textarea
+                  value={(editForm.answer as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, answer: e.target.value }))}
+                  className={inputCls}
+                  rows={6}
+                />
+              </div>
+            </div>
+          ) : activeType === "multiple-choice" ? (
+            <div className="space-y-4 max-w-3xl mx-auto">
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.question")}</span>
+                <textarea
+                  value={(editForm.question as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, question: e.target.value }))}
+                  className={inputCls}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className={labelCls}>{t("flashcardStudio.choices")}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onEditFormChange((form) => ({
+                        ...form,
+                        multipleChoiceOptions: [
+                          ...(form.multipleChoiceOptions || []),
+                          { id: `choice-${(form.multipleChoiceOptions?.length || 0) + 1}`, text: "" },
+                        ],
+                      }))
+                    }
+                    className="text-xs text-primary hover:opacity-80"
+                  >
+                    {t("flashcardStudio.addChoice")}
+                  </button>
+                </div>
+                {(editForm.multipleChoiceOptions || []).map((option, index) => (
+                  <div key={option.id || index} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={`correct-lightbox-${card.id}`}
+                      checked={editForm.multipleChoiceCorrectOptionId === option.id}
+                      onChange={() =>
+                        onEditFormChange((form) => ({
+                          ...form,
+                          multipleChoiceCorrectOptionId: option.id,
+                        }))
+                      }
+                    />
+                    <input
+                      value={option.text}
+                      onChange={(e) =>
+                        onEditFormChange((form) => ({
+                          ...form,
+                          multipleChoiceOptions: (form.multipleChoiceOptions || []).map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, text: e.target.value } : entry
+                          ),
+                        }))
+                      }
+                      placeholder={t("flashcardStudio.choiceNumber", { count: index + 1 })}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.explanationOptional")}</span>
+                <textarea
+                  value={(editForm.answer as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, answer: e.target.value }))}
+                  className={inputCls}
+                  rows={3}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 max-w-3xl mx-auto">
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.prompt")}</span>
+                <textarea
+                  value={(editForm.question as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, question: e.target.value }))}
+                  className={inputCls}
+                  rows={3}
+                  placeholder={t("flashcardStudio.imagePromptPlaceholder")}
+                />
+              </div>
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.revealExplanation")}</span>
+                <textarea
+                  value={(editForm.answer as string) || ""}
+                  onChange={(e) => onEditFormChange((f) => ({ ...f, answer: e.target.value }))}
+                  className={inputCls}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <span className={labelCls}>{t("flashcardStudio.sourceImage")}</span>
+                <select
+                  value={(editForm.imageOcclusionAssetId as string | undefined) || ""}
+                  onChange={(e) =>
+                    onEditFormChange((form) => ({
+                      ...form,
+                      imageOcclusionAssetId: e.target.value || undefined,
+                    }))
+                  }
+                  className={inputCls}
+                >
+                  <option value="">{t("flashcardStudio.selectImportedImage")}</option>
+                  {imageAssets.map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.file_name || asset.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <ImageOcclusionEditor
+                asset={previewAsset}
+                regions={(editForm.imageOcclusionRegions as ImageOcclusionRegion[] | undefined) || []}
+                onChange={(regions) => onEditFormChange((form) => ({ ...form, imageOcclusionRegions: regions }))}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Footer: Preview + Actions */}
+        <div className="border-t border-border px-6 py-4">
+          {previewHtml && (
+            <div className="mb-3 rounded-md border border-border/50 bg-muted/30 p-3 text-sm max-h-32 overflow-y-auto">
+              <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {t("flashcardStudio.preview")} {previewPending && <span className="opacity-50">...</span>}
+              </div>
+              <div
+                className="prose prose-sm max-w-none [&_.math-expression-block]:my-1 [&_.math-expression-block]:flex [&_.math-expression-block]:justify-center"
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("flashcardStudio.cancel")}
+            </button>
+            <button
+              onClick={onSave}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+            >
+              {t("flashcardStudio.saveChanges")}
+            </button>
           </div>
         </div>
       </div>
@@ -2284,6 +2811,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [isTagInputVisible, setIsTagInputVisible] = useState(false);
   const [contextSelection, setContextSelection] = useState<ContextSelection>(DEFAULT_CONTEXT_SELECTION);
+  const [allExtracts, setAllExtracts] = useState<Extract[]>([]);
+  const [areExtractsLoading, setAreExtractsLoading] = useState(false);
+  const [generatingExtractIds, setGeneratingExtractIds] = useState<Set<string>>(new Set());
   const [imageAssets, setImageAssets] = useState<ImageAsset[]>([]);
   const [selectedImageAssetIds, setSelectedImageAssetIds] = useState<string[]>([]);
   const [isImageImporting, setIsImageImporting] = useState(false);
@@ -2358,6 +2888,24 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     void refreshImageAssets();
   }, [isOpen, refreshImageAssets]);
 
+  // Load extracts for the extract browser
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setAreExtractsLoading(true);
+    getExtracts()
+      .then((result) => {
+        if (!cancelled) setAllExtracts(result);
+      })
+      .catch((err) => {
+        console.error("Failed to load extracts", err);
+      })
+      .finally(() => {
+        if (!cancelled) setAreExtractsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
   // Load saved state
   useEffect(() => {
     if (!isOpen) return;
@@ -2374,6 +2922,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         if (typeof parsed?.selectedDeckId === "string") setSelectedDeckId(parsed.selectedDeckId);
         else if (activeDeckIds[0]) setSelectedDeckId(activeDeckIds[0]);
         if (parsed?.contextSelection) setContextSelection(normalizeContextSelection(parsed.contextSelection));
+        if (parsed?.viewMode && ["chat", "templates", "history", "extracts"].includes(parsed.viewMode)) setViewMode(parsed.viewMode);
       } catch (error) {
         console.warn("Failed to restore state", error);
         setSelectedDeckId(activeDeckIds[0] ?? null);
@@ -2404,6 +2953,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       contextSelection,
       messages: messages.slice(-50),
       draftCards: draftCards.slice(0, 100),
+      viewMode,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [isOpen, selectedProviderId, selectedNotebookId, selectedDocumentId, selectedDeckId, contextSelection, messages, draftCards]);
@@ -3138,6 +3688,56 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     setIsSaving(false);
   };
 
+  const handleUseExtractAsContext = useCallback((extract: Extract) => {
+    setSelectedDocumentId(extract.document_id);
+    setContextSelection({ ...DEFAULT_CONTEXT_SELECTION, mode: "excerpt", excerpt: extract.content });
+    setViewMode("chat");
+  }, []);
+
+  const handleCreateCardFromExtract = useCallback((extract: Extract) => {
+    const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const card: DraftCard = {
+      id,
+      type: "qa",
+      question: extract.content.trim(),
+      answer: "",
+      selected: true,
+      createdAt: Date.now(),
+      tags: [],
+    };
+    setDraftCards((prev) => [card, ...prev]);
+    setEditingCardId(card.id);
+    setSelectedDocumentId(extract.document_id);
+  }, []);
+
+  const handleGenerateFromExtract = useCallback(async (extractId: string) => {
+    setGeneratingExtractIds((prev) => new Set(prev).add(extractId));
+    try {
+      const items = await generateLearningItemsFromExtract(extractId);
+      const newDrafts: DraftCard[] = items.map((item) => ({
+        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: item.item_type === "Cloze" ? "cloze" as const : "qa" as const,
+        question: item.question,
+        answer: item.answer,
+        text: item.cloze_text,
+        selected: true,
+        createdAt: Date.now(),
+        tags: item.tags || [],
+      }));
+      setDraftCards((prev) => [...newDrafts, ...prev]);
+      toast.success(t("flashcardStudio.cardsGenerated", { count: newDrafts.length }));
+    } catch (error) {
+      console.error("Failed to generate cards from extract", error);
+      toast.error(t("flashcardStudio.extractGenerationFailed"), String(error));
+    } finally {
+      setGeneratingExtractIds((prev) => {
+        const next = new Set(prev);
+        next.delete(extractId);
+        return next;
+      });
+    }
+  }, [t]);
+
   const ingestFilesIntoRegistry = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
     setIsImageImporting(true);
@@ -3315,6 +3915,21 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                 {generationHistory.length > 0 && (
                   <span className="ml-0.5 text-[10px] bg-primary-foreground/20 px-1 rounded-full">
                     {generationHistory.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setViewMode("extracts")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  viewMode === "extracts" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {t("flashcardStudio.extracts")}
+                {allExtracts.length > 0 && (
+                  <span className="ml-0.5 text-[10px] bg-primary-foreground/20 px-1 rounded-full">
+                    {allExtracts.length}
                   </span>
                 )}
               </button>
@@ -3676,6 +4291,24 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   )}
                 </div>
               </div>
+            )}
+
+            {viewMode === "extracts" && (
+              areExtractsLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                </div>
+              ) : (
+                <ExtractBrowserPanel
+                  extracts={allExtracts}
+                  documents={documents.map((d) => ({ id: d.id, title: d.title }))}
+                  selectedDocumentId={selectedDocumentId}
+                  generatingExtractIds={generatingExtractIds}
+                  onUseAsContext={handleUseExtractAsContext}
+                  onGenerateCards={handleGenerateFromExtract}
+                  onCreateCard={handleCreateCardFromExtract}
+                />
+              )
             )}
           </div>
 

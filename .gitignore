@@ -59,3 +59,4 @@ yjs-sync/.env
 # NotebookLM runtime (bundled Python + Playwright - too large for repo)
 src-tauri/bin/notebooklm-runtime/**/*
 !src-tauri/bin/notebooklm-runtime/.gitkeep
+squashfs-root/

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.25.2] - 2026-04-27
+
+### Added
+
+- **Deck Manager view** — new full-screen deck browser accessible from ReviewHome. Browse all decks in a sidebar, expand one to see its cards in a virtualized list with compact stat-dense rows (color-coded state badges, difficulty bars, due dates, intervals, review counts, leech indicators). Inline card editor expands below any card row for quick question/answer/tag edits without modals. Per-deck stats sidebar shows retention rate, maturity breakdown, 7-day workload forecast sparkline, leech detection, and FSRS memory health. Sort cards by due date, state, difficulty, interval, reviews, or lapses. Filter by card state and due status. Bulk operations: select cards to suspend, unsuspend, delete, or retag. Search across cards by question text or tags. Card type-aware editing: basic/QA inline, cloze with highlighted ranges, complex types link to Flashcard Studio.
+
+### Fixed
+
+- **YouTube IFrame API blocked by CSP** — the YouTube inline player no longer fails to initialize due to a Content Security Policy violation. Added `http://www.youtube.com` to the `script-src` and `script-src-elem` directives to allow the IFrame Player API to load over HTTP.
+
 ## [1.25.1] - 2026-04-26
 
 ### Fixed

@@ -1,18 +1,18 @@
 # Incrementum-Benutzerhandbuch
 
-**Ihr vollständiger Leitfaden zum Meistern von inkrementellem Lesen und verteiltem Wiederholen**
+**Ihr vollständiger Leitfaden zur Beherrschung des inkrementellen Lesens und der räumlichen Wiederholung**
 
 ---
 
 ## Einführung
 
-### Was ist Incrementum?
+### Was ist Inkrementum?
 
 Incrementum ist eine leistungsstarke Lernanwendung, die zwei bewährte Techniken kombiniert:
 
 **Inkrementelles Lesen** – Verarbeiten Sie große Informationsmengen im Laufe der Zeit in kleinen, überschaubaren Blöcken. Anstatt Artikel von Anfang bis Ende zu lesen, extrahieren Sie wichtige Punkte und bauen nach und nach Verständnis auf.
 
-**Verteiltes Wiederholen** – Wiederholen Sie Material in wissenschaftlich optimierten Abständen, um die Behaltensleistung zu maximieren. Algorithmen wie FSRS-6 und SM-18 sagen voraus, wann Sie etwas vergessen werden, und planen Wiederholungen genau zum richtigen Zeitpunkt ein.
+**Abgeteilte Wiederholungen** – Überprüfen Sie das Material in wissenschaftlich optimierten Abständen, um die Erinnerung zu maximieren. Algorithmen wie FSRS-6 und SM-18 sagen voraus, wann Sie etwas vergessen werden und planen Überprüfungen rechtzeitig ein.
 
 ### Schlüsselkonzepte
 
@@ -20,7 +20,7 @@ Incrementum ist eine leistungsstarke Lernanwendung, die zwei bewährte Techniken
 - **Auszüge**: Wichtige Punkte oder Abschnitte, die Sie aus Dokumenten extrahiert haben
 - **Lernelemente**: Aus Auszügen erstellte Lernkarten oder Frage-und-Antwort-Karten
 - **Warteschlange**: Zur Überprüfung geplante Elemente, sortiert nach Priorität
-- **Wiederholungen**: Sitzungen, in denen Sie Ihr Wissen aktiv abrufen und bewerten
+- **Bewertungen**: Sitzungen, in denen Sie Ihr Wissen aktiv abrufen und bewerten
 
 ---
 
@@ -38,7 +38,7 @@ Wenn Sie Incrementum zum ersten Mal starten, sehen Sie das **Dashboard** mit vie
 ### Ersteinrichtung
 
 1. **Wählen Sie ein Design** – Navigieren Sie zu Einstellungen → Erscheinungsbild → Design
-   - 17 integrierte Themen verfügbar (6 dunkel, 11 hell)
+   - 147 integrierte Themes verfügbar (26 moderne, 121 Legacy)
    - Probieren Sie „Modern Dark“ oder „Material You“ für einen modernen Look
 
 2. **Überprüfungseinstellungen konfigurieren** – Einstellungen → Lernen → Algorithmus
@@ -60,23 +60,24 @@ Lassen Sie uns Ihr erstes Dokument importieren:
    - **Lokale Datei**: Wählen Sie eine PDF-, EPUB- oder Textdatei aus
    - **URL**: Fügen Sie eine beliebige Web-URL ein
    - **Arxiv**: Fügen Sie eine ID oder URL einer Forschungsarbeit ein
-4. Warten Sie auf die Verarbeitung (die automatische Segmentierung beginnt automatisch).
+4. Warten Sie auf die Bearbeitung
+   - Wenn die automatische Segmentierung in den Einstellungen aktiviert ist, wird das Dokument nach dem Import automatisch in Auszüge aufgeteilt
 
 ---
 
-## Dokumentenverwaltung
+## Dokumentenmanagement
 
 ### Formate importieren
 
-| Format | Beschreibung | Anwendungsfall |
+| Formatieren | Beschreibung | Anwendungsfall |
 |--------|-------------|----------|
 | **PDF** | Tragbares Dokumentformat | Forschungsarbeiten, E-Books, Dokumentation |
 | **EPUB** | Elektronische Veröffentlichung | Bücher, Artikel mit umfließendem Text |
-| **Markdown** | `.md`-Dateien | Technische Dokumentation, Notizen |
+| **Abschlag** | „.md“-Dateien | Technische Dokumentation, Hinweise |
 | **HTML** | Webseiten | Artikel, Blogbeiträge |
 | **Anki (.apkg)** | Anki-Deck-Paket | Von Anki migrieren |
 | **SuperMemo** | ZIP-Exporte | Von SuperMemo migrieren |
-| **JSON (.json)** | Flashcard-Deck-Dateien | Decks mit Zeitplandaten importieren |
+| **JSON (.json)** | Flashcard-Deck-Dateien | Decks mit Planungsdaten importieren |
 | **URL** | Beliebiger Weblink | Online-Artikel, Blogs |
 | **Arxiv** | Wissenschaftliche Arbeiten | Forschungsliteratur |
 | **Screenshot** | Screenshot | Schnelle Aufnahmen aus jeder App |
@@ -88,11 +89,11 @@ Lassen Sie uns Ihr erstes Dokument importieren:
 1. Klicken Sie auf **Dokumente** → **Importieren**
 2. Wählen Sie **Lokale Datei**
 3. Navigieren Sie zu Ihrer Datei und wählen Sie sie aus
-4. Incrementum wird:
+4. Inkrementum wird:
    - Textinhalt extrahieren
-   - Automatische Segmentierung in Abschnitte
    - Berechnen Sie die Lesezeit und die Wortzahl
    - Metadaten extrahieren (Titel, Autor usw.)
+   - Wenn die automatische Segmentierung aktiviert ist (Einstellungen → Dokumente → Beim Import automatisch verarbeiten), wird das Dokument automatisch in Auszüge aufgeteilt
 
 #### Methode 2: URL-Import
 
@@ -108,13 +109,13 @@ Lassen Sie uns Ihr erstes Dokument importieren:
 - Dokumentationsseiten
 - Medium, Substack usw.
 
-#### Methode 3: Arxiv-Artikel
+#### Methode 3: Arxiv-Papiere
 
 1. Finden Sie einen Arxiv-Artikel (z. B. „https://arxiv.org/abs/2301.07041“)
 2. Kopieren Sie die URL oder Papier-ID („2301.07041“).
 3. Klicken Sie auf **Dokumente** → **Importieren** → **Arxiv**
 4. Fügen Sie die URL oder ID ein
-5. Incrementum lädt herunter:
+5. Inkrementelle Downloads:
    - Vollständiges PDF
    - Zusammenfassung
    - Autoren
@@ -123,28 +124,46 @@ Lassen Sie uns Ihr erstes Dokument importieren:
 
 #### Methode 4: JSON-Deck-Import
 
-Importieren Sie Flashcard-Decks aus JSON-Dateien mit Zeitplandaten (Intervalle, Leichtigkeitsfaktoren, Wiederholungsverlauf).
+Importieren Sie Karteikartenstapel aus JSON-Dateien, die Planungsdaten (Intervalle, Leichtigkeitsfaktoren, Überprüfungsverlauf) enthalten.
 
-**Import über die Dateiauswahl:**
+**Importieren über die Dateiauswahl:**
 
 1. Klicken Sie auf **Dokumente** → **Importieren** → **JSON**
-2. Wählen Sie Ihre `.json`-Deck-Datei aus
-3. Incrementum erstellt ein Deck-Dokument und importiert alle Karten unter Beibehaltung von:
-   - Zeitplanung (Intervalle, Leichtigkeitsfaktoren, Fälligkeitsdaten)
-   - Wiederholungsverlauf (Wiederholungen, Aussetzer, Behaltensrate)
-   - Kartenstatus (neu, in Wiederholung oder ausgesetzt)
+2. Wählen Sie Ihre „.json“-Deck-Datei aus
+3. Incrementum erstellt ein Deckdokument und importiert alle Karten, wobei Folgendes erhalten bleibt:
+   - Terminplanung (Intervalle, Erleichterungsfaktoren, Fälligkeitstermine)
+   - Überprüfungsverlauf (Wiederholungen, Ausfälle, Aufbewahrungsrate)
+   - Kartenstatus (neu, überprüft oder gesperrt)
 
-**Import per Drag & Drop:**
+**Importieren per Drag and Drop:**
 
-Ziehen Sie eine `.json`-Datei direkt in das App-Fenster. Wenn die Datei dem erwarteten Deck-Format entspricht, wird sie automatisch importiert.
+Ziehen Sie eine „.json“-Datei direkt in das App-Fenster. Wenn die Datei dem erwarteten Deckformat entspricht, wird sie automatisch importiert.
+
+**JSON-Deckformat:**
+
+Die Datei sollte ein flaches Objekt sein, das den Fragetext den Kartendaten zuordnet:
+
+„json
+{
+  „Was ist das Kraftwerk der Zelle?“: {
+    „Antwort“: „Die Mitochondrien.“,
+    „Fachgebiet“: „Biologie“,
+    „deck_name“: „Zellbiologie“,
+    „ease_factor“: 2,6,
+    „interval_days“: 7,
+    „Wiederholungen“: 3,
+    „due_at“: „2026-04-20T12:00:00Z“
+  }
+}
+„
 
 **Hinweise:**
-- Jede `.json`-Datei erstellt ein Deck. Der Deck-Name stammt aus dem Feld `deck_name`.
-- Importierte Karten verwenden standardmäßig den SM-2-Algorithmus. Sie können nach dem Import wechseln.
-- Das erneute Ablegen derselben Datei erstellt keine Duplikate — vorhandene Karten werden übersprungen.
-- Als `known_pile: true` markierte Karten werden als ausgesetzt importiert.
+- Jede „.json“-Datei erstellt ein Deck. Der Deckname stammt aus dem Feld „deck_name“.
+- Importierte Karten verwenden standardmäßig den SM-2-Algorithmus. Sie können den Algorithmus nach dem Import wechseln.
+- Wenn Sie dieselbe Datei zweimal löschen, entstehen keine Duplikate – vorhandene Karten werden übersprungen.
+- Karten mit der Markierung „known_pile: true“ werden als gesperrt importiert.
 
-### Dokumentenbetrachter
+### Dokumentbetrachter
 
 Öffnen Sie nach dem Import ein beliebiges Dokument, um darauf zuzugreifen:
 
@@ -153,9 +172,7 @@ Ziehen Sie eine `.json`-Datei direkt in das App-Fenster. Wenn die Datei dem erwa
 - **Zoom**: Textgröße anpassen
 - **Vollbild**: Ablenkungsfreies Lesen
 - **Suchen**: Text im Dokument suchen
-- **Inhaltsverzeichnis**: Zu Abschnitten springen (falls verfügbar)
-
-**Anmerkungstools:**
+- **Inhaltsverzeichnis**: Zu Abschnitten springen (falls verfügbar)**Anmerkungstools:**
 1. **Text hervorheben**: Text auswählen → Hervorhebungsfarbe auswählen
    - Gelb: Wichtige Konzepte
    - Grün: Beispiele
@@ -190,7 +207,7 @@ Ziehen Sie eine `.json`-Datei direkt in das App-Fenster. Wenn die Datei dem erwa
 
 ---
 
-## Das Lernsystem
+## Das lernende System
 
 ### FSRS-6 verstehen
 
@@ -204,11 +221,11 @@ Ziehen Sie eine `.json`-Datei direkt in das App-Fenster. Wenn die Datei dem erwa
 **Wichtige Kennzahlen:**
 - **Stabilität**: Wie lange ein Speicher hält (höher = stabiler)
 - **Schwierigkeit**: Wie schwer der Gegenstand für Sie ist (Skala 1-10)
-- **Abrufbarkeit**: Aktuelle Wahrscheinlichkeit des Erinnerns (0-100 %)
+- **Retrieverability**: Aktuelle Wahrscheinlichkeit des Rückrufs (0-100 %)
 
 ### Bewertungssystem
 
-Bewerten Sie während der Wiederholung jedes Element anhand Ihrer Erinnerung:
+Bewerten Sie bei Rezensionen jeden Artikel basierend auf Ihrer Erinnerung:
 
 | Bewertung | Etikett | Beschreibung | Typisches Intervall |
 |--------|-------|-------------|------------------|
@@ -230,14 +247,14 @@ Einfache Vorder-/Rückseitenkarten
 
 **Am besten geeignet für:** Fakten, Definitionen, Vokabeln
 
-#### 2. Lückentext
+#### 2. Lückentext löschen
 Stil zum Ausfüllen der Lücken
 
 **Text:** Die Hauptstadt von {{Frankreich}} ist Paris.
 
 **Wird angezeigt als:** Die Hauptstadt von _____ ist Paris.
 
-**Am besten geeignet für:** Kontextuelles Lernen, Zusammenhänge
+**Am besten geeignet für:** Kontextuelles Lernen, Beziehungen
 
 #### 3. Frage-und-Antwort-Karten
 Frage- und Antwortpaare
@@ -283,6 +300,76 @@ Wenn Sie AI konfiguriert haben:
 3. Die KI erstellt automatisch mehrere Karten
 4. Überprüfen und bearbeiten Sie sie nach Bedarf
 5. Speichern Sie die besten
+
+---
+
+## Deckmanager
+
+Der **Deck Manager** ist eine Vollbildansicht zum Durchsuchen, Überprüfen und Bearbeiten Ihrer Lernkartendecks und ihrer Karten. Öffnen Sie es über die Schaltfläche **Deck Manager** auf der Review-Startseite.
+
+### Decks durchsuchen
+
+- Die linke Seitenleiste listet alle Ihre Decks mit Kartenanzahl und Fälligkeitsindikatoren auf.
+- Klicken Sie auf ein Deck, um es zu erweitern – es wird jeweils nur ein Deck erweitert.
+- Tag-Filter für jedes Deck werden als kleine Pillen unter dem Decknamen angezeigt.
+
+### Kartenliste
+
+Wenn ein Deck erweitert wird, erscheinen seine Karten in einer virtualisierten, scrollbaren Liste. Jede Kartenreihe zeigt:
+
+- **Staatsabzeichen** – farblich gekennzeichnet: Blau (Neu), Orange (Lernen), Grün (Rezension), Rot (Neulernen)
+- **Fragenvorschau** – bis zu 80 Zeichen
+- **Fälligkeitsdatum** – relative Bezeichnung (Heute, Morgen, 5 Tage, überfällig)
+- **Schwierigkeit** – 1–10 Mini-Fortschrittsbalken
+- **Intervall** – aktuelles Überprüfungsintervall in Tagen
+- **Bewertungsanzahl** – wie oft die Karte überprüft wurde
+- **Leech-Anzeige** – gelbes Warnsymbol für Karten mit mehr als 5 Fehlern
+
+### Sortieren und Filtern
+
+**Sortieren** Sie Karten nach Fälligkeitsdatum, Status, Schwierigkeitsgrad, Intervall, Überprüfungsanzahl oder Versäumnissen. Klicken Sie erneut auf eine Sortierschaltfläche, um zwischen aufsteigend und absteigend umzuschalten.
+
+**Filtern** nach:
+- **Status** – Neu, Lernen, Überprüfen, Neulernen
+- **Fälligkeitsstatus** – Heute fällig, überfällig, nicht fällig
+
+**Suchen** Sie mithilfe der Suchleiste oben nach Fragetext oder Tag-Namen.
+
+### Inline-Karteneditor
+
+Klicken Sie auf eine beliebige Kartenzeile, um einen Inline-Editor darunter zu erweitern:
+
+- Bearbeiten Sie **Frage**, **Antwort** und **Tags** direkt – kein Modal erforderlich.
+- **Lückenkarten** zeigen den Lückentext mit hervorgehobenen Löschbereichen an.
+- **Komplexe Kartentypen** (Multiple-Choice, Bildverdeckung) zeigen eine schreibgeschützte Vorschau mit einem Link „In Studio bearbeiten“.
+- Umschalten zwischen **Suspend/Suspendierung aufheben** mit einem einzigen Klick.
+– Änderungen werden mit **optimistischen Updates** gespeichert – die Benutzeroberfläche wird sofort aktualisiert und wird zurückgesetzt, wenn das Speichern fehlschlägt.
+
+### Deck-Statistik-Panel
+
+Die rechte Seitenleiste zeigt Statistiken für das erweiterte Deck:
+
+- **Heute fällig** – Anzahl der Karten, die jetzt fällig sind
+- **Retentionsrate** – geschätzt basierend auf der Stornoquote
+- **Durchschnittlicher Schwierigkeitsgrad** – für alle Karten im Stapel
+- **Blutegelanzahl** – Karten mit mehr als 5 Fehlern (klicken Sie, um nur nach Blutegeln zu filtern)
+- **Aufschlüsselung nach Reifegrad** – gestapelte Leiste mit der Verteilung der Karten „Neu“, „Lernend“, „Jung“ und „Älter“.
+- **7-Tage-Prognose** – Sparkline mit der prognostizierten Fälligkeitszahl für die nächste Woche
+- **FSRS-Speicherzustand** – durchschnittliche Stabilität und Schwierigkeit mit einem farbcodierten Gesundheitsindikator
+
+### Massenoperationen
+
+Wählen Sie mithilfe der Kontrollkästchen mehrere Karten aus und verwenden Sie dann die Symbolleiste für Massenaktionen:
+
+- **Suspendieren / Suspendieren aufheben** – Batch-Sperrung umschalten
+- **Löschen** – ausgewählte Karten entfernen (mit Bestätigung)
+- **Neu taggen** – Tags auf allen ausgewählten Karten gleichzeitig hinzufügen oder entfernen
+
+### Tastaturkürzel
+
+| Schlüssel | Aktion |
+|-----|--------|
+| „Flucht“ | Inline-Editor einklappen oder erweitertes Deck einklappen |
 
 ---
 
@@ -338,7 +425,7 @@ Diese Aktionen gelten **nur für Lernelemente** und aktualisieren den Zeitplan s
 | „Strg+1/2/3/4“ | Bewerten, ohne Antwort anzuzeigen |
 | „Esc“ | Sitzung pausieren/beenden |
 | `Strg+E` | Aktuelle Karte bearbeiten (noch nicht implementiert) |
-| `Strg+D` | Aktuelle Karte löschen (global auch „Zum Dashboard gehen") |
+| `Strg+D` | Aktuelle Karte löschen (wird auch global für „Gehe zum Dashboard“ verwendet) |
 
 ### Sitzungsverwaltung
 
@@ -543,7 +630,7 @@ Exportieren Sie Ihre Daten zur Analyse:
 ### Darstellungseinstellungen
 
 #### Themen
-- **17 integrierte Designs**: Wählen Sie aus dunklen und hellen Designs
+- **147 integrierte Themen**: 26 moderne kuratierte Themen und 121 Legacy-Themen (dunkel und hell)
 - **Live-Vorschau**: Theme-Änderungen sofort sehen
 - **Benutzerdefinierte Designs**: Erstellen Sie Ihre eigenen Farbschemata
 
@@ -552,7 +639,7 @@ Exportieren Sie Ihre Daten zur Analyse:
 - Material You (Material Design 3)
 - Aurora-Licht
 - Eisblau
-- Und 13 weitere...
+- Nocturne Dark, Snow, Cartographer, Focus und viele mehr ...
 
 #### Benutzerdefinierte Theme-Erstellung
 
@@ -567,6 +654,12 @@ Exportieren Sie Ihre Daten zur Analyse:
 
 #### Anzeigeoptionen
 - **Dense-Modus**: Mehr Inhalte pro Bildschirm anzeigen
+- **Schriftfamilie**: Wählen Sie aus 65 integrierten Schriftarten in 5 Kategorien:
+  - Sans-Serif (25): Inter, Poppins, Montserrat, Space Grotesk und mehr
+  - Serif (5): Merriweather, Playfair Display, Lora, Crimson Text, Bitter
+  - Monospace (31): JetBrains Mono, Fira Code, Source Code Pro und mehr
+  - Display (2): Comic Neue, Major Mono Display
+  - System (4): System UI, System Serif, System Sans, System Mono
 - **Schriftgröße**: Textgröße anpassen
 - **Kartenanimation**: Animationen aktivieren/deaktivieren
 - **Vorschauintervalle anzeigen**: Zeigt die nächsten Überprüfungstermine an
@@ -633,9 +726,7 @@ Incrementum unterstützt drei Planungsalgorithmen. Wählen Sie diejenige, die am
 
 ### Überprüfen Sie die Einstellungen
 
-#### Sitzungslimits
-
-**Zeitlimits:**
+#### Sitzungslimits**Zeitlimits:**
 - Maximale Sitzungsdauer (Minuten)
 - Pausenintervalle
 - Automatisches Ende nach Limit
@@ -661,7 +752,9 @@ Incrementum unterstützt drei Planungsalgorithmen. Wählen Sie diejenige, die am
 #### Automatisch speichern
 - Speicherintervall (Sekunden)
 - Sparen Sie bei der Kartenbewertung
-- Beim Tab-Wechsel speichern#### Aktuelle Dokumente
+- Beim Tab-Wechsel speichern
+
+#### Aktuelle Dokumente
 - Max. aktuelle Artikel (5-50)
 - Löschen Sie aktuelle Dokumente
 
@@ -750,16 +843,16 @@ Incrementum bietet ein vollständiges Sicherungs- und Wiederherstellungssystem z
 - **Ersetzen**: Vorhandene Elemente mit Sicherungsversionen überschreiben
 - **Zusammenführen**: Neue Kopien aller Elemente erstellen (kann Duplikate erstellen)
 
-**Anwendungsfälle:**
-
-| Szenario | Empfohlener Ansatz |
+**Anwendungsfälle:**| Szenario | Empfohlener Ansatz |
 |----------|-------|
 | **Auf neuen Computer migrieren** | Mit Dateien exportieren, auf neuem Rechner importieren |
 | **Backup vor größeren Änderungen** | Schnelle Nur-Metadaten-Sicherung |
 | **Sync zwischen Geräten** | Export-/Import-Workflow |
 | **Sammlungen teilen** | Bestimmte Sammlungen exportieren |
 | **Alte Daten archivieren** | Exportieren und langfristig lagern |
-| **Wiederherstellen nach Neuformatierung** | Vollständiges Backup mit Dateien importieren |**Wichtige Hinweise:**
+| **Wiederherstellen nach Neuformatierung** | Vollständiges Backup mit Dateien importieren |
+
+**Wichtige Hinweise:**
 - **Terminerhaltung**: Alle Planungsdaten (Stabilität, Schwierigkeit, Fälligkeitstermine) für alle Algorithmustypen werden exakt beibehalten
 - **Dateipfade**: Beim Importieren ohne Dateien müssen Sie die Originaldokumente erneut importieren. Incrementum gleicht sie anhand des Inhalts-Hashs ab und stellt die Metadaten wieder her
 - **Versionskompatibilität**: Backups sind aufwärtskompatibel, funktionieren aber möglicherweise nicht mit älteren App-Versionen
@@ -789,13 +882,13 @@ Incrementum bietet ein vollständiges Sicherungs- und Wiederherstellungssystem z
 | Verknüpfung | Aktion |
 |----------|--------|
 | `Strg+K` | Befehlspalette öffnen |
-| `Strg+P` | Befehlspalette öffnen (Alternativ) |
+| `Strg+P` | Befehlspalette öffnen (alternativ) |
 | `Strg+,` | Öffnen Sie die Einstellungen |
 | `Strg+D` | Gehen Sie zum Dashboard |
 | `Strg+Q` | Zur Warteschlange gehen |
 | `Strg+R` | Rezension starten |
 | `Strg+O` | Dokument öffnen |
-| `Strg+N` | Dokument importieren (Alternativ) |
+| `Strg+N` | Dokument importieren (alternativ) |
 
 #### Anpassung
 
@@ -858,9 +951,7 @@ Verwenden Sie NotebookLM in Incrementum, um zu recherchieren, Studienartefakte z
   - Audioübersicht
   - Videoübersicht
 - Vorschau von Artefakten in der App (einschließlich Audio-/Videoplayer, wenn Medien verfügbar sind)
-- Synchronisieren Sie generierte Karteikarten/Quizelemente in die Incrementum-Überprüfungswarteschlange
-
-**Chat-Antworten als Auszüge speichern:**
+- Synchronisieren Sie generierte Karteikarten/Quizelemente in die Incrementum-Überprüfungswarteschlange**Chat-Antworten als Auszüge speichern:**
 1. Öffnen Sie den NotebookLM-Workspace-Chat
 2. Klicken Sie in einer beliebigen Assistentenantwort auf **Als Extrakt speichern**
 3. Optional: Markieren Sie zuerst einen Teil der Antwort, um nur den ausgewählten Text zu speichern
@@ -872,9 +963,11 @@ Verwenden Sie NotebookLM in Incrementum, um zu recherchieren, Studienartefakte z
 2. Verwenden Sie **Dokument-Fragen und Antworten** mit dem NotebookLM-Recherchemodus
 3. Bearbeiten/verfeinern Sie den generierten Antworttext inline
 4. Erstellen Sie Auszüge aus der verfeinerten Antwort
-5. Generieren Sie Lernkarten/Lückentexte/Fragen und Antworten aus diesen Auszügen**Fehlerbehebung:**
+5. Generieren Sie Lernkarten/Lückentexte/Fragen und Antworten aus diesen Auszügen
+
+**Fehlerbehebung:**
 – Wenn in der Artefaktvorschau angezeigt wird, dass das Medium nicht verfügbar ist, warten Sie, bis die NotebookLM-Generierung abgeschlossen ist, und öffnen Sie das Artefakt erneut.
-- If using `cli` provider, ensure the NotebookLM sidecar/CLI is available in your build.
+- Wenn Sie den CLI-Anbieter verwenden, stellen Sie sicher, dass der NotebookLM-Sidecar/CLI in Ihrem Build verfügbar ist.
 - Wenn Sie den Anbieter gewechselt haben oder die Authentifizierung abgelaufen ist, stellen Sie die Verbindung unter Integrationen → NotebookLM erneut her.
 
 #### MCP-Server
@@ -901,7 +994,9 @@ Konfigurieren Sie KI-Anbieter für die Kartengenerierung:
 **Unterstützte Anbieter:**
 - OpenAI (GPT-4, GPT-3.5)
 - Anthropisch (Claude)
-- Lokale LLMs (Ollama, LM Studio)
+- Ollama (lokale Modelle wie Llama, Mistral, Qwen)
+- OpenRouter (Zugriff auf viele Modelle, einschließlich kostenloser Stufen)
+- llama.cpp / vLLM (jedes GGUF-Modell über OpenAI-kompatible API)
 - Benutzerdefinierte API-Endpunkte
 
 **Einstellungen pro Anbieter:**
@@ -1100,7 +1195,7 @@ Generieren Sie Transkripte für lokale Videodateien in der Tauri-Desktop-App.
 
 Hinweise:
 - Die Transkription wird lokal auf Ihrem Computer ausgeführt
-- Requires a local file path (not available for web-only videos)
+- Erfordert einen lokalen Dateipfad (nicht verfügbar für reine Webvideos)
 
 ### Hörbuch-Transkription (Desktop-App)
 
@@ -1120,13 +1215,13 @@ Hinweise:
 Text aus Bildern extrahieren:
 
 **Unterstützte Anbieter:**
+- GLM-OCR (Lokal) – multimodale OCR über llama.cpp oder vLLM
+- Tesseract (lokal)
 - Google Cloud Vision
 - AWS Textract
-- Mistral OCR
-- Mathpix (für mathematische Gleichungen)
-- GPT-4o
-- Claude Vision
-- Lokale OCR (Tesseract)
+- Azure Computer Vision
+- Marker (Lokal) – PDF zu Markdown
+- Nougat (lokal) – wissenschaftliche Dokumente mit Mathematik
 
 **Anwendungsfälle:**
 - Screenshot-Erfassung
@@ -1134,12 +1229,70 @@ Text aus Bildern extrahieren:
 - Bilder mit Text
 - Handschriftliche Notizen
 
-**Einrichtung:**
+**Einrichtung (Cloud-Anbieter):**
 1. Einstellungen → OCR
-2. Anbieter auswählen
-3. API-Schlüssel konfigurieren
+2. Wählen Sie den Anbieter (Google, AWS oder Azure)
+3. Konfigurieren Sie den API-Schlüssel und die Anmeldeinformationen
 4. Sprache(n) auswählen
 5. Testen Sie mit Beispielbild
+
+**Setup (GLM-OCR mit llama.cpp):**
+
+llama.cpp bietet einen kompakten lokalen LLM-Server für GLM-OCR, ohne dass eine GPU erforderlich ist. Es verwendet die OpenAI-kompatible API auf Port 8080.
+
+1. **Lama.cpp erstellen** (falls noch nicht erstellt):
+   „Bash
+   Git-Klon https://github.com/ggml-org/llama.cpp.git
+   cd llama.cpp
+   cmake -B Build
+   cmake --build build --config Release -j$(nproc)
+   „
+
+2. **Laden Sie ein multimodales Modell herunter** (GGUF-Format):
+   „Bash
+   # Qwen2.5-VL (empfohlen für OCR)
+   Huggingface-cli herunterladen bartowski/Qwen2.5-VL-7B-Instruct-GGUF \
+     Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf --local-dir models/
+   „
+
+3. **Starten Sie den Server**:
+   „Bash
+   ./build/bin/llama-server \
+     -m models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf \
+     --port 8080 --host 0.0.0.0 -c 16384 -t $(nproc)
+   „
+
+4. **In Inkrementum konfigurieren**:
+   - Einstellungen → OCR → Anbieter: **GLM-OCR (Lokal)**
+   - Backend: **vLLM (GPU)** (dies ist der llama.cpp/vLLM-Modus – funktioniert für beide)
+   - Endpunkt: „http://localhost:8080/v1“.
+   - Modell: Ihr Modelldateiname (z. B. „Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf“)**Leistungstipps:**
+- Verwenden Sie „-c 16384“ oder höher für lange Dokumente (Standard 4096 ist für die meisten OCR-Aufgaben zu klein)
+- Verwenden Sie „-t $(nproc)“, um alle CPU-Threads zu nutzen
+- Die Q4_K_M-Quantisierung bietet den besten Kompromiss zwischen Qualität und Geschwindigkeit für die CPU-Inferenz
+– Erstellen Sie für die GPU-Beschleunigung llama.cpp mit CUDA-, Metal- oder Vulkan-Unterstützung
+
+**Einrichtung (GLM-OCR mit vLLM):**
+
+vLLM bietet GPU-beschleunigte Inferenz für größere Modelle. Erfordert eine NVIDIA-GPU mit ausreichend VRAM.
+
+„Bash
+pip install -U vllm
+vllm dienen zai-org/GLM-OCR --allowed-local-media-path / --port 8080
+„
+
+Konfigurieren Sie dann Incrementum auf die gleiche Weise (Endpunkt „http://localhost:8080/v1“).
+
+**Einrichtung (GLM-OCR mit Ollama):**
+
+Die einfachste Option für den Einstieg: Ollama verwaltet Modell-Downloads und Laufzeit automatisch.
+
+1. Einstellungen → OCR → Anbieter: **GLM-OCR (Lokal)**
+2. Backend: **Ollama (CPU)**
+3. Klicken Sie auf **Ollama herunterladen** (falls nicht installiert)
+4. Klicken Sie auf **Laufzeit starten**
+5. Modell festlegen (z. B. „llava:7b“ oder „qwen2-vl:7b“)
+6. Klicken Sie auf **Modell ziehen**
 
 **Mathe-OCR:**
 - Spezialisierter Umgang mit Gleichungen
@@ -1195,7 +1348,9 @@ Tastaturnavigation im Vim-Stil für Power-User:
 
 ### Suchen und Filtern
 
-Erweiterte Suche über alle Inhalte:**Volltextsuche:**
+Erweiterte Suche über alle Inhalte:
+
+**Volltextsuche:**
 - Durchsuchen Sie Karteninhalte, Auszüge und Dokumente
 - Boolesche Operatoren (UND, ODER, NICHT)
 - Phrasensuche („exakte Phrase“)
@@ -1335,7 +1490,7 @@ A: ATP (Adenosintriphosphat)
 │ ├── Spanisch
 │ └── Japanisch
 ├── Wissenschaft
-│   ├── Physics
+│ ├── Physik
 │ └── Biologie
 └── Professionell
     ├── Projektmanagement
@@ -1460,11 +1615,31 @@ Die Funktion **Vorschauintervall** zeigt Ihnen genau an, wann jede Karte für al
 **Symptome:** OCR schlägt fehl oder liefert schlechte Ergebnisse
 
 **Lösungen:**
-1. **API-Schlüssel prüfen**: Gültig und mit Guthaben
+1. **API-Schlüssel prüfen**: Gültig und mit Guthaben (Cloud-Anbieter)
 2. **Überprüfen Sie die Bildqualität**: Klare, hochauflösende Bilder funktionieren am besten
 3. **Sprache prüfen**: Richtige Sprache ausgewählt
 4. **Alternativen Anbieter ausprobieren**: Einige funktionieren für bestimmte Inhalte besser
 5. **Lokale OCR**: Verwenden Sie Tesseract, wenn Internetprobleme auftreten
+
+#### llama.cpp antwortet nicht
+
+**Symptome:** „Fehler beim Aufrufen von LLM“ oder Verbindung zu localhost:8080 abgelehnt
+
+**Lösungen:**
+1. **Überprüfen Sie, ob der Server läuft**: `curl http://localhost:8080/v1/models`
+2. **Starten Sie den Server**: siehe [OCR-Setup](#ocr-optical-character-recognition) oben
+3. **Kontextgröße zu klein**: Neustart mit „-c 16384“ oder höher
+4. **Port wird verwendet**: Möglicherweise verwendet ein anderer Prozess Port 8080; Überprüfen Sie mit „lsof -i :8080“.
+5. **Nicht genügend Speicher**: Verwenden Sie eine kleinere Quantisierung (Q3_K_M anstelle von Q4_K_M) oder ein kleineres Modell
+
+#### Ollama startet nicht
+
+**Symptome:** Die GLM-OCR Ollama-Laufzeit startet nicht
+
+**Lösungen:**
+1. **Ollama installieren**: Verwenden Sie die Schaltfläche „Herunterladen“ unter Einstellungen → OCR oder installieren Sie es von ollama.com
+2. **Binärpfad prüfen**: Legen Sie den Ollama-Binärpfad fest, wenn er nicht am Standardspeicherort ist
+3. **Linux-Berechtigungen**: Möglicherweise benötigen Sie „sudo“, um den Ollama-Dienst zu installieren oder auszuführen
 
 ### Hilfe bekommen
 
@@ -1480,9 +1655,7 @@ Aktivieren Sie die Debug-Protokollierung (Einstellungen → Erweitert → Debug-
 **Datenexport:**
 Exportieren Sie Ihre Daten vor größeren Änderungen (Einstellungen → Backup → Exportieren)
 
-### Erholung
-
-**Versehentliches Löschen:**
+### Erholung**Versehentliches Löschen:**
 1. Backups prüfen (Einstellungen → Backup)
 2. Stellen Sie die aktuelle Sicherung wieder her
 3. Kontaktieren Sie den Support, wenn kein Backup verfügbar ist
@@ -1520,7 +1693,7 @@ Exportieren Sie Ihre Daten vor größeren Änderungen (Einstellungen → Backup 
 
 **Wiederauffindbarkeit**: Aktuelle Wahrscheinlichkeit des Rückrufs, 0–100 % (FSRS-Metrik)
 
-**Desired Retention**: Target retention rate (typically 90%)
+**Gewünschte Bindung**: Zielbindungsrate (normalerweise 90 %)
 
 **Vorschauintervall**: Funktion, die das nächste Überprüfungsdatum für jede Bewertungsoption anzeigt
 
@@ -1543,15 +1716,15 @@ Exportieren Sie Ihre Daten vor größeren Änderungen (Einstellungen → Backup 
 | Verknüpfung | Aktion |
 |----------|--------|
 | `Strg/Befehl + K` | Befehlspalette öffnen |
-| „Strg/Befehl + P” | Befehlspalette öffnen (Alternativ) |
+| „Strg/Befehl + P“ | Befehlspalette öffnen (alternativ) |
 | `Strg/Befehl + ,` | Öffnen Sie die Einstellungen |
 | „Strg/Befehl + D“ | Gehen Sie zum Dashboard |
 | „Strg/Befehl + Q“ | Zur Warteschlange gehen |
 | „Strg/Befehl + R“ | Rezension starten |
 | `Strg/Befehl + O` | Dokument öffnen |
-| `Strg/Befehl + N` | Dokument importieren (Alternativ) |
+| `Strg/Befehl + N` | Dokument importieren (alternativ) |
 | `Strg/Befehl + /` | Tastaturkürzel anzeigen |
-| `?` | Tastaturkürzel anzeigen (ohne Modifikator) |
+| `?` | Tastaturkürzel anzeigen (kein Modifikator) |
 
 ### Verknüpfungen für den Überprüfungsmodus
 
@@ -1565,8 +1738,8 @@ Exportieren Sie Ihre Daten vor größeren Änderungen (Einstellungen → Backup 
 | `Strg/Befehl + Eingabetaste` | Antwort anzeigen (Alternative) |
 | `Strg/Befehl + 1/2/3/4` | Bewerten, ohne Antwort anzuzeigen |
 | „Esc“ | Sitzung beenden |
-| „Strg/Befehl + E” | Aktuelle Karte bearbeiten (noch nicht implementiert) |
-| „Strg/Befehl + D” | Aktuelle Karte löschen (global auch „Zum Dashboard gehen”) |
+| „Strg/Befehl + E“ | Aktuelle Karte bearbeiten (noch nicht implementiert) |
+| „Strg/Befehl + D“ | Aktuelle Karte löschen (wird auch global für „Gehe zum Dashboard“ verwendet) |
 | „Strg/Befehl + S“ | Karte sperren |
 | `Strg/Befehl + H` | Kartengeschichte |
 

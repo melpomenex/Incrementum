@@ -1,4 +1,4 @@
-# Manual de usuario de Incrementum
+# Manual de usuario incremental
 
 **Su guía completa para dominar la lectura incremental y la repetición espaciada**
 
@@ -6,7 +6,7 @@
 
 ## Introducción
 
-### ¿Qué es Incrementum?
+### ¿Qué es el Incremento?
 
 Incrementum es una poderosa aplicación de aprendizaje que combina dos técnicas probadas:
 
@@ -20,15 +20,15 @@ Incrementum es una poderosa aplicación de aprendizaje que combina dos técnicas
 - **Extractos**: puntos o secciones clave que has extraído de los documentos
 - **Elementos de aprendizaje**: Tarjetas didácticas o tarjetas de preguntas y respuestas creadas a partir de extractos
 - **Cola**: elementos programados para revisión, organizados por prioridad
-- **Repasos**: sesiones en las que recuerdas y evalúas activamente tus conocimientos
+- **Reseñas**: Sesiones en las que recuerdas y calificas activamente tus conocimientos
 
 ---
 
-## Primeros pasos
+## Empezando
 
 ### Primer lanzamiento
 
-Cuando inicie Incrementum por primera vez, verá el **panel de control** con cuatro secciones principales:
+Cuando inicie Incrementum por primera vez, verá el **Panel** con cuatro secciones principales:
 
 1. **Cola** - Tu cola de revisión (vacía al principio)
 2. **Revisión** - Sesión de revisión activa
@@ -38,7 +38,7 @@ Cuando inicie Incrementum por primera vez, verá el **panel de control** con cua
 ### Configuración inicial
 
 1. **Elija un tema** - Vaya a Configuración → Apariencia → Tema
-   - 17 temas integrados disponibles (6 oscuros, 11 claros)
+   - 147 temas integrados disponibles (26 modernos, 121 heredados)
    - Pruebe "Modern Dark" o "Material You" para una apariencia moderna
 
 2. **Configurar ajustes de revisión** - Ajustes → Aprendizaje → Algoritmo
@@ -60,7 +60,8 @@ Importemos su primer documento:
    - **Archivo local**: seleccione un archivo PDF, EPUB o de texto
    - **URL**: pega cualquier URL web
    - **Arxiv**: pegue el ID o la URL de un trabajo de investigación
-4. Espere el procesamiento (la segmentación automática comienza automáticamente)
+4. Espere el procesamiento
+   - Si la segmentación automática está habilitada en Configuración, el documento se dividirá automáticamente en extractos después de la importación.
 
 ---
 
@@ -72,11 +73,11 @@ Importemos su primer documento:
 |--------|-------------|----------|
 | **PDF** | Formato de documento portátil | Trabajos de investigación, libros electrónicos, documentación |
 | **EPUB** | Publicación electrónica | Libros, artículos con texto ajustable |
-| **Markdown** | Archivos `.md` | Documentación técnica, notas |
+| **Rebaja** | Archivos `.md` | Documentación técnica, notas |
 | **HTML** | Paginas web | Artículos, publicaciones de blogs |
 | **Anki (.apkg)** | Paquete de mazo Anki | Migrar desde Anki |
 | **SúperMemo** | Exportaciones ZIP | Migrar desde SuperMemo |
-| **JSON (.json)** | Archivos de mazos de flashcards | Importar mazos con datos de programación |
+| **JSON (.json)** | Archivos de mazos de tarjetas didácticas | Importar mazos con datos de programación |
 | **URL** | Cualquier enlace web | Artículos en línea, blogs |
 | **Arxiv** | Trabajos académicos | Literatura de investigación |
 | **Captura de pantalla** | Captura de pantalla | Capturas rápidas desde cualquier aplicación |
@@ -88,11 +89,11 @@ Importemos su primer documento:
 1. Haga clic en **Documentos** → **Importar**
 2. Seleccione **Archivo local**
 3. Navegue hasta su archivo y selecciónelo.
-4. Incrementum:
+4. El incremento:
    - Extraer contenido de texto
-   - Segmentar automáticamente en secciones
    - Calcular el tiempo de lectura y el recuento de palabras.
    - Extraer metadatos (título, autor, etc.)
+   - Si la segmentación automática está habilitada (Configuración → Documentos → Proceso automático al importar), divida automáticamente el documento en extractos
 
 #### Método 2: Importación de URL
 
@@ -106,43 +107,61 @@ Importemos su primer documento:
 - Artículos de noticias (la mayoría de los sitios principales)
 - Publicaciones de blogs
 - Páginas de documentación
-- Medium, Substack, etc.
+- Medio, Substack, etc.
 
-#### Método 3: artículos de Arxiv
+#### Método 3: Documentos Arxiv
 
 1. Busque un artículo de Arxiv (por ejemplo, `https://arxiv.org/abs/2301.07041`)
 2. Copie la URL o la identificación del documento (`2301.07041`)
 3. Haga clic en **Documentos** → **Importar** → **Arxiv**
 4. Pegue la URL o ID
-5. Incrementum descarga:
+5. Descargas incrementales:
    - PDF completo
    - Resumen
    - Autores
    - Fecha de publicación
    - Referencias
 
-#### Método 4: Importación JSON de Mazos
+#### Método 4: Importación de plataforma JSON
 
-Importe mazos de flashcards desde archivos JSON que incluyen datos de programación (intervalos, factores de facilidad, historial de revisión).
+Importe mazos de tarjetas desde archivos JSON que incluyan datos de programación (intervalos, factores de facilidad, historial de revisión).
 
-**Importación mediante el selector de archivos:**
+**Importación a través del Selector de archivos:**
 
 1. Haga clic en **Documentos** → **Importar** → **JSON**
-2. Seleccione su archivo `.json` de mazo
-3. Incrementum crea un documento de mazo e importa todas las tarjetas preservando:
+2. Seleccione su archivo de mazo `.json`
+3. Incrementum crea un documento de mazo e importa todas las cartas, conservando:
    - Programación (intervalos, factores de facilidad, fechas de vencimiento)
-   - Historial de revisión (repeticiones, lapsos, tasa de retención)
-   - Estados de las tarjetas (nuevas, en revisión o suspendidas)
+   - Revisar el historial (repeticiones, lapsos, tasa de retención)
+   - Estados de la tarjeta (nueva, en revisión o suspendida)
 
 **Importación mediante arrastrar y soltar:**
 
-Arrastre un archivo `.json` directamente sobre la ventana de la aplicación. Si el archivo coincide con el formato de mazo esperado, se importa automáticamente.
+Arrastre un archivo `.json` directamente a la ventana de la aplicación. Si el archivo coincide con el formato de plataforma esperado, se importa automáticamente.
+
+**Formato de cubierta JSON:**
+
+El archivo debe ser un objeto plano que asigne el texto de la pregunta a los datos de la tarjeta:
+
+```json
+{
+  "¿Cuál es el motor de la célula?": {
+    "respuesta": "Las mitocondrias.",
+    "asunto": "Biología",
+    "deck_name": "Biología celular",
+    "factor_facilidad": 2.6,
+    "intervalo_días": 7,
+    "repeticiones": 3,
+    "due_at": "2026-04-20T12:00:00Z"
+  }
+}
+```
 
 **Notas:**
 - Cada archivo `.json` crea un mazo. El nombre del mazo proviene del campo `deck_name`.
-- Las tarjetas importadas usan el algoritmo SM-2 por defecto. Puede cambiar el algoritmo después de la importación.
-- Soltar el mismo archivo dos veces no crea duplicados — las tarjetas existentes se omiten.
-- Las tarjetas marcadas con `known_pile: true` se importan como suspendidas.
+- Las tarjetas importadas utilizan el algoritmo SM-2 de forma predeterminada. Puede cambiar algoritmos después de la importación.
+- Dejar caer el mismo archivo dos veces no creará duplicados: se omitirán las tarjetas existentes.
+- Las tarjetas marcadas como `known_pile: true` se importan como suspendidas.
 
 ### Visor de documentos
 
@@ -153,9 +172,7 @@ Una vez importado, abra cualquier documento para acceder:
 - **Zoom**: ajusta el tamaño del texto
 - **Pantalla completa**: lectura sin distracciones
 - **Buscar**: busque texto dentro del documento
-- **Tabla de contenido**: saltar a las secciones (si están disponibles)
-
-**Herramientas de anotación:**
+- **Tabla de contenido**: saltar a las secciones (si están disponibles)**Herramientas de anotación:**
 1. **Texto resaltado**: Seleccione texto → Elija color de resaltado
    - Amarillo: Conceptos importantes
    - Verde: Ejemplos
@@ -192,7 +209,7 @@ Una vez importado, abra cualquier documento para acceder:
 
 ## El sistema de aprendizaje
 
-### Comprender FSRS-6
+### Entendiendo FSRS-6
 
 **FSRS-6** (Programador de repetición espaciada libre) es un algoritmo moderno que:
 
@@ -208,7 +225,7 @@ Una vez importado, abra cualquier documento para acceder:
 
 ### Sistema de calificación
 
-Durante los repasos, califica cada elemento según lo bien que lo recuerdes:
+Durante las revisiones, califique cada artículo según su retiro:
 
 | Calificación | Etiqueta | Descripción | Intervalo típico |
 |--------|-------|-------------|------------------|
@@ -226,18 +243,18 @@ Antes de calificar, Incrementum le muestra exactamente cuándo aparecerá cada t
 Tarjetas anverso/reverso simples
 
 **Anverso:** ¿Cuál es la capital de Francia?
-**Reverso:** París
+**Volver:** París
 
 **Ideal para:** Hechos, definiciones, vocabulario
 
-#### 2. Supresión tipo cloze
+#### 2. Eliminación de cloze
 Estilo para rellenar espacios en blanco
 
 **Texto:** La capital de {{Francia}} es París.
 
 **Se muestra como:** La capital de _____ es París.
 
-**Ideal para:** aprendizaje contextual y relaciones entre conceptos
+**Ideal para:** Aprendizaje contextual, relaciones
 
 #### 3. Tarjetas de preguntas y respuestas
 Parejas de preguntas y respuestas
@@ -283,6 +300,76 @@ Si tienes IA configurada:
 3. La IA creará varias tarjetas automáticamente
 4. Revise y edite según sea necesario
 5. Guarda los mejores
+
+---
+
+## Gerente de cubierta
+
+**Deck Manager** es una vista de pantalla completa para explorar, inspeccionar y editar tus mazos de tarjetas didácticas y sus tarjetas. Ábralo desde el botón **Deck Manager** en la página de inicio de Revisar.
+
+### Plataformas de navegación
+
+- La barra lateral izquierda enumera todos tus mazos con recuentos de cartas e indicadores de vencimiento hoy.
+- Haga clic en un mazo para expandirlo; solo se expande un mazo a la vez.
+- Los filtros de etiquetas para cada mazo se muestran como pequeñas píldoras debajo del nombre del mazo.
+
+### Lista de tarjetas
+
+Cuando se expande un mazo, sus cartas aparecen en una lista desplazable virtualizada. Cada fila de tarjetas muestra:
+
+- **Insignia estatal**: codificado por colores: azul (Nuevo), naranja (Aprendizaje), verde (Revisión), rojo (Reaprendizaje)
+- **Vista previa de la pregunta**: hasta 80 caracteres
+- **Fecha de vencimiento** — etiqueta relativa (Hoy, Mañana, 5 días, vencido)
+- **Dificultad** — 1–10 mini barra de progreso
+- **Intervalo**: intervalo de revisión actual en días
+- **Recuento de reseñas**: cuántas veces se revisó la tarjeta
+- **Indicador de sanguijuela**: ícono de advertencia amarillo para tarjetas con más de 5 lapsos
+
+### Clasificación y filtrado
+
+**Ordenar** tarjetas por fecha de vencimiento, estado, dificultad, intervalo, recuento de revisiones o lapsos. Haga clic en un botón de clasificación nuevamente para alternar entre ascendente y descendente.
+
+**Filtrar** por:
+- **Estado**: nuevo, aprendizaje, revisión, reaprendizaje
+- **Estado de vencimiento**: Vencimiento hoy, Vencido, No vencido
+
+**Busca** por texto de pregunta o nombre de etiqueta usando la barra de búsqueda en la parte superior.
+
+### Editor de tarjetas en línea
+
+Haga clic en cualquier fila de tarjeta para expandir un editor en línea debajo de ella:
+
+- Edite **pregunta**, **respuesta** y **etiquetas** directamente; no se necesita modal.
+- **Tarjetas de cierre** muestran el texto de cierre con rangos de eliminación resaltados.
+- **Tipos de tarjetas complejos** (opción múltiple, oclusión de imagen) muestran una vista previa de solo lectura con un enlace "Editar en Studio".
+- Alternar **Suspender/Reanudar** con un solo clic.
+- Los cambios se guardan con **actualizaciones optimistas**: la interfaz de usuario se actualiza instantáneamente y se revierte si falla el guardado.
+
+### Panel de estadísticas de mazo
+
+La barra lateral derecha muestra estadísticas del mazo ampliado:
+
+- **Vence hoy** — recuento de tarjetas vencidas ahora
+- **Tasa de retención**: estimación basada en el índice de retraso
+- **Dificultad media** — en todas las cartas del mazo
+- **Recuento de sanguijuelas**: tarjetas con más de 5 lapsos (haz clic para filtrar solo por sanguijuelas)
+- **Desglose de madurez**: barra apilada que muestra la distribución de tarjetas Nuevo/Aprendizaje/Joven/Maduro
+- **Previsión de 7 días**: minigráfico que muestra los recuentos vencidos proyectados para la próxima semana
+- **Estado de la memoria FSRS**: estabilidad y dificultad promedio con un indicador de estado codificado por colores
+
+### Operaciones masivas
+
+Seleccione varias tarjetas usando las casillas de verificación, luego use la barra de herramientas de acciones masivas:
+
+- **Suspender/Reanudar** — suspensión de alternancia por lotes
+- **Eliminar**: elimina las tarjetas seleccionadas (con confirmación)
+- **Volver a etiquetar**: agregue o elimine etiquetas en todas las tarjetas seleccionadas a la vez
+
+### Atajos de teclado
+
+| Clave | Acción |
+|-----|--------|
+| `Escape` | Contraer el editor en línea o contraer la plataforma expandida |
 
 ---
 
@@ -337,8 +424,8 @@ Estas acciones se aplican a **elementos de aprendizaje únicamente** y actualiza
 | `Ctrl+Entrar` | Mostrar respuesta |
 | `Ctrl+1/2/3/4` | Calificar sin mostrar respuesta |
 | `Esc` | Pausar/finalizar sesión |
-| `Ctrl+E` | Editar tarjeta actual (aún no implementado) |
-| `Ctrl+D` | Eliminar tarjeta actual (también usado globalmente para "Ir al panel") |
+| `Ctrl+E` | Editar tarjeta actual (aún no implementada) |
+| `Ctrl+D` | Eliminar tarjeta actual (también se usa globalmente para "Ir al panel") |
 
 ### Gestión de sesiones
 
@@ -388,7 +475,7 @@ Las tarjetas clasificadas como "Otra vez" reaparecen rápidamente (10 min). Estr
 
 ### Entendiendo la cola
 
-The **Queue** contains all items scheduled for review, organized by:
+La **Cola** contiene todos los elementos programados para revisión, organizados por:
 
 - **Fecha de vencimiento**: los artículos que vencen antes aparecen primero
 - **Prioridad**: prioridad establecida por el usuario (0-100)
@@ -543,7 +630,7 @@ Exporte sus datos para su análisis:
 ### Configuración de apariencia
 
 #### Temas
-- **17 temas integrados**: elige entre temas oscuros y claros
+- **147 temas integrados**: 26 temas modernos seleccionados y 121 temas heredados (oscuros y claros)
 - **Vista previa en vivo**: vea los cambios de tema al instante
 - **Temas personalizados**: crea tus propios esquemas de color
 
@@ -552,7 +639,7 @@ Exporte sus datos para su análisis:
 - Material usted (Diseño de materiales 3)
 - Luz de aurora
 - Azul hielo
-- Y 13 más...
+- Nocturne Dark, Snow, Cartographer, Focus y muchos más...
 
 #### Creación de temas personalizados
 
@@ -567,6 +654,12 @@ Exporte sus datos para su análisis:
 
 #### Opciones de visualización
 - **Modo denso**: muestra más contenido por pantalla
+- **Familia de fuentes**: elija entre 65 fuentes integradas en 5 categorías:
+  - Sans-serif (25): Inter, Poppins, Montserrat, Space Grotesk y más
+  - Serif (5): Merriweather, Playfair Display, Lora, Crimson Text, Bitter
+  - Monospace (31): JetBrains Mono, Fira Code, Source Code Pro y más
+  - Pantalla (2): Comic Neue, pantalla mono principal
+  - Sistema (4): Sistema UI, Sistema Serif, Sistema Sans, Sistema Mono
 - **Tamaño de fuente**: Ajustar el tamaño del texto
 - **Animación de tarjeta**: activar/desactivar animaciones
 - **Mostrar intervalos de vista previa**: muestra las próximas fechas de revisión
@@ -591,7 +684,7 @@ Incrementum admite tres algoritmos de programación. Elige el que mejor se adapt
 - Manejo sofisticado de fallas con reducción de estabilidad dependiente del lapso
 
 **SM-2 (Clásico):**
-- Traditional SuperMemo 2 algorithm (publicly documented)
+- Algoritmo tradicional SuperMemo 2 (documentado públicamente)
 - Más simple, predecible
 - Se requieren más revisiones
 
@@ -633,9 +726,7 @@ Incrementum admite tres algoritmos de programación. Elige el que mejor se adapt
 
 ### Revisar configuración
 
-#### Límites de sesión
-
-**Límites de tiempo:**
+#### Límites de sesión**Límites de tiempo:**
 - Duración máxima de la sesión (minutos)
 - Intervalos de descanso
 - Finalización automática después del límite
@@ -661,7 +752,9 @@ Incrementum admite tres algoritmos de programación. Elige el que mejor se adapt
 #### Guardar automáticamente
 - Intervalo de guardado (segundos)
 - Ahorre en la calificación de la tarjeta
-- Guardar al cambiar de pestaña#### Documentos recientes
+- Guardar al cambiar de pestaña
+
+#### Documentos recientes
 - Máximo de artículos recientes (5-50)
 - Borrar documentos recientes
 
@@ -705,7 +798,7 @@ Incrementum proporciona un sistema completo de copia de seguridad y restauració
 - **Documentos**: todos los documentos importados con metadatos
 - **Extractos**: todos los aspectos destacados y el contenido extraído
 - **Elementos de aprendizaje**: todas las tarjetas didácticas, eliminaciones de cloze, tarjetas de preguntas y respuestas
-- **Scheduling Data**: Algorithm memory states (stability, difficulty, intervals), due dates
+- **Datos de programación**: estados de memoria del algoritmo (estabilidad, dificultad, intervalos), fechas de vencimiento
 - **Colecciones**: todas las colecciones y asignaciones de documentos.
 - **Estado de la interfaz de usuario**: estado de la barra lateral, preferencias de tema
 - **Opcional**: archivos de documentos reales (PDF, EPUB, etc.)
@@ -750,16 +843,16 @@ Incrementum proporciona un sistema completo de copia de seguridad y restauració
 - **Reemplazar**: sobrescribe elementos existentes con versiones de respaldo
 - **Fusionar**: crea nuevas copias de todos los elementos (puede crear duplicados)
 
-**Casos de uso:**
-
-| Escenario | Enfoque recomendado |
+**Casos de uso:**| Escenario | Enfoque recomendado |
 |----------|---------------------|
 | **Migrar a una computadora nueva** | Exportar con archivos, importar en una máquina nueva |
 | **Copia de seguridad antes de cambios importantes** | Copia de seguridad rápida solo de metadatos |
 | **Sincronización entre dispositivos** | Flujo de trabajo de exportación/importación |
 | **Compartir colecciones** | Exportar colecciones específicas |
 | **Archivar datos antiguos** | Exportar y almacenar a largo plazo |
-| **Restaurar después de reformatear** | Importar copia de seguridad completa con archivos |**Notas importantes:**
+| **Restaurar después de reformatear** | Importar copia de seguridad completa con archivos |
+
+**Notas importantes:**
 - **Preservación de programación**: todos los datos de programación (estabilidad, dificultad, fechas de vencimiento) para todos los tipos de algoritmos se conservan exactamente
 - **Rutas de archivos**: al importar sin archivos, deberá volver a importar los documentos originales. Incrementum los unirá por hash de contenido y restaurará los metadatos.
 - **Compatibilidad de versiones**: las copias de seguridad son compatibles con versiones posteriores, pero es posible que no funcionen con versiones anteriores de la aplicación.
@@ -795,7 +888,7 @@ Incrementum proporciona un sistema completo de copia de seguridad y restauració
 | `Ctrl+Q` | Ir a la cola |
 | `Ctrl+R` | Iniciar revisión |
 | `Ctrl+O` | Abrir documento |
-| `Ctrl+N` | Importar documento (alternativa) |
+| `Ctrl+N` | Documento de importación (alternativo) |
 
 #### Personalización
 
@@ -848,7 +941,7 @@ Utilice NotebookLM dentro de Incrementum para investigar, generar artefactos de 
 
 **Qué puedes hacer:**
 - Haga preguntas en el chat de NotebookLM directamente desde Incrementum
-- Run research prompts (web-assisted notebook research)
+- Ejecutar indicaciones de investigación (investigación en cuaderno asistida por web)
 - Generar artefactos:
   - Tarjetas didácticas
   - Prueba
@@ -858,9 +951,7 @@ Utilice NotebookLM dentro de Incrementum para investigar, generar artefactos de 
   - Descripción general de audio
   - Descripción general del vídeo
 - Vista previa de artefactos en la aplicación (incluidos reproductores de audio/vídeo cuando hay medios disponibles)
-- Sincronizar tarjetas didácticas/elementos de cuestionario generados en la cola de revisión de Incrementum
-
-**Guardar respuestas de chat como extractos:**
+- Sincronizar tarjetas didácticas/elementos de cuestionario generados en la cola de revisión de Incrementum**Guardar respuestas de chat como extractos:**
 1. Abra el chat del espacio de trabajo de NotebookLM
 2. En cualquier respuesta del asistente, haga clic en **Guardar como extracto**
 3. Opcional: resalte primero parte de la respuesta para guardar solo el texto seleccionado
@@ -872,7 +963,9 @@ Utilice NotebookLM dentro de Incrementum para investigar, generar artefactos de 
 2. Utilice **Preguntas y respuestas sobre documentos** con el modo de investigación NotebookLM
 3. Editar/refinar el texto de respuesta generado en línea
 4. Cree extractos de la respuesta refinada.
-5. Genere tarjetas didácticas/cloze/elementos de preguntas y respuestas a partir de esos extractos.**Solución de problemas:**
+5. Genere tarjetas didácticas/cloze/elementos de preguntas y respuestas a partir de esos extractos.
+
+**Solución de problemas:**
 - Si la vista previa del artefacto indica que los medios no están disponibles, espere a que finalice la generación de NotebookLM y vuelva a abrir el artefacto.
 - Si utiliza el proveedor `cli`, asegúrese de que el sidecar/CLI de NotebookLM esté disponible en su compilación.
 - Si cambió de proveedor o la autenticación expiró, vuelva a conectarse en Integraciones → NotebookLM.
@@ -901,7 +994,9 @@ Configure proveedores de IA para la generación de tarjetas:
 **Proveedores admitidos:**
 -OpenAI (GPT-4, GPT-3.5)
 - Antrópico (Claude)
-- LLM locales (Ollama, LM Studio)
+- Ollama (modelos locales como Llama, Mistral, Qwen)
+- OpenRouter (acceso a muchos modelos, incluidos niveles gratuitos)
+- llama.cpp / vLLM (cualquier modelo GGUF a través de API compatible con OpenAI)
 - Puntos finales API personalizados
 
 **Configuraciones por proveedor:**
@@ -967,7 +1062,7 @@ Descubra y suscríbase a boletines populares directamente en Incrementum:
 
 **Acceda al directorio de boletines:**
 1. Haga clic en la pestaña **RSS**
-2. Click the **Newsletter icon** (📬) in the header
+2. Haga clic en el **ícono del boletín** (📬) en el encabezado.
 3. Busque boletines informativos seleccionados por categoría
 
 **Categorías de boletines:**
@@ -1104,7 +1199,7 @@ Notas:
 
 ### Transcripción de audiolibros (aplicación de escritorio)
 
-Create transcripts for audiobooks to enable text selection and sync.
+Cree transcripciones de audiolibros para permitir la selección y sincronización de texto.
 
 1. Importar un audiolibro
 2. Abra el visor de audiolibros.
@@ -1120,13 +1215,13 @@ Notas:
 Extraer texto de imágenes:
 
 **Proveedores admitidos:**
+- GLM-OCR (Local) — OCR multimodal a través de llama.cpp o vLLM
+- Teseracto (Local)
 - Visión de la nube de Google
 - Extracto de texto de AWS
--Mistral OCR
-- Mathpix (para ecuaciones matemáticas)
--GPT-4o
-- Claude Visión
-- OCR local (Teseracto)
+- Visión por computadora Azure
+- Marcador (local): PDF a Markdown
+- Turrón (Local) — documentos científicos con matemáticas
 
 **Casos de uso:**
 - Captura de pantalla
@@ -1134,12 +1229,70 @@ Extraer texto de imágenes:
 - Imágenes con texto
 - Notas escritas a mano
 
-**Configuración:**
+**Configuración (proveedores de nube):**
 1. Configuración → OCR
-2. Elija proveedor
-3. Configurar la clave API
+2. Elija el proveedor (Google, AWS o Azure)
+3. Configurar la clave API y las credenciales
 4. Seleccione idioma(s)
 5. Prueba con imagen de muestra
+
+**Configuración (GLM-OCR con llama.cpp):**
+
+llama.cpp proporciona un servidor LLM local liviano para GLM-OCR sin requerir una GPU. Utiliza la API compatible con OpenAI en el puerto 8080.
+
+1. **Compile llama.cpp** (si aún no está creado):
+   ```golpecito
+   clon de git https://github.com/ggml-org/llama.cpp.git
+   cd llama.cpp
+   cmake -B construir
+   cmake --build build --config Lanzamiento -j$(nproc)
+   ```
+
+2. **Descargar un modelo multimodal** (formato GGUF):
+   ```golpecito
+   # Qwen2.5-VL (recomendado para OCR)
+   huggingface-cli descargar bartowski/Qwen2.5-VL-7B-Instruct-GGUF \
+     Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf --modelos de directorio local/
+   ```
+
+3. **Inicie el servidor**:
+   ```golpecito
+   ./build/bin/llama-servidor \
+     -m modelos/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf \
+     --puerto 8080 --host 0.0.0.0 -c 16384 -t $(nproc)
+   ```
+
+4. **Configurar en incremento**:
+   - Configuración → OCR → Proveedor: **GLM-OCR (Local)**
+   - Backend: **vLLM (GPU)** (este es el modo llama.cpp/vLLM; funciona para ambos)
+   - Punto final: `http://localhost:8080/v1`
+   - Modelo: el nombre de archivo de su modelo (por ejemplo, `Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf`)**Consejos de rendimiento:**
+- Utilice `-c 16384` o superior para documentos largos (el valor predeterminado 4096 es demasiado pequeño para la mayoría de las tareas de OCR)
+- Utilice `-t $(nproc)` para utilizar todos los subprocesos de la CPU
+- La cuantificación Q4_K_M ofrece la mejor relación calidad/velocidad para la inferencia de la CPU
+- Para aceleración de GPU, cree llama.cpp con soporte CUDA, Metal o Vulkan
+
+**Configuración (GLM-OCR con vLLM):**
+
+vLLM proporciona inferencia acelerada por GPU para modelos más grandes. Requiere una GPU NVIDIA con suficiente VRAM.
+
+```golpecito
+instalación de pip -U vllm
+vllm sirve zai-org/GLM-OCR --allowed-local-media-path / --port 8080
+```
+
+Luego configure Incrementum de la misma manera (punto final `http://localhost:8080/v1`).
+
+**Configuración (GLM-OCR con Ollama):**
+
+La opción más sencilla para empezar: Ollama gestiona las descargas de modelos y el tiempo de ejecución automáticamente.
+
+1. Configuración → OCR → Proveedor: **GLM-OCR (Local)**
+2. Servidor: **Ollama (CPU)**
+3. Haga clic en **Descargar Ollama** (si no está instalado)
+4. Haga clic en **Iniciar tiempo de ejecución**
+5. Establecer modelo (por ejemplo, `llava:7b` o `qwen2-vl:7b`)
+6. Haga clic en **Extraer modelo**
 
 **OCR de matemáticas:**
 - Manejo especializado de ecuaciones.
@@ -1195,7 +1348,9 @@ Navegación con teclado estilo Vim para usuarios avanzados:
 
 ### Búsqueda y filtrado
 
-Búsqueda avanzada en todo el contenido:**Búsqueda de texto completo:**
+Búsqueda avanzada en todo el contenido:
+
+**Búsqueda de texto completo:**
 - Búsqueda de contenido de tarjetas, extractos, documentos.
 - Operadores booleanos (Y, O, NO)
 - Búsqueda de frases ("frase exacta")
@@ -1285,7 +1440,7 @@ R: ATP (trifosfato de adenosina)
 **Horario diario (20-30 min):**
 1. **Mañana**: Revisar las tarjetas de entrega (15 min)
 2. **A lo largo del día**: crea extractos de la lectura
-3. **Tarde**: Crea tarjetas a partir de extractos (10-15 min)
+3. **Tarde**: crea tarjetas a partir de extractos (10-15 min)
 
 **Horario Semanal:**
 - **Lunes a viernes**: revisiones periódicas y creación de tarjetas
@@ -1460,11 +1615,31 @@ La función **Intervalo de vista previa** le muestra exactamente cuándo aparece
 **Síntomas:** El OCR falla o produce malos resultados
 
 **Soluciones:**
-1. **Verificar clave API**: válida y con créditos
+1. **Verificar clave API**: Válida y con créditos (proveedores de nube)
 2. **Compruebe la calidad de la imagen**: las imágenes claras y de alta resolución funcionan mejor
 3. **Verificar idioma**: idioma correcto seleccionado
 4. **Pruebe un proveedor alternativo**: algunos funcionan mejor para determinado contenido
 5. **OCR local**: use Tesseract si tiene problemas con Internet
+
+#### llama.cpp no responde
+
+**Síntomas:** "Error al llamar a LLM" o conexión rechazada a localhost:8080
+
+**Soluciones:**
+1. **Compruebe si el servidor se está ejecutando**: `curl http://localhost:8080/v1/models`
+2. **Inicie el servidor**: consulte [Configuración de OCR](#ocr-optical-character-recognition) arriba
+3. **Tamaño del contexto demasiado pequeño**: reinicie con `-c 16384` o superior
+4. **Puerto en uso**: otro proceso puede estar usando el puerto 8080; consulte con `lsof -i: 8080`
+5. **Sin memoria**: utilice una cuantificación más pequeña (Q3_K_M en lugar de Q4_K_M) o un modelo más pequeño
+
+#### Ollama no arranca
+
+**Síntomas:** El tiempo de ejecución de GLM-OCR Ollama no se inicia
+
+**Soluciones:**
+1. **Instala Ollama**: usa el botón Descargar en Configuración → OCR, o instálalo desde ollama.com
+2. **Verifique la ruta binaria**: configure la ruta binaria de Ollama si no está en la ubicación predeterminada
+3. **Permisos de Linux**: Es posible que necesite `sudo` para instalar o ejecutar el servicio Ollama
 
 ### Obteniendo ayuda
 
@@ -1480,9 +1655,7 @@ Habilite el registro de depuración (Configuración → Avanzado → Modo de dep
 **Exportación de datos:**
 Exporte sus datos antes de cambios importantes (Configuración → Copia de seguridad → Exportar)
 
-### Recuperación
-
-**Eliminación accidental:**
+### Recuperación**Eliminación accidental:**
 1. Verifique las copias de seguridad (Configuración → Copia de seguridad)
 2. Restaurar desde una copia de seguridad reciente
 3. Póngase en contacto con el soporte si no hay una copia de seguridad disponible
@@ -1549,7 +1722,7 @@ Exporte sus datos antes de cambios importantes (Configuración → Copia de segu
 | `Ctrl/Cmd + Q` | Ir a la cola |
 | `Ctrl/Cmd + R` | Iniciar revisión |
 | `Ctrl/Cmd + O` | Abrir documento |
-| `Ctrl/Cmd + N` | Importar documento (alternativa) |
+| `Ctrl/Cmd + N` | Documento de importación (alternativo) |
 | `Ctrl/Cmd + /` | Mostrar atajos de teclado |
 | `?` | Mostrar atajos de teclado (sin modificador) |
 
@@ -1565,8 +1738,8 @@ Exporte sus datos antes de cambios importantes (Configuración → Copia de segu
 | `Ctrl/Cmd + Intro` | Mostrar respuesta (alternativa) |
 | `Ctrl/Cmd + 1/2/3/4` | Calificar sin mostrar respuesta |
 | `Esc` | Fin de sesión |
-| `Ctrl/Cmd + E` | Editar tarjeta actual (aún no implementado) |
-| `Ctrl/Cmd + D` | Eliminar tarjeta actual (también usado globalmente para "Ir al panel") |
+| `Ctrl/Cmd + E` | Editar tarjeta actual (aún no implementada) |
+| `Ctrl/Cmd + D` | Eliminar tarjeta actual (también se usa globalmente para "Ir al panel") |
 | `Ctrl/Cmd + S` | Suspender tarjeta |
 | `Ctrl/Cmd + H` | Historial de tarjetas |
 

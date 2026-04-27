@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Compass, Layers, Plus, RefreshCw, Sparkles, Tag, Upload, Zap } from "lucide-react";
+import { BarChart3, Compass, FolderKanban, Layers, Plus, RefreshCw, Sparkles, Tag, Upload, Zap } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
@@ -15,6 +15,7 @@ import { useI18n } from "../../lib/i18n";
 
 interface ReviewHomeProps {
   onStartReview: () => Promise<void>;
+  onOpenDeckManager?: () => void;
 }
 
 function toDateOnly(value: Date) {
@@ -48,7 +49,7 @@ function inferAnkiDeckNames(imported: unknown[]): string[] {
   return Array.from(names);
 }
 
-export function ReviewHome({ onStartReview }: ReviewHomeProps) {
+export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps) {
   const { documents, loadDocuments } = useDocumentStore();
   const { loadStreak, streak, streakLoading } = useReviewStore();
   const {
@@ -262,6 +263,15 @@ export function ReviewHome({ onStartReview }: ReviewHomeProps) {
                 <Upload className="h-4 w-4" />
                 {isAnkiImporting ? t("review.importing") : t("review.importDeck")}
               </button>
+              {onOpenDeckManager && (
+                <button
+                  onClick={onOpenDeckManager}
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  <FolderKanban className="h-4 w-4" />
+                  {t("review.deckManager.title")}
+                </button>
+              )}
               <button
                 onClick={() => setIsReviewPreviewOpen(true)}
                 disabled={isLoading}

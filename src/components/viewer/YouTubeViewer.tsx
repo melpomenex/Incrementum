@@ -76,6 +76,8 @@ export function YouTubeViewer({
   const lastSavedTimeRef = useRef<number>(0);
   const documentIdRef = useRef(documentId);
   const onTranscriptLoadRef = useRef(onTranscriptLoad);
+  const onTranscriptSearchStateChangeRef = useRef(onTranscriptSearchStateChange);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
   const titleRef = useRef(title);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -221,6 +223,14 @@ export function YouTubeViewer({
   }, [onTranscriptLoad]);
 
   useEffect(() => {
+    onTranscriptSearchStateChangeRef.current = onTranscriptSearchStateChange;
+  }, [onTranscriptSearchStateChange]);
+
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onTimeUpdate]);
+
+  useEffect(() => {
     titleRef.current = title;
     setResolvedTitle(title);
   }, [title]);
@@ -248,7 +258,7 @@ export function YouTubeViewer({
   }, [activeTranscriptMatchIndex, effectiveTranscriptSearchQuery, initialTranscriptSegmentId]);
 
   useEffect(() => {
-    if (!onTranscriptSearchStateChange || isLoadingTranscript) return;
+    if (!onTranscriptSearchStateChangeRef.current || isLoadingTranscript) return;
 
     const normalizedQuery = effectiveTranscriptSearchQuery.trim().toLowerCase();
     const matches = normalizedQuery
@@ -258,7 +268,7 @@ export function YouTubeViewer({
       ? Math.max(0, Math.min(matches.length - 1, activeTranscriptMatchIndex ?? 0))
       : -1;
 
-    onTranscriptSearchStateChange({
+    onTranscriptSearchStateChangeRef.current({
       available: transcript.length > 0 && !transcriptError,
       query: effectiveTranscriptSearchQuery,
       totalMatches: matches.length,
@@ -269,7 +279,6 @@ export function YouTubeViewer({
     activeTranscriptMatchIndex,
     effectiveTranscriptSearchQuery,
     isLoadingTranscript,
-    onTranscriptSearchStateChange,
     transcript,
     transcriptError,
   ]);
@@ -391,7 +400,7 @@ export function YouTubeViewer({
         if (!transcriptData || !Array.isArray(transcriptData)) {
           setTranscript([]);
           onTranscriptLoadRef.current?.([]);
-          onTranscriptSearchStateChange?.({
+          onTranscriptSearchStateChangeRef.current?.({
             available: false,
             query: effectiveTranscriptSearchQuery,
             totalMatches: 0,
@@ -434,7 +443,7 @@ export function YouTubeViewer({
       setTranscriptError(errorMsg);
       setTranscript([]);
       onTranscriptLoadRef.current?.([]);
-      onTranscriptSearchStateChange?.({
+      onTranscriptSearchStateChangeRef.current?.({
         available: false,
         query: effectiveTranscriptSearchQuery,
         totalMatches: 0,
@@ -444,7 +453,7 @@ export function YouTubeViewer({
     } finally {
       setIsLoadingTranscript(false);
     }
-  }, [documentId, effectiveTranscriptSearchQuery, normalizedVideoId, onLoad, onTranscriptSearchStateChange]);
+  }, [documentId, effectiveTranscriptSearchQuery, normalizedVideoId, onLoad]);
 
   // Handle videoId changes for transcript
   useEffect(() => {
@@ -663,7 +672,7 @@ export function YouTubeViewer({
         setCurrentTime(time);
 
         // Notify parent
-        onTimeUpdate?.(time);
+        onTimeUpdateRef.current?.(time);
 
         // Save position periodically (throttled inside saveCurrentPosition)
         saveCurrentPosition(time);
@@ -718,7 +727,6 @@ export function YouTubeViewer({
     isPlaying,
     segments,
     saveCurrentPosition,
-    onTimeUpdate,
     toast,
     activeExtractStartTime,
     activeExtractEndTime,
