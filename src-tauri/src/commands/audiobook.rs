@@ -275,12 +275,34 @@ pub async fn import_podcast_audio_file(
         return Err(IncrementumError::NotFound(format!("Podcast audio file not found: {}", file_path)));
     }
 
+    // Copy to app-managed storage to avoid macOS sandbox issues
+    let audio_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("incrementum")
+        .join("audio");
+    std::fs::create_dir_all(&audio_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create audio directory: {}", e)))?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let original_filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("audio");
+    let safe_filename = original_filename.replace(['/', '\\', ':'], "_");
+    let stored_filename = format!("{}-{}", timestamp, safe_filename);
+    let dest_path = audio_dir.join(&stored_filename);
+
+    std::fs::copy(path, &dest_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to copy audio file: {}", e)))?;
+
+    let stored_path = dest_path.to_string_lossy().to_string();
+
     let default_title = path
         .file_stem()
         .and_then(|name| name.to_str())
         .unwrap_or("Podcast Episode")
         .to_string();
-    let mut document = Document::new(title.unwrap_or(default_title), file_path.clone(), FileType::Audio);
+    let mut document = Document::new(title.unwrap_or(default_title), stored_path.clone(), FileType::Audio);
     document.tags = vec!["podcast".to_string(), "audio".to_string()];
     document.metadata = Some(DocumentMetadata {
         author: None,
@@ -316,7 +338,7 @@ pub async fn import_podcast_audio_file(
         let model_path = model_manager.get_model_path(&model_id);
         let engine = TranscriptionEngine::new(app_handle.clone());
         let wav_path = engine
-            .prepare_audio(path)
+            .prepare_audio(&dest_path)
             .await
             .map_err(|e| IncrementumError::Internal(format!("Failed to prepare audio: {}", e)))?;
 
@@ -368,7 +390,7 @@ pub async fn import_podcast_audio_file(
         if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
             let entry = crate::models::TranscriptionQueueEntry::new(
                 created.id.clone(),
-                file_path.clone(),
+                stored_path.clone(),
                 "local".to_string(),
                 "distil-small.en".to_string(),
                 language.as_deref().unwrap_or("en").to_string(),

@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **Transcription "No such file or directory" on macOS** — audio files imported from the filesystem no longer crash with an OS error when "Transcribe All" is triggered. The system now validates that each file exists before enqueueing it for transcription, and skips missing files with a clear message showing which files were skipped and why. A defensive check also guards against files being deleted between enqueue and processing time.
+- **Transcription "No such file or directory" on macOS** — audio files are now copied to app-managed storage at import time, preventing macOS sandbox permission errors when transcription runs later. Previously, files imported via the file picker were referenced by their original path, which becomes inaccessible once the security-scoped bookmark expires. The system also validates file existence before enqueueing and at process time, skipping missing files with clear feedback.
 - **Transcription queue entries cannot be removed** — the transcription queue now supports clearing entries. New "Clear Failed", "Clear Completed", and "Clear All Finished" buttons appear above the queue when relevant entries exist. Individual entries can also be removed with a per-row remove button. Previously, failed and completed entries accumulated indefinitely with no way to clean them up.
 
 ## [1.25.2] - 2026-04-27
