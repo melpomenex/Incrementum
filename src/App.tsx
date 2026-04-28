@@ -267,6 +267,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isCommandPaletteOpenShortcut(e)) return;
+      console.log("[cmd+key] JS capture handler fired! key:", e.key, "meta:", e.metaKey, "ctrl:", e.ctrlKey);
       e.preventDefault();
       e.stopPropagation();
       dispatchCommandPaletteOpen();
@@ -284,7 +285,7 @@ function App() {
         const { listen } = await import("@tauri-apps/api/event");
         unlisten = await listen<string>("global-shortcut", (event) => {
           const key = event.payload;
-          console.debug("[global-shortcut] received:", key);
+          console.log("[cmd+key] JS received global-shortcut:", key);
           switch (key) {
             case "KeyQ":
               setCurrentPage("queue");
@@ -300,7 +301,9 @@ function App() {
               break;
             case "KeyK":
             case "KeyP":
-              dispatchCommandPaletteOpenFromNativeShortcut(key);
+              console.log("[cmd+key] dispatching command palette open for:", key);
+              const opened = dispatchCommandPaletteOpenFromNativeShortcut(key);
+              console.log("[cmd+key] dispatchCommandPaletteOpenFromNativeShortcut returned:", opened);
               break;
             case "Comma":
               setCurrentPage("settings");

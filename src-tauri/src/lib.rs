@@ -244,11 +244,12 @@ pub fn run() {
             Ok(menu)
         }).on_menu_event(|app, event| {
             let id = event.id.as_ref();
-            tracing::debug!("menu event: {}", id);
+            tracing::info!("[cmd+key] menu event fired: {}", id);
 
             #[cfg(target_os = "macos")]
             {
                 if matches!(id, "quit" | "hide" | "about") {
+                    tracing::info!("[cmd+key] skipping built-in macOS menu item: {}", id);
                     return;
                 }
             }
@@ -266,8 +267,11 @@ pub fn run() {
                 _ => return,
             };
 
-            tracing::debug!("menu accelerator shortcut emitted: {}", key_str);
-            let _ = app.emit_to("main", "global-shortcut", key_str);
+            tracing::info!("[cmd+key] emitting global-shortcut to webview: {}", key_str);
+            match app.emit_to("main", "global-shortcut", key_str) {
+                Ok(()) => tracing::info!("[cmd+key] emit_to succeeded"),
+                Err(e) => tracing::error!("[cmd+key] emit_to FAILED: {}", e),
+            };
         });
     }
 
