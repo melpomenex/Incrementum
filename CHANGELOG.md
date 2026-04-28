@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.25.6] - 2026-04-28
+
+### Fixed
+
+- **Deck manager font scaling** — bumped all text sizes to match app defaults (stat pills text-sm, header text-base, deck tree text-sm, chips/sort/columns text-xs, card rows text-xs with proper padding)
+- **Card list scrollbar** — card list container changed from overflow-hidden to overflow-y-auto so scrollbar appears and cards are scrollable
+- **Card row sizing** — increased row padding, checkbox size, difficulty bar width, and icon sizes for better readability
+
 ## [1.25.5] - 2026-04-28
 
 ### Changed
