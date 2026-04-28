@@ -370,13 +370,13 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border flex-shrink-0">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           {t("review.backToHome")}
         </button>
         <span className="text-border">·</span>
-        <h2 className="text-sm font-semibold">{t("review.deckManager.title")}</h2>
+        <h2 className="text-base font-semibold">{t("review.deckManager.title")}</h2>
         <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
           {allCards.length} cards · {decks.length} decks
         </span>
@@ -421,8 +421,8 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                           <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">{deck.name}</div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                          <div className="text-sm font-medium truncate">{deck.name}</div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                             <span className="tabular-nums">{counts?.total ?? 0}</span>
                             {counts && counts.dueToday > 0 && (
                               <span className="text-primary tabular-nums font-medium">
@@ -449,9 +449,9 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                 <>
                   {/* Deck header with name */}
                   <div className="px-3 py-1.5 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
-                    <h3 className="text-sm font-semibold">{expandedDeck.name}</h3>
+                    <h3 className="text-base font-semibold">{expandedDeck.name}</h3>
                     <Edit3 className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
+                    <span className="text-xs text-muted-foreground ml-auto tabular-nums">
                       {expandedCards.length} shown
                     </span>
                   </div>
@@ -507,7 +507,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           placeholder={t("review.deckManager.searchPlaceholder")}
-                          className="w-full pl-7 pr-6 py-1 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="w-full pl-7 pr-6 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                         />
                         {searchQuery && (
                           <button
@@ -532,7 +532,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                             <button
                               key={key || "all"}
                               onClick={() => setStateFilter(isActive ? "" : (key as StateFilter))}
-                              className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors tabular-nums whitespace-nowrap ${
+                              className={`text-xs px-2 py-0.5 rounded border transition-colors tabular-nums whitespace-nowrap ${
                                 isActive
                                   ? "border-primary bg-primary/10 text-primary"
                                   : count > 0
@@ -567,7 +567,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                         <button
                           key={field}
                           onClick={() => toggleSort(field)}
-                          className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                          className={`text-xs px-2 py-0.5 rounded transition-colors ${
                             sortField === field
                               ? "border border-primary bg-primary/10 text-primary"
                               : "hover:bg-muted text-muted-foreground"
@@ -581,7 +581,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                       <div className="ml-auto flex items-center gap-1">
                         <button
                           onClick={handleSelectAll}
-                          className="text-[10px] px-1.5 py-0.5 rounded hover:bg-muted text-muted-foreground"
+                          className="text-xs px-2 py-0.5 rounded hover:bg-muted text-muted-foreground"
                         >
                           {selectedIds.size === expandedCards.length && expandedCards.length > 0
                             ? "Deselect all"
@@ -594,24 +594,24 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   {/* Bulk action toolbar */}
                   {selectedIds.size > 0 && (
                     <div className="px-3 py-1 border-b border-border/50 bg-primary/5 flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] text-primary font-medium tabular-nums">
+                      <span className="text-xs text-primary font-medium tabular-nums">
                         {selectedIds.size} selected
                       </span>
                       <button
                         onClick={handleBulkSuspend}
-                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border hover:bg-muted"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-muted"
                       >
                         <Ban className="h-2.5 w-2.5" /> Suspend
                       </button>
                       <button
                         onClick={handleBulkUnsuspend}
-                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border hover:bg-muted"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-muted"
                       >
                         <Play className="h-2.5 w-2.5" /> Unsuspend
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-2.5 w-2.5" /> Delete
                       </button>
@@ -641,7 +641,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   )}
 
                   {/* Column headers */}
-                  <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex-shrink-0 select-none">
+                  <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 text-xs font-medium text-muted-foreground uppercase tracking-wider flex-shrink-0 select-none">
                     <div className="w-4 flex-shrink-0" />
                     <div className="w-[180px] flex-shrink-0">Card</div>
                     <div className="w-12 flex-shrink-0">Type</div>
@@ -662,7 +662,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   </div>
 
                   {/* Card list with VirtualList */}
-                  <div className="flex-1 overflow-hidden">
+                  <div className="flex-1 overflow-y-auto">
                     {expandedCards.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
                         <FolderOpen className="h-8 w-8" />
@@ -675,7 +675,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                     ) : (
                       <DynamicVirtualList
                         items={expandedCards}
-                        estimateSize={36}
+                        estimateSize={44}
                         overscan={10}
                         renderItem={(card) => {
                           const isExpanded = expandedCardId === card.id;
@@ -739,8 +739,8 @@ function StatPill({ icon, label, value, color, highlight }: {
     <div className="flex items-center gap-1.5 flex-shrink-0">
       <span className="text-muted-foreground">{icon}</span>
       <div>
-        <div className="text-[9px] text-muted-foreground leading-none">{label}</div>
-        <div className={`text-xs font-semibold tabular-nums leading-tight ${color ?? (highlight ? "text-primary" : "text-foreground")}`}>
+        <div className="text-[10px] text-muted-foreground leading-none">{label}</div>
+        <div className={`text-sm font-semibold tabular-nums leading-tight ${color ?? (highlight ? "text-primary" : "text-foreground")}`}>
           {value}
         </div>
       </div>
@@ -761,7 +761,7 @@ function RetagPopover({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border hover:bg-muted"
+        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-muted"
       >
         <Tag className="h-2.5 w-2.5" /> Retag
       </button>
