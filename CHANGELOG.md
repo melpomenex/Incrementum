@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.25.7] - 2026-04-28
+
+### Fixed
+- **PDF "Convert to HTML" crash on Linux** — fixed `TypeError: Null is not an object (evaluating 'this.#e.parentNode')` that occurred when switching from PDF to HTML view. Added unmount cleanup that cancels all in-flight pdf.js render tasks and text layer builders, and an `isConnected` guard after async text layer rendering to prevent DOM operations on detached containers.
+
 ## [1.25.6] - 2026-04-28
 
 ### Fixed

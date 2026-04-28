@@ -1059,7 +1059,7 @@ export function PDFViewer({
     setNavigationMode,
   ]);
 
-  // Cleanup position save timeout on unmount
+  // Cleanup on unmount: cancel all render tasks, text layers, highlights, and timeouts.
   useEffect(() => {
     return () => {
       if (positionSaveTimeoutRef.current) {
@@ -1068,6 +1068,14 @@ export function PDFViewer({
       clearNavigationSettleTimeout();
       // Clear selection highlights on unmount
       clearSelectionHighlights();
+      // Cancel any in-flight PDF render tasks and text layer builders
+      // to prevent "parentNode is null" errors when the DOM is detached.
+      for (let i = 0; i < renderTasksRef.current.length; i++) {
+        try { renderTasksRef.current[i]?.cancel(); } catch { /* ignore */ }
+      }
+      for (let i = 0; i < textLayerBuildersRef.current.length; i++) {
+        try { textLayerBuildersRef.current[i]?.cancel(); } catch { /* ignore */ }
+      }
     };
   }, [clearNavigationSettleTimeout, clearSelectionHighlights]);
 
@@ -1804,6 +1812,11 @@ export function PDFViewer({
 
         textLayerBuildersRef.current[pageIndex] = textLayerBuilder as PdfTextLayerRenderer;
         await textLayerBuilder.render({ viewport });
+      }
+      // Guard: if the text layer container was detached during async render,
+      // skip downstream DOM operations to avoid "parentNode is null" errors.
+      if (!textLayerContainer.isConnected) {
+        return true;
       }
       const hasSelectableText = hasSelectableTextInLayer(textLayerRootsRef.current[pageIndex]);
       setPageTextSelectionAvailability(pageNum, hasSelectableText);
