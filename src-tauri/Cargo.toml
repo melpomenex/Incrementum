@@ -134,3 +134,4 @@ tempfile = "3"
 [patch.crates-io]
 burn-ndarray = { path = "../vendor/burn-ndarray-0.17.1" }
 macerator = { path = "../vendor/macerator-0.2.10" }
+systemstat = { git = "https://github.com/melpomenex/systemstat", branch = "fix-android-procfs" }

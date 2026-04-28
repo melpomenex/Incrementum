@@ -15,7 +15,7 @@ describe("handbookContent", () => {
 
   it("returns localized handbook markdown when available", () => {
     expect(getHandbookMarkdown("zh")).toContain("# Incrementum 用户手册");
-    expect(getHandbookMarkdown("ja")).toContain("# Incrementum ユーザーハンドブック");
+    expect(getHandbookMarkdown("ja")).toContain("# インクリメンタム ユーザー ハンドブック");
     expect(getHandbookMarkdown("en")).toContain("# Incrementum User Handbook");
   });
 });
