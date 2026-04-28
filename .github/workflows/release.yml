@@ -164,8 +164,11 @@ jobs:
       #     # Enable keychain access for GitHub Actions
       #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_CERTIFICATE_PASSWORD" login.keychain-db || true
 
+      - name: Build frontend
+        run: npm run build
+
       - name: Build Tauri application
-        uses: tauri-apps/tauri-action@v0.6
+        run: npx tauri build ${{ matrix.tauri_args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
@@ -175,13 +178,8 @@ jobs:
           SQLITE3_STATIC: ${{ matrix.os == 'linux' && '0' || '1' }}
           VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
           SQLX_OFFLINE: "true"
-        with:
-          tagName: ${{ steps.get_version.outputs.VERSION }}
-          releaseName: 'Incrementum ${{ steps.get_version.outputs.VERSION }}'
-          releaseBody: 'See https://github.com/melpomenex/incrementum-tauri/releases/tag/${{ steps.get_version.outputs.VERSION }} for release notes.'
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.tauri_args }}
+          TAURI_SIGNING_IDENTITY: "-"
+          APPLE_SIGNING_IDENTITY: "-"
 
       - name: List Windows bundles (debug)
         if: matrix.os == 'windows'

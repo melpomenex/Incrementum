@@ -53,9 +53,7 @@ jobs:
         run: npm run build
 
       - name: Build Tauri application (Windows)
-        uses: tauri-apps/tauri-action@v0.6
-        with:
-          args: --bundles nsis
+        run: npx tauri build --bundles nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
@@ -203,10 +201,7 @@ jobs:
         run: npm run build
 
       - name: Build Tauri application
-        uses: tauri-apps/tauri-action@v0.6
-        with:
-          # AppImage remains in a dedicated job. Matrix builds focus on .deb, dmg, and nsis.
-          args: ${{ matrix.tauri_args }}
+        run: npx tauri build ${{ matrix.tauri_args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
@@ -215,6 +210,8 @@ jobs:
           SQLITE3_STATIC: ${{ matrix.os == 'linux' && '0' || '1' }}
           VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
           SQLX_OFFLINE: "true"
+          TAURI_SIGNING_IDENTITY: "-"
+          APPLE_SIGNING_IDENTITY: "-"
 
       - name: Verify Linux deb bundle includes NotebookLM runtime
         if: matrix.id == 'linux-x86_64'
