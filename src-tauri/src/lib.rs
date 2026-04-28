@@ -202,6 +202,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::Submenu;
+                // Build the app submenu with command palette shortcuts inline.
+                // This ensures Cmd+K/P fire reliably since WKWebView may
+                // otherwise swallow Cmd+K at the web layer.
                 let app_submenu = Submenu::with_items(
                     app,
                     "Incrementum",
@@ -210,6 +213,9 @@ pub fn run() {
                         &MenuItem::with_id(app, "about", "About Incrementum", true, None::<&str>)?,
                         &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "hide", "Hide Incrementum", true, Some("Cmd+H"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "accel-k", "Command Palette", true, Some("Cmd+K"))?,
+                        &MenuItem::with_id(app, "accel-p", "Command Palette (P)", true, Some("Cmd+P"))?,
                         &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "quit", "Quit Incrementum", true, Some("Cmd+Q"))?,
                     ],
@@ -233,22 +239,6 @@ pub fn run() {
             for (id, label, accel) in accel_items {
                 let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
                 menu.append(&item)?;
-            }
-
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::menu::Submenu;
-                let command_submenu = Submenu::new(app, "Commands", true)?;
-                let accel_items: &[(&str, &str, &str)] = &[
-                    ("accel-k",     "Command Palette", "Cmd+K"),
-                    ("accel-p",     "Command Palette Alternate", "Cmd+P"),
-                ];
-
-                for (id, label, accel) in accel_items {
-                    let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
-                    command_submenu.append(&item)?;
-                }
-                menu.append(&command_submenu)?;
             }
 
             Ok(menu)

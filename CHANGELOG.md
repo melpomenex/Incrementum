@@ -4,6 +4,7 @@
 
 ### Fixed
 - **PDF-to-HTML viewer styling** — completely overhauled the injected iframe styles for converted PDFs. Page cards now have proper shadows, rounded corners, and hover effects. Typography improved with better heading weights, letter-spacing, list/paragraph spacing, and code block styling. All colors respect the active app theme. Removed the overly aggressive universal selector that was stripping all element backgrounds.
+- **Cmd+K command palette on macOS** — moved Cmd+K and Cmd+P menu accelerators into the native app submenu (alongside About/Hide/Quit) so they fire reliably when the window is focused, instead of relying on a separate "Commands" submenu that WKWebView could swallow before the event reached the accelerator.
 
 ## [1.25.7] - 2026-04-28
 
