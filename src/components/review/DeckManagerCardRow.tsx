@@ -59,7 +59,7 @@ function DifficultyIndicator({ value }: { value: number }) {
     value <= 3 ? "bg-green-500" : value <= 6 ? "bg-yellow-500" : "bg-red-500";
   return (
     <div className="flex items-center gap-1">
-      <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
+      <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
         <div
           className={`h-full rounded-full ${color}`}
           style={{ width: `${pct}%` }}
@@ -90,7 +90,7 @@ export function DeckManagerCardRow({
 
   return (
     <div
-      className={`group flex items-center gap-2 px-3 py-1 border-b border-border/30 transition-colors cursor-pointer hover:bg-muted/40 text-xs ${
+      className={`group flex items-center gap-2 px-3 py-2 border-b border-border/30 transition-colors cursor-pointer hover:bg-muted/40 text-xs ${
         isExpanded ? "bg-muted/30" : ""
       } ${card.is_suspended ? "opacity-50" : ""}`}
       onClick={() => onExpand(card.id)}
@@ -102,33 +102,33 @@ export function DeckManagerCardRow({
             e.stopPropagation();
             onToggleSelect(card.id);
           }}
-          className={`w-3.5 h-3.5 rounded border transition-colors flex items-center justify-center ${
+          className={`w-4 h-4 rounded border transition-colors flex items-center justify-center ${
             isSelected
               ? "bg-primary border-primary text-primary-foreground"
               : "border-border hover:border-primary/50"
           }`}
         >
-          {isSelected && <Check className="h-2 w-2" />}
+          {isSelected && <Check className="h-2.5 w-2.5" />}
         </button>
       </div>
 
       {/* Question text */}
-      <div className="w-[180px] flex-shrink-0 min-w-0 truncate text-[11px] leading-tight" title={card.question.replace(/<[^>]*>/g, "")}>
+      <div className="w-[180px] flex-shrink-0 min-w-0 truncate text-xs leading-tight" title={card.question.replace(/<[^>]*>/g, "")}>
         {truncatedQ}
         {card.lapses >= 5 && (
-          <span title="Leech"><AlertTriangle className="h-2.5 w-2.5 text-yellow-500 inline ml-1 flex-shrink-0" /></span>
+          <span title="Leech"><AlertTriangle className="h-3 w-3 text-yellow-500 inline ml-1 flex-shrink-0" /></span>
         )}
       </div>
 
       {/* Type badge */}
       <div className="w-12 flex-shrink-0">
-        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${stateCfg.bg} ${stateCfg.color}`}>
+        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${stateCfg.bg} ${stateCfg.color}`}>
           {stateCfg.label}
         </span>
       </div>
 
       {/* Due date */}
-      <div className={`w-16 flex-shrink-0 text-[10px] tabular-nums ${due.urgent ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
+      <div className={`w-16 flex-shrink-0 text-xs tabular-nums ${due.urgent ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
         {due.text}
       </div>
 
@@ -138,7 +138,7 @@ export function DeckManagerCardRow({
       </div>
 
       {/* Stability */}
-      <div className="w-14 flex-shrink-0 text-[10px] text-muted-foreground tabular-nums" title={`${stability.toFixed(1)} days stability`}>
+      <div className="w-14 flex-shrink-0 text-xs text-muted-foreground tabular-nums" title={`${stability.toFixed(1)} days stability`}>
         {stability < 1 ? `${(stability * 24).toFixed(0)}h` : stability < 30 ? `${stability.toFixed(0)}d` : `${(stability / 30).toFixed(1)}mo`}
       </div>
 
@@ -147,20 +147,20 @@ export function DeckManagerCardRow({
         {card.tags.slice(0, 2).map((tag) => (
           <span
             key={tag}
-            className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground truncate max-w-[80px]"
+            className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground truncate max-w-[80px]"
             title={tag}
           >
             {tag}
           </span>
         ))}
         {card.tags.length > 2 && (
-          <span className="text-[9px] text-muted-foreground">+{card.tags.length - 2}</span>
+          <span className="text-[10px] text-muted-foreground">+{card.tags.length - 2}</span>
         )}
       </div>
 
       {/* Last Review */}
-      <div className="w-20 flex-shrink-0 text-[10px] text-muted-foreground tabular-nums flex items-center gap-0.5">
-        <Clock className="h-2.5 w-2.5 flex-shrink-0" />
+      <div className="w-20 flex-shrink-0 text-xs text-muted-foreground tabular-nums flex items-center gap-0.5">
+        <Clock className="h-3 w-3 flex-shrink-0" />
         {formatLastReview(card.last_review_date)}
       </div>
 
@@ -172,7 +172,7 @@ export function DeckManagerCardRow({
           }}
           className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
         >
-          <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </div>
     </div>
