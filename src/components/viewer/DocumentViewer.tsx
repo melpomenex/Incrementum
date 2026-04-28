@@ -3658,40 +3658,148 @@ export function DocumentViewer({
         --page-border: ${border} !important;
         --page-bg: ${card} !important;
       }
-      html {
+      html, body {
         background: ${bg} !important;
+        color: ${fg} !important;
       }
       body {
         font-size: ${fs.fontSize}px !important;
         line-height: ${fs.lineHeight} !important;
         font-family: ${ff} !important;
-        color: ${fg} !important;
-        background: ${bg} !important;
-        max-width: 900px !important;
+        max-width: 850px !important;
         margin: 0 auto !important;
-        padding: 2rem !important;
+        padding: 1.5rem !important;
       }
-      *:not(.persisted-text-highlight):not(mark[data-highlight-wrapper]) { color: ${fg} !important; background-color: transparent !important; }
-      html, body { background: ${bg} !important; }
-      a { color: ${primary} !important; }
-      h1, h2, h3, h4, h5, h6 { color: ${fg} !important; }
-      .pdf-header { border-color: ${border} !important; }
-      .pdf-header .meta { color: ${mutedFg} !important; }
+      /* Reset all text colors to foreground, but preserve page card backgrounds */
+      body, .page, .page-content, .page-content *,
+      .pdf-header, .pdf-header *, .line-block {
+        color: ${fg} !important;
+      }
+      /* Preserve explicit background on page cards and header */
       .page {
         background-color: ${card} !important;
-        border-color: ${border} !important;
+        border: 1px solid ${border} !important;
+        border-radius: 8px !important;
+        padding: 2.5rem 2.75rem !important;
+        margin-bottom: 1.25rem !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04) !important;
+        transition: box-shadow 0.2s ease !important;
+      }
+      .page:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05) !important;
+      }
+      .page:last-child {
+        margin-bottom: 0 !important;
+      }
+      .pdf-header {
+        text-align: center !important;
+        padding: 1.5rem 0 1.25rem !important;
+        margin-bottom: 1.5rem !important;
+        border-bottom: 2px solid ${border} !important;
+      }
+      .pdf-header h1 {
+        font-size: 1.65rem !important;
+        font-weight: 700 !important;
+        margin: 0 0 0.35rem !important;
+        letter-spacing: -0.02em !important;
+      }
+      .pdf-header .meta {
+        color: ${mutedFg} !important;
+        font-size: 0.85rem !important;
+      }
+      .page-header {
+        font-size: 0.7rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        color: ${mutedFg} !important;
+        opacity: 0.7 !important;
+        margin-bottom: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 1px solid ${border} !important;
+      }
+      .page-content h2 {
+        font-size: 1.4rem !important;
+        font-weight: 700 !important;
+        margin: 1.4em 0 0.6em !important;
+        letter-spacing: -0.01em !important;
+      }
+      .page-content h3 {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        margin: 1.2em 0 0.5em !important;
+      }
+      .page-content p {
+        margin: 0 0 0.85em !important;
+      }
+      .page-content table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 1em 0 !important;
+        font-size: 0.92em !important;
+      }
+      .page-content td,
+      .page-content th {
+        border: 1px solid ${border} !important;
+        padding: 0.4rem 0.6rem !important;
+        vertical-align: top !important;
+      }
+      .page-content th {
+        font-weight: 600 !important;
+        background: ${muted} !important;
+      }
+      .page-content ul,
+      .page-content ol {
+        margin: 0 0 0.85em 1.5em !important;
+        padding: 0 !important;
+      }
+      .page-content li {
+        margin-bottom: 0.25em !important;
       }
       code, pre {
         background: ${muted} !important;
         color: ${fg} !important;
         border: 1px solid ${border} !important;
+        border-radius: 4px !important;
+        font-size: 0.88em !important;
       }
-      table { border-collapse: collapse !important; }
-      td, th { border: 1px solid ${border} !important; padding: 0.5em !important; color: ${fg} !important; }
-      blockquote { border-left: 3px solid ${border} !important; color: ${mutedFg} !important; }
-      img { max-width: 100% !important; height: auto !important; }
+      pre {
+        padding: 1rem !important;
+        overflow-x: auto !important;
+      }
+      blockquote {
+        border-left: 3px solid ${primary} !important;
+        color: ${mutedFg} !important;
+        padding-left: 1rem !important;
+        margin: 1em 0 !important;
+        font-style: italic !important;
+      }
+      a { color: ${primary} !important;
+        text-decoration: underline !important;
+        text-underline-offset: 2px !important;
+      }
+      a:hover { opacity: 0.8 !important; }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+        border-radius: 6px !important;
+        border: 1px solid ${border} !important;
+        margin: 0.75rem 0 !important;
+      }
+      .line-block {
+        white-space: pre-wrap !important;
+        margin: 0 0 1em !important;
+        font-size: 0.92em !important;
+        color: ${mutedFg} !important;
+      }
       ::selection { background: ${primary}33; }
-      mark[data-search-highlight], mark[data-viewer-search] { color: ${fg} !important; }
+      mark[data-search-highlight], mark[data-viewer-search] {
+        color: ${fg} !important;
+        background: ${primary}33 !important;
+        border-radius: 2px !important;
+        padding: 0 2px !important;
+      }
+      /* Smooth scrolling inside the converted document */
+      html { scroll-behavior: smooth !important; }
     `;
   }, [settings.documents.htmlSettings, appTheme]);
 
