@@ -1,23 +1,74 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
-    // On macOS, fix the rpath of the whisper sidecar binary so it can find
-    // libwhisper.dylib and libggml*.dylib in the Resources/bin directory.
-    // The sidecar is placed at Contents/MacOS/whisper, dylibs at
-    // Contents/Resources/bin/, so we need @executable_path/../Resources/bin.
+    // On macOS, fix the whisper sidecar binary's dylib references.
+    //
+    // The upstream whisper binary has hardcoded LC_RPATH entries pointing to
+    // the original build directory (e.g. /Volumes/external/.../whisper.cpp/build/...).
+    // macOS resolves @rpath entries in order, so those stale paths are tried first
+    // and all fail — even if we add a correct rpath, the dylib load errors out.
+    //
+    // The dylibs are bundled via tauri.conf.json "resources" and land in
+    // Contents/Resources/bin/. The sidecar binary lives at Contents/MacOS/whisper.
+    // So we need @executable_path/../Resources/bin as the rpath.
+    //
+    // Fix: delete all stale LC_RPATH entries first, then add the correct one.
     if cfg!(target_os = "macos") {
         let bin_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin");
-        for entry in std::fs::read_dir(&bin_dir).unwrap() {
-            let entry = entry.unwrap();
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
-            if name_str.starts_with("whisper-") && name_str.contains("apple") {
-                let binary_path = entry.path();
-                let _ = std::process::Command::new("install_name_tool")
-                    .args(["-add_rpath", "@executable_path/../Resources/bin"])
-                    .arg(&binary_path)
-                    .output();
+
+        // Collect all whisper-apple binaries in bin/
+        let whisper_bins: Vec<std::path::PathBuf> = std::fs::read_dir(&bin_dir)
+            .unwrap()
+            .filter_map(|e| {
+                let e = e.unwrap();
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with("whisper-") && name.contains("apple") {
+                    Some(e.path())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for binary_path in &whisper_bins {
+            // Read existing rpaths and delete any that point to /Volumes/external/
+            // (the original build machine) or any absolute paths that aren't
+            // @executable_path-based.
+            let output = std::process::Command::new("otool")
+                .args(["-l", &binary_path.to_string_lossy()])
+                .output()
+                .ok();
+
+            if let Some(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                // Parse rpaths from otool -l output
+                let mut rpaths = Vec::new();
+                for line in stdout.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("path ") && trimmed.contains("/Volumes/") {
+                        // Extract just the path portion
+                        if let Some(path) = trimmed.strip_prefix("path ") {
+                            if let Some(path) = path.split_whitespace().next() {
+                                rpaths.push(path.to_string());
+                            }
+                        }
+                    }
+                }
+
+                // Delete each stale rpath
+                for rpath in &rpaths {
+                    let _ = std::process::Command::new("install_name_tool")
+                        .args(["-delete_rpath", rpath])
+                        .arg(binary_path)
+                        .output();
+                }
             }
+
+            // Add the correct rpath: Contents/MacOS/whisper -> Contents/Resources/bin/
+            let _ = std::process::Command::new("install_name_tool")
+                .args(["-add_rpath", "@executable_path/../Resources/bin"])
+                .arg(binary_path)
+                .output();
         }
     }
 
