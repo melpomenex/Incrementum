@@ -129,7 +129,7 @@ export function processHtmlContent(rawHtml: string, baseUrl: string, title: stri
     doc.head.insertBefore(baseTag, doc.head.firstChild);
   }
 
-  // Keep the saved page visually close to the source. Only add guardrails for sizing.
+  // Add guardrails for sizing (inline styles stripped above; viewer CSS handles theming).
   const styleTag = doc.createElement('style');
   styleTag.textContent = `
     html, body {
