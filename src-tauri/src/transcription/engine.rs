@@ -165,15 +165,6 @@ impl TranscriptionEngine {
                     format!("{}:{}", bin_str, existing_ld)
                 };
                 cmd = cmd.env("LD_LIBRARY_PATH", &ld_path);
-
-                // macOS: DYLD_LIBRARY_PATH (needed for @rpath resolution in sidecars)
-                let existing_dyld = std::env::var("DYLD_LIBRARY_PATH").unwrap_or_default();
-                let dyld_path = if existing_dyld.is_empty() {
-                    bin_str.to_string()
-                } else {
-                    format!("{}:{}", bin_str, existing_dyld)
-                };
-                cmd = cmd.env("DYLD_LIBRARY_PATH", &dyld_path);
             }
         }
 

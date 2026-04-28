@@ -4,7 +4,10 @@
 
 ### Fixed
 
-- **Transcription "No such file or directory" on macOS** — the app now correctly finds ffmpeg installed via Homebrew. macOS GUI apps don't inherit the shell PATH, so ffmpeg at `/opt/homebrew/bin/ffmpeg` (Apple Silicon) or `/usr/local/bin/ffmpeg` (Intel) was invisible. The ffmpeg resolver now checks Homebrew locations directly. Audio files are also copied to app-managed storage at import time to prevent sandbox permission errors.
+- **Transcription "No such file or directory" on macOS** — three fixes:
+  1. The app now finds ffmpeg installed via Homebrew (`/opt/homebrew/bin` or `/usr/local/bin`). macOS GUI apps don't inherit the shell PATH, so ffmpeg was invisible.
+  2. Audio files are copied to app-managed storage at import time to prevent sandbox permission errors.
+  3. The whisper shared libraries (`libwhisper*.dylib`, `libggml*.dylib`) are now included in the macOS app bundle so the sidecar binary can find them at runtime.
 - **Transcription queue entries cannot be removed** — the transcription queue now supports clearing entries. New "Clear Failed", "Clear Completed", and "Clear All Finished" buttons appear above the queue when relevant entries exist. Individual entries can also be removed with a per-row remove button. Previously, failed and completed entries accumulated indefinitely with no way to clean them up.
 
 ## [1.25.2] - 2026-04-27

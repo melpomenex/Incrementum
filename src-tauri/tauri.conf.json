@@ -44,10 +44,16 @@
     ],
     "resources": [
       "bin/libggml-base.so*",
+      "bin/libggml-base*.dylib",
       "bin/libggml-cpu.so*",
+      "bin/libggml-cpu*.dylib",
+      "bin/libggml-blas*.dylib",
+      "bin/libggml-metal*.dylib",
       "bin/libggml-vulkan.so*",
       "bin/libggml.so*",
-      "bin/libwhisper.so*"
+      "bin/libggml*.dylib",
+      "bin/libwhisper.so*",
+      "bin/libwhisper*.dylib"
     ],
     "icon": [
       "icons/32x32.png",
