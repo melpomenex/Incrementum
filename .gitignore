@@ -60,3 +60,4 @@ yjs-sync/.env
 src-tauri/bin/notebooklm-runtime/**/*
 !src-tauri/bin/notebooklm-runtime/.gitkeep
 squashfs-root/
+incrementum-tauri

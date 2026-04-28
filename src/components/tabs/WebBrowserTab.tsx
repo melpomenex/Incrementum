@@ -13,6 +13,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,6 +35,7 @@ import {
 } from "lucide-react";
 import { isTauri, getPlatform } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
+import { getShortcutCombo } from "../common/KeyboardShortcuts";
 import { createExtract, type CreateExtractInput } from "../../api/extracts";
 import { createLearningItem } from "../../api/learning-items";
 import { createDocument } from "../../api/documents";
@@ -368,6 +370,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
   const webviewContainerRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
   const [extractsExpanded, setExtractsExpanded] = useState(true);
+  const webviewIsVisibleRef = useRef(true);
 
   const assistantContext = useMemo<AssistantContext>(() => {
     return currentUrl ? { type: "web", url: currentUrl } : { type: "web" };
@@ -508,7 +511,32 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     // For Tauri: use the extract bridge to get selection
     if (isTauri() && webviewRef.current) {
       try {
-        // First, try to poll for selection data from the bridge
+        // Ask the bridge to save the current selection immediately
+        await (webviewRef.current as any).evaluateJavaScript(`
+          (function(){
+            var sel = window.getSelection();
+            if (sel && sel.toString().trim().length >= 3) {
+              // Re-use the bridge's save function
+              var data = {
+                text: sel.toString().trim(),
+                html: (function(){
+                  if (!sel.rangeCount) return '';
+                  var range = sel.getRangeAt(0);
+                  var fragment = range.cloneContents();
+                  var div = document.createElement('div');
+                  div.appendChild(fragment);
+                  return div.innerHTML;
+                })(),
+                url: window.location.href,
+                title: document.title,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('__incrementum_selection_data', JSON.stringify(data));
+            }
+          })()
+        `).catch(() => {});
+
+        // Then poll for the data the bridge just saved
         const bridgeData = await pollWebviewSelection();
         if (bridgeData?.text) {
           selectedText = bridgeData.text;
@@ -1003,6 +1031,69 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     };
   }, []);
 
+  // Hide/show the native webview when the browser tab is hidden/visible.
+  // TabContent uses CSS `hidden` on inactive tabs, but native webviews are
+  // OS-level widgets that ignore CSS. We use IntersectionObserver to detect
+  // when the container becomes invisible (due to parent `display:none` or
+  // `visibility:hidden`) and call webview.hide()/show() accordingly.
+  useEffect(() => {
+    if (!isTauri() || !webviewContainerRef.current) return;
+
+    const container = webviewContainerRef.current;
+    let observer: IntersectionObserver | null = null;
+
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const isVisible = entry.isIntersecting && entry.intersectionRatio > 0;
+            if (isVisible === webviewIsVisibleRef.current) continue;
+            webviewIsVisibleRef.current = isVisible;
+
+            if (webviewRef.current) {
+              if (isVisible) {
+                console.log("[WebBrowserTab] Webview becoming visible, showing");
+                void webviewRef.current.show().catch(() => {});
+              } else {
+                console.log("[WebBrowserTab] Webview becoming hidden, hiding");
+                void webviewRef.current.hide().catch(() => {});
+              }
+            }
+          }
+        },
+        { threshold: 0 }
+      );
+      observer.observe(container);
+    } catch (e) {
+      console.warn("[WebBrowserTab] IntersectionObserver not available:", e);
+    }
+
+    return () => {
+      observer?.disconnect();
+    };
+  }, [isTauri]);
+
+  // When the extract dialog opens, hide the native webview so the React modal
+  // (which renders in the webview window, behind the native webview widget)
+  // becomes visible. Restore bounds when the dialog closes.
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    if (extractDialog) {
+      // Hide the native webview while the dialog is open
+      if (webviewRef.current && webviewIsVisibleRef.current) {
+        console.log("[WebBrowserTab] Extract dialog open, hiding webview");
+        void webviewRef.current.hide().catch(() => {});
+      }
+    } else {
+      // Show the native webview when the dialog closes (only if tab is visible)
+      if (webviewRef.current && webviewIsVisibleRef.current) {
+        console.log("[WebBrowserTab] Extract dialog closed, showing webview");
+        void webviewRef.current.show().catch(() => {});
+      }
+    }
+  }, [extractDialog, isTauri]);
+
   // Load bookmarks and extracts from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("web-browser-bookmarks");
@@ -1021,17 +1112,64 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     localStorage.setItem("web-browser-extracts", JSON.stringify(savedExtracts));
   }, [savedExtracts]);
 
-  // Keyboard shortcut: Ctrl/Cmd + Shift + E to create extract
+  // Keyboard shortcut: respond to both the app-wide 'extract-text' event
+  // (dispatched by the configurable shortcut system) and the hardcoded
+  // Ctrl/Cmd+Shift+E fallback. When triggered, attempt to pull selection
+  // from the webview bridge (Tauri) or iframe (web).
   useEffect(() => {
+    const handleExtractTextEvent = () => {
+      handleCreateExtract();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         handleCreateExtract();
       }
     };
+
+    window.addEventListener('extract-text', handleExtractTextEvent);
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('extract-text', handleExtractTextEvent);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [handleCreateExtract]);
+
+  // Push the user's configured extract-text shortcut into the native webview
+  // bridge so it responds to the same key combo the user set in settings.
+  const pushShortcutToWebview = useCallback(() => {
+    if (!isTauri() || !webviewRef.current || !currentUrl) return;
+    const combo = getShortcutCombo("edit.extract-text");
+    if (!combo) return;
+    const shortcut = JSON.stringify({
+      ctrl: combo.ctrl || false,
+      alt: combo.alt || false,
+      shift: combo.shift || false,
+      meta: combo.meta || false,
+      key: combo.key,
+    });
+    (webviewRef.current as any)
+      .evaluateJavaScript(`
+        (function(){
+          var bridge = window.__incrementum;
+          if (bridge) bridge._setShortcut(${shortcut});
+        })()
+      `)
+      .catch(() => {});
+  }, [isTauri, currentUrl]);
+
+  // Push shortcut after webview is created / URL changes
+  useEffect(() => {
+    pushShortcutToWebview();
+  }, [pushShortcutToWebview]);
+
+  // Re-push when the user changes their shortcut in settings
+  useEffect(() => {
+    const { useShortcutStore } = require("../common/KeyboardShortcuts") as { useShortcutStore: any };
+    const unsub = useShortcutStore.subscribe(pushShortcutToWebview);
+    return () => unsub();
+  }, [pushShortcutToWebview]);
 
   return (
     <div className="h-full w-full flex flex-col min-h-0">
@@ -1344,13 +1482,16 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         )}
       </div>
 
-      {/* Extract Dialog */}
-      {extractDialog && (
+      {/* Extract Dialog — rendered via portal to document.body so it always
+          * appears above iframes (which create their own stacking context) and
+          * above the native webview widget (Tauri path handled by hide/show). */}
+      {extractDialog && createPortal(
         <ExtractDialog
           extract={extractDialog}
           onSave={handleSaveExtract}
           onClose={() => setExtractDialog(null)}
-        />
+        />,
+        document.body
       )}
     </div>
   );
