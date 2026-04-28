@@ -237,14 +237,30 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     hideButton();
   }
   
+  // Configurable shortcut — defaults to Ctrl/Cmd+Shift+E, updated via _setShortcut
+  let shortcutConfig = { ctrl: true, meta: true, shift: true, alt: false, key: 'E' };
+
+  function matchesShortcut(e) {
+    const sk = shortcutConfig;
+    // meta is treated as an alias for ctrl on macOS when ctrl is not set (and vice versa)
+    const wantCtrl = sk.ctrl || (sk.meta && !sk.ctrl);
+    const wantMeta = sk.meta || (sk.ctrl && !sk.meta);
+    const gotCtrl = e.ctrlKey || e.metaKey; // either modifier counts on any OS
+    return (
+      gotCtrl === (wantCtrl || wantMeta) &&
+      e.altKey === !!sk.alt &&
+      e.shiftKey === !!sk.shift &&
+      e.key.toUpperCase() === sk.key.toUpperCase()
+    );
+  }
+
   // Keyboard shortcut handler
   function handleKeyDown(e) {
-    // Ctrl/Cmd + Shift + E
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
+    if (matchesShortcut(e)) {
       e.preventDefault();
       const selection = window.getSelection();
       const text = selection ? selection.toString().trim() : '';
-      
+
       if (text.length >= CONFIG.MIN_SELECTION_LENGTH) {
         saveSelectionAndNotify();
       }
@@ -299,7 +315,10 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     hasSelection: () => {
       const sel = window.getSelection();
       return sel && sel.toString().trim().length >= CONFIG.MIN_SELECTION_LENGTH;
-    }
+    },
+    _setShortcut: (combo) => {
+      shortcutConfig = combo;
+    },
   };
   
   console.log('[Incrementum] Extract bridge initialized');

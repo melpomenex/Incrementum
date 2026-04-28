@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.25.4] - 2026-04-27
+
+### Fixed
+
+- **Web browser tab: extract dialog hidden behind native webview** — the "Create Extract" modal now properly appears on top of the website content in the in-app browser. On Tauri, the native webview widget is temporarily hidden while the dialog is open. On web, the dialog is rendered via a React portal to break out of iframe stacking contexts.
+- **Web browser tab: iframe/webview persists when switching tabs** — the native webview (Tauri) or website iframe (web) no longer stays visible when switching to a different tab. An IntersectionObserver detects tab visibility changes and hides/shows the webview accordingly.
+- **Web browser tab: configurable extract shortcut now works in webview** — the user's configured extract-text shortcut (set in Settings → Keyboard Shortcuts) now works inside the in-app browser's native webview. Previously only the hardcoded Ctrl+Shift+E was recognized inside the webview. The shortcut is pushed to the injected bridge script and updates live when settings change.
+
 ## [1.25.3] - 2026-04-27
 
 ### Fixed
