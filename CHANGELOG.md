@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.25.5] - 2026-04-28
+
+### Changed
+
+- **Deck Manager redesign** — complete rewrite to a dense, information-rich three-column layout inspired by Anki's deck browser:
+  - **Left sidebar**: compact deck tree with card counts and due counts per deck
+  - **Center**: inline stats row (Total, Due Today, New, Learning, Mature, Retention), filter chips with live counts (All, New, Learning, Review, Suspended, Leeches), action buttons, sort controls, and dense card table with columns for checkbox, question preview, type badge, due date, difficulty bar, stability, tags, last review, and actions
+  - **Right sidebar**: deck details, stats breakdown with maturity bar, today's forecast, algorithm-specific metrics, top tags, and quick actions
+  - All existing functionality preserved: search, sort, filter, bulk operations, inline card editing
+
+- **Algorithm-aware metrics** — the right sidebar metrics section now dynamically detects which spaced repetition algorithms are used by cards in the deck and shows tailored metrics for each:
+  - **FSRS-6**: retention, avg difficulty, avg stability, target retention
+  - **SuperMemo 18 / 20**: retention, avg difficulty, avg stability
+  - **SM-2**: retention, avg difficulty, avg ease factor, avg interval
+  - Mixed-algorithm decks show a separate panel per algorithm with card counts
+
 ## [1.25.4] - 2026-04-27
 
 ### Fixed
