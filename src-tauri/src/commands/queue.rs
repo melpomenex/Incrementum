@@ -168,7 +168,11 @@ async fn get_queue_items_from_repo(
         };
 
         let _content_preview = if extract.content.len() > 100 {
-            format!("{}...", &extract.content[..100])
+            let mut end = 100;
+            while end > 0 && !extract.content.is_char_boundary(end) {
+                end -= 1;
+            }
+            format!("{}...", &extract.content[..end])
         } else {
             extract.content.clone()
         };
