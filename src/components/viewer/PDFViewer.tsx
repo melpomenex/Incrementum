@@ -1120,11 +1120,19 @@ export function PDFViewer({
       for (let i = start; i <= end; i += 1) {
         if (!mounted || renderId !== renderIdRef.current) return;
         if (renderedPagesRef.current.has(i)) continue;
-        const ok = await renderPage(pdf, i);
-        if (ok) {
-          renderedPagesRef.current.add(i);
-        } else {
-          needsRetry = true;
+        try {
+          const ok = await renderPage(pdf, i);
+          if (ok) {
+            renderedPagesRef.current.add(i);
+          } else {
+            needsRetry = true;
+          }
+        } catch (err: any) {
+          // Swallow errors from pages whose DOM was detached during render
+          // (e.g. component unmount, view mode switch). Common in pdf.js when
+          // canvas/textLayer.parentNode is null due to React cleanup.
+          if (!mounted) return;
+          console.warn(`[PDFViewer] Page ${i} render error:`, err?.message || err);
         }
       }
 
@@ -1389,8 +1397,12 @@ export function PDFViewer({
               if (renderId !== renderIdRef.current) {
                 return;
               }
-              const ok = await renderPage(pdf, i);
-              if (ok) renderedPagesRef.current.add(i);
+              try {
+                const ok = await renderPage(pdf, i);
+                if (ok) renderedPagesRef.current.add(i);
+              } catch {
+                // Swallow render errors on detached DOM during resize re-render
+              }
             }
 
             // Restore scroll position after re-render (based on percentage)
@@ -1781,8 +1793,12 @@ export function PDFViewer({
     try {
       await renderTask.promise;
     } catch (err: any) {
-      // Ignore cancelled render errors
+      // Ignore cancelled render errors and DOM-detached errors
       if (err?.name === 'RenderingCancelledException') {
+        return false;
+      }
+      if (err?.message?.includes('parentNode')) {
+        console.warn(`[PDFViewer] Page ${pageNum} render cancelled (DOM detached):`, err.message);
         return false;
       }
       throw err;

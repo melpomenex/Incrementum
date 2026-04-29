@@ -31,6 +31,7 @@ export interface ToastData {
     label: string;
     onClick: () => void;
   };
+  /** @deprecated Kept for compat; progress is now driven by CSS transition */
   progress?: number;
 }
 
@@ -42,6 +43,7 @@ interface ToastStore {
   addToast: (toast: Omit<ToastData, "id" | "progress">) => string;
   removeToast: (id: string) => void;
   clearAll: () => void;
+  /** @deprecated No longer used; progress is now CSS-driven */
   updateProgress: (id: string, progress: number) => void;
 }
 
@@ -65,20 +67,14 @@ export const useToastStore = create<ToastStore>((set, get) => ({
     });
 
     // Animate progress bar
-    const duration = toast.duration ?? 5000;
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.max(0, 100 - (elapsed / duration) * 100);
-      
-      get().updateProgress(id, progress);
-      
-      if (progress <= 0) {
-        clearInterval(interval);
-      }
-    }, 50);
+    // NOTE: progress animation is now driven entirely by CSS transition
+    // on the ToastItem progress bar. We no longer use setInterval to
+    // update progress in the store, which previously caused excessive
+    // Zustand re-renders (React max-update-depth errors) in heavy
+    // components like DocumentViewer.
 
     // Auto-remove after duration
+    const duration = toast.duration ?? 5000;
     setTimeout(() => {
       set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),
@@ -169,12 +165,12 @@ function ToastItem({ toast, onRemove }: { toast: ToastData; onRemove: (id: strin
       role="alert"
       aria-live="polite"
     >
-      {/* Progress bar */}
+      {/* Progress bar — CSS animation drives the shrink, no JS state updates */}
       <div
-        className={`absolute bottom-0 left-0 h-0.5 ${styles.progress} transition-all duration-100 ease-linear`}
-        style={{ 
-          width: `${toast.progress}%`,
-          animationPlayState: isPaused ? "paused" : "running"
+        className={`absolute bottom-0 left-0 h-0.5 ${styles.progress} toast-progress-bar`}
+        style={{
+          animationDuration: `${toast.duration ?? 5000}ms`,
+          animationPlayState: isPaused ? "paused" : "running",
         }}
         aria-hidden="true"
       />
@@ -315,10 +311,24 @@ const toastStyles = `
       transform: translateY(0) scale(1);
     }
   }
-  
+
+  @keyframes toast-shrink {
+    from { width: 100%; }
+    to   { width: 0%; }
+  }
+
   .animate-slide-up {
     animation: slide-up 0.2s ease-out;
   }
+
+  .toast-progress-bar {
+    /* Width shrinks from 100% to 0%; actual duration set via inline style */
+    animation-name: toast-shrink;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    animation-play-state: running;
+  }
+
 `;
 
 // Inject styles if not already present
