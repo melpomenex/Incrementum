@@ -29,7 +29,7 @@ function formatRetention(rate: number): { text: string; color: string } {
 
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
       {icon}
       {label}
     </div>
@@ -41,7 +41,7 @@ function StatRow({ label, value, color, onClick }: { label: string; value: strin
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`flex items-center justify-between w-full text-[11px] py-0.5 ${onClick ? "hover:bg-muted/50 rounded px-1 -mx-1" : ""}`}
+      className={`flex items-center justify-between w-full text-xs py-0.5 ${onClick ? "hover:bg-muted/50 rounded px-1 -mx-1" : ""}`}
     >
       <span className="text-muted-foreground">{label}</span>
       <span className={`tabular-nums font-medium ${color ?? "text-foreground"}`}>
@@ -197,14 +197,14 @@ export function DeckStatsPanel({
       {/* Deck Details */}
       <section>
         <SectionHeader icon={<Info className="h-3 w-3" />} label="Deck Details" />
-        <div className="mt-1 space-y-0.5 text-[11px]">
+        <div className="mt-1 space-y-0.5 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Name</span>
             <span className="font-medium">{deck.name}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Tags</span>
-            <span className="text-[10px] text-foreground truncate max-w-[140px]" title={deck.tagFilters.join(", ")}>
+            <span className="text-xs text-foreground truncate max-w-[140px]" title={deck.tagFilters.join(", ")}>
               {deck.tagFilters.length > 0 ? deck.tagFilters.join(", ") : "—"}
             </span>
           </div>
@@ -286,7 +286,7 @@ export function DeckStatsPanel({
               return (
                 <div key={algo} className="rounded-md border border-border/60 p-1.5 space-y-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[10px] font-semibold text-foreground">{displayName}</span>
+                    <span className="text-xs font-semibold text-foreground">{displayName}</span>
                     <span className="text-[9px] text-muted-foreground tabular-nums">{count} card{count !== 1 ? "s" : ""}</span>
                   </div>
                   {/* Shared metrics */}
@@ -347,7 +347,7 @@ export function DeckStatsPanel({
       <section>
         <SectionHeader icon={<Activity className="h-3 w-3" />} label="Quick Actions" />
         <div className="mt-1 space-y-1">
-          <button className="w-full flex items-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
             <GraduationCap className="h-3 w-3" />
             Study Now
             {stats.dueToday > 0 && (
@@ -356,15 +356,15 @@ export function DeckStatsPanel({
               </span>
             )}
           </button>
-          <button className="w-full flex items-center gap-1.5 text-[11px] px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
             <Plus className="h-3 w-3" />
             New Card
           </button>
-          <button className="w-full flex items-center gap-1.5 text-[11px] px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
             <Download className="h-3 w-3" />
             Import
           </button>
-          <button className="w-full flex items-center gap-1.5 text-[11px] px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
             <Upload className="h-3 w-3" />
             Export
           </button>

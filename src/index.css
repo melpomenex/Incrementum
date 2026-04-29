@@ -2,6 +2,15 @@
 @import "katex/dist/katex.min.css";
 @import "./styles/reading.css";
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

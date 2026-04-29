@@ -42,7 +42,7 @@ export function ReviewTab() {
   }
 
   if (mode === "deck-manager") {
-    return <DeckManager onBack={() => setMode("home")} />;
+    return <DeckManager onBack={() => setMode("home")} onStartReview={handleStartReview} />;
   }
 
   return (

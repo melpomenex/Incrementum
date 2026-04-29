@@ -1507,6 +1507,28 @@ pub const MIGRATIONS: &[Migration] = &[
         ON transcription_queue(document_id);
         "#,
     ),
+    // Migration 041: Add review_log table for Anki revlog import
+    Migration::new(
+        "041_add_review_log",
+        r#"
+        CREATE TABLE IF NOT EXISTS review_log (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            rating INTEGER NOT NULL,
+            interval_days REAL NOT NULL,
+            last_interval_days REAL,
+            ease_factor REAL NOT NULL,
+            time_ms INTEGER NOT NULL,
+            review_type INTEGER NOT NULL,
+            source TEXT NOT NULL DEFAULT 'anki-import',
+            anki_revlog_id INTEGER,
+            timestamp TEXT NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES learning_items(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_review_log_item_id ON review_log(item_id);
+        CREATE INDEX IF NOT EXISTS idx_review_log_timestamp ON review_log(timestamp);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path
