@@ -43,6 +43,7 @@ import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores";
+import { loadGoogleFont } from "../../utils/fonts";
 import { useI18n } from "../../lib/i18n";
 
 /**
@@ -792,6 +793,7 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
   // Apply font family when it changes
   useEffect(() => {
     applyFontFamily(settings.appearance.fontFamily);
+    loadGoogleFont(settings.appearance.fontFamily);
   }, [settings.appearance.fontFamily]);
 
   const handleToolbarPositionChange = (value: "top" | "left" | "right") => {

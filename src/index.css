@@ -14,6 +14,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* Font — consumed from --font-family which ThemeContext / settings set */
+  --font-sans: var(--font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --font-serif: var(--font-family-serif, ui-serif, Georgia, "Times New Roman", serif);
+  --font-mono: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+
   /* Primary Colors */
   --color-primary-50: #f0f9ff;
   --color-primary-100: #e0f2fe;
@@ -86,6 +91,7 @@
   body {
     color: var(--color-foreground);
     background-color: var(--color-background);
+    font-family: var(--font-family);
   }
 
   :root[data-theme="dark"] {
