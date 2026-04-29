@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { NewMainLayout, MainContent } from "./components/layout/NewMainLayout";
 import { useAnalyticsStore } from "./stores/analyticsStore";
 import { useDocumentStore } from "./stores/documentStore";
+import { useStudyDeckStore } from "./stores/studyDeckStore";
 import { invokeCommand } from "./lib/tauri";
 import * as syncClient from "./lib/sync-client";
 import { LoginModal } from "./components/auth/LoginModal";
@@ -24,6 +25,9 @@ import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
 import { QuickReviewWidget, InlineQuickReview, FloatingReviewButton } from "./components/review/QuickReviewWidget";
 import { ShortcutTooltip } from "./components/common/ShortcutTooltip";
 import { ClipboardQuickAddWatcher } from "./components/common/ClipboardQuickAddWatcher";
+import { GlobalPasteHandler } from "./components/common/GlobalPasteHandler";
+import { DragDropUpload } from "./components/common/DragDropUpload";
+import { importAnkiPackage } from "./utils/ankiImport";
 import {
   dispatchCommandPaletteOpenFromNativeShortcut,
   dispatchCommandPaletteOpen,
@@ -165,6 +169,82 @@ const SHORTCUT_ACTION_HANDLERS: Record<string, (d: ShortcutDispatch) => void> = 
   "view.fullscreen": () => window.dispatchEvent(new CustomEvent("view-fullscreen")),
   "view.sidebar": () => window.dispatchEvent(new CustomEvent("toggle-sidebar")),
 };
+
+/**
+ * Global drag-drop handler.
+ * Renders DragDropUpload at the App level so drops work from any page.
+ * Uses the document store for import logic.
+ */
+function GlobalDragDropHandler({ activePage }: { activePage: string }) {
+  // Only render when NOT on the documents page — DocumentsView has its own DragDropUpload
+  // with richer callbacks (open document, bundle preview, etc.)
+  if (activePage === "documents") return null;
+
+  const importFromFiles = useDocumentStore((s) => s.importFromFiles);
+  const loadDocuments = useDocumentStore((s) => s.loadDocuments);
+  const toast = useToast();
+
+  const handleFilesImported = useCallback(
+    async (filePaths: string[]) => {
+      try {
+        const docs = await importFromFiles(filePaths);
+        await loadDocuments();
+        toast.success(
+          `${docs.length} file${docs.length !== 1 ? "s" : ""} imported`,
+          "Added to your library"
+        );
+      } catch (err) {
+        console.error("[GlobalDragDrop] Import failed:", err);
+        toast.error("Import failed", err instanceof Error ? err.message : undefined);
+      }
+    },
+    [importFromFiles, loadDocuments, toast]
+  );
+
+  const handleAnkiPackage = useCallback(
+    async (filePath: string) => {
+      try {
+        const decks = await importAnkiPackage(filePath);
+        await loadDocuments();
+        toast.success("Anki package imported", `${decks.length} deck(s) imported`);
+      } catch (err) {
+        console.error("[GlobalDragDrop] Anki import failed:", err);
+        toast.error("Anki import failed", err instanceof Error ? err.message : undefined);
+      }
+    },
+    [loadDocuments, toast]
+  );
+
+  const handleStudyJsonDeck = useCallback(
+    async (filePath: string) => {
+      try {
+        const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
+          "import_study_json_file",
+          { filePath }
+        );
+        useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
+        await loadDocuments();
+        toast.success("Deck imported", `${result.cards_imported} cards from ${result.deck_name}`);
+      } catch (err) {
+        console.error("[GlobalDragDrop] JSON deck import failed:", err);
+        toast.error("JSON import failed", err instanceof Error ? err.message : undefined);
+      }
+    },
+    [loadDocuments, toast]
+  );
+
+  // Only render when NOT on the documents page — DocumentsView has its own DragDropUpload
+  // with richer callbacks (open document, bundle preview, etc.)
+  if (activePage === "documents") return null;
+
+  return (
+    <DragDropUpload
+      onFilesImported={handleFilesImported}
+      onAnkiPackage={handleAnkiPackage}
+      onStudyJsonDeck={handleStudyJsonDeck}
+    />
+  );
+}
 
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
@@ -526,6 +606,7 @@ function App() {
           {renderPage()}
         </NewMainLayout>
         <ClipboardQuickAddWatcher />
+        <GlobalPasteHandler />
       </>
     );
   }
@@ -548,6 +629,7 @@ function App() {
           {renderPage()}
         </NewMainLayout>
         <ClipboardQuickAddWatcher />
+        <GlobalPasteHandler />
       </>
     );
   }
@@ -570,6 +652,7 @@ function App() {
           {renderPage()}
         </NewMainLayout>
         <ClipboardQuickAddWatcher />
+        <GlobalPasteHandler />
       </>
     );
   }
@@ -608,7 +691,10 @@ function App() {
         dueCount={dashboardStats?.cards_due_today || 0}
         onClick={() => setCurrentPage("queue")}
       />
+      {/* Global drag-drop handler — catches drops on any page, not just Library */}
+      <GlobalDragDropHandler activePage={currentPage} />
       <ClipboardQuickAddWatcher />
+      <GlobalPasteHandler />
     </>
   );
 }

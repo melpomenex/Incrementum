@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Incrementum",
-  "version": "1.26.1",
+  "version": "1.26.2",
   "identifier": "com.incrementum.app",
   "build": {
     "beforeDevCommand": "",
@@ -63,7 +63,7 @@
       "icons/icon.ico"
     ],
     "publisher": "Incrementum",
-    "copyright": "Copyright © 2025 Incrementum",
+    "copyright": "Copyright \u00a9 2025 Incrementum",
     "category": "Education",
     "shortDescription": "Incrementum - Spaced repetition and incremental reading for effective learning",
     "longDescription": "Incrementum is a powerful learning application that combines spaced repetition, incremental reading, and AI-powered flashcard generation to help you learn more effectively.",
