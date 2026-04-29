@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.6] - 2026-04-29
+
+### Fixed
+- **CSP blocking PDF.js blob styles** — added `blob:` to the `style-src` Content Security Policy directive so PDF.js can inject annotation layer and text layer styles via blob URLs without being blocked.
+
 ## [1.26.5] - 2026-04-29
 
 ### Fixed
