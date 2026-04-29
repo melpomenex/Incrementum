@@ -1064,6 +1064,22 @@ export function PDFViewer({
     setNavigationMode,
   ]);
 
+  // Suppress unhandled rejection from PDF.js annotation/text layer DOM access
+  // after component unmount or page re-render. PDF.js 5.x uses private fields
+  // (this.#e) that reference DOM nodes; when we clear innerHTML before
+  // cancelling a render task, the cleanup code inside PDF.js tries to access
+  // a nulled DOM reference and throws.
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      if (reason instanceof TypeError && /parentNode/.test(String(reason.message))) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
   // Cleanup on unmount: cancel all render tasks, text layers, highlights, and timeouts.
   useEffect(() => {
     return () => {
@@ -1722,13 +1738,9 @@ export function PDFViewer({
     pageContainer.style.width = `${viewport.width}px`;
     pageContainer.style.height = `${viewport.height}px`;
 
-    // Clear and setup text layer
-    textLayerContainer.innerHTML = "";
-    textLayerContainer.style.width = `${viewport.width}px`;
-    textLayerContainer.style.height = `${viewport.height}px`;
-    textLayerRootsRef.current[pageIndex] = null;
-
-    // Cancel any previous render task for this page
+    // Cancel any previous render task for this page BEFORE clearing DOM,
+    // so PDF.js internal cleanup (annotation layers etc.) can access
+    // still-attached DOM nodes without "parentNode is null" errors.
     const previousTask = renderTasksRef.current[pageIndex];
     if (previousTask) {
       try {
@@ -1738,6 +1750,12 @@ export function PDFViewer({
       }
       renderTasksRef.current[pageIndex] = null;
     }
+
+    // Clear and setup text layer
+    textLayerContainer.innerHTML = "";
+    textLayerContainer.style.width = `${viewport.width}px`;
+    textLayerContainer.style.height = `${viewport.height}px`;
+    textLayerRootsRef.current[pageIndex] = null;
 
     // Render PDF page to canvas
     // Scale the 2D context so PDF.js paints at CSS-pixel coordinates
@@ -1778,8 +1796,13 @@ export function PDFViewer({
 
     const buildTextLayer = async () => {
     try {
+      // Cancel previous text layer builder BEFORE clearing DOM
+      // so PDF.js internal cleanup can access still-attached nodes.
       textLayerBuildersRef.current[pageIndex]?.cancel();
       textLayerBuildersRef.current[pageIndex] = null;
+
+      // Only clear after cancelling — if we clear first, the cancel
+      // cleanup inside PDF.js may hit a null parentNode.
       textLayerContainer.innerHTML = "";
       textLayerContainer.style.width = `${viewport.width}px`;
       textLayerContainer.style.height = `${viewport.height}px`;
