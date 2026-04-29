@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import {
   Check,
   Clock,
@@ -6,6 +6,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
+import { CardContextMenu } from "./CardContextMenu";
 
 interface DeckManagerCardRowProps {
   card: LearningItem;
@@ -14,6 +15,13 @@ interface DeckManagerCardRowProps {
   onToggleSelect: (id: string) => void;
   onExpand: (id: string) => void;
   isMobile?: boolean;
+  onEditInStudio?: (card: LearningItem) => void;
+  onSuspend: (cardId: string) => void;
+  onUnsuspend: (cardId: string) => void;
+  onDelete: (cardId: string) => void;
+  onDuplicate: (card: LearningItem) => void;
+  onMoveToDeck?: (cardId: string, deckId: string) => void;
+  decks?: { id: string; name: string }[];
 }
 
 const STATE_CONFIG: Record<
@@ -80,7 +88,16 @@ export function DeckManagerCardRow({
   onToggleSelect,
   onExpand,
   isMobile = false,
+  onEditInStudio,
+  onSuspend,
+  onUnsuspend,
+  onDelete,
+  onDuplicate,
+  onMoveToDeck,
+  decks,
 }: DeckManagerCardRowProps) {
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stateCfg = STATE_CONFIG[card.state] ?? STATE_CONFIG.New;
   const due = useMemo(() => relativeDueDate(card.due_date), [card.due_date]);
   const truncatedQ = useMemo(() => {
@@ -90,12 +107,56 @@ export function DeckManagerCardRow({
 
   const stability = card.memory_state?.stability ?? card.interval;
 
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenuPos({ x: e.clientX, y: e.clientY });
+    },
+    []
+  );
+
+  const handleOpenMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setContextMenuPos({ x: rect.right, y: rect.bottom });
+    },
+    []
+  );
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenuPos(null);
+  }, []);
+
+  // Long-press support for mobile
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      longPressTimer.current = setTimeout(() => {
+        const touch = e.touches[0];
+        setContextMenuPos({ x: touch.clientX, y: touch.clientY });
+      }, 500);
+    },
+    []
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
   return (
     <div
       className={`group flex items-center gap-2 px-3 ${isMobile ? "py-3" : "py-2"} border-b border-border/30 transition-colors cursor-pointer hover:bg-muted/40 text-sm ${
         isExpanded ? "bg-muted/30" : ""
       } ${card.is_suspended ? "opacity-50" : ""}`}
       onClick={() => onExpand(card.id)}
+      onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
     >
       {/* Checkbox (desktop only) */}
       {!isMobile && (
@@ -195,14 +256,33 @@ export function DeckManagerCardRow({
       {!isMobile && (
         <div className="w-5 flex-shrink-0 flex items-center justify-center">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
+            onClick={handleOpenMenu}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
           >
             <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </div>
+      )}
+
+      {/* Card context menu */}
+      {contextMenuPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeContextMenu} />
+          <CardContextMenu
+            card={card}
+            x={contextMenuPos.x}
+            y={contextMenuPos.y}
+            onClose={closeContextMenu}
+            onEditInStudio={onEditInStudio}
+            onPreview={onExpand}
+            onSuspend={onSuspend}
+            onUnsuspend={onUnsuspend}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onMoveToDeck={onMoveToDeck}
+            decks={decks}
+          />
+        </>
       )}
     </div>
   );

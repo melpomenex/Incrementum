@@ -423,16 +423,35 @@ export function useServiceWorkerStatus() {
 
     let detachRegistrationListener: (() => void) | undefined;
 
-    navigator.serviceWorker.ready.then((reg) => {
-      if (disposed) return;
-      detachRegistrationListener = attachRegistration(reg);
-    });
+    const tryReady = () => {
+      try {
+        navigator.serviceWorker.ready.then((reg) => {
+          if (disposed) return;
+          detachRegistrationListener = attachRegistration(reg);
+        }).catch(() => {
+          // Document may be in invalid state after backgrounding
+        });
+      } catch {
+        // Synchronous InvalidStateError
+      }
+    };
 
-    navigator.serviceWorker.getRegistration().then((reg) => {
-      if (disposed || !reg) return;
-      detachRegistrationListener?.();
-      detachRegistrationListener = attachRegistration(reg);
-    });
+    const tryGetRegistration = () => {
+      try {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (disposed || !reg) return;
+          detachRegistrationListener?.();
+          detachRegistrationListener = attachRegistration(reg);
+        }).catch(() => {
+          // Document may be in invalid state after backgrounding
+        });
+      } catch {
+        // Synchronous InvalidStateError
+      }
+    };
+
+    tryReady();
+    tryGetRegistration();
 
     return () => {
       disposed = true;
@@ -445,7 +464,13 @@ export function useServiceWorkerStatus() {
       return;
     }
 
-    await registration.update();
+    try {
+      await registration.update();
+    } catch (error) {
+      console.warn('[PWA] Cannot update service worker:', (error as Error)?.message);
+      window.location.reload();
+      return;
+    }
 
     const waitingWorker = registration.waiting;
     if (waitingWorker) {
@@ -461,12 +486,18 @@ export function useServiceWorkerStatus() {
           resolve();
         };
 
-        navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+        try {
+          navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+        } catch {
+          // navigator.serviceWorker may be invalid
+        }
         waitingWorker.postMessage({ action: "skipWaiting" });
 
         window.setTimeout(() => {
           if (reloaded) return;
-          navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+          try {
+            navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+          } catch {}
           setHasUpdate(false);
           window.location.reload();
           resolve();

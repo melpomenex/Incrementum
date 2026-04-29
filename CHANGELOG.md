@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.26.3] - 2026-04-29
+
+### Added
+- **Card context menu** — right-click (or long-press on mobile, or the ⋯ button) on any card in Deck Manager to open a context menu with common actions:
+  - Edit, Preview, Suspend/Unsuspend, Delete (with confirmation)
+  - Move to Deck… (sub-menu listing all decks)
+  - Set Priority (sub-menu with 1-5 stars, placeholder for future schema)
+  - Duplicate, Copy Question, Copy Answer
+
+### Fixed
+- **IndexedDB connection resilience** — added `withRetry()` wrapper to all database operations. When the browser silently closes the IDB connection (tab backgrounding, memory pressure), operations now auto-reconnect and retry instead of cascading `InvalidStateError` failures. Also handles `AbortError` from aborted transactions.
+- **IndexedDB backing store detection** — `openDatabase()` now logs a clear message when the backing store is corrupted, advising the user to clear site data.
+- **Service Worker error handling** — wrapped all `navigator.serviceWorker` API calls in try/catch (PWA init, OfflineIndicator, visibility handlers) to prevent unhandled `InvalidStateError` rejections that caused black screens on mobile after tab backgrounding.
+- **APKG import performance** — bulk Anki imports now use `bulkPutLearningItems()` instead of 432 individual IDB transactions (144 cards × 3 ops each), preventing the backing store from being overwhelmed on mobile devices.
+
 ## [1.26.2] - 2026-04-29
 
 ### Added

@@ -38,6 +38,7 @@ import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api
 import { filterByDecks, matchesDeckTags } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { DeckManagerCardRow } from "./DeckManagerCardRow";
+import { deleteLearningItem } from "../../lib/database";
 // InlineCardEditor moved to CardPreviewPanel Edit tab
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { useResizablePanels } from "./useResizablePanels";
@@ -495,6 +496,87 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
       toast.error(`Export failed: ${err}`);
     }
   }, [decks, toast]);
+
+  // --- Single card action handlers (for context menu) ---
+
+  const handleCardSuspend = useCallback(async (cardId: string) => {
+    try {
+      await bulkSuspendItems([cardId]);
+      setAllCards((prev) =>
+        prev.map((c) => (c.id === cardId ? { ...c, is_suspended: true } : c))
+      );
+      toast.success(t("review.deckManager.suspended"));
+    } catch {
+      toast.error("Failed to suspend card");
+    }
+  }, [toast, t]);
+
+  const handleCardUnsuspend = useCallback(async (cardId: string) => {
+    try {
+      await bulkUnsuspendItems([cardId]);
+      setAllCards((prev) =>
+        prev.map((c) => (c.id === cardId ? { ...c, is_suspended: false } : c))
+      );
+      toast.success(t("review.deckManager.unsuspended"));
+    } catch {
+      toast.error("Failed to unsuspend card");
+    }
+  }, [toast, t]);
+
+  const handleCardDelete = useCallback(async (cardId: string) => {
+    try {
+      await bulkDeleteItems([cardId]);
+      await deleteLearningItem(cardId);
+      setAllCards((prev) => prev.filter((c) => c.id !== cardId));
+      if (previewCardId === cardId) setPreviewCardId(null);
+      toast.success("Card deleted");
+    } catch {
+      toast.error("Failed to delete card");
+    }
+  }, [toast, previewCardId]);
+
+  const handleCardDuplicate = useCallback(async (card: LearningItem) => {
+    try {
+      const newCard = await createLearningItem({
+        item_type: card.item_type,
+        question: card.question,
+        answer: card.answer,
+        cloze_text: card.cloze_text,
+        tags: card.tags,
+        allow_duplicate: true,
+      });
+      await loadAllItems();
+      toast.success("Card duplicated");
+      setPreviewCardId(newCard.id);
+    } catch {
+      toast.error("Failed to duplicate card");
+    }
+  }, [toast, loadAllItems]);
+
+  const handleCardMoveToDeck = useCallback(async (cardId: string, deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    // Replace card tags with the target deck's tag filters
+    setAllCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId ? { ...c, tags: [...deck.tagFilters] } : c
+      )
+    );
+    // Persist the tag change via database
+    try {
+      const { updateLearningItem } = await import("../../lib/database");
+      await updateLearningItem(cardId, { tags: [...deck.tagFilters] });
+      toast.success(`Moved card to "${deck.name}"`);
+    } catch {
+      toast.error("Failed to move card");
+      await loadAllItems(); // Reload to undo optimistic update
+    }
+  }, [decks, toast, loadAllItems]);
+
+  const deckOptions = useMemo(
+    () => decks.map((d) => ({ id: d.id, name: d.name })),
+    [decks]
+  );
 
   const toggleSort = useCallback(
     (field: SortField) => {
@@ -993,6 +1075,13 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                             onToggleSelect={handleToggleSelect}
                             onExpand={handleExpandCard}
                             isMobile={isMobile}
+                            onEditInStudio={onEditInStudio}
+                            onSuspend={handleCardSuspend}
+                            onUnsuspend={handleCardUnsuspend}
+                            onDelete={handleCardDelete}
+                            onDuplicate={handleCardDuplicate}
+                            onMoveToDeck={handleCardMoveToDeck}
+                            decks={deckOptions}
                           />
                         ))}
                       </div>
@@ -1012,6 +1101,13 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                                 onToggleSelect={handleToggleSelect}
                                 onExpand={handleExpandCard}
                                 isMobile={isMobile}
+                                onEditInStudio={onEditInStudio}
+                                onSuspend={handleCardSuspend}
+                                onUnsuspend={handleCardUnsuspend}
+                                onDelete={handleCardDelete}
+                                onDuplicate={handleCardDuplicate}
+                                onMoveToDeck={handleCardMoveToDeck}
+                                decks={deckOptions}
                               />
                             </div>
                           );

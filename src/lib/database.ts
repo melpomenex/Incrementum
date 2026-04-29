@@ -26,15 +26,32 @@ let db: IDBDatabase | null = null;
 const corruptedDocumentIds = new Set<string>();
 
 /**
- * Open the IndexedDB database
+ * Open the IndexedDB database.
+ * If the cached connection was closed by the browser (tab backgrounding,
+ * memory pressure, versionchange), it transparently reconnects.
  */
 export async function openDatabase(): Promise<IDBDatabase> {
-    if (db) return db;
+    if (db) {
+        // Probe the connection — if the browser closed it externally,
+        // objectStoreNames will throw or be empty.
+        try {
+            if (db.objectStoreNames.length > 0) return db;
+        } catch {
+            // dead
+        }
+        db = null;
+    }
 
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = () => reject(request.error);
+        request.onerror = () => {
+            const err = request.error;
+            if (err?.message?.includes('backing store') || err?.name === 'UnknownError') {
+                console.error('[IndexedDB] Backing store error — site storage may be corrupted. Try clearing site data (Settings → Site Settings → Clear data).');
+            }
+            reject(err);
+        };
         request.onsuccess = () => {
             db = request.result;
             resolve(db);
@@ -98,85 +115,106 @@ export function closeDatabase(): void {
 }
 
 /**
+ * Wrap an IDB operation so it retries once on InvalidStateError
+ * ("database connection is closing"). The browser can silently close
+ * our cached IDBDatabase between the openDatabase() check and the
+ * transaction() call (especially under memory pressure or rapid navigation).
+ */
+async function withRetry<T>(fn: (database: IDBDatabase) => Promise<T>): Promise<T> {
+    try {
+        const database = await openDatabase();
+        return await fn(database);
+    } catch (error: any) {
+        const msg = error?.message ?? '';
+        const isDeadConnection =
+            (error?.name === 'InvalidStateError' &&
+                (msg.includes('closing') || msg.includes('closed'))) ||
+            (error?.name === 'AbortError' &&
+                msg.includes('aborted'));
+        if (isDeadConnection) {
+            db = null; // force reconnect
+            console.warn('[IndexedDB] Connection lost, retrying…');
+            const database = await openDatabase();
+            return await fn(database);
+        }
+        throw error;
+    }
+}
+
+/**
  * Generic get by ID
  */
 async function getById<T>(storeName: string, id: string): Promise<T | null> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const request = store.get(id);
         request.onsuccess = () => resolve(request.result || null);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
  * Generic get all
  */
 async function getAll<T>(storeName: string): Promise<T[]> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 async function getAllKeys(storeName: string): Promise<IDBValidKey[]> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const request = store.getAllKeys();
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
  * Generic get by index
  */
 async function getByIndex<T>(storeName: string, indexName: string, value: IDBValidKey): Promise<T[]> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const index = store.index(indexName);
         const request = index.getAll(value);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
  * Generic put (insert or update)
  */
 async function put<T>(storeName: string, item: T): Promise<T> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const request = store.put(item);
         request.onsuccess = () => resolve(item);
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 /**
  * Generic delete
  */
 async function deleteById(storeName: string, id: string): Promise<void> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 // ============= Document Operations =============
@@ -455,10 +493,9 @@ export async function deleteExtract(id: string): Promise<void> {
 }
 
 export async function getDueExtracts(): Promise<Extract[]> {
-    const database = await openDatabase();
     const now = new Date().toISOString();
 
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(STORES.extracts, 'readonly');
         const store = tx.objectStore(STORES.extracts);
         const index = store.index('by_next_review');
@@ -470,7 +507,7 @@ export async function getDueExtracts(): Promise<Extract[]> {
             resolve(results);
         };
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 // ============= Learning Item Operations =============
@@ -506,8 +543,30 @@ export interface LearningItem {
 }
 
 export async function createLearningItem(item: Partial<LearningItem>): Promise<LearningItem> {
+    const fullItem = buildLearningItemRecord(item);
+
+    // Update document learning item count
+    if (item.document_id) {
+        const doc = await getDocument(item.document_id);
+        if (doc) {
+            await updateDocument(doc.id, { learning_item_count: doc.learning_item_count + 1 });
+        }
+    }
+
+    return put(STORES.learningItems, fullItem);
+}
+
+/**
+ * Build a LearningItem record without writing to IDB.
+ * Used by bulk import flows (e.g. Anki APKG) that write via bulkPutLearningItems.
+ */
+export function createLearningItemRaw(item: Partial<LearningItem>): LearningItem {
+    return buildLearningItemRecord(item);
+}
+
+function buildLearningItemRecord(item: Partial<LearningItem>): LearningItem {
     const now = new Date().toISOString();
-    const learningItem: LearningItem = {
+    return {
         id: item.id || uuidv4(),
         extract_id: item.extract_id,
         document_id: item.document_id,
@@ -535,16 +594,6 @@ export async function createLearningItem(item: Partial<LearningItem>): Promise<L
         algorithm_state: item.algorithm_state,
         sync_version: 0,
     };
-
-    // Update document learning item count
-    if (item.document_id) {
-        const doc = await getDocument(item.document_id);
-        if (doc) {
-            await updateDocument(doc.id, { learning_item_count: doc.learning_item_count + 1 });
-        }
-    }
-
-    return put(STORES.learningItems, learningItem);
 }
 
 export async function getLearningItem(id: string): Promise<LearningItem | null> {
@@ -597,10 +646,9 @@ export async function deleteLearningItem(id: string): Promise<void> {
 }
 
 export async function getDueLearningItems(): Promise<LearningItem[]> {
-    const database = await openDatabase();
     const now = new Date().toISOString();
 
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(STORES.learningItems, 'readonly');
         const store = tx.objectStore(STORES.learningItems);
         const index = store.index('by_due_date');
@@ -612,7 +660,7 @@ export async function getDueLearningItems(): Promise<LearningItem[]> {
             resolve(results);
         };
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 // ============= File Operations =============
@@ -650,8 +698,7 @@ export async function getFile(id: string): Promise<StoredFile | null> {
 
 export async function getFileByName(filename: string): Promise<StoredFile | null> {
     console.log(`[IndexedDB] Looking up file by name:`, filename);
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(STORES.files, 'readonly');
         const store = tx.objectStore(STORES.files);
         if (!store.indexNames.contains('by_filename')) {
@@ -673,7 +720,7 @@ export async function getFileByName(filename: string): Promise<StoredFile | null
             resolve(result);
         };
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 export async function deleteFile(id: string): Promise<void> {
@@ -685,29 +732,27 @@ export async function getAllFiles(): Promise<StoredFile[]> {
 }
 
 export async function bulkPutFiles(files: StoredFile[]): Promise<void> {
-    const database = await openDatabase();
-    const tx = database.transaction(STORES.files, 'readwrite');
-    const store = tx.objectStore(STORES.files);
-
-    for (const file of files) {
-        store.put(file);
-    }
-
-    return new Promise((resolve, reject) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+    return withRetry((database) => {
+        const tx = database.transaction(STORES.files, 'readwrite');
+        const store = tx.objectStore(STORES.files);
+        for (const file of files) {
+            store.put(file);
+        }
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
     });
 }
 
 export async function clearStore(storeName: string): Promise<void> {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const request = store.clear();
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
-    });
+    }));
 }
 
 
@@ -740,46 +785,43 @@ export async function getChangedLearningItems(sinceSyncVersion: number): Promise
 }
 
 export async function bulkPutDocuments(docs: Document[]): Promise<void> {
-    const database = await openDatabase();
-    const tx = database.transaction(STORES.documents, 'readwrite');
-    const store = tx.objectStore(STORES.documents);
-
-    for (const doc of docs) {
-        store.put(doc);
-    }
-
-    return new Promise((resolve, reject) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+    return withRetry((database) => {
+        const tx = database.transaction(STORES.documents, 'readwrite');
+        const store = tx.objectStore(STORES.documents);
+        for (const doc of docs) {
+            store.put(doc);
+        }
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
     });
 }
 
 export async function bulkPutExtracts(extracts: Extract[]): Promise<void> {
-    const database = await openDatabase();
-    const tx = database.transaction(STORES.extracts, 'readwrite');
-    const store = tx.objectStore(STORES.extracts);
-
-    for (const ext of extracts) {
-        store.put(ext);
-    }
-
-    return new Promise((resolve, reject) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+    return withRetry((database) => {
+        const tx = database.transaction(STORES.extracts, 'readwrite');
+        const store = tx.objectStore(STORES.extracts);
+        for (const ext of extracts) {
+            store.put(ext);
+        }
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
     });
 }
 
 export async function bulkPutLearningItems(items: LearningItem[]): Promise<void> {
-    const database = await openDatabase();
-    const tx = database.transaction(STORES.learningItems, 'readwrite');
-    const store = tx.objectStore(STORES.learningItems);
-
-    for (const item of items) {
-        store.put(item);
-    }
-
-    return new Promise((resolve, reject) => {
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+    return withRetry((database) => {
+        const tx = database.transaction(STORES.learningItems, 'readwrite');
+        const store = tx.objectStore(STORES.learningItems);
+        for (const item of items) {
+            store.put(item);
+        }
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
     });
 }
