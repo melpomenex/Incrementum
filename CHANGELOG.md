@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.7] - 2026-04-29
+
+### Fixed
+- **PDF.js text layer crash on scroll** — `renderPage()` was clearing text layer DOM (`innerHTML = ""`) without first cancelling in-flight pdfjs `TextLayer.render()` calls. This caused `this.#container.parentNode is null` crashes (and black screens) when scrolling large PDFs, because pdfjs's internal `#processItems` was still asynchronously building DOM nodes inside the now-emptied container. Fixed by cancelling pending text layer renders and tracking deferred `setTimeout` IDs so stale builds can be cancelled before their page is re-rendered.
+
 ## [1.26.6] - 2026-04-29
 
 ### Fixed
