@@ -1,6 +1,6 @@
-# Incrementum
-
 <div align="center">
+
+# Incrementum
 
 **Incremental Reading + Spaced Repetition = Knowledge Retention**
 
@@ -339,6 +339,8 @@ Mobile note: desktop sidecar binaries (like `whisper`) are disabled on Android/i
 
 ---
 
+---
+
 ## YouTube + WebSocket Debugging (Tauri v2)
 
 ### What changed
@@ -432,6 +434,8 @@ graph LR
 ## 📝 License
 
 Apache 2.0 License - see [LICENSE](LICENSE) for details.
+
+---
 
 ## 🙏 Acknowledgments
 
