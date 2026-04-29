@@ -126,6 +126,57 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * Decode HTML entities that Anki stores inside math delimiters.
+ * KaTeX does not understand HTML entities — it expects raw characters.
+ *
+ * Common entities from Anki decks:
+ *   &nbsp; → space (non-breaking space has no meaning in math mode)
+ *   &amp;  → &
+ *   &lt;   → <
+ *   &gt;   → >
+ *   &quot; → "
+ *   &#39;  → '
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+/**
+ * Strip structural HTML tags that Anki inserts inside math delimiters.
+ * These break KaTeX parsing. Only math-relevant tags (like <sub>, <sup>) are kept
+ * by converting them to their LaTeX equivalents.
+ */
+function stripHtmlFromMath(text: string): string {
+  return text
+    .replace(/<div[^>]*>/gi, " ")
+    .replace(/<\/div>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<span[^>]*>/gi, "")
+    .replace(/<\/span>/gi, "")
+    .replace(/<p[^>]*>/gi, " ")
+    .replace(/<\/p>/gi, " ")
+    .replace(/<hr[^>]*>/gi, " ")
+    .replace(/<\/hr>/gi, " ")
+    .replace(/<em[^>]*>/gi, "")
+    .replace(/<\/em>/gi, "")
+    .replace(/<i[^>]*>/gi, "")
+    .replace(/<\/i>/gi, "")
+    .replace(/<strong[^>]*>/gi, "")
+    .replace(/<\/strong>/gi, "")
+    .replace(/<b[^>]*>/gi, "")
+    .replace(/<\/b>/gi, "")
+    // Collapse multiple spaces to one (LaTeX ignores extra spaces)
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function isLikelyMath(expression: string): boolean {
   const expr = expression.trim();
   if (!expr) return false;
@@ -194,9 +245,14 @@ function renderMathToken(
     };
   }
 
+  // Anki decks often store HTML entities and structural tags inside math delimiters.
+  // KaTeX does not understand HTML — decode entities and strip tags first.
+  const decoded = decodeHtmlEntities(trimmed);
+  const cleaned = stripHtmlFromMath(decoded);
+
   // latexToHTML uses KaTeX which handles virtually all LaTeX commands
   // Block mode always uses display mode; inline mode auto-detects display-only environments
-  const renderedMath = latexToHTML(trimmed, {
+  const renderedMath = latexToHTML(cleaned, {
     displayMode: mode === "block" ? true : undefined,
     macros,
   });
@@ -349,13 +405,13 @@ function legacyRenderAnkiHtmlWithLatex(content: string): string {
   }
 
   return content
-    .replace(/\[latex\]([\s\S]*?)\[\/latex\]/gi, (_match, expression) => `<div class="math-expression-block">${latexToHTML(expression.trim())}</div>`)
-    .replace(/\[\$\$\]([\s\S]*?)\[\/\$\$\]/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(expression.trim())}</div>`)
-    .replace(/\[\$\]([\s\S]*?)\[\/\$\]/g, (_match, expression) => latexToHTML(expression.trim()))
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(expression.trim())}</div>`)
-    .replace(/\$\$([\s\S]*?)\$\$/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(expression.trim())}</div>`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression) => latexToHTML(expression.trim()))
-    .replace(/\$([^$\n]*?)\\\]/g, (_match, expression) => latexToHTML(expression.trim()))
+    .replace(/\[latex\]([\s\S]*?)\[\/latex\]/gi, (_match, expression) => `<div class="math-expression-block">${latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim())))}</div>`)
+    .replace(/\[\$\$\]([\s\S]*?)\[\/\$\$\]/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim())))}</div>`)
+    .replace(/\[\$\]([\s\S]*?)\[\/\$\]/g, (_match, expression) => latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim()))))
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim())))}</div>`)
+    .replace(/\$\$([\s\S]*?)\$\$/g, (_match, expression) => `<div class="math-expression-block">${latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim())))}</div>`)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression) => latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim()))))
+    .replace(/\$([^$\n]*?)\\\]/g, (_match, expression) => latexToHTML(stripHtmlFromMath(decodeHtmlEntities(expression.trim()))))
     .replace(/\[\/latex\]/gi, "")
     .replace(/\[latex\]/gi, "");
 }

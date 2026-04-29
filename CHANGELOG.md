@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.25.9] - 2026-04-28
+
+### Fixed
+- **LaTeX rendering from Anki decks** — Anki stores HTML entities (`&nbsp;`, `&lt;`, `&gt;`, `&amp;`) and structural HTML tags (`<div>`, `<span>`, etc.) inside math delimiters (`$...$`, `$$...$$`). These are now properly decoded and stripped before passing to KaTeX, fixing math rendering failures in imported Anki decks. Tested against a 144-card differential equations deck — 58 previously broken cards now render correctly.
+
+### Added
+- **Cmd+K diagnostic logging** — added tracing at each step of the macOS Cmd+K accelerator chain (Rust `on_menu_event` → `emit_to` → JS `listen` handler → command palette dispatch) to help diagnose why Cmd+K sometimes fails to open the command palette on macOS.
+
 ## [1.25.8] - 2026-04-28
 
 ### Fixed
