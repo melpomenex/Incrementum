@@ -82,7 +82,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 0);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
 

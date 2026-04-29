@@ -1009,38 +1009,25 @@
   }
 
   /* Glass Fade Animations */
+  /* Command palette: use instant opacity + minimal scale so it feels
+     snappy.  Avoid animating backdrop-filter — it forces expensive
+     per-frame recomposites in the compositor, especially in WebView. */
   @keyframes glass-fade-in {
-    from {
-      opacity: 0;
-      backdrop-filter: blur(0px);
-    }
-
-    to {
-      opacity: 1;
-      backdrop-filter: blur(var(--blur-glass));
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   @keyframes glass-scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-      backdrop-filter: blur(0px);
-    }
-
-    to {
-      opacity: 1;
-      transform: scale(1);
-      backdrop-filter: blur(var(--blur-glass));
-    }
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
   }
 
   .animate-glass-fade-in {
-    animation: glass-fade-in 300ms ease-out;
+    animation: glass-fade-in 120ms ease-out;
   }
 
   .animate-glass-scale-in {
-    animation: glass-scale-in 200ms ease-out;
+    animation: glass-scale-in 120ms ease-out;
   }
 
   /* Dark mode glass adjustments */

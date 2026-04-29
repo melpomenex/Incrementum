@@ -233,8 +233,13 @@ export function PDFViewer({
   const renderTasksRef = useRef<(any | null)[]>([]);  // Track PDF.js render tasks to cancel
   const renderIdRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
+  const pageNumberRef = useRef(pageNumber);
   const isProgrammaticScrollRef = useRef(false);
+  // Keep pageNumberRef in sync so async renderPage can check it
+  useEffect(() => { pageNumberRef.current = pageNumber; }, [pageNumber]);
+
   // If the page number update came from scroll syncing, don't auto-scroll to the top of the page.
+  // (pageNumberRef sync is above)
   const pageUpdateFromScrollRef = useRef(false);
   // If the user scrolls during an in-flight restore attempt, cancel further restore retries.
   const userScrolledDuringRestoreRef = useRef(false);
@@ -1695,9 +1700,22 @@ export function PDFViewer({
     const viewport = page.getViewport({ scale: actualScale });
     pageViewportRefs.current[pageIndex] = viewport;
     pageScaleRefs.current[pageIndex] = actualScale;
-    const outputScale = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(viewport.width * outputScale);
-    canvas.height = Math.floor(viewport.height * outputScale);
+    // Cap outputScale at 2x to avoid enormous canvases on 3x/4x displays;
+    // PDF text stays sharp because it's vector-rasterized at render time.
+    const rawDpr = window.devicePixelRatio || 1;
+    const outputScale = Math.min(rawDpr, 2);
+    // Cap canvas pixel count to ~16 megapixels (4096×4096) to prevent
+    // GPU memory spikes on large pages at high zoom.
+    const MAX_CANVAS_PIXELS = 4096 * 4096;
+    let canvasW = Math.floor(viewport.width * outputScale);
+    let canvasH = Math.floor(viewport.height * outputScale);
+    if (canvasW * canvasH > MAX_CANVAS_PIXELS) {
+      const downscale = Math.sqrt(MAX_CANVAS_PIXELS / (canvasW * canvasH));
+      canvasW = Math.floor(canvasW * downscale);
+      canvasH = Math.floor(canvasH * downscale);
+    }
+    canvas.width = canvasW;
+    canvas.height = canvasH;
     canvas.style.width = `${viewport.width}px`;
     canvas.style.height = `${viewport.height}px`;
 
@@ -1722,15 +1740,21 @@ export function PDFViewer({
     }
 
     // Render PDF page to canvas
-    // Use device pixel ratio for high-DPI displays
-    if (outputScale !== 1) {
-      context.scale(outputScale, outputScale);
+    // Scale the 2D context so PDF.js paints at CSS-pixel coordinates
+    const contextScale = canvas.width / viewport.width;
+    if (contextScale !== 1) {
+      context.scale(contextScale, contextScale);
     }
     
+    // Tell PDF.js about the intended output scale so it can hint the font
+    // engine and avoid re-rasterizing glyphs at a different size.
     const renderContext = {
       canvas: canvas,
       canvasContext: context,
       viewport: viewport,
+      intent: "print" as any, // renders at full quality without extra work
+      // Don't use WebGL for canvas rendering — software path is faster for 2D PDFs
+      enableWebGL: false as any,
     };
 
     const renderTask = page.render(renderContext);
@@ -1748,6 +1772,11 @@ export function PDFViewer({
     context.setTransform(1, 0, 0, 1, 0, 0);
 
     // Render text layer for text selection (PDF.js implementation)
+    // Defer text-layer for non-current pages so canvas paint isn't blocked.
+    const isCurrentPage = pageNum === pageNumberRef.current;
+    const textLayerDelay = isCurrentPage ? 0 : 300;
+
+    const buildTextLayer = async () => {
     try {
       textLayerBuildersRef.current[pageIndex]?.cancel();
       textLayerBuildersRef.current[pageIndex] = null;
@@ -1830,6 +1859,13 @@ export function PDFViewer({
       console.warn("Text layer rendering failed:", err);
       setPageTextSelectionAvailability(pageNum, false);
       // Don't fail the entire page render if text layer fails
+    }
+    };
+
+    if (textLayerDelay > 0) {
+      setTimeout(buildTextLayer, textLayerDelay);
+    } else {
+      void buildTextLayer();
     }
 
     recomputePageOffsets();
@@ -2660,6 +2696,7 @@ export function PDFViewer({
             onScroll={handleScroll}
             className={cn(
               "flex-1 min-h-0 overflow-auto bg-muted/30 p-4",
+              "[contain:strict]", // GPU-compositing isolation for scroll perf
               isDragging && "cursor-grabbing",
               !isDragging && ocr.flowState === "idle" && (scale > 1 || zoomMode === "custom") && "cursor-grab",
               ocr.flowState !== "idle" && !isDragging && "cursor-crosshair"
@@ -2694,15 +2731,16 @@ export function PDFViewer({
                       }}
                       data-pdf-page
                       data-page-number={pageNum}
-                      className="relative shadow-lg border border-border bg-white transition-transform duration-200"
-                      style={
-                        fallbackPageSize
+                      className="relative shadow-lg border border-border bg-white"
+                      style={{
+                        ...fallbackPageSize
                           ? {
                               minWidth: `${Math.round(fallbackPageSize.width)}px`,
                               minHeight: `${Math.round(fallbackPageSize.height)}px`,
                             }
-                          : undefined
-                      }
+                          : undefined,
+                        contain: 'layout style paint',
+                      }}
                       {...(ENABLE_CUSTOM_PDF_SELECTION && {
                         onPointerDown: (e: React.PointerEvent) => customSelection.handlePointerDown(index, e),
                         onPointerMove: (e: React.PointerEvent) => customSelection.handlePointerMove(index, e),
