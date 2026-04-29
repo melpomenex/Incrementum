@@ -6,7 +6,7 @@ import path from "path";
 
 // @ts-expect-error process is a nodejs global
 const rawHost = process.env.TAURI_DEV_HOST;
-const host = rawHost === "localhost" ? "127.0.0.1" : rawHost;
+const host = rawHost === "localhost" ? "0.0.0.0" : (rawHost || "0.0.0.0");
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {

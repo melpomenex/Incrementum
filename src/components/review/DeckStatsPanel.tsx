@@ -19,6 +19,8 @@ interface DeckStatsPanelProps {
   cards: LearningItem[];
   deck: StudyDeck;
   onLeechClick?: () => void;
+  onStudyNow?: () => void;
+  onNewCard?: () => void;
 }
 
 function formatRetention(rate: number): { text: string; color: string } {
@@ -62,6 +64,8 @@ export function DeckStatsPanel({
   cards,
   deck,
   onLeechClick,
+  onStudyNow,
+  onNewCard,
 }: DeckStatsPanelProps) {
   const desiredRetention = useSettingsStore((s) => s.settings?.learning?.fsrsParams?.desiredRetention ?? null);
   const stats = useMemo(() => {
@@ -347,7 +351,11 @@ export function DeckStatsPanel({
       <section>
         <SectionHeader icon={<Activity className="h-3 w-3" />} label="Quick Actions" />
         <div className="mt-1 space-y-1">
-          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+          <button
+            onClick={onStudyNow}
+            disabled={!onStudyNow}
+            className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <GraduationCap className="h-3 w-3" />
             Study Now
             {stats.dueToday > 0 && (
@@ -356,7 +364,11 @@ export function DeckStatsPanel({
               </span>
             )}
           </button>
-          <button className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onNewCard}
+            disabled={!onNewCard}
+            className="w-full flex items-center gap-1.5 text-xs px-2 py-1.5 rounded border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Plus className="h-3 w-3" />
             New Card
           </button>

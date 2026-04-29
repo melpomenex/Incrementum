@@ -10,9 +10,19 @@ export interface ReadingSession {
 
 const STORAGE_KEY = "incrementum.reading-sessions";
 
+/** Generate a UUID v4, falling back to a Math.random-based polyfill
+ *  when crypto.randomUUID is unavailable (non-secure / HTTP contexts). */
+function uuidv4(): string {
+  if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+  // Fallback: RFC 4122 v4 UUID from Math.random
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+    (+c ^ (Math.random() * 256) & 15 >> (+c >> 4)).toString(16)
+  );
+}
+
 export function recordReadingSession(entry: Omit<ReadingSession, "id" | "timestamp">): ReadingSession {
   const session: ReadingSession = {
-    id: crypto.randomUUID(),
+    id: uuidv4(),
     timestamp: new Date().toISOString(),
     ...entry,
   };

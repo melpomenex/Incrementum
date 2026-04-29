@@ -30,9 +30,10 @@ import {
   Upload,
 } from "lucide-react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
+import { useReviewStore } from "../../stores/reviewStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
-import { getAllLearningItems, exportDeckAsApkg, type LearningItem } from "../../api/learning-items";
+import { getAllLearningItems, createLearningItem, exportDeckAsApkg, type LearningItem } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
 import { filterByDecks, matchesDeckTags } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
@@ -83,25 +84,22 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    getAllLearningItems()
-      .then((cards) => {
-        if (!cancelled) {
-          setAllCards(Array.isArray(cards) ? cards : []);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          toast.error("Failed to load cards");
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+  // Load all learning items (extracted for reuse after card creation)
+  const loadAllItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cards = await getAllLearningItems();
+      setAllCards(Array.isArray(cards) ? cards : []);
+    } catch {
+      toast.error("Failed to load cards");
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
+
+  useEffect(() => {
+    loadAllItems();
+  }, [loadAllItems]);
 
   // On mobile, auto-select first deck when cards load and none is selected
   useEffect(() => {
@@ -326,6 +324,43 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     setSortField("lapses");
     setSortDir("desc");
   }, []);
+
+  // Create a new empty card for the current deck
+  const handleNewCard = useCallback(async () => {
+    if (!expandedDeck) return;
+    try {
+      const newCard = await createLearningItem({
+        item_type: "basic",
+        question: "",
+        answer: "",
+        tags: expandedDeck.tagFilters.length > 0 ? expandedDeck.tagFilters : undefined,
+        allow_duplicate: true,
+      });
+      toast.success(t("review.deckManager.newCardCreated"), t("review.deckManager.editCardInPanel"));
+      // Select the new card and open edit tab
+      setPreviewCardId(newCard.id);
+      setRightPanelView("preview");
+      // Reload to pick up the new card in the deck
+      await loadAllItems();
+    } catch (error) {
+      console.error("Failed to create card:", error);
+      toast.error(t("common.error"), error instanceof Error ? error.message : "Failed to create card");
+    }
+  }, [expandedDeck, toast, t, loadAllItems]);
+
+  // Start review with better error feedback
+  const handleStudyNow = useCallback(async () => {
+    if (!expandedDeck || !onStartReview) return;
+    try {
+      const store = useStudyDeckStore.getState();
+      store.clearDeckSelection();
+      store.toggleDeckSelection(expandedDeck.id);
+      await onStartReview();
+    } catch (error) {
+      console.error("Failed to start review:", error);
+      toast.error(t("common.error"), error instanceof Error ? error.message : "Failed to start review");
+    }
+  }, [expandedDeck, onStartReview, toast, t]);
 
   // Context menu handlers for deck right-click
   const handleDeckContextMenu = useCallback((e: React.MouseEvent, deckId: string) => {
@@ -600,6 +635,8 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                   cards={allDeckCards}
                   deck={expandedDeck}
                   onLeechClick={handleLeechFilter}
+                  onStudyNow={onStartReview ? handleStudyNow : undefined}
+                  onNewCard={handleNewCard}
                 />
               </div>
             )}
@@ -762,21 +799,18 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
 
                       {/* Action buttons */}
                       <div className={"flex items-center gap-1 " + (isMobile ? "" : "ml-auto flex-shrink-0")}>
-                        <button className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
+                        <button
+                          onClick={() => void handleNewCard()}
+                          disabled={!expandedDeck}
+                          className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+                        >
                           <Plus className="h-3 w-3" /> {!isMobile && "New Card"}
                         </button>
                         <button className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
                           <Download className="h-3 w-3" /> {!isMobile && "Import"}
                         </button>
                         <button
-                          onClick={async () => {
-                            if (expandedDeck && onStartReview) {
-                              const store = useStudyDeckStore.getState();
-                              store.clearDeckSelection();
-                              store.toggleDeckSelection(expandedDeck.id);
-                              await onStartReview();
-                            }
-                          }}
+                          onClick={() => void handleStudyNow()}
                           disabled={!expandedDeck}
                           className="flex items-center gap-1 text-xs px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40"
                         >
@@ -1017,6 +1051,8 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                       cards={allDeckCards}
                       deck={expandedDeck}
                       onLeechClick={handleLeechFilter}
+                      onStudyNow={onStartReview ? handleStudyNow : undefined}
+                      onNewCard={handleNewCard}
                     />
                   </div>
                 )}

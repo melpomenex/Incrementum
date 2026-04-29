@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertTriangle,
+  CalendarClock,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -10,10 +11,14 @@ import {
   Info,
   Keyboard,
   LayoutList,
+  Pause,
   Play,
+  RotateCcw,
   Smartphone,
   Sparkles,
   Target,
+  Trash2,
+  Zap,
 } from "lucide-react";
 import { useQueueStore } from "../../stores/queueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -42,7 +47,6 @@ import { postponeItem } from "../../api/queue";
 import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import { getSessionStats, clearQueueSession } from "../../lib/queueSession";
-import { RotateCcw } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 
 type QueueMode = "reading" | "review";
@@ -133,7 +137,24 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const selectedIndexRef = useRef(0);
   const lastSelectedLearningIdRef = useRef<string | null>(null);
   const toast = useToast();
-  
+
+  // Context menu state
+  const [ctxItem, setCtxItem] = useState<QueueItem | null>(null);
+  const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on outside click (using contains check to avoid race with menu clicks)
+  useEffect(() => {
+    if (!ctxPos) return;
+    const handler = (e: MouseEvent) => {
+      if (ctxMenuRef.current && ctxMenuRef.current.contains(e.target as Node)) return;
+      setCtxPos(null);
+      setCtxItem(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ctxPos]);
+
   // Session stats for smart queue
   const [sessionStats, setSessionStats] = useState(() => getSessionStats());
   
@@ -308,6 +329,65 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     const daysUntil = Math.max(1, getDaysUntilDue(selectedItem));
     const deltaDays = Math.max(1, Math.round(daysUntil * 0.5));
     await applyScheduleShift(t("queue.downgradeFrequency"), deltaDays);
+  };
+
+  // Context menu action handlers
+  const handleCtxStudyNow = (item: QueueItem) => {
+    setCtxPos(null);
+    setCtxItem(null);
+    if (item.itemType === "learning-item") {
+      onStartReview?.(item.learningItemId ?? item.id);
+    } else {
+      onOpenDocument?.(item);
+    }
+  };
+
+  const handleCtxSuspend = async (item: QueueItem) => {
+    setCtxPos(null);
+    setCtxItem(null);
+    if (item.itemType !== "learning-item") return;
+    try {
+      const { bulkSuspendItems } = await import("../../api/queue");
+      const result = await bulkSuspendItems([item.id]);
+      if (result.failed.length === 0) {
+        toast.success(t("queue.suspended"), t("queue.scheduleUpdated"));
+      } else {
+        toast.error(t("queue.operationFailed"), result.errors.join(", "));
+      }
+      await refreshQueue();
+    } catch (error) {
+      toast.error(t("queue.operationFailed"), error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleCtxPostpone = async (item: QueueItem, days: number) => {
+    setCtxPos(null);
+    setCtxItem(null);
+    try {
+      await postponeItem(item.id, days);
+      toast.success(t("queue.postponed"), t("queue.reviewScheduleUpdated", { days }));
+      await refreshQueue();
+    } catch (error) {
+      toast.error(t("queue.operationFailed"), error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleCtxDelete = async (item: QueueItem) => {
+    setCtxPos(null);
+    setCtxItem(null);
+    if (item.itemType !== "learning-item") return;
+    try {
+      const { bulkDeleteItems } = await import("../../api/queue");
+      const result = await bulkDeleteItems([item.id]);
+      if (result.failed.length === 0) {
+        toast.success(t("queue.deleted"), t("queue.itemRemoved"));
+      } else {
+        toast.error(t("queue.operationFailed"), result.errors.join(", "));
+      }
+      await refreshQueue();
+    } catch (error) {
+      toast.error(t("queue.operationFailed"), error instanceof Error ? error.message : "Unknown error");
+    }
   };
 
   const handleDismissDocument = async (item: QueueItem) => {
@@ -925,6 +1005,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                       aria-selected={item.id === selectedId}
                       className={`border rounded-lg bg-card transition-colors ${item.id === selectedId ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
                         }`}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedId(item.id);
+                        setCtxItem(item);
+                        setCtxPos({ x: e.clientX, y: e.clientY });
+                      }}
                     >
                       <div
                         onClick={(event) => {
@@ -1207,6 +1294,123 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           </aside>
         )}
       </div>
+
+      {/* Right-click Context Menu */}
+      {ctxPos && ctxItem && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onContextMenu={(e) => { e.preventDefault(); setCtxPos(null); setCtxItem(null); }} />
+          <div
+            ref={ctxMenuRef}
+            className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[220px] animate-in fade-in-0 zoom-in-95 duration-100"
+            style={{ left: ctxPos.x, top: ctxPos.y }}
+          >
+            {/* Study / Open */}
+            <button
+              className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+              onClick={() => handleCtxStudyNow(ctxItem)}
+            >
+              <Play className="w-4 h-4 text-emerald-500" />
+              {ctxItem.itemType === "learning-item" ? t("queue.studyNow") : t("queue.openDocument")}
+            </button>
+
+            {ctxItem.itemType === "learning-item" && (
+              <>
+                <div className="h-px bg-border my-1" />
+
+                {/* Suspend */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                  onClick={() => void handleCtxSuspend(ctxItem)}
+                >
+                  <Pause className="w-4 h-4 text-amber-500" />
+                  {t("queue.suspend")}
+                </button>
+
+                {/* Postpone submenu */}
+                <div className="h-px bg-border my-1" />
+                <div className="px-3 py-1 text-xs text-muted-foreground font-medium">{t("queue.postpone")}</div>
+                {[1, 3, 7].map((days) => (
+                  <button
+                    key={days}
+                    className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                    onClick={() => void handleCtxPostpone(ctxItem, days)}
+                  >
+                    <CalendarClock className="w-4 h-4 text-blue-400" />
+                    +{days} {days === 1 ? t("queue.day") : t("queue.days")}
+                  </button>
+                ))}
+
+                <div className="h-px bg-border my-1" />
+
+                {/* Compress intervals */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                  onClick={async () => {
+                    setCtxPos(null); setCtxItem(null);
+                    setSelectedId(ctxItem.id);
+                    // Temporarily set selectedItem so inspector handlers work
+                    await applyScheduleShift(t("queue.compressIntervals"), -Math.max(1, Math.round(Math.abs(getDaysUntilDue(ctxItem)) * 0.5)));
+                  }}
+                >
+                  <Zap className="w-4 h-4 text-orange-400" />
+                  {t("queue.compressIntervals")}
+                </button>
+
+                {/* Reschedule to now */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                  onClick={async () => {
+                    setCtxPos(null); setCtxItem(null);
+                    setSelectedId(ctxItem.id);
+                    await applyScheduleShift(t("queue.rescheduleIntelligently"), -getDaysUntilDue(ctxItem));
+                  }}
+                >
+                  <RotateCcw className="w-4 h-4 text-purple-400" />
+                  {t("queue.rescheduleIntelligently")}
+                </button>
+
+                <div className="h-px bg-border my-1" />
+
+                {/* Delete */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
+                  onClick={() => void handleCtxDelete(ctxItem)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {t("queue.delete")}
+                </button>
+              </>
+            )}
+
+            {ctxItem.itemType === "document" && (
+              <>
+                <div className="h-px bg-border my-1" />
+
+                {/* Dismiss */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                  onClick={() => { setCtxPos(null); setCtxItem(null); void handleDismissDocument(ctxItem); }}
+                >
+                  <EyeOff className="w-4 h-4 text-slate-400" />
+                  {t("queue.dismiss")}
+                </button>
+
+                {/* Delete */}
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
+                  onClick={() => {
+                    setCtxPos(null); setCtxItem(null);
+                    toast.info(t("queue.delete"), t("queueScroll.onlyDocuments"));
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {t("queue.delete")}
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <SessionCustomizeModal
         isOpen={isCustomizeModalOpen}
