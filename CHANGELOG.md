@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.9] - 2026-04-29
+
+### Fixed
+- **Google Fonts blocked by CSP** — the Content Security Policy's `style-src` and `font-src` directives didn't include Google Fonts domains. Added `https://fonts.googleapis.com` to `style-src` and `https://fonts.gstatic.com` to `font-src`.
+
 ## [1.26.8] - 2026-04-29
 
 ### Fixed
