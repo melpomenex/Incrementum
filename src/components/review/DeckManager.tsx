@@ -146,7 +146,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
       let cmp = 0;
       switch (sortField) {
         case "due_date":
-          cmp = a.due_date.localeCompare(b.due_date);
+          cmp = (a.due_date ?? "").localeCompare(b.due_date ?? "");
           break;
         case "state":
           cmp = (stateOrder[a.state] ?? 0) - (stateOrder[b.state] ?? 0);
