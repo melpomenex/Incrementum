@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.5] - 2026-04-29
+
+### Fixed
+- **PDF.js "parentNode is null" promise rejections** — wrapped all `renderPage()` calls in try/catch to swallow DOM-detachment errors that occur when PDF pages are mid-render during unmount, view mode switch, or resize. These were logged as unhandled promise rejections in the console but were harmless functionally.
+
 ## [1.26.4] - 2026-04-29
 
 ### Fixed
