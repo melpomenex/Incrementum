@@ -67,7 +67,7 @@ export function DeckStatsPanel({
   const stats = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
-    const dueToday = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) <= todayStr).length;
+    const dueToday = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) <= todayStr).length;
     const leeches = cards.filter((c) => c.lapses >= 5);
 
     const newCards = cards.filter((c) => c.state === "New").length;
@@ -108,19 +108,19 @@ export function DeckStatsPanel({
         : 0;
 
     // Today forecast — due at different time ranges
-    const todayDueNow = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) <= todayStr).length;
+    const todayDueNow = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) <= todayStr).length;
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().slice(0, 10);
-    const dueTomorrow = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) === tomorrowStr).length;
+    const dueTomorrow = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) === tomorrowStr).length;
     const in3d = new Date(now);
     in3d.setDate(in3d.getDate() + 3);
     const in3Str = in3d.toISOString().slice(0, 10);
-    const dueIn3 = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) > todayStr && c.due_date.slice(0, 10) <= in3Str).length;
+    const dueIn3 = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) > todayStr && c.due_date?.slice(0, 10) <= in3Str).length;
     const in7d = new Date(now);
     in7d.setDate(in7d.getDate() + 7);
     const in7Str = in7d.toISOString().slice(0, 10);
-    const dueIn7 = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) > todayStr && c.due_date.slice(0, 10) <= in7Str).length;
+    const dueIn7 = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) > todayStr && c.due_date?.slice(0, 10) <= in7Str).length;
 
     // Top tags
     const tagCounts = new Map<string, number>();
