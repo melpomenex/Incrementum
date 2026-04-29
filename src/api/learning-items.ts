@@ -173,6 +173,15 @@ export async function getDailyNoteLinks(date?: string): Promise<Array<Record<str
 }
 
 /**
+ * Export a deck as an .apkg file for Anki re-import.
+ * @param deckName The deck tag/name to filter cards by
+ * @param outputPath The file path to save the .apkg
+ */
+export async function exportDeckAsApkg(deckName: string, outputPath: string): Promise<string> {
+  return await invokeCommand<string>("export_deck_as_apkg", { deckName, outputPath });
+}
+
+/**
  * Get the item type display name
  */
 export function getItemTypeName(itemType: LearningItem["item_type"]): string {

@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.26.0] - 2026-04-29
+
+### Added
+- **Library dashboard redesign** — the Library tab grid view has been completely redesigned as a polished dashboard with:
+  - Stats bar showing Total Items, In Progress, Unprocessed, Highlights, and Ready to Review counts
+  - Filter chips as horizontal rounded pills (All, PDF, Epub, etc.) replacing the old dropdown
+  - "Continue Where You Left Off" horizontal scrollable row for documents with progress
+  - "Recently Added" horizontal scrollable row for the 12 most recent documents
+  - Redesigned LibraryCards (280–320px) with cover thumbnails, type badge overlays, progress bars, timestamps, highlights/cards counts, and tag pills
+  - Type-tinted gradient fallback backgrounds for cards without covers (red for PDF, blue for EPUB, etc.)
+  - Scroll arrows on each horizontal section, hover effects with lift and shadow
+
+- **Right-click context menus on library cards** — right-click any document card for quick actions: Open, Add/Remove from Favorites, Add Tag (via prompt), Transcribe (audio/video only), Archive/Unarchive, Delete. Menu properly closes on outside click.
+
+- **Card Preview Panel** — new right panel in Deck Manager showing selected card details with three tabs:
+  - Preview tab renders question/answer with full LaTeX support
+  - Edit tab with save/cancel for inline card editing
+  - History tab showing review stats, FSRS memory state, and scheduling info
+  - Tags section always visible at the bottom
+
+- **Deck right-click context menu** — right-click any deck in the sidebar for Study, Rename (inline), Duplicate, Export as JSON, Suspend All, Unsuspend All, or Delete
+
+- **Anki review history (revlog) import** — when importing Anki `.apkg` packages, the app now extracts review log entries and stores them in a new `review_log` table. FSRS scheduling state (stability, difficulty) is also imported from Anki card data.
+
+- **Export decks as `.apkg`** — export any deck back to Anki-compatible `.apkg` format from the deck context menu. Preserves FSRS state in card data and round-trips original Anki revlog IDs for lossless re-import.
+
+- **Test coverage** — 35 new tests for LaTeX entity decoding (`ankiLatexEntities.test.ts`, 25 tests) and CardPreviewPanel (`CardPreviewPanel.test.tsx`, 10 tests).
+
+### Changed
+- **Deck Manager now responsive on mobile** — three-column layout adapts for phones and tablets:
+  - Left sidebar replaced with deck picker dropdown
+  - Right panel replaced with full-screen card preview overlay
+  - Card table simplified to question + inline state badge on mobile
+  - Action buttons show icons only on mobile
+  - Filter chips and sort buttons wrap on small screens
+  - First deck auto-selected on mobile when cards load
+
+- **DeckManager text sizes normalized** — all UI text brought to consistent sizes (labels text-xs, content text-sm, headers text-base) for better readability
+
+### Fixed
+- **LaTeX rendering from Anki decks** — Anki stores HTML entities (`&nbsp;`, `&lt;`, `&gt;`, `&amp;`) and structural HTML tags (`<div>`, `<span>`, etc.) inside math delimiters. These are now properly decoded and stripped before passing to KaTeX, fixing math rendering in imported Anki decks.
+
 ## [1.25.9] - 2026-04-28
 
 ### Fixed

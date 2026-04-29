@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertCircle,
   BookAudio,
   BookOpen,
   Check,
+  Clock,
   Download,
   FileText,
   FileText as FileTextIcon,
   Filter,
   Globe,
+  Layers,
   LayoutGrid,
   Link2,
   List,
@@ -16,9 +19,12 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   X,
   Youtube,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useCollectionStore } from "../../stores/collectionStore";
@@ -65,6 +71,8 @@ import { invokeCommand, isTauri, isMac } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
+import { enqueueAutoTranscription, getTranscriptionQueue } from "../../api/transcription";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
 const SAVED_VIEWS_KEY = "documentsSavedViews";
@@ -106,6 +114,18 @@ function getCoverFallbackIcon(fileType: Document["fileType"]) {
   if (fileType === "pdf") return FileText;
   if (fileType === "audio") return BookAudio;
   return BookOpen;
+}
+
+function coverFallbackGradient(fileType: Document["fileType"]): string {
+  switch (fileType) {
+    case "pdf": return "bg-gradient-to-br from-red-900/60 via-red-800/30 to-transparent";
+    case "epub": return "bg-gradient-to-br from-blue-900/60 via-blue-800/30 to-transparent";
+    case "youtube": return "bg-gradient-to-br from-red-950/60 via-red-900/30 to-transparent";
+    case "audio": return "bg-gradient-to-br from-amber-900/60 via-amber-800/30 to-transparent";
+    case "video": return "bg-gradient-to-br from-violet-900/60 via-violet-800/30 to-transparent";
+    case "markdown": return "bg-gradient-to-br from-emerald-900/60 via-emerald-800/30 to-transparent";
+    default: return "bg-gradient-to-br from-slate-900/60 via-slate-800/30 to-transparent";
+  }
 }
 
 type SavedView = {
@@ -1213,116 +1233,18 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {Object.entries(SMART_SECTION_LABELS).map(([sectionId, label]) => {
-                  const docs = sectionedDocuments[sectionId] ?? [];
-                  if (docs.length === 0) return null;
-                  const isCollapsed = collapsedSections[sectionId];
-                  return (
-                    <div key={sectionId} className="bg-card border border-border rounded-lg">
-                      <button
-                        onClick={() => toggleSection(sectionId)}
-                        className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-foreground"
-                      >
-                        <span>{label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {isCollapsed ? t("documentsView.show") : t("documentsView.hide")} (
-                          {docs.length})
-                        </span>
-                      </button>
-                      {!isCollapsed && (
-                        <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-                          {docs.map((doc) => {
-                            const coverUrl = getDocumentCoverUrl(doc);
-                            const CoverIcon = getCoverFallbackIcon(doc.fileType);
-                            return (
-                              <div
-                                key={doc.id}
-                                onClick={(event) => {
-                                  if (isMobile) {
-                                    onOpenDocument?.(doc);
-                                    return;
-                                  }
-                                  handleSelectRow(doc, event.metaKey || event.ctrlKey);
-                                  if (event.detail > 1) {
-                                    onOpenDocument?.(doc);
-                                  }
-                                }}
-                                className={`p-2 rounded-md border transition-shadow cursor-pointer ${
-                                  selectedIds.has(doc.id)
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border bg-background hover:shadow-md"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(doc.id)}
-                                    onChange={(event) => {
-                                      event.stopPropagation();
-                                      handleSelectRow(doc, true);
-                                    }}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {formatRelativeTime(getLastTouched(doc))}
-                                  </span>
-                                </div>
-                                <div className="mt-2 overflow-hidden rounded border border-border/60 bg-muted/40">
-                                  <div className="aspect-[2/3] w-full">
-                                    {coverUrl ? (
-                                      <img
-                                        src={coverUrl}
-                                        alt={doc.title}
-                                        className="h-full w-full object-cover"
-                                        loading="lazy"
-                                      />
-                                    ) : (
-                                      <div className="h-full w-full bg-gradient-to-br from-muted to-muted/40 flex items-center justify-center">
-                                        <CoverIcon className="w-6 h-6 text-muted-foreground/70" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <PriorityBadge doc={doc} />
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {getPriorityReason(doc)}
-                                  </span>
-                                </div>
-                                <h3 className="mt-1 text-xs font-semibold text-foreground line-clamp-2">
-                                  {doc.title}
-                                </h3>
-                                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                  <span className="px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">
-                                    {doc.fileType}
-                                  </span>
-                                  <ProgressBar doc={doc} />
-                                </div>
-                                <div className="mt-1">
-                                  <TagsInline tags={doc.tags} />
-                                </div>
-                                {isMobile && (
-                                  <div className="mt-3">
-                                    <button
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        onOpenDocument?.(doc);
-                                      }}
-                                      className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs mobile-density-tap"
-                                    >
-                                      {t("documentsView.openRead")}
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <LibraryDashboard
+                documents={sortedDocuments}
+                filteredDocuments={filteredDocuments}
+                selectedFileType={selectedFileType}
+                setSelectedFileType={setSelectedFileType}
+                selectedIds={selectedIds}
+                onOpenDocument={onOpenDocument}
+                onSelectRow={handleSelectRow}
+                onDelete={handleDeleteDocument}
+                onUpdate={updateDocument}
+                isMobile={isMobile}
+              />
             )}
           </div>
 
@@ -1834,6 +1756,428 @@ function TagsInline({ tags }: { tags: string[] }) {
         <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">
           +{remaining}
         </span>
+      )}
+    </div>
+  );
+}
+
+/*
+ * LibraryDashboard — the redesigned grid view with stats, filter chips,
+ * and horizontal card rows for "Continue Where You Left Off" & "Recently Added".
+ */
+interface LibraryDashboardProps {
+  documents: Document[];
+  filteredDocuments: Document[];
+  selectedFileType: string;
+  setSelectedFileType: (type: string) => void;
+  selectedIds: Set<string>;
+  onOpenDocument?: (doc: Document) => void;
+  onSelectRow: (doc: Document, multi: boolean) => void;
+  onDelete: (doc: Document) => void;
+  onUpdate: (id: string, updates: Partial<Document>) => void;
+  onTranscribe?: (doc: Document) => void;
+  isMobile: boolean;
+}
+
+function LibraryDashboard({
+  documents,
+  filteredDocuments,
+  selectedFileType,
+  setSelectedFileType,
+  selectedIds,
+  onOpenDocument,
+  onSelectRow,
+  onDelete,
+  onUpdate,
+  onTranscribe,
+  isMobile,
+}: LibraryDashboardProps) {
+  const rowRef1 = useRef<HTMLDivElement>(null);
+  const rowRef2 = useRef<HTMLDivElement>(null);
+
+  // Stats
+  const totalItems = documents.length;
+  const inProgress = documents.filter(
+    (d) => (d.progressPercent ?? 0) > 0 || d.extractCount > 0 || d.learningItemCount > 0
+  ).length;
+  const unprocessed = documents.filter(
+    (d) => d.extractCount === 0 && d.learningItemCount === 0 && (d.progressPercent ?? 0) === 0
+  ).length;
+  const highlights = documents.reduce((sum, d) => sum + d.extractCount, 0);
+  const readyToReview = documents.filter((d) => d.learningItemCount > 0).length;
+
+  // Sections
+  const continueDocs = useMemo(
+    () =>
+      filteredDocuments
+        .filter((d) => (d.progressPercent ?? 0) > 0 || d.extractCount > 0)
+        .sort((a, b) => new Date(getLastTouched(b)).getTime() - new Date(getLastTouched(a)).getTime())
+        .slice(0, 12),
+    [filteredDocuments]
+  );
+
+  const recentDocs = useMemo(
+    () =>
+      [...filteredDocuments]
+        .sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime())
+        .slice(0, 12),
+    [filteredDocuments]
+  );
+
+  // Filter chips
+  const allTypes = useMemo(() => {
+    const types = new Set(documents.map((d) => d.fileType));
+    return Array.from(types).sort();
+  }, [documents]);
+
+  const scrollRow = (ref: React.RefObject<HTMLDivElement | null>, dir: "left" | "right") => {
+    if (!ref.current) return;
+    ref.current.scrollBy({ left: dir === "left" ? -320 : 320, behavior: "smooth" });
+  };
+
+  const stats = [
+    { label: "Total Items", value: totalItems, icon: <Layers className="w-4 h-4" /> },
+    { label: "In Progress", value: inProgress, icon: <Loader2 className="w-4 h-4" /> },
+    { label: "Unprocessed", value: unprocessed, icon: <FileText className="w-4 h-4" /> },
+    { label: "Highlights", value: highlights, icon: <Sparkles className="w-4 h-4" /> },
+    { label: "Ready to Review", value: readyToReview, icon: <BookOpen className="w-4 h-4" /> },
+  ];
+
+  const statColors = ["text-foreground", "text-blue-500", "text-amber-500", "text-emerald-500", "text-purple-500"];
+
+  return (
+    <div className="space-y-5 pb-4">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className="bg-card border border-border rounded-xl p-3 flex items-center gap-3"
+          >
+            <div className={"p-2 rounded-lg bg-muted/60 text-muted-foreground"}>
+              {s.icon}
+            </div>
+            <div className="flex flex-col">
+              <span className={`text-xl font-bold ${statColors[i]}`}>{s.value}</span>
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Chips */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setSelectedFileType("all")}
+          className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            selectedFileType === "all"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          All
+        </button>
+        {allTypes.map((type) => (
+          <button
+            key={type}
+            onClick={() => setSelectedFileType(type)}
+            className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              selectedFileType === type
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {type.charAt(0).toUpperCase() + type.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Continue Where You Left Off */}
+      <HorizontalSection
+        title="Continue Where You Left Off"
+        docs={continueDocs}
+        selectedIds={selectedIds}
+        onOpenDocument={onOpenDocument}
+        onSelectRow={onSelectRow}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+        onTranscribe={onTranscribe}
+        isMobile={isMobile}
+        scrollRef={rowRef1}
+        onScrollLeft={() => scrollRow(rowRef1, "left")}
+        onScrollRight={() => scrollRow(rowRef1, "right")}
+      />
+
+      {/* Recently Added */}
+      <HorizontalSection
+        title="Recently Added"
+        docs={recentDocs}
+        selectedIds={selectedIds}
+        onOpenDocument={onOpenDocument}
+        onSelectRow={onSelectRow}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+        onTranscribe={onTranscribe}
+        isMobile={isMobile}
+        scrollRef={rowRef2}
+        onScrollLeft={() => scrollRow(rowRef2, "left")}
+        onScrollRight={() => scrollRow(rowRef2, "right")}
+      />
+    </div>
+  );
+}
+
+/* Horizontal card row */
+interface HorizontalSectionProps {
+  title: string;
+  docs: Document[];
+  selectedIds: Set<string>;
+  onOpenDocument?: (doc: Document) => void;
+  onSelectRow: (doc: Document, multi: boolean) => void;
+  onDelete: (doc: Document) => void;
+  onUpdate: (id: string, updates: Partial<Document>) => void;
+  onTranscribe?: (doc: Document) => void;
+  isMobile: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  onScrollLeft: () => void;
+  onScrollRight: () => void;
+}
+
+function HorizontalSection({
+  title,
+  docs,
+  selectedIds,
+  onOpenDocument,
+  onSelectRow,
+  onDelete,
+  onUpdate,
+  onTranscribe,
+  isMobile,
+  scrollRef,
+  onScrollLeft,
+  onScrollRight,
+}: HorizontalSectionProps) {
+  if (docs.length === 0) return null;
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onScrollLeft}
+            className="p-1.5 rounded-md bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onScrollRight}
+            className="p-1.5 rounded-md bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory"
+      >
+        {docs.map((doc) => (
+          <LibraryCard
+            key={doc.id}
+            doc={doc}
+            selected={selectedIds.has(doc.id)}
+            onSelect={(multi) => onSelectRow(doc, multi)}
+            onOpen={() => onOpenDocument?.(doc)}
+            onDelete={onDelete}
+            onUpdate={onUpdate}
+            onTranscribe={onTranscribe ? () => onTranscribe(doc) : undefined}
+            isMobile={isMobile}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* Wider horizontal document card with right-click context menu */
+function LibraryCard({
+  doc,
+  selected,
+  onSelect,
+  onOpen,
+  onDelete,
+  onUpdate,
+  onTranscribe,
+  isMobile,
+}: {
+  doc: Document;
+  selected: boolean;
+  onSelect: (multi: boolean) => void;
+  onOpen: () => void;
+  onDelete: (doc: Document) => void;
+  onUpdate: (id: string, updates: Partial<Document>) => void;
+  onTranscribe?: () => void;
+  isMobile: boolean;
+}) {
+  const coverUrl = getDocumentCoverUrl(doc);
+  const CoverIcon = getCoverFallbackIcon(doc.fileType);
+  const progress = doc.progressPercent ?? 0;
+  const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
+
+  const typeColors: Record<string, string> = {
+    pdf: "bg-red-500/15 text-red-400",
+    epub: "bg-blue-500/15 text-blue-400",
+    youtube: "bg-red-600/15 text-red-500",
+    audio: "bg-amber-500/15 text-amber-400",
+    video: "bg-violet-500/15 text-violet-400",
+    markdown: "bg-emerald-500/15 text-emerald-400",
+    html: "bg-cyan-500/15 text-cyan-400",
+    other: "bg-muted text-muted-foreground",
+  };
+  const typeColor = typeColors[doc.fileType] ?? typeColors.other;
+
+  // Close context menu on click outside (but not on the menu itself)
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ctxPos) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setCtxPos(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ctxPos]);
+
+  const menuItems: Array<{
+    label: string;
+    icon: React.ReactNode;
+    color?: string;
+    divider?: boolean;
+    action: () => void;
+  }> = useMemo(() => [
+    {
+      label: "Open",
+      icon: <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />,
+      action: () => onOpen(),
+    },
+    {
+      label: doc.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+      icon: <Sparkles className={"h-3.5 w-3.5 " + (doc.isFavorite ? "text-amber-500" : "text-muted-foreground")} />,
+      action: () => onUpdate(doc.id, { isFavorite: !doc.isFavorite }),
+    },
+    {
+      label: "Add Tag",
+      icon: <Plus className="h-3.5 w-3.5 text-muted-foreground" />,
+      action: () => {
+        const tag = window.prompt("Add tag:");
+        if (!tag) return;
+        const next = new Set(doc.tags);
+        next.add(tag);
+        onUpdate(doc.id, { tags: Array.from(next) });
+      },
+    },
+    { label: "", icon: null, divider: true, action: () => {} },
+    ...(doc.fileType === "audio" || doc.fileType === "video" ? [{
+      label: "Transcribe",
+      icon: <BookAudio className="h-3.5 w-3.5 text-blue-500" />,
+      action: () => onTranscribe?.(),
+    } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
+    { label: "", icon: null, divider: true, action: () => {} },
+    {
+      label: doc.isArchived ? "Unarchive" : "Archive",
+      icon: <FileText className={"h-3.5 w-3.5 " + (doc.isArchived ? "text-emerald-500" : "text-muted-foreground")} />,
+      action: () => onUpdate(doc.id, { isArchived: !doc.isArchived }),
+    },
+    { label: "", icon: null, divider: true, action: () => {} },
+    {
+      label: "Delete",
+      icon: <Trash2 className="h-3.5 w-3.5" />,
+      color: "text-destructive",
+      action: () => onDelete(doc),
+    },
+  ], [doc, onOpen, onDelete, onUpdate]);
+
+  return (
+    <div className="relative">
+      <div
+        onClick={(event) => {
+          if (isMobile) { onOpen(); return; }
+          onSelect(event.metaKey || event.ctrlKey);
+          if (event.detail > 1) onOpen();
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setCtxPos({ x: e.clientX, y: e.clientY });
+        }}
+        className={"snap-start flex-shrink-0 w-[280px] sm:w-[320px] rounded-xl border bg-card cursor-pointer transition-all hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5 group " + (selected ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-border/80")}
+      >
+        {/* Cover */}
+        <div className="relative h-[160px] sm:h-[180px] overflow-hidden rounded-t-xl bg-muted/40">
+          {coverUrl ? (
+            <img src={coverUrl} alt={doc.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+          ) : (
+            <div className="h-full w-full flex flex-col items-center justify-center gap-2">
+              <div className={"absolute inset-0 " + coverFallbackGradient(doc.fileType)} />
+              <CoverIcon className="w-12 h-12 text-white/70 relative z-10" />
+              <span className="text-xs font-medium text-white/50 uppercase tracking-wide relative z-10">{doc.fileType}</span>
+            </div>
+          )}
+          <span className={"absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[11px] font-semibold backdrop-blur-sm " + typeColor}>{doc.fileType}</span>
+          {progress > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
+              <div className="h-full bg-primary/80 transition-all" style={{ width: progress + "%" }} />
+            </div>
+          )}
+          {!isMobile && (
+            <input type="checkbox" checked={selected} onChange={(e) => { e.stopPropagation(); onSelect(true); }} onClick={(e) => e.stopPropagation()} className="absolute top-2.5 right-2.5 w-4 h-4 rounded bg-background/80 backdrop-blur-sm border-border" />
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="p-3 flex flex-col gap-1.5">
+          <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">{doc.title}</h3>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatRelativeTime(getLastTouched(doc))}</span>
+            {doc.extractCount > 0 && <span>{doc.extractCount} highlights</span>}
+            {doc.learningItemCount > 0 && <span>{doc.learningItemCount} cards</span>}
+          </div>
+          {(doc.extractCount > 0 || doc.learningItemCount > 0) && <ProgressBar doc={doc} />}
+          {doc.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {doc.tags.slice(0, 2).map((tag) => (
+                <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary/80 rounded">{tag}</span>
+              ))}
+              {doc.tags.length > 2 && (
+                <span className="px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded">+{doc.tags.length - 2}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Context Menu (rendered via portal) */}
+      {ctxPos && createPortal(
+        <Fragment>
+          <div className="fixed inset-0 z-[9998]" onContextMenu={(e) => { e.preventDefault(); setCtxPos(null); }} />
+          <div ref={menuRef} className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[200px]" style={{ left: ctxPos.x, top: ctxPos.y }}>
+            {menuItems.map((item, i) =>
+              item.divider ? (
+                <div key={i} className="h-px bg-border my-1" />
+              ) : (
+                <button
+                  key={i}
+                  onClick={() => { setCtxPos(null); item.action(); }}
+                  className={"flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm transition-colors " + (item.color ? "hover:bg-destructive/10 " + item.color : "hover:bg-muted text-foreground")}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              )
+            )}
+          </div>
+        </Fragment>,
+        document.body
       )}
     </div>
   );

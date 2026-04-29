@@ -1744,6 +1744,135 @@ impl Repository {
         Ok(())
     }
 
+    /// Batch-insert review log entries (used for Anki revlog import)
+    pub async fn batch_insert_review_log(
+        &self,
+        entries: &[crate::anki::AnkiRevLogEntry],
+        item_id: &str,
+    ) -> Result<()> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+        for entry in entries {
+            let id = uuid::Uuid::new_v4().to_string();
+            // revlog id is a millisecond timestamp
+            let timestamp = chrono::DateTime::from_timestamp_millis(entry.id)
+                .unwrap_or_else(Utc::now);
+            let interval_days = if entry.ivl < 0 {
+                // Negative intervals are in seconds
+                entry.ivl as f64 / 86400.0
+            } else {
+                entry.ivl as f64
+            };
+            let last_interval_days = if entry.last_ivl < 0 {
+                Some(entry.last_ivl as f64 / 86400.0)
+            } else {
+                Some(entry.last_ivl as f64)
+            };
+            let ease_factor = entry.factor as f64 / 1000.0;
+
+            sqlx::query(
+                r#"
+                INSERT INTO review_log (
+                    id, item_id, rating, interval_days, last_interval_days,
+                    ease_factor, time_ms, review_type, source, anki_revlog_id, timestamp
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                "#,
+            )
+            .bind(&id)
+            .bind(item_id)
+            .bind(entry.ease)
+            .bind(interval_days)
+            .bind(last_interval_days)
+            .bind(ease_factor)
+            .bind(entry.time_ms)
+            .bind(entry.rev_type)
+            .bind("anki-import")
+            .bind(entry.id)
+            .bind(timestamp)
+            .execute(&self.pool)
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Get review log entries for a specific learning item
+    pub async fn get_review_log_for_item(
+        &self,
+        item_id: &str,
+    ) -> Result<Vec<crate::anki::ReviewLogRow>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, item_id, rating, interval_days, last_interval_days,
+                   ease_factor, time_ms, review_type, source, anki_revlog_id, timestamp
+            FROM review_log WHERE item_id = ?1 ORDER BY timestamp
+            "#,
+        )
+        .bind(item_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut entries = Vec::new();
+        for row in rows {
+            entries.push(crate::anki::ReviewLogRow {
+                id: row.try_get("id")?,
+                item_id: row.try_get("item_id")?,
+                rating: row.try_get("rating")?,
+                interval_days: row.try_get("interval_days")?,
+                last_interval_days: row.try_get("last_interval_days")?,
+                ease_factor: row.try_get("ease_factor")?,
+                time_ms: row.try_get("time_ms")?,
+                review_type: row.try_get("review_type")?,
+                anki_revlog_id: row.try_get("anki_revlog_id")?,
+                timestamp: row.try_get("timestamp")?,
+            });
+        }
+        Ok(entries)
+    }
+
+    /// Get review log entries for multiple learning items
+    pub async fn get_review_log_for_items(
+        &self,
+        item_ids: &[String],
+    ) -> Result<Vec<crate::anki::ReviewLogRow>> {
+        if item_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        // SQLite has a limit on bind params, so batch in groups of 500
+        let mut entries = Vec::new();
+        for chunk in item_ids.chunks(500) {
+            let placeholders: Vec<String> = chunk.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+            let query = format!(
+                r#"
+                SELECT id, item_id, rating, interval_days, last_interval_days,
+                       ease_factor, time_ms, review_type, source, anki_revlog_id, timestamp
+                FROM review_log WHERE item_id IN ({}) ORDER BY timestamp
+                "#,
+                placeholders.join(",")
+            );
+            let mut query = sqlx::query(&query);
+            for id in chunk {
+                query = query.bind(id);
+            }
+            let rows = query.fetch_all(&self.pool).await?;
+            for row in rows {
+                entries.push(crate::anki::ReviewLogRow {
+                    id: row.try_get("id")?,
+                    item_id: row.try_get("item_id")?,
+                    rating: row.try_get("rating")?,
+                    interval_days: row.try_get("interval_days")?,
+                    last_interval_days: row.try_get("last_interval_days")?,
+                    ease_factor: row.try_get("ease_factor")?,
+                    time_ms: row.try_get("time_ms")?,
+                    review_type: row.try_get("review_type")?,
+                    anki_revlog_id: row.try_get("anki_revlog_id")?,
+                    timestamp: row.try_get("timestamp")?,
+                });
+            }
+        }
+        Ok(entries)
+    }
+
     /// Get or create study statistics for a specific date
     pub async fn get_study_statistics(&self, date: &str) -> Result<Option<StudyStatsRow>> {
         let row = sqlx::query_as::<_, StudyStatsRow>(

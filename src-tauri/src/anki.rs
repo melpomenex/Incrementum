@@ -20,7 +20,7 @@ use rusqlite::Connection;
 use serde_json::Value;
 use crate::error::{Result, IncrementumError};
 use crate::database::Repository;
-use crate::models::{Document, FileType, LearningItem, ItemType, ItemState};
+use crate::models::{Document, FileType, LearningItem, ItemType, ItemState, MemoryState};
 use chrono::{Duration, Utc};
 use tauri::State;
 
@@ -49,6 +49,9 @@ pub struct AnkiCard {
     pub interval: i32,
     pub ease: f64,
     pub due: i32,
+    pub data: Option<String>,
+    pub reps: i32,
+    pub lapses: i32,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -57,6 +60,7 @@ pub struct AnkiDeck {
     pub name: String,
     pub notes: Vec<AnkiNote>,
     pub cards: Vec<AnkiCard>,
+    pub revlog: Vec<AnkiRevLogEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +68,35 @@ struct AnkiMediaFile {
     file_name: String,
     mime_type: String,
     bytes: Arc<Vec<u8>>,
+}
+
+/// A single entry from Anki's revlog table
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnkiRevLogEntry {
+    pub id: i64,
+    pub cid: i64,
+    pub ease: i32,
+    pub ivl: i32,
+    pub last_ivl: i32,
+    pub factor: i32,
+    pub time_ms: i32,
+    pub rev_type: i32,
+    pub timestamp: i64,
+}
+
+/// A row from our review_log table (used for export)
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ReviewLogRow {
+    pub id: String,
+    pub item_id: String,
+    pub rating: i32,
+    pub interval_days: f64,
+    pub last_interval_days: Option<f64>,
+    pub ease_factor: f64,
+    pub time_ms: i32,
+    pub review_type: i32,
+    pub anki_revlog_id: Option<i64>,
+    pub timestamp: String,
 }
 
 /// Parse an .apkg file and extract deck data
@@ -228,11 +261,15 @@ fn parse_collection_from_archive<R: Read + Seek>(
                 // Extract cards for this deck
                 let cards = extract_cards_from_deck(&conn, id)?;
 
+                // Extract review log for this deck
+                let revlog = extract_revlog_from_deck(&conn, id).unwrap_or_default();
+
                 anki_decks.push(AnkiDeck {
                     id,
                     name: deck_name.to_string(),
                     notes,
                     cards,
+                    revlog,
                 });
             }
         }
@@ -349,7 +386,7 @@ fn extract_notes_from_deck(
 fn extract_cards_from_deck(conn: &Connection, deck_id: i64) -> Result<Vec<AnkiCard>> {
     let mut cards = Vec::new();
 
-    let mut stmt = conn.prepare("SELECT id, nid, ord, ivl, factor, due FROM cards WHERE did = ?1")
+    let mut stmt = conn.prepare("SELECT id, nid, ord, ivl, factor, due, data, reps, lapses FROM cards WHERE did = ?1")
         .map_err(|e| IncrementumError::NotFound(format!("Cannot prepare cards query: {}", e)))?;
 
     let card_rows = stmt.query_map([deck_id], |row| {
@@ -360,12 +397,15 @@ fn extract_cards_from_deck(conn: &Connection, deck_id: i64) -> Result<Vec<AnkiCa
             row.get::<_, i32>(3)?,
             row.get::<_, i32>(4)?,
             row.get::<_, i32>(5)?,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, i32>(7)?,
+            row.get::<_, i32>(8)?,
         ))
     })
     .map_err(|e| IncrementumError::NotFound(format!("Cannot query cards: {}", e)))?;
 
     for card_row in card_rows {
-        let (id, note_id, ord, interval, factor, due) = card_row
+        let (id, note_id, ord, interval, factor, due, data, reps, lapses) = card_row
             .map_err(|e| IncrementumError::NotFound(format!("Cannot parse card row: {}", e)))?;
 
         cards.push(AnkiCard {
@@ -375,6 +415,9 @@ fn extract_cards_from_deck(conn: &Connection, deck_id: i64) -> Result<Vec<AnkiCa
             interval,
             ease: factor as f64 / 1000.0,
             due,
+            data,
+            reps,
+            lapses,
         });
     }
 
@@ -396,6 +439,50 @@ fn get_model_field_names(models: &Value, model_id: i64) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn extract_revlog_from_deck(conn: &Connection, deck_id: i64) -> Result<Vec<AnkiRevLogEntry>> {
+    let mut revlog = Vec::new();
+
+    let sql = "SELECT id, cid, ease, ivl, last_ivl, factor, time, type \
+              FROM revlog WHERE cid IN (SELECT id FROM cards WHERE did = ?1) \
+              ORDER BY id";
+    let mut stmt = conn.prepare(sql)
+        .map_err(|e| IncrementumError::NotFound(format!("Cannot prepare revlog query: {}", e)))?;
+
+    let rows = stmt.query_map([deck_id], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i32>(2)?,
+            row.get::<_, i32>(3)?,
+            row.get::<_, i32>(4)?,
+            row.get::<_, i32>(5)?,
+            row.get::<_, i32>(6)?,
+            row.get::<_, i32>(7)?,
+        ))
+    })
+    .map_err(|e| IncrementumError::NotFound(format!("Cannot query revlog: {}", e)))?;
+
+    for rev_row in rows {
+        let (id, cid, ease, ivl, last_ivl, factor, time_ms, rev_type) = rev_row
+            .map_err(|e| IncrementumError::NotFound(format!("Cannot parse revlog row: {}", e)))?;
+
+        // The revlog id is a millisecond timestamp
+        revlog.push(AnkiRevLogEntry {
+            id,
+            cid,
+            ease,
+            ivl,
+            last_ivl,
+            factor,
+            time_ms,
+            rev_type,
+            timestamp: id,
+        });
+    }
+
+    Ok(revlog)
 }
 
 fn normalize_cloze_text(text: &str) -> String {
@@ -473,6 +560,21 @@ async fn build_learning_item(
     item.cloze_text = cloze_text;
     item.interval = card.interval as f64;
     item.ease_factor = card.ease;
+    item.review_count = card.reps;
+    item.lapses = card.lapses;
+
+    // Import FSRS memory state from Anki card data
+    if let Some(ref card_data) = card.data {
+        if let Ok(json) = serde_json::from_str::<Value>(card_data) {
+            let stability = json.get("s").and_then(|v| v.as_f64());
+            let difficulty = json.get("d").and_then(|v| v.as_f64());
+            if let (Some(s), Some(d)) = (stability, difficulty) {
+                item.memory_state = Some(MemoryState { stability: s, difficulty: d });
+                item.algorithm_type = "fsrs".to_string();
+            }
+        }
+    }
+
     if card.interval > 0 {
         item.due_date = Utc::now() + Duration::days(card.interval as i64);
         item.state = ItemState::Review;
@@ -710,51 +812,7 @@ pub async fn import_anki_package_to_learning_items(
     let mut archive = ZipArchive::new(file)
         .map_err(|e| IncrementumError::NotFound(format!("Cannot unzip .apkg file: {}", e)))?;
     let (decks, media_map) = parse_apkg_with_media_from_archive(&mut archive)?;
-    let mut created_items = Vec::new();
-    let mut imported_note_guids = std::collections::HashSet::new();
-    let mut skipped_count = 0usize;
-
-    for deck in &decks {
-        eprintln!("DEBUG: Processing deck '{}' with {} notes and {} cards",
-                  deck.name, deck.notes.len(), deck.cards.len());
-    }
-
-    for deck in decks {
-        let mut deck_doc = Document::new(
-            deck.name.clone(),
-            format!("anki://deck/{}", deck.id),
-            FileType::Other,
-        );
-        deck_doc.tags = vec!["anki-import".to_string(), deck.name.clone()];
-        let deck_doc = repo.create_document(&deck_doc).await?;
-
-        for card in &deck.cards {
-            if let Some(note) = deck.notes.iter().find(|note| note.id == card.note_id).cloned() {
-                // Skip if we've already imported this note (by GUID)
-                if !imported_note_guids.insert(note.guid.clone()) {
-                    skipped_count += 1;
-                    eprintln!("DEBUG: Skipping duplicate note GUID: {}", note.guid);
-                    continue;
-                }
-                if let Some(item) = build_learning_item(
-                    &note,
-                    card,
-                    Some(&deck_doc.id),
-                    &deck.name,
-                    &repo,
-                    &media_map,
-                ).await {
-                    let created = repo.create_learning_item(&item).await?;
-                    created_items.push(created);
-                }
-            }
-        }
-    }
-
-    eprintln!("DEBUG: Import complete - created {} items, skipped {} duplicates",
-              created_items.len(), skipped_count);
-
-    Ok(created_items)
+    import_decks_to_learning_items(decks, media_map, &repo).await
 }
 
 #[tauri::command]
@@ -763,15 +821,26 @@ pub async fn import_anki_package_bytes_to_learning_items(
     repo: State<'_, Repository>,
 ) -> Result<Vec<LearningItem>> {
     let (decks, media_map) = parse_apkg_from_bytes_with_media(apkg_bytes).await?;
+    import_decks_to_learning_items(decks, media_map, &repo).await
+}
+
+/// Shared import logic for both file and bytes imports
+async fn import_decks_to_learning_items(
+    decks: Vec<AnkiDeck>,
+    media_map: HashMap<String, AnkiMediaFile>,
+    repo: &Repository,
+) -> Result<Vec<LearningItem>> {
     let mut created_items = Vec::new();
     let mut imported_note_guids = std::collections::HashSet::new();
     let mut skipped_count = 0usize;
 
     for deck in &decks {
-        eprintln!("DEBUG: Processing deck '{}' with {} notes and {} cards",
-                  deck.name, deck.notes.len(), deck.cards.len());
+        eprintln!("DEBUG: Processing deck '{}' with {} notes, {} cards, {} revlog entries",
+                  deck.name, deck.notes.len(), deck.cards.len(), deck.revlog.len());
     }
 
+    // Build a map from card id to revlog entries for each deck
+    // Since decks are processed sequentially, we can build per-deck
     for deck in decks {
         let mut deck_doc = Document::new(
             deck.name.clone(),
@@ -780,6 +849,12 @@ pub async fn import_anki_package_bytes_to_learning_items(
         );
         deck_doc.tags = vec!["anki-import".to_string(), deck.name.clone()];
         let deck_doc = repo.create_document(&deck_doc).await?;
+
+        // Map card_id -> revlog entries for this deck
+        let mut card_revlog: std::collections::HashMap<i64, Vec<AnkiRevLogEntry>> = std::collections::HashMap::new();
+        for entry in &deck.revlog {
+            card_revlog.entry(entry.cid).or_default().push(entry.clone());
+        }
 
         for card in &deck.cards {
             if let Some(note) = deck.notes.iter().find(|note| note.id == card.note_id).cloned() {
@@ -798,6 +873,14 @@ pub async fn import_anki_package_bytes_to_learning_items(
                     &media_map,
                 ).await {
                     let created = repo.create_learning_item(&item).await?;
+
+                    // Store revlog entries for this card
+                    if let Some(revlog_entries) = card_revlog.get(&card.id) {
+                        if let Err(e) = repo.batch_insert_review_log(revlog_entries, &created.id).await {
+                            eprintln!("DEBUG: Failed to import revlog for card {}: {}", card.id, e);
+                        }
+                    }
+
                     created_items.push(created);
                 }
             }
@@ -826,4 +909,291 @@ pub fn validate_anki_package(path: String) -> Result<bool> {
     }
 
     Ok(true)
+}
+
+/// Export learning items matching a deck tag as an .apkg file
+#[tauri::command]
+pub async fn export_deck_as_apkg(
+    deck_name: String,
+    output_path: String,
+    repo: State<'_, Repository>,
+) -> Result<String> {
+    // Fetch all learning items with the given deck tag
+    let all_items = repo.get_all_learning_items().await?;
+    let deck_items: Vec<_> = all_items
+        .into_iter()
+        .filter(|item| item.tags.iter().any(|t| t == &deck_name))
+        .collect();
+
+    if deck_items.is_empty() {
+        return Err(IncrementumError::NotFound(format!(
+            "No cards found for deck '{}'",
+            deck_name
+        )));
+    }
+
+    // Get review log entries for all deck items
+    let item_ids: Vec<String> = deck_items.iter().map(|i| i.id.clone()).collect();
+    let review_log = repo.get_review_log_for_items(&item_ids).await?;
+
+    // Group review log entries by item_id
+    let mut revlog_by_item: std::collections::HashMap<String, Vec<&ReviewLogRow>> =
+        std::collections::HashMap::new();
+    for entry in &review_log {
+        revlog_by_item.entry(entry.item_id.clone()).or_default().push(entry);
+    }
+
+    // Create a temporary SQLite database for the .apkg
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp_db_path = std::env::temp_dir().join(format!("anki_export_{}.db", nanos));
+
+    {
+        let conn = Connection::open(&temp_db_path)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot create export database: {}", e)))?;
+
+        // Create Anki tables
+        conn.execute_batch(
+            r#"
+            CREATE TABLE notes (
+                id INTEGER PRIMARY KEY,
+                guid TEXT NOT NULL,
+                mid INTEGER NOT NULL,
+                mod INTEGER NOT NULL,
+                usn INTEGER NOT NULL DEFAULT 0,
+                tags TEXT NOT NULL,
+                flds TEXT NOT NULL,
+                sfld TEXT NOT NULL DEFAULT '',
+                csum INTEGER NOT NULL DEFAULT 0,
+                flags INTEGER NOT NULL DEFAULT 0,
+                data TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE cards (
+                id INTEGER PRIMARY KEY,
+                nid INTEGER NOT NULL,
+                did INTEGER NOT NULL DEFAULT 1,
+                ord INTEGER NOT NULL DEFAULT 0,
+                mod INTEGER NOT NULL,
+                usn INTEGER NOT NULL DEFAULT 0,
+                ivl INTEGER NOT NULL DEFAULT 0,
+                laps INTEGER NOT NULL DEFAULT 0,
+                left INTEGER NOT NULL DEFAULT 0,
+                odue INTEGER NOT NULL DEFAULT 0,
+                odid INTEGER NOT NULL DEFAULT 0,
+                flags INTEGER NOT NULL DEFAULT 0,
+                queue INTEGER NOT NULL DEFAULT 0,
+                due INTEGER NOT NULL DEFAULT 0,
+                factor INTEGER NOT NULL DEFAULT 2500,
+                reps INTEGER NOT NULL DEFAULT 0,
+                deck_mod INTEGER NOT NULL DEFAULT 0,
+                ftags TEXT NOT NULL DEFAULT '',
+                data TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE revlog (
+                id INTEGER PRIMARY KEY,
+                cid INTEGER NOT NULL,
+                usn INTEGER NOT NULL DEFAULT 0,
+                ease INTEGER NOT NULL,
+                ivl INTEGER NOT NULL,
+                last_ivl INTEGER NOT NULL,
+                factor INTEGER NOT NULL,
+                time INTEGER NOT NULL,
+                type INTEGER NOT NULL
+            );
+            CREATE TABLE col (
+                id INTEGER PRIMARY KEY,
+                crt INTEGER NOT NULL DEFAULT 0,
+                mod INTEGER NOT NULL DEFAULT 0,
+                scm INTEGER NOT NULL DEFAULT 0,
+                ver INTEGER NOT NULL DEFAULT 0,
+                dty INTEGER NOT NULL DEFAULT 0,
+                usn INTEGER NOT NULL DEFAULT 0,
+                ls INTEGER NOT NULL DEFAULT 0,
+                conf TEXT NOT NULL DEFAULT '',
+                models TEXT NOT NULL,
+                decks TEXT NOT NULL,
+                dconf TEXT NOT NULL DEFAULT '',
+                tags TEXT NOT NULL DEFAULT ''
+            );
+            "#,
+        )
+        .map_err(|e| IncrementumError::Internal(format!("Cannot create tables: {}", e)))?;
+
+        let now_ts = Utc::now().timestamp();
+
+        // Create a basic note model (Basic: Front/Back)
+        let model_id: i64 = 1;
+        let deck_id: i64 = 1;
+        let models_json = serde_json::json!({
+            model_id.to_string(): {
+                "id": model_id,
+                "name": "Incrementum Export",
+                "type": 0,
+                "mod": now_ts,
+                "usn": 0,
+                "sortf": 0,
+                "did": deck_id,
+                "tmpls": [{
+                    "name": "Card 1",
+                    "ord": 0,
+                    "qfmt": "{{Front}}",
+                    "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+                }],
+                "flds": [
+                    {"name": "Front", "ord": 0, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                    {"name": "Back", "ord": 1, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                ],
+                "cnt": 2,
+                "scids": [],
+            }
+        }).to_string();
+
+        let decks_json = serde_json::json!({
+            deck_id.to_string(): {
+                "id": deck_id,
+                "name": &deck_name,
+                "mod": now_ts,
+                "usn": 0,
+                "lr": null,
+                "desc": "",
+                "dyn": 0,
+                "conf": 1,
+                "collapsed": false,
+                "browserCollapsed": false,
+            }
+        }).to_string();
+
+        // Insert col metadata
+        conn.execute(
+            "INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, models, decks, dconf) \
+             VALUES (1, ?1, ?2, ?3, 11, 0, 0, 0, ?4, ?5, '')",
+            rusqlite::params![now_ts, now_ts, now_ts, &models_json, &decks_json],
+        )
+        .map_err(|e| IncrementumError::Internal(format!("Cannot insert col: {}", e)))?;
+
+        // Insert notes and cards
+        let mut card_counter: i64 = 1;
+        for item in &deck_items {
+            let note_id = card_counter * 10000;
+            let card_id = note_id + 1;
+            let guid = uuid::Uuid::new_v4().to_string().replace("-", "")[..10].to_string();
+
+            let tags_str = item
+                .tags
+                .iter()
+                .filter(|t| !t.starts_with("anki-import"))
+                .map(|t| format!(" {}", t))
+                .collect::<Vec<_>>()
+                .join("");
+
+            let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+            let back = item.answer.as_deref().unwrap_or("").replace('\x1f', " ").replace('\\', "\\\\");
+            let flds = format!("{}\x1f{}", front, back);
+
+            conn.execute(
+                "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds) VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6)",
+                rusqlite::params![note_id, &guid, model_id, now_ts, &tags_str, &flds],
+            )
+            .map_err(|e| IncrementumError::Internal(format!("Cannot insert note: {}", e)))?;
+
+            // Build FSRS data JSON from memory_state
+            let card_data = if let Some(ref ms) = item.memory_state {
+                serde_json::json!({"d": ms.difficulty, "s": ms.stability, "v": "3"}).to_string()
+            } else {
+                String::new()
+            };
+
+            let interval = item.interval.round() as i32;
+            let factor = (item.ease_factor * 1000.0).round() as i32;
+            let due = if interval > 0 {
+                // Convert due_date to days since epoch
+                let due_date = item.due_date;
+                let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+                let due_naive = due_date.date_naive();
+                (due_naive - epoch).num_days() as i32
+            } else {
+                0
+            };
+
+            conn.execute(
+                "INSERT INTO cards (id, nid, did, ord, mod, usn, ivl, laps, reps, factor, due, queue, data) \
+                 VALUES (?1, ?2, ?3, 0, ?4, 0, ?5, ?6, ?7, ?8, ?9, 0, ?10)",
+                rusqlite::params![
+                    card_id,
+                    note_id,
+                    deck_id,
+                    now_ts,
+                    interval,
+                    item.lapses,
+                    item.review_count,
+                    factor,
+                    due,
+                    &card_data,
+                ],
+            )
+            .map_err(|e| IncrementumError::Internal(format!("Cannot insert card: {}", e)))?;
+
+            // Insert revlog entries for this item
+            if let Some(entries) = revlog_by_item.get(&item.id) {
+                for entry in entries {
+                    // Use the original Anki revlog id if available
+                    let revlog_id = entry.anki_revlog_id.unwrap_or_else(|| {
+                        // Generate a unique timestamp-based id
+                        Utc::now().timestamp_millis()
+                    });
+                    let ivl = entry.interval_days.round() as i32;
+                    let last_ivl = entry.last_interval_days.map(|l| l.round() as i32).unwrap_or(0);
+                    let factor = (entry.ease_factor * 1000.0).round() as i32;
+
+                    conn.execute(
+                        "INSERT OR IGNORE INTO revlog (id, cid, usn, ease, ivl, last_ivl, factor, time, type) \
+                         VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, ?7, ?8)",
+                        rusqlite::params![
+                            revlog_id,
+                            card_id,
+                            entry.rating,
+                            ivl,
+                            last_ivl,
+                            factor,
+                            entry.time_ms,
+                            entry.review_type,
+                        ],
+                    )
+                    .map_err(|e| IncrementumError::Internal(format!("Cannot insert revlog: {}", e)))?;
+                }
+            }
+
+            card_counter += 1;
+        }
+    }
+
+    // Read the database file and create the .apkg ZIP
+    let db_bytes = std::fs::read(&temp_db_path)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot read export database: {}", e)))?;
+    let _ = std::fs::remove_file(&temp_db_path);
+
+    let output_file = File::create(&output_path)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot create output file: {}", e)))?;
+    let mut zip = zip::ZipWriter::new(output_file);
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    // Write collection.anki2
+    zip.start_file("collection.anki2", options)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write collection: {}", e)))?;
+    zip.write_all(&db_bytes)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write collection data: {}", e)))?;
+
+    // Write empty media manifest
+    zip.start_file("media", options)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write media: {}", e)))?;
+    zip.write_all(b"{}")
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write media data: {}", e)))?;
+
+    zip.finish()
+        .map_err(|e| IncrementumError::Internal(format!("Cannot finalize zip: {}", e)))?;
+
+    Ok(format!("Exported {} cards to {}", deck_items.len(), output_path))
 }

@@ -25,16 +25,20 @@ import {
   CheckCircle2,
   Edit3,
   Calendar,
+  Copy,
+  Pause,
+  Upload,
 } from "lucide-react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
-import { getAllLearningItems, type LearningItem } from "../../api/learning-items";
+import { getAllLearningItems, exportDeckAsApkg, type LearningItem } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
 import { filterByDecks, matchesDeckTags } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { DeckManagerCardRow } from "./DeckManagerCardRow";
-import { InlineCardEditor } from "./InlineCardEditor";
+// InlineCardEditor moved to CardPreviewPanel Edit tab
+import { CardPreviewPanel } from "./CardPreviewPanel";
 import { DeckStatsPanel } from "./DeckStatsPanel";
 import type { StudyDeck } from "../../types/study-decks";
 
@@ -44,19 +48,19 @@ type StateFilter = "" | "New" | "Learning" | "Review" | "Relearning" | "Suspende
 
 interface DeckManagerProps {
   onBack: () => void;
+  onStartReview?: () => Promise<void>;
   onEditInStudio?: (card: LearningItem) => void;
 }
 
-export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
+export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManagerProps) {
   const { t } = useI18n();
   const toast = useToast();
-  const { decks } = useStudyDeckStore();
+  const { decks, updateDeck, removeDeck, addDeck } = useStudyDeckStore();
 
   const [allCards, setAllCards] = useState<LearningItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDeckId, setExpandedDeckId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [sortField, setSortField] = useState<SortField>("due_date");
@@ -64,6 +68,20 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
   const [stateFilter, setStateFilter] = useState<StateFilter>("");
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ deckId: string; x: number; y: number } | null>(null);
+  const [renamingDeckId, setRenamingDeckId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [previewCardId, setPreviewCardId] = useState<string | null>(null);
+  const [rightPanelView, setRightPanelView] = useState<"preview" | "stats">("preview");
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [mobileCardOpen, setMobileCardOpen] = useState(false);
+
+  // Re-check on resize
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +102,13 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
       cancelled = true;
     };
   }, [toast]);
+
+  // On mobile, auto-select first deck when cards load and none is selected
+  useEffect(() => {
+    if (isMobile && !loading && decks.length > 0 && !expandedDeckId) {
+      setExpandedDeckId(decks[0].id);
+    }
+  }, [isMobile, loading, decks, expandedDeckId]);
 
   const getCardsForDeck = useCallback(
     (deck: StudyDeck): LearningItem[] => {
@@ -177,6 +202,10 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
     sortDir,
   ]);
 
+  const previewCard = previewCardId
+    ? expandedCards.find((c) => c.id === previewCardId) ?? null
+    : null;
+
   // State filter counts for the active deck
   const stateFilterCounts = useMemo(() => {
     if (!expandedDeck) return { all: 0, "New": 0, "Learning": 0, "Review": 0, "Suspended": 0, "Leeches": 0 };
@@ -210,9 +239,10 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
 
   const handleExpandCard = useCallback(
     (id: string) => {
-      setExpandedCardId((prev) => (prev === id ? null : id));
+      setPreviewCardId((prev) => (prev === id ? null : id));
+      if (isMobile) setMobileCardOpen(true);
     },
-    []
+    [isMobile]
   );
 
   const handleCardSave = useCallback(
@@ -297,6 +327,138 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
     setSortDir("desc");
   }, []);
 
+  // Context menu handlers for deck right-click
+  const handleDeckContextMenu = useCallback((e: React.MouseEvent, deckId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ deckId, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const handleDeckRename = useCallback((deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    setRenamingDeckId(deckId);
+    setRenameValue(deck.name);
+    setContextMenu(null);
+  }, [decks]);
+
+  const commitRename = useCallback(() => {
+    if (renamingDeckId && renameValue.trim()) {
+      updateDeck(renamingDeckId, { name: renameValue.trim() });
+    }
+    setRenamingDeckId(null);
+    setRenameValue("");
+  }, [renamingDeckId, renameValue, updateDeck]);
+
+  const handleDeckDuplicate = useCallback((deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    addDeck(`${deck.name} (copy)`, deck.tagFilters);
+    setContextMenu(null);
+    toast.success(`Duplicated deck "${deck.name}"`);
+  }, [decks, addDeck, toast]);
+
+  const handleDeckDelete = useCallback((deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    setContextMenu(null);
+    if (confirm(`Delete deck "${deck.name}"? This will NOT delete the cards in this deck - they just won't be filtered by it anymore.`)) {
+      removeDeck(deckId);
+      if (expandedDeckId === deckId) setExpandedDeckId(null);
+      toast.success(`Deleted deck "${deck.name}"`);
+    }
+  }, [decks, removeDeck, expandedDeckId, toast]);
+
+  const handleDeckStudy = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    setContextMenu(null);
+    // Select this deck in the study deck store
+    const store = useStudyDeckStore.getState();
+    store.clearDeckSelection();
+    store.toggleDeckSelection(deckId);
+    // Start review session
+    if (onStartReview) {
+      await onStartReview();
+    }
+  }, [decks, onStartReview]);
+
+  const handleDeckSuspendAll = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck) && !c.is_suspended);
+    if (cards.length === 0) { toast.info("No active cards to suspend"); setContextMenu(null); return; }
+    try {
+      await bulkSuspendItems(cards.map((c) => c.id));
+      setAllCards((prev) => prev.map((c) => cards.some((tc) => tc.id === c.id) ? { ...c, is_suspended: true } : c));
+      toast.success(`Suspended ${cards.length} cards`);
+    } catch { toast.error("Failed to suspend cards"); }
+    setContextMenu(null);
+  }, [decks, allCards, toast]);
+
+  const handleDeckUnsuspendAll = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck) && c.is_suspended);
+    if (cards.length === 0) { toast.info("No suspended cards to unsuspend"); setContextMenu(null); return; }
+    try {
+      await bulkUnsuspendItems(cards.map((c) => c.id));
+      setAllCards((prev) => prev.map((c) => cards.some((tc) => tc.id === c.id) ? { ...c, is_suspended: false } : c));
+      toast.success(`Unsuspended ${cards.length} cards`);
+    } catch { toast.error("Failed to unsuspend cards"); }
+    setContextMenu(null);
+  }, [decks, allCards, toast]);
+
+  const handleDeckExport = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck));
+    if (cards.length === 0) { toast.info("No cards to export"); setContextMenu(null); return; }
+    const exportData = cards.map((c) => ({
+      question: c.question,
+      answer: c.answer,
+      tags: c.tags,
+      state: c.state,
+      difficulty: c.difficulty,
+      interval: c.interval,
+      ease_factor: c.ease_factor,
+      review_count: c.review_count,
+      lapses: c.lapses,
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${deck.name.replace(/[^a-zA-Z0-9-_ ]/g, "_")}-export.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${cards.length} cards`);
+    setContextMenu(null);
+  }, [decks, allCards, toast]);
+
+  const handleDeckExportApkg = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    setContextMenu(null);
+    try {
+      // Use Tauri file dialog to pick save location
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const filePath = await save({
+        title: `Export "${deck.name}" as .apkg`,
+        defaultPath: `${deck.name.replace(/[^a-zA-Z0-9-_ ]/g, "_")}.apkg`,
+        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+      });
+      if (!filePath) return;
+      toast.info("Exporting as .apkg...");
+      const result = await exportDeckAsApkg(deck.name, filePath);
+      toast.success(result);
+    } catch (err) {
+      toast.error(`Export failed: ${err}`);
+    }
+  }, [decks, toast]);
+
   const toggleSort = useCallback(
     (field: SortField) => {
       if (sortField === field) {
@@ -312,8 +474,10 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (expandedCardId) {
-          setExpandedCardId(null);
+        if (contextMenu) { setContextMenu(null); return; }
+        if (renamingDeckId) { setRenamingDeckId(null); setRenameValue(""); return; }
+        if (previewCardId) {
+          setPreviewCardId(null);
         } else if (expandedDeckId) {
           setExpandedDeckId(null);
         }
@@ -321,7 +485,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [expandedCardId, expandedDeckId]);
+  }, [previewCardId, expandedDeckId]);
 
   const allDeckCards = expandedDeck ? getCardsForDeck(expandedDeck) : [];
 
@@ -377,10 +541,71 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
         </button>
         <span className="text-border">·</span>
         <h2 className="text-base font-semibold">{t("review.deckManager.title")}</h2>
-        <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
+        <span className={"text-[10px] text-muted-foreground ml-auto tabular-nums"}>
           {allCards.length} cards · {decks.length} decks
         </span>
       </div>
+
+      {/* Mobile deck picker */}
+      {isMobile && decks.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+          <select
+            value={expandedDeckId ?? ""}
+            onChange={(e) => setExpandedDeckId(e.target.value || null)}
+            className="flex-1 text-sm bg-muted/60 border border-border rounded-md px-2 py-1.5 text-foreground"
+          >
+            <option value="">Select a deck…</option>
+            {decks.map((deck) => {
+              const counts = deckCardCounts.get(deck.id);
+              return (
+                <option key={deck.id} value={deck.id}>
+                  {deck.name} ({counts?.total ?? 0})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      )}
+
+      {/* Mobile card preview overlay */}
+      {isMobile && mobileCardOpen && previewCard && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex items-center border-b border-border px-3 py-2 flex-shrink-0">
+            <button
+              onClick={() => setMobileCardOpen(false)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={() => setRightPanelView(rightPanelView === "preview" ? "stats" : "preview")}
+                className="text-xs px-2 py-1 text-muted-foreground hover:text-foreground"
+              >
+                {rightPanelView === "preview" ? "Stats" : "Card"}
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {rightPanelView === "preview" ? (
+              <CardPreviewPanel
+                card={previewCard}
+                onCardUpdate={handleCardSave}
+                onEditInStudio={onEditInStudio}
+              />
+            ) : (
+              <div className="overflow-y-auto h-full">
+                <DeckStatsPanel
+                  cards={allDeckCards}
+                  deck={expandedDeck}
+                  onLeechClick={handleLeechFilter}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main 3-column layout */}
       <div className="flex-1 overflow-hidden">
@@ -395,8 +620,8 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
           </div>
         ) : (
           <div className="flex h-full">
-            {/* LEFT SIDEBAR - Deck tree */}
-            <div className="w-[220px] flex-shrink-0 border-r border-border overflow-y-auto">
+            {/* LEFT SIDEBAR - Deck tree (hidden on mobile, replaced by picker above) */}
+            <div className={"w-[220px] flex-shrink-0 border-r border-border overflow-y-auto " + (isMobile ? "hidden" : "")}>
               <div className="p-1.5 space-y-0.5">
                 {decks.map((deck) => {
                   const counts = deckCardCounts.get(deck.id);
@@ -408,6 +633,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                       onClick={() =>
                         setExpandedDeckId(isExpanded ? null : deck.id)
                       }
+                      onContextMenu={(e) => handleDeckContextMenu(e, deck.id)}
                       className={`w-full text-left px-2 py-1.5 rounded transition-colors ${
                         isExpanded
                           ? "bg-primary/10 border border-primary/20"
@@ -421,7 +647,22 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                           <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{deck.name}</div>
+                            {renamingDeckId === deck.id ? (
+                              <input
+                                autoFocus
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onBlur={commitRename}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") commitRename();
+                                  if (e.key === "Escape") { setRenamingDeckId(null); setRenameValue(""); }
+                                }}
+                                className="text-sm font-medium bg-background border border-primary rounded px-1 py-0 w-full focus:outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <div className="text-sm font-medium truncate">{deck.name}</div>
+                            )}
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                             <span className="tabular-nums">{counts?.total ?? 0}</span>
                             {counts && counts.dueToday > 0 && (
@@ -498,9 +739,9 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   )}
 
                   {/* Search + filter chips + actions */}
-                  <div className="px-3 py-1.5 border-b border-border/50 space-y-1.5 flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1 max-w-xs">
+                  <div className={"px-3 py-1.5 border-b border-border/50 space-y-1.5 flex-shrink-0"}>
+                    <div className={"flex items-center gap-2 " + (isMobile ? "flex-wrap" : "")}>
+                      <div className={"relative " + (isMobile ? "flex-1" : "flex-1 max-w-xs")}>
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                         <input
                           type="text"
@@ -519,9 +760,34 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                         )}
                       </div>
 
-                      {/* Filter chips with counts */}
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {filterChips.map(({ key, label }) => {
+                      {/* Action buttons */}
+                      <div className={"flex items-center gap-1 " + (isMobile ? "" : "ml-auto flex-shrink-0")}>
+                        <button className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
+                          <Plus className="h-3 w-3" /> {!isMobile && "New Card"}
+                        </button>
+                        <button className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
+                          <Download className="h-3 w-3" /> {!isMobile && "Import"}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (expandedDeck && onStartReview) {
+                              const store = useStudyDeckStore.getState();
+                              store.clearDeckSelection();
+                              store.toggleDeckSelection(expandedDeck.id);
+                              await onStartReview();
+                            }
+                          }}
+                          disabled={!expandedDeck}
+                          className="flex items-center gap-1 text-xs px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40"
+                        >
+                          <GraduationCap className="h-3 w-3" /> {!isMobile && "Study Now"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter chips */}
+                    <div className={"flex items-center gap-1 " + (isMobile ? "flex-wrap" : "")}>
+                      {filterChips.map(({ key, label }) => {
                           const count = key === "" ? stateFilterCounts.all
                             : key === "Suspended" ? stateFilterCounts.Suspended
                             : key === "Leeches" ? stateFilterCounts.Leeches
@@ -545,23 +811,10 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                           );
                         })}
                       </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1 ml-auto flex-shrink-0">
-                        <button className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
-                          <Plus className="h-3 w-3" /> New Card
-                        </button>
-                        <button className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground">
-                          <Download className="h-3 w-3" /> Import
-                        </button>
-                        <button className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-primary text-primary-foreground">
-                          <GraduationCap className="h-3 w-3" /> Study Now
-                        </button>
-                      </div>
                     </div>
 
                     {/* Sort + select all row */}
-                    <div className="flex items-center gap-1">
+                    <div className={"flex items-center gap-1 " + (isMobile ? "flex-wrap" : "")}>
                       <ArrowUpDown className="h-2.5 w-2.5 text-muted-foreground mr-0.5" />
                       {sortLabels.map(([field, label]) => (
                         <button
@@ -578,7 +831,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                             (sortDir === "asc" ? " ↑" : " ↓")}
                         </button>
                       ))}
-                      <div className="ml-auto flex items-center gap-1">
+                      <div className={isMobile ? "flex items-center gap-1 mt-1" : "ml-auto flex items-center gap-1"}>
                         <button
                           onClick={handleSelectAll}
                           className="text-xs px-2 py-0.5 rounded hover:bg-muted text-muted-foreground"
@@ -589,7 +842,6 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                         </button>
                       </div>
                     </div>
-                  </div>
 
                   {/* Bulk action toolbar */}
                   {selectedIds.size > 0 && (
@@ -622,18 +874,18 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   {/* Delete confirmation */}
                   {showDeleteConfirm && (
                     <div className="px-3 py-1.5 border-b border-destructive/20 bg-destructive/5 flex items-center gap-2 flex-shrink-0">
-                      <span className="text-[10px] text-destructive">
+                      <span className="text-xs text-destructive">
                         Delete {selectedIds.size} cards? This cannot be undone.
                       </span>
                       <button
                         onClick={handleBulkDelete}
-                        className="text-[10px] px-2 py-0.5 rounded bg-destructive text-destructive-foreground"
+                        className="text-xs px-2 py-0.5 rounded bg-destructive text-destructive-foreground"
                       >
                         Confirm
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="text-[10px] px-2 py-0.5 rounded border border-border"
+                        className="text-xs px-2 py-0.5 rounded border border-border"
                       >
                         Cancel
                       </button>
@@ -643,26 +895,34 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                   {/* Column headers */}
                   <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 text-xs font-medium text-muted-foreground uppercase tracking-wider flex-shrink-0 select-none">
                     <div className="w-4 flex-shrink-0" />
-                    <div className="w-[180px] flex-shrink-0">Card</div>
-                    <div className="w-12 flex-shrink-0">Type</div>
-                    <div className="w-16 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("due_date")}>
-                      Due {sortField === "due_date" && (sortDir === "asc" ? "↑" : "↓")}
-                    </div>
-                    <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("difficulty")}>
-                      Difficulty {sortField === "difficulty" && (sortDir === "asc" ? "↑" : "↓")}
-                    </div>
-                    <div className="w-14 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("interval")}>
-                      Stability {sortField === "interval" && (sortDir === "asc" ? "↑" : "↓")}
-                    </div>
-                    <div className="flex-1 min-w-0">Tags</div>
-                    <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("review_count")}>
-                      Last Review
-                    </div>
-                    <div className="w-5 flex-shrink-0" />
+                    <div className={"flex-shrink-0 " + (isMobile ? "flex-1 min-w-0" : "w-[180px]")}>Card</div>
+                    {!isMobile && <div className="w-12 flex-shrink-0">Type</div>}
+                    {!isMobile && (
+                      <div className="w-16 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("due_date")}>
+                        Due {sortField === "due_date" && (sortDir === "asc" ? "↑" : "↓")}
+                      </div>
+                    )}
+                    {!isMobile && (
+                      <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("difficulty")}>
+                        Difficulty {sortField === "difficulty" && (sortDir === "asc" ? "↑" : "↓")}
+                      </div>
+                    )}
+                    {!isMobile && (
+                      <div className="w-14 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("interval")}>
+                        Stability {sortField === "interval" && (sortDir === "asc" ? "↑" : "↓")}
+                      </div>
+                    )}
+                    {!isMobile && <div className="flex-1 min-w-0">Tags</div>}
+                    {!isMobile && (
+                      <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("review_count")}>
+                        Last Review
+                      </div>
+                    )}
+                    {!isMobile && <div className="w-5 flex-shrink-0" />}
                   </div>
 
-                  {/* Card list with VirtualList */}
-                  <div className="flex-1 overflow-y-auto">
+                  {/* Card list */}
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     {expandedCards.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
                         <FolderOpen className="h-8 w-8" />
@@ -672,13 +932,28 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                             : t("review.deckManager.emptyDeck")}
                         </p>
                       </div>
+                    ) : isMobile ? (
+                      /* Simple scrollable list on mobile — VirtualList needs precise container height */
+                      <div className="divide-y divide-border/30">
+                        {expandedCards.map((card) => (
+                          <DeckManagerCardRow
+                            key={card.id}
+                            card={card}
+                            isSelected={selectedIds.has(card.id)}
+                            isExpanded={previewCardId === card.id}
+                            onToggleSelect={handleToggleSelect}
+                            onExpand={handleExpandCard}
+                            isMobile={isMobile}
+                          />
+                        ))}
+                      </div>
                     ) : (
                       <DynamicVirtualList
                         items={expandedCards}
                         estimateSize={44}
                         overscan={10}
                         renderItem={(card) => {
-                          const isExpanded = expandedCardId === card.id;
+                          const isExpanded = previewCardId === card.id;
                           return (
                             <div key={card.id}>
                               <DeckManagerCardRow
@@ -687,15 +962,8 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
                                 isExpanded={isExpanded}
                                 onToggleSelect={handleToggleSelect}
                                 onExpand={handleExpandCard}
+                                isMobile={isMobile}
                               />
-                              {isExpanded && (
-                                <InlineCardEditor
-                                  card={card}
-                                  onClose={() => setExpandedCardId(null)}
-                                  onSave={handleCardSave}
-                                  onEditInStudio={onEditInStudio}
-                                />
-                              )}
                             </div>
                           );
                         }}
@@ -711,19 +979,130 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
               )}
             </div>
 
-            {/* RIGHT SIDEBAR - Deck details + stats */}
-            {expandedDeck && (
-              <div className="w-[280px] flex-shrink-0 border-l border-border overflow-y-auto">
-                <DeckStatsPanel
-                  cards={allDeckCards}
-                  deck={expandedDeck}
-                  onLeechClick={handleLeechFilter}
-                />
+            {/* RIGHT SIDEBAR - Card preview or deck stats (hidden on mobile, replaced by overlay) */}
+            {expandedDeck && !isMobile && (
+              <div className="w-[750px] flex-shrink-0 border-l border-border flex flex-col h-full">
+                {/* Panel toggle */}
+                <div className="flex items-center border-b border-border px-2 flex-shrink-0">
+                  <button
+                    onClick={() => setRightPanelView("preview")}
+                    className={`text-xs px-2 py-1.5 transition-colors ${
+                      rightPanelView === "preview"
+                        ? "text-primary font-medium border-b-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Card
+                  </button>
+                  <button
+                    onClick={() => setRightPanelView("stats")}
+                    className={`text-xs px-2 py-1.5 transition-colors ${
+                      rightPanelView === "stats"
+                        ? "text-primary font-medium border-b-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Stats
+                  </button>
+                </div>
+                {rightPanelView === "preview" ? (
+                  <CardPreviewPanel
+                    card={previewCard}
+                    onCardUpdate={handleCardSave}
+                    onEditInStudio={onEditInStudio}
+                  />
+                ) : (
+                  <div className="flex-1 overflow-y-auto">
+                    <DeckStatsPanel
+                      cards={allDeckCards}
+                      deck={expandedDeck}
+                      onLeechClick={handleLeechFilter}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Deck context menu */}
+      {contextMenu && (() => {
+        const ctxDeck = decks.find((d) => d.id === contextMenu.deckId);
+        if (!ctxDeck) return null;
+        const ctxCounts = deckCardCounts.get(contextMenu.deckId);
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeContextMenu} />
+            <div
+              className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[180px]"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              <button
+                onClick={() => handleDeckStudy(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+                Study Deck
+                {ctxCounts && ctxCounts.dueToday > 0 && (
+                  <span className="ml-auto text-xs text-primary tabular-nums">{ctxCounts.dueToday} due</span>
+                )}
+              </button>
+              <button
+                onClick={() => handleDeckRename(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
+                Rename
+              </button>
+              <button
+                onClick={() => handleDeckDuplicate(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                Duplicate
+              </button>
+              <button
+                onClick={() => handleDeckExport(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                Export as JSON
+              </button>
+              <button
+                onClick={() => handleDeckExportApkg(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                Export as .apkg
+              </button>
+              <div className="h-px bg-border my-1" />
+              <button
+                onClick={() => handleDeckSuspendAll(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Pause className="h-3.5 w-3.5 text-yellow-500" />
+                Suspend All Cards
+              </button>
+              <button
+                onClick={() => handleDeckUnsuspendAll(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+              >
+                <Play className="h-3.5 w-3.5 text-green-500" />
+                Unsuspend All Cards
+              </button>
+              <div className="h-px bg-border my-1" />
+              <button
+                onClick={() => handleDeckDelete(contextMenu.deckId)}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-destructive/10 text-destructive transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete Deck
+              </button>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -775,7 +1154,7 @@ function RetagPopover({
         value={addTags}
         onChange={(e) => setAddTags(e.target.value)}
         placeholder="+tags"
-        className="w-16 text-[10px] px-1 py-0.5 rounded border border-border bg-background"
+        className="w-16 text-xs px-1 py-0.5 rounded border border-border bg-background"
         autoFocus
       />
       <input
@@ -783,7 +1162,7 @@ function RetagPopover({
         value={removeTags}
         onChange={(e) => setRemoveTags(e.target.value)}
         placeholder="-tags"
-        className="w-16 text-[10px] px-1 py-0.5 rounded border border-border bg-background"
+        className="w-16 text-xs px-1 py-0.5 rounded border border-border bg-background"
       />
       <button
         onClick={() => {
@@ -802,7 +1181,7 @@ function RetagPopover({
           setAddTags("");
           setRemoveTags("");
         }}
-        className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
+        className="text-xs px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
       >
         Apply
       </button>
@@ -812,7 +1191,7 @@ function RetagPopover({
           setAddTags("");
           setRemoveTags("");
         }}
-        className="text-[10px] px-1 py-0.5 rounded border border-border"
+        className="text-xs px-1 py-0.5 rounded border border-border"
       >
         <X className="h-2.5 w-2.5" />
       </button>
