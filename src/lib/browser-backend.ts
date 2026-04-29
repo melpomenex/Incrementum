@@ -3520,7 +3520,7 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
     const { documents, learningItems } = convertAnkiToLearningItems(decks);
     console.log(`[Browser] Converted: ${documents.length} documents, ${learningItems.length} learning items`);
 
-    // Store documents
+    // Store documents (small number, individual calls are fine)
     const documentIdMap = new Map<string, string>();
     for (const [index, doc] of documents.entries()) {
         const createdDoc = await db.createDocument({
@@ -3536,12 +3536,16 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
         documentIdMap.set(placeholderId, createdDoc.id);
     }
 
-    // Create learning items
+    // Create learning items in bulk — avoids hammering IndexedDB with
+    // hundreds of individual transactions (which kills the backing store on mobile)
     console.log(`[Browser] Creating ${learningItems.length} learning items in database...`);
-    const items = [];
+    const now = new Date().toISOString();
+    const dbItems: any[] = [];
+    const itemsPerDoc = new Map<string, number>();
+
     for (const item of learningItems) {
         const documentId = documentIdMap.get(item.documentId) ?? item.documentId;
-        const createdItem = await db.createLearningItem({
+        const fullItem = db.createLearningItemRaw({
             document_id: documentId,
             item_type: item.itemType,
             question: item.question,
@@ -3550,13 +3554,26 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
             cloze_ranges: item.clozeRanges,
             tags: item.tags,
         });
-
-        // Convert to camelCase and return as plain object
-        items.push(toCamelCase(createdItem));
+        dbItems.push(fullItem);
+        itemsPerDoc.set(documentId, (itemsPerDoc.get(documentId) ?? 0) + 1);
     }
-    console.log(`[Browser] Successfully created ${items.length} learning items`);
 
-    return items;
+    // Bulk insert all items in a single transaction
+    await db.bulkPutLearningItems(dbItems);
+    console.log(`[Browser] Bulk-inserted ${dbItems.length} learning items`);
+
+    // Update each document's learning_item_count once (instead of per-item)
+    for (const [docId, count] of itemsPerDoc) {
+        const doc = await db.getDocument(docId);
+        if (doc) {
+            await db.updateDocument(docId, {
+                learning_item_count: doc.learning_item_count + count,
+            });
+        }
+    }
+
+    console.log(`[Browser] Successfully imported ${dbItems.length} learning items`);
+    return dbItems.map((item) => toCamelCase(item));
 }
 
 /**

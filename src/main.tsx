@@ -202,7 +202,7 @@ if (!isTauri() && isPWA()) {
 if ((import.meta.env.DEV || isTauri()) && "serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((registration) => registration.unregister());
-  });
+  }).catch(() => {});
 }
 
 if ((import.meta.env.DEV || isTauri()) && "caches" in window) {

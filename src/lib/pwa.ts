@@ -376,11 +376,19 @@ export function initializePWA(): void {
 
   if ('serviceWorker' in navigator) {
     const refreshRegistration = () => {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        registration?.update().catch((error) => {
-          console.warn('[PWA] Failed to refresh service worker registration:', error);
+      try {
+        navigator.serviceWorker.getRegistration().then((registration) => {
+          registration?.update().catch((error) => {
+            console.warn('[PWA] Failed to refresh service worker registration:', error);
+          });
+        }).catch((error) => {
+          // Document may be in invalid state after backgrounding (Chrome memory reclaim)
+          console.warn('[PWA] Cannot refresh registration (page may need reload):', error?.message);
         });
-      });
+      } catch (error) {
+        // Synchronous InvalidStateError — navigator.serviceWorker itself is dead
+        console.warn('[PWA] Service worker API unavailable (page may need reload):', (error as Error)?.message);
+      }
     };
 
     window.addEventListener('focus', refreshRegistration);
