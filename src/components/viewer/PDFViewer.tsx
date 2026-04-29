@@ -228,6 +228,7 @@ export function PDFViewer({
   const textLayerContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const textLayerRootsRef = useRef<(HTMLDivElement | null)[]>([]);
   const textLayerBuildersRef = useRef<(PdfTextLayerRenderer | null)[]>([]);
+  const textLayerTimeoutsRef = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
   const pageViewportRefs = useRef<(import("pdfjs-dist").PageViewport | null)[]>([]);
   const pageScaleRefs = useRef<(number | null)[]>([]);
   const renderTasksRef = useRef<(any | null)[]>([]);  // Track PDF.js render tasks to cancel
@@ -1097,6 +1098,9 @@ export function PDFViewer({
       for (let i = 0; i < textLayerBuildersRef.current.length; i++) {
         try { textLayerBuildersRef.current[i]?.cancel(); } catch { /* ignore */ }
       }
+      for (let i = 0; i < textLayerTimeoutsRef.current.length; i++) {
+        if (textLayerTimeoutsRef.current[i] != null) clearTimeout(textLayerTimeoutsRef.current[i]!);
+      }
     };
   }, [clearNavigationSettleTimeout, clearSelectionHighlights]);
 
@@ -1763,6 +1767,18 @@ export function PDFViewer({
       renderTasksRef.current[pageIndex] = null;
     }
 
+    // Cancel any pending text layer build (deferred via setTimeout) AND any
+    // in-flight text layer render BEFORE clearing innerHTML.  If we clear the
+    // DOM first, pdfjs's TextLayer.#processItems will dereference a detached
+    // node ("this.#container.parentNode is null") and crash.
+    const pendingTimeout = textLayerTimeoutsRef.current[pageIndex];
+    if (pendingTimeout != null) {
+      clearTimeout(pendingTimeout);
+      textLayerTimeoutsRef.current[pageIndex] = null;
+    }
+    try { textLayerBuildersRef.current[pageIndex]?.cancel(); } catch { /* ignore */ }
+    textLayerBuildersRef.current[pageIndex] = null;
+
     // Clear and setup text layer
     textLayerContainer.innerHTML = "";
     textLayerContainer.style.width = `${viewport.width}px`;
@@ -1902,7 +1918,10 @@ export function PDFViewer({
     };
 
     if (textLayerDelay > 0) {
-      setTimeout(buildTextLayer, textLayerDelay);
+      textLayerTimeoutsRef.current[pageIndex] = setTimeout(() => {
+        textLayerTimeoutsRef.current[pageIndex] = null;
+        void buildTextLayer();
+      }, textLayerDelay);
     } else {
       void buildTextLayer();
     }
@@ -2479,6 +2498,11 @@ export function PDFViewer({
     if (!shouldVirtualize) return;
     for (let i = 0; i < numPages; i += 1) {
       if (i < virtualStartPage - 1 || i > virtualEndPage - 1) {
+        // Cancel in-flight text layer renders before dropping refs.
+        try { textLayerBuildersRef.current[i]?.cancel(); } catch { /* ignore */ }
+        textLayerBuildersRef.current[i] = null;
+        const timeout = textLayerTimeoutsRef.current[i];
+        if (timeout != null) { clearTimeout(timeout); textLayerTimeoutsRef.current[i] = null; }
         pageContainerRefs.current[i] = null;
         canvasRefs.current[i] = null;
         textLayerContainerRefs.current[i] = null;
