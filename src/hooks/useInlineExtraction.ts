@@ -10,6 +10,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useToast } from "../components/common/Toast";
+import { useI18n } from "../lib/i18n";
 
 export interface ExtractOptions {
   documentId: string;
@@ -34,6 +35,7 @@ export function useInlineExtraction({
   enabled = true,
 }: UseInlineExtractionProps) {
   const toast = useToast();
+  const { t } = useI18n();
   const pendingRef = useRef<Set<string>>(new Set());
 
   const getSelectionInfo = useCallback(() => {
@@ -113,8 +115,9 @@ export function useInlineExtraction({
         context,
       });
 
-      // Subtle feedback - no toast, just clear selection
+      // Clear selection and notify user
       clearSelection();
+      toast.success(t("viewer.extractCreated"));
     } catch (error) {
       console.error("Extract failed:", error);
       toast.error("Failed to create extract");
