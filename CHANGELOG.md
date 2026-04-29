@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.4] - 2026-04-29
+
+### Fixed
+- **React #185 crash on toast notifications** — `useToast()` hook and `Toast` container component were calling `useToastStore()` without selectors, causing the entire store object (including progress animation updates at 20Hz) to trigger re-renders in every subscribing component. Fixed by using individual selectors (`(s) => s.addToast`, etc.) so components only re-render when their specific slice changes. This was causing "Maximum update depth exceeded" crashes in DocumentViewer (4600+ lines, 51 effects) when toasts were shown during PDF-to-HTML conversion.
+
 ## [1.26.3] - 2026-04-29
 
 ### Added

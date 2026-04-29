@@ -96,11 +96,15 @@ export const useToastStore = create<ToastStore>((set, get) => ({
     set({ toasts: [] });
   },
   updateProgress: (id, progress) => {
-    set((state) => ({
-      toasts: state.toasts.map((t) =>
-        t.id === id ? { ...t, progress } : t
-      ),
-    }));
+    set((state) => {
+      const target = state.toasts.find((t) => t.id === id);
+      if (target && target.progress === progress) return state;
+      return {
+        toasts: state.toasts.map((t) =>
+          t.id === id ? { ...t, progress } : t
+        ),
+      };
+    });
   },
 }));
 
@@ -210,7 +214,8 @@ function ToastItem({ toast, onRemove }: { toast: ToastData; onRemove: (id: strin
  * Toast container component
  */
 export function Toast() {
-  const { toasts, removeToast } = useToastStore();
+  const toasts = useToastStore((s) => s.toasts);
+  const removeToast = useToastStore((s) => s.removeToast);
 
   if (toasts.length === 0) return null;
 
@@ -233,7 +238,8 @@ export function Toast() {
  * Hook to show toast notifications
  */
 export function useToast() {
-  const { addToast, removeToast } = useToastStore();
+  const addToast = useToastStore((s) => s.addToast);
+  const removeToast = useToastStore((s) => s.removeToast);
 
   const promiseFn = useCallback(<T,>(
     promise: Promise<T>,
