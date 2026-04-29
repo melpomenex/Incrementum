@@ -1273,7 +1273,7 @@ export function DocumentViewer({
     const handleExtractText = () => {
       const text = selectedTextRef.current;
       if (!text?.trim() || !documentId) return;
-      handleInlineExtract({ documentId, text });
+      void handleInlineExtract({ documentId, text });
     };
     window.addEventListener("extract-text", handleExtractText);
     return () => window.removeEventListener("extract-text", handleExtractText);
