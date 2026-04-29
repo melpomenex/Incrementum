@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Theme, ThemeContextValue, ThemeId } from "../types/theme";
 import { builtInThemes } from "../themes/builtin";
+import { loadGoogleFont } from "../utils/fonts";
 
 /**
  * Maps font family name to CSS font-family value
@@ -246,6 +247,7 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
     // Load font family from settings and apply theme with font override
     const savedFontFamily = loadSavedFontFamily();
     applyThemeToDOM(currentTheme, savedFontFamily);
+    if (savedFontFamily) loadGoogleFont(savedFontFamily);
     saveLastThemeId(currentThemeId);
   }, [currentTheme, currentThemeId]);
 

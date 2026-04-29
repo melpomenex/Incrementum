@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.26.8] - 2026-04-29
+
+### Fixed
+- **Interface font family not applying** — changing the font in Settings → Appearance → Typography had no effect because Tailwind v4 uses `--font-sans` for the default body text, but only `--font-family` was being set (and nothing referenced it). Fixed by mapping `--font-sans` to `var(--font-family)` in the `@theme` block and adding `font-family: var(--font-family)` to the base `html, body` rule.
+- **Google Fonts never loaded** — the settings dropdown offered 30+ Google Fonts (Inter, Merriweather, Poppins, etc.) but no font files were ever fetched. Added a `loadGoogleFont()` utility that dynamically injects a `<link>` for the selected font, called from both `ThemeContext` (on theme change) and `SettingsPage` (on font change). System fonts (system-ui, serif, sans-serif, monospace) are skipped.
+
 ## [1.26.7] - 2026-04-29
 
 ### Fixed
