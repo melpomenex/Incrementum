@@ -117,7 +117,7 @@ export function DeckManagerCardRow({
       )}
 
       {/* Question text */}
-      <div className={"flex-shrink-0 min-w-0 truncate text-sm leading-tight " + (isMobile ? "flex-1" : "w-[180px]")} title={card.question.replace(/<[^>]*>/g, "")}>
+      <div className={"flex-shrink-0 min-w-0 truncate text-sm leading-tight " + (isMobile ? "flex-1" : "w-[180px] lg:w-[200px]")} title={card.question.replace(/<[^>]*>/g, "")}>
         {truncatedQ}
         {card.lapses >= 5 && (
           <span title="Leech"><AlertTriangle className="h-3 w-3 text-yellow-500 inline ml-1 flex-shrink-0" /></span>
@@ -137,7 +137,7 @@ export function DeckManagerCardRow({
 
       {/* Type badge */}
       {!isMobile && (
-        <div className="w-12 flex-shrink-0">
+        <div className="w-12 flex-shrink-0 hidden xl:block">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${stateCfg.bg} ${stateCfg.color}`}>
             {stateCfg.label}
           </span>
@@ -153,21 +153,21 @@ export function DeckManagerCardRow({
 
       {/* Difficulty */}
       {!isMobile && (
-        <div className="w-20 flex-shrink-0">
+        <div className="w-20 flex-shrink-0 hidden md:block">
           <DifficultyIndicator value={card.difficulty} />
         </div>
       )}
 
       {/* Stability */}
       {!isMobile && (
-        <div className="w-14 flex-shrink-0 text-xs text-muted-foreground tabular-nums" title={`${stability.toFixed(1)} days stability`}>
+        <div className="w-14 flex-shrink-0 hidden xl:block text-xs text-muted-foreground tabular-nums" title={`${stability.toFixed(1)} days stability`}>
           {stability < 1 ? `${(stability * 24).toFixed(0)}h` : stability < 30 ? `${stability.toFixed(0)}d` : `${(stability / 30).toFixed(1)}mo`}
         </div>
       )}
 
       {/* Tags */}
       {!isMobile && (
-        <div className="flex-1 min-w-0 flex items-center gap-0.5 overflow-hidden">
+        <div className="flex-1 min-w-0 flex items-center gap-0.5 overflow-hidden hidden lg:block">
           {card.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
@@ -185,7 +185,7 @@ export function DeckManagerCardRow({
 
       {/* Last Review */}
       {!isMobile && (
-        <div className="w-20 flex-shrink-0 text-xs text-muted-foreground tabular-nums flex items-center gap-0.5">
+        <div className="w-20 flex-shrink-0 hidden xl:block text-xs text-muted-foreground tabular-nums flex items-center gap-0.5">
           <Clock className="h-3 w-3 flex-shrink-0" />
           {formatLastReview(card.last_review_date)}
         </div>

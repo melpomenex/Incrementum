@@ -40,6 +40,7 @@ import { DynamicVirtualList } from "../common/VirtualList";
 import { DeckManagerCardRow } from "./DeckManagerCardRow";
 // InlineCardEditor moved to CardPreviewPanel Edit tab
 import { CardPreviewPanel } from "./CardPreviewPanel";
+import { useResizablePanels } from "./useResizablePanels";
 import { DeckStatsPanel } from "./DeckStatsPanel";
 import type { StudyDeck } from "../../types/study-decks";
 
@@ -76,6 +77,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const [rightPanelView, setRightPanelView] = useState<"preview" | "stats">("preview");
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [mobileCardOpen, setMobileCardOpen] = useState(false);
+  const { widths, containerRef, handlePointerDown } = useResizablePanels();
 
   // Re-check on resize
   useEffect(() => {
@@ -656,9 +658,12 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
             <p className="text-sm">{t("review.deckManager.noDecks")}</p>
           </div>
         ) : (
-          <div className="flex h-full">
-            {/* LEFT SIDEBAR - Deck tree (hidden on mobile, replaced by picker above) */}
-            <div className={"w-[220px] flex-shrink-0 border-r border-border overflow-y-auto " + (isMobile ? "hidden" : "")}>
+          <div className="flex h-full" ref={containerRef}>
+            {/* LEFT SIDEBAR - Deck tree */}
+            <div
+              className="hidden md:flex flex-shrink-0 border-r border-border overflow-y-auto"
+              style={{ width: widths.left }}
+            >
               <div className="p-1.5 space-y-0.5">
                 {decks.map((deck) => {
                   const counts = deckCardCounts.get(deck.id);
@@ -721,8 +726,18 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
               </div>
             </div>
 
+            {/* Left drag handle */}
+            <div
+              onMouseDown={(e) => { e.preventDefault(); handlePointerDown("left", e.clientX); }}
+              onTouchStart={(e) => { handlePointerDown("left", e.touches[0].clientX); }}
+              className="hidden md:block w-1 hover:w-1.5 flex-shrink-0 cursor-col-resize transition-[width] duration-100 z-10 relative group"
+              style={{ pointerEvents: "auto" }}
+            >
+              <div className="absolute inset-0 bg-border group-hover:bg-primary/50 transition-colors" />
+            </div>
+
             {/* CENTER - Card table area */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {expandedDeck ? (
                 <>
                   {/* Deck header with name */}
@@ -927,28 +942,28 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                   )}
 
                   {/* Column headers */}
-                  <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 text-xs font-medium text-muted-foreground uppercase tracking-wider flex-shrink-0 select-none">
+                  <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 text-xs font-medium text-muted-foreground uppercase tracking-wider flex-shrink-0 select-none overflow-hidden">
                     <div className="w-4 flex-shrink-0" />
-                    <div className={"flex-shrink-0 " + (isMobile ? "flex-1 min-w-0" : "w-[180px]")}>Card</div>
-                    {!isMobile && <div className="w-12 flex-shrink-0">Type</div>}
+                    <div className={"flex-shrink-0 " + (isMobile ? "flex-1 min-w-0" : "w-[180px] lg:w-[200px]")}>Card</div>
+                    {!isMobile && <div className="w-12 flex-shrink-0 hidden xl:block">Type</div>}
                     {!isMobile && (
                       <div className="w-16 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("due_date")}>
                         Due {sortField === "due_date" && (sortDir === "asc" ? "↑" : "↓")}
                       </div>
                     )}
                     {!isMobile && (
-                      <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("difficulty")}>
+                      <div className="w-20 flex-shrink-0 hidden md:block cursor-pointer hover:text-foreground" onClick={() => toggleSort("difficulty")}>
                         Difficulty {sortField === "difficulty" && (sortDir === "asc" ? "↑" : "↓")}
                       </div>
                     )}
                     {!isMobile && (
-                      <div className="w-14 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("interval")}>
+                      <div className="w-14 flex-shrink-0 hidden xl:block cursor-pointer hover:text-foreground" onClick={() => toggleSort("interval")}>
                         Stability {sortField === "interval" && (sortDir === "asc" ? "↑" : "↓")}
                       </div>
                     )}
-                    {!isMobile && <div className="flex-1 min-w-0">Tags</div>}
+                    {!isMobile && <div className="flex-1 min-w-0 hidden lg:block">Tags</div>}
                     {!isMobile && (
-                      <div className="w-20 flex-shrink-0 cursor-pointer hover:text-foreground" onClick={() => toggleSort("review_count")}>
+                      <div className="w-20 flex-shrink-0 hidden xl:block cursor-pointer hover:text-foreground" onClick={() => toggleSort("review_count")}>
                         Last Review
                       </div>
                     )}
@@ -1013,9 +1028,24 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
               )}
             </div>
 
-            {/* RIGHT SIDEBAR - Card preview or deck stats (hidden on mobile, replaced by overlay) */}
+            {/* Right drag handle */}
             {expandedDeck && !isMobile && (
-              <div className="w-[750px] flex-shrink-0 border-l border-border flex flex-col h-full">
+              <div
+                onMouseDown={(e) => { e.preventDefault(); handlePointerDown("right", e.clientX); }}
+                onTouchStart={(e) => { handlePointerDown("right", e.touches[0].clientX); }}
+                className="hidden lg:block w-1 hover:w-1.5 flex-shrink-0 cursor-col-resize transition-[width] duration-100 z-10 relative group"
+                style={{ pointerEvents: "auto" }}
+              >
+                <div className="absolute inset-0 bg-border group-hover:bg-primary/50 transition-colors" />
+              </div>
+            )}
+
+            {/* RIGHT SIDEBAR - Card preview or deck stats */}
+            {expandedDeck && !isMobile && (
+              <div
+                className="hidden lg:flex flex-col h-full border-l border-border flex-shrink-0"
+                style={{ width: widths.right }}
+              >
                 {/* Panel toggle */}
                 <div className="flex items-center border-b border-border px-2 flex-shrink-0">
                   <button
@@ -1234,3 +1264,4 @@ function RetagPopover({
     </div>
   );
 }
+

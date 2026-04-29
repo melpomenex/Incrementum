@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.26.2] - 2026-04-29
+
+### Added
+- **Resizable Deck Manager panels** — all three columns (deck tree, card table, card preview/stats) are now resizable by dragging the divider between them. Works with mouse and touch. Widths persist to `localStorage` across sessions. Min/max constraints prevent collapsing panels too far.
+
+- **Global paste-to-import** — Ctrl/Cmd+V anywhere in the app (when not focused on an input) now intercepts clipboard content:
+  - Text → opens a "New Card from Clipboard" editor modal
+  - Files (PDF, images, EPUB, TXT, MD, HTML, JSON, APKG) → import confirmation with one-tap import to library
+  - Extension-based fallback for files with generic MIME types from Tauri
+
+- **Global drag-and-drop import** — files can now be dropped on any page, not just the Library tab. Drops are routed to the document import pipeline automatically. (Bundle preview still only works on the Library page.)
+
+### Changed
+- **Deck Manager responsive columns** — column visibility now uses CSS breakpoints instead of JS-only state, fixing mismatched layouts between the shell and Deck Manager on tablets:
+  - Type column hidden below `xl` (1280px)
+  - Difficulty hidden below `md` (768px)
+  - Stability and Last Review hidden below `xl` (1280px)
+  - Tags hidden below `lg` (1024px)
+  - Left sidebar narrowed to 170px at `md`, full 220px at `lg`
+  - Right panel starts at 260px at `lg`, expands to 750px at `xl`
+
+### Fixed
+- **Center column overflow on tablets** — card table headers no longer draw over the right panel. Added `overflow-hidden` on the center column container.
+
 ## [1.26.1] - 2026-04-29
 
 ### Added
