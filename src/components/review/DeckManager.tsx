@@ -100,7 +100,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
       const cards = getCardsForDeck(deck);
       map.set(deck.id, {
         total: cards.length,
-        dueToday: cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) <= now).length,
+        dueToday: cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) <= now).length,
         suspended: cards.filter((c) => c.is_suspended).length,
         leeches: cards.filter((c) => c.lapses >= 5).length,
         newCards: cards.filter((c) => c.state === "New").length,
@@ -330,7 +330,7 @@ export function DeckManager({ onBack, onEditInStudio }: DeckManagerProps) {
     if (!expandedDeck) return null;
     const cards = getCardsForDeck(expandedDeck);
     const now = new Date().toISOString().slice(0, 10);
-    const dueToday = cards.filter((c) => !c.is_suspended && c.due_date.slice(0, 10) <= now).length;
+    const dueToday = cards.filter((c) => !c.is_suspended && c.due_date?.slice(0, 10) <= now).length;
     const newCards = cards.filter((c) => c.state === "New").length;
     const learningCards = cards.filter((c) => c.state === "Learning" || c.state === "Relearning").length;
     const reviewCards = cards.filter((c) => c.state === "Review");
