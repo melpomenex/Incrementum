@@ -203,7 +203,7 @@ export function GlobalSearch({
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 0);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
 
@@ -347,7 +347,7 @@ export function GlobalSearch({
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 animate-glass-fade-in">
           {/* Backdrop with blur */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setIsOpen(false)}
           />
 
@@ -541,12 +541,11 @@ export function GlobalSearch({
                         e.preventDefault();
                       }}
                       onClick={() => handleResultClick(result)}
-                      className={`group relative w-full flex items-start gap-3 px-4 py-3 transition-all text-left cursor-pointer animate-tab-enter ${
+                      className={`group relative w-full flex items-start gap-3 px-4 py-3 transition-colors text-left cursor-pointer ${
                         index === selectedIndex
                           ? "bg-primary-400/10 backdrop-blur-sm border-l-2 border-primary-400"
                           : "hover:bg-glass-100"
                       }`}
-                      style={{ animationDelay: `${index * 30}ms` }}
                     >
                       {/* Type Icon */}
                       <div

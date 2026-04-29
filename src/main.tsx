@@ -5,6 +5,17 @@ if (typeof window !== 'undefined') {
   // PDF.js uses newer Promise helpers that are missing in older WebView2 builds on Windows.
   installPromiseCompat(window);
 
+  // Polyfill crypto.randomUUID for non-secure contexts (HTTP / Tailscale).
+  // crypto.randomUUID() is only available in secure contexts (HTTPS or localhost).
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID !== 'function') {
+    crypto.randomUUID = function () {
+      const s = '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c: string) =>
+        ((Number(c) ^ (Math.random() * 256)) & 15 >> (Number(c) >> 4)).toString(16)
+      );
+      return s as `${string}-${string}-${string}-${string}-${string}`;
+    };
+  }
+
   // Defensive patch for Tauri v2 event plugin bug (fallback — primary fix is in lib.rs init script):
   // https://github.com/tauri-apps/tauri/issues/8916
   // The unlisten JS injected by Tauri's Rust backend accesses listeners[eventId].handlerId

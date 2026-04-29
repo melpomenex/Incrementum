@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.26.1] - 2026-04-29
+
+### Added
+- **Right-click context menus on queue items** — right-click any item in the Review Queue for quick actions:
+  - Learning items: Study Now, Suspend, Postpone (+1 / +3 / +7 days), Compress Intervals, Reschedule Intelligently, Delete
+  - Documents: Open, Dismiss, Delete
+  - Uses the same `menuRef.contains()` pattern as library cards to prevent click-race bugs.
+
+- **"Study Now" and "New Card" buttons in Deck Stats panel** — the quick action buttons in the Deck Manager's Stats view now actually work. "Study Now" selects the current deck and starts a review session; "New Card" creates an empty card tagged with the deck's filters and opens the preview panel for editing.
+
+- **`crypto.randomUUID()` polyfill for non-secure contexts** — fixes errors when running over HTTP/Tailscale (not localhost/HTTPS), where `crypto.randomUUID` is unavailable. Polyfill uses `Math.random`-based RFC 4122 v4 UUID generation.
+
+### Changed
+- **Command palette feels snappier** — several optimizations to reduce perceived input lag:
+  - Reduced animation durations from 200–300ms to 120ms
+  - Removed expensive `backdrop-filter: blur()` from CSS keyframes (major cause of frame drops in Tauri WebView)
+  - Removed `backdrop-blur-sm` from overlay backdrop
+  - Removed staggered animation delays on search result rows (waterfall effect)
+  - Switched focus from `setTimeout` to `requestAnimationFrame` for instant input readiness
+
+### Fixed
+- **PDF.js scroll performance** — several tuning passes to make scrolling large documents smoother:
+  - Capped canvas render scale at 2× DPR (PDF.js rasterizes vector glyphs at render time, so 2× is sufficient even on 3×/4× displays)
+  - Added 16 megapixel canvas cap (4096×4096) with proportional downscale for large/zoomed pages
+  - Added CSS `contain` hints on page containers and scroll container to limit layout recalculation
+  - Deferred text layer rendering for non-current pages by 300ms (text layer creates hundreds of `<span>` elements per page)
+  - Disabled WebGL canvas rendering to avoid GPU overhead
+  - Removed `transition-transform` from page containers that caused unnecessary paint on scroll
+
+- **Tesseract.js OCR DataCloneError in PWA/browser mode** — Vite's `optimizeDeps` was transforming tesseract.js's `spawnWorker` function, making the `logger` callback non-cloneable via `postMessage`. Fixed by:
+  - Excluding `tesseract.js` from Vite's optimize deps
+  - Pointing worker to CDN URL directly to bypass broken blob-URL spawn path
+  - Setting `workerBlobURL: false` and `logger: undefined` instead of a function
+
+- **Vite dev server binds to all interfaces** — changed default host from `127.0.0.1` to `0.0.0.0` so the dev server is reachable over Tailscale/LAN without setting `TAURI_DEV_HOST`.
+
 ## [1.26.0] - 2026-04-29
 
 ### Added

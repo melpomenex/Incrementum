@@ -59,8 +59,24 @@ async function runOcrBackend(base64Data: string, language: string): Promise<OCRR
 
 /** Run OCR via Tesseract.js in-browser (fallback for PWA mode) */
 async function runOcrBrowser(dataUrl: string, language: string): Promise<OCRResult> {
-   
-  const Tesseract = await import("tesseract.js" as any);
+  // Load Tesseract.js from CDN to bypass Vite's pre-bundling entirely.
+  // The pre-bundled version transforms the Worker spawn path in ways that
+  // break postMessage (DataCloneError: functions become non-cloneable
+  // after esbuild processes the CJS module).  Using the UMD CDN build
+  // avoids this entirely.
+  const win = window as any;
+  if (!win.__tesseractLoaded) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Tesseract.js from CDN'));
+      document.head.appendChild(script);
+    });
+    win.__tesseractLoaded = true;
+  }
+
+  const Tesseract = win.Tesseract;
   const worker = await Tesseract.createWorker(language);
 
   try {
@@ -71,7 +87,7 @@ async function runOcrBrowser(dataUrl: string, language: string): Promise<OCRResu
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const blob = new Blob([bytes], { type: mime });
 
-    const result = await worker.recognize(blob, { logger: () => {} });
+    const result = await worker.recognize(blob);
     return {
       text: cleanOCRText(result.data.text || ""),
       confidence: result.data.confidence || 0,
