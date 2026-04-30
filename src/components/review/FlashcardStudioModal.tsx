@@ -116,6 +116,11 @@ interface DraftCard {
   createdAt: number;
   isEditing?: boolean;
   tags: string[];
+  /** If true, this card was already persisted to the DB (e.g. via generateLearningItemsFromExtract)
+   *  and should NOT be re-created by handleSaveSelected. */
+  alreadyPersisted?: boolean;
+  /** The DB id of the already-persisted learning item (if alreadyPersisted). */
+  persistedItemId?: string;
 }
 
 interface ChatMessage {
@@ -3598,10 +3603,22 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const handleSaveSelected = async () => {
     const selected = draftCards.filter((c) => c.selected);
     if (selected.length === 0 || isSaving) return;
+
+    // Separate already-persisted cards (from extract generation) from new drafts
+    const alreadySaved = selected.filter((c) => c.alreadyPersisted);
+    const toCreate = selected.filter((c) => !c.alreadyPersisted);
+
+    if (toCreate.length === 0) {
+      // All selected cards were already persisted — just clear them from drafts
+      setDraftCards((prev) => prev.filter((c) => !c.selected));
+      toast.success(t("flashcardStudio.cardsSaved"), t("flashcardStudio.cardsSavedDesc", { count: alreadySaved.length }));
+      return;
+    }
+
     setIsSaving(true);
 
     const results = await Promise.all(
-      selected.map(async (card) => {
+      toCreate.map(async (card) => {
         try {
           const baseInput: CreateLearningItemInput = {
             item_type: card.type === "cloze" ? "cloze" : "qa",
@@ -3676,9 +3693,16 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     );
 
     const failedIds = results.filter((r) => !r.success).map((r) => r.id);
-    const savedCount = selected.length - failedIds.length;
+    const newlySaved = toCreate.length - failedIds.length;
+    const savedCount = alreadySaved.length + newlySaved;
     
-    setDraftCards((prev) => prev.filter((c) => failedIds.includes(c.id)));
+    // Remove all selected cards from drafts (persisted ones + successfully created ones).
+    // Keep failed ones so the user can retry.
+    const idsToRemove = new Set([
+      ...alreadySaved.map((c) => c.id),
+      ...toCreate.filter((c) => !failedIds.includes(c.id)).map((c) => c.id),
+    ]);
+    setDraftCards((prev) => prev.filter((c) => !idsToRemove.has(c.id)));
     
     if (failedIds.length > 0) {
       toast.error(t("flashcardStudio.someCardsFailed"), t("flashcardStudio.someCardsFailedDesc", { saved: savedCount, failed: failedIds.length }));
@@ -3731,6 +3755,8 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
             selected: true,
             createdAt: Date.now(),
             tags: item.tags || [],
+            alreadyPersisted: true,
+            persistedItemId: item.id,
           };
         }
         return {
@@ -3742,6 +3768,8 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           selected: true,
           createdAt: Date.now(),
           tags: item.tags || [],
+          alreadyPersisted: true,
+          persistedItemId: item.id,
         };
       });
       setDraftCards((prev) => [...newDrafts, ...prev]);
