@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.26.10] - 2026-04-30
+
+### Changed
+- **PDF OCR auto-extract** — OCR region selection now instantly creates an extract without opening the edit modal. A toast with an "Edit" button lets users review/modify the extract afterward. Error/retry flow unchanged.
+
 ## [1.26.8] - 2026-04-29
 
 ### Fixed
