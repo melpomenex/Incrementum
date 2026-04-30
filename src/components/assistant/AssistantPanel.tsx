@@ -14,8 +14,13 @@ import {
   Share2,
   Copy,
   Check,
+  ImagePlus,
+  X,
+  AlertTriangle,
 } from "lucide-react";
-import { chatWithContext } from "../../api/llm";
+import { compressImage, readFileAsDataUrl } from "../../utils/imageCompression";
+import { supportsVision } from "../../utils/visionCapability";
+import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "../../api/llm";
 import { callIncrementumMCPTool, getIncrementumMCPTools, type MCPTool } from "../../api/mcp";
 import { renderMarkdown } from "../../utils/markdown";
 import { useSettingsStore } from "../../stores";
@@ -50,11 +55,21 @@ export interface AssistantContext {
   resolveForPrompt?: (prompt: string) => Promise<ResolvedAssistantContext>;
 }
 
+export interface AttachedImage {
+  id: string;
+  dataUrl: string;
+  fileName?: string;
+  fileSize?: number;
+  width?: number;
+  height?: number;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
+  images?: AttachedImage[];
   toolCalls?: ToolCall[];
 }
 
@@ -84,6 +99,8 @@ const ASSISTANT_POSITION_KEY = "assistant-panel-position";
 const ASSISTANT_WIDTH_KEY = "assistant-panel-width";
 const ASSISTANT_CONVERSATIONS_KEY = "assistant-panel-conversations-v1";
 const MAX_STORED_MESSAGES = 200;
+const MAX_ATTACHED_IMAGES = 4;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB raw file limit
 
 interface StoredConversation {
   messages: Message[];
@@ -100,7 +117,8 @@ const isValidMessage = (value: unknown): value is Message => {
     typeof candidate.id === "string" &&
     (candidate.role === "user" || candidate.role === "assistant" || candidate.role === "system") &&
     typeof candidate.content === "string" &&
-    typeof candidate.timestamp === "number"
+    typeof candidate.timestamp === "number" &&
+    (candidate.images === undefined || Array.isArray(candidate.images))
   );
 };
 
@@ -220,6 +238,10 @@ export function AssistantPanel({
     return "openai";
   });
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use external provider if provided
   const effectiveProvider = externalSelectedProvider ?? selectedProvider;
@@ -238,6 +260,86 @@ export function AssistantPanel({
   const activeConversationKeyRef = useRef<string>("general");
   const historyDraftRef = useRef("");
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
+
+  // --- Image attachment helpers ---
+
+  const attachImage = async (file: File) => {
+    // Validate type
+    if (!file.type.startsWith("image/")) return;
+
+    // Validate size
+    if (file.size > MAX_IMAGE_BYTES) {
+      // Show toast-like warning via a temporary system message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `sys-${Date.now()}`,
+          role: "system" as const,
+          content: `⚠️ Image "${file.name}" exceeds the 10 MB limit and was not attached.`,
+          timestamp: Date.now(),
+        },
+      ]);
+      return;
+    }
+
+    // Validate count
+    setAttachedImages((prev) => {
+      if (prev.length >= MAX_ATTACHED_IMAGES) {
+        setMessages((msgs) => [
+          ...msgs,
+          {
+            id: `sys-${Date.now()}`,
+            role: "system" as const,
+            content: `⚠️ Maximum ${MAX_ATTACHED_IMAGES} images per message. Remove one to add another.`,
+            timestamp: Date.now(),
+          },
+        ]);
+        return prev;
+      }
+      return prev;
+    });
+
+    try {
+      let dataUrl = await readFileAsDataUrl(file);
+
+      // Compress if > 1 MB raw data URL length (rough proxy)
+      if (dataUrl.length > 1 * 1024 * 1024) {
+        dataUrl = await compressImage(dataUrl);
+      }
+
+      const image: AttachedImage = {
+        id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        dataUrl,
+        fileName: file.name,
+        fileSize: file.size,
+      };
+
+      setAttachedImages((prev) => {
+        if (prev.length >= MAX_ATTACHED_IMAGES) return prev;
+        return [...prev, image];
+      });
+    } catch (err) {
+      console.error("Failed to attach image:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `sys-${Date.now()}`,
+          role: "system" as const,
+          content: `⚠️ Failed to process image "${file.name}".`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
+  };
+
+  const removeImage = (id: string) => {
+    setAttachedImages((prev) => prev.filter((img) => img.id !== id));
+    textareaRef.current?.focus();
+  };
+
+  const clearAttachedImages = () => {
+    setAttachedImages([]);
+  };
 
   const providers = [
     { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
@@ -272,6 +374,7 @@ export function AssistantPanel({
     historyDraftRef.current = stored?.input ?? "";
     setHistoryIndex(null);
     lastContextSignatureRef.current = null;
+    clearAttachedImages();
   }, [context?.type, context?.documentId, context?.url, context?.metadata?.videoId, context?.metadata?.title]);
 
   useEffect(() => {
@@ -311,6 +414,74 @@ export function AssistantPanel({
       isActive = false;
     };
   }, []);
+
+  // Paste handler on input container (not textarea — textarea doesn't fire paste for images)
+  useEffect(() => {
+    const container = inputContainerRef.current;
+    if (!container) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (isLoading) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) attachImage(file);
+          return;
+        }
+      }
+      // Let text paste propagate normally
+    };
+
+    container.addEventListener("paste", handlePaste);
+    return () => container.removeEventListener("paste", handlePaste);
+  }, [isLoading, attachedImages.length]);
+
+  // Drag-and-drop handler on input container
+  useEffect(() => {
+    const container = inputContainerRef.current;
+    if (!container) return;
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer?.types.some((t) => t === "Files")) {
+        setIsDragOver(true);
+      }
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      if (isLoading) return;
+
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      for (const file of files) {
+        if (file.type.startsWith("image/")) {
+          attachImage(file);
+        }
+      }
+    };
+
+    container.addEventListener("dragover", handleDragOver);
+    container.addEventListener("dragleave", handleDragLeave);
+    container.addEventListener("drop", handleDrop);
+    return () => {
+      container.removeEventListener("dragover", handleDragOver);
+      container.removeEventListener("dragleave", handleDragLeave);
+      container.removeEventListener("drop", handleDrop);
+    };
+  }, [isLoading, attachedImages.length]);
 
   // Add context message when context changes
   useEffect(() => {
@@ -371,13 +542,15 @@ export function AssistantPanel({
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachedImages.length === 0) || isLoading) return;
 
+    const hasImages = attachedImages.length > 0;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: input,
+      content: input || (hasImages ? "" : ""),
       timestamp: Date.now(),
+      images: hasImages ? [...attachedImages] : undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -385,6 +558,7 @@ export function AssistantPanel({
     setInput("");
     historyDraftRef.current = "";
     setHistoryIndex(null);
+    clearAttachedImages();
     setIsLoading(true);
 
     try {
@@ -459,11 +633,25 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         currentContext: context,
         conversationHistory: filteredHistory,
         availableTools: getAvailableTools(),
+        currentUserImages: userMessage.images,
+        currentProvider: effectiveProvider,
+        currentModel: useLLMProvidersStore.getState().providers.find((p) => p.provider === effectiveProvider)?.model,
       };
 
-      // Call the LLM API (this will be implemented)
+      // Call the LLM API
       const response = await callLLM(userMessage.content, contextData);
       const { cleanedContent, toolCalls } = parseToolCalls(response.content);
+
+      // Show warning if images were stripped due to unsupported model
+      if (response.imagesStripped && response.modelName) {
+        const warningMessage: Message = {
+          id: `sys-${Date.now()}`,
+          role: "system",
+          content: `⚠️ ${response.modelName} doesn't support images. Sent text only. Switch to a vision-capable model to include images.`,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, warningMessage]);
+      }
 
       const displayContent = cleanedContent || (toolCalls.length > 0 ? "Running tool calls..." : response.content);
       const assistantMessage: Message = {
@@ -494,7 +682,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
   const callLLM = async (
     prompt: string,
     contextData: Record<string, unknown>
-  ): Promise<{ content: string; toolCalls?: ToolCall[] }> => {
+  ): Promise<{ content: string; toolCalls?: ToolCall[]; imagesStripped?: boolean; modelName?: string }> => {
     try {
       // Get all providers to check if selected provider exists but is disabled
       const allProviders = useLLMProvidersStore.getState().providers;
@@ -536,7 +724,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
 
       // Convert messages to LLM format
       const toolInstruction = buildToolInstruction(getAvailableTools());
-      const llmMessages = [
+      const llmMessages: LLMMessage[] = [
         {
           role: "system" as const,
           content: toolInstruction,
@@ -545,11 +733,60 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
           role: "user" as const,
           content: prompt,
         },
-        ...(contextData.conversationHistory as Message[]).map((m) => ({
-          role: m.role as "system" | "user" | "assistant",
-          content: m.content,
-        })),
+        ...(contextData.conversationHistory as Message[]).map((m) => {
+          // Build multimodal content for messages with images
+          if (m.images && m.images.length > 0) {
+            const parts: LLMMessageContentPart[] = [];
+            if (m.content.trim()) {
+              parts.push({ type: "text", text: m.content });
+            }
+            for (const img of m.images) {
+              parts.push({ type: "image_url", imageUrl: img.dataUrl });
+            }
+            return {
+              role: m.role as "system" | "user" | "assistant",
+              content: parts,
+            };
+          }
+          return {
+            role: m.role as "system" | "user" | "assistant",
+            content: m.content,
+          };
+        }),
       ];
+
+      // Check vision capability for current user message images
+      const currentUserImages = contextData.currentUserImages as AttachedImage[] | undefined;
+      let imagesStripped = false;
+      const modelName = (provider.model || effectiveProvider) as string;
+
+      if (currentUserImages && currentUserImages.length > 0) {
+        const hasVision = supportsVision(effectiveProvider, modelName);
+        if (!hasVision) {
+          // Strip images from the current user message in llmMessages
+          // The current user message is at index 1 (after system message)
+          if (llmMessages.length > 1 && llmMessages[1].role === "user") {
+            llmMessages[1] = {
+              ...llmMessages[1],
+              content: prompt, // plain text only
+            };
+          }
+          imagesStripped = true;
+        } else {
+          // Build multimodal content for current message
+          const parts: LLMMessageContentPart[] = [];
+          if (prompt.trim()) {
+            parts.push({ type: "text", text: prompt });
+          }
+          for (const img of currentUserImages) {
+            parts.push({ type: "image_url", imageUrl: img.dataUrl });
+          }
+          llmMessages[1] = {
+            role: "user" as const,
+            content: parts,
+          };
+        }
+      }
 
       // Build LLM context
       const llmContext = contextData.currentContext as AssistantContext;
@@ -595,7 +832,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         aiControls?.documentSnippetLength
       );
 
-      return { content: response.content };
+      return { content: response.content, imagesStripped, modelName };
     } catch (error) {
       console.error("LLM API error:", error);
       // Better error handling - Tauri errors can be strings or objects
@@ -1101,6 +1338,20 @@ ${toolDescriptions}
                     : "bg-muted text-foreground"
                   }`}
               >
+                {/* Image thumbnails for user messages */}
+                {message.images && message.images.length > 0 && (
+                  <div className="flex gap-1.5 flex-wrap mb-1.5">
+                    {message.images.map((img) => (
+                      <img
+                        key={img.id}
+                        src={img.dataUrl}
+                        alt={img.fileName || "Attached image"}
+                        className="max-w-[120px] max-h-[120px] rounded-md object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => window.open(img.dataUrl, "_blank")}
+                      />
+                    ))}
+                  </div>
+                )}
                 {message.role === "user" ? (
                   message.content
                 ) : (
@@ -1168,6 +1419,36 @@ ${toolDescriptions}
       {/* Input Area */}
       <div className="flex-shrink-0 p-3 border-t border-border bg-card">
         <div className="flex flex-col gap-2">
+          {/* Image Preview Strip */}
+          {attachedImages.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {attachedImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="relative flex-shrink-0 group/thumb rounded-md overflow-hidden border border-border"
+                >
+                  <img
+                    src={img.dataUrl}
+                    alt={img.fileName || "Attached image"}
+                    className="w-16 h-16 object-cover"
+                  />
+                  <button
+                    onClick={() => removeImage(img.id)}
+                    className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-md p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                    title="Remove image"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  {(img.fileName || img.fileSize) && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1 truncate">
+                      {img.fileName || `${((img.fileSize ?? 0) / 1024).toFixed(0)}KB`}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Available Tools Hint */}
           <div className="text-xs text-muted-foreground flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
@@ -1176,7 +1457,8 @@ ${toolDescriptions}
 
           {/* Text Input */}
           <div
-            className="flex gap-2"
+            ref={inputContainerRef}
+            className={`flex gap-2 rounded-lg transition-colors ${isDragOver ? "border-2 border-dashed border-primary bg-primary/5" : ""}`}
             onMouseEnter={() => setIsInputHovered(true)}
             onMouseLeave={() => setIsInputHovered(false)}
           >
@@ -1187,23 +1469,52 @@ ${toolDescriptions}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsInputFocused(true)}
               onBlur={() => setIsInputFocused(false)}
-              placeholder="Ask about your document, or type /help for commands..."
+              placeholder={attachedImages.length > 0 ? "Ask about the attached image(s)..." : "Ask about your document, or type /help for commands..."}
               className="flex-1 px-3 py-2 bg-background border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
               rows={2}
               disabled={isLoading}
             />
-            <button
-              onClick={handleSendMessage}
-              disabled={!input.trim() || isLoading}
-              className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </button>
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || attachedImages.length >= MAX_ATTACHED_IMAGES}
+                className="px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={attachedImages.length >= MAX_ATTACHED_IMAGES ? `Maximum ${MAX_ATTACHED_IMAGES} images` : "Attach image"}
+              >
+                <ImagePlus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={(!input.trim() && attachedImages.length === 0) || isLoading}
+                className="px-2 py-1 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              for (const file of files) {
+                if (file.type.startsWith("image/")) {
+                  attachImage(file);
+                }
+              }
+              // Reset input so same file can be picked again
+              e.target.value = "";
+            }}
+          />
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2 text-xs">
