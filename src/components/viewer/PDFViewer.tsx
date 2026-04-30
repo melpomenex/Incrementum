@@ -1771,13 +1771,25 @@ export function PDFViewer({
     // in-flight text layer render BEFORE clearing innerHTML.  If we clear the
     // DOM first, pdfjs's TextLayer.#processItems will dereference a detached
     // node ("this.#container.parentNode is null") and crash.
+    //
+    // NOTE: textLayer.cancel() is async — it cancels the reader stream but
+    // #processItems may already be mid-execution in the current microtask.
+    // We delay the innerHTML clear to the next microtask so the in-flight
+    // pump callback finishes before the container is emptied.
     const pendingTimeout = textLayerTimeoutsRef.current[pageIndex];
     if (pendingTimeout != null) {
       clearTimeout(pendingTimeout);
       textLayerTimeoutsRef.current[pageIndex] = null;
     }
-    try { textLayerBuildersRef.current[pageIndex]?.cancel(); } catch { /* ignore */ }
+    const prevTextLayer = textLayerBuildersRef.current[pageIndex];
     textLayerBuildersRef.current[pageIndex] = null;
+    if (prevTextLayer) {
+      try { prevTextLayer.cancel(); } catch { /* ignore */ }
+      // Yield to the macrotask queue so the cancelled reader's rejection
+      // propagates and any in-flight #processItems call completes.
+      // (reader.cancel is async — pump() may still be executing)
+      await new Promise<void>((r) => setTimeout(r, 0));
+    }
 
     // Clear and setup text layer
     textLayerContainer.innerHTML = "";
@@ -1830,8 +1842,13 @@ export function PDFViewer({
     try {
       // Cancel previous text layer builder BEFORE clearing DOM
       // so PDF.js internal cleanup can access still-attached nodes.
-      textLayerBuildersRef.current[pageIndex]?.cancel();
+      const prevBuilder = textLayerBuildersRef.current[pageIndex];
       textLayerBuildersRef.current[pageIndex] = null;
+      if (prevBuilder) {
+        try { prevBuilder.cancel(); } catch { /* ignore */ }
+        // Yield so the cancelled reader's pump() finishes before we detach nodes.
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
 
       // Only clear after cancelling — if we clear first, the cancel
       // cleanup inside PDF.js may hit a null parentNode.

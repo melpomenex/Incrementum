@@ -3714,16 +3714,36 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     setGeneratingExtractIds((prev) => new Set(prev).add(extractId));
     try {
       const items = await generateLearningItemsFromExtract(extractId);
-      const newDrafts: DraftCard[] = items.map((item) => ({
-        id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        type: item.item_type === "Cloze" ? "cloze" as const : "qa" as const,
-        question: item.question,
-        answer: item.answer,
-        text: item.cloze_text,
-        selected: true,
-        createdAt: Date.now(),
-        tags: item.tags || [],
-      }));
+      const newDrafts: DraftCard[] = items.map((item, idx) => {
+        // The local Rust generator creates cloze cards with question=[...] and answer=hidden_word
+        // but never sets cloze_text. Convert to proper {{c1::}} format for the DraftCard.
+        if (item.item_type === "Cloze") {
+          const clozeText = item.cloze_text
+            || (item.question && item.answer
+              ? item.question.replace(/\[\.\.\.\]/g, `{{c1::${item.answer}}}`)
+              : item.question || "");
+          return {
+            id: `draft-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "cloze" as const,
+            question: item.question || "",
+            answer: item.answer,
+            text: clozeText,
+            selected: true,
+            createdAt: Date.now(),
+            tags: item.tags || [],
+          };
+        }
+        return {
+          id: `draft-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "qa" as const,
+          question: item.question || "",
+          answer: item.answer || "",
+          text: item.cloze_text,
+          selected: true,
+          createdAt: Date.now(),
+          tags: item.tags || [],
+        };
+      });
       setDraftCards((prev) => [...newDrafts, ...prev]);
       toast.success(t("flashcardStudio.cardsGenerated", { count: newDrafts.length }));
     } catch (error) {
