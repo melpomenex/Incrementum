@@ -4629,11 +4629,12 @@ export function DocumentViewer({
             onTextWindowChange={handlePdfContextTextChange}
             onSelectionChange={updateSelection}
             onTextSelectionCapabilityChange={setPdfTextSelectionCapability}
-            onOcrExtractText={(text, _pageNum) => {
-              setSelectedText(text);
-              lastSelectionRef.current = text;
-              setSelectionContext(null);
-              setIsExtractDialogOpen(true);
+            onOcrExtractText={async (text, pageNum) => {
+              await createInstantExtract({
+                documentId: currentDocument.id,
+                text,
+                pageNumber: pageNum,
+              });
             }}
             onSearchResultsChange={(state) => {
               reportViewerSearchState({
