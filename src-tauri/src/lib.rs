@@ -202,9 +202,6 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::Submenu;
-                // Build the app submenu with command palette shortcuts inline.
-                // This ensures Cmd+K/P fire reliably since WKWebView may
-                // otherwise swallow Cmd+K at the web layer.
                 let app_submenu = Submenu::with_items(
                     app,
                     "Incrementum",
@@ -214,13 +211,28 @@ pub fn run() {
                         &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "hide", "Hide Incrementum", true, Some("Cmd+H"))?,
                         &PredefinedMenuItem::separator(app)?,
-                        &MenuItem::with_id(app, "accel-k", "Command Palette", true, Some("Cmd+K"))?,
-                        &MenuItem::with_id(app, "accel-p", "Command Palette (P)", true, Some("Cmd+P"))?,
-                        &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "quit", "Quit Incrementum", true, Some("Cmd+Q"))?,
                     ],
                 )?;
                 menu.append(&app_submenu)?;
+
+                // Put command palette accelerators in a normal application menu.
+                // NSApplication resolves these before WKWebView can swallow Cmd+K.
+                let edit_submenu = Submenu::with_items(
+                    app,
+                    "Edit",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "accel-k", "Command Palette", true, Some("Cmd+K"))?,
+                        &MenuItem::with_id(app, "accel-p", "Command Palette (P)", true, Some("Cmd+P"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::cut(app, None)?,
+                        &PredefinedMenuItem::copy(app, None)?,
+                        &PredefinedMenuItem::paste(app, None)?,
+                        &PredefinedMenuItem::select_all(app, None)?,
+                    ],
+                )?;
+                menu.append(&edit_submenu)?;
             }
 
             #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -268,6 +280,20 @@ pub fn run() {
             };
 
             tracing::info!("[cmd+key] emitting global-shortcut to webview: {}", key_str);
+            if let Some(window) = app.get_webview_window("main") {
+                let event_name = if matches!(key_str, "KeyK" | "KeyP") {
+                    "command-palette-open"
+                } else {
+                    "global-shortcut-native"
+                };
+                let eval_script = format!(
+                    "window.dispatchEvent(new CustomEvent('{}', {{ detail: '{}' }}));",
+                    event_name, key_str
+                );
+                if let Err(e) = window.eval(&eval_script) {
+                    tracing::warn!("[cmd+key] eval delivery failed: {}", e);
+                }
+            }
             match app.emit_to("main", "global-shortcut", key_str) {
                 Ok(()) => tracing::info!("[cmd+key] emit_to succeeded"),
                 Err(e) => tracing::error!("[cmd+key] emit_to FAILED: {}", e),
@@ -340,8 +366,21 @@ pub fn run() {
                     }
                     let key_str = format!("{:?}", shortcut.key);
                     tracing::debug!("global-shortcut fired: {}", key_str);
-                    // Target the main window specifically — app_handle.emit() broadcasts
-                    // to all listeners and may not reliably reach the webview on all platforms.
+                    if let Some(window) = shortcut_app.get_webview_window("main") {
+                        let event_name = if matches!(key_str.as_str(), "KeyK" | "KeyP") {
+                            "command-palette-open"
+                        } else {
+                            "global-shortcut-native"
+                        };
+                        let eval_script = format!(
+                            "window.dispatchEvent(new CustomEvent('{}', {{ detail: '{}' }}));",
+                            event_name, key_str
+                        );
+                        if let Err(e) = window.eval(&eval_script) {
+                            tracing::warn!("[cmd+key] eval delivery failed: {}", e);
+                        }
+                    }
+                    // Keep the Tauri event as a secondary delivery path.
                     let _ = shortcut_app.emit_to("main", "global-shortcut", key_str.as_str());
                 }) {
                     tracing::warn!("Failed to register global shortcuts: {}", e);

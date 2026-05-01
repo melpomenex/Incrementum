@@ -359,64 +359,77 @@ function App() {
   // Tauri-level global shortcut handler: receives shortcuts registered at the
   // native level (lib.rs) which fire BEFORE webkit2gtk can intercept them.
   useEffect(() => {
+    const handleNativeShortcut = (key: string) => {
+      console.log("[cmd+key] JS received native shortcut:", key);
+      switch (key) {
+        case "KeyQ":
+          setCurrentPage("queue");
+          break;
+        case "KeyR":
+          setCurrentPage("queue");
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("start-review-session"));
+          }, 0);
+          break;
+        case "KeyD":
+          setCurrentPage("dashboard");
+          break;
+        case "KeyK":
+        case "KeyP":
+          console.log("[cmd+key] dispatching command palette open for:", key);
+          const opened = dispatchCommandPaletteOpenFromNativeShortcut(key);
+          console.log("[cmd+key] dispatchCommandPaletteOpenFromNativeShortcut returned:", opened);
+          break;
+        case "Comma":
+          setCurrentPage("settings");
+          break;
+        case "KeyO":
+        case "KeyN":
+          setCurrentPage("documents");
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("import-document"));
+          }, 0);
+          break;
+        case "Slash":
+          setShowShortcutsHelp(true);
+          break;
+        case "KeyB":
+          window.dispatchEvent(new CustomEvent("toggle-sidebar"));
+          break;
+        case "KeyE":
+          window.dispatchEvent(new CustomEvent("extract-text"));
+          break;
+        case "BracketLeft":
+          window.dispatchEvent(new CustomEvent("document-prev"));
+          break;
+        case "BracketRight":
+          window.dispatchEvent(new CustomEvent("document-next"));
+          break;
+      }
+    };
+
     let unlisten: (() => void) | null = null;
     (async () => {
       try {
         const { listen } = await import("@tauri-apps/api/event");
         unlisten = await listen<string>("global-shortcut", (event) => {
-          const key = event.payload;
-          console.log("[cmd+key] JS received global-shortcut:", key);
-          switch (key) {
-            case "KeyQ":
-              setCurrentPage("queue");
-              break;
-            case "KeyR":
-              setCurrentPage("queue");
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("start-review-session"));
-              }, 0);
-              break;
-            case "KeyD":
-              setCurrentPage("dashboard");
-              break;
-            case "KeyK":
-            case "KeyP":
-              console.log("[cmd+key] dispatching command palette open for:", key);
-              const opened = dispatchCommandPaletteOpenFromNativeShortcut(key);
-              console.log("[cmd+key] dispatchCommandPaletteOpenFromNativeShortcut returned:", opened);
-              break;
-            case "Comma":
-              setCurrentPage("settings");
-              break;
-            case "KeyO":
-            case "KeyN":
-              setCurrentPage("documents");
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("import-document"));
-              }, 0);
-              break;
-            case "Slash":
-              setShowShortcutsHelp(true);
-              break;
-            case "KeyB":
-              window.dispatchEvent(new CustomEvent("toggle-sidebar"));
-              break;
-            case "KeyE":
-              window.dispatchEvent(new CustomEvent("extract-text"));
-              break;
-            case "BracketLeft":
-              window.dispatchEvent(new CustomEvent("document-prev"));
-              break;
-            case "BracketRight":
-              window.dispatchEvent(new CustomEvent("document-next"));
-              break;
-          }
+          handleNativeShortcut(event.payload);
         });
       } catch {
         // Not running in Tauri (PWA mode) — JS handler is the fallback
       }
     })();
-    return () => { unlisten?.(); };
+
+    const onNativeEvent = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) handleNativeShortcut(detail);
+    };
+    window.addEventListener("global-shortcut-native", onNativeEvent);
+
+    return () => {
+      unlisten?.();
+      window.removeEventListener("global-shortcut-native", onNativeEvent);
+    };
   }, []);
 
   // Consolidated JS keydown handler: iterates over customizable store shortcuts,
