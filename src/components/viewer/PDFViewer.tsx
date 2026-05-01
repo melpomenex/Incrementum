@@ -59,57 +59,6 @@ try {
 // Only show errors, not warnings or info messages
 (pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
 
-// Suppress noisy glyph-name warnings in console (especially in Tauri/WebKitGTK)
-// These warnings are harmless and can flood the console with thousands of messages
-// Use Object.defineProperty to override readonly console methods in strict mode
-const _glyphWarningPattern = /unknown glyph name ['"].+['"] for font /i;
-const _shouldSuppressGlyphWarning = (args: unknown[]): boolean => {
-  if (args.length === 0) return false;
-  return args.some((arg) => typeof arg === "string" && _glyphWarningPattern.test(arg));
-};
-
-// Store originals before overriding (use bind for safety on WebKitGTK)
-const _originalConsoleWarn = typeof console.warn === 'function' ? console.warn.bind(console) : (() => {});
-const _originalConsoleError = typeof console.error === 'function' ? console.error.bind(console) : (() => {});
-
-// Override console.warn to suppress noisy glyph-name warnings.
-// WebKitGTK throws on Object.defineProperty for console properties in some builds,
-// so we check the descriptor first and wrap everything in try/catch.
-try {
-  const d = Object.getOwnPropertyDescriptor(console, 'warn');
-  if (d && d.configurable === false && d.writable === false) {
-    // WebKitGTK: can't override — skip glyph suppression
-  } else {
-    const warnFn = (...args: unknown[]) => {
-      if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleWarn(...args);
-    };
-    try {
-      Object.defineProperty(console, 'warn', { value: warnFn, writable: true, configurable: true });
-    } catch {
-      try { (console as any).warn = warnFn; } catch { /* skip */ }
-    }
-  }
-} catch { /* skip */ }
-
-// Override console.error to suppress noisy glyph-name warnings.
-try {
-  const d = Object.getOwnPropertyDescriptor(console, 'error');
-  if (d && d.configurable === false && d.writable === false) {
-    // WebKitGTK: can't override — skip glyph suppression
-  } else {
-    const errorFn = (...args: unknown[]) => {
-      if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleError(...args);
-    };
-    try {
-      Object.defineProperty(console, 'error', { value: errorFn, writable: true, configurable: true });
-    } catch {
-      try { (console as any).error = errorFn; } catch { /* skip */ }
-    }
-  }
-} catch { /* skip */ }
-
 interface PDFViewerProps {
   documentId: string;
   fileData?: Uint8Array | null;
