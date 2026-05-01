@@ -67,6 +67,8 @@ export const useMCPServersStore = create<MCPServersState>()(
     }),
     {
       name: 'mcp-servers-storage',
+      version: 0,
+      migrate: (persisted: unknown) => persisted as MCPServersState,
     }
   )
 );

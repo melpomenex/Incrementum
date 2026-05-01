@@ -83,6 +83,8 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
     }),
     {
       name: 'llm-providers-storage',
+      version: 0,
+      migrate: (persisted: unknown) => persisted as LLMProvidersState,
       // Persist API keys in localStorage for now
       // TODO: Implement proper encryption or use system keychain
       partialize: (state) => ({

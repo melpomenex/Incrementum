@@ -159,6 +159,8 @@ export const useUndoRedoStore = create<UndoRedoState>()(
     }),
     {
       name: "incrementum-undo-redo-storage",
+      version: 0,
+      migrate: (persisted: unknown) => persisted as UndoRedoState,
       // Only persist limited data to avoid storage issues
       partialize: (state) => ({
         undoStack: state.undoStack.slice(-10), // Only last 10 commands

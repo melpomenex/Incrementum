@@ -560,6 +560,9 @@ pub fn run() {
             commands::update_document_progress,
             commands::delete_document,
             commands::dismiss_document,
+            // Collection commands
+            commands::collections::get_collections,
+            commands::collections::create_collection,
             // Position tracking commands
             commands::get_document_position,
             commands::save_document_position,
@@ -577,6 +580,7 @@ pub fn run() {
             commands::import_pdf_highlights_as_extracts,
             commands::read_document_file,
             commands::fetch_url_content,
+            commands::fetch_web_page_preview,
             commands::convert_pdf_to_html,
             commands::convert_document_pdf_to_html,
             commands::extract_document_text,
