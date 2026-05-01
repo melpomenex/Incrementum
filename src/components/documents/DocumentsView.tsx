@@ -1957,6 +1957,15 @@ function HorizontalSection({
   onScrollLeft,
   onScrollRight,
 }: HorizontalSectionProps) {
+  // Convert vertical wheel scrolling to horizontal scroll
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    // Only hijack vertical scrolls; let horizontal scroll-through work normally.
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  }, []);
+
   if (docs.length === 0) return null;
   return (
     <section>
@@ -1979,6 +1988,7 @@ function HorizontalSection({
       </div>
       <div
         ref={scrollRef}
+        onWheel={handleWheel}
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory"
       >
         {docs.map((doc) => (
