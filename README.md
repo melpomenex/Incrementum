@@ -41,7 +41,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 - Import and read PDF, EPUB, Markdown, HTML, and TXT content
 - Import audiobooks and audio files (MP3, M4A, M4B, AAC, FLAC, OGG, OPUS, WAV, WMA)
 - Import video files (MP4, WebM, MOV, MKV, AVI, M4V) with local playback
-- Import from URLs, Arxiv papers, YouTube videos/playlists, podcasts, RSS feeds, and Substack
+- Import from URLs, Arxiv papers, YouTube videos/playlists, RSS feeds, and Substack
 - Capture screenshots and run OCR extraction
 - Auto-transcribe audio/video content with local Whisper or cloud providers (OpenAI, Groq)
 - Create highlights/extracts, organize by tags/categories, and resume reading positions
@@ -192,7 +192,6 @@ Documents → Import Document → Choose source
 | 🎬 **Video** | Import video files (MP4, WebM, MOV, MKV, etc.) with local playback and transcription |
 | 🌐 **URL** | Enter any web URL to fetch and process content |
 | 📺 **YouTube** | Import YouTube videos or playlists |
-| 🎙️ **Podcast** | Import podcast episodes by RSS feed or URL |
 | 📄 **Arxiv** | Paste Arxiv ID or URL for research papers |
 | 📸 **Screenshot** | Capture your screen directly |
 | 🃏 **Anki** | Import .apkg files from Anki |
