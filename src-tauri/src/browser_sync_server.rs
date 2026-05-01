@@ -484,20 +484,21 @@ pub async fn start_server(
 
     info!("Starting browser extension server on {}", addr);
 
+    let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::AddrInUse {
+            AppError::IntegrationError(format!(
+                "Browser extension server port {} is already in use",
+                config.port
+            ))
+        } else {
+            AppError::IntegrationError(format!("Failed to bind to {}: {}", addr, e))
+        }
+    })?;
+
+    info!("Browser extension server listening on {}", addr);
+
     // Spawn server task
     let task = tokio::spawn(async move {
-        let listener = match tokio::net::TcpListener::bind(addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                error!("Failed to bind to {}: {}", addr, e);
-                let mut r = running.lock().await;
-                *r = false;
-                return;
-            }
-        };
-
-        info!("Browser extension server listening on {}", addr);
-
         // Serve with graceful shutdown
         if let Err(e) = axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal(running.clone()))
@@ -2890,7 +2891,9 @@ pub async fn initialize_if_enabled(repo: Arc<Repository>, app_handle: AppHandle,
     let config = load_config();
     if config.auto_start {
         info!("Auto-starting browser extension server on port {}", config.port);
-        let _ = start_server(config, repo, app_handle, ai_config).await;
+        if let Err(err) = start_server(config, repo, app_handle, ai_config).await {
+            warn!("Browser extension server auto-start skipped: {}", err);
+        }
     }
     Ok(())
 }

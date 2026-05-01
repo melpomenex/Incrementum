@@ -8,6 +8,16 @@ use crate::error::Result;
 use crate::models::QueueItem;
 use chrono::Utc;
 
+fn preview_text(text: &str, max_chars: usize) -> String {
+    let mut chars = text.chars();
+    let preview: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{}...", preview)
+    } else {
+        preview
+    }
+}
+
 /// Configuration for interspersing playlist videos in the queue
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlaylistInterspersionConfig {
@@ -167,15 +177,7 @@ async fn get_queue_items_from_repo(
             7.0
         };
 
-        let _content_preview = if extract.content.len() > 100 {
-            let mut end = 100;
-            while end > 0 && !extract.content.is_char_boundary(end) {
-                end -= 1;
-            }
-            format!("{}...", &extract.content[..end])
-        } else {
-            extract.content.clone()
-        };
+        let _content_preview = preview_text(&extract.content, 100);
 
         queue_items.push(QueueItem {
             id: extract.id.clone(),
@@ -215,7 +217,7 @@ async fn get_queue_items_from_repo(
         let estimated_time = duration_minutes.clamp(1, 10);
 
         let transcript_preview = extract.transcript_text.as_ref()
-            .map(|t| if t.len() > 100 { format!("{}...", &t[..100]) } else { t.clone() });
+            .map(|t| preview_text(t, 100));
 
         queue_items.push(QueueItem {
             id: extract.id.clone(),
