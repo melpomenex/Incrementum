@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.27.0] - 2026-04-30
+
+### Added
+- **Assistant image attachments** — Paste, drag-and-drop, or click to attach up to 4 images per message in the assistant chat. Images are compressed client-side (max 1280px, 5MB limit) and sent as multimodal messages to LLM providers that support vision. Heuristic detection for OpenAI, Anthropic, OpenRouter, and Ollama models. When vision isn't supported, images are stripped from the API call with a warning.
+- **Horizontal scroll on document card rows** — Vertical mouse wheel events on horizontal document card grids now map to horizontal scrolling, matching native scroll behavior.
+
+### Fixed
+- **Flashcard Studio empty cloze cards** — Cloze cards generated from extracts rendered as blank because `cloze_text` was never set by the Rust backend. Frontend now converts `[answer]` format to `{{c1::answer}}` cloze syntax.
+- **Flashcard Studio save button** — Save no longer tries to re-create already-persisted cards, preventing duplicate creation errors.
+- **WebKitGTK crashes from console overrides** — PDFViewer's glyph warning suppression via `Object.defineProperty(console.warn/error)` crashed on WebKitGTK. Removed the overrides entirely.
+- **Tab bar horizontal scroll on WebKitGTK** — Wheel events now correctly map to horizontal scrolling on the tab bar for Linux AppImage builds.
+- **PDF text layer crash on scroll** — Yield to macrotask queue after cancelling textLayerBuilder to prevent stale DOM mutations.
+
 ## [1.26.10] - 2026-04-30
 
 ### Changed
