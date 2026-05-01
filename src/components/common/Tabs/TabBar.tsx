@@ -93,21 +93,31 @@ export function TabBar({
   }, []);
 
   // Handle wheel scroll for tabs
+  // Use onWheel prop instead of addEventListener for better cross-platform compat
+  // (WebKitGTK in Linux AppImage ignores addEventListener passive:false on some builds)
+  const handleTabWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0) {
+      // deltaY is read-only on React.WheelEvent; scroll manually
+      scrollContainerRef.current?.scrollBy({ left: e.deltaY, behavior: "auto" });
+    }
+  };
+
+  // Fallback: also attach a capture-phase non-passive listener to block
+  // the page-level scroll on WebKitGTK when hovering the tab bar.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY !== 0) {
+    const preventPageScroll = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > 0) {
         e.preventDefault();
-        container.scrollLeft += e.deltaY;
+        e.stopPropagation();
       }
     };
 
-    container.addEventListener("wheel", handleWheel, { passive: false });
-
+    container.addEventListener("wheel", preventPageScroll, { passive: false, capture: true });
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("wheel", preventPageScroll, { capture: true });
     };
   }, []);
 
@@ -259,6 +269,7 @@ export function TabBar({
         {/* Tab scroll container */}
         <div
           ref={scrollContainerRef}
+          onWheel={handleTabWheel}
           className="flex-1 flex items-center overflow-x-auto scrollbar-hide"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
