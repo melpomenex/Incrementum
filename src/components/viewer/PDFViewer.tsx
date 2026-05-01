@@ -68,52 +68,47 @@ const _shouldSuppressGlyphWarning = (args: unknown[]): boolean => {
   return args.some((arg) => typeof arg === "string" && _glyphWarningPattern.test(arg));
 };
 
-// Store originals before overriding
-const _originalConsoleWarn = console.warn;
-const _originalConsoleError = console.error;
+// Store originals before overriding (use bind for safety on WebKitGTK)
+const _originalConsoleWarn = typeof console.warn === 'function' ? console.warn.bind(console) : (() => {});
+const _originalConsoleError = typeof console.error === 'function' ? console.error.bind(console) : (() => {});
 
-// Override console.warn using defineProperty to handle readonly properties
+// Override console.warn to suppress noisy glyph-name warnings.
+// WebKitGTK throws on Object.defineProperty for console properties in some builds,
+// so we check the descriptor first and wrap everything in try/catch.
 try {
-  Object.defineProperty(console, 'warn', {
-    value: (...args: unknown[]) => {
+  const d = Object.getOwnPropertyDescriptor(console, 'warn');
+  if (d && d.configurable === false && d.writable === false) {
+    // WebKitGTK: can't override — skip glyph suppression
+  } else {
+    const warnFn = (...args: unknown[]) => {
       if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleWarn.apply(console, args);
-    },
-    writable: true,
-    configurable: true
-  });
-} catch {
-  // If defineProperty fails, try direct assignment
-  try {
-    (console as any).warn = (...args: unknown[]) => {
-      if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleWarn.apply(console, args);
+      _originalConsoleWarn(...args);
     };
-  } catch {
-    // Silently fail if console can't be overridden
+    try {
+      Object.defineProperty(console, 'warn', { value: warnFn, writable: true, configurable: true });
+    } catch {
+      try { (console as any).warn = warnFn; } catch { /* skip */ }
+    }
   }
-}
+} catch { /* skip */ }
 
-// Override console.error using defineProperty
+// Override console.error to suppress noisy glyph-name warnings.
 try {
-  Object.defineProperty(console, 'error', {
-    value: (...args: unknown[]) => {
+  const d = Object.getOwnPropertyDescriptor(console, 'error');
+  if (d && d.configurable === false && d.writable === false) {
+    // WebKitGTK: can't override — skip glyph suppression
+  } else {
+    const errorFn = (...args: unknown[]) => {
       if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleError.apply(console, args);
-    },
-    writable: true,
-    configurable: true
-  });
-} catch {
-  try {
-    (console as any).error = (...args: unknown[]) => {
-      if (_shouldSuppressGlyphWarning(args)) return;
-      _originalConsoleError.apply(console, args);
+      _originalConsoleError(...args);
     };
-  } catch {
-    // Silently fail if console can't be overridden
+    try {
+      Object.defineProperty(console, 'error', { value: errorFn, writable: true, configurable: true });
+    } catch {
+      try { (console as any).error = errorFn; } catch { /* skip */ }
+    }
   }
-}
+} catch { /* skip */ }
 
 interface PDFViewerProps {
   documentId: string;
