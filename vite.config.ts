@@ -146,6 +146,10 @@ export default defineConfig(async ({ mode }) => {
       chunkSizeWarningLimit: 1000,
     },
     optimizeDeps: {
+      // Only scan from the main entry points — prevent Vite from crawling into
+      // src-tauri/bin/notebooklm-runtime which contains Playwright/Vite HTML bundles
+      // that cause EIO errors on dep-scan.
+      entries: ["index.html", "src/main.tsx"],
       // Avoid forcing re-optimization to prevent esbuild deadlock in Tauri dev.
       force: false,
       // Include jszip and handle its CommonJS format
