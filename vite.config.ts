@@ -54,11 +54,6 @@ export default defineConfig(async ({ mode }) => {
       port: 15173,
       strictPort: true,
       host: host || "127.0.0.1",
-      // Prevent Vite from scanning into large embedded runtimes
-      // (e.g. notebooklm-runtime contains Playwright/Vite HTML files that cause EIO)
-      fs: {
-        deny: ["**/src-tauri/bin/**"],
-      },
       // Force HMR to a fixed port to avoid handshake issues in the Tauri webview.
       // Disable HMR entirely for PWA mode to avoid websocket churn in installed builds.
       hmr: isTauriBuild || isPWA
@@ -146,10 +141,6 @@ export default defineConfig(async ({ mode }) => {
       chunkSizeWarningLimit: 1000,
     },
     optimizeDeps: {
-      // Only scan from the main entry points — prevent Vite from crawling into
-      // src-tauri/bin/notebooklm-runtime which contains Playwright/Vite HTML bundles
-      // that cause EIO errors on dep-scan.
-      entries: ["index.html", "src/main.tsx"],
       // Avoid forcing re-optimization to prevent esbuild deadlock in Tauri dev.
       force: false,
       // Include jszip and handle its CommonJS format
