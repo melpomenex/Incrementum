@@ -54,6 +54,11 @@ export default defineConfig(async ({ mode }) => {
       port: 15173,
       strictPort: true,
       host: host || "127.0.0.1",
+      // Prevent Vite from scanning into large embedded runtimes
+      // (e.g. notebooklm-runtime contains Playwright/Vite HTML files that cause EIO)
+      fs: {
+        deny: ["**/src-tauri/bin/**"],
+      },
       // Force HMR to a fixed port to avoid handshake issues in the Tauri webview.
       // Disable HMR entirely for PWA mode to avoid websocket churn in installed builds.
       hmr: isTauriBuild || isPWA
