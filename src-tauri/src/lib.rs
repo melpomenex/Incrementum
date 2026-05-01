@@ -235,7 +235,30 @@ pub fn run() {
                 menu.append(&edit_submenu)?;
             }
 
-            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            #[cfg(target_os = "windows")]
+            {
+                use tauri::menu::Submenu;
+                let edit_submenu = Submenu::with_items(
+                    app,
+                    "Edit",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "accel-k", "Command Palette", true, Some("Ctrl+K"))?,
+                        &MenuItem::with_id(app, "accel-p", "Command Palette (P)", true, Some("Ctrl+P"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "accel-q", "Queue", true, Some("Ctrl+Q"))?,
+                        &MenuItem::with_id(app, "accel-r", "Review", true, Some("Ctrl+R"))?,
+                        &MenuItem::with_id(app, "accel-d", "Dashboard", true, Some("Ctrl+D"))?,
+                        &MenuItem::with_id(app, "accel-o", "Open Document", true, Some("Ctrl+O"))?,
+                        &MenuItem::with_id(app, "accel-n", "New Document", true, Some("Ctrl+N"))?,
+                        &MenuItem::with_id(app, "accel-comma", "Settings", true, Some("Ctrl+,"))?,
+                        &MenuItem::with_id(app, "accel-slash", "Shortcuts Help", true, Some("Ctrl+/"))?,
+                    ],
+                )?;
+                menu.append(&edit_submenu)?;
+            }
+
+            #[cfg(target_os = "linux")]
             let accel_items: &[(&str, &str, &str)] = &[
                 ("accel-k",     "Command Palette (K)", "Control+k"),
                 ("accel-p",     "Command Palette (P)", "Control+p"),
@@ -247,7 +270,7 @@ pub fn run() {
                 ("accel-comma", "Settings",             "Control+,"),
                 ("accel-slash", "Shortcuts Help",       "Control+/"),
             ];
-            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            #[cfg(target_os = "linux")]
             for (id, label, accel) in accel_items {
                 let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
                 menu.append(&item)?;
@@ -505,9 +528,9 @@ pub fn run() {
                         "console.log('Webview location:', window.location.href);",
                     );
 
-                    // Hide the menu bar where it would otherwise clutter the UI.
-                    // The accelerators still work via the on_menu_event handler above.
-                    #[cfg(any(target_os = "linux", target_os = "windows"))]
+                    // Hide the Linux menu bar where it would otherwise clutter the UI.
+                    // Windows WebView2 needs the native menu visible for accelerators.
+                    #[cfg(target_os = "linux")]
                     {
                         let _ = window.hide_menu();
                     }
