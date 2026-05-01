@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.27.1] - 2026-05-01
+
+### Fixed
+- **macOS and Windows command palette shortcut** — `Cmd+K` on macOS and `Ctrl+K` on Windows now open the command palette reliably in Tauri builds. The native accelerator path now dispatches the palette-open event directly into the webview, and macOS registers the shortcut in the Edit menu so WKWebView cannot swallow it before the app sees it.
+- **Tauri startup/runtime regressions found during shortcut verification** — fixed the desktop `greet` command registration, made browser sync auto-start handle an occupied port without a false running state, and made queue preview truncation Unicode-safe to avoid panics on curly quotes and other multibyte characters.
+
 ## [1.27.0] - 2026-04-30
 
 ### Added
