@@ -28,7 +28,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 |-----------|-------------|
 | **Incremental Reading** | Process large documents in small, manageable chunks over time |
 | **Spaced Repetition** | Review content at scientifically-optimized intervals using FSRS-6, SM-18, SM-20, or SM-2 |
-| **Import Flexibility** | Bring content from anywhere—PDFs, EPUBs, websites, papers, Anki decks |
+| **Import Flexibility** | Bring content from anywhere—PDFs, EPUBs, audiobooks, videos, websites, podcasts, Anki decks |
 | **Smart Scheduling** | Know exactly when you'll review each card again with preview intervals |
 | **Rich Analytics** | Track your progress, streaks, and performance metrics |
 
@@ -39,8 +39,11 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 ### 📚 Document Management
 
 - Import and read PDF, EPUB, Markdown, HTML, and TXT content
-- Import from URLs, Arxiv papers, YouTube videos/playlists, and RSS feeds
+- Import audiobooks and audio files (MP3, M4A, M4B, AAC, FLAC, OGG, OPUS, WAV, WMA)
+- Import video files (MP4, WebM, MOV, MKV, AVI, M4V) with local playback
+- Import from URLs, Arxiv papers, YouTube videos/playlists, podcasts, RSS feeds, and Substack
 - Capture screenshots and run OCR extraction
+- Auto-transcribe audio/video content with local Whisper or cloud providers (OpenAI, Groq)
 - Create highlights/extracts, organize by tags/categories, and resume reading positions
 - Migrate study data from Anki (`.apkg`) and SuperMemo (ZIP exports)
 
@@ -49,7 +52,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 ### 🧠 Learning & Review
 
 - Multiple scheduling algorithms: FSRS-6, SM-18, SM-20, SM-2
-- Card types: Basic, Cloze, and Q&A
+- Card types: Basic, Cloze, Q&A, Multiple Choice, and Image Occlusion (via Flashcard Studio)
 - Review queue with filtering/sorting, keyboard-first rating flow, and session stats
 - Preview intervals (including long-form duration-aware safety caps)
 - Focus timer (Pomodoro-style) integrated into study workflows
@@ -78,16 +81,15 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 ### 🔧 Advanced Features
 
 - AI-assisted workflows: flashcard generation, summaries, Q&A helpers
+- AI assistant with multimodal image support (paste, drag & drop, or attach images)
+- Flashcard Studio with AI-powered card creation (Basic, Cloze, Q&A, Multiple Choice, Image Occlusion)
 - OCR pipeline with local and cloud providers (including math OCR options)
+- Text-to-Speech (TTS) for reading documents and review cards aloud
+- Audio/video transcription with local Whisper.cpp or cloud providers (OpenAI, Groq)
 - NotebookLM workspace for research/chat/artifact generation and sync-to-learning flows
 - Browser extension bridge for web capture
 - Obsidian integration (export and sync workflows)
 - Backup/restore tools (local and cloud-backed), plus import/export utilities
-
-### Notes on Feature Availability
-
-- Some integrations depend on external credentials/services (OCR providers, cloud providers, YouTube APIs, NotebookLM CLI/provider auth).
-- NotebookLM is controlled by feature/integration settings and may be disabled by default in some profiles.
 
 ---
 
@@ -186,7 +188,11 @@ Documents → Import Document → Choose source
 | Source | Description |
 |--------|-------------|
 | 📁 **Local Files** | Select PDF, EPUB, or text files from your computer |
+| 🎧 **Audiobook / Audio** | Import audiobooks or audio files (MP3, M4A, M4B, FLAC, etc.) with auto-transcription |
+| 🎬 **Video** | Import video files (MP4, WebM, MOV, MKV, etc.) with local playback and transcription |
 | 🌐 **URL** | Enter any web URL to fetch and process content |
+| 📺 **YouTube** | Import YouTube videos or playlists |
+| 🎙️ **Podcast** | Import podcast episodes by RSS feed or URL |
 | 📄 **Arxiv** | Paste Arxiv ID or URL for research papers |
 | 📸 **Screenshot** | Capture your screen directly |
 | 🃏 **Anki** | Import .apkg files from Anki |
@@ -334,53 +340,11 @@ Mobile note: desktop sidecar binaries (like `whisper`) are disabled on Android/i
 - **EPUB.js**: EPUB parsing
 - **PDF.js**: PDF rendering
 - **Three.js**: 3D visualizations
+- **Whisper.cpp**: Local audio/video transcription
 
 </details>
 
 ---
-
----
-
-## YouTube + WebSocket Debugging (Tauri v2)
-
-### What changed
-- YouTube doc rendering now validates and normalizes IDs via `src/utils/youtubeEmbed.ts`.
-- The viewer uses YouTube privacy embed host (`youtube-nocookie`) with JS API enabled and explicit iframe allow attributes.
-- Tauri CSP is split into:
-  - Prod: `src-tauri/tauri.conf.json` -> `app.security.csp`
-  - Dev: `src-tauri/tauri.conf.json` -> `app.security.devCsp`
-- Linux webview user agent override is in `src-tauri/tauri.linux.conf.json`.
-- Yjs websocket diagnostics were improved in `src/lib/yjsSync.ts`.
-
-### How to test YouTube docType
-1. Import/open a YouTube document with filePath `https://www.youtube.com/watch?v=n04A6phTTVc`.
-2. Confirm the viewer resolves the ID and embeds `https://www.youtube-nocookie.com/embed/n04A6phTTVc`.
-3. Click play if autoplay is blocked by platform policy.
-
-### How to inspect the exact failing request
-1. Enable debug instrumentation in dev:
-  - env: `VITE_DEBUG_NETWORK=1 npm run tauri:dev`
-  - or in console: `localStorage.setItem("incrementum.debug.network", "1"); location.reload();`
-2. Reproduce playback.
-3. Check console logs:
-  - `[NetworkDebug][fetch]` / `[NetworkDebug][xhr]`: URL, status, request headers, response snippet (first ~200 chars)
-  - `[YouTubeViewer] iframe src`: actual embed URL used
-  - `[NetworkDebug][resource-error]`: failed script/img/iframe resource URLs
-
-### How to interpret CSP violations
-- In debug mode, CSP violations are logged as `[NetworkDebug][csp]` with:
-  - `violatedDirective`
-  - `blockedURI`
-  - `effectiveDirective`
-- If websocket sync fails, verify:
-  - `connect-src` includes `wss://sync.readsync.org`
-  - Yjs logs show close/error details in `src/lib/yjsSync.ts`
-  - If CSP allows it but handshake is still rejected, the issue is server/proxy-side (upgrade/subprotocol/auth).
-
-### Where CSP is configured
-- `src-tauri/tauri.conf.json`:
-  - `app.security.csp` (production)
-  - `app.security.devCsp` (development)
 
 ## 🤝 Contributing
 
