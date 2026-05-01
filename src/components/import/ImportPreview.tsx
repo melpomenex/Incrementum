@@ -48,9 +48,11 @@ export function ImportPreview({
   const [newCollectionName, setNewCollectionName] = useState("");
   const [showNewCollection, setShowNewCollection] = useState(false);
 
-  // Load collections on mount
+  // Load collections on mount (Tauri only)
   useEffect(() => {
-    getCollections().then(setCollections).catch(console.error);
+    if (typeof window !== 'undefined' && '__TAURI__' in window) {
+      getCollections().then(setCollections).catch(console.error);
+    }
   }, []);
 
   // Notify parent of options changes
