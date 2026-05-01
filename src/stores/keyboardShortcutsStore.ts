@@ -83,6 +83,10 @@ export const useKeyboardShortcutsStore = create<KeyboardShortcutsState>()(
         return get().shortcuts.find((s) => s.action === action)?.keys || "";
       },
     }),
-    { name: "rss-keyboard-shortcuts" }
+    {
+      name: "rss-keyboard-shortcuts",
+      version: 0,
+      migrate: (persisted: unknown) => persisted as KeyboardShortcutsState,
+    }
   )
 );

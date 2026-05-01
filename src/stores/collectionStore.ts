@@ -127,6 +127,10 @@ export const useCollectionStore = create<CollectionState>()(
     {
       name: "incrementum-collections",
       version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        // Version 0 -> 1: no schema change needed
+        return persisted as CollectionState;
+      },
     }
   )
 );

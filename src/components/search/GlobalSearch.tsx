@@ -218,7 +218,7 @@ export function GlobalSearch({
   );
 
   const handleURLImport = useCallback(async (options: ImportOptions) => {
-    if (!urlDetection.isURL || !urlMetadata) return;
+    if (!urlDetection.isURL) return;
 
     try {
       const result = await importURL(urlDetection.type, urlDetection.url, {
@@ -229,12 +229,13 @@ export function GlobalSearch({
       // Get document ID from result (structure varies by import type)
       const documentId = (result as any)?.document_id || (result as any)?.id;
 
-      // Show success toast
-      const title = urlDetection.type === URLType.YouTube
-        ? `Imported: ${(urlMetadata as any).title}`
-        : urlDetection.type === URLType.RSSFeed
-        ? `Subscribed to: ${(urlMetadata as any).title}`
-        : `Imported: ${(urlMetadata as any).title}`;
+      const title = urlMetadata
+        ? (urlDetection.type === URLType.YouTube
+            ? `Imported: ${(urlMetadata as any).title}`
+            : urlDetection.type === URLType.RSSFeed
+            ? `Subscribed to: ${(urlMetadata as any).title}`
+            : `Imported: ${(urlMetadata as any).title}`)
+        : `Imported: ${urlDetection.url}`;
 
       toast.success(title, "Click to view", {
         action: {
@@ -284,7 +285,7 @@ export function GlobalSearch({
           break;
         case "Enter":
           e.preventDefault();
-          if (isURLMode && urlMetadata && !isImporting) {
+          if (isURLMode && urlDetection.isURL && !isImporting) {
             // Handle URL import
             handleURLImport(importOptions);
           } else if (results[selectedIndex]) {
@@ -365,7 +366,7 @@ export function GlobalSearch({
               aria-atomic="true"
               className="sr-only"
             >
-              {isURLMode && urlMetadata && !isMetadataLoading && "URL detected. Press Enter to import."}
+              {isURLMode && !isMetadataLoading && "URL detected. Press Enter to import."}
               {isImporting && "Importing..."}
             </div>
 

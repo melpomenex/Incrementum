@@ -545,6 +545,14 @@ pub async fn extract_document_text(
         }
     }
 
+    // Skip file-based extraction for URL-based documents (web pages, YouTube, RSS, etc.)
+    if doc.file_path.starts_with("http://") || doc.file_path.starts_with("https://") {
+        return Ok(TextExtractionResult {
+            content: String::new(),
+            extracted: false,
+        });
+    }
+
     // Extract content
     let extracted = processor::extract_content(&doc.file_path, doc.file_type.clone()).await?;
     
@@ -736,6 +744,90 @@ pub async fn convert_document_pdf_to_html(
         saved_path,
         original_filename,
     })
+}
+
+/// Fetch a web page preview (title, description, favicon) for URL import
+#[tauri::command]
+pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
+    use regex::Regex;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("Incrementum/1.0 (https://incrementum.app)")
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client.get(&url).send().await
+        .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()).into());
+    }
+
+    let body = response.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    // Extract title
+    let title = Regex::new(r"<title[^>]*>([^<]+)</title>")
+        .ok()
+        .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        .unwrap_or_default();
+
+    // Extract meta description (prefer og:description)
+    let description = Regex::new(r#"<meta[^>]+property\s*=\s*["']og:description["'][^>]+content\s*=\s*["']([^"']+)["']"#)
+        .ok()
+        .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        .or_else(|| {
+            Regex::new(r#"<meta[^>]+content\s*=\s*["']([^"']+)["'][^>]+name\s*=\s*["']description["']"#)
+                .ok()
+                .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        })
+        .or_else(|| {
+            Regex::new(r#"<meta[^>]+name\s*=\s*["']description["'][^>]+content\s*=\s*["']([^"']+)["']"#)
+                .ok()
+                .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        })
+        .unwrap_or_default();
+
+    // Extract og:image
+    let image = Regex::new(r#"<meta[^>]+property\s*=\s*["']og:image["'][^>]+content\s*=\s*["']([^"']+)["']"#)
+        .ok()
+        .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        .or_else(|| {
+            Regex::new(r#"<meta[^>]+content\s*=\s*["']([^"']+)["'][^>]+property\s*=\s*["']og:image["']"#)
+                .ok()
+                .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        });
+
+    // Extract favicon
+    let favicon = Regex::new(r#"<link[^>]+rel\s*=\s*["'][^"']*icon[^"']*["'][^>]+href\s*=\s*["']([^"']+)["']"#)
+        .ok()
+        .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        .or_else(|| {
+            Regex::new(r#"<link[^>]+href\s*=\s*["']([^"']+)["'][^>]+rel\s*=\s*["'][^"']*icon[^"']*["']"#)
+                .ok()
+                .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
+        })
+        .map(|href| {
+            if href.starts_with("http://") || href.starts_with("https://") {
+                href
+            } else if href.starts_with("//") {
+                format!("https:{}", href)
+            } else {
+                url.parse::<reqwest::Url>().ok()
+                    .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or("")))
+                    .map(|base| format!("{}/{}", base.trim_end_matches('/'), href.trim_start_matches('/')))
+                    .unwrap_or(href)
+            }
+        });
+
+    Ok(serde_json::json!({
+        "url": url,
+        "title": title,
+        "description": description,
+        "image": image,
+        "favicon": favicon,
+    }))
 }
 
 /// Fetch content from a URL and save it to a temporary location
