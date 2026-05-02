@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.28.1] - 2026-05-01
+
+### Fixed
+- **YouTube embeds failing with "browser can't play this video"** — `https://img.youtube.com` was missing from the CSP `img-src` directive, causing thumbnail fetches to fail. YouTube treats this as a broken embed context and refuses to initialize the player.
+- **SponsorBlock segments not loading** — `https://sponsor.ajay.app` was missing from the CSP `connect-src` directive.
+
 ## [1.28.0] - 2026-05-01
 
 ### Added
