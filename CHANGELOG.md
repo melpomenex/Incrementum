@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.27.2] - 2026-05-02
+
+### Fixed
+- **YouTube playback on Linux AppImage** — Videos embedded via `youtube-nocookie.com` showed "Your browser can't play this video" because the AppImage wasn't bundling GStreamer media plugins (`bundleMediaFramework: false`). Enabled media framework bundling and defaulted to `youtube.com` embed host on Linux to avoid stricter CORS handling by the nocookie domain.
+- **Assistant crash on video documents** — Calling the LLM assistant on YouTube videos threw `value?.replace is not a function` when non-string values reached `normalizeWhitespace()`. Now coerces any value to string before processing.
+- **Anki import creating dummy documents** — Importing `.apkg` files no longer creates empty placeholder documents for notes without media.
+- **URL import failing on preview fetch errors** — Web URL imports now proceed even when the initial preview/thumbnail fetch fails, using backend fetch as a fallback.
+- **Command palette result navigation** — Keyboard navigation through search results now works correctly across all document types (PDF, EPUB, audiobook, general). Results scroll into view when selected.
+- **Command palette scroll** — Fixed scroll behavior in the command palette dropdown to prevent content clipping.
+- **Escape key closing scroll mode unexpectedly** — Escape now properly delegates to `closeTab` logic instead of unconditionally closing scroll mode.
+- **`ease_factor.toFixed` crash** — Guarded `.toFixed()` calls on potentially undefined ease factor values.
+- **PWA `getCollections` crash** — Guarded the Tauri-specific `getCollections` call with an `__TAURI__` check so it doesn't throw in PWA/browser mode.
+
+### Changed
+- **Removed Reading Speed & ETA from Analytics** — The reading speed and estimated time of arrival section has been removed from the Analytics tab.
+- **Updated README** — Refreshed documentation.
+
 ## [1.27.1] - 2026-05-01
 
 ### Fixed
