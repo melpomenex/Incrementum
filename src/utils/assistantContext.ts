@@ -34,7 +34,9 @@ const PDF_TEXT_MIN_WORDS = 24;
 const PDF_TEXT_MIN_CHARS = 160;
 
 function normalizeWhitespace(value?: string | null): string {
-  return value?.replace(/\s+/g, " ").trim() ?? "";
+  if (value == null) return "";
+  const str = typeof value === "string" ? value : String(value);
+  return str.replace(/\s+/g, " ").trim();
 }
 
 function stripHtml(value?: string | null): string {
