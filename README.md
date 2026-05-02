@@ -201,11 +201,14 @@ Documents → Import Document → Choose source
 
 ### Step 2: Process Content
 
-Documents are automatically **segmented** and **extracts** are created.
+Once a document is loaded, select text to create **extracts** — the building blocks for learning items.
 
-- Review extracts in the **Extracts** tab
-- Edit, categorize, and tag them
-- Convert them to learning items (Flashcards)
+- **Create extracts**: Select text while reading, or use **Segmentation** (smart, paragraph, semantic, or fixed) to batch-split a document into extracts
+- **Review & organize**: Edit, categorize, and tag extracts in the **Extracts** tab
+- **Convert to flashcards**:
+  - Click **Create Card** on an individual extract → opens Flashcard Studio with the extract as seed content
+  - Select multiple extracts → **Bulk Generate** AI-powered flashcards from them
+- Optionally enable **Auto-Extract on Load** in OCR settings to automatically run extraction when opening documents
 
 ---
 
