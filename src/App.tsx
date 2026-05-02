@@ -3,7 +3,7 @@ import { NewMainLayout, MainContent } from "./components/layout/NewMainLayout";
 import { useAnalyticsStore } from "./stores/analyticsStore";
 import { useDocumentStore } from "./stores/documentStore";
 import { useStudyDeckStore } from "./stores/studyDeckStore";
-import { invokeCommand } from "./lib/tauri";
+import { invokeCommand, isTauri } from "./lib/tauri";
 import * as syncClient from "./lib/sync-client";
 import { LoginModal } from "./components/auth/LoginModal";
 import { WelcomeScreen } from "./components/onboarding/WelcomeScreen";
@@ -15,10 +15,13 @@ import {
   useShortcutStore,
 } from "./components/common/KeyboardShortcuts";
 import { hasImportedDemoContent, markDemoContentImported } from "./utils/demoContent";
-import { useToast } from "./components/common/Toast";
+import { useToast, ToastType, useToastStore } from "./components/common/Toast";
+
 import { initializeNotifications } from "./utils/notificationService";
 import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
 import { HAPTIC_FEEDBACK_CSS } from "./hooks/useHapticFeedback";
+import { checkForUpdates, type UpdateInfo } from "./utils/updateChecker";
+import { UpdateAvailableDialog } from "./components/settings/UpdateAvailableDialog";
 
 // PWA Components
 import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
@@ -268,6 +271,8 @@ function App() {
 
   // Keyboard shortcuts help state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  // Update dialog state
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const toast = useToast();
   const handlePageChange = useCallback((page: string) => {
     if (isAppPage(page)) {
@@ -322,6 +327,28 @@ function App() {
       unregisterCallback();
     };
   }, [loadAll, loadDocuments]);
+
+  // Startup update check (Tauri only)
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    (async () => {
+      const update = await checkForUpdates();
+      if (update) {
+        const addToast = useToastStore.getState().addToast;
+        addToast({
+          type: ToastType.Info,
+          title: `Update Available: v${update.latestVersion.replace(/^v/, "")}`,
+          message: "A new version is ready. Click to view release notes.",
+          action: {
+            label: "View Release Notes",
+            onClick: () => setUpdateInfo(update),
+          },
+          duration: 15000,
+        });
+      }
+    })();
+  }, []);
 
   // Capture-phase handler: preventDefault() early so webkit2gtk/GTK doesn't
   // intercept shortcuts like Ctrl+Q (quit), Ctrl+N (new window), Ctrl+P (print).
@@ -693,6 +720,9 @@ function App() {
         isOpen={showShortcutsHelp}
         onClose={() => setShowShortcutsHelp(false)}
       />
+      {updateInfo && (
+        <UpdateAvailableDialog update={updateInfo} onClose={() => setUpdateInfo(null)} />
+      )}
       {/* PWA Components */}
       <PWAInstallPrompt
         onInstall={() => toast.success("App installed!", "Incrementum is now available offline.")}

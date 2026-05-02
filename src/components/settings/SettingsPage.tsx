@@ -42,7 +42,10 @@ import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
+import { checkForUpdates } from "../../utils/updateChecker";
+import type { UpdateInfo } from "../../utils/updateChecker";
 import { useSettingsStore } from "../../stores";
+import { UpdateAvailableDialog } from "./UpdateAvailableDialog";
 import { loadGoogleFont } from "../../utils/fonts";
 import { useI18n } from "../../lib/i18n";
 
@@ -601,9 +604,27 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [dataLocation, setDataLocation] = useState<string | null>(null);
   const [isOpeningDataFolder, setIsOpeningDataFolder] = useState(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const isDesktop = isTauri();
   const toast = useToast();
   const { t } = useI18n();
+
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const result = await checkForUpdates(true);
+      if (result) {
+        setUpdateInfo(result);
+      } else {
+        toast.success("You're on the latest version");
+      }
+    } catch {
+      toast.error("Update check failed", "Could not reach GitHub. Please try again later.");
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -704,8 +725,26 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
 
         {isDesktop && (
           <SettingsRow label="App Version" description="Version of the desktop application">
-            <span className="text-sm text-muted-foreground">{appVersion ?? "Loading..."}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{appVersion ?? "Loading..."}</span>
+              <button
+                type="button"
+                onClick={handleCheckForUpdates}
+                disabled={isCheckingUpdates}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                  "bg-background border border-border hover:bg-muted",
+                  "disabled:opacity-60 disabled:cursor-not-allowed"
+                )}
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isCheckingUpdates && "animate-spin")} />
+                {isCheckingUpdates ? "Checking..." : "Check for Updates"}
+              </button>
+            </div>
           </SettingsRow>
+        )}
+        {updateInfo && (
+          <UpdateAvailableDialog update={updateInfo} onClose={() => setUpdateInfo(null)} />
         )}
       </SettingsSection>
 
