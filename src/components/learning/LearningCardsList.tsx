@@ -325,7 +325,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                 )}
               </div>
 
-              {card.ease_factor !== 2.5 && (
+              {card.ease_factor != null && card.ease_factor !== 2.5 && (
                 <span className="flex items-center gap-1">
                   <RefreshCw className="w-3 h-3" />
                   EF: {card.ease_factor.toFixed(2)}

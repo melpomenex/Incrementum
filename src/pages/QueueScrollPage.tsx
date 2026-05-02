@@ -1270,8 +1270,10 @@ export function QueueScrollPage() {
           toggleFullscreen();
           return;
         }
-        // Exit scroll mode
-        window.history.back();
+        // Exit scroll mode — close tab and return to previous tab
+        if (activeTabId) {
+          closeTab(activeTabId);
+        }
       } else if (e.key === "h" || e.key === "?") {
         // Toggle controls
         setShowControls((prev) => !prev);
@@ -1280,7 +1282,7 @@ export function QueueScrollPage() {
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen]);
+  }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen, activeTabId, closeTab]);
 
   // Auto-hide controls on mouse idle
   useEffect(() => {
