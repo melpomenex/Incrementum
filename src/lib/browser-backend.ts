@@ -3518,35 +3518,20 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
     // Convert to Incrementum format
     console.log('[Browser] Converting to Incrementum format...');
     const { documents, learningItems } = convertAnkiToLearningItems(decks);
-    console.log(`[Browser] Converted: ${documents.length} documents, ${learningItems.length} learning items`);
+    // Don't save dummy documents — Anki imports only produce learning items
+    console.log(`[Browser] Converted: ${documents.length} decks (documents skipped), ${learningItems.length} learning items`);
 
-    // Store documents (small number, individual calls are fine)
-    const documentIdMap = new Map<string, string>();
-    for (const [index, doc] of documents.entries()) {
-        const createdDoc = await db.createDocument({
-            title: doc.title,
-            content: doc.content,
-            file_path: `anki://${doc.title}`,
-            file_type: doc.fileType,
-            category: doc.category,
-            tags: doc.tags,
-        });
-        const sourceDeck = decks[index];
-        const placeholderId = `anki-deck-${sourceDeck?.id ?? index}`;
-        documentIdMap.set(placeholderId, createdDoc.id);
-    }
+    // documentIdMap is empty since we don't create documents; learning items will use empty docId
 
     // Create learning items in bulk — avoids hammering IndexedDB with
     // hundreds of individual transactions (which kills the backing store on mobile)
     console.log(`[Browser] Creating ${learningItems.length} learning items in database...`);
     const now = new Date().toISOString();
     const dbItems: any[] = [];
-    const itemsPerDoc = new Map<string, number>();
 
     for (const item of learningItems) {
-        const documentId = documentIdMap.get(item.documentId) ?? item.documentId;
         const fullItem = db.createLearningItemRaw({
-            document_id: documentId,
+            document_id: item.documentId || undefined,
             item_type: item.itemType,
             question: item.question,
             answer: item.answer,
@@ -3555,22 +3540,11 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
             tags: item.tags,
         });
         dbItems.push(fullItem);
-        itemsPerDoc.set(documentId, (itemsPerDoc.get(documentId) ?? 0) + 1);
     }
 
     // Bulk insert all items in a single transaction
     await db.bulkPutLearningItems(dbItems);
     console.log(`[Browser] Bulk-inserted ${dbItems.length} learning items`);
-
-    // Update each document's learning_item_count once (instead of per-item)
-    for (const [docId, count] of itemsPerDoc) {
-        const doc = await db.getDocument(docId);
-        if (doc) {
-            await db.updateDocument(docId, {
-                learning_item_count: doc.learning_item_count + count,
-            });
-        }
-    }
 
     console.log(`[Browser] Successfully imported ${dbItems.length} learning items`);
     return dbItems.map((item) => toCamelCase(item));

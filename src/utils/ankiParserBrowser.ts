@@ -435,7 +435,6 @@ export function convertAnkiToLearningItems(decks: AnkiDeck[]): {
   documents: Array<{ title: string; content: string; fileType: string; category: string; tags: string[] }>;
   learningItems: Array<{ documentId: string; itemType: string; question: string; answer: string; clozeText?: string; clozeRanges?: [number, number][]; tags: string[] }>;
 } {
-  const documents: Array<{ title: string; content: string; fileType: string; category: string; tags: string[] }> = [];
   const learningItems: Array<{ documentId: string; itemType: string; question: string; answer: string; clozeText?: string; clozeRanges?: [number, number][]; tags: string[] }> = [];
 
   // Track imported note GUIDs to prevent duplicates
@@ -447,15 +446,8 @@ export function convertAnkiToLearningItems(decks: AnkiDeck[]): {
   for (const deck of decks) {
     console.log(`[AnkiParser] Processing deck '${deck.name}' with ${deck.notes.length} notes and ${deck.cards.length} cards`);
 
-    // Create a document for the deck
-    const docId = `anki-deck-${deck.id}`;
-    documents.push({
-      title: deck.name,
-      content: `Anki deck with ${deck.notes.length} notes and ${deck.cards.length} cards`,
-      fileType: 'anki',
-      category: 'anki-import',
-      tags: ['anki-import', deck.name]
-    });
+    const docId = '';
+    // No document created — only learning items are useful from an Anki import
 
     const buildItemFromNote = (note: AnkiNote) => {
       console.log(`[AnkiParser] Building item from note ${note.id} (GUID: ${note.guid}), fields: ${note.fields.length}`);
@@ -536,5 +528,5 @@ export function convertAnkiToLearningItems(decks: AnkiDeck[]): {
 
   console.log(`[DEBUG] Import complete - created ${learningItems.length} items, skipped ${skippedCount} duplicates`);
 
-  return { documents, learningItems };
+  return { documents: [], learningItems };
 }
