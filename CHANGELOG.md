@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.28.0] - 2026-05-01
+
+### Added
+- **In-app update checker** — App silently checks GitHub Releases for new versions on startup and shows a toast notification when an update is available. Settings → General now includes a "Check for Updates" button next to the App Version display. Clicking opens a dialog with release notes and a link to download. Users can skip specific versions to suppress repeat notifications.
+
 ## [1.27.2] - 2026-05-02
 
 ### Fixed
