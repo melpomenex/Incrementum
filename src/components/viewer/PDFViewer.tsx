@@ -570,6 +570,12 @@ export function PDFViewer({
     reapplyVisibleTextLayerHighlights();
   }, [highlightPageNumber, highlightQuery, highlightTextQuote, reapplyVisibleTextLayerHighlights]);
 
+  useEffect(() => {
+    if (!highlightPageNumber) return;
+    restoredPageRef.current = highlightPageNumber;
+    restorationWindowRef.current = Date.now() + 2500;
+  }, [highlightPageNumber, highlightQuery, highlightTextQuote]);
+
   const publishTextSelectionCapability = useCallback(
     (availability: ReadonlyMap<number, boolean>, totalPagesOverride?: number) => {
       const capability = derivePdfTextSelectionCapability(
@@ -2501,7 +2507,7 @@ export function PDFViewer({
       }
 
       const scrollTop = container.scrollTop;
-      const currentPage = getCurrentPageFromScrollTop(scrollTop);
+      let currentPage = getCurrentPageFromScrollTop(scrollTop);
 
       if (currentPage !== pageNumber && !suppressAutoScroll) {
         // Check if we're in a restoration protection window
@@ -2512,6 +2518,7 @@ export function PDFViewer({
         // Block backward page changes during restoration window to prevent reset to page 1
         if (isInRestorationWindow && restoredPage !== null && currentPage < restoredPage) {
           // Ignore transient "current page" changes while restoring.
+          currentPage = restoredPage;
         } else {
           // Clear restoration tracking if we've moved past the window or forward
           if (!isInRestorationWindow) {

@@ -540,6 +540,8 @@ export function DocumentViewer({
 
   const viewerSearchSupported = docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html" || docType === "youtube";
   const normalizedViewerSearchQuery = searchQuery.trim();
+  const initialSearchQuery = highlightQuery?.trim() || jumpHighlightQuery || "";
+  const effectiveEpubSearchQuery = normalizedViewerSearchQuery || (docType === "epub" ? initialSearchQuery : "");
   const reportViewerSearchState = useCallback((next: Partial<ViewerSearchState>) => {
     setViewerSearchState((prev) => ({
       ...prev,
@@ -1848,6 +1850,18 @@ export function DocumentViewer({
     if (isLoading) return;
     if (!currentDocument?.id) return;
     if (restoreScrollDoneRef.current) return;
+    if (
+      (docType === "pdf" && initialJump?.kind === "pdf") ||
+      (docType === "html" && initialJump?.kind === "html")
+    ) {
+      setRestoreState(null);
+      pendingViewStateRef.current = null;
+      lastViewStateRef.current = null;
+      setSuppressPdfAutoScroll(false);
+      restoreScrollDoneRef.current = true;
+      restorationInProgressRef.current = false;
+      return;
+    }
     if (skipStoredScrollRef.current) {
       setSuppressPdfAutoScroll(false);
       restoreScrollDoneRef.current = true;
@@ -2035,7 +2049,7 @@ export function DocumentViewer({
       setPageNumber(selectedViewState.pageNumber);
     }
     // Note: restorationInProgressRef will be cleared by the verification effect after restoration completes
-  }, [currentDocument, docType, isLoading, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, scrollStorageKey]);
+  }, [currentDocument, docType, initialJump, isLoading, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, scrollStorageKey]);
 
   useEffect(() => {
     if (viewMode !== "document") return;
@@ -4674,8 +4688,9 @@ export function DocumentViewer({
             onContextTextChange={handlePdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
             initialSearchMatchIndex={initialJump?.kind === "epub" ? initialJump.matchIndex : undefined}
-            searchQuery={normalizedViewerSearchQuery}
-            searchMatchIndex={viewerSearchState.activeMatchIndex}
+            initialSearchTextQuote={initialJump?.kind === "epub" ? initialJump.textQuote : undefined}
+            searchQuery={effectiveEpubSearchQuery}
+            searchMatchIndex={initialJump?.kind === "epub" ? initialJump.matchIndex : viewerSearchState.activeMatchIndex}
             onSearchResultsChange={(results) => {
               reportViewerSearchState({
                 supported: true,
@@ -4704,6 +4719,9 @@ export function DocumentViewer({
             <AudiobookViewer
               document={currentDocument}
               fileContent={mediaSource.src}
+              initialSeekTime={initialJump?.kind === "audio" ? initialJump.timeSeconds : undefined}
+              initialTranscriptSegmentId={initialJump?.kind === "audio" ? initialJump.segmentId : undefined}
+              autoPlayOnOpen={!!autoPlay && initialJump?.kind === "audio"}
             />
           ) : mediaError ? (
             <div className="flex items-center justify-center h-full">

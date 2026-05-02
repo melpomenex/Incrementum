@@ -52,6 +52,9 @@ import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../a
 interface AudiobookViewerProps {
   document: Document;
   fileContent?: string; // Base64 or URL
+  initialSeekTime?: number;
+  initialTranscriptSegmentId?: string;
+  autoPlayOnOpen?: boolean;
 }
 
 interface AudiobookBookmark {
@@ -73,7 +76,13 @@ interface MultiPartInfo {
   partDurations: number[];
 }
 
-export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps) {
+export function AudiobookViewer({
+  document,
+  fileContent,
+  initialSeekTime,
+  initialTranscriptSegmentId,
+  autoPlayOnOpen = false,
+}: AudiobookViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
@@ -124,6 +133,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
   const lastSavedGlobalTimeRef = useRef(0);
   const pendingSeekTimeRef = useRef<number | null>(null);
   const pendingAutoplayAfterFallbackRef = useRef(false);
+  const appliedInitialSeekRef = useRef<string | null>(null);
 
   // Auto-fetch cover if document has none
   useEffect(() => {
@@ -403,7 +413,9 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
 
   // Load saved progress + audio prefs
   useEffect(() => {
-    void loadSavedPosition();
+    if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) {
+      void loadSavedPosition();
+    }
     
     const savedVolume = localStorage.getItem("audiobook-volume");
     if (savedVolume) {
@@ -420,7 +432,7 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         audioRef.current.playbackRate = parseFloat(savedRate);
       }
     }
-  }, [document.id, document.currentPage, loadSavedPosition]);
+  }, [document.id, document.currentPage, initialSeekTime, loadSavedPosition]);
   
   // Audio event handlers
   const handleTimeUpdate = useCallback(() => {
@@ -488,6 +500,12 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
         audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || t, t));
         setCurrentTime(audioRef.current.currentTime);
         currentTimeRef.current = audioRef.current.currentTime;
+      }
+
+      if (autoPlayOnOpen && appliedInitialSeekRef.current === `${document.id}:${initialSeekTime}`) {
+        audioRef.current.play().catch(() => {
+          setIsPlaying(false);
+        });
       }
     }
   };
@@ -656,6 +674,57 @@ export function AudiobookViewer({ document, fileContent }: AudiobookViewerProps)
       currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
     }
   };
+
+  useEffect(() => {
+    if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) return;
+
+    const key = `${document.id}:${initialSeekTime}`;
+    if (appliedInitialSeekRef.current === key) return;
+    appliedInitialSeekRef.current = key;
+
+    const { partIndex, timeInPart } = fromGlobalSeconds(Math.max(0, initialSeekTime));
+    setShowTranscript(true);
+    if (initialTranscriptSegmentId) {
+      setActiveSegmentId(initialTranscriptSegmentId);
+    }
+
+    if (multiPartInfo && partIndex !== currentPartIndex) {
+      setCurrentPartIndex(partIndex);
+    }
+
+    pendingSeekTimeRef.current = timeInPart;
+    if (audioRef.current && Number.isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
+      const clamped = Math.max(0, Math.min(audioRef.current.duration, timeInPart));
+      audioRef.current.currentTime = clamped;
+      setCurrentTime(clamped);
+      currentTimeRef.current = clamped;
+      currentGlobalTimeRef.current = toGlobalSeconds(partIndex, clamped);
+
+      if (autoPlayOnOpen) {
+        audioRef.current.play().catch(() => {
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, [
+    autoPlayOnOpen,
+    currentPartIndex,
+    document.id,
+    fromGlobalSeconds,
+    initialSeekTime,
+    initialTranscriptSegmentId,
+    multiPartInfo,
+    toGlobalSeconds,
+  ]);
+
+  useEffect(() => {
+    if (!showTranscript || !initialTranscriptSegmentId) return;
+
+    window.setTimeout(() => {
+      const element = globalThis.document.getElementById(`segment-${initialTranscriptSegmentId}`);
+      element?.scrollIntoView?.({ block: "center" });
+    }, 0);
+  }, [activeSegments.length, initialTranscriptSegmentId, showTranscript, transcript?.segments?.length]);
 
   // Auto-save every 5s while playing
   useEffect(() => {

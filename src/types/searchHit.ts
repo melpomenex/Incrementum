@@ -3,7 +3,8 @@ export type ExactSearchHitLocation =
   | { kind: "epub"; cfi: string; cfiRange?: string; textQuote?: string; matchIndex?: number }
   | { kind: "html"; scrollPercent?: number; selector?: string; textQuote?: string }
   | { kind: "markdown"; scrollPercent?: number; textQuote?: string }
-  | { kind: "youtube"; timeSeconds: number; segmentId?: string; textQuote?: string };
+  | { kind: "youtube"; timeSeconds: number; segmentId?: string; textQuote?: string }
+  | { kind: "audio"; timeSeconds: number; segmentId?: string; textQuote?: string };
 
 export interface SearchHit {
   id: string;
