@@ -23,7 +23,6 @@ import {
   Library,
 } from "lucide-react";
 import { getEnergyLogs, calculateEnergyCorrelation } from "../../utils/energyTracker";
-import { getReadingSpeedByType } from "../../utils/readingSpeed";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useI18n } from "../../lib/i18n";
 
@@ -72,30 +71,7 @@ export function AnalyticsTab() {
   }, [activityData]);
   const energyLogs = useMemo(() => getEnergyLogs(), []);
   const energyCorrelation = useMemo(() => calculateEnergyCorrelation(energyLogs), [energyLogs]);
-  const readingSpeedRows = useMemo(() => {
-    const docTypes: Array<"pdf" | "epub" | "markdown" | "html" | "audio" | "video"> = [
-      "pdf",
-      "epub",
-      "markdown",
-      "html",
-      "audio",
-      "video",
-    ];
-    return docTypes.map((type) => ({ type, wpm: Math.round(getReadingSpeedByType(type)) }));
-  }, []);
-  const unreadWords = useMemo(
-    () =>
-      documents.reduce((sum, doc) => {
-        const words = String(doc.content || "").trim().split(/\s+/).filter(Boolean).length;
-        const progress = Number(doc.progressPercent || 0) / 100;
-        return sum + Math.max(0, Math.round(words * (1 - progress)));
-      }, 0),
-    [documents]
-  );
-  const defaultWpm = readingSpeedRows.length
-    ? readingSpeedRows.reduce((sum, row) => sum + row.wpm, 0) / readingSpeedRows.length
-    : 200;
-  const queueEtaMinutes = unreadWords / Math.max(80, defaultWpm);
+
 
   if (isLoading && !dashboardStats) {
     return (
@@ -291,20 +267,6 @@ export function AnalyticsTab() {
         </p>
       </div>
 
-      <div className="p-4 bg-card border border-border rounded-lg">
-        <h3 className="text-lg font-semibold text-foreground mb-3">Reading Speed & ETA</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {readingSpeedRows.map((row) => (
-            <div key={row.type} className="rounded border border-border p-2">
-              <p className="text-xs uppercase text-muted-foreground">{row.type}</p>
-              <p className="text-sm font-medium text-foreground">{row.wpm} wpm</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Estimated queue completion time: {Math.max(1, Math.round(queueEtaMinutes))} min
-        </p>
-      </div>
 
       {/* Leech Dashboard */}
       <div className="p-4 bg-card border border-border rounded-lg">
