@@ -56,6 +56,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedCommandRef = useRef<HTMLButtonElement | null>(null);
 
   // Filter commands based on query
   const filteredCommands = useCallback(() => {
@@ -79,6 +80,22 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
     setSelectedIndex(0);
   }, [query]);
 
+  useEffect(() => {
+    selectedCommandRef.current?.scrollIntoView?.({
+      block: "nearest",
+    });
+  }, [selectedIndex, query]);
+
+  useEffect(() => {
+    const filtered = filteredCommands();
+    if (filtered.length === 0) {
+      setSelectedIndex(0);
+      return;
+    }
+
+    setSelectedIndex((current) => Math.max(0, Math.min(current, filtered.length - 1)));
+  }, [filteredCommands]);
+
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
@@ -93,11 +110,15 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % filtered.length);
+        if (filtered.length > 0) {
+          setSelectedIndex((prev) => (prev + 1) % filtered.length);
+        }
         break;
       case "ArrowUp":
         e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        if (filtered.length > 0) {
+          setSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        }
         break;
       case "Enter":
         e.preventDefault();
@@ -140,6 +161,8 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
   if (!isOpen) return null;
 
   const groups = groupedCommands();
+  const filtered = filteredCommands();
+  const filteredCommandIndexes = new Map(filtered.map((cmd, index) => [cmd.id, index]));
   const hasResults = Object.values(groups).some((cmds) => cmds.length > 0);
 
   return (
@@ -197,12 +220,13 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
 
                       {/* Commands */}
                       {cmds.map((cmd) => {
-                        const globalIndex = commands.indexOf(cmd);
-                        const isSelected = globalIndex === selectedIndex;
+                        const filteredIndex = filteredCommandIndexes.get(cmd.id);
+                        const isSelected = filteredIndex === selectedIndex;
 
                         return (
                           <button
                             key={cmd.id}
+                            ref={isSelected ? selectedCommandRef : undefined}
                             onClick={() => {
                               cmd.action();
                               onClose();

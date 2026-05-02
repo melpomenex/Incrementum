@@ -137,6 +137,7 @@ export function GlobalSearch({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const selectedResultRef = useRef<HTMLDivElement | null>(null);
   const latestSearchRequestRef = useRef(0);
 
   // URL detection and import state
@@ -206,6 +207,20 @@ export function GlobalSearch({
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || results.length === 0) return;
+
+    setSelectedIndex((current) => Math.max(0, Math.min(current, results.length - 1)));
+  }, [isOpen, results.length]);
+
+  useEffect(() => {
+    if (!isOpen || isURLMode) return;
+
+    selectedResultRef.current?.scrollIntoView?.({
+      block: "nearest",
+    });
+  }, [isOpen, isURLMode, selectedIndex, results]);
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
@@ -277,11 +292,15 @@ export function GlobalSearch({
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+          if (results.length > 0) {
+            setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+          }
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          if (results.length > 0) {
+            setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          }
           break;
         case "Enter":
           e.preventDefault();
@@ -535,6 +554,7 @@ export function GlobalSearch({
                   {results.map((result, index) => (
                     <div
                       key={result.id}
+                      ref={index === selectedIndex ? selectedResultRef : undefined}
                       role="button"
                       tabIndex={-1}
                       onMouseDown={(e) => {
