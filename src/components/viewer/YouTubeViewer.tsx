@@ -22,7 +22,7 @@ import { cn } from "../../utils";
 import { saveDocumentPosition, timePosition } from "../../api/position";
 import { useI18n } from "../../lib/i18n";
 import { getDocumentPosition } from "../../api/position";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, getPlatform } from "../../lib/tauri";
 import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
 import { 
   fetchSponsorBlockSegments, 
@@ -113,7 +113,12 @@ export function YouTubeViewer({
   const [hasEnded, setHasEnded] = useState(false);
   const [playerError, setPlayerError] = useState<{ code: number; message: string } | null>(null);
   const [embedHost, setEmbedHost] = useState<"https://www.youtube-nocookie.com" | "https://www.youtube.com">(
-    "https://www.youtube-nocookie.com"
+    () => {
+      // WebKitGTK on Linux blocks CORS for youtube-nocookie.com internal requests,
+      // causing "Your browser can't play this video." Use youtube.com instead.
+      if (getPlatform() === 'linux') return "https://www.youtube.com";
+      return "https://www.youtube-nocookie.com";
+    }
   );
   const [inlinePlaybackLikelyUnsupported, setInlinePlaybackLikelyUnsupported] = useState(false);
   const [forceInlinePlayback, setForceInlinePlayback] = useState(false);
@@ -192,7 +197,7 @@ export function YouTubeViewer({
     setShowInlinePlayer(false);
     setForceInlinePlayback(false);
     setPlayerError(null);
-    setEmbedHost("https://www.youtube-nocookie.com");
+    setEmbedHost(getPlatform() === 'linux' ? "https://www.youtube.com" : "https://www.youtube-nocookie.com");
   }, [documentId, videoId]);
 
   useEffect(() => {
