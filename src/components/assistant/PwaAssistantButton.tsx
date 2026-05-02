@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { Mic, MicOff, Sparkles, X, Loader2, Send, Settings as SettingsIcon } from "lucide-react";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
 import { renderMarkdown } from "../../utils/markdown";
@@ -17,6 +17,14 @@ type ChatMessage = {
   timestamp: number;
 };
 
+const MIN_SHEET_HEIGHT = 48;
+const DEFAULT_SHEET_HEIGHT = 72;
+const MAX_SHEET_HEIGHT = 94;
+
+function clampSheetHeight(height: number): number {
+  return Math.min(MAX_SHEET_HEIGHT, Math.max(MIN_SHEET_HEIGHT, height));
+}
+
 function getSpeechRecognitionCtor(): any | null {
   const w = window as any;
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
@@ -30,7 +38,8 @@ function preflightVoice(): { ok: true } | { ok: false; message: string } {
   if (!window.isSecureContext) {
     return {
       ok: false,
-      message: "Microphone permissions require HTTPS (or localhost). Open the app over https:// and try again.",
+      message:
+        "Microphone permissions require HTTPS (or localhost). Open the app over https:// and try again.",
     };
   }
 
@@ -94,9 +103,13 @@ export function PwaAssistantButton({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [lastUsedProviderLabel, setLastUsedProviderLabel] = useState<string>("");
   const [_isExtractingContent, setIsExtractingContent] = useState(false);
+  const [sheetHeight, setSheetHeight] = useState(DEFAULT_SHEET_HEIGHT);
 
   const recognitionRef = useRef<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sheetDragRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(
+    null
+  );
 
   const settings = useSettingsStore((s) => s.settings);
 
@@ -105,7 +118,12 @@ export function PwaAssistantButton({
 
   const preferredProviderType = useMemo(() => {
     const stored = localStorage.getItem("assistant-llm-provider");
-    if (stored === "openai" || stored === "anthropic" || stored === "ollama" || stored === "openrouter") {
+    if (
+      stored === "openai" ||
+      stored === "anthropic" ||
+      stored === "ollama" ||
+      stored === "openrouter"
+    ) {
       return stored;
     }
     // Fall back to app setting if present, else OpenAI.
@@ -125,6 +143,32 @@ export function PwaAssistantButton({
     setTranscript("");
     setInput("");
     stopListening();
+  };
+
+  const handleSheetDragStart = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    sheetDragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: sheetHeight,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleSheetDragMove = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const viewportHeight = window.innerHeight || 1;
+    const deltaVh = ((drag.startY - event.clientY) / viewportHeight) * 100;
+    setSheetHeight(clampSheetHeight(drag.startHeight + deltaVh));
+  };
+
+  const handleSheetDragEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      sheetDragRef.current = null;
+    }
   };
 
   const startListening = () => {
@@ -173,7 +217,9 @@ export function PwaAssistantButton({
           "Voice permission is blocked (not-allowed). Enable microphone permission for this site in your browser settings, then try again. You can still type your question below."
         );
       } else if (msg === "no-speech") {
-        setError("No speech was detected. Try again in a quieter environment, or type your question.");
+        setError(
+          "No speech was detected. Try again in a quieter environment, or type your question."
+        );
       } else {
         setError(`Voice error: ${msg}`);
       }
@@ -208,12 +254,23 @@ export function PwaAssistantButton({
   const resolveProvider = () => {
     const enabled = enabledProviders();
     const byType = providers.filter((p) => p.enabled && p.provider === preferredProviderType);
-    const candidate = byType[0] ?? enabled.find((p) => p.provider === preferredProviderType) ?? enabled[0];
+    const candidate =
+      byType[0] ?? enabled.find((p) => p.provider === preferredProviderType) ?? enabled[0];
     if (!candidate) {
-      return { error: "No LLM providers are configured. Add one in Settings → AI Provider Settings.", provider: null as any };
+      return {
+        error: "No LLM providers are configured. Add one in Settings → AI Provider Settings.",
+        provider: null as any,
+      };
     }
-    if (providerRequiresApiKey(candidate.provider, candidate.baseUrl) && (!candidate.apiKey || !candidate.apiKey.trim())) {
-      return { error: "Your selected provider is missing an API key. Fix it in Settings → AI Provider Settings.", provider: null as any };
+    if (
+      providerRequiresApiKey(candidate.provider, candidate.baseUrl) &&
+      (!candidate.apiKey || !candidate.apiKey.trim())
+    ) {
+      return {
+        error:
+          "Your selected provider is missing an API key. Fix it in Settings → AI Provider Settings.",
+        provider: null as any,
+      };
     }
     return { error: null, provider: candidate };
   };
@@ -226,7 +283,12 @@ export function PwaAssistantButton({
     setIsLoading(true);
 
     const now = Date.now();
-    const userMessage: ChatMessage = { id: `u-${now}`, role: "user", content: trimmed, timestamp: now };
+    const userMessage: ChatMessage = {
+      id: `u-${now}`,
+      role: "user",
+      content: trimmed,
+      timestamp: now,
+    };
     setMessages((prev) => [...prev, userMessage]);
 
     try {
@@ -253,9 +315,10 @@ export function PwaAssistantButton({
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
       const llmMessages: LLMMessage[] = [system, ...history, { role: "user", content: trimmed }];
-      const contextWindow = context.contextWindowTokens && context.contextWindowTokens > 0
-        ? context.contextWindowTokens
-        : settings.ai.maxTokens;
+      const contextWindow =
+        context.contextWindowTokens && context.contextWindowTokens > 0
+          ? context.contextWindowTokens
+          : settings.ai.maxTokens;
 
       const resolvedContext = context.resolveForPrompt
         ? await context.resolveForPrompt(trimmed)
@@ -298,7 +361,8 @@ export function PwaAssistantButton({
       };
       setMessages((prev) => [...prev, assistant]);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : typeof e === "string" ? e : "Failed to get response";
+      const msg =
+        e instanceof Error ? e.message : typeof e === "string" ? e : "Failed to get response";
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -388,7 +452,8 @@ export function PwaAssistantButton({
     if (candidate === lastAutoSentRef.current) return;
 
     // Only auto-send if it came from voice (transcript/interim)
-    const cameFromVoice = candidate === `${transcript} ${interim}`.trim() || candidate === transcript.trim();
+    const cameFromVoice =
+      candidate === `${transcript} ${interim}`.trim() || candidate === transcript.trim();
     if (!cameFromVoice) return;
 
     lastAutoSentRef.current = candidate;
@@ -397,17 +462,14 @@ export function PwaAssistantButton({
 
   if (!enabled) return null;
 
-  const style: CSSProperties =
-    side === "left"
-      ? { left: "calc(10px + env(safe-area-inset-left))" }
-      : { right: "calc(10px + env(safe-area-inset-right))" };
+  const style: CSSProperties = {
+    bottom: "calc(104px + env(safe-area-inset-bottom))",
+    left: "calc(16px + env(safe-area-inset-left))",
+  };
 
   return (
     <>
-      <div
-        className="fixed top-1/2 -translate-y-1/2 z-[75] pointer-events-auto"
-        style={style}
-      >
+      <div className="fixed z-[75] pointer-events-auto" style={style} data-preferred-side={side}>
         <button
           type="button"
           onClick={handleOpen}
@@ -450,38 +512,54 @@ export function PwaAssistantButton({
           <div
             role="dialog"
             aria-modal="true"
-            className="absolute inset-x-0 bottom-0 md:inset-y-10 md:inset-x-10 md:bottom-auto md:rounded-2xl bg-background border border-border shadow-2xl flex flex-col max-h-[92vh] md:max-h-[80vh]"
+            className="absolute inset-x-0 bottom-0 md:inset-y-10 md:inset-x-10 md:bottom-auto md:rounded-2xl bg-background border border-border shadow-2xl flex flex-col max-h-[94vh] md:max-h-[80vh]"
+            style={{ height: `${sheetHeight}vh` }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <div className="text-sm font-semibold text-foreground">Document Assistant</div>
-                </div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {lastUsedProviderLabel ? lastUsedProviderLabel : `${preferredProviderType} • model from Settings`}
-                </div>
+            <div
+              className="touch-none select-none border-b border-border"
+              onPointerDown={handleSheetDragStart}
+              onPointerMove={handleSheetDragMove}
+              onPointerUp={handleSheetDragEnd}
+              onPointerCancel={handleSheetDragEnd}
+            >
+              <div className="flex justify-center pt-2 pb-1" aria-hidden="true">
+                <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
               </div>
+              <div className="flex items-center justify-between px-4 pb-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <div className="text-sm font-semibold text-foreground">Document Assistant</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {lastUsedProviderLabel
+                      ? lastUsedProviderLabel
+                      : `${preferredProviderType} • model from Settings`}
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="p-2 rounded-md hover:bg-muted transition-colors"
-                  title="AI provider settings"
-                  onClick={() => {
-                    setError("Open Settings → AI Provider Settings to change model/provider.");
-                  }}
-                >
-                  <SettingsIcon className="w-4 h-4 text-muted-foreground" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 rounded-md hover:bg-muted transition-colors"
-                  onClick={close}
-                  aria-label="Close"
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="p-2 rounded-md hover:bg-muted transition-colors"
+                    title="AI provider settings"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      setError("Open Settings → AI Provider Settings to change model/provider.");
+                    }}
+                  >
+                    <SettingsIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 rounded-md hover:bg-muted transition-colors"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={close}
+                    aria-label="Close"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -517,7 +595,10 @@ export function PwaAssistantButton({
               )}
 
               {messages.map((m) => (
-                <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                <div
+                  key={m.id}
+                  className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+                >
                   <div
                     className={[
                       "max-w-[92%] rounded-2xl px-3 py-2 text-sm border",
@@ -529,7 +610,10 @@ export function PwaAssistantButton({
                     ].join(" ")}
                   >
                     {m.role === "assistant" ? (
-                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }} />
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+                      />
                     ) : (
                       <div className="whitespace-pre-wrap">{m.content}</div>
                     )}
@@ -557,7 +641,13 @@ export function PwaAssistantButton({
                       ? "bg-destructive text-destructive-foreground border-destructive/30 hover:opacity-95"
                       : "bg-muted text-foreground border-border hover:bg-muted/80",
                   ].join(" ")}
-                  title={isVoiceSupported() ? (isListening ? "Stop" : "Start voice") : "Voice not supported"}
+                  title={
+                    isVoiceSupported()
+                      ? isListening
+                        ? "Stop"
+                        : "Start voice"
+                      : "Voice not supported"
+                  }
                   disabled={!isVoiceSupported()}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
