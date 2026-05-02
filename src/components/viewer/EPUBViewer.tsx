@@ -24,6 +24,53 @@ function escapeRegex(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function normalizeSearchText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function scoreQuoteCandidate(candidateText: string, quote: string): number {
+  const candidate = normalizeSearchText(candidateText);
+  const normalizedQuote = normalizeSearchText(quote);
+  if (!candidate || !normalizedQuote) return 0;
+  if (candidate.includes(normalizedQuote) || normalizedQuote.includes(candidate)) return 1000;
+
+  const quoteWords = Array.from(new Set(normalizedQuote.split(/\s+/).filter((word) => word.length >= 4)));
+  if (quoteWords.length === 0) return 0;
+
+  return quoteWords.reduce((score, word) => score + (candidate.includes(word) ? 1 : 0), 0);
+}
+
+function chooseSearchResultIndex(results: any[], fallbackIndex?: number | null, quote?: string): number {
+  if (results.length === 0) return -1;
+
+  const normalizedFallback =
+    typeof fallbackIndex === "number" && Number.isFinite(fallbackIndex)
+      ? ((Math.trunc(fallbackIndex) % results.length) + results.length) % results.length
+      : 0;
+
+  if (!quote?.trim()) return normalizedFallback;
+
+  let bestIndex = normalizedFallback;
+  let bestScore = 0;
+  results.forEach((result, index) => {
+    const candidateText = [
+      result?.excerpt,
+      result?.text,
+      result?.chapter?.label,
+      result?.href,
+    ]
+      .filter((value) => typeof value === "string")
+      .join(" ");
+    const score = scoreQuoteCandidate(candidateText, quote);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
 interface EPUBViewerProps {
   fileData?: Uint8Array | null;
   fileUrl?: string | null;
@@ -34,6 +81,7 @@ interface EPUBViewerProps {
   onContextTextChange?: (text: string) => void;
   initialCfi?: string;
   initialSearchMatchIndex?: number;
+  initialSearchTextQuote?: string;
   highlightQuery?: string;
   searchQuery?: string;
   searchMatchIndex?: number | null;
@@ -59,6 +107,7 @@ export function EPUBViewer({
   onContextTextChange,
   initialCfi,
   initialSearchMatchIndex,
+  initialSearchTextQuote,
   highlightQuery,
   searchQuery,
   searchMatchIndex,
@@ -904,10 +953,18 @@ export function EPUBViewer({
       results = [];
     }
 
-    let cfis = (results || [])
-      .map((r: any) => r?.cfi)
+    const indexedResults = (results || [])
+      .map((result: any) => ({
+        cfi: result?.cfi ? String(result.cfi) : "",
+        excerpt: typeof result?.excerpt === "string" ? result.excerpt : "",
+        text: typeof result?.text === "string" ? result.text : "",
+      }))
+      .filter((result) => result.cfi)
+      .slice(0, 30);
+
+    let cfis = indexedResults
+      .map((r) => r.cfi)
       .filter(Boolean)
-      .slice(0, 30)
       .map((cfi: any) => String(cfi));
 
     // Fall back to visible-content DOM search when book.search returns nothing
@@ -917,9 +974,11 @@ export function EPUBViewer({
 
     if (cfis.length > 0) {
       const targetIndex =
-        typeof initialSearchMatchIndex === "number" && Number.isFinite(initialSearchMatchIndex)
-          ? ((Math.trunc(initialSearchMatchIndex) % cfis.length) + cfis.length) % cfis.length
-          : 0;
+        indexedResults.length > 0
+          ? chooseSearchResultIndex(indexedResults, initialSearchMatchIndex, initialSearchTextQuote)
+          : typeof initialSearchMatchIndex === "number" && Number.isFinite(initialSearchMatchIndex)
+            ? ((Math.trunc(initialSearchMatchIndex) % cfis.length) + cfis.length) % cfis.length
+            : 0;
       const targetCfi = cfis[targetIndex] ?? cfis[0];
 
       if (!initialCfi && targetCfi) {
@@ -945,7 +1004,7 @@ export function EPUBViewer({
         }
       }
     }
-  }, [book, highlightQuery, initialCfi, initialSearchMatchIndex, rendition, searchVisibleContents]);
+  }, [book, highlightQuery, initialCfi, initialSearchMatchIndex, initialSearchTextQuote, rendition, searchVisibleContents]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1003,23 +1062,35 @@ export function EPUBViewer({
         return;
       }
 
-      const indexedCfis = (results || [])
-        .map((result: any) => result?.cfi ?? result?.cfiRange)
-        .filter(Boolean)
-        .map((cfi: any) => String(cfi));
+      const indexedResults = (results || [])
+        .map((result: any) => ({
+          cfi: result?.cfi ?? result?.cfiRange,
+          excerpt: result?.excerpt,
+          text: result?.text,
+          chapter: result?.chapter,
+          href: result?.href,
+        }))
+        .filter((result) => result.cfi)
+        .map((result) => ({ ...result, cfi: String(result.cfi) }));
+      const indexedCfis = indexedResults.map((result) => result.cfi);
       const cfis = Array.from(new Set([
-        ...visibleCfis,
         ...indexedCfis,
+        ...visibleCfis,
       ]));
 
       liveSearchResultsRef.current = cfis;
-      await renderLiveSearchHighlights(cfis, searchMatchIndex, {
+      const targetIndex =
+        indexedResults.length > 0
+          ? chooseSearchResultIndex(indexedResults, searchMatchIndex, initialSearchTextQuote)
+          : searchMatchIndex;
+
+      await renderLiveSearchHighlights(cfis, targetIndex, {
         navigate: cfis.length > 0,
       });
     };
 
     void runSearch();
-  }, [book, rendition, removeSearchAnnotations, renderLiveSearchHighlights, reportLiveSearchResults, searchQuery, searchVisibleContents]);
+  }, [book, initialSearchTextQuote, rendition, removeSearchAnnotations, renderLiveSearchHighlights, reportLiveSearchResults, searchMatchIndex, searchQuery, searchVisibleContents]);
 
   useEffect(() => {
     if (!rendition) return;

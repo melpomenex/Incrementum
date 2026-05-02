@@ -39,6 +39,7 @@ import type { StudyDeck } from "../../types/study-decks";
 import type { TabsState } from "../../stores/tabsStore";
 import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
+import { getTranscript, type TranscriptSegment as WhisperTranscriptSegment } from "../../api/transcription";
 import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
 import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
@@ -147,6 +148,62 @@ const formatTimestamp = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
+type SearchableTranscriptSegment = {
+  id: string;
+  startSeconds: number;
+  text: string;
+};
+
+const normalizeAudioTranscriptSegments = (segments: unknown[]): SearchableTranscriptSegment[] =>
+  segments
+    .map((segment, index) => {
+      const value = segment as {
+        id?: string | number;
+        text?: string;
+        startTime?: number;
+        start_ms?: number;
+      };
+      const text = typeof value.text === "string" ? value.text.trim() : "";
+      const startSeconds =
+        typeof value.startTime === "number"
+          ? value.startTime
+          : typeof value.start_ms === "number"
+            ? value.start_ms / 1000
+            : 0;
+
+      if (!text || !Number.isFinite(startSeconds)) return null;
+
+      return {
+        id: value.id != null ? String(value.id) : `seg-${index}`,
+        startSeconds: Math.max(0, startSeconds),
+        text,
+      };
+    })
+    .filter((segment): segment is SearchableTranscriptSegment => segment != null);
+
+const readStoredAudioTranscript = (documentId: string): SearchableTranscriptSegment[] => {
+  try {
+    const data = window.localStorage.getItem(`audiobook-${documentId}`);
+    if (!data) return [];
+    const parsed = JSON.parse(data) as { transcript?: { segments?: unknown[] } };
+    const segments = parsed.transcript?.segments;
+    return Array.isArray(segments) ? normalizeAudioTranscriptSegments(segments) : [];
+  } catch {
+    return [];
+  }
+};
+
+const readWhisperTranscript = async (documentId: string): Promise<SearchableTranscriptSegment[]> => {
+  try {
+    const response = await getTranscript(documentId, "default");
+    const segments: WhisperTranscriptSegment[] = response?.segments ?? [];
+    return normalizeAudioTranscriptSegments(segments);
+  } catch (error) {
+    console.warn("[CommandCenter] Failed to load audio transcript", documentId, error);
+    return [];
+  }
+};
+
 // Stable selectors defined outside component to avoid infinite re-renders
 const selectAddTab = (state: TabsState) => state.addTab;
 const selectActiveDeckIds = (state: { activeDeckIds: string[] }) => state.activeDeckIds;
@@ -179,6 +236,7 @@ export function CommandCenter() {
   const documentsFetchInFlight = useRef<Promise<Document[]> | null>(null);
   const transcriptCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
+  const audioTranscriptCacheRef = useRef<Map<string, SearchableTranscriptSegment[]>>(new Map());
   const htmlTextCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const { theme, themes, setTheme } = useTheme();
 
@@ -303,6 +361,16 @@ export function CommandCenter() {
       if (!matchedText) return "";
       return source
         .slice(index, index + matchedText.length)
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const quoteContextFromIndex = (source: string, index: number, matchedText: string): string => {
+      const context = 120;
+      const start = Math.max(0, index - context);
+      const end = Math.min(source.length, index + matchedText.length + context);
+      return source
+        .slice(start, end)
         .replace(/\s+/g, " ")
         .trim();
     };
@@ -719,8 +787,71 @@ export function CommandCenter() {
           }
         }
 
+        // Transcript hits (local audio)
+        if (allowContentSearch && doc.fileType === "audio" && groupedDocs.size < maxResults) {
+          let segments = audioTranscriptCacheRef.current.get(doc.id) ?? readStoredAudioTranscript(doc.id);
+          if (segments.length > 0) {
+            audioTranscriptCacheRef.current.set(doc.id, segments);
+          } else {
+            segments = await readWhisperTranscript(doc.id);
+            if (segments.length > 0) {
+              audioTranscriptCacheRef.current.set(doc.id, segments);
+            }
+          }
+
+          if (segments.length > 0) {
+            const transcriptText = segments.map((segment) => segment.text).join(" ");
+            const transcriptLower = transcriptText.toLowerCase();
+            transcriptMatch = matchesTerms(transcriptLower, searchTerms);
+
+            const matchingSegments = segments
+              .filter((segment) => matchesTerms(segment.text.toLowerCase(), searchTerms))
+              .slice(0, 6);
+
+            matchingSegments.forEach((segment, i) => {
+              const { excerpt } = highlightSearchTerms(segment.text, query.query, 200);
+              hits.push({
+                id: `audio-hit-${doc.id}-${i}`,
+                location: {
+                  kind: "audio",
+                  timeSeconds: segment.startSeconds,
+                  segmentId: segment.id,
+                  textQuote: segment.text,
+                },
+                label: formatTimestamp(segment.startSeconds),
+                excerptHtml: excerpt,
+              });
+            });
+          }
+        }
+
+        // Text hits (EPUB): preserve document-order match indexes so secondary
+        // match clicks navigate to the selected quote, not the first occurrence.
+        if (allowContentSearch && doc.fileType === "epub") {
+          const epubOccurrences = searchTerms
+            .flatMap((t) => findAllOccurrences(contentLower, t, 50).map((index) => ({ term: t, index })))
+            .sort((a, b) => a.index - b.index)
+            .filter((occurrence, index, list) =>
+              index === 0 || occurrence.index !== list[index - 1].index
+            );
+
+          epubOccurrences.slice(0, 6).forEach(({ term, index }, matchIndex) => {
+            hits.push({
+              id: `hit-${doc.id}-${term}-${index}`,
+              location: {
+                kind: "epub",
+                cfi: "",
+                textQuote: quoteContextFromIndex(content, index, term),
+                matchIndex,
+              },
+              label: "EPUB",
+              excerptHtml: excerptFromIndex(content, index, query.query),
+            });
+          });
+        }
+
         // Text hits (PDF/HTML/Markdown/etc)
-        if (allowContentSearch && doc.fileType !== "youtube") {
+        if (allowContentSearch && doc.fileType !== "youtube" && doc.fileType !== "audio") {
           for (const t of searchTerms) {
             if (hits.length >= 6) break;
             const occ = findAllOccurrences(contentLower, t, 6 - hits.length);
@@ -739,17 +870,7 @@ export function CommandCenter() {
                   excerptHtml: excerptFromIndex(content, index, query.query),
                 });
               } else if (doc.fileType === "epub") {
-                hits.push({
-                  id: `hit-${doc.id}-${t}-${index}`,
-                  location: {
-                    kind: "epub",
-                    cfi: "",
-                    textQuote: exactQuoteFromIndex(content, index, t),
-                    matchIndex: occIndex,
-                  },
-                  label: "EPUB",
-                  excerptHtml: excerptFromIndex(content, index, query.query),
-                });
+                return;
               } else if (doc.fileType === "html") {
                 const pct = clamp(Math.round((index / Math.max(1, contentLower.length)) * 100), 0, 100);
                 hits.push({
@@ -851,11 +972,11 @@ export function CommandCenter() {
       const doc = entry.doc;
       const sortedHits = entry.hits.slice(0);
 
-      // Prefer YouTube transcript hits first, then extract hits, then others.
+      // Prefer timestamped transcript hits first, then extract hits, then others.
       sortedHits.sort((a, b) => {
         const ak = a.location.kind;
         const bk = b.location.kind;
-        const pri = (k: string) => k === "youtube" ? 0 : k === "pdf" ? 1 : 2;
+        const pri = (k: string) => k === "youtube" || k === "audio" ? 0 : k === "pdf" ? 1 : 2;
         return pri(ak) - pri(bk);
       });
 
@@ -905,6 +1026,7 @@ export function CommandCenter() {
 
   const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: ExactSearchHitLocation }) => {
     const doc = documents.find(d => d.id === documentId);
+    const jumpRequestId = options?.initialJump ? `${Date.now()}-${Math.random().toString(36).slice(2)}` : undefined;
     if (doc) {
       addTab({
         title: doc.title,
@@ -919,7 +1041,8 @@ export function CommandCenter() {
           documentId: doc.id,
           highlightQuery: options?.highlightQuery,
           initialJump: options?.initialJump,
-          autoPlay: options?.initialJump?.kind === "youtube",
+          jumpRequestId,
+          autoPlay: options?.initialJump?.kind === "youtube" || options?.initialJump?.kind === "audio",
         },
       });
     } else {
@@ -940,7 +1063,8 @@ export function CommandCenter() {
               documentId: freshDoc.id,
               highlightQuery: options?.highlightQuery,
               initialJump: options?.initialJump,
-              autoPlay: options?.initialJump?.kind === "youtube",
+              jumpRequestId,
+              autoPlay: options?.initialJump?.kind === "youtube" || options?.initialJump?.kind === "audio",
             },
           });
         }
