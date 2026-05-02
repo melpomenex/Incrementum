@@ -20,7 +20,7 @@ use rusqlite::Connection;
 use serde_json::Value;
 use crate::error::{Result, IncrementumError};
 use crate::database::Repository;
-use crate::models::{Document, FileType, LearningItem, ItemType, ItemState, MemoryState};
+use crate::models::{LearningItem, ItemType, ItemState, MemoryState};
 use chrono::{Duration, Utc};
 use tauri::State;
 
@@ -842,14 +842,6 @@ async fn import_decks_to_learning_items(
     // Build a map from card id to revlog entries for each deck
     // Since decks are processed sequentially, we can build per-deck
     for deck in decks {
-        let mut deck_doc = Document::new(
-            deck.name.clone(),
-            format!("anki://deck/{}", deck.id),
-            FileType::Other,
-        );
-        deck_doc.tags = vec!["anki-import".to_string(), deck.name.clone()];
-        let deck_doc = repo.create_document(&deck_doc).await?;
-
         // Map card_id -> revlog entries for this deck
         let mut card_revlog: std::collections::HashMap<i64, Vec<AnkiRevLogEntry>> = std::collections::HashMap::new();
         for entry in &deck.revlog {
@@ -867,7 +859,7 @@ async fn import_decks_to_learning_items(
                 if let Some(item) = build_learning_item(
                     &note,
                     card,
-                    Some(&deck_doc.id),
+                    None,
                     &deck.name,
                     &repo,
                     &media_map,
