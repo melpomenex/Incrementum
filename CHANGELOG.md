@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.28.2] - 2026-05-02
+
+### Fixed
+- **PDF files failing to load on Windows with `a.toHex is not a function`** — pdfjs-dist v5.4+ calls `Uint8Array.prototype.toHex()` when computing PDF fingerprints (MD5 → hex string). This API was added in Chromium 130 / V8 13.0 (late 2024). Windows machines with an older Edge WebView2 runtime don't have this method, causing all PDF imports to crash. Added a lightweight polyfill (`uint8ArrayCompat.ts`) that installs before any PDF code runs, matching the existing `promiseCompat.ts` pattern for WebView2 compatibility.
+
 ## [1.28.1] - 2026-05-01
 
 ### Fixed

@@ -1,9 +1,14 @@
 // Early error handler - must be first
 import { installPromiseCompat } from "./utils/promiseCompat";
+import { installUint8ArrayCompat } from "./utils/uint8ArrayCompat";
 
 if (typeof window !== 'undefined') {
   // PDF.js uses newer Promise helpers that are missing in older WebView2 builds on Windows.
   installPromiseCompat(window);
+
+  // PDF.js >= 5.4 calls Uint8Array.prototype.toHex() for PDF fingerprint computation.
+  // This method was added in Chromium 130 (late 2024); older WebView2 runtimes don't have it.
+  installUint8ArrayCompat(window);
 
   // Polyfill crypto.randomUUID for non-secure contexts (HTTP / Tailscale).
   // crypto.randomUUID() is only available in secure contexts (HTTPS or localhost).
