@@ -4062,8 +4062,8 @@ export function DocumentViewer({
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Toolbar */}
       {!embedded && !isFullscreen && (
-      <div className="flex items-center justify-between p-4 bg-card border-b border-border">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:flex-nowrap sm:p-4 bg-card border-b border-border">
+        <div className="flex min-w-0 w-full flex-1 items-center gap-2 sm:w-auto">
           <button
             onClick={handleBack}
             className="p-2 rounded-md hover:bg-muted transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -4072,7 +4072,7 @@ export function DocumentViewer({
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="hidden sm:block h-6 w-px bg-border" />
-          <h2 className="font-semibold text-foreground line-clamp-1 max-w-[120px] sm:max-w-[200px] md:max-w-md text-sm md:text-base">
+          <h2 className="min-w-0 flex-1 font-semibold text-foreground line-clamp-1 max-w-[120px] sm:max-w-[200px] md:max-w-md text-sm md:text-base">
             {currentDocument.title}
           </h2>
           <span className="hidden sm:inline text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
@@ -4100,7 +4100,7 @@ export function DocumentViewer({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full max-w-full flex-shrink-0 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain pr-1 sm:w-auto sm:max-w-none sm:gap-2 sm:overflow-visible sm:pr-0">
           {/* Search */}
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
@@ -4167,7 +4167,7 @@ export function DocumentViewer({
                 });
               }}
               disabled={!viewerSearchSupported}
-              className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+              className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
               title={t("viewer.searchInDocumentShortcut")}
             >
               <Search className="w-4 h-4" />
@@ -4177,7 +4177,7 @@ export function DocumentViewer({
           {/* Create Extract Button (manual) */}
           <button
             onClick={openExtractDialog}
-            className="p-2 rounded-md hover:bg-muted transition-colors text-primary"
+            className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors text-primary"
             title={t("viewer.createExtract")}
             data-extract-button="true"
           >
@@ -4187,7 +4187,7 @@ export function DocumentViewer({
           {/* Share Button */}
           <button
             onClick={handleShare}
-            className="p-2 rounded-md hover:bg-muted transition-colors relative"
+            className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors relative"
             title={t("viewer.shareDocumentLink")}
           >
             <Share2 className="w-4 h-4" />
@@ -4199,7 +4199,7 @@ export function DocumentViewer({
               onClick={handleConvertToHtml}
               disabled={isOcrConverting}
               className={cn(
-                "p-2 rounded-md transition-colors relative",
+                "flex-shrink-0 p-2 rounded-md transition-colors relative",
                 isOcrConverting
                   ? "bg-muted text-muted-foreground cursor-wait"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -4216,7 +4216,7 @@ export function DocumentViewer({
 
           {/* PDF / OCR HTML Toggle */}
           {docType === "pdf" && ocrResult && viewMode === "document" && (
-            <div className="flex items-center bg-muted rounded-md p-1">
+            <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1">
               <button
                 onClick={() => {
                   if (pdfViewMode === "ocr-html") {
@@ -4257,7 +4257,7 @@ export function DocumentViewer({
           )}
 
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-muted rounded-md p-1 mr-2">
+          <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1 sm:mr-2">
             <button
               onClick={() => setViewMode("document")}
               className={cn(
@@ -4297,7 +4297,7 @@ export function DocumentViewer({
           </div>
 
           {canUseEditPalette && (
-            <div className="flex items-center bg-muted rounded-md p-1 mr-2">
+            <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1 sm:mr-2">
               <button
                 onClick={() => setIsPaletteMode((prev) => !prev)}
                 className={cn(
