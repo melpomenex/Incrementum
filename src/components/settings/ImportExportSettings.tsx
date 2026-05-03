@@ -15,6 +15,7 @@ import { importPdfHighlightsAsExtracts, importPodcastAudioFile } from "../../api
 import { getClipboardWatcherEnabled, setClipboardWatcherEnabled } from "../common/ClipboardQuickAddWatcher";
 import { importReferenceItems, parseMendeleyItems, parseZoteroItems } from "../../utils/referenceImport";
 import { useI18n } from "../../lib/i18n";
+import { KindleImportDialog } from "../import/KindleImportDialog";
 
 /**
  * Export options
@@ -56,6 +57,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const [referenceSource, setReferenceSource] = useState<"zotero" | "mendeley">("zotero");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [clipboardWatcherEnabled, setClipboardWatcherEnabledState] = useState(false);
+  const [kindleFilePath, setKindleFilePath] = useState<string | null>(null);
 
   // Load demo content status on mount
   useEffect(() => {
@@ -801,9 +803,42 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               </button>
             </div>
           </div>
+
+          {/* Kindle Clippings Import */}
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">{t("importExport.kindleClippings")}</h4>
+            <p className="text-xs text-muted-foreground">{t("importExport.kindleClippingsDesc")}</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".txt"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const fp = (file as File & { path?: string }).path;
+                    if (fp) {
+                      setKindleFilePath(fp);
+                    } else {
+                      // Tauri webview: read the file via path conversion
+                      // Fall back to opening dialog anyway with the name
+                      setKindleFilePath(file.name);
+                    }
+                    e.target.value = ""; // reset so same file can be re-selected
+                  }
+                }}
+                className="flex-1 text-sm"
+              />
+            </div>
+          </div>
         </div>
       </SettingsSection>
 
+      {kindleFilePath && (
+        <KindleImportDialog
+          filePath={kindleFilePath}
+          onClose={() => setKindleFilePath(null)}
+        />
+      )}
     </>
   );
 }

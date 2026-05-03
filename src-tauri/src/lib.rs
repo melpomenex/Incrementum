@@ -12,6 +12,7 @@ mod algorithms;
 mod ai;
 mod anki;
 mod study_json_import;
+mod kindle_clippings;
 mod supermemo_import;
 mod youtube;
 mod sync;
@@ -952,6 +953,10 @@ pub fn run() {
             // Study JSON import commands
             study_json_import::import_study_json_file,
             study_json_import::validate_study_json_file,
+            // Kindle clippings import commands
+            kindle_clippings::parse_kindle_clippings_file,
+            kindle_clippings::validate_kindle_clippings,
+            kindle_clippings::import_kindle_clippings_file,
             // Demo content commands
             demo::import_demo_content_manually,
             demo::get_demo_content_status,
