@@ -2540,6 +2540,7 @@ export const en: Dict = {
   "kindleImport.notes": "Notes",
   "kindleImport.bookmarksSkipped": "bookmarks skipped",
   "kindleImport.existing": "existing",
+  "kindleImport.backfill": "Fix existing imports",
   "backupRestore.createBackup": "Create Backup",
   "backupRestore.fullBackup": "Full Backup",
   "backupRestore.fullBackupDesc": "Database, documents, and settings",

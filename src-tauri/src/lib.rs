@@ -957,6 +957,7 @@ pub fn run() {
             kindle_clippings::parse_kindle_clippings_file,
             kindle_clippings::validate_kindle_clippings,
             kindle_clippings::import_kindle_clippings_file,
+            kindle_clippings::backfill_kindle_imports,
             // Demo content commands
             demo::import_demo_content_manually,
             demo::get_demo_content_status,
