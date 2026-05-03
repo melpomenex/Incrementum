@@ -16,7 +16,7 @@ use tauri::State;
 
 use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
-use crate::models::{Document, Extract, FileType, ItemState, ItemType, LearningItem};
+use crate::models::{Document, Extract, FileType};
 
 // ---------------------------------------------------------------------------
 // Data structures
@@ -725,14 +725,6 @@ pub async fn do_import_kindle_clippings(
 
             repo.create_extract(&extract).await?;
             new_extracts += 1;
-
-            // Create a learning item so the extract shows in the review queue
-            let mut item = LearningItem::new(ItemType::Flashcard, clipping.content.clone());
-            item.extract_id = Some(extract.id.clone());
-            item.document_id = Some(doc_id.clone());
-            item.answer = Some("Recall this highlight from the book".to_string());
-            item.tags = vec!["kindle".to_string()];
-            let _ = repo.create_learning_item(&item).await;
         }
 
         // Update document extract count
