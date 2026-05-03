@@ -2521,6 +2521,7 @@ export const en: Dict = {
 
   // === Kindle Import Dialog ===
   "kindleImport.title": "Import Kindle Clippings",
+  "kindleImport.selectFile": "Select My Clippings.txt...",
   "kindleImport.validating": "Reading clippings file...",
   "kindleImport.importing": "Importing clippings...",
   "kindleImport.errorTitle": "Import Error",

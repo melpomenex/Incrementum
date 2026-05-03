@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { invokeCommand } from "../../lib/tauri";
+import { invokeCommand, openFilePicker } from "../../lib/tauri";
 import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck, Database } from "lucide-react";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useCollectionStore } from "../../stores/collectionStore";
@@ -273,6 +273,17 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
     const importedCount = await importReferenceItems(items);
     alert(`Imported ${importedCount} reference item(s) from ${referenceSource}.`);
     onChange();
+  };
+
+  const handleOpenKindleFile = async () => {
+    const selected = await openFilePicker({
+      title: "Select My Clippings.txt",
+      multiple: false,
+      filters: [{ name: "Kindle Clippings", extensions: ["txt"] }],
+    });
+    if (selected && selected.length > 0) {
+      setKindleFilePath(selected[0]);
+    }
   };
 
   return (
@@ -809,25 +820,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             <h4 className="text-sm font-medium text-foreground">{t("importExport.kindleClippings")}</h4>
             <p className="text-xs text-muted-foreground">{t("importExport.kindleClippingsDesc")}</p>
             <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept=".txt"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const fp = (file as File & { path?: string }).path;
-                    if (fp) {
-                      setKindleFilePath(fp);
-                    } else {
-                      // Tauri webview: read the file via path conversion
-                      // Fall back to opening dialog anyway with the name
-                      setKindleFilePath(file.name);
-                    }
-                    e.target.value = ""; // reset so same file can be re-selected
-                  }
-                }}
-                className="flex-1 text-sm"
-              />
+              <button
+                onClick={handleOpenKindleFile}
+                className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground hover:bg-muted/50 transition-colors text-left"
+              >
+                {kindleFilePath ? kindleFilePath.split(/[\\/]/).pop() : t("kindleImport.selectFile")}
+              </button>
             </div>
           </div>
         </div>
