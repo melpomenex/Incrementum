@@ -151,12 +151,20 @@ export function MarkdownViewer({
     if (!root) return;
 
     const signature = `${document.id}:${content ?? ""}:${highlights.length}`;
-    if (root.dataset.searchHighlightSignature !== signature) {
+    const signatureChanged = root.dataset.searchHighlightSignature !== signature;
+    if (signatureChanged) {
       root.dataset.searchHighlightSignature = signature;
       root.dataset.searchHighlightOriginalHtml = root.innerHTML;
     }
 
-    root.innerHTML = root.dataset.searchHighlightOriginalHtml ?? root.innerHTML;
+    // Only reset innerHTML when the underlying content actually changed.
+    // A stale innerHTML assignment destroys the browser text selection even
+    // when the HTML string is identical (new DOM nodes replace the ones the
+    // Selection is anchored to).  This was the root cause of selections
+    // vanishing before the user could right-click to create a flashcard.
+    if (signatureChanged) {
+      root.innerHTML = root.dataset.searchHighlightOriginalHtml ?? root.innerHTML;
+    }
 
     const query = searchQuery?.trim() || highlightQuery?.trim();
     if (!query) {
