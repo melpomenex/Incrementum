@@ -12,6 +12,7 @@ interface ExtractScrollItemProps {
     onRate: (rating: number) => void;
     onCreateCloze: (selectedText: string, range: [number, number]) => void;
     onCreateQA: () => void;
+    onCreateFlashcard?: (selectedText: string) => void;
     onUpdate?: (updates: { content: string; notes?: string }) => void;
 }
 
@@ -25,6 +26,7 @@ export function ExtractScrollItem({
     onRate,
     onCreateCloze,
     onCreateQA,
+    onCreateFlashcard,
     onUpdate
 }: ExtractScrollItemProps) {
     const { t } = useI18n();
@@ -39,6 +41,7 @@ export function ExtractScrollItem({
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [summaryError, setSummaryError] = useState<string | null>(null);
     const [summaries, setSummaries] = useState(extract.progressive_summaries ?? []);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedText: string } | null>(null);
 
     // Generate progressive summaries on mount if needed
     useEffect(() => {
@@ -234,6 +237,17 @@ export function ExtractScrollItem({
         onCreateCloze(selectedText, [start, end]);
     };
 
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const textarea = contentRef.current;
+        if (!textarea) return;
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? 0;
+        const selectedText = textarea.value.slice(start, end).trim();
+        if (!selectedText) return;
+        setContextMenu({ x: e.clientX, y: e.clientY, selectedText });
+    };
+
     const stateLabel = extract.review_count === 0
         ? t("extractScrollItem.newExtract")
         : t("extractScrollItem.review");
@@ -342,6 +356,7 @@ export function ExtractScrollItem({
                                     onChange={(event) => setContent(event.target.value)}
                                     placeholder={t("extractScrollItem.editContentPlaceholder")}
                                     className="w-full min-h-[300px] p-10 bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
+                                    onContextMenu={handleContextMenu}
                                 />
                             );
                         }
@@ -367,6 +382,7 @@ export function ExtractScrollItem({
                                         onChange={(event) => setContent(event.target.value)}
                                         placeholder={t("extractScrollItem.editContentPlaceholder")}
                                         className="w-full min-h-[300px] bg-transparent text-lg leading-relaxed text-foreground outline-none resize-none"
+                                        onContextMenu={handleContextMenu}
                                     />
                                 </div>
                             );
@@ -445,6 +461,54 @@ export function ExtractScrollItem({
                     {t("extractScrollItem.keyboardHints")}
                 </div>
             </div>
+
+            {/* Right-click context menu */}
+            {contextMenu && (
+                <>
+                    <div className="fixed inset-0 z-[9999]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+                    <div
+                        className="fixed z-[10000] bg-card border border-border rounded-lg shadow-xl py-1 min-w-[180px]"
+                        style={{ left: contextMenu.x, top: contextMenu.y }}
+                    >
+                        {onCreateCloze && (
+                            <button
+                                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                    setContextMenu(null);
+                                    onCreateCloze(contextMenu.selectedText, [0, 0]);
+                                }}
+                            >
+                                <Scissors className="w-4 h-4 text-muted-foreground" />
+                                {t("extractScrollItem.createCloze")}
+                            </button>
+                        )}
+                        {onCreateQA && (
+                            <button
+                                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                    setContextMenu(null);
+                                    onCreateQA();
+                                }}
+                            >
+                                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                                {t("extractScrollItem.createQa")}
+                            </button>
+                        )}
+                        {onCreateFlashcard && (
+                            <button
+                                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                                onClick={() => {
+                                    setContextMenu(null);
+                                    onCreateFlashcard(contextMenu.selectedText);
+                                }}
+                            >
+                                <Sparkles className="w-4 h-4 text-muted-foreground" />
+                                {t("extractScrollItem.createFlashcard")}
+                            </button>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
