@@ -1918,10 +1918,10 @@ export function QueueScrollPage() {
               onCreateFlashcard={(selectedText) => setFlashcardStudioSeed({
                 key: `scroll-${renderedItem.extract!.id}-${Date.now()}`,
                 documentId: renderedItem.extract!.document_id,
-                excerpt: selectedText,
+                excerpt: renderedItem.extract!.content,
                 draftCardType: "qa",
                 resetDraftCards: true,
-                autoEditDraft: true,
+                autoEditDraft: false,
               })}
               onUpdate={(updates) => handleExtractUpdate(renderedItem.extract!.id, updates)}
             />
