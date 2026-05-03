@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.29.0] - 2026-05-03
+
+### Added
+- **Kindle Clippings Import** — Parse `My Clippings.txt` with content-hash deduplication. Uses Tauri native file dialog for import, creates learning items for review queue, and stores clippings as markdown content for preview. Includes a backfill command for existing Kindle imports.
+- **Right-click "Create Flashcard" in MarkdownViewer** — Select text in any markdown document, right-click → "Create Flashcard..." → opens FlashcardStudioModal pre-seeded with your selection.
+- **Right-click context menu in scroll review** — Extract text in scroll review mode now supports right-click to create flashcards, cloze deletions, or Q&A cards.
+- **Web article imports in DocumentViewer** — Imported web articles now open in the standard DocumentViewer queue reader instead of the split article editor view.
+- **PWA assistant mobile UX improvements** — Better assistant experience on mobile/PWA.
+
+### Fixed
+- **Highlight flash on re-render** — Rewrote `applyAnchoredTextHighlights` to be incremental. No more full-DOM-swap flash when highlights re-render.
+- **FlashcardStudioModal duplicate save error** — `handleSaveSelected` would throw when trying to create a card that already existed in the DB (duplicate detection). Now treats duplicates as successful saves.
+- **Right-click context menu click handling** — Improved click detection for right-click context menus.
+- **Mobile document toolbar overflow** — Fixed toolbar items overflowing on mobile viewports.
+
 ## [1.28.2] - 2026-05-02
 
 ### Fixed
