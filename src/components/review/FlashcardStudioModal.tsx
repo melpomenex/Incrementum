@@ -2830,6 +2830,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftCardsContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const saveInFlightRef = useRef(false);
 
   // Initialize provider
   useEffect(() => {
@@ -3602,7 +3603,8 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
   const handleSaveSelected = async () => {
     const selected = draftCards.filter((c) => c.selected);
-    if (selected.length === 0 || isSaving) return;
+    if (selected.length === 0 || isSaving || saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
 
     // Separate already-persisted cards (from extract generation) from new drafts
     const alreadySaved = selected.filter((c) => c.alreadyPersisted);
@@ -3612,111 +3614,116 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       // All selected cards were already persisted — just clear them from drafts
       setDraftCards((prev) => prev.filter((c) => !c.selected));
       toast.success(t("flashcardStudio.cardsSaved"), t("flashcardStudio.cardsSavedDesc", { count: alreadySaved.length }));
+      saveInFlightRef.current = false;
       return;
     }
 
     setIsSaving(true);
 
-    const results = await Promise.all(
-      toCreate.map(async (card) => {
-        try {
-          const baseInput: CreateLearningItemInput = {
-            item_type: card.type === "cloze" ? "cloze" : "qa",
-            question:
-              card.type === "cloze"
-                ? (card.text || "").trim()
-                : (card.question || "").trim(),
-            answer:
-              card.type === "qa"
-                ? (card.answer || "").trim()
-                : card.type === "multiple-choice"
-                ? ((card.multipleChoiceOptions || []).find((option) => option.id === card.multipleChoiceCorrectOptionId)?.text || "").trim()
-                : (card.answer || "").trim(),
-            cloze_text: card.type === "cloze" ? (card.text || "").trim() : undefined,
-            document_id: selectedDocument?.id,
-            tags: [...deckTags, ...card.tags],
-            image_asset_ids:
-              card.type === "image-occlusion"
-                ? [card.imageOcclusionAssetId || selectedImageAssetIds[0]].filter(Boolean) as string[]
-                : selectedImageAssetIds,
-            interaction_metadata:
-              card.type === "multiple-choice"
-                ? {
-                    interactionType: "multiple-choice",
-                    multipleChoiceOptions: card.multipleChoiceOptions || [],
-                    multipleChoiceCorrectOptionId: card.multipleChoiceCorrectOptionId,
-                    multipleChoiceExplanation: card.answer || undefined,
-                  }
-                : card.type === "image-occlusion"
-                ? {
-                    interactionType: "image-occlusion",
-                    imageOcclusionAssetId: card.imageOcclusionAssetId || selectedImageAssetIds[0],
-                    imageOcclusionRegions: card.imageOcclusionRegions || [],
-                    imageOcclusionPrompt: card.question || undefined,
-                  }
-                : undefined,
-          };
+    try {
+      const results = await Promise.all(
+        toCreate.map(async (card) => {
+          try {
+            const baseInput: CreateLearningItemInput = {
+              item_type: card.type === "cloze" ? "cloze" : "qa",
+              question:
+                card.type === "cloze"
+                  ? (card.text || "").trim()
+                  : (card.question || "").trim(),
+              answer:
+                card.type === "qa"
+                  ? (card.answer || "").trim()
+                  : card.type === "multiple-choice"
+                  ? ((card.multipleChoiceOptions || []).find((option) => option.id === card.multipleChoiceCorrectOptionId)?.text || "").trim()
+                  : (card.answer || "").trim(),
+              cloze_text: card.type === "cloze" ? (card.text || "").trim() : undefined,
+              document_id: selectedDocument?.id,
+              tags: [...deckTags, ...card.tags],
+              image_asset_ids:
+                card.type === "image-occlusion"
+                  ? [card.imageOcclusionAssetId || selectedImageAssetIds[0]].filter(Boolean) as string[]
+                  : selectedImageAssetIds,
+              interaction_metadata:
+                card.type === "multiple-choice"
+                  ? {
+                      interactionType: "multiple-choice",
+                      multipleChoiceOptions: card.multipleChoiceOptions || [],
+                      multipleChoiceCorrectOptionId: card.multipleChoiceCorrectOptionId,
+                      multipleChoiceExplanation: card.answer || undefined,
+                    }
+                  : card.type === "image-occlusion"
+                  ? {
+                      interactionType: "image-occlusion",
+                      imageOcclusionAssetId: card.imageOcclusionAssetId || selectedImageAssetIds[0],
+                      imageOcclusionRegions: card.imageOcclusionRegions || [],
+                      imageOcclusionPrompt: card.question || undefined,
+                    }
+                  : undefined,
+            };
 
-          if (card.type === "qa" && (!baseInput.question || !baseInput.answer)) {
-            throw new Error("Q&A cards require both a question and an answer.");
-          }
-          if (card.type === "cloze" && !baseInput.cloze_text) {
-            throw new Error("Cloze cards require cloze text.");
-          }
-          if (
-            card.type === "multiple-choice" &&
-            (
-              !baseInput.question ||
-              (card.multipleChoiceOptions || []).filter((option) => option.text.trim().length > 0).length < 2 ||
-              !card.multipleChoiceCorrectOptionId
-            )
-          ) {
-            throw new Error("Multiple choice cards require a question, at least two options, and a correct answer.");
-          }
-          if (
-            card.type === "image-occlusion" &&
-            (
-              !((card.imageOcclusionAssetId || selectedImageAssetIds[0])) ||
-              (card.imageOcclusionRegions || []).length === 0
-            )
-          ) {
-            throw new Error("Image occlusion cards require an image and at least one hidden region.");
-          }
+            if (card.type === "qa" && (!baseInput.question || !baseInput.answer)) {
+              throw new Error("Q&A cards require both a question and an answer.");
+            }
+            if (card.type === "cloze" && !baseInput.cloze_text) {
+              throw new Error("Cloze cards require cloze text.");
+            }
+            if (
+              card.type === "multiple-choice" &&
+              (
+                !baseInput.question ||
+                (card.multipleChoiceOptions || []).filter((option) => option.text.trim().length > 0).length < 2 ||
+                !card.multipleChoiceCorrectOptionId
+              )
+            ) {
+              throw new Error("Multiple choice cards require a question, at least two options, and a correct answer.");
+            }
+            if (
+              card.type === "image-occlusion" &&
+              (
+                !((card.imageOcclusionAssetId || selectedImageAssetIds[0])) ||
+                (card.imageOcclusionRegions || []).length === 0
+              )
+            ) {
+              throw new Error("Image occlusion cards require an image and at least one hidden region.");
+            }
 
-          await createLearningItem(baseInput);
-          return { id: card.id, success: true };
-        } catch (error) {
-          // If the backend rejected it as a semantic duplicate, the card is
-          // already in the DB — treat it as a successful save.
-          const msg = error instanceof Error ? error.message : String(error);
-          if (msg.includes("Potential duplicate detected") || msg.includes("duplicate")) {
-            console.warn("Card already exists (duplicate), treating as saved:", card.id);
-            return { id: card.id, success: true, wasDuplicate: true };
+            await createLearningItem(baseInput);
+            return { id: card.id, success: true };
+          } catch (error) {
+            // If the backend rejected it as a semantic duplicate, the card is
+            // already in the DB — treat it as a successful save.
+            const msg = error instanceof Error ? error.message : String(error);
+            if (msg.includes("Potential duplicate detected") || msg.includes("duplicate")) {
+              console.warn("Card already exists (duplicate), treating as saved:", card.id);
+              return { id: card.id, success: true, wasDuplicate: true };
+            }
+            console.error("Failed to create card", error);
+            return { id: card.id, success: false };
           }
-          console.error("Failed to create card", error);
-          return { id: card.id, success: false };
-        }
-      })
-    );
+        })
+      );
 
-    const failedIds = results.filter((r) => !r.success).map((r) => r.id);
-    const newlySaved = toCreate.length - failedIds.length;
-    const savedCount = alreadySaved.length + newlySaved;
-    
-    // Remove all selected cards from drafts (persisted ones + successfully created ones).
-    // Keep failed ones so the user can retry.
-    const idsToRemove = new Set([
-      ...alreadySaved.map((c) => c.id),
-      ...toCreate.filter((c) => !failedIds.includes(c.id)).map((c) => c.id),
-    ]);
-    setDraftCards((prev) => prev.filter((c) => !idsToRemove.has(c.id)));
-    
-    if (failedIds.length > 0) {
-      toast.error(t("flashcardStudio.someCardsFailed"), t("flashcardStudio.someCardsFailedDesc", { saved: savedCount, failed: failedIds.length }));
-    } else {
-      toast.success(t("flashcardStudio.cardsSaved"), t("flashcardStudio.cardsSavedDesc", { count: savedCount }));
+      const failedIds = results.filter((r) => !r.success).map((r) => r.id);
+      const newlySaved = toCreate.length - failedIds.length;
+      const savedCount = alreadySaved.length + newlySaved;
+      
+      // Remove all selected cards from drafts (persisted ones + successfully created ones).
+      // Keep failed ones so the user can retry.
+      const idsToRemove = new Set([
+        ...alreadySaved.map((c) => c.id),
+        ...toCreate.filter((c) => !failedIds.includes(c.id)).map((c) => c.id),
+      ]);
+      setDraftCards((prev) => prev.filter((c) => !idsToRemove.has(c.id)));
+      
+      if (failedIds.length > 0) {
+        toast.error(t("flashcardStudio.someCardsFailed"), t("flashcardStudio.someCardsFailedDesc", { saved: savedCount, failed: failedIds.length }));
+      } else {
+        toast.success(t("flashcardStudio.cardsSaved"), t("flashcardStudio.cardsSavedDesc", { count: savedCount }));
+      }
+    } finally {
+      setIsSaving(false);
+      saveInFlightRef.current = false;
     }
-    setIsSaving(false);
   };
 
   const handleUseExtractAsContext = useCallback((extract: Extract) => {
