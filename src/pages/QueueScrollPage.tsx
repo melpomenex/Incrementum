@@ -9,7 +9,6 @@ import { useDocumentStore } from "../stores/documentStore";
 import { defaultSettings, useSettingsStore } from "../stores/settingsStore";
 import { DocumentViewer } from "../components/viewer/DocumentViewer";
 import { FlashcardScrollItem } from "../components/review/FlashcardScrollItem";
-import { ScrollModeArticleEditor } from "../components/review/ScrollModeArticleEditor";
 import { rateDocumentEngaging, getSmartStartPosition } from "../api/algorithm";
 import { getDueItems, type LearningItem } from "../api/learning-items";
 import { getDueExtracts, submitExtractReview } from "../api/extract-review";
@@ -85,7 +84,6 @@ interface ScrollItem {
   type: "document" | "rss" | "flashcard" | "extract";
   documentId?: string;
   documentTitle: string;
-  isImportedWebArticle?: boolean;
   rssItem?: RSSFeedItem;
   rssFeed?: RSSFeed;
   learningItem?: LearningItem;
@@ -537,9 +535,6 @@ export function QueueScrollPage() {
           if (doc?.isArchived) {
             return null;
           }
-          const isImportedWebArticle = doc?.metadata?.source === "browser_extension"
-            && doc?.fileType !== "youtube";
-
           // Calculate engagement score based on priority and variety factors
           const isNew = !doc?.dateLastReviewed;
           const priority = item.priority ?? 5;
@@ -553,7 +548,6 @@ export function QueueScrollPage() {
             type: "document" as const,
             documentId: item.documentId,
             documentTitle: item.documentTitle,
-            isImportedWebArticle,
             category: doc?.category ?? item.tags?.[0] ?? "uncategorized",
             estimatedTime: item.estimatedTime ?? 10,
             engagementScore: baseScore + serendipityBonus,
@@ -1814,33 +1808,6 @@ export function QueueScrollPage() {
             )
           ) : renderedItem?.type === "document" ? (() => {
             const doc = documents.find(d => d.id === renderedItem.documentId);
-            if (renderedItem.isImportedWebArticle && doc) {
-              return (
-                <ScrollModeArticleEditor
-                  key={renderedItem.documentId}
-                  document={doc}
-                  suppressSuccessToast={true}
-                  onExtractCreated={(extract) => {
-                    const sourceContext = buildQueueExtractSourceContext({
-                      documentId: doc.id,
-                      title: doc.title,
-                      sourceKind: "article",
-                    });
-                    toast.success(t("queueScroll.extractCreated"), t("queueScroll.savedInScrollMode"), {
-                      action: {
-                        label: "View extract",
-                        onClick: () => openExtractInDocumentTab({
-                          documentId: doc.id,
-                          documentTitle: doc.title,
-                          extract,
-                          sourceContext,
-                        }),
-                      },
-                    });
-                  }}
-                />
-              );
-            }
             return (
               <DocumentViewer
                 key={renderedItem.documentId}
