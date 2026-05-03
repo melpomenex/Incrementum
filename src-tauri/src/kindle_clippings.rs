@@ -15,7 +15,7 @@ use tauri::State;
 
 use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
-use crate::models::{Document, Extract, FileType};
+use crate::models::{Document, Extract, FileType, ItemState, ItemType, LearningItem};
 
 // ---------------------------------------------------------------------------
 // Data structures
@@ -642,9 +642,32 @@ pub async fn do_import_kindle_clippings(
             let title = book_clips[0].book_title.clone();
             let author = book_clips[0].author.clone();
 
+            // Build document content from all importable clippings (highlights + notes)
+            let mut content_parts: Vec<String> = Vec::new();
+            for c in book_clips {
+                if c.clipping_type == ClippingType::Bookmark {
+                    continue;
+                }
+                match c.clipping_type {
+                    ClippingType::Highlight => {
+                        content_parts.push(format!("> {}", c.content));
+                    }
+                    ClippingType::Note => {
+                        content_parts.push(format!("**Note:** {}", c.content));
+                    }
+                    ClippingType::Bookmark => {}
+                }
+            }
+            let doc_content = if content_parts.is_empty() {
+                None
+            } else {
+                Some(content_parts.join("\n\n---\n\n"))
+            };
+
             let mut new_doc = Document::new(title, synthetic_path, FileType::Other);
             new_doc.category = Some("Kindle".to_string());
             new_doc.tags = vec!["kindle-import".to_string()];
+            new_doc.content = doc_content;
             new_doc.metadata = Some(crate::models::DocumentMetadata {
                 author,
                 source: Some("kindle-clippings".to_string()),
@@ -701,6 +724,14 @@ pub async fn do_import_kindle_clippings(
 
             repo.create_extract(&extract).await?;
             new_extracts += 1;
+
+            // Create a learning item so the extract shows in the review queue
+            let mut item = LearningItem::new(ItemType::Flashcard, clipping.content.clone());
+            item.extract_id = Some(extract.id.clone());
+            item.document_id = Some(doc_id.clone());
+            item.answer = Some("Recall this highlight from the book".to_string());
+            item.tags = vec!["kindle".to_string()];
+            let _ = repo.create_learning_item(&item).await;
         }
 
         // Update document extract count
