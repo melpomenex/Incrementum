@@ -18,6 +18,7 @@ import { ClozeCreatorPopup } from "../components/extracts/ClozeCreatorPopup";
 import { QACreatorPopup } from "../components/extracts/QACreatorPopup";
 import { CreateExtractDialog } from "../components/extracts/CreateExtractDialog";
 import { ExtractsList } from "../components/extracts/ExtractsList";
+import { FlashcardStudioModal } from "../components/review/FlashcardStudioModal";
 import { LearningCardsList } from "../components/learning/LearningCardsList";
 import { submitReview } from "../api/review";
 import {
@@ -200,6 +201,7 @@ export function QueueScrollPage() {
   const [activeExtractForCloze, setActiveExtractForCloze] = useState<{ id: string, text: string, extractContent?: string, range: [number, number] } | null>(null);
   const [activeExtractForQA, setActiveExtractForQA] = useState<string | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
+  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean } | null>(null);
 
   const lastScrollTime = useRef(0);
   const scrollCooldown = 500; // ms between scroll actions
@@ -1913,6 +1915,14 @@ export function QueueScrollPage() {
               onRate={handleRating}
               onCreateCloze={(text, range) => setActiveExtractForCloze({ id: renderedItem.extract!.id, text, extractContent: renderedItem.extract!.content, range })}
               onCreateQA={() => setActiveExtractForQA(renderedItem.extract!.id)}
+              onCreateFlashcard={(selectedText) => setFlashcardStudioSeed({
+                key: `scroll-${renderedItem.extract!.id}-${Date.now()}`,
+                documentId: renderedItem.extract!.document_id,
+                excerpt: selectedText,
+                draftCardType: "qa",
+                resetDraftCards: true,
+                autoEditDraft: true,
+              })}
               onUpdate={(updates) => handleExtractUpdate(renderedItem.extract!.id, updates)}
             />
           ) : (
@@ -2023,6 +2033,12 @@ export function QueueScrollPage() {
         />
       )}
 
+      {/* Flashcard Studio Modal from right-click context menu */}
+      <FlashcardStudioModal
+        isOpen={!!flashcardStudioSeed}
+        onClose={() => setFlashcardStudioSeed(null)}
+        seed={flashcardStudioSeed}
+      />
 
       {/* RSS Extract Action */}
       {renderedItem?.type === "rss" && rssSelectedText && (
