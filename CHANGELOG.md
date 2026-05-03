@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.1] - 2026-05-03
+
+### Fixed
+- **Kindle Clippings import creating flashcards** — Clippings now only create extracts, not flashcards/learning items.
+- **Text selection vanishing in Queue document viewer** — Search highlight effect was unconditionally resetting innerHTML on every re-render, destroying the browser's text selection before right-click could fire.
+- **PDF.js parentNode null error on Windows** — Moved unhandled rejection handler to module scope so it's active before any async PDF.js work begins.
+
 ## [1.29.0] - 2026-05-03
 
 ### Added
