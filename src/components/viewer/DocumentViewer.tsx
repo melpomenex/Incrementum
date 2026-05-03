@@ -72,6 +72,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import type { StoredHighlight } from "./HighlightLayer";
 import { normalizePdfHighlightColor } from "../../utils/highlightColors";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
+import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
 import { resolveLocalMediaSource, type ResolvedLocalMediaSource } from "./localMediaSource";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
@@ -732,6 +733,7 @@ export function DocumentViewer({
   const [initialHighlightColor, setInitialHighlightColor] = useState<string | undefined>(undefined);
   const [pdfTextSelectionCapability, setPdfTextSelectionCapability] = useState<PdfTextSelectionCapability | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
+  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean } | null>(null);
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
   const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
   const lastSelectionRef = useRef("");
@@ -4842,6 +4844,14 @@ export function DocumentViewer({
               initialSearchTextQuote={jumpTextQuote}
               highlights={persistedDocumentHighlights.markdownHighlights}
               onSelectionChange={updateSelection}
+              onCreateFlashcard={(excerpt) => setFlashcardStudioSeed({
+                key: `md-${currentDocument.id}-${Date.now()}`,
+                documentId: currentDocument.id,
+                excerpt,
+                draftCardType: "qa",
+                resetDraftCards: true,
+                autoEditDraft: true,
+              })}
               onScrollPositionChange={(scrollPercent) => {
                 handleScrollPositionChange({
                   pageNumber: 1,
@@ -5359,6 +5369,13 @@ export function DocumentViewer({
           </div>
         </button>
       )}
+
+      {/* Flashcard Studio from right-click context menu */}
+      <FlashcardStudioModal
+        isOpen={!!flashcardStudioSeed}
+        onClose={() => setFlashcardStudioSeed(null)}
+        seed={flashcardStudioSeed}
+      />
     </div>
   );
 }

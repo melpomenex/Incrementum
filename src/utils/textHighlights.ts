@@ -79,7 +79,7 @@ function collectTextNodes(root: HTMLElement): TextNodeEntry[] {
   return entries;
 }
 
-function wrapTextNodeRange(node: Text, start: number, end: number, color?: string | null, title?: string) {
+function wrapTextNodeRange(node: Text, start: number, end: number, id: string, color?: string | null, title?: string) {
   const text = node.textContent ?? "";
   if (start >= end || start < 0 || end > text.length) return;
 
@@ -94,6 +94,7 @@ function wrapTextNodeRange(node: Text, start: number, end: number, color?: strin
 
   const wrapper = document.createElement("mark");
   wrapper.dataset.highlightWrapper = "true";
+  wrapper.dataset.highlightId = id;
   wrapper.className = "persisted-text-highlight";
   wrapper.style.backgroundColor = normalizeHighlightColor(color);
   wrapper.style.padding = "0";
@@ -111,6 +112,23 @@ function wrapTextNodeRange(node: Text, start: number, end: number, color?: strin
   node.replaceWith(fragment);
 }
 
+/**
+ * Remove all existing highlight marks, unwrapping their text content back
+ * into the parent. This modifies the DOM in place without changing the
+ * rendered text — no visual flash.
+ */
+function removeAllHighlightMarks(root: HTMLElement) {
+  const marks = root.querySelectorAll("mark[data-highlight-wrapper='true']");
+  for (const mark of marks) {
+    const text = mark.textContent ?? "";
+    const parent = mark.parentNode;
+    if (!parent) continue;
+    const textNode = document.createTextNode(text);
+    parent.replaceChild(textNode, mark);
+    parent.normalize(); // merge adjacent text nodes
+  }
+}
+
 export function applyAnchoredTextHighlights(params: {
   root: HTMLElement | null;
   highlights: AnchoredTextHighlight[];
@@ -120,32 +138,82 @@ export function applyAnchoredTextHighlights(params: {
   if (!root) return;
 
   if (root.dataset.highlightSignature !== signature) {
+    // Document content changed — need full reset
     root.dataset.highlightSignature = signature;
     root.dataset.highlightOriginalHtml = root.innerHTML;
+    // When content changes, existing marks are invalid (offsets shifted)
+    removeAllHighlightMarks(root);
   }
 
-  // Fast path: same signature, check if highlights actually changed
-  const highlightIds = highlights
-    .filter((h) => h.endOffset > h.startOffset)
-    .map((h) => h.id)
-    .sort();
-  const cachedIds = (root.dataset.highlightIds ?? "").split(",").filter(Boolean).sort();
-  const idsUnchanged = highlightIds.length === cachedIds.length
-    && highlightIds.every((id, i) => id === cachedIds[i]);
-  if (idsUnchanged) return;
-  root.dataset.highlightIds = highlightIds.join(",");
+  // Build a set of desired highlight IDs
+  const desiredIds = new Set(
+    highlights.filter((h) => h.endOffset > h.startOffset).map((h) => h.id),
+  );
 
-  root.innerHTML = root.dataset.highlightOriginalHtml ?? root.innerHTML;
+  // Check if anything changed by comparing with current marks in the DOM
+  const currentMarks = root.querySelectorAll<HTMLElement>("mark[data-highlight-wrapper='true']");
+  const currentIds = new Set<string>();
+  for (const mark of currentMarks) {
+    const id = mark.dataset.highlightId ?? "";
+    if (id) currentIds.add(id);
+  }
 
-  if (highlights.length === 0) return;
+  // If desired and current are identical, nothing to do
+  if (desiredIds.size === currentIds.size && [...desiredIds].every((id) => currentIds.has(id))) {
+    return;
+  }
+
+  // Remove highlights that are no longer desired
+  for (const mark of currentMarks) {
+    const id = mark.dataset.highlightId ?? "";
+    if (!desiredIds.has(id)) {
+      const text = mark.textContent ?? "";
+      const parent = mark.parentNode;
+      if (!parent) continue;
+      const textNode = document.createTextNode(text);
+      parent.replaceChild(textNode, mark);
+      parent.normalize();
+    }
+  }
+
+  // Remove highlights whose color/title changed (will be re-added below)
+  const highlightMap = new Map(highlights.filter((h) => h.endOffset > h.startOffset).map((h) => [h.id, h]));
+  const staleMarks = root.querySelectorAll<HTMLElement>("mark[data-highlight-wrapper='true']");
+  for (const mark of staleMarks) {
+    const id = mark.dataset.highlightId ?? "";
+    const hl = highlightMap.get(id);
+    if (hl) {
+      const colorChanged = normalizeHighlightColor(hl.color) !== mark.style.backgroundColor;
+      const titleChanged = (hl.title ?? "") !== (mark.title ?? "");
+      if (colorChanged || titleChanged) {
+        const text = mark.textContent ?? "";
+        const parent = mark.parentNode;
+        if (!parent) continue;
+        const textNode = document.createTextNode(text);
+        parent.replaceChild(textNode, mark);
+        parent.normalize();
+      }
+    }
+  }
+
+  // Add new highlights
+  const existingIds = new Set(
+    [...root.querySelectorAll<HTMLElement>("mark[data-highlight-wrapper='true']")].map(
+      (m) => m.dataset.highlightId ?? "",
+    ).filter(Boolean),
+  );
+
+  const toAdd = highlights.filter(
+    (h) => h.endOffset > h.startOffset && !existingIds.has(h.id),
+  );
+
+  if (toAdd.length === 0) return;
 
   const textNodes = collectTextNodes(root);
-  const sorted = [...highlights]
-    .filter((item) => item.endOffset > item.startOffset)
-    .sort((a, b) => {
-      if (a.startOffset !== b.startOffset) return b.startOffset - a.startOffset;
-      return b.endOffset - a.endOffset;
-    });
+  const sorted = [...toAdd].sort((a, b) => {
+    if (a.startOffset !== b.startOffset) return b.startOffset - a.startOffset;
+    return b.endOffset - a.endOffset;
+  });
 
   for (const highlight of sorted) {
     const intersecting = textNodes.filter(
@@ -158,7 +226,10 @@ export function applyAnchoredTextHighlights(params: {
 
       const localStart = Math.max(0, highlight.startOffset - entry.start);
       const localEnd = Math.min((entry.node.textContent ?? "").length, highlight.endOffset - entry.start);
-      wrapTextNodeRange(entry.node, localStart, localEnd, highlight.color, highlight.title);
+      wrapTextNodeRange(entry.node, localStart, localEnd, highlight.id, highlight.color, highlight.title);
     }
   }
+
+  // Stamp IDs on newly created marks
+  // (IDs are now set directly in wrapTextNodeRange, nothing to do here)
 }

@@ -1,7 +1,8 @@
-import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Document } from "../../types";
 import { renderMarkdown } from "../../utils/markdown";
 import { useI18n } from "../../lib/i18n";
+import { Sparkles } from "lucide-react";
 import type { SelectionContext } from "../../types/selection";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 
@@ -19,6 +20,7 @@ interface MarkdownViewerProps {
   onScrollPositionChange?: (scrollPercent: number) => void;
   highlights?: AnchoredTextHighlight[];
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
+  onCreateFlashcard?: (excerpt: string) => void;
 }
 
 function escapeRegex(term: string): string {
@@ -42,12 +44,14 @@ export function MarkdownViewer({
   onScrollPositionChange,
   highlights = [],
   onSelectionChange,
+  onCreateFlashcard,
 }: MarkdownViewerProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedText: string } | null>(null);
 
   // Render markdown with bundle image support
   const html = useMemo(() => {
@@ -274,12 +278,23 @@ export function MarkdownViewer({
     };
   }, [document.id, onSelectionChange]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!onCreateFlashcard) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
+    e.preventDefault();
+    const selectedText = selection.toString().trim();
+    setContextMenu({ x: e.clientX, y: e.clientY, selectedText });
+  }, [onCreateFlashcard]);
+
   return (
+    <>
     <div
       ref={containerRef}
       data-document-scroll-container
       className="markdown-viewer prose prose-sm max-w-none dark:prose-invert reading-prose overflow-y-auto overflow-x-hidden h-full"
       onScroll={handleScroll}
+      onContextMenu={handleContextMenu}
     >
       <h1 className="reading-title">{document.title}</h1>
       {content ? (
@@ -287,6 +302,28 @@ export function MarkdownViewer({
       ) : (
         <div className="text-muted-foreground italic">{t("viewer.noContentAvailable")}</div>
       )}
+
+      {contextMenu && onCreateFlashcard && (
+        <>
+          <div className="fixed inset-0 z-[9999]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className="fixed z-[10000] bg-card border border-border rounded-lg shadow-xl py-1 min-w-[180px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+              onClick={() => {
+                setContextMenu(null);
+                onCreateFlashcard(contextMenu.selectedText);
+              }}
+            >
+              <Sparkles className="w-4 h-4 text-muted-foreground" />
+              {t("extractScrollItem.createFlashcard")}
+            </button>
+          </div>
+        </>
+      )}
     </div>
+    </>
   );
 }
