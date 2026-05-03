@@ -3686,6 +3686,13 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           await createLearningItem(baseInput);
           return { id: card.id, success: true };
         } catch (error) {
+          // If the backend rejected it as a semantic duplicate, the card is
+          // already in the DB — treat it as a successful save.
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes("Potential duplicate detected") || msg.includes("duplicate")) {
+            console.warn("Card already exists (duplicate), treating as saved:", card.id);
+            return { id: card.id, success: true, wasDuplicate: true };
+          }
           console.error("Failed to create card", error);
           return { id: card.id, success: false };
         }
