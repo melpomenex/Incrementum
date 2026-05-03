@@ -1095,6 +1095,7 @@ async fn handle_extract_request(
         last_review_date: None,
         review_count: 0,
         reps: 0,
+        source_hash: None,
     };
 
     let created = state.repo.create_extract(&extract).await?;

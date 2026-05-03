@@ -1529,6 +1529,14 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_review_log_timestamp ON review_log(timestamp);
         "#,
     ),
+    // Migration 042: Add source_hash to extracts for import deduplication
+    Migration::new(
+        "042_add_extract_source_hash",
+        r#"
+        ALTER TABLE extracts ADD COLUMN source_hash TEXT NULL;
+        CREATE INDEX IF NOT EXISTS idx_extracts_source_hash ON extracts(source_hash);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

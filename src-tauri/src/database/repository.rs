@@ -720,8 +720,8 @@ impl Repository {
                 selection_context, highlight_color, notes, progressive_disclosure_level,
                 max_disclosure_level, progressive_summaries, date_created, date_modified,
                 tags, category, memory_state_stability, memory_state_difficulty,
-                next_review_date, last_review_date, review_count, reps
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
+                next_review_date, last_review_date, review_count, reps, source_hash
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
             "#,
         )
         .bind(&extract.id)
@@ -747,6 +747,7 @@ impl Repository {
         .bind(extract.last_review_date)
         .bind(extract.review_count)
         .bind(extract.reps)
+        .bind(&extract.source_hash)
         .execute(&self.pool)
         .await?;
 
@@ -796,6 +797,7 @@ impl Repository {
                     last_review_date: row.try_get("last_review_date").ok(),
                     review_count: row.try_get("review_count").unwrap_or(0),
                     reps: row.try_get("reps").unwrap_or(0),
+                    source_hash: row.try_get("source_hash").ok(),
                 }))
             }
             None => Ok(None),
@@ -845,6 +847,7 @@ impl Repository {
                 progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
+                    source_hash: row.try_get("source_hash").ok(),
             });
         }
 
@@ -893,6 +896,7 @@ impl Repository {
                 progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
+                    source_hash: row.try_get("source_hash").ok(),
             });
         }
 
@@ -1016,6 +1020,7 @@ impl Repository {
                 progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
+                    source_hash: row.try_get("source_hash").ok(),
             });
         }
 
@@ -1065,6 +1070,7 @@ impl Repository {
                 progressive_summaries: row.try_get::<Option<String>, _>("progressive_summaries").ok()
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
+                    source_hash: row.try_get("source_hash").ok(),
             });
         }
 
@@ -3584,7 +3590,7 @@ mod tests {
             .await
             .expect("create image asset");
 
-        let mut item = LearningItem::new_flashcard("prompt".to_string(), "answer".to_string());
+        let mut item = LearningItem::with_answer("test-doc".to_string(), ItemType::Flashcard, "prompt".to_string(), "answer".to_string());
         item.image_asset_ids = vec![asset.id.clone()];
         repo.create_learning_item(&item).await.expect("create learning item");
 

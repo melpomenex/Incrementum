@@ -589,6 +589,7 @@ fn parse_extract_row(row: &sqlx::sqlite::SqliteRow) -> Result<Extract> {
         review_count: row.try_get::<i64, _>("review_count").unwrap_or(0) as i32,
         reps: row.try_get::<i64, _>("reps").unwrap_or(0) as i32,
         progressive_summaries: None,
+        source_hash: None,
     })
 }
 

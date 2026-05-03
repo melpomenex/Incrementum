@@ -215,6 +215,7 @@ mod tests {
             last_review_date: None,
             review_count: 0,
             reps: 0,
+            source_hash: None,
         }
     }
 

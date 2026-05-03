@@ -48,6 +48,8 @@ pub struct Extract {
     pub review_count: i32,
     /// Total repetitions/reviews
     pub reps: i32,
+    /// Optional source hash for import deduplication (e.g., Kindle clippings)
+    pub source_hash: Option<String>,
 }
 
 impl Extract {
@@ -75,6 +77,7 @@ impl Extract {
             last_review_date: None,
             review_count: 0,
             reps: 0,
+            source_hash: None,
         }
     }
 
