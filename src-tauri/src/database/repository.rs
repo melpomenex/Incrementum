@@ -16,6 +16,11 @@ impl Repository {
         Self { pool }
     }
 
+    /// Get a reference to the connection pool (for raw queries in import modules).
+    pub fn db_pool(&self) -> &Pool<Sqlite> {
+        &self.pool
+    }
+
     pub fn pool(&self) -> &Pool<Sqlite> {
         &self.pool
     }

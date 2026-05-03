@@ -286,6 +286,15 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
     }
   };
 
+  const handleBackfillKindleImports = async () => {
+    try {
+      const result = await invokeCommand<{ documentsUpdated: number; learningItemsCreated: number; errors: string[] }>("backfill_kindle_imports");
+      alert(`Backfill complete: ${result.learningItemsCreated} learning items created across ${result.documentsUpdated} documents.${result.errors.length > 0 ? `\n\n${result.errors.length} errors occurred.` : ""}`);
+    } catch (err) {
+      alert(`Backfill failed: ${err}`);
+    }
+  };
+
   return (
     <>
       <SettingsSection
@@ -817,7 +826,15 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
 
           {/* Kindle Clippings Import */}
           <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <h4 className="text-sm font-medium text-foreground">{t("importExport.kindleClippings")}</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-foreground">{t("importExport.kindleClippings")}</h4>
+              <button
+                onClick={handleBackfillKindleImports}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                {t("kindleImport.backfill")}
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground">{t("importExport.kindleClippingsDesc")}</p>
             <div className="flex items-center gap-2">
               <button

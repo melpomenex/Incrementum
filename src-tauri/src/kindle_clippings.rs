@@ -11,6 +11,7 @@ use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use regex::Regex;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use sqlx::Row;
 use tauri::State;
 
 use crate::database::Repository;
@@ -753,6 +754,166 @@ pub async fn do_import_kindle_clippings(
 }
 
 // ---------------------------------------------------------------------------
+// Backfill: create learning items + content for existing Kindle imports
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KindleBackfillResult {
+    pub documents_updated: usize,
+    pub learning_items_created: usize,
+    pub errors: Vec<String>,
+}
+
+pub async fn do_backfill_kindle_imports(repo: &Repository) -> Result<KindleBackfillResult> {
+    // Find all Kindle documents
+    let rows = sqlx::query(
+        "SELECT id FROM documents WHERE file_path LIKE 'kindle://%'",
+    )
+    .fetch_all(repo.db_pool())
+    .await?;
+
+    let mut documents_updated = 0usize;
+    let mut learning_items_created = 0usize;
+    let mut errors = Vec::new();
+
+    for row in &rows {
+        let doc_id: String = row.try_get("id")?;
+
+        // Get all extracts for this document that don't have a learning item yet
+        let extract_rows = sqlx::query(
+            r#"
+            SELECT e.id, e.content, e.notes, e.date_created, e.tags
+            FROM extracts e
+            WHERE e.document_id = ?
+            AND NOT EXISTS (
+                SELECT 1 FROM learning_items li WHERE li.extract_id = e.id
+            )
+            "#,
+        )
+        .bind(&doc_id)
+        .fetch_all(repo.db_pool())
+        .await
+        .map_err(|e| e.to_string());
+
+        let extract_rows = match extract_rows {
+            Ok(r) => r,
+            Err(err) => {
+                errors.push(format!("doc {}: {}", doc_id, err));
+                continue;
+            }
+        };
+
+        if extract_rows.is_empty() {
+            continue;
+        }
+
+        let now = Utc::now();
+        let mut content_parts: Vec<String> = Vec::new();
+
+        for extract_row in &extract_rows {
+            let extract_id: String = extract_row.try_get("id").unwrap_or_default();
+            let content: String = extract_row.try_get("content").unwrap_or_default();
+            let notes: Option<String> = extract_row.try_get("notes").ok();
+            let date_created: Option<String> = extract_row.try_get("date_created").ok();
+            let tags_json: Option<String> = extract_row.try_get("tags").ok();
+            let existing_tags: Vec<String> = tags_json
+                .and_then(|t| serde_json::from_str(&t).ok())
+                .unwrap_or_default();
+
+            // Build content for document preview
+            if !content.is_empty() {
+                if existing_tags.contains(&"kindle-note".to_string()) {
+                    content_parts.push(format!("**Note:** {}", content));
+                } else {
+                    content_parts.push(format!("> {}", content));
+                }
+            }
+
+            // Create learning item
+            let item_id = uuid::Uuid::new_v4().to_string();
+            let due_date = date_created
+                .as_deref()
+                .and_then(|d| chrono::DateTime::parse_from_rfc3339(d).ok())
+                .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
+                .unwrap_or_else(|| now.to_rfc3339());
+
+            let item_tags = if existing_tags.contains(&"kindle-note".to_string()) {
+                serde_json::to_string(&vec!["kindle", "kindle-note"]).unwrap_or_else(|_| "[]".to_string())
+            } else {
+                serde_json::to_string(&vec!["kindle"]).unwrap_or_else(|_| "[]".to_string())
+            };
+
+            let answer = if existing_tags.contains(&"kindle-note".to_string()) {
+                "Recall this note from the book"
+            } else {
+                "Recall this highlight from the book"
+            };
+
+            let insert_result = sqlx::query(
+                r#"
+                INSERT INTO learning_items (
+                    id, extract_id, document_id, item_type, question,
+                    answer, difficulty, interval, ease_factor, due_date,
+                    date_created, date_modified, state, is_suspended, tags,
+                    algorithm_type
+                ) VALUES (?1, ?2, ?3, 'flashcard', ?4, ?5, 3, 0, 2.5, ?6, ?7, ?8, 'new', 0, ?9, 'fsrs')
+                "#,
+            )
+            .bind(&item_id)
+            .bind(&extract_id)
+            .bind(&doc_id)
+            .bind(&content)
+            .bind(answer)
+            .bind(&due_date)
+            .bind(&now.to_rfc3339())
+            .bind(&now.to_rfc3339())
+            .bind(&item_tags)
+            .execute(repo.db_pool())
+            .await;
+
+            match insert_result {
+                Ok(_) => learning_items_created += 1,
+                Err(e) => errors.push(format!("extract {}: {}", extract_id, e)),
+            }
+        }
+
+        // Update document content and extract count
+        let doc_content = if content_parts.is_empty() {
+            None
+        } else {
+            Some(content_parts.join("\n\n---\n\n"))
+        };
+
+        let update_result = sqlx::query(
+            r#"
+            UPDATE documents
+            SET content = COALESCE(?1, content),
+                extract_count = (SELECT COUNT(*) FROM extracts WHERE document_id = ?2),
+                date_modified = ?3
+            WHERE id = ?2
+            "#,
+        )
+        .bind(&doc_content)
+        .bind(&doc_id)
+        .bind(now.to_rfc3339())
+        .execute(repo.db_pool())
+        .await;
+
+        match update_result {
+            Ok(_) => documents_updated += 1,
+            Err(e) => errors.push(format!("doc update {}: {}", doc_id, e)),
+        }
+    }
+
+    Ok(KindleBackfillResult {
+        documents_updated,
+        learning_items_created,
+        errors,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
 
@@ -775,6 +936,13 @@ pub async fn import_kindle_clippings_file(
     repo: State<'_, Repository>,
 ) -> Result<KindleImportResult> {
     do_import_kindle_clippings(&file_path, &repo).await
+}
+
+#[tauri::command]
+pub async fn backfill_kindle_imports(
+    repo: State<'_, Repository>,
+) -> Result<KindleBackfillResult> {
+    do_backfill_kindle_imports(&repo).await
 }
 
 // ---------------------------------------------------------------------------
