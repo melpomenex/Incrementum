@@ -5356,13 +5356,6 @@ export function DocumentViewer({
         </div>
       )}
 
-      {/* Flashcard Studio from right-click context menu */}
-      <FlashcardStudioModal
-        isOpen={!!flashcardStudioSeed}
-        onClose={() => setFlashcardStudioSeed(null)}
-        seed={flashcardStudioSeed}
-      />
-
       {/* Mobile Floating Fullscreen Button (when not in fullscreen) */}
       {!isFullscreen && !isTauri() && (
         <button
