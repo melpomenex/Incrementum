@@ -59,6 +59,20 @@ try {
 // Only show errors, not warnings or info messages
 (pdfjsLib as any).GlobalWorkerOptions.verbosity = 0;
 
+// Suppress PDF.js 5.x internal TypeError("Cannot read properties of null (reading 'parentNode')")
+// that fires during page virtualization / scroll cleanup. PDF.js private fields (#e, #container)
+// reference DOM nodes that get detached before the async text-layer pump finishes.
+// Register at module scope so the handler is active before any async PDF.js work begins
+// (the useEffect-based handler can be too late on some platforms / WebView engines).
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    if (reason instanceof TypeError && /parentNode/.test(String(reason.message))) {
+      event.preventDefault();
+    }
+  });
+}
+
 interface PDFViewerProps {
   documentId: string;
   fileData?: Uint8Array | null;
@@ -1014,22 +1028,6 @@ export function PDFViewer({
     restoreState,
     setNavigationMode,
   ]);
-
-  // Suppress unhandled rejection from PDF.js annotation/text layer DOM access
-  // after component unmount or page re-render. PDF.js 5.x uses private fields
-  // (this.#e) that reference DOM nodes; when we clear innerHTML before
-  // cancelling a render task, the cleanup code inside PDF.js tries to access
-  // a nulled DOM reference and throws.
-  useEffect(() => {
-    const handler = (event: PromiseRejectionEvent) => {
-      const reason = event.reason;
-      if (reason instanceof TypeError && /parentNode/.test(String(reason.message))) {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('unhandledrejection', handler);
-    return () => window.removeEventListener('unhandledrejection', handler);
-  }, []);
 
   // Cleanup on unmount: cancel all render tasks, text layers, highlights, and timeouts.
   useEffect(() => {
