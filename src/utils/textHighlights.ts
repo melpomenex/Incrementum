@@ -124,6 +124,17 @@ export function applyAnchoredTextHighlights(params: {
     root.dataset.highlightOriginalHtml = root.innerHTML;
   }
 
+  // Fast path: same signature, check if highlights actually changed
+  const highlightIds = highlights
+    .filter((h) => h.endOffset > h.startOffset)
+    .map((h) => h.id)
+    .sort();
+  const cachedIds = (root.dataset.highlightIds ?? "").split(",").filter(Boolean).sort();
+  const idsUnchanged = highlightIds.length === cachedIds.length
+    && highlightIds.every((id, i) => id === cachedIds[i]);
+  if (idsUnchanged) return;
+  root.dataset.highlightIds = highlightIds.join(",");
+
   root.innerHTML = root.dataset.highlightOriginalHtml ?? root.innerHTML;
 
   if (highlights.length === 0) return;
