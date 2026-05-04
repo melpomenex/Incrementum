@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.29.2] - 2026-05-03
+
+### Fixed
+- **Escape closing queue tab when FlashcardStudioModal is open** — Escape now passes through to the modal/popup handler instead of closing the queue scroll tab.
+
 ## [1.29.1] - 2026-05-03
 
 ### Fixed
