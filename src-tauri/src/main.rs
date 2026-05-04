@@ -38,7 +38,7 @@ fn main() {
         // Conditional GPU acceleration (D8):
         // Only disable HW accel for software renderers (llvmpipe, softpipe, swrast).
         // Real GPU drivers (Mesa, NVIDIA proprietary) work fine with HW accel.
-        let needs_workaround = true; // Default to safe behavior
+        let mut needs_workaround = true; // Default to safe behavior
         if let Ok(output) = std::process::Command::new("glxinfo")
             .args(&["-B"])
             .output()
