@@ -29,8 +29,8 @@ function coerceError(err: unknown, context?: string): Error {
  */
 export function isTauri(): boolean {
   return (
-    "__TAURI__" in window ||
     "__TAURI_INTERNALS__" in window ||
+    "__TAURI__" in window ||
     /Tauri/i.test(navigator.userAgent)
   );
 }

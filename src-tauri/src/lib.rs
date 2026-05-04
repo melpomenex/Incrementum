@@ -31,6 +31,7 @@ mod transcription;
 mod utils;
 mod notebooklm;
 mod pocket_tts;
+mod battery;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
@@ -1020,6 +1021,8 @@ pub fn run() {
             commands::get_focus_timer_remaining,
             commands::tick_focus_timer,
             commands::reset_focus_timer_daily_stats,
+            // Battery state command
+            battery::get_battery_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,10 +1,28 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::time::{Duration, interval};
+use tokio::sync::mpsc;
 use crate::database::Repository;
 use crate::models::TranscriptionQueueEntry;
 use super::auto_queue::AutoTranscriptionQueue;
 use super::model_manager::ModelManager;
+
+/// Channel sender used to signal the idle scanner when new media is imported.
+/// Managed as Tauri state so import handlers can wake the scanner.
+pub struct IdleScannerTrigger {
+    pub tx: mpsc::Sender<()>,
+}
+
+impl IdleScannerTrigger {
+    pub fn new() -> (Self, mpsc::Receiver<()>) {
+        let (tx, rx) = mpsc::channel::<()>(8);
+        (Self { tx }, rx)
+    }
+
+    /// Signal the idle scanner to run a check.
+    pub async fn signal(&self) {
+        let _ = self.tx.send(()).await;
+    }
+}
 
 pub struct IdleScanner {
     running: AtomicBool,
@@ -21,17 +39,27 @@ impl IdleScanner {
         &self,
         app_handle: AppHandle,
         repo: Repository,
-        interval_minutes: u64,
+        _interval_minutes: u64,
+        rx: mpsc::Receiver<()>,
     ) {
         if self.running.swap(true, Ordering::SeqCst) {
             return; // Already running
         }
 
-        tokio::spawn(async move {
-            let mut ticker = interval(Duration::from_secs(interval_minutes * 60));
+        let mut rx = rx;
 
+        tokio::spawn(async move {
             loop {
-                ticker.tick().await;
+                // Wait for a signal (event-driven, no polling)
+                match rx.recv().await {
+                    Some(()) => {
+                        // Signal received — run a scan
+                    }
+                    None => {
+                        // Channel closed, shut down
+                        break;
+                    }
+                }
 
                 // Check if auto_queue is idle (no active job)
                 let is_active = app_handle.try_state::<super::TranscriptionState>()

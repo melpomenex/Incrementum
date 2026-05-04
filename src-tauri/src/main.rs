@@ -29,17 +29,36 @@ fn main() {
     install_early_panic_hook();
     early_log("startup: main begin");
 
-    // Linux WebKitGTK workarounds for YouTube playback and general stability
+    // Linux WebKitGTK workarounds
     #[cfg(target_os = "linux")]
     {
         // Disable sandbox (required for YouTube iframe playback on WebKitGTK 2.44+)
         std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
-        // Disable DMA-BUF renderer (fixes EGL display issues)
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        // Disable compositing mode (fixes white screen and video issues)
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-        // Disable hardware acceleration (required for YouTube video playback)
-        std::env::set_var("WEBKIT_DISABLE_HARDWARE_ACCELERATION", "1");
+
+        // Conditional GPU acceleration (D8):
+        // Only disable HW accel for software renderers (llvmpipe, softpipe, swrast).
+        // Real GPU drivers (Mesa, NVIDIA proprietary) work fine with HW accel.
+        let needs_workaround = true; // Default to safe behavior
+        if let Ok(output) = std::process::Command::new("glxinfo")
+            .args(&["-B"])
+            .output()
+        {
+            if let Ok(renderer) = String::from_utf8(output.stdout) {
+                let is_software = renderer.contains("llvmpipe")
+                    || renderer.contains("softpipe")
+                    || renderer.contains("swrast");
+                needs_workaround = is_software;
+            }
+        }
+
+        if needs_workaround {
+            // Disable DMA-BUF renderer (fixes EGL display issues)
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            // Disable compositing mode (fixes white screen and video issues)
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+            // Disable hardware acceleration (required for YouTube video playback)
+            std::env::set_var("WEBKIT_DISABLE_HARDWARE_ACCELERATION", "1");
+        }
 
         // Point GStreamer at bundled plugins when running from an AppImage
         if let Ok(appdir) = std::env::var("APPDIR") {

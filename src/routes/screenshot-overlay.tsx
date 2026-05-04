@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { t } from "../lib/i18n";
+import { isTauri } from "../lib/tauri";
 // Dynamic imports used instead of static imports to prevent PWA crash
 type CaptureMode = "region" | "screen" | "app";
 
@@ -30,7 +31,7 @@ export default function ScreenshotOverlay() {
   const [appWindow, setAppWindow] = useState<any>(null);
 
   useEffect(() => {
-    if ("__TAURI__" in window) {
+    if (isTauri()) {
       import("@tauri-apps/api/window").then(m => {
         setAppWindow(m.getCurrentWindow());
       });

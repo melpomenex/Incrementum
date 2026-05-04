@@ -93,38 +93,59 @@ export function AudioPlayer({
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
+      const FRAME_INTERVAL = 1000 / 20; // 20fps cap
+      let lastFrameTime = 0;
+      let animActive = true;
 
-      const draw = () => {
-        if (!analyser || !canvas) return;
+      // Visibility pausing
+      const handleVisibilityChange = () => {
+        animActive = !document.hidden;
+        if (animActive) {
+          lastFrameTime = 0; // Reset to avoid frame burst on resume
+          setAnimationId(requestAnimationFrame(draw));
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      const draw = (timestamp: number) => {
+        if (!analyser || !canvas || !animActive) return;
 
         analyser.getByteFrequencyData(dataArray);
 
-        ctx.fillStyle = "rgba(0, 0, 0, 0)";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const elapsed = timestamp - lastFrameTime;
+        if (elapsed >= FRAME_INTERVAL) {
+          lastFrameTime = timestamp - (elapsed % FRAME_INTERVAL);
 
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let barX = 0;
+          ctx.fillStyle = "rgba(0, 0, 0, 0)";
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * canvas.height;
+          const barWidth = (canvas.width / bufferLength) * 2.5;
+          let barX = 0;
 
-          // Create gradient based on position
-          const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
-          gradient.addColorStop(0, "hsl(250, 70%, 50%)");
-          gradient.addColorStop(0.5, "hsl(280, 70%, 50%)");
-          gradient.addColorStop(1, "hsl(320, 70%, 50%)");
+          for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (dataArray[i] / 255) * canvas.height;
 
-          ctx.fillStyle = gradient;
-          ctx.fillRect(barX, canvas.height - barHeight, barWidth, barHeight);
+            // Create gradient based on position
+            const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+            gradient.addColorStop(0, "hsl(250, 70%, 50%)");
+            gradient.addColorStop(0.5, "hsl(280, 70%, 50%)");
+            gradient.addColorStop(1, "hsl(320, 70%, 50%)");
 
-          barX += barWidth + 1;
+            ctx.fillStyle = gradient;
+            ctx.fillRect(barX, canvas.height - barHeight, barWidth, barHeight);
+
+            barX += barWidth + 1;
+          }
         }
 
-        const id = requestAnimationFrame(draw);
-        setAnimationId(id);
+        setAnimationId(requestAnimationFrame(draw));
       };
 
-      draw();
+      draw(performance.now());
+
+      return () => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
     } else if (animationId && !isPlaying) {
       cancelAnimationFrame(animationId);
       setAnimationId(null);

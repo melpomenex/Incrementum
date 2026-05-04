@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { invokeCommand } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 import { URLType } from "./useURLDetector";
 import {
   fetchYouTubeVideoInfo,
@@ -202,7 +202,7 @@ export function useURLMetadata(
             data = await response.json();
           } catch (httpError) {
             // Try Tauri backend if available
-            if (typeof window !== "undefined" && "__TAURI__" in window) {
+            if (isTauri()) {
               try {
                 data = await invokeCommand<any>("fetch_web_page_preview", { url });
               } catch {

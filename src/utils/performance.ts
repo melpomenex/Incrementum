@@ -250,8 +250,8 @@ export function measureSync<T>(
   }
 }
 
-// Initialize performance observers
-if (typeof window !== "undefined") {
+// Initialize performance observers (dev mode only — D9)
+if (typeof window !== "undefined" && import.meta.env.DEV) {
   // Start observing paint timing after page load
   if (document.readyState === "complete") {
     performanceMonitor.observePaintTiming();

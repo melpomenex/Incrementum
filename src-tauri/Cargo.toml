@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["devtools", "unstable"] }
+tauri = { version = "2", features = ["unstable"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2.7"
 tauri-plugin-shell = "2"
@@ -99,6 +99,9 @@ fsrs = "5.2"
 # Environment variables
 dotenvy = "0.15"
 
+# Battery state for adaptive behavior
+battery = "0.7"
+
 # Config directories
 dirs = "5.0"
 
@@ -115,11 +118,20 @@ default = []
 custom-protocol = ["tauri/custom-protocol"]
 screenshot = ["xcap"]
 
-# Keep release optimization modest because higher LLVM optimization levels have
-# been unstable in this workspace during native Tauri release builds.
+# Aggressive release optimization for battery efficiency.
+# NOTE: Some environments have observed rustc/LLVM crashes (SIGSEGV) with high
+# optimization on large dependency graphs. If this happens, temporarily fall
+# back to opt-level = "z", lto = "thin", codegen-units = 4.
 [profile.release]
-opt-level = 1
-lto = false
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Ensure third-party crates also get full optimization
+[profile.release.package."*"]
+opt-level = 3
 
 # NOTE: In some environments we've observed rustc/LLVM crashing (SIGSEGV) when
 # compiling large dependency graphs with full debuginfo/incremental enabled.

@@ -431,7 +431,7 @@ export function LocalVideoPlayer({
       });
       await updateDocumentProgressAuto(currentDocumentId, roundedTime);
       console.log("[LocalVideoPlayer] Position saved to document successfully:", roundedTime);
-      if (typeof window !== "undefined" && "__TAURI__" in window) {
+      if (isTauri()) {
         await saveDocumentPosition(
           currentDocumentId,
           timePosition(roundedTime, duration)
@@ -597,7 +597,7 @@ export function LocalVideoPlayer({
           });
           // Fire and forget - don't await since we're in cleanup
           void updateDocumentProgressAuto(docId, timeToSave);
-          if (typeof window !== "undefined" && "__TAURI__" in window) {
+          if (isTauri()) {
             void saveDocumentPosition(docId, timePosition(timeToSave, durationRef.current));
           }
         }

@@ -1,3 +1,5 @@
+import { isTauri } from "./tauri";
+
 /**
  * Browser Extension Bridge for PWA Mode
  *
@@ -287,7 +289,7 @@ export function initExtensionBridge(): void {
  * Check if we're running in PWA mode (not Tauri desktop)
  */
 export function isPWAMode(): boolean {
-  return !('__TAURI__' in window);
+  return !isTauri();
 }
 
 /**

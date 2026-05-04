@@ -1,5 +1,6 @@
 // import { listen } from "@tauri-apps/api/event";
 // import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { isTauri } from "../lib/tauri";
 import {
   captureAppWindow,
   captureScreenByIndex,
@@ -24,7 +25,7 @@ export async function captureScreenshotWithOverlay(
   screenIndex?: number
 ): Promise<string | null> {
   // Guard for PWA/Browser environment
-  if (!("__TAURI__" in window)) {
+  if (!isTauri()) {
     console.warn("Screenshot capture is not supported in browser mode");
     return null;
   }
