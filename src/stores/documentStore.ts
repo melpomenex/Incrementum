@@ -224,14 +224,20 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
     const originalDoc = { ...currentDoc };
 
+    // Only stamp dateModified if the caller didn't provide one explicitly.
+    const shouldStampDate = !('dateModified' in updates);
+    const resolvedUpdates = shouldStampDate
+      ? { ...updates, dateModified: new Date().toISOString() }
+      : updates;
+
     // Optimistically apply update
     set((state) => ({
       documents: state.documents.map((doc) =>
-        doc.id === id ? { ...doc, ...updates, dateModified: new Date().toISOString() } : doc
+        doc.id === id ? { ...doc, ...resolvedUpdates } : doc
       ),
       currentDocument:
         state.currentDocument?.id === id
-          ? { ...state.currentDocument, ...updates, dateModified: new Date().toISOString() }
+          ? { ...state.currentDocument, ...resolvedUpdates }
           : state.currentDocument,
       pendingUpdates: new Map(state.pendingUpdates).set(id, updates),
     }));
@@ -547,15 +553,21 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     })),
 
   updateExtract: (id, updates) =>
-    set((state) => ({
-      extracts: state.extracts.map((ext) =>
-        ext.id === id ? { ...ext, ...updates, dateModified: new Date().toISOString() } : ext
-      ),
-      currentExtract:
-        state.currentExtract?.id === id
-          ? { ...state.currentExtract, ...updates, dateModified: new Date().toISOString() }
+    set((state) => {
+      const shouldStampDate = !('dateModified' in updates);
+      const resolvedUpdates = shouldStampDate
+        ? { ...updates, dateModified: new Date().toISOString() }
+        : updates;
+      return {
+        extracts: state.extracts.map((ext) =>
+          ext.id === id ? { ...ext, ...resolvedUpdates } : ext
+        ),
+        currentExtract:
+          state.currentExtract?.id === id
+            ? { ...state.currentExtract, ...resolvedUpdates }
           : state.currentExtract,
-    })),
+      };
+    }),
 
   deleteExtract: (id) =>
     set((state) => ({
