@@ -48,8 +48,9 @@ import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import { getSessionStats, clearQueueSession } from "../../lib/queueSession";
 import { useI18n } from "../../lib/i18n";
+import { ScheduleView } from "../schedule/ScheduleView";
 
-type QueueMode = "reading" | "review";
+type QueueMode = "reading" | "review" | "schedule";
 
 interface ReviewQueueViewProps {
   onStartReview?: (itemId?: string) => void;
@@ -671,12 +672,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center justify-between gap-3">
           <div className="w-full md:w-auto">
             <h1 className="text-xl md:text-2xl font-semibold text-foreground">
-              {queueMode === "reading" ? t("nav.queue") : t("review.title")}
+              {queueMode === "reading" ? t("nav.queue") : queueMode === "schedule" ? t("schedule.title") : t("review.title")}
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground hidden md:block">
               {queueMode === "reading"
                 ? t("queue.readingSubtitle")
-                : t("queue.reviewSubtitle")}
+                : queueMode === "schedule"
+                  ? ""
+                  : t("queue.reviewSubtitle")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -735,6 +738,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 }`}
             >
               {t("dashboard.readingQueue")}
+            </button>
+            <button
+              onClick={() => setQueueMode("schedule")}
+              className={`px-3 py-1 text-sm rounded ${queueMode === "schedule" ? "bg-background shadow text-foreground" : "text-muted-foreground"
+                }`}
+            >
+              {t("schedule.title")}
             </button>
             <button
               onClick={() => setQueueMode("review")}
@@ -852,6 +862,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         </div>
       </div>
 
+      {queueMode === "schedule" ? (
+        <ScheduleView />
+      ) : (
+      <>
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-auto p-4 space-y-4">
           {error && (
@@ -1440,6 +1454,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         availableTags={Array.from(new Set(items.flatMap((item) => item.tags || [])))}
         availableCategories={Array.from(new Set(items.map((item) => item.category).filter(Boolean)))}
       />
+      </>
+      )}
     </div>
   );
 }

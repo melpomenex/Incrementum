@@ -82,3 +82,40 @@ export interface ReviewResult {
   newInterval: number;
   newEaseFactor: number;
 }
+
+// Schedule View types
+export interface ScheduleDayItem {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  documentFileType?: DocumentFileType;
+  itemType: "document" | "extract" | "learning-item";
+  dueDate: string;
+  estimatedTime: number; // minutes
+  stability?: number;
+  difficulty?: number;
+  interval?: number;
+  retrievability?: number;
+  lapses?: number;
+  priority: number;
+  tags: string[];
+  category?: string;
+  progress: number;
+}
+
+export interface ForecastPoint {
+  date: string;
+  due_learning_items: number;
+  due_documents: number;
+  due_total: number;
+}
+
+export interface ForecastSummary {
+  horizon_days: number;
+  due_total: number;
+}
+
+export interface WorkloadForecast {
+  points: ForecastPoint[];
+  summaries: ForecastSummary[];
+}

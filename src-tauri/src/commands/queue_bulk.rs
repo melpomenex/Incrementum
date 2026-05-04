@@ -3,7 +3,7 @@
 use tauri::State;
 use crate::database::Repository;
 use crate::error::Result;
-use crate::models::LearningItem;
+use crate::models::{LearningItem, Document};
 use chrono::{Utc, Duration};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
@@ -96,24 +96,50 @@ pub async fn get_queue_stats(
     Ok(stats)
 }
 
-/// Postpone an item (reschedule for later)
+/// Postpone an item (reschedule for later). Handles both learning items and documents.
+/// When `item_type` is "document", updates the document's `next_reading_date`.
+/// Otherwise, treats it as a learning item and updates `due_date`.
 #[tauri::command]
 pub async fn postpone_item(
     item_id: String,
     days: i32,
+    item_type: Option<String>,
     repo: State<'_, Repository>,
-) -> Result<LearningItem> {
-    let mut item = repo.get_all_learning_items().await?
-        .into_iter()
-        .find(|i| i.id == item_id)
-        .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Item {}", item_id)))?;
+) -> Result<bool> {
+    match item_type.as_deref() {
+        Some("document") => {
+            // Postpone a document by advancing next_reading_date
+            let mut doc = repo.get_document(&item_id).await?
+                .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Document {}", item_id)))?;
 
-    // Reschedule by adding days to due date
-    item.due_date += Duration::days(days as i64);
-    item.date_modified = Utc::now();
+            let new_date = match doc.next_reading_date {
+                Some(d) => d + Duration::days(days as i64),
+                None => Utc::now() + Duration::days(days as i64),
+            };
+            repo.update_document_scheduling(
+                &item_id,
+                Some(new_date),
+                doc.stability,
+                doc.difficulty,
+                None, // reps
+                None, // total_time_spent
+            ).await?;
+            Ok(true)
+        }
+        _ => {
+            // Default: postpone a learning item
+            let mut item = repo.get_all_learning_items().await?
+                .into_iter()
+                .find(|i| i.id == item_id)
+                .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Item {}", item_id)))?;
 
-    repo.update_learning_item(&item).await?;
-    Ok(item)
+            item.due_date += Duration::days(days as i64);
+            item.date_modified = Utc::now();
+
+            repo.update_learning_item(&item).await?;
+            Ok(true)
+        }
+    }
 }
 
 /// Bulk suspend items

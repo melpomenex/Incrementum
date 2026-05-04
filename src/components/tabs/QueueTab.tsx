@@ -1,5 +1,7 @@
 import { ReviewQueueView } from "../review/ReviewQueueView";
 import { MobileQueueView } from "../mobile/MobileQueueView";
+import { ScheduleView } from "../schedule/ScheduleView";
+import { MobileScheduleView } from "../schedule/MobileScheduleView";
 import { useReviewStore, useTabsStore } from "../../stores";
 import type { QueueItem } from "../../types/queue";
 import { ReviewTab, DocumentViewer } from "./TabRegistry";
@@ -7,7 +9,7 @@ import { QueueScrollPage } from "../../pages/QueueScrollPage";
 import { usePaneId } from "../common/Tabs";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
-import { Brain, FileText, Layers } from "lucide-react";
+import { Brain, FileText, Layers, CalendarDays } from "lucide-react";
 
 export function QueueTab() {
   const { addTab } = useTabsStore();
