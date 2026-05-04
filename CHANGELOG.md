@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.29.4] - 2026-05-04
+
+### Added
+- **Compact table view for Schedule** — Spreadsheet-dense table with columns for #, title, type, priority, interval, reps, lapses, due date, difficulty, stability, retrievability, progress, and estimated time. Color-coded cells for quick scanning.
+- **Card/table view toggle** — Switch between the original card layout and the new table view. Defaults to table on desktop; mobile stays on card view.
+- **Right-click context menu on schedule items** — Full context menu with open/study, suspend/unsuspend, postpone (1–30 days), dismiss, and delete actions.
+- **Schedule view** — New Schedule tab showing upcoming items grouped by date with workload forecast timeline, summary stats, and spread functionality to redistribute overloaded days.
+- **Extract/Learning item type preferences** — Customize Queue modal now persists per-item-type settings.
+- **Cross-platform battery optimization** — Battery-aware behavior for queue processing and background tasks.
+- **Algorithm stats in queue items** — Stability, difficulty, interval, retrievability, reps, and lapses now displayed in enriched queue item rows.
+
+### Fixed
+- **NaN dates in schedule view** — Queue items with missing or invalid due dates now handled gracefully instead of rendering NaN.
+- **dateModified stamp on document/extract updates** — Conditional timestamp update to avoid unnecessary modification dates.
+- **DB pool exhaustion from cover resolution** — Permanent Set for tracking resolved covers prevents repeated DB lookups.
+- **Grid view document cycling loop** — Fixed infinite loop when cycling through documents in grid view.
+- **updateDocument overwriting dateModified** — No longer blindly resets the modification timestamp.
+
 ## [1.29.3] - 2026-05-04
 
 ### Fixed
