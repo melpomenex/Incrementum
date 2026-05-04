@@ -104,6 +104,7 @@ import { installNetworkDebugInstrumentation, isNetworkDebugEnabled } from "./deb
 import { MainLayout } from "./components/layout/MainLayout";
 import { DevPerformanceMonitor } from "./components/common/PerformanceMonitor";
 import { Analytics } from "@vercel/analytics/react";
+import { BatteryProvider } from "./contexts/BatteryContext";
 
 // Auth callback route
 import AuthCallback from "./routes/auth-callback";
@@ -242,6 +243,7 @@ reactRoot.render(
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <BatteryProvider>
         <HashRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -256,6 +258,7 @@ reactRoot.render(
           {/* Only load Vercel Analytics in web/PWA mode, not in Tauri desktop */}
           {!isTauri() && <Analytics />}
         </HashRouter>
+        </BatteryProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>
