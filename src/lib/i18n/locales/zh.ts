@@ -4019,4 +4019,9 @@ export const zh: Dict = {
   "schedule.intervalHours": "{count}小时",
   "schedule.intervalDays": "{count}天",
   "schedule.intervalWeeks": "{count}周",
+  "schedule.itemSuspended": "已暂停项目",
+  "schedule.itemUnsuspended": "已恢复项目",
+  "schedule.itemDeleted": "已删除项目",
+  "schedule.itemDismissed": "已忽略项目",
+  "schedule.actionFailed": "操作失败",
 };

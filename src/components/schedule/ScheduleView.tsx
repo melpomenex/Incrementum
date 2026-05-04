@@ -4,7 +4,7 @@ import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem, ForecastPoint } from "../../types/queue";
 import { getWorkloadForecast } from "../../api/analytics";
-import { getQueue, postponeItem } from "../../api/queue";
+import { getQueue, postponeItem, bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { ScheduleSummary } from "./ScheduleSummary";
 import { ScheduleItemList } from "./ScheduleItemList";
@@ -151,6 +151,57 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
     [loadData, toast, t],
   );
 
+  const handleOpen = useCallback(async (item: ScheduleDayItem) => {
+    // Navigate to document or start review
+    // For now just log — the parent component handles navigation
+    console.log("[schedule] Open item:", item.id, item.itemType);
+  }, []);
+
+  const handleSuspend = useCallback(async (itemId: string, itemType: string) => {
+    try {
+      if (itemType === "learning-item") {
+        await bulkSuspendItems([itemId]);
+        toast.success(t("schedule.itemSuspended"));
+      }
+      await loadData();
+    } catch {
+      toast.error(t("schedule.actionFailed"));
+    }
+  }, [loadData, toast, t]);
+
+  const handleUnsuspend = useCallback(async (itemId: string, itemType: string) => {
+    try {
+      if (itemType === "learning-item") {
+        await bulkUnsuspendItems([itemId]);
+        toast.success(t("schedule.itemUnsuspended"));
+      }
+      await loadData();
+    } catch {
+      toast.error(t("schedule.actionFailed"));
+    }
+  }, [loadData, toast, t]);
+
+  const handleDelete = useCallback(async (itemId: string, itemType: string) => {
+    try {
+      await bulkDeleteItems([itemId]);
+      toast.success(t("schedule.itemDeleted"));
+      await loadData();
+    } catch {
+      toast.error(t("schedule.actionFailed"));
+    }
+  }, [loadData, toast, t]);
+
+  const handleDismiss = useCallback(async (itemId: string) => {
+    // Dismiss is archive/dismiss for documents — uses delete for now
+    try {
+      await bulkDeleteItems([itemId]);
+      toast.success(t("schedule.itemDismissed"));
+      await loadData();
+    } catch {
+      toast.error(t("schedule.actionFailed"));
+    }
+  }, [loadData, toast, t]);
+
   // Handle spread from toolbar
   const handleSpreadToolbar = useCallback(() => {
     // Find the most overloaded day in next 14 days
@@ -269,6 +320,11 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
         items={scheduleItems}
         selectedDate={selectedDate}
         onPostpone={handlePostpone}
+        onOpen={handleOpen}
+        onSuspend={handleSuspend}
+        onUnsuspend={handleUnsuspend}
+        onDelete={handleDelete}
+        onDismiss={handleDismiss}
         isLoading={isLoading}
         isMobile={isMobile}
       />
