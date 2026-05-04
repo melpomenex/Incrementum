@@ -107,6 +107,23 @@ export interface WorkloadDayDetail {
   review_rating: number | null;
 }
 
+export interface ForecastPoint {
+  date: string;
+  due_learning_items: number;
+  due_documents: number;
+  due_total: number;
+}
+
+export interface ForecastSummary {
+  horizon_days: number;
+  due_total: number;
+}
+
+export interface WorkloadForecast {
+  points: ForecastPoint[];
+  summaries: ForecastSummary[];
+}
+
 /**
  * Get daily workload data for a date range
  */
@@ -127,4 +144,16 @@ export async function getWorkloadDayDetails(date: string): Promise<WorkloadDayDe
     console.warn("[analytics] get_workload_day_details returned non-array result", result);
   }
   return Array.isArray(result) ? result : [];
+}
+
+/**
+ * Get workload forecast for the next N days
+ */
+export async function getWorkloadForecast(days: number = 90): Promise<WorkloadForecast> {
+  const result = await invokeCommand<WorkloadForecast | null>("get_due_workload_forecast", { days });
+  if (!result || !Array.isArray(result.points)) {
+    console.warn("[analytics] get_due_workload_forecast returned unexpected result", result);
+    return { points: [], summaries: [] };
+  }
+  return result;
 }

@@ -147,10 +147,11 @@ export async function getQueueStats(): Promise<QueueStats> {
 }
 
 /**
- * Postpone an item by N days
+ * Postpone an item by N days.
+ * Handles both learning items and documents (passes item_type to backend).
  */
-export async function postponeItem(itemId: string, days: number): Promise<void> {
-  await invokeCommand("postpone_item", { itemId, days });
+export async function postponeItem(itemId: string, days: number, itemType?: string): Promise<void> {
+  await invokeCommand("postpone_item", { itemId, days, itemType: itemType ?? null });
 }
 
 /**

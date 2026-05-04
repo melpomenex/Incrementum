@@ -18,6 +18,7 @@ import {
   Clock,
   BookOpen,
   Brain,
+  CalendarDays,
   X,
   SlidersHorizontal,
   Archive,
@@ -30,6 +31,7 @@ import { cn } from "../../utils";
 import { SwipeableItem } from "./SwipeableItem";
 import { bulkSuspendItems, bulkUnsuspendItems, postponeItem } from "../../api/queue";
 import { useI18n } from "../../lib/i18n";
+import { MobileScheduleView } from "../schedule/MobileScheduleView";
 
 interface MobileQueueViewProps {
   onStartReview?: (itemId?: string) => void;
@@ -62,7 +64,7 @@ export function MobileQueueView({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<"reading" | "review">("reading");
+  const [activeTab, setActiveTab] = useState<"reading" | "review" | "schedule">("reading");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("today");
   const { t } = useI18n();
   const toast = useToast();
@@ -260,7 +262,7 @@ export function MobileQueueView({
       <div className="px-4 py-3 border-b border-border bg-card">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-semibold text-foreground">
-            {activeTab === "reading" ? t("mobileQueue.readingQueue") : t("mobileQueue.review")}
+            {activeTab === "reading" ? t("mobileQueue.readingQueue") : activeTab === "schedule" ? t("schedule.title") : t("mobileQueue.review")}
           </h1>
           <div className="flex items-center gap-2">
             {activeTab === "reading" && (
@@ -283,14 +285,14 @@ export function MobileQueueView({
           <button
             onClick={() => setActiveTab("reading")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all",
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all",
               activeTab === "reading"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground"
             )}
           >
             <BookOpen className="w-4 h-4" />
-            {t("mobileQueue.reading")}
+            <span className="hidden xs:inline">{t("mobileQueue.reading")}</span>
             {dueCount > 0 && (
               <span className="px-1.5 py-0.5 bg-primary text-primary-foreground text-xs rounded-full">
                 {dueCount}
@@ -298,20 +300,36 @@ export function MobileQueueView({
             )}
           </button>
           <button
+            onClick={() => setActiveTab("schedule")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all",
+              activeTab === "schedule"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground"
+            )}
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span className="hidden xs:inline">{t("schedule.title")}</span>
+          </button>
+          <button
             onClick={() => setActiveTab("review")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all",
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-all",
               activeTab === "review"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground"
             )}
           >
             <Brain className="w-4 h-4" />
-            {t("mobileQueue.review")}
+            <span className="hidden xs:inline">{t("mobileQueue.review")}</span>
           </button>
         </div>
       </div>
 
+      {activeTab === "schedule" ? (
+        <MobileScheduleView />
+      ) : (
+      <>
       {/* Quick Filters (Reading only) */}
       {activeTab === "reading" && (
         <div className="px-4 py-2 border-b border-border bg-card/50">
@@ -553,6 +571,8 @@ export function MobileQueueView({
             />
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
