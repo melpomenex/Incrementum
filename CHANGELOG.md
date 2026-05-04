@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.29.3] - 2026-05-04
+
+### Fixed
+- **Text selection broken in Scroll Mode on Windows** — Nested `overflow-auto` on the document content wrapper and MarkdownViewer created competing scroll containers. On WebView2 (Windows), the outer container captured mouse-drag selection gestures as scroll events, making text selection impossible. Now uses `overflow-hidden` on the wrapper for markdown, HTML, and EPUB viewers that manage their own scrolling.
+
 ## [1.29.2] - 2026-05-03
 
 ### Fixed
