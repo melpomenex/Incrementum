@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, AlertCircle, Youtube, Rss, Globe, Tag as TagIcon, Folder, X, Check, Plus, AlertTriangle, ExternalLink } from "lucide-react";
+import { isTauri } from "../../lib/tauri";
 import { URLType } from "../../hooks/useURLDetector";
 import type { YouTubeVideo } from "../../api/youtube";
 import type { Feed } from "../../api/rss";
@@ -50,7 +51,7 @@ export function ImportPreview({
 
   // Load collections on mount (Tauri only)
   useEffect(() => {
-    if (typeof window !== 'undefined' && '__TAURI__' in window) {
+    if (isTauri()) {
       getCollections().then(setCollections).catch(console.error);
     }
   }, []);

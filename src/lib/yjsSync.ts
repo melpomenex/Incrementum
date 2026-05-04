@@ -229,6 +229,65 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         room,
       };
 
+      // --- Idle disconnect (D4) ---
+      let idleTimer: ReturnType<typeof setTimeout> | null = null;
+      const IDLE_MS = 5 * 60 * 1000; // 5 minutes
+      let disconnectedFromIdle = false;
+
+      function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          if (provider.shouldConnect && provider.wsconnected) {
+            provider.disconnect();
+            disconnectedFromIdle = true;
+            if (isSyncDebugEnabled()) {
+              console.info("[YjsSync] Idle disconnect: no updates for 5 minutes");
+            }
+          }
+        }, IDLE_MS);
+      }
+
+      function reconnectIfNeeded() {
+        if (disconnectedFromIdle && !provider.wsconnected) {
+          provider.connect();
+          disconnectedFromIdle = false;
+          if (isSyncDebugEnabled()) {
+            console.info("[YjsSync] Reconnecting after idle disconnect");
+          }
+        }
+        resetIdleTimer();
+      }
+
+      // Listen for local document updates to reset the idle timer
+      doc.on("update", () => {
+        reconnectIfNeeded();
+      });
+
+      // Disconnect when page is hidden, reconnect when visible
+      function handleVisibilityChange() {
+        if (document.hidden) {
+          if (provider.wsconnected) {
+            provider.disconnect();
+            if (idleTimer) clearTimeout(idleTimer);
+            if (isSyncDebugEnabled()) {
+              console.info("[YjsSync] Disconnected due to page hidden");
+            }
+          }
+        } else {
+          if (!provider.wsconnected) {
+            provider.connect();
+            resetIdleTimer();
+            if (isSyncDebugEnabled()) {
+              console.info("[YjsSync] Reconnected after page visible");
+            }
+          }
+        }
+      }
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // Start the idle timer
+      resetIdleTimer();
+
       return instance;
     } catch (initError) {
       console.error("[YjsSync] Failed to initialize Y.js sync:", initError);

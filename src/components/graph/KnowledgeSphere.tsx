@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
+import { useBattery } from "../../contexts/BatteryContext";
 
 /**
  * 3D point
@@ -61,6 +62,7 @@ export function KnowledgeSphere({
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const { theme } = useTheme();
+  const { onBattery } = useBattery();
   const accentColor = theme.colors.secondary;
   const infoColor = theme.colors.link;
   const textColor = theme.colors.onBackground || theme.colors.text;
@@ -70,6 +72,14 @@ export function KnowledgeSphere({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+
+  // Visibility state for pausing
+  const isVisibleRef = useRef(true);
+  // Auto-rotate idle timeout (D6.1)
+  const lastInteractionRef = useRef(Date.now());
+  // Force sim throttle (D6.2)
+  const lastSimFrameRef = useRef(0);
+  const SIM_FRAME_INTERVAL = 1000 / 15; // 15fps cap
 
   // Convert nodes to 3D positions on sphere
   const sphereNodes = useRef<SphereNode[]>([]);
@@ -292,7 +302,18 @@ export function KnowledgeSphere({
   // Animation loop
   useEffect(() => {
     const animate = () => {
-      if (autoRotate && !isDragging) {
+      // Pause when page is hidden
+      if (!isVisibleRef.current) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // Auto-rotate: stop after 5 seconds of no interaction (D6.1)
+      const now = Date.now();
+      const idleMs = now - lastInteractionRef.current;
+      const shouldAutoRotate = autoRotate && !isDragging && idleMs < 5000;
+
+      if (shouldAutoRotate) {
         setRotation((prev) => ({
           x: prev.x,
           y: prev.y + rotationSpeed,
@@ -305,10 +326,32 @@ export function KnowledgeSphere({
 
     animate();
 
+    // Visibility change handler
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = !document.hidden;
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Tauri focus change handler
+    let unlistenFocus: (() => void) | null = null;
+    (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+          if (!focused) isVisibleRef.current = false;
+          else if (!document.hidden) isVisibleRef.current = true;
+        });
+      } catch {
+        // Not in Tauri
+      }
+    })();
+
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      unlistenFocus?.();
     };
   }, [draw, autoRotate, rotationSpeed, isDragging]);
 
@@ -321,23 +364,34 @@ export function KnowledgeSphere({
     const resize = () => {
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
+      // D6.3: Cap pixel ratio on battery to reduce GPU work
+      // When on battery, cap at devicePixelRatio 1 to halve render pixels
+      if (onBattery && window.devicePixelRatio > 2) {
+        const dpr = 1;
+        canvas.width = container.clientWidth * dpr;
+        canvas.height = container.clientHeight * dpr;
+        canvas.style.width = container.clientWidth + 'px';
+        canvas.style.height = container.clientHeight + 'px';
+      }
       draw();
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [draw]);
+  }, [draw, onBattery]);
 
   // Handle mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
+      lastInteractionRef.current = Date.now();
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    lastInteractionRef.current = Date.now();
     if (isDragging) {
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;

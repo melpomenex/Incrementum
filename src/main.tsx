@@ -217,7 +217,7 @@ if ((import.meta.env.DEV || isTauri()) && "caches" in window) {
 }
 
 // Initialize demo content for web/PWA (only in browser mode, not Tauri)
-if (!(window as any).__TAURI__) {
+if (!isTauri()) {
   import('./lib/demoContent').then(({ checkAndImportDemoContent }) => {
     checkAndImportDemoContent(null, null).catch((error) => {
       console.log('[Demo Content] Auto-import check failed or skipped:', error);

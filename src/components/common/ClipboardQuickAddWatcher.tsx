@@ -32,24 +32,53 @@ export function ClipboardQuickAddWatcher() {
   const toast = useToast();
 
   useEffect(() => {
-    const timer = window.setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      if (!getClipboardWatcherEnabled()) return;
-      if (!navigator.clipboard?.readText) return;
+    let timer: number | undefined;
 
-      try {
-        const text = (await navigator.clipboard.readText()).trim();
-        if (!text || text.length < 8) return;
-        if (text === lastClipboardRef.current) return;
-        lastClipboardRef.current = text;
-        if (dismissedRef.current.has(text)) return;
-        setCapturedText(text);
-      } catch {
-        // Clipboard permissions can fail silently.
+    function startPolling() {
+      if (timer !== undefined) return; // Already polling
+      timer = window.setInterval(async () => {
+        if (!getClipboardWatcherEnabled()) return;
+        if (!navigator.clipboard?.readText) return;
+
+        try {
+          const text = (await navigator.clipboard.readText()).trim();
+          if (!text || text.length < 8) return;
+          if (text === lastClipboardRef.current) return;
+          lastClipboardRef.current = text;
+          if (dismissedRef.current.has(text)) return;
+          setCapturedText(text);
+        } catch {
+          // Clipboard permissions can fail silently.
+        }
+      }, POLL_MS);
+    }
+
+    function stopPolling() {
+      if (timer !== undefined) {
+        window.clearInterval(timer);
+        timer = undefined;
       }
-    }, POLL_MS);
+    }
 
-    return () => window.clearInterval(timer);
+    // Only poll when the page is visible
+    if (!document.hidden) {
+      startPolling();
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   if (!capturedText) return null;

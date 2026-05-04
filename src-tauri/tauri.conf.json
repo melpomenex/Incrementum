@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Incrementum",
@@ -25,7 +25,7 @@
         "decorations": true,
         "alwaysOnTop": false,
         "skipTaskbar": false,
-        "devtools": true,
+        "devtools": false,
         "hiddenTitle": true,
         "dragDropEnabled": true
       }
