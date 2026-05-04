@@ -9,6 +9,11 @@ interface ScheduleItemListProps {
   items: ScheduleDayItem[];
   selectedDate: string | null;
   onPostpone: (itemId: string, days: number, itemType?: string) => Promise<void>;
+  onOpen?: (item: ScheduleDayItem) => void;
+  onSuspend?: (itemId: string, itemType: string) => Promise<void>;
+  onUnsuspend?: (itemId: string, itemType: string) => Promise<void>;
+  onDelete?: (itemId: string, itemType: string) => Promise<void>;
+  onDismiss?: (itemId: string) => Promise<void>;
   isLoading: boolean;
   isMobile?: boolean;
 }
@@ -31,6 +36,11 @@ export function ScheduleItemList({
   items,
   selectedDate,
   onPostpone,
+  onOpen,
+  onSuspend,
+  onUnsuspend,
+  onDelete,
+  onDismiss,
   isLoading,
   isMobile = false,
 }: ScheduleItemListProps) {
@@ -123,6 +133,11 @@ export function ScheduleItemList({
                 key={item.id}
                 item={item}
                 onPostpone={onPostpone}
+                onOpen={onOpen}
+                onSuspend={onSuspend}
+                onUnsuspend={onUnsuspend}
+                onDelete={onDelete}
+                onDismiss={onDismiss}
                 isMobile={isMobile}
               />
             ))}

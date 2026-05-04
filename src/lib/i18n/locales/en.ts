@@ -4440,6 +4440,11 @@ export const en: Dict = {
   "schedule.intervalHours": "{count}h",
   "schedule.intervalDays": "{count}d",
   "schedule.intervalWeeks": "{count}w",
+  "schedule.itemSuspended": "Item suspended",
+  "schedule.itemUnsuspended": "Item unsuspended",
+  "schedule.itemDeleted": "Item deleted",
+  "schedule.itemDismissed": "Item dismissed",
+  "schedule.actionFailed": "Action failed",
 
   // --- Graph controls ---
   "graph.resetRotation": "Reset rotation",
