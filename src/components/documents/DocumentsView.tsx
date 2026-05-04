@@ -228,7 +228,7 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
-  const coverResolutionQueue = useRef<Set<string>>(new Set());
+
 
   useEffect(() => {
     loadDocuments();
@@ -307,23 +307,27 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
     return sortDocuments(filteredDocuments, sortKey, sortDirection);
   }, [filteredDocuments, sortKey, sortDirection]);
 
+  // Track which doc IDs we've already processed for cover resolution.
+  // This prevents re-firing resolveDocumentCover on every sortedDocuments change.
+  const processedDocIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!isTauri() || mode !== "grid") return;
 
     const pendingDocs = sortedDocuments.filter((doc) => {
       if (doc.coverImageUrl || doc.coverImageSource === "fallback") return false;
-      return !coverResolutionQueue.current.has(doc.id);
+      if (processedDocIdsRef.current.has(doc.id)) return false;
+      return true;
     });
 
     if (pendingDocs.length === 0) return;
 
     pendingDocs.forEach((doc) => {
-      coverResolutionQueue.current.add(doc.id);
+      processedDocIdsRef.current.add(doc.id);
       resolveDocumentCover(doc.id)
         .then((updated) => {
-          coverResolutionQueue.current.delete(doc.id);
           if (!updated) return;
-          // Only update if cover actually changed — avoid re-render loops
+          // Only update if cover actually changed
           const current = useDocumentStore.getState().documents.find(d => d.id === doc.id);
           if (current?.coverImageUrl === updated.coverImageUrl) return;
           updateDocument(doc.id, {
@@ -333,7 +337,6 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         })
         .catch((error) => {
           console.warn(`Failed to resolve cover for document ${doc.id}:`, error);
-          coverResolutionQueue.current.delete(doc.id);
         });
     });
   }, [mode, sortedDocuments, updateDocument]);
