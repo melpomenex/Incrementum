@@ -4478,12 +4478,19 @@ export function DocumentViewer({
         data-document-content="true"
         className={cn(
           "flex-1 bg-muted/30 relative min-h-0",
-          // Avoid nested scrolling when a child viewer owns its own internal scroll containers.
-          // PDFs restore against their own scroll element; YouTube has transcript/chat panes.
+          // Avoid nested scrolling when a child viewer owns its own internal scroll
+          // containers.  PDFs restore against their own scroll element; YouTube has
+          // transcript/chat panes.  Markdown/HTML/EPUB each have their own scroll
+          // container — nested overflow-auto on the parent breaks text selection on
+          // Windows (WebView2) because the parent scroll handler captures the
+          // mouse-drag selection gesture.
           viewMode === "document"
           && (
             (docType === "pdf" && !(pdfViewMode === "ocr-html" && ocrResult))
             || docType === "youtube"
+            || docType === "markdown"
+            || docType === "html"
+            || docType === "epub"
           )
             ? "overflow-hidden"
             : "overflow-auto"
