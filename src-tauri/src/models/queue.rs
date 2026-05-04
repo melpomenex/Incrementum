@@ -27,4 +27,12 @@ pub struct QueueItem {
     pub source: Option<String>,
     /// The position in the queue (used for interspersion ordering)
     pub position: Option<i32>,
+
+    // FSRS / algorithm metadata (populated when available)
+    pub stability: Option<f64>,
+    pub difficulty: Option<f64>,
+    pub interval: Option<f64>,
+    pub retrievability: Option<f64>,
+    pub lapses: Option<i32>,
+    pub reps: Option<i32>,
 }

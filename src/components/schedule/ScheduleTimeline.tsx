@@ -1,5 +1,6 @@
 import { useRef, useEffect, useMemo } from "react";
 import { useI18n } from "../../lib/i18n";
+import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ForecastPoint } from "../../api/analytics";
 import { cn } from "../../utils";
 
@@ -89,7 +90,7 @@ export function ScheduleTimeline({
         </button>
 
         {visibleDays.map((day) => {
-          const date = new Date(day.date + "T00:00:00");
+          const date = parseScheduleDate(day.date);
           const isToday = day.date === todayStr;
           const isSelected = selectedDate === day.date;
           const level = getLevel(day.due_total);

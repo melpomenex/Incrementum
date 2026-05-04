@@ -4436,6 +4436,10 @@ export const en: Dict = {
   "schedule.loading": "Loading schedule...",
   "schedule.cancel": "Cancel",
   "schedule.confirm": "Confirm",
+  "schedule.interval": "Interval",
+  "schedule.intervalHours": "{count}h",
+  "schedule.intervalDays": "{count}d",
+  "schedule.intervalWeeks": "{count}w",
 
   // --- Graph controls ---
   "graph.resetRotation": "Reset rotation",

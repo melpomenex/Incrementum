@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useI18n } from "../../lib/i18n";
+import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
 import { ScheduleItemRow } from "./ScheduleItemRow";
 import { cn } from "../../utils";
@@ -15,7 +16,7 @@ interface ScheduleItemListProps {
 function formatSectionLabel(dateStr: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const date = new Date(dateStr + "T00:00:00");
+  const date = parseScheduleDate(dateStr);
   const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
 
   if (diff === 0) return t("schedule.today");

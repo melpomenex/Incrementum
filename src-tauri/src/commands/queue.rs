@@ -163,6 +163,12 @@ async fn get_queue_items_from_repo(
             progress,
             source: None,
             position: None,
+            stability: item.memory_state.as_ref().map(|m| m.stability),
+            difficulty: Some(item.difficulty as f64),
+            interval: Some(item.interval),
+            retrievability: None,
+            lapses: Some(item.lapses),
+            reps: Some(item.review_count),
         });
     }
 
@@ -199,6 +205,12 @@ async fn get_queue_items_from_repo(
             progress: 0,
             source: None,
             position: None,
+            stability: None,
+            difficulty: None,
+            interval: None, // Extracts don't have interval
+            retrievability: None,
+            lapses: None,
+            reps: Some(extract.review_count),
         });
     }
 
@@ -239,6 +251,12 @@ async fn get_queue_items_from_repo(
             progress: 0,
             source: None,
             position: None,
+            stability: None,
+            difficulty: None,
+            interval: None,
+            retrievability: None,
+            lapses: None,
+            reps: Some(extract.review_count),
         });
     }
 
@@ -286,6 +304,12 @@ async fn get_queue_items_from_repo(
             progress,
             source: None,
             position: None,
+            stability: document.stability,
+            difficulty: document.difficulty,
+            interval: None,
+            retrievability: None,
+            lapses: None,
+            reps: document.reps,
         });
     }
 
@@ -423,6 +447,12 @@ async fn get_due_documents_only_from_repo(
             progress,
             source: None,
             position: None,
+            stability: document.stability,
+            difficulty: document.difficulty,
+            interval: None,
+            retrievability: None,
+            lapses: None,
+            reps: document.reps,
         });
     }
 
@@ -519,6 +549,12 @@ pub async fn get_queue_with_playlist_intersperse(
                             progress,
                             source: Some(format!("playlist:{}", sub.id)),
                             position: Some(sub.queue_intersperse_interval),
+                            stability: doc.stability,
+                            difficulty: doc.difficulty,
+                            interval: None,
+                            retrievability: None,
+                            lapses: None,
+                            reps: doc.reps,
                         });
                     }
                 }
