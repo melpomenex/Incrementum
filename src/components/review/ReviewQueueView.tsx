@@ -130,7 +130,20 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
   const [isCustomizeModalOpen, setCustomizeModalOpen] = useState(false);
-  const [sessionCustomization, setSessionCustomization] = useState<SessionCustomization>(DEFAULT_CUSTOMIZATION);
+  const [sessionCustomization, setSessionCustomization] = useState<SessionCustomization>(() => {
+    const saved = useSettingsStore.getState().settings.smartQueue.sessionItemTypes;
+    if (saved) {
+      return {
+        ...DEFAULT_CUSTOMIZATION,
+        itemTypes: {
+          documents: saved.documents ?? DEFAULT_CUSTOMIZATION.itemTypes.documents,
+          extracts: saved.extracts ?? DEFAULT_CUSTOMIZATION.itemTypes.extracts,
+          learningItems: saved.learningItems ?? DEFAULT_CUSTOMIZATION.itemTypes.learningItems,
+        },
+      };
+    }
+    return DEFAULT_CUSTOMIZATION;
+  });
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const searchRef = useRef<HTMLInputElement>(null);
   const queueListRef = useRef<HTMLDivElement>(null);
@@ -1416,7 +1429,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         isOpen={isCustomizeModalOpen}
         onClose={() => setCustomizeModalOpen(false)}
         customization={sessionCustomization}
-        onChange={setSessionCustomization}
+        onChange={(next) => {
+          setSessionCustomization(next);
+          // Persist item type preferences to settings
+          updateSettingsCategory("smartQueue", {
+            sessionItemTypes: { ...next.itemTypes },
+          });
+        }}
         onApply={() => setCustomizeModalOpen(false)}
         availableTags={Array.from(new Set(items.flatMap((item) => item.tags || [])))}
         availableCategories={Array.from(new Set(items.map((item) => item.category).filter(Boolean)))}
