@@ -1261,6 +1261,13 @@ export function QueueScrollPage() {
         e.stopImmediatePropagation();
         toggleFullscreen();
       } else if (e.key === "Escape") {
+        // Don't close the tab if an overlay (modal/popup/dialog) is open —
+        // let the overlay's own handler consume the Escape instead.
+        const overlayOpen = !!(flashcardStudioSeed || activeExtractForCloze || activeExtractForQA || isExtractDialogOpen || showSettings || showRssSettings);
+        if (overlayOpen) {
+          // Don't stop propagation — let the modal/popup handle Escape at bubble phase
+          return;
+        }
         e.stopImmediatePropagation();
         if (isFullscreen) {
           toggleFullscreen();
