@@ -66,10 +66,11 @@ export function ScheduleItemList({
     }));
   }, [items]);
 
-  // Filter by selected date if set
+  // Filter by selected date if set (normalize both sides to YYYY-MM-DD for comparison)
   const visibleGroups = useMemo(() => {
     if (!selectedDate) return grouped;
-    return grouped.filter((g) => g.date === selectedDate);
+    const sel = selectedDate.slice(0, 10);
+    return grouped.filter((g) => g.date.slice(0, 10) === sel);
   }, [grouped, selectedDate]);
 
   // Groups for table view

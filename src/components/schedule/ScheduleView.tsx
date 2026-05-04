@@ -131,7 +131,10 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
 
   // Get items for a specific date (for spread)
   const getItemsForDate = useCallback(
-    (date: string) => scheduleItems.filter((i) => i.dueDate === date),
+    (date: string) => {
+      const d = date.slice(0, 10);
+      return scheduleItems.filter((i) => i.dueDate.slice(0, 10) === d);
+    },
     [scheduleItems],
   );
 
