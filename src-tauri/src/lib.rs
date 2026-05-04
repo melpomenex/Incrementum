@@ -179,8 +179,15 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_opener::init());
+
+    // Global shortcuts are desktop-only (not available on iOS/Android)
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+        builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+
+    builder = builder
         // Temporarily disabled - may cause Windows crash on startup
         // TODO: Re-enable with proper Windows notification handling
         //.plugin(tauri_plugin_notification::init())
@@ -335,6 +342,8 @@ pub fn run() {
             // Register global keyboard shortcuts to prevent webview engines
             // (webkit2gtk on Linux, WebView2 on Windows, WKWebView on macOS)
             // from intercepting Ctrl/Cmd+key combos before JavaScript.
+            // Desktop-only: global shortcuts are not available on iOS/Android.
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -523,6 +532,7 @@ pub fn run() {
                             let _ = window.navigate(url);
                         }
                     }
+                    #[cfg(not(any(target_os = "ios", target_os = "android")))]
                     if std::env::var("INCREMENTUM_OPEN_DEVTOOLS").is_ok() {
                         window.open_devtools();
                     }
