@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
 import { ScheduleItemRow } from "./ScheduleItemRow";
+import { ScheduleTable } from "./ScheduleTable";
 import { cn } from "../../utils";
+import { LayoutGrid, Table2 } from "lucide-react";
 
 interface ScheduleItemListProps {
   items: ScheduleDayItem[];
@@ -45,6 +47,7 @@ export function ScheduleItemList({
   isMobile = false,
 }: ScheduleItemListProps) {
   const { t } = useI18n();
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
 
   // Group items by date
   const grouped = useMemo(() => {
@@ -56,7 +59,6 @@ export function ScheduleItemList({
       groups.set(item.dueDate, existing);
     }
 
-    // Sort dates chronologically
     const sortedKeys = Array.from(groups.keys()).sort();
     return sortedKeys.map((date) => ({
       date,
@@ -69,6 +71,12 @@ export function ScheduleItemList({
     if (!selectedDate) return grouped;
     return grouped.filter((g) => g.date === selectedDate);
   }, [grouped, selectedDate]);
+
+  // Groups for table view
+  const visibleTableGroups = useMemo(
+    () => visibleGroups,
+    [visibleGroups],
+  );
 
   if (isLoading) {
     return (
@@ -113,37 +121,81 @@ export function ScheduleItemList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      {visibleGroups.map((group) => (
-        <div key={group.date}>
-          {/* Sticky section header */}
-          <div className="sticky top-0 z-10 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
-            <span className="text-xs font-semibold text-muted-foreground">
-              {formatSectionLabel(group.date, t)}
-            </span>
-            <span className="text-xs text-muted-foreground ml-2">
-              {t("schedule.itemsDue", { count: group.items.length })}
-            </span>
-          </div>
-
-          {/* Items */}
-          <div className="divide-y divide-border">
-            {group.items.map((item) => (
-              <ScheduleItemRow
-                key={item.id}
-                item={item}
-                onPostpone={onPostpone}
-                onOpen={onOpen}
-                onSuspend={onSuspend}
-                onUnsuspend={onUnsuspend}
-                onDelete={onDelete}
-                onDismiss={onDismiss}
-                isMobile={isMobile}
-              />
-            ))}
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* View toggle */}
+      {!isMobile && (
+        <div className="flex items-center justify-end px-4 py-1.5 border-b border-border/50 bg-background">
+          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded transition-colors",
+                viewMode === "cards"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <LayoutGrid className="w-3 h-3" />
+              {t("schedule.viewCards")}
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded transition-colors",
+                viewMode === "table"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Table2 className="w-3 h-3" />
+              {t("schedule.viewTable")}
+            </button>
           </div>
         </div>
-      ))}
+      )}
+
+      {viewMode === "table" ? (
+        <ScheduleTable
+          groups={visibleTableGroups}
+          onPostpone={onPostpone}
+          onOpen={onOpen}
+          onSuspend={onSuspend}
+          onUnsuspend={onUnsuspend}
+          onDelete={onDelete}
+          onDismiss={onDismiss}
+        />
+      ) : (
+        /* Card view */
+        <div className="flex-1 overflow-y-auto">
+          {visibleGroups.map((group) => (
+            <div key={group.date}>
+              <div className="sticky top-0 z-10 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {formatSectionLabel(group.date, t)}
+                </span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {t("schedule.itemsDue", { count: group.items.length })}
+                </span>
+              </div>
+              <div className="divide-y divide-border">
+                {group.items.map((item) => (
+                  <ScheduleItemRow
+                    key={item.id}
+                    item={item}
+                    onPostpone={onPostpone}
+                    onOpen={onOpen}
+                    onSuspend={onSuspend}
+                    onUnsuspend={onUnsuspend}
+                    onDelete={onDelete}
+                    onDismiss={onDismiss}
+                    isMobile={isMobile}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
