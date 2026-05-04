@@ -335,6 +335,11 @@ interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
   queueStrategyPreset: string;
+  sessionItemTypes?: {
+    documents?: boolean;
+    extracts?: boolean;
+    learningItems?: boolean;
+  };
 }
 
 /**
@@ -628,6 +633,11 @@ export const defaultSettings: Settings = {
     autoRefresh: false,
     refreshInterval: 60,
     queueStrategyPreset: "maximize-retention",
+    sessionItemTypes: {
+      documents: true,
+      extracts: false,
+      learningItems: false,
+    },
   },
   tts: createDefaultTTSSettings(),
   scrollQueue: {

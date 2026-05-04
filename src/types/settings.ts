@@ -305,6 +305,12 @@ export interface SmartQueueSettings {
   autoRefresh: boolean;
   refreshInterval: number;
   queueStrategyPreset: string;
+  /** Persisted item type preferences from Customize Queue modal */
+  sessionItemTypes?: {
+    documents?: boolean;
+    extracts?: boolean;
+    learningItems?: boolean;
+  };
 }
 
 // RSS Summary Settings
