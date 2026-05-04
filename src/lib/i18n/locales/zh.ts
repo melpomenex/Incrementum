@@ -4015,4 +4015,8 @@ export const zh: Dict = {
   "schedule.loading": "加载日程...",
   "schedule.cancel": "取消",
   "schedule.confirm": "确认",
+  "schedule.interval": "间隔",
+  "schedule.intervalHours": "{count}小时",
+  "schedule.intervalDays": "{count}天",
+  "schedule.intervalWeeks": "{count}周",
 };

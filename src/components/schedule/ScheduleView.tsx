@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Zap } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem, ForecastPoint } from "../../types/queue";
 import { getWorkloadForecast } from "../../api/analytics";
 import { getQueue, postponeItem } from "../../api/queue";
@@ -23,14 +24,16 @@ function queueItemToScheduleDay(item: {
   itemType: string;
   dueDate?: string;
   estimatedTime: number;
-  stability?: number;
+ stability?: number;
   difficulty?: number;
   interval?: number;
+  retrievability?: number;
   priority: number;
   tags: string[];
   category?: string;
   progress: number;
   lapses?: number;
+  reps?: number;
 }): ScheduleDayItem | null {
   if (!item.dueDate) return null;
   return {
@@ -44,11 +47,13 @@ function queueItemToScheduleDay(item: {
     stability: item.stability,
     difficulty: item.difficulty,
     interval: item.interval,
+    retrievability: item.retrievability,
     priority: item.priority,
     tags: item.tags ?? [],
     category: item.category,
     progress: item.progress,
     lapses: item.lapses,
+    reps: item.reps,
   };
 }
 
@@ -177,7 +182,7 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
 
       // Spread items evenly across the horizon
       const perDay = Math.ceil(eligibleItems.length / horizonDays);
-      const source = new Date(spreadSourceDate + "T00:00:00");
+      const source = parseScheduleDate(spreadSourceDate);
 
       const batchSize = 20;
       for (let i = 0; i < eligibleItems.length; i += batchSize) {

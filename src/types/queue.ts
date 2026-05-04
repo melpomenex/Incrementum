@@ -35,6 +35,14 @@ export interface QueueItem {
   source?: string;
   /** Position in queue for interspersion calculation */
   position?: number;
+
+  // FSRS / algorithm metadata (populated when available)
+  stability?: number;
+  difficulty?: number;
+  interval?: number; // days (fractional for learning items, e.g. 0.1 = 2.4h)
+  retrievability?: number;
+  lapses?: number;
+  reps?: number; // review_count
 }
 
 export interface ReviewSession {
@@ -97,6 +105,7 @@ export interface ScheduleDayItem {
   interval?: number;
   retrievability?: number;
   lapses?: number;
+  reps?: number;
   priority: number;
   tags: string[];
   category?: string;

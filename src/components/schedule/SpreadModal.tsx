@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { X, Loader2 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
 import type { ForecastPoint } from "../../api/analytics";
 import { computeSpreadProjection } from "../../lib/scheduleSpread";
@@ -90,7 +91,7 @@ export function SpreadModal({
 
   if (!isOpen) return null;
 
-  const sourceLabel = new Date(sourceDate + "T00:00:00").toLocaleDateString(
+  const sourceLabel = parseScheduleDate(sourceDate)?.toLocaleDateString(
     "en-US",
     { month: "short", day: "numeric" },
   );

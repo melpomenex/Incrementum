@@ -52,6 +52,12 @@ interface RustQueueItem {
   progress: number;
   source?: string;
   position?: number;
+  stability?: number;
+  difficulty?: number;
+  interval?: number;
+  retrievability?: number;
+  lapses?: number;
+  reps?: number;
 }
 
 // Convert from Rust snake_case to TypeScript camelCase
@@ -79,6 +85,12 @@ function convertQueueItem(item: RustQueueItem): QueueItem {
     progress: item.progress,
     source: item.source,
     position: item.position,
+    stability: item.stability,
+    difficulty: item.difficulty,
+    interval: item.interval,
+    retrievability: item.retrievability,
+    lapses: item.lapses,
+    reps: item.reps,
   };
 }
 
