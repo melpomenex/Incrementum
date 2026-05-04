@@ -321,13 +321,15 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
       coverResolutionQueue.current.add(doc.id);
       resolveDocumentCover(doc.id)
         .then((updated) => {
-          if (updated) {
-            updateDocument(doc.id, {
-              coverImageUrl: updated.coverImageUrl,
-              coverImageSource: updated.coverImageSource,
-            });
-          }
           coverResolutionQueue.current.delete(doc.id);
+          if (!updated) return;
+          // Only update if cover actually changed — avoid re-render loops
+          const current = useDocumentStore.getState().documents.find(d => d.id === doc.id);
+          if (current?.coverImageUrl === updated.coverImageUrl) return;
+          updateDocument(doc.id, {
+            coverImageUrl: updated.coverImageUrl,
+            coverImageSource: updated.coverImageSource,
+          });
         })
         .catch((error) => {
           console.warn(`Failed to resolve cover for document ${doc.id}:`, error);
@@ -1811,7 +1813,12 @@ function LibraryDashboard({
     () =>
       filteredDocuments
         .filter((d) => (d.progressPercent ?? 0) > 0 || d.extractCount > 0)
-        .sort((a, b) => new Date(getLastTouched(b)).getTime() - new Date(getLastTouched(a)).getTime())
+        .sort((a, b) => {
+          const timeDiff = new Date(getLastTouched(b)).getTime() - new Date(getLastTouched(a)).getTime();
+          if (timeDiff !== 0) return timeDiff;
+          // Stable secondary sort by ID to prevent layout thrashing
+          return a.id.localeCompare(b.id);
+        })
         .slice(0, 12),
     [filteredDocuments]
   );
@@ -1819,7 +1826,11 @@ function LibraryDashboard({
   const recentDocs = useMemo(
     () =>
       [...filteredDocuments]
-        .sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime())
+        .sort((a, b) => {
+          const timeDiff = new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return a.id.localeCompare(b.id);
+        })
         .slice(0, 12),
     [filteredDocuments]
   );
