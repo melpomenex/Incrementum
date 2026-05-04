@@ -119,15 +119,24 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }),
 
   updateDocument: (id, updates) =>
-    set((state) => ({
-      documents: state.documents.map((doc) =>
-        doc.id === id ? { ...doc, ...updates, dateModified: new Date().toISOString() } : doc
-      ),
-      currentDocument:
-        state.currentDocument?.id === id
-          ? { ...state.currentDocument, ...updates, dateModified: new Date().toISOString() }
-          : state.currentDocument,
-    })),
+    set((state) => {
+      // Only stamp dateModified if the caller didn't provide one explicitly.
+      // Blindly overwriting it on every update breaks sort stability:
+      // cover resolution → new dateModified → sort changes → re-render loop.
+      const shouldStampDate = !('dateModified' in updates);
+      const resolvedUpdates = shouldStampDate
+        ? { ...updates, dateModified: new Date().toISOString() }
+        : updates;
+      return {
+        documents: state.documents.map((doc) =>
+          doc.id === id ? { ...doc, ...resolvedUpdates } : doc
+        ),
+        currentDocument:
+          state.currentDocument?.id === id
+            ? { ...state.currentDocument, ...resolvedUpdates }
+            : state.currentDocument,
+      };
+    }),
 
   deleteDocument: async (id) => {
     await documentsApi.deleteDocument(id);
