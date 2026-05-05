@@ -544,15 +544,26 @@ export function DocumentViewer({
   const initialSearchQuery = highlightQuery?.trim() || jumpHighlightQuery || "";
   const effectiveEpubSearchQuery = normalizedViewerSearchQuery || (docType === "epub" ? initialSearchQuery : "");
   const reportViewerSearchState = useCallback((next: Partial<ViewerSearchState>) => {
-    setViewerSearchState((prev) => ({
-      ...prev,
-      ...next,
-      supported: next.supported ?? prev.supported,
-      available: next.available ?? prev.available,
-      totalMatches: next.totalMatches ?? prev.totalMatches,
-      activeMatchIndex: next.activeMatchIndex ?? prev.activeMatchIndex,
-      unavailableReason: next.unavailableReason,
-    }));
+    setViewerSearchState((prev) => {
+      if (
+        prev.totalMatches === (next.totalMatches ?? prev.totalMatches) &&
+        prev.activeMatchIndex === (next.activeMatchIndex ?? prev.activeMatchIndex) &&
+        prev.supported === (next.supported ?? prev.supported) &&
+        prev.available === (next.available ?? prev.available) &&
+        prev.unavailableReason === next.unavailableReason
+      ) {
+        return prev; // bail out — no actual change
+      }
+      return {
+        ...prev,
+        ...next,
+        supported: next.supported ?? prev.supported,
+        available: next.available ?? prev.available,
+        totalMatches: next.totalMatches ?? prev.totalMatches,
+        activeMatchIndex: next.activeMatchIndex ?? prev.activeMatchIndex,
+        unavailableReason: next.unavailableReason,
+      };
+    });
   }, []);
   const canUseEditPalette = viewMode === "document"
     && (

@@ -146,6 +146,11 @@ export function MarkdownViewer({
     });
   }, [content, document.id, highlights, html]);
 
+  // Store callback in a ref so the highlighting effect doesn't re-run when
+  // the parent re-renders with a new inline function reference.
+  const onSearchResultsChangeRef = useRef(onSearchResultsChange);
+  onSearchResultsChangeRef.current = onSearchResultsChange;
+
   useEffect(() => {
     const root = contentRef.current;
     if (!root) return;
@@ -168,13 +173,13 @@ export function MarkdownViewer({
 
     const query = searchQuery?.trim() || highlightQuery?.trim();
     if (!query) {
-      onSearchResultsChange?.(0, -1);
+      onSearchResultsChangeRef.current?.(0, -1);
       return;
     }
 
     const terms = Array.from(new Set(query.split(/\s+/).map((term) => term.trim()).filter(Boolean))).slice(0, 8);
     if (terms.length === 0) {
-      onSearchResultsChange?.(0, -1);
+      onSearchResultsChangeRef.current?.(0, -1);
       return;
     }
 
@@ -218,7 +223,7 @@ export function MarkdownViewer({
 
     const marks = Array.from(root.querySelectorAll("mark[data-search-highlight='true']")) as HTMLElement[];
     if (marks.length === 0) {
-      onSearchResultsChange?.(0, -1);
+      onSearchResultsChangeRef.current?.(0, -1);
       return;
     }
 
@@ -244,7 +249,7 @@ export function MarkdownViewer({
       mark.style.boxShadow = isActive ? "0 0 0 1px rgba(194, 65, 12, 0.35)" : "none";
     });
 
-    onSearchResultsChange?.(marks.length, resolvedActiveIndex);
+    onSearchResultsChangeRef.current?.(marks.length, resolvedActiveIndex);
     activeMark?.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
   }, [
     activeSearchMatchIndex,
@@ -253,7 +258,6 @@ export function MarkdownViewer({
     highlightQuery,
     highlights.length,
     initialSearchTextQuote,
-    onSearchResultsChange,
     searchQuery,
   ]);
 
