@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.29.6] - 2026-05-04
+
+### Fixed
+- **Study Now button in document flashcard view now works** — Clicking "Study Now" in the Learning Cards view (accessible from queue items or document viewer) now loads all cards for that document into the review queue and opens a Review tab with the session started.
+
 ## [1.29.5] - 2026-05-04
 
 ### Fixed
