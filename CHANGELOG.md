@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.29.7] - 2026-05-05
+
+### Fixed
+- **Command palette freeze on Linux AppImage** — Removed blocking sequential work from palette open (document extraction loop, full extract DB load). Replaced `Infinity` scan caps with bounded limits (500/500/3). Moved YouTube transcript fetching from sequential await-in-loop to concurrent `Promise.allSettled`.
+- **Firefox browser extension install failure** — Removed Chrome-only permissions (`printingMetrics`, `tabCapture`), added Firefox-compatible `browser_specific_settings` with gecko ID and `data_collection_permissions`, added `background.scripts` fallback, and signed the extension via AMO for permanent install.
+
 ## [1.29.6] - 2026-05-04
 
 ### Fixed
