@@ -815,12 +815,15 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         ? await llmContext.resolveForPrompt(prompt)
         : {
             status: llmContext?.status ?? "ready",
-            content: llmContext?.content,
+            content: typeof llmContext?.content === "string" ? llmContext.content : undefined,
             source: (llmContext?.source as any) ?? "document",
             message: llmContext?.statusMessage,
           };
 
-      if (resolvedContext.status !== "ready" || !resolvedContext.content?.trim()) {
+      const contextContent = typeof resolvedContext.content === "string"
+        ? resolvedContext.content.trim()
+        : "";
+      if (resolvedContext.status !== "ready" || !contextContent) {
         throw new Error(resolvedContext.message || getAssistantContextErrorMessage(llmContext?.status));
       }
 
@@ -830,7 +833,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         documentId: llmContext?.documentId,
         url: llmContext?.url,
         selection: llmContext?.selection,
-        content: resolvedContext.content,
+        content: resolvedContext.content ?? contextContent,
         contextWindowTokens: effectiveContextWindow,
       };
 

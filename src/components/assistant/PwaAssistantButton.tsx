@@ -324,11 +324,14 @@ export function PwaAssistantButton({
         ? await context.resolveForPrompt(trimmed)
         : {
             status: context.status ?? "ready",
-            content: context.content,
+            content: typeof context.content === "string" ? context.content : undefined,
             message: context.statusMessage,
           };
 
-      if (resolvedContext.status !== "ready" || !resolvedContext.content?.trim()) {
+      const contextContent = typeof resolvedContext.content === "string"
+        ? resolvedContext.content.trim()
+        : "";
+      if (resolvedContext.status !== "ready" || !contextContent) {
         throw new Error(resolvedContext.message || getAssistantContextErrorMessage(context.status));
       }
 
@@ -341,7 +344,7 @@ export function PwaAssistantButton({
           documentId: context.documentId,
           url: context.url,
           selection: context.selection,
-          content: resolvedContext.content,
+          content: resolvedContext.content ?? contextContent,
           contextWindowTokens: contextWindow,
         },
         provider.apiKey,
