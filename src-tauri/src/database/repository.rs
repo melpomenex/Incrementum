@@ -1122,6 +1122,23 @@ impl Repository {
 
     // Learning item operations
     pub async fn create_learning_item(&self, item: &LearningItem) -> Result<LearningItem> {
+        // Retry once on I/O errors (common on SD cards / low-storage devices)
+        match self.create_learning_item_inner(item).await {
+            Ok(created) => Ok(created),
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("I/O error") || msg.contains("disk") {
+                    tracing::warn!("create_learning_item failed with I/O error, retrying in 500ms: {}", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    self.create_learning_item_inner(item).await
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    async fn create_learning_item_inner(&self, item: &LearningItem) -> Result<LearningItem> {
         let item_type_str = format!("{:?}", item.item_type).to_lowercase();
         let state_str = format!("{:?}", item.state).to_lowercase();
         let tags_json = serde_json::to_string(&item.tags)?;
