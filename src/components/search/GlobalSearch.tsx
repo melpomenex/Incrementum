@@ -172,7 +172,7 @@ export function GlobalSearch({
             setIsSearching(false);
           }
         }
-      }, 300),
+      }, 150),
     [onSearch]
   );
 
