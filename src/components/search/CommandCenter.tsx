@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { GlobalSearch, SearchResult, SearchQuery, SearchResultType } from "./GlobalSearch";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useTabsStore } from "../../stores/tabsStore";
@@ -290,16 +290,15 @@ export function CommandCenter() {
     }
   }, []);
 
-  // Phase 2.1: Debounce search query via useDeferredValue (React 19)
-  const [rawSearchQuery, setRawSearchQuery] = useState<SearchQuery | null>(null);
-  const deferredQuery = useDeferredValue(rawSearchQuery);
-  const isSearchStale = rawSearchQuery !== deferredQuery;
-
-  // Phase 2.2: AbortController for cancelling in-flight searches
+  // Phase 2.1 + 2.2: Debounced search with AbortController.
+  // GlobalSearch already has a 300ms internal debounce; we add AbortController
+  // cancellation so rapid typing doesn't queue up stale search work.
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Phase 1.2: Gate loadExtracts on extractsInitialized flag
   const extractsInitialized = useExtractStore((state: { extractsInitialized: boolean }) => state.extractsInitialized);
+  const extractsInitializedRef = useRef(extractsInitialized);
+  extractsInitializedRef.current = extractsInitialized;
 
   // Phase 2.4: Pre-compute HTML text cache when documents load
   useEffect(() => {
@@ -354,9 +353,6 @@ export function CommandCenter() {
   );
   const shouldFilterByDeck = false;
 
-  // Abort controller for cancelling in-flight searches
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   const handleSearch = useCallback(async (query: SearchQuery, signal?: AbortSignal): Promise<SearchResult[]> => {
     const term = query.query.toLowerCase().trim();
     const results: SearchResult[] = [];
@@ -367,7 +363,7 @@ export function CommandCenter() {
       .map((item) => item.toLowerCase().trim())
       .filter(Boolean);
     const meaningfulTerms = queryTerms.filter(isMeaningfulTerm);
-    if (meaningfulTerms.length > 0 && !extractsLoadedRef.current && !extractsInitialized) {
+    if (meaningfulTerms.length > 0 && !extractsLoadedRef.current && !extractsInitializedRef.current) {
       extractsLoadedRef.current = true;
       void loadExtracts();
     }
@@ -1110,9 +1106,44 @@ export function CommandCenter() {
     );
   }, [setCommandPaletteOpen]);
 
+  // Phase 1.4: Performance instrumentation for palette open
+  useEffect(() => {
+    if (!commandPaletteOpen) return;
+    perfMark("palette-open-start");
+    return () => {
+      perfMark("palette-open-end");
+      perfMeasure("palette-open", "palette-open-start", "palette-open-end");
+    };
+  }, [commandPaletteOpen]);
+
+  // Debounced search handler with AbortController (Phase 2.1 + 2.2)
+  const debouncedHandleSearch = useCallback(async (query: SearchQuery): Promise<SearchResult[]> => {
+    // Cancel any in-flight search
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    try {
+      return await handleSearch(query, controller.signal);
+    } catch (error: any) {
+      if (error?.name !== "AbortError") {
+        console.warn("[CommandCenter] Search error", error);
+      }
+      return [];
+    }
+  }, [handleSearch]);
+
+  // Clean up AbortController on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   return (
     <GlobalSearch
-      onSearch={handleSearch}
+      onSearch={debouncedHandleSearch}
       onResultClick={handleResultClick}
       onNavigateToDocument={openDocumentInTab}
       hideTrigger={true}
