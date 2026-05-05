@@ -11,9 +11,7 @@
     "storage",
     "scripting",
     "contextMenus",
-    "notifications",
-    "printingMetrics",
-    "tabCapture"
+    "notifications"
   ],
   
   "host_permissions": [
