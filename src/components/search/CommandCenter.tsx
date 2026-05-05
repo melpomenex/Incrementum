@@ -38,34 +38,6 @@ import { findMatchingSections } from "./sectionRegistry";
 import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
 import { registerCommandPaletteOpenEvents } from "../../utils/commandPaletteEvents";
 
-// Performance instrumentation (gate behind this flag)
-const DEBUG_PERF = false;
-
-function perfMark(label: string) {
-  if (DEBUG_PERF && typeof performance !== "undefined") {
-    performance.mark(label);
-  }
-}
-
-function perfMeasure(name: string, startMark: string, endMark: string) {
-  if (DEBUG_PERF && typeof performance !== "undefined") {
-    performance.measure(name, startMark, endMark);
-  }
-}
-
-// requestIdleCallback with setTimeout fallback
-const scheduleIdle =
-  typeof requestIdleCallback !== "undefined"
-    ? (cb: () => void, opts?: { timeout?: number }) =>
-        requestIdleCallback(cb, opts)
-    : (cb: () => void, opts?: { timeout?: number }) =>
-        setTimeout(cb, opts?.timeout ?? 1);
-
-const cancelIdle =
-  typeof cancelIdleCallback !== "undefined"
-    ? (id: number) => cancelIdleCallback(id)
-    : (id: number) => clearTimeout(id);
-
 const STOPWORDS = new Set([
   "a",
   "an",
@@ -264,66 +236,6 @@ export function CommandCenter() {
   extractsRef.current = extracts;
   const { theme, themes, setTheme } = useTheme();
 
-  // Standalone HTML text cache pre-computer (for use outside handleSearch)
-  const getHtmlTextCached = useCallback((doc: Document): { text: string; lower: string } => {
-    const cached = htmlTextCacheRef.current.get(doc.id);
-    if (cached) return cached;
-    const html = doc.content ?? "";
-    if (!html) {
-      const empty = { text: "", lower: "" };
-      htmlTextCacheRef.current.set(doc.id, empty);
-      return empty;
-    }
-    try {
-      const parser = new DOMParser();
-      const parsed = parser.parseFromString(html, "text/html");
-      parsed.querySelectorAll("script, style").forEach((el) => el.remove());
-      const text = (parsed.body?.textContent ?? "").replace(/\s+/g, " ").trim();
-      const entry = { text, lower: text.toLowerCase() };
-      htmlTextCacheRef.current.set(doc.id, entry);
-      return entry;
-    } catch {
-      const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const entry = { text, lower: text.toLowerCase() };
-      htmlTextCacheRef.current.set(doc.id, entry);
-      return entry;
-    }
-  }, []);
-
-  // Phase 2.1 + 2.2: Debounced search with AbortController.
-  // GlobalSearch already has a 300ms internal debounce; we add AbortController
-  // cancellation so rapid typing doesn't queue up stale search work.
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Phase 1.2: Gate loadExtracts on extractsInitialized flag
-  const extractsInitialized = useExtractStore((state: { extractsInitialized: boolean }) => state.extractsInitialized);
-  const extractsInitializedRef = useRef(extractsInitialized);
-  extractsInitializedRef.current = extractsInitialized;
-
-  // Phase 2.4: Pre-compute HTML text cache when documents load
-  useEffect(() => {
-    const docs = documentsRef.current;
-    if (docs.length === 0) return;
-    // Pre-compute HTML text for any HTML docs not yet cached
-    let idleId: number;
-    let idx = 0;
-    const batchSize = 5;
-    const processBatch = () => {
-      const end = Math.min(idx + batchSize, docs.length);
-      for (; idx < end; idx++) {
-        const doc = docs[idx];
-        if (doc.fileType === "html" && !htmlTextCacheRef.current.has(doc.id) && doc.content) {
-          getHtmlTextCached(doc);
-        }
-      }
-      if (idx < docs.length) {
-        idleId = scheduleIdle(processBatch);
-      }
-    };
-    idleId = scheduleIdle(processBatch);
-    return () => cancelIdle(idleId);
-  }, [documents.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
   useEffect(() => {
     if (!documentsLoading && documents.length === 0) {
       void loadDocuments();
@@ -353,7 +265,7 @@ export function CommandCenter() {
   );
   const shouldFilterByDeck = false;
 
-  const handleSearch = useCallback(async (query: SearchQuery, signal?: AbortSignal): Promise<SearchResult[]> => {
+  const handleSearch = useCallback(async (query: SearchQuery): Promise<SearchResult[]> => {
     const term = query.query.toLowerCase().trim();
     const results: SearchResult[] = [];
     if (!term) return results;
@@ -363,7 +275,7 @@ export function CommandCenter() {
       .map((item) => item.toLowerCase().trim())
       .filter(Boolean);
     const meaningfulTerms = queryTerms.filter(isMeaningfulTerm);
-    if (meaningfulTerms.length > 0 && !extractsLoadedRef.current && !extractsInitializedRef.current) {
+    if (meaningfulTerms.length > 0 && !extractsLoadedRef.current) {
       extractsLoadedRef.current = true;
       void loadExtracts();
     }
@@ -390,6 +302,7 @@ export function CommandCenter() {
     const maxDocsToScan = 500;
     const maxExtractsToScan = 500;
     const maxTranscriptFetches = 3;
+    let transcriptFetches = 0;
 
     const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -489,9 +402,6 @@ export function CommandCenter() {
         documentsSnapshotRef.current = docsForSearch;
       }
     }
-
-    // Abort check after async document fetch
-    if (signal?.aborted) return [];
 
     // 1. Search Commands
     const navigateTo = (path: string) => {
@@ -712,7 +622,7 @@ export function CommandCenter() {
       const scopedDocs = docsForSearch;
 
       // Pre-fetch YouTube transcripts concurrently (up to maxTranscriptFetches)
-      // This replaces sequential await-in-loop fetching that blocked the search loop.
+      // instead of sequential await-in-loop inside the per-document scan
       if (allowContentSearch) {
         const youtubeDocsNeedingFetch: Document[] = [];
         for (const doc of scopedDocs) {
@@ -743,10 +653,9 @@ export function CommandCenter() {
               }
             })
           );
-          // Abort check after transcript pre-fetch
-          if (signal?.aborted) return [];
         }
       }
+
       let scanned = 0;
       for (const doc of scopedDocs) {
         if (scanned >= maxDocsToScan || groupedDocs.size >= maxResults) break;
@@ -777,7 +686,6 @@ export function CommandCenter() {
             transcriptMatch = matchesTerms(transcriptLower, searchTerms);
 
             // Re-fetch segments for timestamp-level hits when we have a transcript match
-            // (the full-text cache confirms a match exists; segments give us timestamps)
             try {
               const videoId = extractYouTubeId(doc.filePath);
               if (videoId) {
@@ -1029,9 +937,6 @@ export function CommandCenter() {
       });
     });
 
-    // Abort check before returning results
-    if (signal?.aborted) return [];
-
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }, [loadExtracts, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
 
@@ -1106,44 +1011,9 @@ export function CommandCenter() {
     );
   }, [setCommandPaletteOpen]);
 
-  // Phase 1.4: Performance instrumentation for palette open
-  useEffect(() => {
-    if (!commandPaletteOpen) return;
-    perfMark("palette-open-start");
-    return () => {
-      perfMark("palette-open-end");
-      perfMeasure("palette-open", "palette-open-start", "palette-open-end");
-    };
-  }, [commandPaletteOpen]);
-
-  // Debounced search handler with AbortController (Phase 2.1 + 2.2)
-  const debouncedHandleSearch = useCallback(async (query: SearchQuery): Promise<SearchResult[]> => {
-    // Cancel any in-flight search
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    try {
-      return await handleSearch(query, controller.signal);
-    } catch (error: any) {
-      if (error?.name !== "AbortError") {
-        console.warn("[CommandCenter] Search error", error);
-      }
-      return [];
-    }
-  }, [handleSearch]);
-
-  // Clean up AbortController on unmount
-  useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-    };
-  }, []);
-
   return (
     <GlobalSearch
-      onSearch={debouncedHandleSearch}
+      onSearch={handleSearch}
       onResultClick={handleResultClick}
       onNavigateToDocument={openDocumentInTab}
       hideTrigger={true}
