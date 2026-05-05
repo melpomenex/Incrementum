@@ -1,0 +1,2 @@
+# Force binary handling for XPI files
+*.xpi binary
