@@ -736,15 +736,13 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       const provider = selectedTypeProvider;
 
       // Convert messages to LLM format
+      // NOTE: conversation history comes BEFORE the current user prompt so the LLM
+      // sees correct turn ordering: system → [past turns...] → current user message
       const toolInstruction = buildToolInstruction(getAvailableTools());
       const llmMessages: LLMMessage[] = [
         {
           role: "system" as const,
           content: toolInstruction,
-        },
-        {
-          role: "user" as const,
-          content: prompt,
         },
         ...(contextData.conversationHistory as Message[]).map((m) => {
           // Build multimodal content for messages with images
@@ -766,6 +764,10 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
             content: m.content,
           };
         }),
+        {
+          role: "user" as const,
+          content: prompt,
+        },
       ];
 
       // Check vision capability for current user message images
@@ -777,9 +779,10 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         const hasVision = supportsVision(effectiveProvider, modelName);
         if (!hasVision) {
           // Strip images from the current user message in llmMessages
-          // The current user message is at index 1 (after system message)
-          if (llmMessages.length > 1 && llmMessages[1].role === "user") {
-            llmMessages[1] = {
+          // The current user message is the last user message in the array
+          const lastUserIdx = llmMessages.map((m) => m.role).lastIndexOf("user");
+          if (lastUserIdx >= 0) {
+            llmMessages[lastUserIdx] = {
               ...llmMessages[1],
               content: prompt, // plain text only
             };
@@ -794,7 +797,8 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
           for (const img of currentUserImages) {
             parts.push({ type: "image_url", imageUrl: img.dataUrl });
           }
-          llmMessages[1] = {
+          const lastUserIdx2 = llmMessages.map((m) => m.role).lastIndexOf("user");
+          llmMessages[lastUserIdx2] = {
             role: "user" as const,
             content: parts,
           };
@@ -924,6 +928,22 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
               toolCalls.push({ name: call.name!, parameters: normalizedArgs, status: "pending" });
             });
             cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+          } else if (knownToolNames.has("create_qa_card") && Array.isArray(parsed)) {
+            // No tool-name matches found — check if this is an array of {question, answer} cards
+            let foundCards = false;
+            for (const item of parsed) {
+              if (item && typeof item === "object") {
+                const q = item.question ?? item.Q ?? item.q;
+                const a = item.answer ?? item.A ?? item.a;
+                if (typeof q === "string" && typeof a === "string") {
+                  toolCalls.push({ name: "create_qa_card", parameters: { question: q, answer: a }, status: "pending" });
+                  foundCards = true;
+                }
+              }
+            }
+            if (foundCards) {
+              cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+            }
           }
         } catch {
           // Not valid JSON — leave untouched
@@ -931,7 +951,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       }
     }
 
-    // Fallback 2: convert raw JSON arrays of {question, answer} into create_qa_card calls
+    // Fallback 2: convert fenced JSON arrays of {question, answer} into create_qa_card calls
     if (toolCalls.length === 0 && knownToolNames.has("create_qa_card")) {
       const jsonArrRegex = /```(?:json)?\s*\n?([\s\S]*?)```/g;
       let arrMatch: RegExpExecArray | null;
@@ -949,9 +969,67 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
                 }
               }
             }
+            // Remove the matched fence block from content
+            cleanedContent = cleanedContent.replace(arrMatch[0], "").trim();
           }
         } catch {
           // Not valid JSON
+        }
+      }
+    }
+
+    // Fallback 3: convert UNFENCED JSON arrays of {question, answer} into create_qa_card calls
+    // This catches the common case where the LLM outputs raw JSON without code fences.
+    if (toolCalls.length === 0 && knownToolNames.has("create_qa_card")) {
+      // Strategy: find JSON arrays that start with [{ and contain question/answer-like keys.
+      // Use a relaxed regex that only needs to match the start of the first object.
+      const arrayLikeRegex = /\[\s*\{[^}]*?(?:question|Q|q)\s*:/s;
+      let arrMatch = arrayLikeRegex.exec(cleanedContent);
+      if (arrMatch) {
+        try {
+          // Try to find the full array by extending from the match start
+          const start = arrMatch.index;
+          const afterMatch = cleanedContent.slice(start);
+          const arrayStart = afterMatch.indexOf('[');
+          if (arrayStart !== -1) {
+            // Find the matching closing bracket
+            let depth = 0;
+            let end = -1;
+            for (let i = arrayStart; i < afterMatch.length; i += 1) {
+              if (afterMatch[i] === '[') depth += 1;
+              else if (afterMatch[i] === ']') {
+                depth -= 1;
+                if (depth === 0) {
+                  end = i + 1;
+                  break;
+                }
+              }
+            }
+            if (end !== -1) {
+              const raw = afterMatch.slice(arrayStart, end);
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                let foundCards = false;
+                for (const item of parsed) {
+                  if (item && typeof item === "object") {
+                    const q = item.question ?? item.Q ?? item.q;
+                    const a = item.answer ?? item.A ?? item.a;
+                    if (typeof q === "string" && typeof a === "string") {
+                      toolCalls.push({ name: "create_qa_card", parameters: { question: q, answer: a }, status: "pending" });
+                      foundCards = true;
+                    }
+                  }
+                }
+                if (foundCards) {
+                  // Remove the matched array from content
+                  cleanedContent = cleanedContent.slice(0, start + arrayStart) + cleanedContent.slice(start + end);
+                  cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
+                }
+              }
+            }
+          }
+        } catch {
+          // Not valid JSON — leave untouched
         }
       }
     }
@@ -1023,17 +1101,25 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         counts[r.name] = (counts[r.name] || 0) + 1;
       });
 
-      const summaries = Object.entries(counts).map(([name, count]) => {
-        const label = name === "create_qa_card" || name === "create_cloze_card" || name === "batch_create_cards"
-          ? `${count} flashcard${count > 1 ? "s" : ""}`
-          : name === "create_extract"
-            ? `${count} extract${count > 1 ? "s" : ""}`
-            : name === "create_document"
-              ? `${count} document${count > 1 ? "s" : ""}`
-              : `${count} ${name}${count > 1 ? "s" : ""}`;
-        return label;
-      });
-      parts.push(`Created ${summaries.join(", ")} and saved to your library.`);
+      const hasCards = counts["create_qa_card"] || counts["create_cloze_card"] || counts["batch_create_cards"];
+      const hasDeck = counts["create_deck"];
+
+      if (hasDeck && !hasCards) {
+        // Deck was created but no cards — likely the LLM didn't include card calls
+        parts.push(`⚠️ Deck created but no flashcards were saved. The AI may have only created the deck without the card tool calls. Try asking again to add cards.`);
+      } else {
+        const summaries = Object.entries(counts).map(([name, count]) => {
+          const label = name === "create_qa_card" || name === "create_cloze_card" || name === "batch_create_cards"
+            ? `${count} flashcard${count > 1 ? "s" : ""}`
+            : name === "create_extract"
+              ? `${count} extract${count > 1 ? "s" : ""}`
+              : name === "create_document"
+                ? `${count} document${count > 1 ? "s" : ""}`
+                : `${count} ${name}${count > 1 ? "s" : ""}`;
+          return label;
+        });
+        parts.push(`Created ${summaries.join(", ")} and saved to your library.`);
+      }
     }
 
     if (failed.length > 0) {
@@ -1092,6 +1178,11 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
     const toolNames = tools.map((tool) => tool.name).join(", ");
     const toolDescriptions = tools.map((tool) => `- **${tool.name}**: ${tool.description}`).join("\n");
 
+    const cardToolNames = tools
+      .filter((t) => t.name.includes("card") || t.name.includes("cloze") || t.name === "batch_create_cards")
+      .map((t) => t.name)
+      .join(", ");
+
     return `You are a helpful assistant with access to document content and tools. You can answer questions about the content AND create learning items from it.
 
 **Available Tools**: ${toolNames}
@@ -1101,7 +1192,7 @@ ${toolDescriptions}
 ## CRITICAL RULES — Respond vs. Act
 
 **When the user asks to CREATE, SAVE, ADD, or MAKE something** — you MUST emit tool calls, NOT output raw JSON or markdown.
-- "create flashcards", "make cards", "generate qa cards", "add flashcards" → use create_qa_card or batch_create_cards
+- "create flashcards", "make cards", "generate qa cards", "add flashcards" → use ${cardToolNames}
 - "save this as an extract", "save this quote" → use create_extract
 - "create a document" → use create_document
 - "make cloze cards" → use create_cloze_card
@@ -1113,23 +1204,25 @@ ${toolDescriptions}
 
 ## Tool call format (REQUIRED — you MUST use EXACTLY this format):
 
-Output a single JSON code block like this:
+Output a SINGLE JSON code block with ALL tool calls combined. When the user asks to both create a deck AND create cards, you MUST include BOTH the create_deck call AND every card call in the SAME block. Never split actions across multiple blocks.
+
 \`\`\`tool_calls
-{"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}}]}
+{"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}},{"name":"another_tool","arguments":{"key":"value"}}]}
 \`\`\`
 
 - The block MUST start with \`\`\`tool_calls and end with \`\`\`
+- Include ALL actions in a SINGLE block — do NOT create partial output
 - Each call has "name" (one of: ${toolNames}) and "arguments" (an object)
 - For flashcards: use "question" and "answer" fields
 - For cloze: use "text" field with {{cloze}} markers
 - Do NOT include document_id — it is added automatically
 
-## Example — user says "create 3 flashcards":
+## Example — user says "create a deck called Physics and add 2 flashcards":
 \`\`\`tool_calls
 {"tool_calls":[
-  {"name":"create_qa_card","arguments":{"question":"What is X?","answer":"X is..."}},
-  {"name":"create_qa_card","arguments":{"question":"Why does Y happen?","answer":"Because..."}},
-  {"name":"create_cloze_card","arguments":{"text":"The {{key term}} is important for..."}}
+  {"name":"create_deck","arguments":{"name":"Physics"}},
+  {"name":"create_qa_card","arguments":{"question":"What is Newton's first law?","answer":"An object at rest stays at rest unless acted upon by a force."}},
+  {"name":"create_qa_card","arguments":{"question":"What is the speed of light?","answer":"Approximately 299,792,458 meters per second."}}
 ]}
 \`\`\`
 
