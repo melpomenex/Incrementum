@@ -1166,9 +1166,12 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
   // Re-push when the user changes their shortcut in settings
   useEffect(() => {
-    const { useShortcutStore } = require("../common/KeyboardShortcuts") as { useShortcutStore: any };
-    const unsub = useShortcutStore.subscribe(pushShortcutToWebview);
-    return () => unsub();
+    let unsub: (() => void) | undefined;
+    // Dynamic import to avoid bundler issues with require() in ESM/AppImage builds
+    import("../common/KeyboardShortcuts").then(({ useShortcutStore }) => {
+      unsub = useShortcutStore.subscribe(pushShortcutToWebview);
+    });
+    return () => unsub?.();
   }, [pushShortcutToWebview]);
 
   return (
