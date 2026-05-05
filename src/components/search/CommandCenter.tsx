@@ -6,7 +6,7 @@ import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useUIStore } from "../../stores/uiStore";
 import { useExtractStore } from "../../stores/extractStore";
 import { calculateRelevanceScore, extractSearchTerms, fuzzyMatch, highlightSearchTerms } from "./SearchUtils";
-import { extractDocumentText, getDocuments as fetchDocuments } from "../../api/documents";
+import { getDocuments as fetchDocuments } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
 import {
   DocumentViewer,
@@ -223,14 +223,17 @@ export function CommandCenter() {
   const extracts = useExtractStore(selectExtracts);
   const extractsLoading = useExtractStore(selectExtractsLoading);
   const loadExtracts = useExtractStore(selectLoadExtracts);
-  const indexedDocsRef = useRef<Set<string>>(new Set());
-  const indexingRef = useRef(false);
+  const extractsLoadedRef = useRef(false);
   const documentsSnapshotRef = useRef<Document[]>([]);
   const documentsFetchInFlight = useRef<Promise<Document[]> | null>(null);
   const transcriptCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
   const audioTranscriptCacheRef = useRef<Map<string, SearchableTranscriptSegment[]>>(new Map());
   const htmlTextCacheRef = useRef<Map<string, { text: string; lower: string }>>(new Map());
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
+  const extractsRef = useRef(extracts);
+  extractsRef.current = extracts;
   const { theme, themes, setTheme } = useTheme();
 
   useEffect(() => {
@@ -245,46 +248,13 @@ export function CommandCenter() {
     }
   }, [documents]);
 
-  useEffect(() => {
-    if (commandPaletteOpen && !extractsLoading && extracts.length === 0) {
-      void loadExtracts();
-    }
-  }, [commandPaletteOpen, extracts.length, extractsLoading, loadExtracts]);
+  // Extracts are loaded lazily inside handleSearch when a content search is performed.
+  // This avoids fetching ALL extracts (potentially thousands) on every palette open.
 
-  useEffect(() => {
-    if (!commandPaletteOpen || documents.length === 0) return;
-    if (indexingRef.current) return;
-    if (!isTauri()) return;
-
-    const missingContent = documents.filter((doc) =>
-      !indexedDocsRef.current.has(doc.id) &&
-      (!doc.content || doc.content.trim().length === 0) &&
-      (doc.fileType === "pdf" || doc.fileType === "epub" || doc.fileType === "html")
-    );
-    if (missingContent.length === 0) return;
-
-    let cancelled = false;
-    indexingRef.current = true;
-    const run = async () => {
-      for (const doc of missingContent) {
-        try {
-          await extractDocumentText(doc.id);
-        } catch (error) {
-          console.warn("[CommandCenter] Failed to extract document text", doc.id, error);
-        } finally {
-          indexedDocsRef.current.add(doc.id);
-        }
-      }
-    };
-    void run().finally(() => {
-      if (!cancelled) {
-        indexingRef.current = false;
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [commandPaletteOpen, documents]);
+  // Document content extraction is NOT triggered on palette open.
+  // Content is fetched lazily per-document during search if needed,
+  // or the user can trigger extraction through other UI flows.
+  // This prevents blocking the main thread with sequential I/O on large collections.
 
   const activeDeck = useMemo(
     () => {
@@ -300,12 +270,21 @@ export function CommandCenter() {
     const results: SearchResult[] = [];
     if (!term) return results;
 
+    // Lazy-load extracts for content search (once per session)
     const queryTerms = extractSearchTerms(query.query)
       .map((item) => item.toLowerCase().trim())
       .filter(Boolean);
     const meaningfulTerms = queryTerms.filter(isMeaningfulTerm);
+    if (meaningfulTerms.length > 0 && !extractsLoadedRef.current) {
+      extractsLoadedRef.current = true;
+      void loadExtracts();
+    }
     const searchTerms = meaningfulTerms.length > 0 ? meaningfulTerms : [term];
     const allowContentSearch = meaningfulTerms.length > 0;
+
+    // Read from refs for stable closure
+    const docs = documentsRef.current;
+    const exts = extractsRef.current;
 
     const matchesTerms = (text: string, terms: string[]): boolean =>
       terms.some((value) => text.includes(value));
@@ -409,7 +388,7 @@ export function CommandCenter() {
       hits: SearchHit[];
     }>();
 
-    let docsForSearch = documents.length > 0 ? documents : documentsSnapshotRef.current;
+    let docsForSearch = docs.length > 0 ? docs : documentsSnapshotRef.current;
     if (docsForSearch.length === 0 && !documentsLoading) {
       if (!documentsFetchInFlight.current) {
         documentsFetchInFlight.current = fetchDocuments().catch((error) => {
@@ -866,7 +845,7 @@ export function CommandCenter() {
     // 3. Search Extracts and attach as secondary hits to their parent document.
     if (!query.types || query.types.includes(SearchResultType.Extract)) {
       let scanned = 0;
-      for (const extract of extracts) {
+      for (const extract of exts) {
         if (scanned >= maxExtractsToScan) break;
         scanned += 1;
 
@@ -875,7 +854,7 @@ export function CommandCenter() {
         if (!allowContentSearch || !matchesTerms(contentLower, searchTerms)) continue;
 
         const docId = extract.documentId;
-        const parentDoc = documents.find((d) => d.id === docId);
+        const parentDoc = docs.find((d) => d.id === docId);
         if (!parentDoc) continue;
 
         if (!groupedDocs.has(docId) && groupedDocs.size < maxResults) {
@@ -939,7 +918,7 @@ export function CommandCenter() {
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
-  }, [documents, extracts, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
+  }, [loadExtracts, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === SearchResultType.Command) {
@@ -955,10 +934,10 @@ export function CommandCenter() {
         initialJump: result.metadata?.primaryHit?.location,
       });
     }
-  }, [documents, addTab]);
+  }, [addTab]);
 
   const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: ExactSearchHitLocation }) => {
-    const doc = documents.find(d => d.id === documentId);
+    const doc = documentsRef.current.find(d => d.id === documentId);
     const jumpRequestId = options?.initialJump ? `${Date.now()}-${Math.random().toString(36).slice(2)}` : undefined;
     if (doc) {
       addTab({
@@ -1003,7 +982,7 @@ export function CommandCenter() {
         }
       });
     }
-  }, [documents, addTab, loadDocuments]);
+  }, [addTab, loadDocuments]);
 
   useEffect(() => {
     return registerCommandPaletteOpenEvents(
