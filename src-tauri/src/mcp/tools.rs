@@ -320,6 +320,29 @@ impl MCPToolRegistry {
                 "required": ["document_id"]
             }),
         });
+
+        // Deck Management
+        self.register_tool(ToolDefinition {
+            name: "create_deck".to_string(),
+            description: "Create a new study deck. Decks group flashcards and learning items by tags for organized review.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Deck name"},
+                    "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags to associate with this deck. Defaults to the deck name if not provided."}
+                },
+                "required": ["name"]
+            }),
+        });
+
+        self.register_tool(ToolDefinition {
+            name: "list_decks".to_string(),
+            description: "List all study decks and their associated tags".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {}
+            }),
+        });
     }
 
     pub fn register_tool(&mut self, tool: ToolDefinition) {
@@ -360,6 +383,8 @@ impl MCPToolRegistry {
             "extract_video_snippet" => self.execute_extract_video_snippet(arguments).await,
             "get_video_extracts" => self.execute_get_video_extracts(arguments).await,
             "get_video_transcript" => self.execute_get_video_transcript(arguments).await,
+            "create_deck" => self.execute_create_deck(arguments).await,
+            "list_decks" => self.execute_list_decks(arguments).await,
             _ => Err(format!("Tool '{}' not implemented", name)),
         }
     }
@@ -1580,6 +1605,71 @@ impl MCPToolRegistry {
                 }],
                 is_error: Some(true),
             }),
+            Err(e) => Ok(ToolCallResult {
+                content: vec![ToolContent {
+                    r#type: "text".to_string(),
+                    text: json!({
+                        "success": false,
+                        "error": e.to_string()
+                    }).to_string(),
+                }],
+                is_error: Some(true),
+            }),
+        }
+    }
+    async fn execute_create_deck(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
+        let name = args["name"].as_str().ok_or("name is required")?;
+        let tags = args["tags"].as_array();
+
+        let deck_tags: Vec<String> = if let Some(tags) = tags {
+            tags.iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect()
+        } else {
+            vec![name.to_string()]
+        };
+
+        Ok(ToolCallResult {
+            content: vec![ToolContent {
+                r#type: "text".to_string(),
+                text: json!({
+                    "success": true,
+                    "name": name,
+                    "tags": deck_tags,
+                    "message": format!("Deck '{}' created successfully", name)
+                }).to_string(),
+            }],
+            is_error: Some(false),
+        })
+    }
+
+    async fn execute_list_decks(&self, _args: serde_json::Value) -> Result<ToolCallResult, String> {
+        // Collect unique deck: tags from learning items
+        match self.repository.get_all_learning_items().await {
+            Ok(items) => {
+                let mut deck_names: HashSet<String> = HashSet::new();
+                for item in &items {
+                    for tag in &item.tags {
+                        if let Some(name) = tag.strip_prefix("deck:") {
+                            deck_names.insert(name.to_string());
+                        } else if !tag.contains(':') {
+                            // Also collect plain tags that could be deck names
+                            deck_names.insert(tag.clone());
+                        }
+                    }
+                }
+
+                let decks: Vec<_> = deck_names.into_iter().collect();
+
+                Ok(ToolCallResult {
+                    content: vec![ToolContent {
+                        r#type: "text".to_string(),
+                        text: json!({
+                            "count": decks.len(),
+                            "decks": decks
+                        }).to_string(),
+                    }],
+                    is_error: Some(false),
+                })
+            }
             Err(e) => Ok(ToolCallResult {
                 content: vec![ToolContent {
                     r#type: "text".to_string(),
