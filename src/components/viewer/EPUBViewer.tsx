@@ -439,25 +439,25 @@ export function EPUBViewer({
     let animationFrameId: number | null = null;
 
     const resizeObserver = new ResizeObserver(() => {
-      // Use requestAnimationFrame to avoid "loop completed with undelivered notifications" error
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
-      
+
       animationFrameId = requestAnimationFrame(() => {
-        // Skip resize events during initial load to prevent blank page
         if (!initialDisplayCompleteRef.current) {
           console.log("EPUBViewer: Skipping resize during initial load");
           return;
         }
-        // Debounce resize calls to avoid excessive re-renders
         if (resizeTimeout) {
           clearTimeout(resizeTimeout);
         }
         resizeTimeout = setTimeout(() => {
-          if (rendition) {
+          if (!rendition) return;
+          try {
             console.log("EPUBViewer: Container resized, calling rendition.resize()");
             rendition.resize();
+          } catch {
+            // Rendition may be destroyed during unmount while a resize is pending
           }
         }, 150);
       });
@@ -671,7 +671,7 @@ export function EPUBViewer({
               console.log("EPUBViewer: Initial display complete, resize events now enabled");
               // Force a resize to ensure proper rendering after content is stable
               if (rendition) {
-                rendition.resize(undefined, undefined);
+                try { rendition.resize(undefined, undefined); } catch {}
               }
             }
           }, 500);
@@ -721,18 +721,21 @@ export function EPUBViewer({
               clearTimeout(savePositionTimer);
             }
             savePositionTimer = setTimeout(() => {
-              const currentLocation = rendition.currentLocation() as any;
-              if (currentLocation && currentLocation.start && mounted) {
-                saveReadingPosition(currentLocation.start.cfi);
-              }
+              try {
+                const currentLocation = rendition.currentLocation() as any;
+                if (currentLocation && currentLocation.start && mounted) {
+                  saveReadingPosition(currentLocation.start.cfi);
+                }
+              } catch {}
             }, 1000); // Save 1 second after last movement
           };
 
           // Track location changes to save reading position
           rendition.on("relocated", (location: any) => {
+            if (!mounted) return;
             console.log("EPUBViewer: Relocated to:", location.start.cfi);
             debouncedSavePosition();
-            updateProgress(location);
+            try { updateProgress(location); } catch {}
             const chapter = resolveChapterLabel(location.start?.href || location.start?.page);
             if (chapter) {
               setCurrentChapter(chapter);
@@ -776,17 +779,17 @@ export function EPUBViewer({
         clearTimeout(savePositionTimer);
       }
       if (renditionInstance) {
-        const location = renditionInstance.currentLocation?.();
-        const cfi = location?.start?.cfi;
-        if (cfi) {
-          void saveReadingPosition(cfi);
-        }
-      }
-      if (renditionInstance) {
-        renditionInstance.destroy();
+        try {
+          const location = renditionInstance.currentLocation?.();
+          const cfi = location?.start?.cfi;
+          if (cfi) {
+            void saveReadingPosition(cfi);
+          }
+        } catch {}
+        try { renditionInstance.destroy(); } catch {}
       }
       if (bookInstance) {
-        bookInstance.destroy();
+        try { bookInstance.destroy(); } catch {}
       }
     };
     // Note: onLoad, onContextTextChange, onSelectionChange, and onProgressChange are
