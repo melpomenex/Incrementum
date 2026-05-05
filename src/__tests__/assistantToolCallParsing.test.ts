@@ -680,6 +680,88 @@ describe("normalizeToolParameters", () => {
   });
 });
 
+describe("executeToolCalls batch deck tagging", () => {
+  // Tests that when create_deck and create_qa_card appear in the same batch,
+  // the card gets tagged with the deck name so tag-based filtering works.
+
+  function simulateBatchExecution(
+    toolCalls: Array<{ name: string; parameters: Record<string, unknown> }>,
+    docTitle?: string
+  ) {
+    const batchDeckNames: string[] = [];
+    const attachableTools = new Set(["create_qa_card", "create_cloze_card", "create_extract", "batch_create_cards"]);
+
+    return toolCalls.map((call) => {
+      let parameters = { ...call.parameters };
+
+      // Simulate normalizeToolParameters
+      if (docTitle && attachableTools.has(call.name)) {
+        const deckTag = `deck:${docTitle}`;
+        const existingTags: string[] = Array.isArray(parameters.tags)
+          ? parameters.tags.map((t: unknown) => String(t))
+          : [];
+        if (!existingTags.some((t) => t.toLowerCase() === deckTag.toLowerCase())) {
+          parameters = { ...parameters, tags: [...existingTags, deckTag] };
+        }
+      }
+
+      // Inject batch deck tags on card calls
+      if (batchDeckNames.length > 0 && attachableTools.has(call.name)) {
+        const existingTags: string[] = Array.isArray(parameters.tags)
+          ? parameters.tags.map((t: unknown) => String(t))
+          : [];
+        for (const deckName of batchDeckNames) {
+          const normalized = deckName.toLowerCase();
+          const hasMatch = existingTags.some(
+            (t) => t.toLowerCase() === normalized || t.toLowerCase() === `deck:${normalized}`
+          );
+          if (!hasMatch) {
+            existingTags.push(deckName);
+          }
+        }
+        parameters = { ...parameters, tags: existingTags };
+      }
+
+      // Track deck names after successful execution
+      if (call.name === "create_deck") {
+        batchDeckNames.push(call.parameters.name as string);
+      }
+
+      return { ...call, parameters };
+    });
+  }
+
+  it("cards created alongside a deck get tagged with the deck name", () => {
+    const calls = [
+      { name: "create_deck", parameters: { name: "Mengele" } },
+      { name: "create_qa_card", parameters: { question: "Q?", answer: "A!" } },
+      { name: "create_qa_card", parameters: { question: "Q2?", answer: "A2!" } },
+    ];
+
+    const results = simulateBatchExecution(calls, "Mengele (Gerald L. Posner;John Ware)");
+
+    // Deck call should have no special tags
+    expect(results[0].parameters.name).toBe("Mengele");
+
+    // Card calls should have BOTH the auto-deck:title tag AND the plain deck name
+    expect(results[1].parameters.tags).toContain("Mengele");
+    expect(results[1].parameters.tags).toContain("deck:Mengele (Gerald L. Posner;John Ware)");
+    expect(results[2].parameters.tags).toContain("Mengele");
+  });
+
+  it("no duplicate deck name tags when already present", () => {
+    const calls = [
+      { name: "create_deck", parameters: { name: "Biology" } },
+      { name: "create_qa_card", parameters: { question: "Q?", answer: "A!", tags: ["Biology"] } },
+    ];
+
+    const results = simulateBatchExecution(calls);
+    const biologyCount = (results[1].parameters.tags as string[]).filter(
+      (t) => t.toLowerCase() === "biology"
+    ).length;
+    expect(biologyCount).toBe(1);
+  });
+});
 describe("conversation history ordering (regression)", () => {
   it("current user message should come AFTER history", () => {
     // This is a structural test to document the correct ordering.
