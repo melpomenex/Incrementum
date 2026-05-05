@@ -11,6 +11,7 @@ import {
   PreviewIntervals,
   ReviewStreak,
 } from "../api/review";
+import { getLearningItems } from "../api/learning-items";
 import { getDueDocumentsOnly } from "../api/queue";
 import { rateDocument, restoreDocumentScheduling } from "../api/algorithm";
 import { getDocument } from "../api/documents";
@@ -132,6 +133,7 @@ interface ReviewState {
   goToIndex: (index: number) => void;
   resetSession: () => void;
   startReviewAtItem: (itemId: string) => Promise<void>;
+  studyDocumentCards: (documentId: string) => Promise<void>;
   getEstimatedTimeRemaining: () => number; // in seconds
   setReviewMode: (mode: "normal" | "cram") => void;
   setPendingReviewMetadata: (metadata: ReviewState["pendingReviewMetadata"]) => void;
@@ -641,6 +643,35 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       setTimeout(() => {
         get().loadPreviewIntervals();
       }, 100);
+    }
+  },
+
+  studyDocumentCards: async (documentId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const cards = await getLearningItems(documentId);
+      if (cards.length === 0) {
+        set({ isLoading: false });
+        return;
+      }
+      const queue = cards as unknown as ReviewSessionItem[];
+      const sessionId = await startReview();
+      set({
+        queue,
+        currentIndex: 0,
+        currentCard: queue[0],
+        isAnswerShown: false,
+        isLoading: false,
+        reviewsCompleted: 0,
+        correctCount: 0,
+        sessionId,
+        averageTimePerCard: 0,
+        sessionStartTime: Date.now(),
+        isSubmitting: false,
+        previewIntervals: null,
+      });
+    } catch (error) {
+      set({ isLoading: false, error: error instanceof Error ? error.message : "Failed to load cards" });
     }
   },
 
