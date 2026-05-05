@@ -285,26 +285,32 @@ export async function updateDocumentProgressAuto(
   currentCfi?: string | null,
   currentViewState?: ViewState | string | null
 ): Promise<any> {
-  const viewStatePayload = serializeViewState(currentViewState);
+  try {
+    const viewStatePayload = serializeViewState(currentViewState);
 
-  if (isWebMode()) {
-    return await browserInvoke<Document>("update_document_progress", {
+    if (isWebMode()) {
+      return await browserInvoke<Document>("update_document_progress", {
+        id,
+        current_page: currentPage ?? null,
+        current_scroll_percent: currentScrollPercent ?? null,
+        current_cfi: currentCfi ?? null,
+        current_view_state: viewStatePayload,
+      });
+    }
+
+    // Tauri invoke expects camelCase for snake_case Rust parameters.
+    return await invokeCommand<Document>("update_document_progress", {
       id,
-      current_page: currentPage ?? null,
-      current_scroll_percent: currentScrollPercent ?? null,
-      current_cfi: currentCfi ?? null,
-      current_view_state: viewStatePayload,
+      currentPage: currentPage ?? null,
+      currentScrollPercent: currentScrollPercent ?? null,
+      currentCfi: currentCfi ?? null,
+      currentViewState: viewStatePayload,
     });
+  } catch (error) {
+    // Non-critical — scroll/page position save can fail (e.g. disk I/O on Pi)
+    // without affecting the user experience. Log but don't surface.
+    console.warn("[Document] updateDocumentProgress failed (non-critical):", error);
   }
-
-  // Tauri invoke expects camelCase for snake_case Rust parameters.
-  return await invokeCommand<Document>("update_document_progress", {
-    id,
-    currentPage: currentPage ?? null,
-    currentScrollPercent: currentScrollPercent ?? null,
-    currentCfi: currentCfi ?? null,
-    currentViewState: viewStatePayload,
-  });
 }
 
 /**

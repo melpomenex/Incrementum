@@ -1091,7 +1091,18 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         console.log("[Assistant] Executing tool:", call.name, "params:", parameters);
         const result = await callIncrementumMCPTool(call.name, parameters);
         console.log("[Assistant] Tool result:", call.name, result);
-        updateToolCall(messageId, index, { result, status: "success" });
+        // Check if the MCP tool itself reported an error (e.g. DB write failure)
+        if (result.isError) {
+          console.warn("[Assistant] Tool reported error:", call.name, result);
+          updateToolCall(messageId, index, {
+            result: JSON.stringify(result.content),
+            status: "error",
+          });
+          results.push({ name: call.name, status: "error", error: "Tool returned error" });
+        } else {
+          updateToolCall(messageId, index, { result, status: "success" });
+          results.push({ name: call.name, status: "success" });
+        }
 
         // Sync deck creation to frontend store and track for card tagging
         if (call.name === "create_deck" && !result.isError) {
@@ -1121,8 +1132,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
             }
           }
         }
-
-        results.push({ name: call.name, status: "success" });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         updateToolCall(messageId, index, {
