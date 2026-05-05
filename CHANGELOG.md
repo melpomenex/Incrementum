@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.29.5] - 2026-05-04
+
+### Fixed
+- **Raw `{{cN::text}}` cloze syntax now renders in review views** — AI-generated cloze cards using `{{c1::answer}}` markers now display properly as blanks/hints in ReviewCard, FlashcardScrollItem, and GeneratedCardsPopover, instead of showing raw syntax as plain text.
+- **Duplicate decks from parenthetical author names** — `addDeck()` now deduplicates by name (case-insensitive), and auto-deck tags strip parenthetical author info (e.g. `Mengele (Author)` → `deck:Mengele`).
+- **Cards not appearing under their deck** — When `create_deck` and card calls appear in the same batch, cards now get tagged with the plain deck name so `matchesDeckTags` finds them.
+- **Unfenced nested JSON breaking tool call parser** — Brace/bracket depth matching replaces greedy regex, correctly parsing `{{"tool_calls":[...]}}`.
+- **Assistant only emitting deck creation, no cards** — Rewrote system prompt tool instructions, fixed conversation history ordering, added deck-without-cards warning, and added fallback for unfenced JSON card arrays.
+- **Flashcard tooling fixes** — General flashcard creation and handling improvements.
+- **EPUB rendition crash on unmount** — Guarded rendition calls against destroyed iframes.
+- **Devtools feature** — Enabled for `open_devtools()` on desktop.
+
 ## [1.29.4] - 2026-05-04
 
 ### Added
