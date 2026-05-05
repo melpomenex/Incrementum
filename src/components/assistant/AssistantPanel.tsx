@@ -1057,10 +1057,34 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
 
   const executeToolCalls = async (messageId: string, calls: ToolCall[]) => {
     const results: Array<{ name: string; status: "success" | "error"; error?: string }> = [];
+    // Track deck names created in this batch so we can tag subsequent cards with matching tags
+    const batchDeckNames: string[] = [];
 
     for (let index = 0; index < calls.length; index += 1) {
       const call = calls[index];
-      const parameters = normalizeToolParameters(call.name, call.parameters);
+      let parameters = normalizeToolParameters(call.name, call.parameters);
+
+      // If this is a card/extract call and we created decks earlier in this batch,
+      // ensure the card tags include the deck names so tag-based filtering works.
+      if (batchDeckNames.length > 0) {
+        const cardTools = new Set(["create_qa_card", "create_cloze_card", "batch_create_cards", "create_extract"]);
+        if (cardTools.has(call.name)) {
+          const existingTags: string[] = Array.isArray(parameters.tags)
+            ? parameters.tags.map((t: unknown) => String(t))
+            : [];
+          for (const deckName of batchDeckNames) {
+            const normalized = deckName.toLowerCase();
+            const hasMatch = existingTags.some(
+              (t) => t.toLowerCase() === normalized || t.toLowerCase() === `deck:${normalized}`
+            );
+            if (!hasMatch) {
+              existingTags.push(deckName);
+            }
+          }
+          parameters = { ...parameters, tags: existingTags };
+        }
+      }
+
       updateToolCall(messageId, index, { parameters });
 
       try {
@@ -1069,12 +1093,13 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         console.log("[Assistant] Tool result:", call.name, result);
         updateToolCall(messageId, index, { result, status: "success" });
 
-        // Sync deck creation to frontend store
+        // Sync deck creation to frontend store and track for card tagging
         if (call.name === "create_deck" && !result.isError) {
           try {
             const parsed = JSON.parse(result.content?.[0]?.text ?? "{}");
             if (parsed.success && parsed.name) {
               useStudyDeckStore.getState().addDeck(parsed.name, parsed.tags ?? [parsed.name]);
+              batchDeckNames.push(parsed.name);
             }
           } catch { /* non-critical */ }
         }
