@@ -3,6 +3,7 @@ import { invokeCommand } from "../lib/tauri";
 
 interface ExtractState {
   extracts: any[];
+  extractsInitialized: boolean;
   isLoading: boolean;
   lastHighlightColor: string;
   loadExtracts: (documentId?: string) => Promise<void>;
@@ -14,13 +15,14 @@ interface ExtractState {
 
 export const useExtractStore = create<ExtractState>((set) => ({
   extracts: [],
+  extractsInitialized: false,
   isLoading: false,
   lastHighlightColor: "#fef08a",
   loadExtracts: async (documentId) => {
     set({ isLoading: true });
     try {
       const extracts: any[] = await invokeCommand("get_extracts", { documentId: documentId || null }) || [];
-      set({ extracts, isLoading: false });
+      set({ extracts, isLoading: false, extractsInitialized: true });
     } catch (error) {
       console.error("Failed to load extracts:", error);
       set({ isLoading: false });
