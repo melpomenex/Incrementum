@@ -2,6 +2,24 @@
   "manifest_version": 3,
   "name": "Incrementum Browser Sync",
   "version": "1.0.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "incrementum-browser-sync@melpomenex.dev",
+      "data_collection_permissions": {
+        "required": [
+          "browsingActivity",
+          "bookmarksInfo",
+          "websiteContent"
+        ],
+        "optional": [],
+        "transmission": [
+          "browsingActivity",
+          "bookmarksInfo",
+          "websiteContent"
+        ]
+      }
+    }
+  },
   "description": "Sync your browser tabs, bookmarks, and pages to Incrementum knowledge management system",
   
   "permissions": [
@@ -23,6 +41,7 @@
   ],
   
   "background": {
+    "scripts": ["background.js"],
     "service_worker": "background.js"
   },
   
