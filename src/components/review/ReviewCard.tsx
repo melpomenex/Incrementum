@@ -247,7 +247,50 @@ export function ReviewCard({
         );
       }
 
-      // Fallback: regex-based cloze rendering for [[cN::content]] markers
+      // Fallback: regex-based cloze rendering for {{cN::content}} or [[cN::content]] markers
+      // (AI-generated cloze cards use {{c1::text}} syntax)
+      const rawClozePattern = /\{\{c(\d+)::(.+?)(?:::(.+?))?\}\}/g;
+      const hasRawCloze = rawClozePattern.test(card.cloze_text);
+      // Reset regex lastIndex since test() advances it
+      rawClozePattern.lastIndex = 0;
+
+      if (hasRawCloze) {
+        // Render using parsed raw cloze syntax
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match;
+        while ((match = rawClozePattern.exec(card.cloze_text)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(
+              <span key={`t-${parts.length}`} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(card.cloze_text.slice(lastIndex, match.index)) }} />
+            );
+          }
+          if (showAnswer) {
+            parts.push(
+              <span key={`c-${parts.length}`} className="bg-primary/20 px-1 rounded font-semibold" dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(match[2]) }} />
+            );
+          } else {
+            const hint = match[3];
+            parts.push(
+              <span key={`c-${parts.length}`} className="bg-muted px-2 py-0.5 rounded text-foreground font-bold border border-border/50">
+                {hint || "[...]"}
+              </span>
+            );
+          }
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < card.cloze_text.length) {
+          parts.push(
+            <span key={`t-end`} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(card.cloze_text.slice(lastIndex)) }} />
+          );
+        }
+        return (
+          <div className="text-lg leading-relaxed text-foreground">
+            {parts}
+          </div>
+        );
+      }
+
       const parts = card.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
       return (
         <div className="text-lg leading-relaxed text-foreground">

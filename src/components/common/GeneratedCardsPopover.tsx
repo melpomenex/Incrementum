@@ -70,7 +70,41 @@ function renderClozeText(item: LearningItem, isAnswerRevealed: boolean) {
   return <>{parts}</>;
   }
 
-  // Fallback: parse [[cN::content]] markers from cloze_text via regex
+  // Fallback: parse {{cN::content}} or [[cN::content]] markers from cloze_text
+  const rawClozePattern = /\{\{c(\d+)::(.+?)(?:::(.+?))?\}\}/g;
+  if (rawClozePattern.test(item.cloze_text)) {
+    rawClozePattern.lastIndex = 0;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    while ((match = rawClozePattern.exec(item.cloze_text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`t-${parts.length}`} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.cloze_text.slice(lastIndex, match.index)) }} />
+        );
+      }
+      const hint = match[3];
+      if (isAnswerRevealed) {
+        parts.push(
+          <span key={`c-${parts.length}`} className="bg-green-500/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded font-semibold text-sm" dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(match[2]) }} />
+        );
+      } else {
+        parts.push(
+          <span key={`c-${parts.length}`} className="bg-primary/20 px-2 py-0.5 rounded mx-0.5 text-sm">
+            {hint || "[...]"}
+          </span>
+        );
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < item.cloze_text.length) {
+      parts.push(
+        <span key={`t-end`} dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(item.cloze_text.slice(lastIndex)) }} />
+      );
+    }
+    return <>{parts}</>;
+  }
+
   const parts = item.cloze_text.split(/\[\[c(\d+)::(.*?)\]\]/g);
   return (
     <span>
