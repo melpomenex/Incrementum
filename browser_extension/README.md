@@ -50,14 +50,29 @@ A powerful browser extension that seamlessly integrates with Incrementum to capt
 
 ### Prerequisites
 1. **Incrementum Application**: Must be running with browser sync enabled
-2. **Chrome Browser**: Extension currently supports Chrome/Chromium browsers
-3. **API Keys**: Optional, for AI summary features (configured in Incrementum)
+2. **API Keys**: Optional, for AI summary features (configured in Incrementum)
 
 ### Installation Steps
 
+#### Firefox (Recommended)
+
+**Option A: Signed XPI (Permanent Install)**
+1. Pull the repo and locate `browser_extension/incrementum-browser-sync.xpi`
+2. Drag the `.xpi` file into a Firefox window
+3. Click "Add" in the confirmation prompt
+4. The extension installs permanently — no developer mode needed
+
+**Option B: Developer Mode (Temporary, reloads on restart)**
+1. Open Firefox and navigate to `about:debugging`
+2. Click "This Firefox" in the sidebar
+3. Click "Load Temporary Add-on…"
+4. Select the `manifest.json` inside the `browser_extension/` folder
+5. The extension loads until Firefox is restarted
+
+#### Chrome / Chromium
+
 1. **Download the Extension**
    ```bash
-   # Clone or download the browser_extension folder
    git clone <repository-url>
    cd incrementum/browser_extension
    ```
@@ -67,12 +82,11 @@ A powerful browser extension that seamlessly integrates with Incrementum to capt
    - Enable "Developer mode" (toggle in top-right)
    - Click "Load unpacked"
    - Select the `browser_extension` folder
-   - The extension should appear in your extensions list
 
-3. **Verify Installation**
-   - Look for the Incrementum icon in your browser toolbar
-   - Click the icon to open the popup
-   - Check that the status shows "Connected"
+#### Verify Installation
+- Look for the Incrementum icon in your browser toolbar
+- Click the icon to open the popup
+- Check that the status shows "Connected"
 
 ## 🔧 Configuration
 
