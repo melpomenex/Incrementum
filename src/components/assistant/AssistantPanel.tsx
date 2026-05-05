@@ -912,11 +912,28 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
     }
 
     // Fallback 1: try to parse unfenced JSON containing recognized tool names
+    // Uses brace/bracket depth matching instead of regex to handle nested JSON like {"tool_calls":[...]}.
     if (toolCalls.length === 0 && knownToolNames.size > 0) {
-      const jsonBlockRegex = /(?:^|\n)((?:\{[\s\S]*?\}|\[[\s\S]*?\]))(?:\n|$)/g;
-      let fallbackMatch: RegExpExecArray | null;
-      while ((fallbackMatch = jsonBlockRegex.exec(cleanedContent)) !== null) {
-        const raw = fallbackMatch[1].trim();
+      const jsonCandidatePositions: number[] = [];
+      for (let i = 0; i < cleanedContent.length; i += 1) {
+        if (cleanedContent[i] === "{" || cleanedContent[i] === "[") {
+          jsonCandidatePositions.push(i);
+        }
+      }
+      for (const startPos of jsonCandidatePositions) {
+        const opener = cleanedContent[startPos];
+        const closer = opener === "{" ? "}" : "]";
+        let depth = 0;
+        let endPos = -1;
+        for (let i = startPos; i < cleanedContent.length; i += 1) {
+          if (cleanedContent[i] === opener) depth += 1;
+          else if (cleanedContent[i] === closer) {
+            depth -= 1;
+            if (depth === 0) { endPos = i + 1; break; }
+          }
+        }
+        if (endPos === -1) continue;
+        const raw = cleanedContent.slice(startPos, endPos).trim();
         try {
           const parsed = JSON.parse(raw);
           const calls = extractCalls(parsed);
@@ -927,9 +944,9 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
               const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
               toolCalls.push({ name: call.name!, parameters: normalizedArgs, status: "pending" });
             });
-            cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+            cleanedContent = cleanedContent.slice(0, startPos) + cleanedContent.slice(endPos);
+            cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
           } else if (knownToolNames.has("create_qa_card") && Array.isArray(parsed)) {
-            // No tool-name matches found — check if this is an array of {question, answer} cards
             let foundCards = false;
             for (const item of parsed) {
               if (item && typeof item === "object") {
@@ -942,7 +959,8 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
               }
             }
             if (foundCards) {
-              cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+              cleanedContent = cleanedContent.slice(0, startPos) + cleanedContent.slice(endPos);
+              cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
             }
           }
         } catch {

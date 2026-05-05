@@ -84,12 +84,28 @@ function parseToolCalls(
   }
 
   // Fallback 1: try to parse unfenced JSON containing recognized tool names
+  // Uses brace/bracket depth matching to handle nested JSON like {"tool_calls":[...]}.
   if (toolCalls.length === 0 && knownToolNames.size > 0) {
-    const jsonBlockRegex =
-      /(?:^|\n)((?:\{[\s\S]*?\}|\[[\s\S]*?\]))(?:\n|$)/g;
-    let fallbackMatch: RegExpExecArray | null;
-    while ((fallbackMatch = jsonBlockRegex.exec(cleanedContent)) !== null) {
-      const raw = fallbackMatch[1].trim();
+    const jsonCandidatePositions: number[] = [];
+    for (let i = 0; i < cleanedContent.length; i += 1) {
+      if (cleanedContent[i] === "{" || cleanedContent[i] === "[") {
+        jsonCandidatePositions.push(i);
+      }
+    }
+    for (const startPos of jsonCandidatePositions) {
+      const opener = cleanedContent[startPos];
+      const closer = opener === "{" ? "}" : "]";
+      let depth = 0;
+      let endPos = -1;
+      for (let i = startPos; i < cleanedContent.length; i += 1) {
+        if (cleanedContent[i] === opener) depth += 1;
+        else if (cleanedContent[i] === closer) {
+          depth -= 1;
+          if (depth === 0) { endPos = i + 1; break; }
+        }
+      }
+      if (endPos === -1) continue;
+      const raw = cleanedContent.slice(startPos, endPos).trim();
       try {
         const parsed = JSON.parse(raw);
         const calls = extractCalls(parsed);
@@ -110,9 +126,9 @@ function parseToolCalls(
               status: "pending",
             });
           });
-          cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+          cleanedContent = cleanedContent.slice(0, startPos) + cleanedContent.slice(endPos);
+          cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
         } else if (knownToolNames.has("create_qa_card") && Array.isArray(parsed)) {
-          // No tool-name matches — check for {question, answer} card arrays
           let foundCards = false;
           for (const item of parsed) {
             if (item && typeof item === "object") {
@@ -125,7 +141,8 @@ function parseToolCalls(
             }
           }
           if (foundCards) {
-            cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+            cleanedContent = cleanedContent.slice(0, startPos) + cleanedContent.slice(endPos);
+            cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
           }
         }
       } catch {
@@ -435,6 +452,21 @@ Done!`;
       expect(result.toolCalls).toHaveLength(1);
       expect(result.toolCalls[0].name).toBe("create_qa_card");
       expect(result.toolCalls[0].parameters.question).toBe("What is 2+2?");
+    });
+
+    it("parses unfenced tool_calls JSON block (the real-world OpenRouter scenario)", () => {
+      // This is the EXACT output format from OpenRouter models — no code fences, just raw JSON
+      const content = `{"tool_calls":[{"name":"create_deck","arguments":{"name":"Mengele"}},{"name":"create_qa_card","arguments":{"question":"What was the highest number of Jews gassed in a twenty-four hour period at Auschwitz?","answer":"9,000 Jews"}},{"name":"create_qa_card","arguments":{"question":"What is the currently estimated total number of Jews gassed at Auschwitz?","answer":"Between 1.1 and 1.3 million"}}]}`;
+
+      const result = parseToolCalls(content, MOCK_TOOLS);
+      expect(result.toolCalls).toHaveLength(3);
+      expect(result.toolCalls[0].name).toBe("create_deck");
+      expect(result.toolCalls[0].parameters.name).toBe("Mengele");
+      expect(result.toolCalls[1].name).toBe("create_qa_card");
+      expect(result.toolCalls[1].parameters.question).toContain("highest number");
+      expect(result.toolCalls[2].name).toBe("create_qa_card");
+      // cleanedContent should have the JSON removed
+      expect(result.cleanedContent).not.toContain("tool_calls");
     });
 
     it("parses unfenced array of tool call objects with recognized names", () => {
