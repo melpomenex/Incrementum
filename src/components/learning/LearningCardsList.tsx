@@ -11,6 +11,9 @@ import {
   setLearningItemPrerequisites,
   updateLearningItemContentWithVersion,
 } from "../../api/learning-items";
+import { useReviewStore } from "../../stores/reviewStore";
+import { useTabsStore } from "../../stores/tabsStore";
+import { ReviewTab } from "../tabs/TabRegistry";
 import { cn } from "../../utils";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
@@ -142,7 +145,23 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
           >
             {t("learningCards.print")}
           </button>
-          <button className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity">
+          <button
+            onClick={async () => {
+              await useReviewStore.getState().studyDocumentCards(documentId);
+              const { queue } = useReviewStore.getState();
+              if (queue.length > 0) {
+                useTabsStore.getState().addTab({
+                  title: t("learningCards.studyNow"),
+                  icon: "🧠",
+                  type: "review",
+                  content: ReviewTab,
+                  closable: true,
+                });
+              }
+            }}
+            disabled={cards.length === 0}
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
             {t("learningCards.studyNow")}
           </button>
         </div>
