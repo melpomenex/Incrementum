@@ -104,6 +104,8 @@ function normalizePathToPage(path?: string): AppPage | null {
       return "analytics";
     case "/knowledge-graph":
       return "knowledge-graph";
+    case "/review":
+      return "queue";
     case "/settings":
       return "settings";
     default:

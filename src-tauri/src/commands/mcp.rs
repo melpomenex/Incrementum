@@ -130,237 +130,30 @@ pub async fn mcp_update_server(
 
 /// Get Incrementum's built-in MCP tools
 #[tauri::command]
-pub async fn mcp_get_incrementum_tools() -> Result<Vec<ToolDefinitionResponse>, String> {
-    // This would require access to a Repository to create a proper MCPToolRegistry
-    // For now, return the tool definitions without executing them
-    Ok(vec![
-        ToolDefinitionResponse {
-            name: "create_document".to_string(),
-            description: "Create a new document in Incrementum".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string", "description": "Document title"},
-                    "content": {"type": "string", "description": "Document content"},
-                    "file_path": {"type": "string", "description": "File path"},
-                    "file_type": {"type": "string", "description": "File type (pdf, epub, md, etc.)"}
-                },
-                "required": ["title"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_document".to_string(),
-            description: "Retrieve details of a specific document".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string", "description": "Document ID"}
-                },
-                "required": ["document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "search_documents".to_string(),
-            description: "Search documents by content or metadata".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "limit": {"type": "number", "description": "Maximum results"}
-                },
-                "required": ["query"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "update_document".to_string(),
-            description: "Update document metadata".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"},
-                    "title": {"type": "string"},
-                    "tags": {"type": "array", "items": {"type": "string"}}
-                },
-                "required": ["document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "delete_document".to_string(),
-            description: "Delete a document".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"}
-                },
-                "required": ["document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "create_cloze_card".to_string(),
-            description: "Create a cloze deletion flashcard".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string", "description": "Text with cloze deletions"},
-                    "document_id": {"type": "string", "description": "Associated document ID"}
-                },
-                "required": ["text"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "create_qa_card".to_string(),
-            description: "Create a question-answer flashcard".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "question": {"type": "string"},
-                    "answer": {"type": "string"},
-                    "document_id": {"type": "string"}
-                },
-                "required": ["question", "answer"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "create_extract".to_string(),
-            description: "Create an extract or note from content".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "content": {"type": "string", "description": "Extract content"},
-                    "document_id": {"type": "string", "description": "Source document ID"},
-                    "note": {"type": "string", "description": "Additional notes"},
-                    "tags": {"type": "array", "items": {"type": "string"}},
-                    "color": {"type": "string", "description": "Highlight color"}
-                },
-                "required": ["content", "document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_learning_items".to_string(),
-            description: "Get learning items for a document".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"},
-                    "item_type": {"type": "string", "enum": ["flashcard", "cloze", "qa", "basic"]}
-                },
-                "required": ["document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_document_extracts".to_string(),
-            description: "Get all extracts for a document".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"}
-                },
-                "required": ["document_id"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_review_queue".to_string(),
-            description: "Get items due for review".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "limit": {"type": "number", "description": "Maximum items"}
-                }
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "submit_review".to_string(),
-            description: "Submit a review result".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "item_id": {"type": "string"},
-                    "rating": {"type": "number", "minimum": 1, "maximum": 4}
-                },
-                "required": ["item_id", "rating"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "rate_document".to_string(),
-            description: "Rate a document and schedule its next review using FSRS".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"},
-                    "rating": {"type": "number", "minimum": 1, "maximum": 4, "description": "FSRS rating: 1=Again, 2=Hard, 3=Good, 4=Easy"},
-                    "time_taken": {"type": "number", "description": "Time spent in seconds (optional)"}
-                },
-                "required": ["document_id", "rating"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "rate_extract".to_string(),
-            description: "Rate an extract and schedule its next review using FSRS".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "extract_id": {"type": "string"},
-                    "rating": {"type": "number", "minimum": 1, "maximum": 4, "description": "FSRS rating: 1=Again, 2=Hard, 3=Good, 4=Easy"},
-                    "time_taken": {"type": "number", "description": "Time spent in seconds (optional)"}
-                },
-                "required": ["extract_id", "rating"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_statistics".to_string(),
-            description: "Get learning statistics".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {}
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "add_pdf_selection".to_string(),
-            description: "Create notes from PDF text selection".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string"},
-                    "page_number": {"type": "number"},
-                    "selection": {"type": "string"}
-                },
-                "required": ["document_id", "page_number", "selection"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "batch_create_cards".to_string(),
-            description: "Create multiple flashcards at once".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "document_id": {"type": "string", "description": "Optional document ID to associate all cards"},
-                    "cards": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "question": {"type": "string"},
-                                "answer": {"type": "string"},
-                                "type": {"type": "string"}
-                            }
-                        }
-                    }
-                },
-                "required": ["cards"]
-            }),
-        },
-        ToolDefinitionResponse {
-            name: "get_queue_documents".to_string(),
-            description: "Get next N documents from reading queue".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "count": {"type": "number", "description": "Number of documents to retrieve"}
-                },
-                "required": ["count"]
-            }),
-        },
-    ])
+pub async fn mcp_get_incrementum_tools(app: tauri::AppHandle) -> Result<Vec<ToolDefinitionResponse>, String> {
+    let state = app.state::<crate::AppState>();
+    let pool = {
+        let db_guard = state
+            .db
+            .lock()
+            .map_err(|_| "Failed to lock app state".to_string())?;
+        let db = db_guard
+            .as_ref()
+            .ok_or_else(|| "Database not initialized".to_string())?;
+        db.pool().clone()
+    };
+    let repository = crate::database::Repository::new(pool);
+    let registry = MCPToolRegistry::new(std::sync::Arc::new(repository));
+
+    Ok(registry
+        .get_tools()
+        .into_iter()
+        .map(|tool| ToolDefinitionResponse {
+            name: tool.name,
+            description: tool.description,
+            input_schema: tool.input_schema,
+        })
+        .collect())
 }
 
 /// Call Incrementum's built-in MCP tool

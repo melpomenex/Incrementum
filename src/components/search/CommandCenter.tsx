@@ -10,13 +10,6 @@ import { extractDocumentText, getDocuments as fetchDocuments } from "../../api/d
 import { isTauri } from "../../lib/tauri";
 import {
   DocumentViewer,
-  DashboardTab,
-  QueueTab,
-  ReviewTab,
-  DocumentsTab,
-  AnalyticsTab,
-  SettingsTab,
-  ImageRegistryTab,
 } from "../../components/tabs/TabRegistry";
 import { Command, CommandCategory, getDefaultCommands } from "../common/CommandPalette";
 import {
@@ -432,68 +425,8 @@ export function CommandCenter() {
     }
 
     // 1. Search Commands
-    const openDashboard = () => { addTab({
-      title: "Dashboard",
-      icon: <LayoutDashboard className="w-4 h-4" />,
-      type: "dashboard",
-      content: DashboardTab,
-      closable: false,
-    }); };
-
-    const openDocuments = () => { addTab({
-      title: "Documents",
-      icon: <Library className="w-4 h-4" />,
-      type: "documents",
-      content: DocumentsTab,
-      closable: true,
-    }); };
-
-    const openQueue = () => { addTab({
-      title: "Queue",
-      icon: <ListTodo className="w-4 h-4" />,
-      type: "queue",
-      content: QueueTab,
-      closable: true,
-    }); };
-
-    const openAnalytics = () => { addTab({
-      title: "Statistics",
-      icon: <BarChart3 className="w-4 h-4" />,
-      type: "analytics",
-      content: AnalyticsTab,
-      closable: true,
-    }); };
-
-    const openSettings = () => { addTab({
-      title: "Settings",
-      icon: <Settings className="w-4 h-4" />,
-      type: "settings",
-      content: SettingsTab,
-      closable: true,
-    }); };
-
-    const openReview = () => { addTab({
-      title: "Review",
-      icon: <Brain className="w-4 h-4" />,
-      type: "review",
-      content: ReviewTab,
-      closable: true,
-    }); };
-
-    const openImageRegistry = () => { addTab({
-      title: "Image Registry",
-      icon: <Images className="w-4 h-4" />,
-      type: "image-registry",
-      content: ImageRegistryTab,
-      closable: true,
-    }); };
-
-    const sectionActions: Record<string, () => void> = {
-      dashboard: openDashboard,
-      documents: openDocuments,
-      queue: openQueue,
-      analytics: openAnalytics,
-      settings: openSettings,
+    const navigateTo = (path: string) => {
+      window.dispatchEvent(new CustomEvent("navigate", { detail: path }));
     };
 
     const navigationCommands: Command[] = [
@@ -503,7 +436,7 @@ export function CommandCenter() {
         description: "Navigate to the dashboard",
         icon: <LayoutDashboard className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openDashboard(); },
+        action: () => navigateTo("/dashboard"),
         keywords: ["home", "main"],
       },
       {
@@ -512,7 +445,7 @@ export function CommandCenter() {
         description: "View all documents",
         icon: <Library className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openDocuments(); },
+        action: () => navigateTo("/documents"),
         keywords: ["library", "files"],
       },
       {
@@ -521,7 +454,7 @@ export function CommandCenter() {
         description: "View reading queue",
         icon: <ListTodo className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openQueue(); },
+        action: () => navigateTo("/queue"),
         keywords: ["list", "reading"],
       },
       {
@@ -530,7 +463,7 @@ export function CommandCenter() {
         description: "View learning statistics",
         icon: <BarChart3 className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openAnalytics(); },
+        action: () => navigateTo("/analytics"),
         keywords: ["stats", "progress"],
       },
       {
@@ -539,7 +472,7 @@ export function CommandCenter() {
         description: "View application settings",
         icon: <Settings className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openSettings(); },
+        action: () => navigateTo("/settings"),
         keywords: ["config", "preferences"],
       },
       {
@@ -548,7 +481,7 @@ export function CommandCenter() {
         description: "Start a review session",
         icon: <Brain className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openReview(); },
+        action: () => navigateTo("/review"),
         keywords: ["review", "study"],
       },
       {
@@ -557,7 +490,7 @@ export function CommandCenter() {
         description: "View and manage image registry",
         icon: <Images className="w-4 h-4" />,
         category: CommandCategory.Navigation,
-        action: () => { openImageRegistry(); },
+        action: () => navigateTo("/image-registry"),
         keywords: ["images", "screenshots", "registry", "library", "flashcards"],
       },
     ];
@@ -655,6 +588,7 @@ export function CommandCenter() {
         "go-analytics",
         "go-image-registry",
         "open-settings",
+        "start-review",
       ].includes(cmd.id)),
       ...navigationCommands,
       ...themeCommands,
@@ -674,7 +608,6 @@ export function CommandCenter() {
 
     const sectionMatches = findMatchingSections(query.query);
     sectionMatches.forEach(({ section, score }) => {
-      const sectionAction = sectionActions[section.id];
       results.push({
         id: `section-${section.id}`,
         type: SearchResultType.Command,
@@ -686,7 +619,7 @@ export function CommandCenter() {
           sectionId: section.id,
           targetPath: section.path,
           resultKind: "section",
-          action: sectionAction ?? (() => window.dispatchEvent(new CustomEvent("navigate", { detail: section.path }))),
+          action: () => navigateTo(section.path),
         },
       });
     });
@@ -1006,7 +939,7 @@ export function CommandCenter() {
     });
 
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
-  }, [documents, extracts, addTab, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
+  }, [documents, extracts, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === SearchResultType.Command) {

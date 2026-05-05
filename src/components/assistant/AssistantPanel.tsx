@@ -24,6 +24,7 @@ import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "..
 import { callIncrementumMCPTool, getIncrementumMCPTools, type MCPTool } from "../../api/mcp";
 import { renderMarkdown } from "../../utils/markdown";
 import { useSettingsStore } from "../../stores";
+import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { ShareMessageDialog } from "./ShareMessageDialog";
 import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessage } from "../../api/integrations";
@@ -641,6 +642,8 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       // Call the LLM API
       const response = await callLLM(userMessage.content, contextData);
       const { cleanedContent, toolCalls } = parseToolCalls(response.content);
+      console.log("[Assistant] LLM response:", response.content?.substring(0, 500));
+      console.log("[Assistant] Parsed tool calls:", toolCalls.length, toolCalls.map(c => c.name));
 
       // Show warning if images were stripped due to unsupported model
       if (response.imagesStripped && response.modelName) {
@@ -664,7 +667,17 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
 
       setMessages((prev) => [...prev, assistantMessage]);
       if (toolCalls.length > 0) {
-        await executeToolCalls(assistantMessage.id, toolCalls);
+        const results = await executeToolCalls(assistantMessage.id, toolCalls);
+        const confirmation = buildConfirmationMessage(results);
+        if (confirmation) {
+          const confirmationMessage: Message = {
+            id: `assistant-confirm-${Date.now()}`,
+            role: "assistant",
+            content: confirmation,
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, confirmationMessage]);
+        }
       }
     } catch (error) {
       const errorMessage: Message = {
@@ -848,58 +861,35 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
   };
 
   const getAvailableTools = () => {
-    return availableTools.length > 0 ? availableTools : [
-      {
-        name: "create_document",
-        description: "Create a new document",
-        inputSchema: { title: "string", content: "string" },
-      },
-      {
-        name: "get_document",
-        description: "Get document details",
-        inputSchema: { document_id: "string" },
-      },
-      {
-        name: "search_documents",
-        description: "Search documents by content",
-        inputSchema: { query: "string" },
-      },
-      {
-        name: "create_extract",
-        description: "Create an extract from selection",
-        inputSchema: { content: "string", note: "string" },
-      },
-      {
-        name: "create_qa_card",
-        description: "Create a Q&A flashcard",
-        inputSchema: { question: "string", answer: "string" },
-      },
-      {
-        name: "get_review_queue",
-        description: "Get items due for review",
-        inputSchema: {},
-      },
-    ];
+    return availableTools;
   };
 
   const parseToolCalls = (content: string) => {
+    const knownToolNames = new Set(availableTools.map((t) => t.name));
     const toolCalls: ToolCall[] = [];
     const toolCallRegex = /```tool_calls\s*([\s\S]*?)```/g;
     let cleanedContent = content;
     let match: RegExpExecArray | null;
 
+    const extractCalls = (parsed: unknown): Array<{ name?: string; arguments?: Record<string, unknown> }> => {
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).tool_calls)) {
+        return (parsed as Record<string, unknown>).tool_calls as Array<{ name?: string; arguments?: Record<string, unknown> }>;
+      }
+      if (parsed && typeof parsed === "object" && typeof (parsed as Record<string, unknown>).name === "string") {
+        return [parsed as { name?: string; arguments?: Record<string, unknown> }];
+      }
+      return [];
+    };
+
     while ((match = toolCallRegex.exec(content)) !== null) {
       const raw = match[1].trim();
       try {
         const parsed = JSON.parse(raw);
-        const calls = Array.isArray(parsed)
-          ? parsed
-          : Array.isArray(parsed?.tool_calls)
-            ? parsed.tool_calls
-            : [];
+        const calls = extractCalls(parsed);
 
         calls.forEach((call: { name?: string; arguments?: Record<string, unknown> }) => {
-          if (typeof call?.name === "string") {
+          if (typeof call?.name === "string" && knownToolNames.has(call.name)) {
             const args = call.arguments;
             const normalizedArgs = args && typeof args === "object" && !Array.isArray(args)
               ? args
@@ -917,25 +907,141 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       }
     }
 
+    // Fallback 1: try to parse unfenced JSON containing recognized tool names
+    if (toolCalls.length === 0 && knownToolNames.size > 0) {
+      const jsonBlockRegex = /(?:^|\n)((?:\{[\s\S]*?\}|\[[\s\S]*?\]))(?:\n|$)/g;
+      let fallbackMatch: RegExpExecArray | null;
+      while ((fallbackMatch = jsonBlockRegex.exec(cleanedContent)) !== null) {
+        const raw = fallbackMatch[1].trim();
+        try {
+          const parsed = JSON.parse(raw);
+          const calls = extractCalls(parsed);
+          const validCalls = calls.filter((call) => typeof call?.name === "string" && knownToolNames.has(call.name));
+          if (validCalls.length > 0) {
+            validCalls.forEach((call) => {
+              const args = call.arguments;
+              const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+              toolCalls.push({ name: call.name!, parameters: normalizedArgs, status: "pending" });
+            });
+            cleanedContent = cleanedContent.replace(fallbackMatch[0], "").trim();
+          }
+        } catch {
+          // Not valid JSON — leave untouched
+        }
+      }
+    }
+
+    // Fallback 2: convert raw JSON arrays of {question, answer} into create_qa_card calls
+    if (toolCalls.length === 0 && knownToolNames.has("create_qa_card")) {
+      const jsonArrRegex = /```(?:json)?\s*\n?([\s\S]*?)```/g;
+      let arrMatch: RegExpExecArray | null;
+      while ((arrMatch = jsonArrRegex.exec(cleanedContent)) !== null) {
+        const raw = arrMatch[1].trim();
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              if (item && typeof item === "object") {
+                const q = item.question ?? item.Q ?? item.q;
+                const a = item.answer ?? item.A ?? item.a;
+                if (typeof q === "string" && typeof a === "string") {
+                  toolCalls.push({ name: "create_qa_card", parameters: { question: q, answer: a }, status: "pending" });
+                }
+              }
+            }
+          }
+        } catch {
+          // Not valid JSON
+        }
+      }
+    }
+
     return { cleanedContent, toolCalls };
   };
 
   const executeToolCalls = async (messageId: string, calls: ToolCall[]) => {
+    const results: Array<{ name: string; status: "success" | "error"; error?: string }> = [];
+
     for (let index = 0; index < calls.length; index += 1) {
       const call = calls[index];
       const parameters = normalizeToolParameters(call.name, call.parameters);
       updateToolCall(messageId, index, { parameters });
 
       try {
+        console.log("[Assistant] Executing tool:", call.name, "params:", parameters);
         const result = await callIncrementumMCPTool(call.name, parameters);
+        console.log("[Assistant] Tool result:", call.name, result);
         updateToolCall(messageId, index, { result, status: "success" });
+
+        // Sync deck creation to frontend store
+        if (call.name === "create_deck" && !result.isError) {
+          try {
+            const parsed = JSON.parse(result.content?.[0]?.text ?? "{}");
+            if (parsed.success && parsed.name) {
+              useStudyDeckStore.getState().addDeck(parsed.name, parsed.tags ?? [parsed.name]);
+            }
+          } catch { /* non-critical */ }
+        }
+
+        // Auto-create deck in frontend store from tags on card creation
+        if (!result.isError && parameters.tags && Array.isArray(parameters.tags)) {
+          for (const tag of parameters.tags as string[]) {
+            const deckName = tag.startsWith("deck:") ? tag.slice(5) : null;
+            if (deckName) {
+              const store = useStudyDeckStore.getState();
+              const exists = store.decks.some((d) => d.name.toLowerCase() === deckName.toLowerCase());
+              if (!exists) {
+                store.addDeck(deckName, [deckName]);
+              }
+            }
+          }
+        }
+
+        results.push({ name: call.name, status: "success" });
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
         updateToolCall(messageId, index, {
-          result: error instanceof Error ? error.message : error,
+          result: errorMsg,
           status: "error",
         });
+        results.push({ name: call.name, status: "error", error: errorMsg });
       }
     }
+
+    return results;
+  };
+
+  const buildConfirmationMessage = (results: Array<{ name: string; status: "success" | "error"; error?: string }>) => {
+    const succeeded = results.filter((r) => r.status === "success");
+    const failed = results.filter((r) => r.status === "error");
+
+    const parts: string[] = [];
+
+    if (succeeded.length > 0) {
+      const counts: Record<string, number> = {};
+      succeeded.forEach((r) => {
+        counts[r.name] = (counts[r.name] || 0) + 1;
+      });
+
+      const summaries = Object.entries(counts).map(([name, count]) => {
+        const label = name === "create_qa_card" || name === "create_cloze_card" || name === "batch_create_cards"
+          ? `${count} flashcard${count > 1 ? "s" : ""}`
+          : name === "create_extract"
+            ? `${count} extract${count > 1 ? "s" : ""}`
+            : name === "create_document"
+              ? `${count} document${count > 1 ? "s" : ""}`
+              : `${count} ${name}${count > 1 ? "s" : ""}`;
+        return label;
+      });
+      parts.push(`Created ${summaries.join(", ")} and saved to your library.`);
+    }
+
+    if (failed.length > 0) {
+      const errors = failed.map((r) => `${r.name}: ${r.error}`).join("; ");
+      parts.push(`Failed: ${errors}`);
+    }
+
+    return parts.join(" ");
   };
 
   const updateToolCall = (messageId: string, index: number, updates: Partial<ToolCall>) => {
@@ -953,6 +1059,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
   const normalizeToolParameters = (toolName: string, parameters: Record<string, unknown>) => {
     const normalized = { ...parameters };
     const documentId = context?.documentId;
+    const docTitle = context?.metadata?.title;
     const attachableTools = new Set([
       "create_cloze_card",
       "create_qa_card",
@@ -964,6 +1071,17 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       normalized.document_id = documentId;
     }
 
+    // Auto-tag with deck:<DocumentTitle> for card/extract tools
+    if (docTitle && attachableTools.has(toolName)) {
+      const deckTag = `deck:${docTitle}`;
+      const existingTags: string[] = Array.isArray(normalized.tags)
+        ? normalized.tags.map((t: unknown) => String(t))
+        : [];
+      if (!existingTags.some((t) => t.toLowerCase() === deckTag.toLowerCase())) {
+        normalized.tags = [...existingTags, deckTag];
+      }
+    }
+
     return normalized;
   };
 
@@ -972,47 +1090,50 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       return "Answer normally. Tool calls are unavailable.";
     }
     const toolNames = tools.map((tool) => tool.name).join(", ");
+    const toolDescriptions = tools.map((tool) => `- **${tool.name}**: ${tool.description}`).join("\n");
 
-    // Build detailed tool descriptions
-    const toolDescriptions = tools.map((tool) => {
-      return `- **${tool.name}**: ${tool.description}`;
-    }).join("\n");
-
-    return `You are a helpful assistant with access to document content. You can answer questions about the content AND create learning items from it.
-
-**Document Content**: You will receive the document's content along with user questions. Use this content to:
-- Answer questions about the material
-- Extract key insights for flashcards
-- Create extracts from important passages
-- Generate summaries
+    return `You are a helpful assistant with access to document content and tools. You can answer questions about the content AND create learning items from it.
 
 **Available Tools**: ${toolNames}
 
 ${toolDescriptions}
 
-**When to use tools**:
-- Create flashcards when asked (e.g., "create flashcards", "make cards", "generate qa cards", "create cloze cards")
-- Create extracts when asked to save quotes or passages
-- Create documents when asked to save new content
+## CRITICAL RULES — Respond vs. Act
 
-**Tool call format** (exact JSON required):
+**When the user asks to CREATE, SAVE, ADD, or MAKE something** — you MUST emit tool calls, NOT output raw JSON or markdown.
+- "create flashcards", "make cards", "generate qa cards", "add flashcards" → use create_qa_card or batch_create_cards
+- "save this as an extract", "save this quote" → use create_extract
+- "create a document" → use create_document
+- "make cloze cards" → use create_cloze_card
+
+**When the user asks a question or wants an explanation** — respond conversationally, NO tool calls.
+- "what does this mean?", "explain X", "summarize this" → just answer in plain text
+
+**NEVER output raw JSON, markdown tables, or bullet lists of flashcards.** ALWAYS use the tool_calls format below.
+
+## Tool call format (REQUIRED — you MUST use EXACTLY this format):
+
+Output a single JSON code block like this:
 \`\`\`tool_calls
 {"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}}]}
 \`\`\`
 
-**For flashcard creation**:
-- Extract key concepts, facts, and insights from the provided document content
-- Create meaningful Q&A cards that test understanding
-- Create cloze deletion cards for key terms and definitions
-- The document_id will be automatically added to your tool calls
+- The block MUST start with \`\`\`tool_calls and end with \`\`\`
+- Each call has "name" (one of: ${toolNames}) and "arguments" (an object)
+- For flashcards: use "question" and "answer" fields
+- For cloze: use "text" field with {{cloze}} markers
+- Do NOT include document_id — it is added automatically
 
-**Example for "Create 5 flashcards"**:
+## Example — user says "create 3 flashcards":
 \`\`\`tool_calls
 {"tool_calls":[
-  {"name":"create_qa_card","arguments":{"question":"What is X?","answer":"Y is..."}},
+  {"name":"create_qa_card","arguments":{"question":"What is X?","answer":"X is..."}},
+  {"name":"create_qa_card","arguments":{"question":"Why does Y happen?","answer":"Because..."}},
   {"name":"create_cloze_card","arguments":{"text":"The {{key term}} is important for..."}}
 ]}
-\`\`\``;
+\`\`\`
+
+Do NOT output flashcards as plain JSON arrays, markdown, or anything other than the tool_calls format above.`;
   };
 
   const handleHistoryNavigation = (direction: "up" | "down") => {
