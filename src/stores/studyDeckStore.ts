@@ -38,10 +38,18 @@ export const useStudyDeckStore = create<StudyDeckState>()(
       },
 
       addDeck: (name, tagFilters = []) => {
+        const trimmed = name.trim() || "Untitled Deck";
+        // Dedup: if a deck with the same name already exists, just merge tags
+        const existing = get().decks.find((d) => d.name.toLowerCase() === trimmed.toLowerCase());
+        if (existing) {
+          const mergedTags = normalizeTagList([...existing.tagFilters, ...(tagFilters || [])]);
+          get().updateDeck(existing.id, { tagFilters: mergedTags });
+          return;
+        }
         const now = new Date().toISOString();
         const deck: StudyDeck = {
           id: generateId(),
-          name: name.trim() || "Untitled Deck",
+          name: trimmed,
           tagFilters: normalizeTagList(tagFilters),
           createdAt: now,
           updatedAt: now,

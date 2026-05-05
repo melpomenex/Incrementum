@@ -1110,9 +1110,13 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
             const deckName = tag.startsWith("deck:") ? tag.slice(5) : null;
             if (deckName) {
               const store = useStudyDeckStore.getState();
-              const exists = store.decks.some((d) => d.name.toLowerCase() === deckName.toLowerCase());
+              const baseName = deckName.replace(/\s*\([^)]*\)\s*$/, "").trim() || deckName;
+              const exists = store.decks.some((d) => {
+                const dBase = d.name.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+                return dBase === baseName.toLowerCase() || d.name.toLowerCase() === deckName.toLowerCase();
+              });
               if (!exists) {
-                store.addDeck(deckName, [deckName]);
+                store.addDeck(baseName, [baseName]);
               }
             }
           }
@@ -1200,9 +1204,12 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       normalized.document_id = documentId;
     }
 
-    // Auto-tag with deck:<DocumentTitle> for card/extract tools
+    // Auto-tag with deck:<base title> for card/extract tools.
+    // Strips parenthetical author info (e.g. "Book (Author)" → "deck:Book")
+    // so tags match deck names more reliably.
     if (docTitle && attachableTools.has(toolName)) {
-      const deckTag = `deck:${docTitle}`;
+      const baseTitle = docTitle.replace(/\s*\([^)]*\)\s*$/, "").trim();
+      const deckTag = `deck:${baseTitle || docTitle}`;
       const existingTags: string[] = Array.isArray(normalized.tags)
         ? normalized.tags.map((t: unknown) => String(t))
         : [];
