@@ -262,7 +262,7 @@ export function buildSessionBlocks(items: QueueItem[], options?: SessionCustomiz
   return blocks;
 }
 
-function applyFilters(items: QueueItem[], options?: SessionCustomizationOptions): QueueItem[] {
+export function applyFilters(items: QueueItem[], options?: SessionCustomizationOptions): QueueItem[] {
   let filtered = [...items];
 
   // Apply item type filter
