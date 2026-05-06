@@ -7,10 +7,11 @@ import { invokeCommand, openFilePicker } from "../../lib/tauri";
 import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck, Database } from "lucide-react";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useCollectionStore } from "../../stores/collectionStore";
+import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { buildCollectionArchive, parseCollectionArchive, restoreBrowserArchive, restoreLocalStorage, shouldUseTauriImport } from "../../utils/collectionArchive";
 import type { CollectionExportScope } from "../../types/archive";
 import { AppStateBackupDialog } from "./AppStateBackupDialog";
-import { exportMnemosyne } from "../../api/learning-items";
+import { exportMnemosyne, exportDeckAsApkg, exportDeckAsCsv, exportAllDecksAsApkg } from "../../api/learning-items";
 import { importPdfHighlightsAsExtracts, importPodcastAudioFile } from "../../api/documents";
 import { getClipboardWatcherEnabled, setClipboardWatcherEnabled } from "../common/ClipboardQuickAddWatcher";
 import { importReferenceItems, parseMendeleyItems, parseZoteroItems } from "../../utils/referenceImport";
@@ -27,6 +28,114 @@ interface ExportOptions {
   includeSettings: boolean;
   includeStatistics: boolean;
   includeMedia: boolean;
+}
+
+function AnkiExportControls() {
+  const { decks } = useStudyDeckStore();
+  const [selectedDeckId, setSelectedDeckId] = useState<string>("");
+  const [exportFormat, setExportFormat] = useState<"apkg" | "csv">("apkg");
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const handleExport = async () => {
+    const deck = decks.find((d) => d.id === selectedDeckId);
+    if (!deck) return;
+    setExportBusy(true);
+    setExportStatus(null);
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const deckName = deck.name;
+      const safeName = deckName.replace(/[^a-zA-Z0-9-_ ]/g, "_");
+
+      if (exportFormat === "apkg") {
+        const filePath = await save({
+          title: `Export "${deckName}" as .apkg`,
+          defaultPath: `${safeName}.apkg`,
+          filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+        });
+        if (!filePath) { setExportBusy(false); return; }
+        const result = await exportDeckAsApkg(deckName, filePath);
+        setExportStatus(result);
+      } else {
+        const filePath = await save({
+          title: `Export "${deckName}" as text`,
+          defaultPath: `${safeName}.txt`,
+          filters: [{ name: "Text (Tab-separated)", extensions: ["txt"] }],
+        });
+        if (!filePath) { setExportBusy(false); return; }
+        const result = await exportDeckAsCsv(deckName, filePath);
+        setExportStatus(result);
+      }
+    } catch (err) {
+      setExportStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setExportBusy(true);
+    setExportStatus(null);
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const filePath = await save({
+        title: "Export all decks as .apkg",
+        defaultPath: "all-decks.apkg",
+        filters: [{ name: "Anki Package", extensions: ["apkg"] }],
+      });
+      if (!filePath) { setExportBusy(false); return; }
+      const result = await exportAllDecksAsApkg(filePath);
+      setExportStatus(result);
+    } catch (err) {
+      setExportStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <select
+          value={selectedDeckId}
+          onChange={(e) => { setSelectedDeckId(e.target.value); setExportStatus(null); }}
+          className="flex-1 px-2 py-1.5 border border-border rounded bg-background text-sm"
+        >
+          <option value="">Select a deck...</option>
+          {decks.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+        <select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as "apkg" | "csv")}
+          className="px-2 py-1.5 border border-border rounded bg-background text-sm"
+        >
+          <option value="apkg">.apkg</option>
+          <option value="csv">Tab-separated (.txt)</option>
+        </select>
+        <button
+          onClick={() => void handleExport()}
+          disabled={!selectedDeckId || exportBusy}
+          className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50"
+        >
+          Export
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => void handleExportAll()}
+          disabled={exportBusy}
+          className="px-3 py-1.5 border border-border rounded text-sm hover:bg-muted disabled:opacity-50"
+        >
+          Export All Decks (.apkg)
+        </button>
+      </div>
+      {exportStatus && (
+        <p className="text-xs text-muted-foreground">{exportStatus}</p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -741,6 +850,18 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               <li><code>DEMO_CONTENT_DIR</code> - {t("importExport.demoContentDirHelp")}</li>
               <li><code>SKIP_DEMO_IMPORT=1</code> - {t("importExport.skipDemoImportHelp")}</li>
             </ul>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Export to Anki"
+        description="Export your decks as Anki-compatible .apkg or tab-separated text files."
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+            <h4 className="text-sm font-medium text-foreground">Deck</h4>
+            <AnkiExportControls />
           </div>
         </div>
       </SettingsSection>
