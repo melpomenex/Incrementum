@@ -11,8 +11,10 @@ interface UseSummaryCacheResult {
     content: string,
     summary: string,
     params: SummaryGenerationParams,
-    metadata?: { articleTitle?: string; articleUrl?: string }
+    metadata?: { articleTitle?: string; articleUrl?: string; favorited?: boolean }
   ) => void;
+  /** Set persisted flag on an entry (for favorite toggling) */
+  setEntryPersisted: (articleId: string, persisted: boolean) => void;
   /** Check if summary is cached */
   isCached: (articleId: string, content: string) => boolean;
   /** Clear all cached summaries */
@@ -56,7 +58,7 @@ export function useSummaryCache(): UseSummaryCacheResult {
       content: string,
       summary: string,
       params: SummaryGenerationParams,
-      metadata?: { articleTitle?: string; articleUrl?: string }
+      metadata?: { articleTitle?: string; articleUrl?: string; favorited?: boolean }
     ): void => {
       const contentHash = generateContentHash(content);
       const entry: SummaryCacheEntry = {
@@ -65,12 +67,22 @@ export function useSummaryCache(): UseSummaryCacheResult {
         length: params.length,
         focus: params.focus,
         contentHash,
+        persisted: metadata?.favorited ?? false,
         articleTitle: metadata?.articleTitle,
         articleUrl: metadata?.articleUrl,
       };
 
       summaryCache.set(articleId, entry);
       summaryCache.saveToStorage();
+      setStats(summaryCache.getStats());
+    },
+    []
+  );
+
+  /** Set persisted flag on an entry */
+  const setEntryPersisted = useCallback(
+    (articleId: string, persisted: boolean): void => {
+      summaryCache.setPersisted(articleId, persisted);
       setStats(summaryCache.getStats());
     },
     []
@@ -93,6 +105,7 @@ export function useSummaryCache(): UseSummaryCacheResult {
   return {
     getCachedSummary,
     cacheSummary,
+    setEntryPersisted,
     isCached,
     clearCache,
     stats,

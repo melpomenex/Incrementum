@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Settings, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { cn } from "../../../utils";
 import type { SummaryLength, SummaryFocus, SummaryMode } from "../../../types/rssSummary";
 
@@ -323,7 +324,7 @@ export function ModernSummaryPanel({
                   {content}
                 </pre>
               ) : (
-                <div className="text-sm leading-relaxed whitespace-pre-wrap">{content}</div>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"><ReactMarkdown>{content}</ReactMarkdown></div>
               )}
             </div>
           ) : (

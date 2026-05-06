@@ -160,13 +160,15 @@ export class SummaryCache {
   }
 
   /**
-   * Save cache to localStorage
+   * Save cache to localStorage — only entries marked as persisted
    */
   saveToStorage(): void {
     try {
       const entries: Record<string, SummaryCacheEntry> = {};
       for (const [articleId, entry] of this.cache.entries()) {
-        entries[articleId] = entry;
+        if (entry.persisted) {
+          entries[articleId] = entry;
+        }
       }
       localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
     } catch (error) {
@@ -187,6 +189,18 @@ export class SummaryCache {
    */
   delete(articleId: string): void {
     this.cache.delete(articleId);
+  }
+
+  /**
+   * Set the persisted flag on an entry and optionally save
+   * Used when an article is favorited/unfavorited
+   */
+  setPersisted(articleId: string, persisted: boolean, save = true): void {
+    const entry = this.cache.get(articleId);
+    if (entry) {
+      entry.persisted = persisted;
+      if (save) this.saveToStorage();
+    }
   }
 }
 
