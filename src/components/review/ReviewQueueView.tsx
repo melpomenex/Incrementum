@@ -27,6 +27,7 @@ import { ItemDetailsPopover, type ItemDetailsTarget } from "../common/ItemDetail
 import {
   PriorityPreset,
   buildSessionBlocks,
+  applyFilters,
   formatMinutesRange,
   getFsrsMetrics,
   getFsrsSchedulingInfo,
@@ -252,8 +253,16 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         return haystack.includes(normalizedQuery);
       })
       : queueItems;
-    return [...searchedItems].sort((a, b) => getPriorityScore(b, preset) - getPriorityScore(a, preset));
-  }, [items, queueMode, preset, searchQuery, selectedFileType]);
+
+    const customizationOptions: SessionCustomizationOptions = {
+      maxItems: sessionCustomization.maxItems,
+      filters: sessionCustomization.filters,
+      itemTypes: sessionCustomization.itemTypes,
+      priorityPreset: preset,
+    };
+    const filtered = applyFilters(searchedItems, customizationOptions);
+    return [...filtered].sort((a, b) => getPriorityScore(b, preset) - getPriorityScore(a, preset));
+  }, [items, queueMode, preset, searchQuery, selectedFileType, sessionCustomization]);
 
   const selectableItems = useMemo(
     () => visibleItems.filter((item) => item.itemType === "learning-item"),
@@ -266,12 +275,9 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     const options: SessionCustomizationOptions = {
       maxItems: sessionCustomization.maxItems,
       blockTimeBudgets: sessionCustomization.blockTimeBudgets,
-      filters: sessionCustomization.filters,
-      itemTypes: sessionCustomization.itemTypes,
-      priorityPreset: preset,
     };
     return buildSessionBlocks(visibleItems, options);
-  }, [visibleItems, sessionCustomization, preset]);
+  }, [visibleItems, sessionCustomization.maxItems, sessionCustomization.blockTimeBudgets]);
   const selectedItem = useMemo(
     () => visibleItems.find((item) => item.id === selectedId) ?? null,
     [visibleItems, selectedId]
