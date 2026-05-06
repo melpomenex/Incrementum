@@ -29,14 +29,29 @@ export function matchesDeckTags(tags: string[], deck: StudyDeck | null): boolean
   return false;
 }
 
-export function filterByDeck<T extends { tags: string[] }>(items: T[], deck: StudyDeck | null): T[] {
-  if (!deck) return items;
-  return items.filter((item) => matchesDeckTags(item.tags, deck));
+export function matchesDeck<T extends { tags: string[]; document_id?: string }>(
+  item: T,
+  deck: StudyDeck | null
+): boolean {
+  if (!deck) return true;
+  if (deck.documentId && item.document_id && deck.documentId !== item.document_id) return false;
+  return matchesDeckTags(item.tags, deck);
 }
 
-export function filterByDecks<T extends { tags: string[] }>(items: T[], decks: StudyDeck[]): T[] {
+export function filterByDeck<T extends { tags: string[]; document_id?: string }>(
+  items: T[],
+  deck: StudyDeck | null
+): T[] {
+  if (!deck) return items;
+  return items.filter((item) => matchesDeck(item, deck));
+}
+
+export function filterByDecks<T extends { tags: string[]; document_id?: string }>(
+  items: T[],
+  decks: StudyDeck[]
+): T[] {
   if (decks.length === 0) return items;
-  return items.filter((item) => decks.some((deck) => matchesDeckTags(item.tags, deck)));
+  return items.filter((item) => decks.some((deck) => matchesDeck(item, deck)));
 }
 
 export function getDeckTagCandidates(tags: string[]): string[] {

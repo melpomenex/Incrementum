@@ -10,7 +10,7 @@ interface StudyDeckState {
   activeDeckIds: string[];
   toggleDeckSelection: (deckId: string | null) => void;
   clearDeckSelection: () => void;
-  addDeck: (name: string, tagFilters?: string[]) => void;
+  addDeck: (name: string, tagFilters?: string[], documentId?: string) => void;
   updateDeck: (deckId: string, updates: Partial<Pick<StudyDeck, "name" | "tagFilters">>) => void;
   removeDeck: (deckId: string) => void;
   seedFromDocuments: (documents: Document[]) => void;
@@ -37,7 +37,7 @@ export const useStudyDeckStore = create<StudyDeckState>()(
         set({ activeDeckIds: [] });
       },
 
-      addDeck: (name, tagFilters = []) => {
+      addDeck: (name, tagFilters = [], documentId) => {
         const trimmed = name.trim() || "Untitled Deck";
         // Dedup: if a deck with the same name already exists, just merge tags
         const existing = get().decks.find((d) => d.name.toLowerCase() === trimmed.toLowerCase());
@@ -51,6 +51,7 @@ export const useStudyDeckStore = create<StudyDeckState>()(
           id: generateId(),
           name: trimmed,
           tagFilters: normalizeTagList(tagFilters),
+          ...(documentId && { documentId }),
           createdAt: now,
           updatedAt: now,
         };

@@ -1849,7 +1849,7 @@ A: Settings → Backup → Export, or use Anki sync to export to .apkg format.
 
 ## Changelog
 
-See [CHANGELOG.md](../CHANGELOG.md) for version history and updates.
+See [CHANGELOG.md](https://github.com/melpomenex/incrementum-tauri/blob/main/CHANGELOG.md) for version history and updates.
 
 ---
 

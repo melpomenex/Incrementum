@@ -33,9 +33,10 @@ import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
+import { useConfirmDialog, ConfirmDialog } from "../common/ConfirmDialog";
 import { getAllLearningItems, createLearningItem, exportDeckAsApkg, exportDeckAsCsv, type LearningItem } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
-import { filterByDecks, matchesDeckTags } from "../../utils/studyDecks";
+import { filterByDecks, matchesDeck } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { DeckManagerCardRow } from "./DeckManagerCardRow";
 import { deleteLearningItem } from "../../lib/database";
@@ -58,6 +59,7 @@ interface DeckManagerProps {
 export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManagerProps) {
   const { t } = useI18n();
   const toast = useToast();
+  const confirmDialog = useConfirmDialog();
   const { decks, updateDeck, removeDeck, addDeck } = useStudyDeckStore();
 
   const [allCards, setAllCards] = useState<LearningItem[]>([]);
@@ -114,7 +116,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
 
   const getCardsForDeck = useCallback(
     (deck: StudyDeck): LearningItem[] => {
-      return allCards.filter((card) => matchesDeckTags(card.tags, deck));
+      return allCards.filter((card) => matchesDeck(card, deck));
     },
     [allCards]
   );
@@ -403,12 +405,17 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     const deck = decks.find((d) => d.id === deckId);
     if (!deck) return;
     setContextMenu(null);
-    if (confirm(`Delete deck "${deck.name}"? This will NOT delete the cards in this deck - they just won't be filtered by it anymore.`)) {
-      removeDeck(deckId);
-      if (expandedDeckId === deckId) setExpandedDeckId(null);
-      toast.success(`Deleted deck "${deck.name}"`);
-    }
-  }, [decks, removeDeck, expandedDeckId, toast]);
+    confirmDialog.confirm({
+      title: t("deckManager.deleteDeck"),
+      message: t("deckManager.deleteDeckConfirm", { name: deck.name }),
+      variant: "danger",
+      onConfirm: () => {
+        removeDeck(deckId);
+        if (expandedDeckId === deckId) setExpandedDeckId(null);
+        toast.success(`Deleted deck "${deck.name}"`);
+      },
+    });
+  }, [decks, removeDeck, expandedDeckId, toast, confirmDialog, t]);
 
   const handleDeckStudy = useCallback(async (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId);
@@ -427,7 +434,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const handleDeckSuspendAll = useCallback(async (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId);
     if (!deck) return;
-    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck) && !c.is_suspended);
+    const cards = allCards.filter((c) => matchesDeck(c, deck) && !c.is_suspended);
     if (cards.length === 0) { toast.info("No active cards to suspend"); setContextMenu(null); return; }
     try {
       await bulkSuspendItems(cards.map((c) => c.id));
@@ -440,7 +447,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const handleDeckUnsuspendAll = useCallback(async (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId);
     if (!deck) return;
-    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck) && c.is_suspended);
+    const cards = allCards.filter((c) => matchesDeck(c, deck) && c.is_suspended);
     if (cards.length === 0) { toast.info("No suspended cards to unsuspend"); setContextMenu(null); return; }
     try {
       await bulkUnsuspendItems(cards.map((c) => c.id));
@@ -453,7 +460,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const handleDeckExport = useCallback(async (deckId: string) => {
     const deck = decks.find((d) => d.id === deckId);
     if (!deck) return;
-    const cards = allCards.filter((c) => matchesDeckTags(c.tags, deck));
+    const cards = allCards.filter((c) => matchesDeck(c, deck));
     if (cards.length === 0) { toast.info("No cards to export"); setContextMenu(null); return; }
     const exportData = cards.map((c) => ({
       question: c.question,
@@ -678,6 +685,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   ];
 
   return (
+    <>
     <div className="flex flex-col h-full bg-background">
       {/* Compact header */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border flex-shrink-0">
@@ -1324,7 +1332,19 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
           </>
         );
       })()}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.close}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        details={confirmDialog.details}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+      />
     </div>
+    </>
   );
 }
 
