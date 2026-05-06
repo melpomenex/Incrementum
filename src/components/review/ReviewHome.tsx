@@ -546,6 +546,12 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
         activeDeckIds={activeDeckIds}
         onToggleDeck={toggleDeckSelection}
         onClearSelection={clearDeckSelection}
+        onStartReview={(deckId) => {
+          clearDeckSelection();
+          toggleDeckSelection(deckId);
+          setIsDecksModalOpen(false);
+          onStartReview();
+        }}
       />
     </div>
   );
