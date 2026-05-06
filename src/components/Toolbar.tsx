@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTabsStore } from "../stores";
 import { useDocumentStore } from "../stores";
 import { useUIStore } from "../stores";
@@ -15,6 +16,7 @@ import {
   DocumentQATab,
   NotebookLMTab,
 } from "./tabs/TabRegistry";
+import { WebArticleImportDialog } from "./import/WebArticleImportDialog";
 import { KnowledgeGraphPage } from "../pages/KnowledgeGraphPage";
 import { KnowledgeSpherePage } from "../pages/KnowledgeSpherePage";
 import { useQueueStore } from "../stores/queueStore";
@@ -117,6 +119,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const { t } = useI18n();
 
   const isVertical = position === "left" || position === "right";
+  const [showUrlImportDialog, setShowUrlImportDialog] = useState(false);
 
   // Import File button
   const handleImportFile = async () => {
@@ -134,28 +137,8 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   };
 
   // Import URL button
-  const handleImportUrl = async () => {
-    const url = prompt(t("toolbar.enterUrlToImport"));
-    if (url) {
-      console.log("Import URL:", url);
-      try {
-        const { importFromUrl } = useDocumentStore.getState();
-        const doc = await importFromUrl(url);
-        console.log("URL import completed successfully");
-        // Open the imported document
-        addTab({
-          title: doc.title,
-          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
-          type: "document-viewer",
-          content: DocumentViewer,
-          closable: true,
-          data: { documentId: doc.id },
-        });
-      } catch (error) {
-        console.error("URL import failed:", error);
-        alert(t("toolbar.failedImportUrl", { error: error instanceof Error ? error.message : t("toolbar.unknownError") }));
-      }
-    }
+  const handleImportUrl = () => {
+    setShowUrlImportDialog(true);
   };
 
   // Read Next button
@@ -617,55 +600,35 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   // Get unique group numbers
   const groups = Array.from(new Set(buttons.map((b) => b.group))).sort();
 
-  if (isVertical) {
-    // Vertical toolbar for left/right positions
-    const borderClass = position === "left" 
-      ? "border-r border-border" 
-      : "border-l border-border";
-    
-    return (
-      <div className={`h-full bg-card ${borderClass} flex flex-col`}>
-        <div className="flex-1 overflow-y-auto py-2 px-1">
-          <div className="flex flex-col gap-1">
-            {groups.map((group, groupIndex) => (
-              <div key={group} className="flex flex-col">
-                {/* Render buttons for this group */}
-                {buttons
-                  .filter((b) => b.group === group)
-                  .map((button) => (
-                    <ToolbarButtonItem 
-                      key={button.id} 
-                      button={button} 
-                      orientation="vertical"
-                    />
-                  ))}
-
-                {/* Add separator between groups (except after last group) */}
-                {groupIndex < groups.length - 1 && (
-                  <div className="w-6 h-px bg-border mx-auto my-1" />
-                )}
-              </div>
-            ))}
-          </div>
+  const toolbarContent = isVertical ? (
+    <div className={`h-full bg-card ${position === "left" ? "border-r border-border" : "border-l border-border"} flex flex-col`}>
+      <div className="flex-1 overflow-y-auto py-2 px-1">
+        <div className="flex flex-col gap-1">
+          {groups.map((group, groupIndex) => (
+            <div key={group} className="flex flex-col">
+              {buttons
+                .filter((b) => b.group === group)
+                .map((button) => (
+                  <ToolbarButtonItem key={button.id} button={button} orientation="vertical" />
+                ))}
+              {groupIndex < groups.length - 1 && (
+                <div className="w-6 h-px bg-border mx-auto my-1" />
+              )}
+            </div>
+          ))}
         </div>
       </div>
-    );
-  }
-
-  // Horizontal toolbar (top position)
-  return (
+    </div>
+  ) : (
     <div className="sticky top-0 z-40 bg-card border-b border-border">
       <div className="flex items-center px-2 py-1 gap-1">
         {groups.map((group, groupIndex) => (
           <div key={group} className="flex items-center gap-1">
-            {/* Render buttons for this group */}
             {buttons
               .filter((b) => b.group === group)
               .map((button) => (
                 <ToolbarButtonItem key={button.id} button={button} />
               ))}
-
-            {/* Add separator between groups (except after last group) */}
             {groupIndex < groups.length - 1 && (
               <div className="w-px h-6 bg-border mx-1" />
             )}
@@ -673,6 +636,26 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
         ))}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {toolbarContent}
+      <WebArticleImportDialog
+        isOpen={showUrlImportDialog}
+        onClose={() => setShowUrlImportDialog(false)}
+        onOpenDocument={(doc) => {
+          addTab({
+            title: doc.title,
+            icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+            type: "document-viewer",
+            content: DocumentViewer,
+            closable: true,
+            data: { documentId: doc.id },
+          });
+        }}
+      />
+    </>
   );
 }
 
