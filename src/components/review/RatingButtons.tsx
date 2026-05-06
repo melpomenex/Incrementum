@@ -52,8 +52,8 @@ export function RatingButtons({
   ];
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-2 md:px-0">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="grid grid-cols-4 gap-1.5 md:gap-3">
         {ratings.map((rating) => {
           const Icon = rating.icon;
           const interval = previewIntervals
@@ -77,10 +77,10 @@ export function RatingButtons({
               disabled={disabled}
               className={`
                 ${rating.color}
-                text-white rounded-lg p-3 md:p-4 transition-all
+                text-white rounded-lg transition-all
                 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                flex flex-col items-center gap-1 md:gap-2
-                min-h-[60px] md:min-h-[100px] min-w-[80px]
+                flex items-center justify-center gap-1 md:flex-col md:gap-2
+                px-1 py-2 md:px-4 md:py-3 md:min-h-[100px]
                 touch-manipulation
                 focus-visible:ring-4 focus-visible:ring-white/50 focus-visible:outline-none
                 focus-visible:scale-[1.02]
@@ -96,10 +96,10 @@ export function RatingButtons({
                   : t("ratingButtons.rateAs", { label: rating.label, description: rating.description })
               }
             >
-              <Icon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
-              <span className="font-semibold text-sm md:text-base">{rating.label}</span>
+              <Icon className="w-4 h-4 md:w-6 md:h-6 flex-shrink-0" aria-hidden="true" />
+              <span className="font-semibold text-xs md:text-base leading-tight">{rating.label}</span>
               {interval && (
-                <span className="text-xs opacity-90" aria-label={t("ratingButtons.nextReviewIn", { interval })}>{interval}</span>
+                <span className="text-[10px] md:text-xs opacity-90 hidden md:block" aria-label={t("ratingButtons.nextReviewIn", { interval })}>{interval}</span>
               )}
             </button>
           );
@@ -107,7 +107,7 @@ export function RatingButtons({
       </div>
 
       {/* Keyboard shortcuts hint - hide on mobile */}
-      <div className="mt-4 text-center text-sm text-muted-foreground hidden md:block">
+      <div className="mt-3 md:mt-4 text-center text-sm text-muted-foreground hidden md:block">
         {t("ratingButtons.press")} <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">1</kbd>
         <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">2</kbd>
         <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">3</kbd>
