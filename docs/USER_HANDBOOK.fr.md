@@ -1795,7 +1795,7 @@ R : Paramètres → Sauvegarde → Exporter, ou utilisez la synchronisation Anki
 
 ## Journal des modifications
 
-Voir [CHANGELOG.md](../CHANGELOG.md) pour l'historique des versions et les mises à jour.
+Voir [CHANGELOG.md](https://github.com/melpomenex/incrementum-tauri/blob/main/CHANGELOG.md) pour l'historique des versions et les mises à jour.
 
 ---
 

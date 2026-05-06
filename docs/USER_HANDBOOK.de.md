@@ -1815,7 +1815,7 @@ A: Einstellungen → Backup → Exportieren, oder verwenden Sie Anki Sync, um in
 
 ## Änderungsprotokoll
 
-Siehe [CHANGELOG.md](../CHANGELOG.md) für Versionsverlauf und Updates.
+Siehe [CHANGELOG.md](https://github.com/melpomenex/incrementum-tauri/blob/main/CHANGELOG.md) für Versionsverlauf und Updates.
 
 ---
 

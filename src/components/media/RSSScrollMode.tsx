@@ -2106,7 +2106,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
       {/* Floating Extract Button */}
       {(selectedText || selectedTextRef.current) && (
-        <div className="fixed bottom-20 right-6 z-50 pointer-events-auto">
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[70] pointer-events-auto">
           <button
             onMouseDown={(e) => {
               // Prevent mousedown from clearing selection
@@ -2120,11 +2120,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 handlePrepareExtract();
               }
             }}
-            className="flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity"
-            title="Create extract from selection (Shift+click for options)"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity min-h-[44px] text-sm md:text-base"
+            title={t("queueScroll.createExtractFromSelection")}
           >
             <Lightbulb className="w-5 h-5" />
-            <span className="font-medium">Extract</span>
+            <span className="font-medium hidden sm:inline">{t("queueScroll.createExtract")}</span>
+            <span className="font-medium sm:hidden">{t("queueScroll.createExtractShort")}</span>
           </button>
         </div>
       )}

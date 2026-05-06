@@ -15,7 +15,7 @@ import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useToast } from "../common/Toast";
 import { getAllLearningItems, exportDeckAsApkg, exportDeckAsCsv } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems } from "../../api/queue";
-import { matchesDeckTags } from "../../utils/studyDecks";
+import { matchesDeck } from "../../utils/studyDecks";
 import { useI18n } from "../../lib/i18n";
 import type { StudyDeck } from "../../types/study-decks";
 
@@ -80,7 +80,7 @@ export function DeckItemContextMenu({
   const getCardIdsForDeck = useCallback(async (): Promise<string[]> => {
     try {
       const allCards = await getAllLearningItems();
-      return allCards.filter((c) => matchesDeckTags(c.tags, deck)).map((c) => c.id);
+      return allCards.filter((c) => matchesDeck(c, deck)).map((c) => c.id);
     } catch {
       return [];
     }

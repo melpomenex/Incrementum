@@ -4,7 +4,7 @@ import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { getDueItems, type LearningItem } from "../../api/review";
-import { filterByDecks, matchesDeckTags, normalizeTagList } from "../../utils/studyDecks";
+import { filterByDecks, matchesDeck, normalizeTagList } from "../../utils/studyDecks";
 import type { StudyDeck } from "../../types/study-decks";
 import { FlashcardStudioModal } from "./FlashcardStudioModal";
 import { ReviewDecksModal } from "./ReviewDecksModal";
@@ -143,7 +143,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
   const deckStats = useMemo(() => {
     return (decks || []).map((deck) => ({
       deck,
-      count: dueItems.filter((item) => matchesDeckTags(item.tags ?? [], deck)).length,
+      count: dueItems.filter((item) => matchesDeck(item, deck)).length,
     }));
   }, [decks, dueItems]);
 

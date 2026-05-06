@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Brain, Eye, EyeOff, Trash2, Edit, RefreshCw } from "lucide-react";
+import { Brain, Eye, EyeOff, Trash2, Edit, RefreshCw, Save } from "lucide-react";
 import {
   getLearningItems,
   type LearningItem,
@@ -13,6 +13,7 @@ import {
 } from "../../api/learning-items";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useTabsStore } from "../../stores/tabsStore";
+import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { ReviewTab } from "../tabs/TabRegistry";
 import { cn } from "../../utils";
 import { DynamicVirtualList } from "../common/VirtualList";
@@ -21,6 +22,7 @@ import { analyzeCardQuality } from "../../utils/cardQuality";
 import { printFlashcards } from "../../utils/printFlashcards";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
+import { getDocument } from "../../api/documents";
 
 interface LearningCardsListProps {
   documentId: string;
@@ -144,6 +146,26 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
             className="px-3 py-1.5 text-sm border border-border text-foreground rounded-md hover:bg-muted transition-colors"
           >
             {t("learningCards.print")}
+          </button>
+          <button
+            onClick={async () => {
+              const doc = await getDocument(documentId);
+              const docTitle = doc?.title || "New Deck";
+              const deckName = prompt("Deck name", docTitle);
+              if (!deckName || !deckName.trim()) return;
+              const allTags = new Set<string>();
+              for (const card of cards) {
+                for (const tag of card.tags) {
+                  allTags.add(tag);
+                }
+              }
+              useStudyDeckStore.getState().addDeck(deckName.trim(), [...allTags], documentId);
+              toast.success(`Deck "${deckName.trim()}" created with ${allTags.size} tag${allTags.size !== 1 ? "s" : ""}`);
+            }}
+            className="px-3 py-1.5 text-sm border border-border text-foreground rounded-md hover:bg-muted transition-colors flex items-center gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {t("learningCards.saveAsDeck")}
           </button>
           <button
             onClick={async () => {
