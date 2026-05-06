@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.30.0] - 2026-05-05
+
+### Added
+- **Audiobook-EPUB sync** — Split-view player with synced audio playback and EPUB scrolling. Text highlighting follows current transcript position, and clicking EPUB text seeks the audio player.
+- **Document pairing** — Automatic and manual pairing of audiobook and EPUB files from the documents library.
+- **Transcript-EPUB alignment** — Worker-based alignment engine that maps audiobook transcript segments to EPUB chapter positions for synchronized navigation.
+- **Alignment caching** — Persistent alignment results cached per document pair to avoid re-computation.
+- **Resizable split panes** — Draggable divider component for the audiobook-EPUB sync view.
+- **Schedule item audiobook actions** — Quick audiobook playback controls directly from schedule item rows.
+- **Audiobook import improvements** — Enhanced import dialog with pairing flow.
+
 ## [1.29.7] - 2026-05-05
 
 ### Fixed
