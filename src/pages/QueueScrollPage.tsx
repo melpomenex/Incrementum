@@ -148,7 +148,6 @@ export function QueueScrollPage() {
   // Use smart start position instead of always starting at 0
   const [currentIndex, setCurrentIndex] = useState(0);
   const [renderedIndex, setRenderedIndex] = useState(0);
-  const [smartStartInfo, setSmartStartInfo] = useState<{ isResuming: boolean; reason: string } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -345,11 +344,6 @@ export function QueueScrollPage() {
         seed: Date.now(),
       });
 
-      setSmartStartInfo({
-        isResuming: response.is_resuming,
-        reason: response.reason,
-      });
-
       // Return both position and whether we should show toast
       return {
         position: response.start_position,
@@ -394,7 +388,7 @@ export function QueueScrollPage() {
 
   // Apply smart start position once items are loaded
   useEffect(() => {
-    if (scrollItems.length > 0 && currentIndex === 0 && !smartStartInfo) {
+    if (scrollItems.length > 0 && currentIndex === 0) {
       calculateSmartStart(scrollItems.length).then(result => {
         const { position: startPos, shouldShowToast, lastPosition } = result;
         if (startPos > 0) {
@@ -419,7 +413,7 @@ export function QueueScrollPage() {
         }
       });
     }
-  }, [scrollItems.length, currentIndex, smartStartInfo, calculateSmartStart, activeTabId, updateTab, toast]);
+  }, [scrollItems.length, currentIndex, calculateSmartStart, activeTabId, updateTab, toast]);
 
   // Save current position to session storage and tab data
   useEffect(() => {
@@ -1749,15 +1743,6 @@ export function QueueScrollPage() {
       ref={containerRef}
       className="h-full w-full overflow-hidden bg-background relative"
     >
-      {/* Smart Start Indicator */}
-      {smartStartInfo && smartStartInfo.isResuming && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-          <div className="bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-full text-sm shadow-lg animate-pulse">
-            {t("queueScroll.resumedFromPosition", { position: currentIndex + 1 })}
-          </div>
-        </div>
-      )}
-
       {/* Content Viewer - Document, Flashcard, or RSS Article */}
       <div
         className="flex h-full min-h-0 w-full overflow-hidden"
