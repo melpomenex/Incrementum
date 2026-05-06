@@ -33,7 +33,7 @@ import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
-import { getAllLearningItems, createLearningItem, exportDeckAsApkg, type LearningItem } from "../../api/learning-items";
+import { getAllLearningItems, createLearningItem, exportDeckAsApkg, exportDeckAsCsv, type LearningItem } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
 import { filterByDecks, matchesDeckTags } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
@@ -71,6 +71,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const [stateFilter, setStateFilter] = useState<StateFilter>("");
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showExportPicker, setShowExportPicker] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ deckId: string; x: number; y: number } | null>(null);
   const [renamingDeckId, setRenamingDeckId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -497,6 +498,35 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     }
   }, [decks, toast]);
 
+  const handleDeckExportCsv = useCallback(async (deckId: string) => {
+    const deck = decks.find((d) => d.id === deckId);
+    if (!deck) return;
+    setContextMenu(null);
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const filePath = await save({
+        title: `Export "${deck.name}" as tab-separated text`,
+        defaultPath: `${deck.name.replace(/[^a-zA-Z0-9-_ ]/g, "_")}.txt`,
+        filters: [{ name: "Text (Tab-separated)", extensions: ["txt"] }],
+      });
+      if (!filePath) return;
+      toast.info("Exporting as CSV...");
+      const result = await exportDeckAsCsv(deck.name, filePath);
+      toast.success(result);
+    } catch (err) {
+      toast.error(`Export failed: ${err}`);
+    }
+  }, [decks, toast]);
+
+  const handleToolbarExport = useCallback(async (format: "apkg" | "csv") => {
+    if (!expandedDeck) return;
+    if (format === "apkg") {
+      await handleDeckExportApkg(expandedDeck.id);
+    } else {
+      await handleDeckExportCsv(expandedDeck.id);
+    }
+  }, [expandedDeck, handleDeckExportApkg, handleDeckExportCsv]);
+
   // --- Single card action handlers (for context menu) ---
 
   const handleCardSuspend = useCallback(async (cardId: string) => {
@@ -896,6 +926,35 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
 
                       {/* Action buttons */}
                       <div className={"flex items-center gap-1 " + (isMobile ? "" : "ml-auto flex-shrink-0")}>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowExportPicker(!showExportPicker)}
+                            disabled={!expandedDeck}
+                            className="flex items-center gap-1 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+                          >
+                            <Upload className="h-3 w-3" /> {!isMobile && "Export to Anki"}
+                          </button>
+                          {showExportPicker && expandedDeck && (
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-md shadow-lg py-1 min-w-[160px]">
+                              <button
+                                onClick={() => { setShowExportPicker(false); void handleToolbarExport("apkg"); }}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted"
+                              >
+                                Anki Package (.apkg)
+                              </button>
+                              <button
+                                onClick={() => { setShowExportPicker(false); void handleToolbarExport("csv"); }}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted"
+                              >
+                                Tab-separated text (.txt)
+                              </button>
+                              <div className="border-t border-border my-1" />
+                              <div className="px-3 py-1 text-[10px] text-muted-foreground">
+                                {expandedCards.length} cards in deck
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <button
                           onClick={() => void handleNewCard()}
                           disabled={!expandedDeck}

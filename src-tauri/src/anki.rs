@@ -99,6 +99,40 @@ pub struct ReviewLogRow {
     pub timestamp: String,
 }
 
+/// Convert Incrementum cloze ranges to Anki `{{c1::text}}` syntax.
+/// Returns None if ranges are missing or invalid (caller should fall back to Basic model).
+fn cloze_text_to_anki(cloze_text: &str, cloze_ranges: &[(usize, usize)]) -> Option<String> {
+    if cloze_ranges.is_empty() || cloze_text.is_empty() {
+        return None;
+    }
+    let chars: Vec<char> = cloze_text.chars().collect();
+    let byte_ranges: Vec<(usize, usize)> = cloze_ranges
+        .iter()
+        .map(|(s, e)| {
+            let byte_start = chars[..*s].iter().collect::<String>().len();
+            let byte_end = chars[..*e].iter().collect::<String>().len();
+            (byte_start, byte_end)
+        })
+        .collect();
+    let mut result = String::with_capacity(cloze_text.len() + 32);
+    let mut last_end = 0;
+    for (cloze_idx, (start, end)) in byte_ranges.iter().enumerate() {
+        if *start >= *end || *end > cloze_text.len() || *start < last_end {
+            continue;
+        }
+        result.push_str(&cloze_text[last_end..*start]);
+        result.push_str(&format!("{{{{c{}::", cloze_idx + 1));
+        result.push_str(&cloze_text[*start..*end]);
+        result.push_str("}}");
+        last_end = *end;
+    }
+    result.push_str(&cloze_text[last_end..]);
+    if result == cloze_text {
+        return None;
+    }
+    Some(result)
+}
+
 /// Parse an .apkg file and extract deck data
 pub async fn parse_apkg(apkg_path: &str) -> Result<Vec<AnkiDeck>> {
     let file = File::open(apkg_path)
@@ -942,103 +976,150 @@ pub async fn export_deck_as_apkg(
         .unwrap_or(0);
     let temp_db_path = std::env::temp_dir().join(format!("anki_export_{}.db", nanos));
 
+    let mut media_entries: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut asset_id_to_media_idx: HashMap<String, usize> = HashMap::new();
+
     {
         let conn = Connection::open(&temp_db_path)
             .map_err(|e| IncrementumError::Internal(format!("Cannot create export database: {}", e)))?;
 
-        // Create Anki tables
+        // Create Anki tables (canonical schema from anki/rslib/src/storage/schema11.sql)
         conn.execute_batch(
             r#"
             CREATE TABLE notes (
-                id INTEGER PRIMARY KEY,
-                guid TEXT NOT NULL,
-                mid INTEGER NOT NULL,
-                mod INTEGER NOT NULL,
-                usn INTEGER NOT NULL DEFAULT 0,
-                tags TEXT NOT NULL,
-                flds TEXT NOT NULL,
-                sfld TEXT NOT NULL DEFAULT '',
-                csum INTEGER NOT NULL DEFAULT 0,
-                flags INTEGER NOT NULL DEFAULT 0,
-                data TEXT NOT NULL DEFAULT ''
+                id integer PRIMARY KEY,
+                guid text NOT NULL,
+                mid integer NOT NULL,
+                mod integer NOT NULL,
+                usn integer NOT NULL,
+                tags text NOT NULL,
+                flds text NOT NULL,
+                sfld integer NOT NULL,
+                csum integer NOT NULL,
+                flags integer NOT NULL,
+                data text NOT NULL
             );
             CREATE TABLE cards (
-                id INTEGER PRIMARY KEY,
-                nid INTEGER NOT NULL,
-                did INTEGER NOT NULL DEFAULT 1,
-                ord INTEGER NOT NULL DEFAULT 0,
-                mod INTEGER NOT NULL,
-                usn INTEGER NOT NULL DEFAULT 0,
-                ivl INTEGER NOT NULL DEFAULT 0,
-                laps INTEGER NOT NULL DEFAULT 0,
-                left INTEGER NOT NULL DEFAULT 0,
-                odue INTEGER NOT NULL DEFAULT 0,
-                odid INTEGER NOT NULL DEFAULT 0,
-                flags INTEGER NOT NULL DEFAULT 0,
-                queue INTEGER NOT NULL DEFAULT 0,
-                due INTEGER NOT NULL DEFAULT 0,
-                factor INTEGER NOT NULL DEFAULT 2500,
-                reps INTEGER NOT NULL DEFAULT 0,
-                deck_mod INTEGER NOT NULL DEFAULT 0,
-                ftags TEXT NOT NULL DEFAULT '',
-                data TEXT NOT NULL DEFAULT ''
+                id integer PRIMARY KEY,
+                nid integer NOT NULL,
+                did integer NOT NULL,
+                ord integer NOT NULL,
+                mod integer NOT NULL,
+                usn integer NOT NULL,
+                type integer NOT NULL,
+                queue integer NOT NULL,
+                due integer NOT NULL,
+                ivl integer NOT NULL,
+                factor integer NOT NULL,
+                reps integer NOT NULL,
+                lapses integer NOT NULL,
+                left integer NOT NULL,
+                odue integer NOT NULL,
+                odid integer NOT NULL,
+                flags integer NOT NULL,
+                data text NOT NULL
             );
             CREATE TABLE revlog (
-                id INTEGER PRIMARY KEY,
-                cid INTEGER NOT NULL,
-                usn INTEGER NOT NULL DEFAULT 0,
-                ease INTEGER NOT NULL,
-                ivl INTEGER NOT NULL,
-                last_ivl INTEGER NOT NULL,
-                factor INTEGER NOT NULL,
-                time INTEGER NOT NULL,
-                type INTEGER NOT NULL
+                id integer PRIMARY KEY,
+                cid integer NOT NULL,
+                usn integer NOT NULL,
+                ease integer NOT NULL,
+                ivl integer NOT NULL,
+                lastIvl integer NOT NULL,
+                factor integer NOT NULL,
+                time integer NOT NULL,
+                type integer NOT NULL
+            );
+            CREATE TABLE graves (
+                usn integer NOT NULL,
+                oid integer NOT NULL,
+                type integer NOT NULL
             );
             CREATE TABLE col (
-                id INTEGER PRIMARY KEY,
-                crt INTEGER NOT NULL DEFAULT 0,
-                mod INTEGER NOT NULL DEFAULT 0,
-                scm INTEGER NOT NULL DEFAULT 0,
-                ver INTEGER NOT NULL DEFAULT 0,
-                dty INTEGER NOT NULL DEFAULT 0,
-                usn INTEGER NOT NULL DEFAULT 0,
-                ls INTEGER NOT NULL DEFAULT 0,
-                conf TEXT NOT NULL DEFAULT '',
-                models TEXT NOT NULL,
-                decks TEXT NOT NULL,
-                dconf TEXT NOT NULL DEFAULT '',
-                tags TEXT NOT NULL DEFAULT ''
+                id integer PRIMARY KEY,
+                crt integer NOT NULL,
+                mod integer NOT NULL,
+                scm integer NOT NULL,
+                ver integer NOT NULL,
+                dty integer NOT NULL,
+                usn integer NOT NULL,
+                ls integer NOT NULL,
+                conf text NOT NULL,
+                models text NOT NULL,
+                decks text NOT NULL,
+                dconf text NOT NULL,
+                tags text NOT NULL
             );
+            CREATE INDEX ix_notes_usn ON notes (usn);
+            CREATE INDEX ix_cards_usn ON cards (usn);
+            CREATE INDEX ix_revlog_usn ON revlog (usn);
+            CREATE INDEX ix_cards_nid ON cards (nid);
+            CREATE INDEX ix_cards_sched ON cards (did, queue, due);
+            CREATE INDEX ix_revlog_cid ON revlog (cid);
+            CREATE INDEX ix_notes_csum ON notes (csum);
             "#,
         )
         .map_err(|e| IncrementumError::Internal(format!("Cannot create tables: {}", e)))?;
 
         let now_ts = Utc::now().timestamp();
 
-        // Create a basic note model (Basic: Front/Back)
-        let model_id: i64 = 1;
+        let basic_model_id: i64 = 1;
+        let cloze_model_id: i64 = 2;
         let deck_id: i64 = 1;
         let models_json = serde_json::json!({
-            model_id.to_string(): {
-                "id": model_id,
-                "name": "Incrementum Export",
+            basic_model_id.to_string(): {
+                "id": basic_model_id,
+                "name": "Incrementum Basic",
                 "type": 0,
                 "mod": now_ts,
-                "usn": 0,
+                "usn": -1,
                 "sortf": 0,
                 "did": deck_id,
                 "tmpls": [{
                     "name": "Card 1",
                     "ord": 0,
                     "qfmt": "{{Front}}",
-                    "afmt": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+                    "afmt": "{{FrontSide}}<hr id=answer>{{Back}}",
+                    "bqfmt": "",
+                    "bafmt": "",
+                    "bfont": "Arial",
+                    "bsize": 20,
                 }],
                 "flds": [
                     {"name": "Front", "ord": 0, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
                     {"name": "Back", "ord": 1, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
                 ],
-                "cnt": 2,
-                "scids": [],
+                "css": ".card { font-family: arial; font-size: 20px; text-align: left; color: #2c2c2c; background: #ffffff; }",
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0pt}\n\\begin{document}",
+                "latexPost": "\\end{document}",
+                "req": [[0, "any", [0, 1]]],
+            },
+            cloze_model_id.to_string(): {
+                "id": cloze_model_id,
+                "name": "Incrementum Cloze",
+                "type": 1,
+                "mod": now_ts,
+                "usn": -1,
+                "sortf": 0,
+                "did": deck_id,
+                "tmpls": [{
+                    "name": "Cloze",
+                    "ord": 0,
+                    "qfmt": "{{cloze:Text}}",
+                    "afmt": "{{cloze:Text}}<br>\n{{Back}}",
+                    "bqfmt": "",
+                    "bafmt": "",
+                    "bfont": "Arial",
+                    "bsize": 20,
+                }],
+                "flds": [
+                    {"name": "Text", "ord": 0, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                    {"name": "Back", "ord": 1, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                ],
+                "css": ".card { font-family: arial; font-size: 20px; text-align: left; color: #2c2c2c; background: #ffffff; }",
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0pt}\n\\begin{document}",
+                "latexPost": "\\end{document}",
+                "req": [[0, "any", [0]]],
             }
         }).to_string();
 
@@ -1047,21 +1128,55 @@ pub async fn export_deck_as_apkg(
                 "id": deck_id,
                 "name": &deck_name,
                 "mod": now_ts,
-                "usn": 0,
-                "lr": null,
+                "usn": -1,
+                "lr": now_ts,
                 "desc": "",
                 "dyn": 0,
                 "conf": 1,
+                "extendNew": 0,
+                "extendRev": 0,
+                "lrnToday": [0, 0],
+                "newToday": [0, 0],
+                "revToday": [0, 0],
+                "timeToday": [0, 0],
                 "collapsed": false,
-                "browserCollapsed": false,
+            }
+        }).to_string();
+
+        let conf_json = serde_json::json!({
+            "nextPos": deck_items.len() as i64 + 1,
+            "estTimes": true,
+            "activeDecks": [deck_id],
+            "sortType": "noteFld",
+            "timeLim": 0,
+            "sortBackwards": false,
+            "addToCur": true,
+            "curDeck": deck_id,
+            "newSpread": 0,
+            "dueCounts": true,
+        }).to_string();
+
+        let dconf_json = serde_json::json!({
+            "1": {
+                "id": 1,
+                "name": "Default",
+                "mod": now_ts,
+                "usn": -1,
+                "maxTaken": 60,
+                "autoplay": true,
+                "timer": 0,
+                "new": {"perDay": 20, "ints": [1, 10], "initialFactor": 2500, "bury": true, "order": 1},
+                "rev": {"perDay": 200, "ease4": 1.3, "ivlFct": 1, "maxIvl": 36500, "bury": true, "hardFactor": 1.2},
+                "lapse": {"mins": [10], "leechFails": 8, "leechAction": 0, "mult": 0},
+                "replayq": true,
             }
         }).to_string();
 
         // Insert col metadata
         conn.execute(
-            "INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, models, decks, dconf) \
-             VALUES (1, ?1, ?2, ?3, 11, 0, 0, 0, ?4, ?5, '')",
-            rusqlite::params![now_ts, now_ts, now_ts, &models_json, &decks_json],
+            "INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, conf, models, decks, dconf, tags) \
+             VALUES (1, ?1, ?2, ?3, 11, 0, 0, 0, ?4, ?5, ?6, ?7, '{}')",
+            rusqlite::params![now_ts, now_ts, now_ts, &conf_json, &models_json, &decks_json, &dconf_json],
         )
         .map_err(|e| IncrementumError::Internal(format!("Cannot insert col: {}", e)))?;
 
@@ -1080,12 +1195,78 @@ pub async fn export_deck_as_apkg(
                 .collect::<Vec<_>>()
                 .join("");
 
-            let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
-            let back = item.answer.as_deref().unwrap_or("").replace('\x1f', " ").replace('\\', "\\\\");
-            let flds = format!("{}\x1f{}", front, back);
+            // Determine note model and fields based on card type
+            let (model_id, flds) = match item.item_type {
+                ItemType::Cloze => {
+                    if let Some(ref cloze_text) = item.cloze_text {
+                        if let Some(ref ranges) = item.cloze_ranges {
+                            if let Some(anki_cloze) = cloze_text_to_anki(cloze_text, ranges) {
+                                let back = item.answer.as_deref().unwrap_or("")
+                                    .replace('\x1f', " ").replace('\\', "\\\\");
+                                (cloze_model_id, format!("{}\x1f{}", anki_cloze, back))
+                            } else {
+                                let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                                let back = item.answer.as_deref().unwrap_or("")
+                                    .replace('\x1f', " ").replace('\\', "\\\\");
+                                (basic_model_id, format!("{}\x1f{}", front, back))
+                            }
+                        } else {
+                            let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                            let back = item.answer.as_deref().unwrap_or("")
+                                .replace('\x1f', " ").replace('\\', "\\\\");
+                            (basic_model_id, format!("{}\x1f{}", front, back))
+                        }
+                    } else {
+                        let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                        let back = item.answer.as_deref().unwrap_or("")
+                            .replace('\x1f', " ").replace('\\', "\\\\");
+                        (basic_model_id, format!("{}\x1f{}", front, back))
+                    }
+                }
+                _ => {
+                    let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                    let back = item.answer.as_deref().unwrap_or("")
+                        .replace('\x1f', " ").replace('\\', "\\\\");
+                    (basic_model_id, format!("{}\x1f{}", front, back))
+                }
+            };
+
+            // Collect image assets for this card and build <img> HTML
+            let mut img_html = String::new();
+            for asset_id in &item.image_asset_ids {
+                if !asset_id_to_media_idx.contains_key(asset_id) {
+                    if let Ok(Some(asset)) = repo.get_image_asset(asset_id).await {
+                        let ext = match asset.mime_type.as_str() {
+                            "image/png" => "png",
+                            "image/jpeg" | "image/jpg" => "jpg",
+                            "image/gif" => "gif",
+                            "image/webp" => "webp",
+                            "image/svg+xml" => "svg",
+                            _ => "png",
+                        };
+                        let filename = format!("{}.{}", asset_id, ext);
+                        let idx = media_entries.len();
+                        asset_id_to_media_idx.insert(asset_id.clone(), idx);
+                        media_entries.push((filename, asset.content.clone()));
+                    }
+                }
+                if let Some(&idx) = asset_id_to_media_idx.get(asset_id) {
+                    img_html.push_str(&format!("<br><img src=\"{}\">", idx));
+                }
+            }
+
+            // Append images to the back field (before the \x1f separator)
+            let flds = if img_html.is_empty() {
+                flds
+            } else if let Some(pos) = flds.rfind('\x1f') {
+                format!("{}{}{}", &flds[..pos], img_html, &flds[pos..])
+            } else {
+                format!("{}{}", flds, img_html)
+            };
 
             conn.execute(
-                "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds) VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6)",
+                "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data) \
+                 VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, '', 0, 0, '')",
                 rusqlite::params![note_id, &guid, model_id, now_ts, &tags_str, &flds],
             )
             .map_err(|e| IncrementumError::Internal(format!("Cannot insert note: {}", e)))?;
@@ -1109,19 +1290,28 @@ pub async fn export_deck_as_apkg(
                 0
             };
 
+            // Determine card type: 0=new, 1=learning, 2=review, 3=relearning
+            let card_type = match item.state {
+                ItemState::New => 0,
+                ItemState::Learning => 1,
+                ItemState::Review => 2,
+                ItemState::Relearning => 3,
+            };
+
             conn.execute(
-                "INSERT INTO cards (id, nid, did, ord, mod, usn, ivl, laps, reps, factor, due, queue, data) \
-                 VALUES (?1, ?2, ?3, 0, ?4, 0, ?5, ?6, ?7, ?8, ?9, 0, ?10)",
+                "INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data) \
+                 VALUES (?1, ?2, ?3, 0, ?4, 0, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, 0, 0, ?11)",
                 rusqlite::params![
                     card_id,
                     note_id,
                     deck_id,
                     now_ts,
-                    interval,
-                    item.lapses,
-                    item.review_count,
-                    factor,
+                    card_type,
                     due,
+                    interval,
+                    factor,
+                    item.review_count,
+                    item.lapses,
                     &card_data,
                 ],
             )
@@ -1140,7 +1330,7 @@ pub async fn export_deck_as_apkg(
                     let factor = (entry.ease_factor * 1000.0).round() as i32;
 
                     conn.execute(
-                        "INSERT OR IGNORE INTO revlog (id, cid, usn, ease, ivl, last_ivl, factor, time, type) \
+                        "INSERT OR IGNORE INTO revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type) \
                          VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, ?7, ?8)",
                         rusqlite::params![
                             revlog_id,
@@ -1178,14 +1368,489 @@ pub async fn export_deck_as_apkg(
     zip.write_all(&db_bytes)
         .map_err(|e| IncrementumError::Internal(format!("Cannot write collection data: {}", e)))?;
 
-    // Write empty media manifest
+    // Write media manifest and files
+    let media_json = if media_entries.is_empty() {
+        "{}".to_string()
+    } else {
+        let map: std::collections::HashMap<String, &str> = media_entries
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (i.to_string(), name.as_str()))
+            .collect();
+        serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_string())
+    };
     zip.start_file("media", options)
         .map_err(|e| IncrementumError::Internal(format!("Cannot write media: {}", e)))?;
-    zip.write_all(b"{}")
+    zip.write_all(media_json.as_bytes())
         .map_err(|e| IncrementumError::Internal(format!("Cannot write media data: {}", e)))?;
+
+    for (idx, (_name, bytes)) in media_entries.iter().enumerate() {
+        zip.start_file(idx.to_string(), options)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot write media file {}: {}", idx, e)))?;
+        zip.write_all(bytes)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot write media file data {}: {}", idx, e)))?;
+    }
 
     zip.finish()
         .map_err(|e| IncrementumError::Internal(format!("Cannot finalize zip: {}", e)))?;
 
     Ok(format!("Exported {} cards to {}", deck_items.len(), output_path))
+}
+
+/// Export learning items matching a deck tag as a tab-separated text file for Anki import
+#[tauri::command]
+pub async fn export_deck_as_csv(
+    deck_name: String,
+    output_path: String,
+    repo: State<'_, Repository>,
+) -> Result<String> {
+    let all_items = repo.get_all_learning_items().await?;
+    let deck_items: Vec<_> = all_items
+        .into_iter()
+        .filter(|item| item.tags.iter().any(|t| t == &deck_name))
+        .collect();
+
+    if deck_items.is_empty() {
+        return Err(IncrementumError::NotFound(format!(
+            "No cards found for deck '{}'",
+            deck_name
+        )));
+    }
+
+    let mut lines = Vec::with_capacity(deck_items.len());
+    for item in &deck_items {
+        let front = match item.item_type {
+            ItemType::Cloze => {
+                if let (Some(ref cloze_text), Some(ref ranges)) =
+                    (&item.cloze_text, &item.cloze_ranges)
+                {
+                    cloze_text_to_anki(cloze_text, ranges)
+                        .unwrap_or_else(|| item.question.clone())
+                } else {
+                    item.question.clone()
+                }
+            }
+            _ => item.question.clone(),
+        };
+        let back = item.answer.as_deref().unwrap_or("").to_string();
+        let tags = item.tags.join(" ");
+        // Tab-separated: Front\tBack\tTags
+        lines.push(format!(
+            "{}\t{}\t{}",
+            front.replace('\t', " ").replace('\n', "<br>"),
+            back.replace('\t', " ").replace('\n', "<br>"),
+            tags.replace('\t', " "),
+        ));
+    }
+
+    let content = lines.join("\n");
+    std::fs::write(&output_path, content)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write CSV file: {}", e)))?;
+
+    Ok(format!("Exported {} cards to {}", deck_items.len(), output_path))
+}
+
+/// Export all learning items grouped by deck tags as a single .apkg with multiple Anki decks
+#[tauri::command]
+pub async fn export_all_decks_as_apkg(
+    output_path: String,
+    repo: State<'_, Repository>,
+) -> Result<String> {
+    let all_items = repo.get_all_learning_items().await?;
+    if all_items.is_empty() {
+        return Err(IncrementumError::NotFound("No learning items found".to_string()));
+    }
+
+    // Group items by their first non-system tag (simple heuristic for deck membership)
+    let mut tag_groups: HashMap<String, Vec<&LearningItem>> = HashMap::new();
+    for item in &all_items {
+        for tag in &item.tags {
+            if tag.starts_with("anki-import") || tag.starts_with("incrementum-") {
+                continue;
+            }
+            tag_groups.entry(tag.clone()).or_default().push(item);
+        }
+    }
+    // Also put items with no usable tag into a default group
+    let untagged: Vec<&LearningItem> = all_items
+        .iter()
+        .filter(|item| {
+            item.tags
+                .iter()
+                .all(|t| t.starts_with("anki-import") || t.starts_with("incrementum-"))
+        })
+        .collect();
+    if !untagged.is_empty() {
+        tag_groups.insert("Uncategorized".to_string(), untagged);
+    }
+
+    // Filter out empty groups
+    let groups: Vec<_> = tag_groups.into_iter().filter(|(_, items)| !items.is_empty()).collect();
+    let total_cards: usize = groups.iter().map(|(_, items)| items.len()).sum();
+
+    // Get review log for all items
+    let all_item_ids: Vec<String> = all_items.iter().map(|i| i.id.clone()).collect();
+    let review_log = repo.get_review_log_for_items(&all_item_ids).await?;
+    let revlog_by_item: HashMap<String, Vec<&ReviewLogRow>> = {
+        let mut map: HashMap<String, Vec<&ReviewLogRow>> = HashMap::new();
+        for entry in &review_log {
+            map.entry(entry.item_id.clone()).or_default().push(entry);
+        }
+        map
+    };
+
+    // Build temporary SQLite database
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp_db_path = std::env::temp_dir().join(format!("anki_bulk_export_{}.db", nanos));
+
+    let mut media_entries: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut asset_id_to_media_idx: HashMap<String, usize> = HashMap::new();
+
+    {
+        let conn = Connection::open(&temp_db_path)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot create export database: {}", e)))?;
+
+        // Create tables (canonical schema from anki/rslib/src/storage/schema11.sql)
+        conn.execute_batch(
+            r#"
+            CREATE TABLE notes (
+                id integer PRIMARY KEY, guid text NOT NULL, mid integer NOT NULL,
+                mod integer NOT NULL, usn integer NOT NULL, tags text NOT NULL,
+                flds text NOT NULL, sfld integer NOT NULL, csum integer NOT NULL,
+                flags integer NOT NULL, data text NOT NULL
+            );
+            CREATE TABLE cards (
+                id integer PRIMARY KEY, nid integer NOT NULL, did integer NOT NULL,
+                ord integer NOT NULL, mod integer NOT NULL, usn integer NOT NULL,
+                type integer NOT NULL, queue integer NOT NULL, due integer NOT NULL,
+                ivl integer NOT NULL, factor integer NOT NULL, reps integer NOT NULL,
+                lapses integer NOT NULL, left integer NOT NULL, odue integer NOT NULL,
+                odid integer NOT NULL, flags integer NOT NULL, data text NOT NULL
+            );
+            CREATE TABLE revlog (
+                id integer PRIMARY KEY, cid integer NOT NULL, usn integer NOT NULL,
+                ease integer NOT NULL, ivl integer NOT NULL, lastIvl integer NOT NULL,
+                factor integer NOT NULL, time integer NOT NULL, type integer NOT NULL
+            );
+            CREATE TABLE graves (
+                usn integer NOT NULL, oid integer NOT NULL, type integer NOT NULL
+            );
+            CREATE TABLE col (
+                id integer PRIMARY KEY, crt integer NOT NULL,
+                mod integer NOT NULL, scm integer NOT NULL,
+                ver integer NOT NULL, dty integer NOT NULL,
+                usn integer NOT NULL, ls integer NOT NULL,
+                conf text NOT NULL, models text NOT NULL,
+                decks text NOT NULL, dconf text NOT NULL,
+                tags text NOT NULL
+            );
+            CREATE INDEX ix_notes_usn ON notes (usn);
+            CREATE INDEX ix_cards_usn ON cards (usn);
+            CREATE INDEX ix_revlog_usn ON revlog (usn);
+            CREATE INDEX ix_cards_nid ON cards (nid);
+            CREATE INDEX ix_cards_sched ON cards (did, queue, due);
+            CREATE INDEX ix_revlog_cid ON revlog (cid);
+            CREATE INDEX ix_notes_csum ON notes (csum);
+            "#,
+        )
+        .map_err(|e| IncrementumError::Internal(format!("Cannot create tables: {}", e)))?;
+
+        let now_ts = Utc::now().timestamp();
+        let basic_model_id: i64 = 1;
+        let cloze_model_id: i64 = 2;
+
+        let models_json = serde_json::json!({
+            basic_model_id.to_string(): {
+                "id": basic_model_id, "name": "Incrementum Basic", "type": 0,
+                "mod": now_ts, "usn": -1, "sortf": 0, "did": 1,
+                "tmpls": [{"name": "Card 1", "ord": 0, "qfmt": "{{Front}}", "afmt": "{{FrontSide}}<hr id=answer>{{Back}}", "bqfmt": "", "bafmt": "", "bfont": "Arial", "bsize": 20}],
+                "flds": [
+                    {"name": "Front", "ord": 0, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                    {"name": "Back", "ord": 1, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                ],
+                "css": ".card { font-family: arial; font-size: 20px; text-align: left; color: #2c2c2c; background: #ffffff; }",
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0pt}\n\\begin{document}",
+                "latexPost": "\\end{document}",
+                "req": [[0, "any", [0, 1]]],
+            },
+            cloze_model_id.to_string(): {
+                "id": cloze_model_id, "name": "Incrementum Cloze", "type": 1,
+                "mod": now_ts, "usn": -1, "sortf": 0, "did": 1,
+                "tmpls": [{"name": "Cloze", "ord": 0, "qfmt": "{{cloze:Text}}", "afmt": "{{cloze:Text}}<br>\n{{Back}}", "bqfmt": "", "bafmt": "", "bfont": "Arial", "bsize": 20}],
+                "flds": [
+                    {"name": "Text", "ord": 0, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                    {"name": "Back", "ord": 1, "sticky": false, "rtl": false, "font": "Arial", "size": 20},
+                ],
+                "css": ".card { font-family: arial; font-size: 20px; text-align: left; color: #2c2c2c; background: #ffffff; }",
+                "latexPre": "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amssymb,amsmath}\n\\pagestyle{empty}\n\\setlength{\\parindent}{0pt}\n\\begin{document}",
+                "latexPost": "\\end{document}",
+                "req": [[0, "any", [0]]],
+            }
+        }).to_string();
+
+        // Build decks JSON with one Anki deck per tag group
+        let mut decks_json = serde_json::Map::new();
+        for (i, (tag_name, _)) in groups.iter().enumerate() {
+            let deck_id = (i + 1) as i64;
+            decks_json.insert(
+                deck_id.to_string(),
+                serde_json::json!({
+                    "id": deck_id, "name": tag_name, "mod": now_ts, "usn": -1,
+                    "lr": now_ts, "desc": "", "dyn": 0, "conf": 1,
+                    "extendNew": 0, "extendRev": 0,
+                    "lrnToday": [0, 0], "newToday": [0, 0],
+                    "revToday": [0, 0], "timeToday": [0, 0],
+                    "collapsed": false,
+                }),
+            );
+        }
+        let decks_json_str = serde_json::Value::Object(decks_json).to_string();
+
+        let total_items: usize = groups.iter().map(|(_, items)| items.len()).sum();
+        let conf_json = serde_json::json!({
+            "nextPos": total_items as i64 + 1,
+            "estTimes": true,
+            "activeDecks": groups.iter().enumerate().map(|(i, _)| (i + 1) as i64).collect::<Vec<_>>(),
+            "sortType": "noteFld",
+            "timeLim": 0,
+            "sortBackwards": false,
+            "addToCur": true,
+            "curDeck": 1,
+            "newSpread": 0,
+            "dueCounts": true,
+        }).to_string();
+
+        let dconf_json = serde_json::json!({
+            "1": {
+                "id": 1,
+                "name": "Default",
+                "mod": now_ts,
+                "usn": -1,
+                "maxTaken": 60,
+                "autoplay": true,
+                "timer": 0,
+                "new": {"perDay": 20, "ints": [1, 10], "initialFactor": 2500, "bury": true, "order": 1},
+                "rev": {"perDay": 200, "ease4": 1.3, "ivlFct": 1, "maxIvl": 36500, "bury": true, "hardFactor": 1.2},
+                "lapse": {"mins": [10], "leechFails": 8, "leechAction": 0, "mult": 0},
+                "replayq": true,
+            }
+        }).to_string();
+
+        conn.execute(
+            "INSERT INTO col (id, crt, mod, scm, ver, dty, usn, ls, conf, models, decks, dconf, tags) \
+             VALUES (1, ?1, ?2, ?3, 11, 0, 0, 0, ?4, ?5, ?6, ?7, '{}')",
+            rusqlite::params![now_ts, now_ts, now_ts, &conf_json, &models_json, &decks_json_str, &dconf_json],
+        )
+        .map_err(|e| IncrementumError::Internal(format!("Cannot insert col: {}", e)))?;
+
+        let mut card_counter: i64 = 1;
+        let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        for (group_idx, (_tag_name, items)) in groups.iter().enumerate() {
+            let deck_id = (group_idx + 1) as i64;
+            for item in items {
+                // Skip duplicates (items with multiple tags may appear in multiple groups)
+                if !seen_ids.insert(item.id.clone()) {
+                    continue;
+                }
+
+                let note_id = card_counter * 10000;
+                let card_id = note_id + 1;
+                let guid = uuid::Uuid::new_v4().to_string().replace("-", "")[..10].to_string();
+
+                let tags_str = item.tags.iter()
+                    .filter(|t| !t.starts_with("anki-import"))
+                    .map(|t| format!(" {}", t))
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                let (model_id, flds) = match item.item_type {
+                    ItemType::Cloze => {
+                        if let (Some(ref ct), Some(ref ranges)) = (&item.cloze_text, &item.cloze_ranges) {
+                            if let Some(anki_cloze) = cloze_text_to_anki(ct, ranges) {
+                                let back = item.answer.as_deref().unwrap_or("")
+                                    .replace('\x1f', " ").replace('\\', "\\\\");
+                                (cloze_model_id, format!("{}\x1f{}", anki_cloze, back))
+                            } else {
+                                let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                                let back = item.answer.as_deref().unwrap_or("")
+                                    .replace('\x1f', " ").replace('\\', "\\\\");
+                                (basic_model_id, format!("{}\x1f{}", front, back))
+                            }
+                        } else {
+                            let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                            let back = item.answer.as_deref().unwrap_or("")
+                                .replace('\x1f', " ").replace('\\', "\\\\");
+                            (basic_model_id, format!("{}\x1f{}", front, back))
+                        }
+                    }
+                    _ => {
+                        let front = item.question.replace('\x1f', " ").replace('\\', "\\\\");
+                        let back = item.answer.as_deref().unwrap_or("")
+                            .replace('\x1f', " ").replace('\\', "\\\\");
+                        (basic_model_id, format!("{}\x1f{}", front, back))
+                    }
+                };
+
+                // Image handling
+                let mut img_html = String::new();
+                for asset_id in &item.image_asset_ids {
+                    if !asset_id_to_media_idx.contains_key(asset_id) {
+                        if let Ok(Some(asset)) = repo.get_image_asset(asset_id).await {
+                            let ext = match asset.mime_type.as_str() {
+                                "image/png" => "png", "image/jpeg" | "image/jpg" => "jpg",
+                                "image/gif" => "gif", "image/webp" => "webp",
+                                "image/svg+xml" => "svg", _ => "png",
+                            };
+                            let filename = format!("{}.{}", asset_id, ext);
+                            let idx = media_entries.len();
+                            asset_id_to_media_idx.insert(asset_id.clone(), idx);
+                            media_entries.push((filename, asset.content.clone()));
+                        }
+                    }
+                    if let Some(&idx) = asset_id_to_media_idx.get(asset_id) {
+                        img_html.push_str(&format!("<br><img src=\"{}\">", idx));
+                    }
+                }
+                let flds = if img_html.is_empty() { flds }
+                    else if let Some(pos) = flds.rfind('\x1f') { format!("{}{}{}", &flds[..pos], img_html, &flds[pos..]) }
+                    else { format!("{}{}", flds, img_html) };
+
+                conn.execute(
+                    "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data) \
+                     VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, '', 0, 0, '')",
+                    rusqlite::params![note_id, &guid, model_id, now_ts, &tags_str, &flds],
+                ).map_err(|e| IncrementumError::Internal(format!("Cannot insert note: {}", e)))?;
+
+                let card_data = if let Some(ref ms) = item.memory_state {
+                    serde_json::json!({"d": ms.difficulty, "s": ms.stability, "v": "3"}).to_string()
+                } else { String::new() };
+                let interval = item.interval.round() as i32;
+                let factor = (item.ease_factor * 1000.0).round() as i32;
+                let due = if interval > 0 {
+                    let due_date = item.due_date;
+                    let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+                    (due_date.date_naive() - epoch).num_days() as i32
+                } else { 0 };
+
+                let card_type = match item.state {
+                    ItemState::New => 0,
+                    ItemState::Learning => 1,
+                    ItemState::Review => 2,
+                    ItemState::Relearning => 3,
+                };
+
+                conn.execute(
+                    "INSERT INTO cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data) \
+                     VALUES (?1, ?2, ?3, 0, ?4, 0, ?5, 0, ?6, ?7, ?8, ?9, ?10, 0, 0, 0, 0, ?11)",
+                    rusqlite::params![card_id, note_id, deck_id, now_ts, card_type,
+                        due, interval, factor, item.review_count, item.lapses, &card_data],
+                ).map_err(|e| IncrementumError::Internal(format!("Cannot insert card: {}", e)))?;
+
+                if let Some(entries) = revlog_by_item.get(&item.id) {
+                    for entry in entries {
+                        let revlog_id = entry.anki_revlog_id.unwrap_or_else(|| Utc::now().timestamp_millis());
+                        conn.execute(
+                            "INSERT OR IGNORE INTO revlog (id, cid, usn, ease, ivl, lastIvl, factor, time, type) \
+                             VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, ?7, ?8)",
+                            rusqlite::params![revlog_id, card_id, entry.rating,
+                                entry.interval_days.round() as i32,
+                                entry.last_interval_days.map(|l| l.round() as i32).unwrap_or(0),
+                                (entry.ease_factor * 1000.0).round() as i32,
+                                entry.time_ms, entry.review_type],
+                        ).map_err(|e| IncrementumError::Internal(format!("Cannot insert revlog: {}", e)))?;
+                    }
+                }
+
+                card_counter += 1;
+            }
+        }
+    }
+
+    // Build ZIP
+    let db_bytes = std::fs::read(&temp_db_path)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot read export database: {}", e)))?;
+    let _ = std::fs::remove_file(&temp_db_path);
+
+    let output_file = File::create(&output_path)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot create output file: {}", e)))?;
+    let mut zip = zip::ZipWriter::new(output_file);
+    let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+    zip.start_file("collection.anki2", options)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write collection: {}", e)))?;
+    zip.write_all(&db_bytes)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write collection data: {}", e)))?;
+
+    let media_json = if media_entries.is_empty() { "{}".to_string() } else {
+        let map: HashMap<String, &str> = media_entries.iter().enumerate()
+            .map(|(i, (name, _))| (i.to_string(), name.as_str())).collect();
+        serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_string())
+    };
+    zip.start_file("media", options)
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write media: {}", e)))?;
+    zip.write_all(media_json.as_bytes())
+        .map_err(|e| IncrementumError::Internal(format!("Cannot write media data: {}", e)))?;
+
+    for (idx, (_name, bytes)) in media_entries.iter().enumerate() {
+        zip.start_file(idx.to_string(), options)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot write media file {}: {}", idx, e)))?;
+        zip.write_all(bytes)
+            .map_err(|e| IncrementumError::Internal(format!("Cannot write media file data {}: {}", idx, e)))?;
+    }
+
+    zip.finish()
+        .map_err(|e| IncrementumError::Internal(format!("Cannot finalize zip: {}", e)))?;
+
+    Ok(format!("Exported {} cards across {} decks to {}", total_cards, groups.len(), output_path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cloze_single_range() {
+        let result = cloze_text_to_anki("The capital of France is Paris", &[(25, 30)]);
+        assert_eq!(result, Some("The capital of France is {{c1::Paris}}".to_string()));
+    }
+
+    #[test]
+    fn cloze_multiple_ranges() {
+        let result = cloze_text_to_anki("A and B and C", &[(0, 1), (6, 7), (12, 13)]);
+        assert_eq!(result, Some("{{c1::A}} and {{c2::B}} and {{c3::C}}".to_string()));
+    }
+
+    #[test]
+    fn cloze_empty_text() {
+        let result = cloze_text_to_anki("", &[(0, 5)]);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn cloze_empty_ranges() {
+        let result = cloze_text_to_anki("some text", &[]);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn cloze_invalid_range_start_ge_end() {
+        let result = cloze_text_to_anki("hello", &[(3, 2)]);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn cloze_range_past_end() {
+        let result = cloze_text_to_anki("hi", &[(0, 10)]);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn cloze_unicode_text() {
+        let result = cloze_text_to_anki("日本の首都は東京です", &[(5, 7)]);
+        assert_eq!(result, Some("日本の首都は{{c1::東京}}です".to_string()));
+    }
 }

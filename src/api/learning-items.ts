@@ -181,6 +181,14 @@ export async function exportDeckAsApkg(deckName: string, outputPath: string): Pr
   return await invokeCommand<string>("export_deck_as_apkg", { deckName, outputPath });
 }
 
+export async function exportDeckAsCsv(deckName: string, outputPath: string): Promise<string> {
+  return await invokeCommand<string>("export_deck_as_csv", { deckName, outputPath });
+}
+
+export async function exportAllDecksAsApkg(outputPath: string): Promise<string> {
+  return await invokeCommand<string>("export_all_decks_as_apkg", { outputPath });
+}
+
 /**
  * Get the item type display name
  */

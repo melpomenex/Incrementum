@@ -956,8 +956,10 @@ pub fn run() {
             // Anki import commands
             anki::import_anki_package_to_learning_items,
             anki::import_anki_package_bytes_to_learning_items,
-            // Anki export command
+            // Anki export commands
             anki::export_deck_as_apkg,
+            anki::export_deck_as_csv,
+            anki::export_all_decks_as_apkg,
             // SuperMemo import commands
             supermemo_import::import_supermemo_package,
             supermemo_import::validate_supermemo_package,
