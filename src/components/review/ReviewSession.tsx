@@ -586,7 +586,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           />
 
           {/* Card and Ratings */}
-          <div ref={swipeRef} className="flex-1 flex flex-col justify-center relative touch-pan-y">
+          <div ref={swipeRef} className="flex-1 flex flex-col min-h-0 relative touch-pan-y">
             {/* Swipe Indicator Overlay */}
             {swipeDirection && isAnswerShown && (
               <div
@@ -606,9 +606,11 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
             {isCurrentDocument ? (
               <>
-                <ReviewDocumentCard item={currentCard as ReviewDocumentItem} />
+                <div className="flex-1 flex items-center">
+                  <ReviewDocumentCard item={currentCard as ReviewDocumentItem} />
+                </div>
 
-                <div className="mt-6">
+                <div className="flex-shrink-0 mt-4">
                   <RatingButtons
                     onSelectRating={handleRating}
                     disabled={isSubmitting}
@@ -618,15 +620,17 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             ) : isAnswerShown ? (
               <>
                 {/* Card with answer shown */}
-                <ReviewCard
-                  card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
-                  showAnswer={true}
-                  onShowAnswer={() => {}}
-                  onInteractionResultChange={setInteractionResult}
-                />
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <ReviewCard
+                    card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
+                    showAnswer={true}
+                    onShowAnswer={() => {}}
+                    onInteractionResultChange={setInteractionResult}
+                  />
+                </div>
 
                 {/* Rating Buttons */}
-                <div className="mt-6">
+                <div className="flex-shrink-0 mt-4">
                   <RatingButtons
                     onSelectRating={handleRating}
                     disabled={isSubmitting}
@@ -643,12 +647,14 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             ) : (
               <>
                 {/* Card with answer hidden */}
-                <ReviewCard
-                  card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
-                  showAnswer={false}
-                  onShowAnswer={showAnswer}
-                  onInteractionResultChange={setInteractionResult}
-                />
+                <div className="flex-1 flex items-center">
+                  <ReviewCard
+                    card={currentCard as Exclude<ReviewSessionItem, ReviewDocumentItem>}
+                    showAnswer={false}
+                    onShowAnswer={showAnswer}
+                    onInteractionResultChange={setInteractionResult}
+                  />
+                </div>
               </>
             )}
           </div>

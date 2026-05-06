@@ -80,7 +80,7 @@ export function RatingButtons({
                 text-white rounded-lg p-3 md:p-4 transition-all
                 hover:shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
                 flex flex-col items-center gap-1 md:gap-2
-                min-h-[80px] md:min-h-[100px] min-w-[80px]
+                min-h-[60px] md:min-h-[100px] min-w-[80px]
                 touch-manipulation
                 focus-visible:ring-4 focus-visible:ring-white/50 focus-visible:outline-none
                 focus-visible:scale-[1.02]
