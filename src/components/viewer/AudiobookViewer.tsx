@@ -51,10 +51,12 @@ import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../a
 
 interface AudiobookViewerProps {
   document: Document;
-  fileContent?: string; // Base64 or URL
+  fileContent?: string;
   initialSeekTime?: number;
   initialTranscriptSegmentId?: string;
   autoPlayOnOpen?: boolean;
+  audioRef?: React.RefObject<HTMLAudioElement | null>;
+  onTimeUpdate?: (currentTime: number) => void;
 }
 
 interface AudiobookBookmark {
@@ -82,8 +84,11 @@ export function AudiobookViewer({
   initialSeekTime,
   initialTranscriptSegmentId,
   autoPlayOnOpen = false,
+  audioRef: externalAudioRef,
+  onTimeUpdate,
 }: AudiobookViewerProps) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const internalAudioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = externalAudioRef ?? internalAudioRef;
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
   const { t } = useI18n();
@@ -441,7 +446,8 @@ export function AudiobookViewer({
       setCurrentTime(time);
       currentTimeRef.current = time;
       currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, time);
-      
+      onTimeUpdate?.(toGlobalSeconds(currentPartIndex, time));
+
       // Update active transcript segment
       if (transcript?.segments) {
         const segment = transcript.segments.find(
@@ -889,7 +895,12 @@ export function AudiobookViewer({
   // Get current chapter
   const getCurrentChapter = (): AudiobookChapter | null => {
     if (!chapters.length) return null;
-    
+
+    if (multiPartInfo && chapters.length === multiPartInfo.partFiles.length) {
+      const idx = Math.min(currentPartIndex, chapters.length - 1);
+      return chapters[idx];
+    }
+
     for (let i = chapters.length - 1; i >= 0; i--) {
       if (currentTime >= chapters[i].startTime) {
         return chapters[i];
@@ -954,10 +965,21 @@ export function AudiobookViewer({
     if (transcript?.segments?.length) return;
     if (activeSegments.length > 0) return;
 
+    // Try loading transcript with several possible chapter IDs:
+    // 1. document.id (how auto-transcription stores it)
+    // 2. chapter-based ID (how in-viewer transcription stores it)
+    // 3. "default" (fallback)
     const chapterId = currentChapter?.id?.toString() || "default";
-    loadTranscript(document.id, chapterId).catch((err) => {
-      console.warn("[AudiobookViewer] Failed to load transcript:", err);
-    });
+    const tryLoad = async () => {
+      for (const cid of [document.id, chapterId, "default"]) {
+        try {
+          await loadTranscript(document.id, cid);
+          const segments = useTranscriptionStore.getState().activeSegments;
+          if (segments.length > 0) return;
+        } catch {}
+      }
+    };
+    tryLoad();
   }, [
     showTranscript,
     transcript?.segments?.length,

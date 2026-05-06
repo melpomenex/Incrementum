@@ -19,7 +19,8 @@ export type TabType =
   | "web-browser"
   | "doc-qa"
   | "notebooklm"
-  | "image-registry";
+  | "image-registry"
+  | "audiobook-epub-sync";
 
 export interface Tab {
   id: string;

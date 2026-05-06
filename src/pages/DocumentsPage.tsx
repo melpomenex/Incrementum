@@ -1,5 +1,6 @@
 import { DocumentsView } from "../components/documents/DocumentsView";
 import { DocumentViewer } from "../components/tabs/TabRegistry";
+import { AudiobookEpubSyncView } from "../components/viewer/AudiobookEpubSyncView";
 import { useTabsStore } from "../stores";
 import type { Document } from "../types/document";
 
@@ -17,5 +18,16 @@ export function DocumentsPage() {
     });
   };
 
-  return <DocumentsView onOpenDocument={handleOpenDocument} enableYouTubeImport />;
+  const handleReadAlong = (audioDoc: Document, epubDoc: Document) => {
+    addTab({
+      title: `${audioDoc.title} — Read Along`,
+      icon: "🎧",
+      type: "audiobook-epub-sync",
+      content: AudiobookEpubSyncView,
+      closable: true,
+      data: { audioDocumentId: audioDoc.id, epubDocumentId: epubDoc.id },
+    });
+  };
+
+  return <DocumentsView onOpenDocument={handleOpenDocument} onReadAlong={handleReadAlong} enableYouTubeImport />;
 }

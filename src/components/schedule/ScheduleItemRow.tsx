@@ -3,11 +3,15 @@ import {
   BookOpen, Layers, Brain, Clock, AlertTriangle,
   Zap, TrendingUp, Repeat, ChevronDown, ChevronRight,
   Play, Pause, Trash2, CalendarClock, RotateCcw, EyeOff,
+  Columns2, Headphones,
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
 import { cn } from "../../utils";
+import { findCompanionDoc } from "../../utils/documentPairing";
+import { useDocumentStore } from "../../stores/documentStore";
+import type { Document } from "../../types/document";
 
 interface ScheduleItemRowProps {
   item: ScheduleDayItem;
@@ -17,6 +21,7 @@ interface ScheduleItemRowProps {
   onUnsuspend?: (itemId: string, itemType: string) => Promise<void>;
   onDelete?: (itemId: string, itemType: string) => Promise<void>;
   onDismiss?: (itemId: string) => Promise<void>;
+  onReadAlong?: (audioDoc: Document, epubDoc: Document) => void;
   isMobile?: boolean;
 }
 
@@ -104,6 +109,7 @@ export function ScheduleItemRow({
   onUnsuspend,
   onDelete,
   onDismiss,
+  onReadAlong,
   isMobile = false,
 }: ScheduleItemRowProps) {
   const { t } = useI18n();
@@ -485,6 +491,31 @@ export function ScheduleItemRow({
                 {item.itemType === "learning-item" ? t("queue.studyNow") : t("queue.openDocument")}
               </button>
             )}
+
+            {/* Read Along / Listen Along */}
+            {onReadAlong && item.itemType === "document" && (item.documentFileType === "audio" || item.documentFileType === "epub") && (() => {
+              const allDocs = useDocumentStore.getState().documents;
+              const doc = allDocs.find(d => d.id === item.documentId);
+              if (!doc) return null;
+              const companions = findCompanionDoc(doc, allDocs);
+              const best = companions[0];
+              if (!best) return null;
+              const audioDoc = doc.fileType === "audio" ? doc : best.doc;
+              const epubDoc = doc.fileType === "epub" ? doc : best.doc;
+              return (
+                <button
+                  className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
+                  onClick={() => { setCtxPos(null); onReadAlong(audioDoc, epubDoc); }}
+                >
+                  {doc.fileType === "audio"
+                    ? <Columns2 className="w-4 h-4 text-blue-500" />
+                    : <Headphones className="w-4 h-4 text-blue-500" />}
+                  {doc.fileType === "audio"
+                    ? `Read Along with ${best.doc.title}`
+                    : `Listen Along with ${best.doc.title}`}
+                </button>
+              );
+            })()}
 
             {/* Suspend / Unsuspend (learning items) */}
             {item.itemType === "learning-item" && onSuspend && (
