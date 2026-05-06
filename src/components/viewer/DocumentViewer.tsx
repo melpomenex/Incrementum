@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
-import { isTauri, isPWA } from "../../lib/tauri";
+import { isTauri, isPWA, convertFileSrc } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { PDFViewer } from "./PDFViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
@@ -73,7 +73,7 @@ import type { StoredHighlight } from "./HighlightLayer";
 import { normalizePdfHighlightColor } from "../../utils/highlightColors";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
-import { resolveLocalMediaSource, type ResolvedLocalMediaSource } from "./localMediaSource";
+import { resolveLocalMediaSource, type ResolvedLocalMediaSource, inferMimeType } from "./localMediaSource";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -1354,12 +1354,40 @@ export function DocumentViewer({
       } finally {
         setIsLoading(false);
       }
-    } else if (inferredType === "video" || inferredType === "audio") {
+    } else if (inferredType === "audio") {
+      // Audio: skip the blocking probeMediaSource — AudiobookViewer handles
+      // its own source resolution (convertFileSrc, m4b prepareAudiobookPlayback,
+      // etc.). The synchronous probe freezes the UI for large audiobook files.
       try {
-        console.log(`[DocumentViewer] Loading ${inferredType} file:`, doc.filePath);
         setMediaError(null);
         if (!doc.filePath) {
-          throw new Error("Media document is missing a file path.");
+          throw new Error("Audio document is missing a file path.");
+        }
+        const src = await convertFileSrc(doc.filePath);
+        const resolvedSource: ResolvedLocalMediaSource = {
+          src,
+          mimeType: inferMimeType(doc.filePath, "audio"),
+          mediaType: "audio",
+          originalPath: doc.filePath,
+          strategy: "tauri-asset",
+          revokeSrcOnDispose: false,
+          attempts: [{ strategy: "tauri-asset", status: "success", detail: "Direct convertFileSrc; skipped probe for audio." }],
+        };
+        mediaSourceRef.current = resolvedSource;
+        setMediaSource(resolvedSource);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("[DocumentViewer] Failed to resolve audio source:", error);
+        setMediaError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    } else if (inferredType === "video") {
+      try {
+        console.log("[DocumentViewer] Loading video file:", doc.filePath);
+        setMediaError(null);
+        if (!doc.filePath) {
+          throw new Error("Video document is missing a file path.");
         }
         const resolvedSource = await resolveLocalMediaSource(doc.filePath, inferredType);
         console.log("[DocumentViewer] Resolved local media source:", {
@@ -1372,7 +1400,7 @@ export function DocumentViewer({
         setMediaSource(resolvedSource);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[DocumentViewer] Failed to load ${inferredType} file:`, error);
+        console.error("[DocumentViewer] Failed to load video file:", error);
         setMediaError(errorMessage);
       } finally {
         setIsLoading(false);
