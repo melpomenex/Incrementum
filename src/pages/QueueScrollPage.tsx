@@ -1090,8 +1090,9 @@ export function QueueScrollPage() {
         return;
       }
 
-      // Check if current item is an EPUB or PDF document
+      // Check if current item is an EPUB, PDF, or audio document
       // EPUBs and PDFs can be lengthy documents, so we don't want to auto-advance when user reaches the end
+      // Audio documents need the player to remain visible — wheel events shouldn't navigate away
       // User should be able to scroll through the entire document freely
       let isScrollableDocument = false;
       let isYouTubeItem = false;
@@ -1099,14 +1100,14 @@ export function QueueScrollPage() {
         const doc = documents.find(d => d.id === currentItem.documentId);
         if (doc) {
           const fileType = doc.fileType || doc.filePath?.split('.').pop()?.toLowerCase();
-          isScrollableDocument = fileType === "epub" || fileType === "pdf";
+          isScrollableDocument = fileType === "epub" || fileType === "pdf" || fileType === "audio";
           isYouTubeItem = fileType === "youtube"
             || !!doc.filePath?.includes("youtube.com")
             || !!doc.filePath?.includes("youtu.be");
         }
       }
 
-      // For EPUB and PDF documents, don't auto-advance on scroll boundary
+      // For EPUB, PDF, and audio documents, don't auto-advance on scroll boundary
       // User must explicitly rate or use keyboard navigation to move to next item
       if (isScrollableDocument) {
         return; // Let the document scroll normally, no auto-advance
@@ -1549,14 +1550,14 @@ export function QueueScrollPage() {
       const target = e.target as HTMLElement;
       if (target.closest(".assistant-panel")) return;
 
-      // Check if current item is an EPUB or PDF document
+      // Check if current item is an EPUB, PDF, or audio document
       let isScrollableDocument = false;
       let isYouTubeItem = false;
       if (currentItem?.type === "document" && currentItem.documentId) {
         const doc = documents.find(d => d.id === currentItem.documentId);
         if (doc) {
           const fileType = doc.fileType || doc.filePath?.split('.').pop()?.toLowerCase();
-          isScrollableDocument = fileType === "epub" || fileType === "pdf";
+          isScrollableDocument = fileType === "epub" || fileType === "pdf" || fileType === "audio";
           isYouTubeItem = fileType === "youtube"
             || !!doc.filePath?.includes("youtube.com")
             || !!doc.filePath?.includes("youtu.be");
@@ -2474,7 +2475,7 @@ export function QueueScrollPage() {
           {currentItem?.type === "document" && (() => {
             const doc = documents.find(d => d.id === currentItem.documentId);
             const fileType = doc?.fileType || doc?.filePath?.split('.').pop()?.toLowerCase();
-            return fileType === "epub" || fileType === "pdf"
+            return fileType === "epub" || fileType === "pdf" || fileType === "audio"
               ? t("queueScroll.helpTextDocFile")
               : t("queueScroll.helpTextDocScroll");
           })()}

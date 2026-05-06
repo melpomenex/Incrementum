@@ -46,7 +46,7 @@ const AUDIO_MIME_TYPES: Record<string, string> = {
   mp3: "audio/mpeg",
 };
 
-function inferMimeType(filePath: string, mediaType: LocalMediaType): string {
+export function inferMimeType(filePath: string, mediaType: LocalMediaType): string {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   if (mediaType === "audio") {
     return AUDIO_MIME_TYPES[ext] ?? "audio/mpeg";
