@@ -267,13 +267,50 @@ export function AudiobookImportDialog({
       }
       
       console.log("[AudiobookImport] Found files:", audiobookFiles.length);
-      
+
       if (audiobookFiles.length === 0) {
         setError(`No audiobook files found in ${dirPath}. Supported formats: ${AUDIOBOOK_FORMATS.join(", ")}`);
         setIsLoading(false);
         return;
       }
-      
+
+      // Try to detect multi-part audiobook
+      const detectedMultiPart = detectMultiPartAudiobook(audiobookFiles);
+
+      if (detectedMultiPart) {
+        console.log("[AudiobookImport] Multi-part book detected:", detectedMultiPart.title, "-", detectedMultiPart.parts.length, "parts");
+        setSelectedFiles(audiobookFiles);
+        setMultiPartBook(detectedMultiPart);
+        setImportMode("single");
+
+        setMetadata({
+          title: detectedMultiPart.title,
+          author: detectedMultiPart.author,
+          duration: detectedMultiPart.totalDuration,
+        });
+
+        const [embeddedCover, covers, metaResults] = await Promise.all([
+          extractAudioCoverArt(audiobookFiles[0]),
+          searchAudiobookCover(detectedMultiPart.title, detectedMultiPart.author),
+          searchAudiobookMetadata(detectedMultiPart.title, detectedMultiPart.author),
+        ]);
+
+        const allCovers = embeddedCover ? [embeddedCover, ...covers] : covers;
+        setCoverOptions(allCovers);
+        setSearchResults(metaResults);
+        if (allCovers.length > 0) setSelectedCover(allCovers[0]);
+        if (metaResults.length > 0) {
+          setMetadata(prev => ({ ...prev, ...metaResults[0] }));
+        }
+
+        setCurrentStep("metadata");
+        showSuccess("Multi-part book detected", `${audiobookFiles.length} parts found for "${detectedMultiPart.title}"`);
+        return;
+      }
+
+      // Not a multi-part book — import as batch
+      setImportMode("batch");
+
       // Create batch items
       const items: BatchItem[] = audiobookFiles.map((filePath, index) => ({
         id: `item-${index}`,
@@ -281,10 +318,10 @@ export function AudiobookImportDialog({
         fileName: filePath.split(/[/\\]/).pop() || filePath,
         status: "pending",
       }));
-      
+
       setBatchItems(items);
       setImportProgress({ current: 0, total: items.length });
-      
+
       // Load metadata for all files
       await loadBatchMetadata(items);
       

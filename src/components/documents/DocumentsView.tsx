@@ -25,6 +25,8 @@ import {
   Youtube,
   ChevronLeft,
   ChevronRight,
+  Columns2,
+  Headphones,
 } from "lucide-react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useCollectionStore } from "../../stores/collectionStore";
@@ -70,6 +72,7 @@ import { getDeviceInfo } from "../../lib/pwa";
 import { invokeCommand, isTauri, isMac } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
+import { findCompanionDoc } from "../../utils/documentPairing";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 import { enqueueAutoTranscription, getTranscriptionQueue } from "../../api/transcription";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -151,10 +154,11 @@ const defaultSortByKey: Record<DocumentSortKey, DocumentSortDirection> = {
 
 interface DocumentsViewProps {
   onOpenDocument?: (doc: Document) => void;
+  onReadAlong?: (audioDoc: Document, epubDoc: Document) => void;
   enableYouTubeImport?: boolean;
 }
 
-export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: DocumentsViewProps) {
+export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport = true }: DocumentsViewProps) {
   const { t } = useI18n();
   const {
     documents,
@@ -189,6 +193,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [listCtxDoc, setListCtxDoc] = useState<{ doc: Document; pos: { x: number; y: number } } | null>(null);
+  const listCtxRef = useRef<HTMLDivElement>(null);
+  const [listPairPicker, setListPairPicker] = useState<Document | null>(null);
+  const [listPairSearch, setListPairSearch] = useState("");
 
   // Confirmation dialog for destructive actions
   const confirmDialog = useConfirmDialog();
@@ -590,6 +598,18 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
         }
       },
     });
+  };
+
+  const handleTranscribe = async (doc: Document) => {
+    if (!doc.filePath) return;
+    const settings = useSettingsStore.getState().settings.audioTranscription;
+    await enqueueAutoTranscription(
+      doc.id,
+      doc.filePath,
+      settings.provider,
+      settings.provider === "groq" ? "groq-whisper" : "distil-small.en",
+      settings.language || "en",
+    );
   };
 
   const handleBulkTag = () => {
@@ -1153,6 +1173,10 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                           onOpenDocument?.(doc);
                         }
                       }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setListCtxDoc({ doc, pos: { x: e.clientX, y: e.clientY } });
+                      }}
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                         selectedIds.has(doc.id)
                           ? "border-primary bg-primary/5"
@@ -1248,10 +1272,124 @@ export function DocumentsView({ onOpenDocument, enableYouTubeImport = true }: Do
                 onSelectRow={handleSelectRow}
                 onDelete={handleDeleteDocument}
                 onUpdate={updateDocument}
+                onTranscribe={handleTranscribe}
+                onReadAlong={onReadAlong}
                 isMobile={isMobile}
               />
             )}
           </div>
+
+          {/* List mode context menu (rendered via portal) */}
+          {listCtxDoc && createPortal(
+            <Fragment>
+              <div className="fixed inset-0 z-[9998]" onContextMenu={(e) => { e.preventDefault(); setListCtxDoc(null); }} onClick={() => setListCtxDoc(null)} />
+              <div ref={listCtxRef} className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[200px]" style={{ left: listCtxDoc.pos.x, top: listCtxDoc.pos.y }}>
+                <button
+                  className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm hover:bg-muted text-foreground"
+                  onClick={() => { setListCtxDoc(null); onOpenDocument?.(listCtxDoc.doc); }}
+                >
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  Open
+                </button>
+                {(() => {
+                  const companions = onReadAlong ? findCompanionDoc(listCtxDoc.doc, documents) : [];
+                  const best = companions[0];
+                  if (!best) return null;
+                  const audioDoc = listCtxDoc.doc.fileType === "audio" ? listCtxDoc.doc : best.doc;
+                  const epubDoc = listCtxDoc.doc.fileType === "epub" ? listCtxDoc.doc : best.doc;
+                  return (
+                    <button
+                      className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm hover:bg-muted text-foreground"
+                      onClick={() => { setListCtxDoc(null); onReadAlong?.(audioDoc, epubDoc); }}
+                    >
+                      {listCtxDoc.doc.fileType === "audio"
+                        ? <Columns2 className="h-3.5 w-3.5 text-blue-500" />
+                        : <Headphones className="h-3.5 w-3.5 text-blue-500" />}
+                      {listCtxDoc.doc.fileType === "audio"
+                        ? `Read Along with ${best.doc.title}`
+                        : `Listen Along with ${best.doc.title}`}
+                    </button>
+                  );
+                })()}
+                {onReadAlong && (listCtxDoc.doc.fileType === "audio" || listCtxDoc.doc.fileType === "epub") && (
+                  <button
+                    className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm hover:bg-muted text-foreground"
+                    onClick={() => { setListCtxDoc(null); setListPairPicker(listCtxDoc.doc); }}
+                  >
+                    <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Pair with...
+                  </button>
+                )}
+                <div className="h-px bg-border my-1" />
+                <button
+                  className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                  onClick={() => { setListCtxDoc(null); handleDeleteDocument(listCtxDoc.doc); }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
+            </Fragment>,
+            document.body
+          )}
+
+          {/* List mode pair picker */}
+          {listPairPicker && (() => {
+            const targetType = listPairPicker.fileType === "audio" ? "epub" : "audio";
+            const candidates = documents.filter(
+              d => d.id !== listPairPicker.id && d.fileType === targetType && !d.isArchived
+            );
+            const filtered = listPairSearch
+              ? candidates.filter(d => d.title.toLowerCase().includes(listPairSearch.toLowerCase()))
+              : candidates;
+            const typeLabel = targetType === "epub" ? "EPUB" : "audiobook";
+            return createPortal(
+              <Fragment>
+                <div className="fixed inset-0 z-[9998]" onClick={() => { setListPairPicker(null); setListPairSearch(""); }} />
+                <div className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl w-[320px] max-h-[400px] flex flex-col"
+                  style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
+                  <div className="p-3 border-b border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Pair with {typeLabel}</span>
+                      <button onClick={() => { setListPairPicker(null); setListPairSearch(""); }} className="text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search..."
+                      value={listPairSearch}
+                      onChange={(e) => setListPairSearch(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+                    />
+                  </div>
+                  <div className="overflow-y-auto flex-1">
+                    {filtered.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No {typeLabel}s found</p>
+                    ) : filtered.map(d => (
+                      <button
+                        key={d.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                        onClick={() => {
+                          setListPairPicker(null);
+                          setListPairSearch("");
+                          const audioDoc = listPairPicker.fileType === "audio" ? listPairPicker : d;
+                          const epubDoc = listPairPicker.fileType === "epub" ? listPairPicker : d;
+                          onReadAlong?.(audioDoc, epubDoc);
+                        }}
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{d.title}</span>
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">{d.fileType}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </Fragment>,
+              document.body
+            );
+          })()}
 
           {isInspectorOpen && (
             <aside className="w-80 border-l border-border bg-card p-4 overflow-auto documents-inspector">
@@ -1781,6 +1919,7 @@ interface LibraryDashboardProps {
   onDelete: (doc: Document) => void;
   onUpdate: (id: string, updates: Partial<Document>) => void;
   onTranscribe?: (doc: Document) => void;
+  onReadAlong?: (audioDoc: Document, epubDoc: Document) => void;
   isMobile: boolean;
 }
 
@@ -1795,6 +1934,7 @@ function LibraryDashboard({
   onDelete,
   onUpdate,
   onTranscribe,
+  onReadAlong,
   isMobile,
 }: LibraryDashboardProps) {
   const rowRef1 = useRef<HTMLDivElement>(null);
@@ -1916,6 +2056,7 @@ function LibraryDashboard({
         onDelete={onDelete}
         onUpdate={onUpdate}
         onTranscribe={onTranscribe}
+        onReadAlong={onReadAlong}
         isMobile={isMobile}
         scrollRef={rowRef1}
         onScrollLeft={() => scrollRow(rowRef1, "left")}
@@ -1932,6 +2073,7 @@ function LibraryDashboard({
         onDelete={onDelete}
         onUpdate={onUpdate}
         onTranscribe={onTranscribe}
+        onReadAlong={onReadAlong}
         isMobile={isMobile}
         scrollRef={rowRef2}
         onScrollLeft={() => scrollRow(rowRef2, "left")}
@@ -1951,6 +2093,7 @@ interface HorizontalSectionProps {
   onDelete: (doc: Document) => void;
   onUpdate: (id: string, updates: Partial<Document>) => void;
   onTranscribe?: (doc: Document) => void;
+  onReadAlong?: (audioDoc: Document, epubDoc: Document) => void;
   isMobile: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onScrollLeft: () => void;
@@ -1966,6 +2109,7 @@ function HorizontalSection({
   onDelete,
   onUpdate,
   onTranscribe,
+  onReadAlong,
   isMobile,
   scrollRef,
   onScrollLeft,
@@ -2015,6 +2159,7 @@ function HorizontalSection({
             onDelete={onDelete}
             onUpdate={onUpdate}
             onTranscribe={onTranscribe ? () => onTranscribe(doc) : undefined}
+            onReadAlong={onReadAlong}
             isMobile={isMobile}
           />
         ))}
@@ -2032,6 +2177,7 @@ function LibraryCard({
   onDelete,
   onUpdate,
   onTranscribe,
+  onReadAlong,
   isMobile,
 }: {
   doc: Document;
@@ -2041,12 +2187,15 @@ function LibraryCard({
   onDelete: (doc: Document) => void;
   onUpdate: (id: string, updates: Partial<Document>) => void;
   onTranscribe?: () => void;
+  onReadAlong?: (audioDoc: Document, epubDoc: Document) => void;
   isMobile: boolean;
 }) {
   const coverUrl = getDocumentCoverUrl(doc);
   const CoverIcon = getCoverFallbackIcon(doc.fileType);
   const progress = doc.progressPercent ?? 0;
   const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
+  const [showPairPicker, setShowPairPicker] = useState(false);
+  const [pairSearch, setPairSearch] = useState("");
 
   const typeColors: Record<string, string> = {
     pdf: "bg-red-500/15 text-red-400",
@@ -2079,12 +2228,35 @@ function LibraryCard({
     color?: string;
     divider?: boolean;
     action: () => void;
-  }> = useMemo(() => [
+  }> = useMemo(() => {
+    const allDocs = useDocumentStore.getState().documents;
+    const companions = onReadAlong ? findCompanionDoc(doc, allDocs) : [];
+    const bestCompanion = companions[0] ?? null;
+
+    return [
     {
       label: "Open",
       icon: <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />,
       action: () => onOpen(),
     },
+    ...(bestCompanion ? [{
+      label: doc.fileType === "audio"
+        ? `Read Along with ${bestCompanion.doc.title}`
+        : `Listen Along with ${bestCompanion.doc.title}`,
+      icon: doc.fileType === "audio"
+        ? <Columns2 className="h-3.5 w-3.5 text-blue-500" />
+        : <Headphones className="h-3.5 w-3.5 text-blue-500" />,
+      action: () => {
+        const audioDoc = doc.fileType === "audio" ? doc : bestCompanion.doc;
+        const epubDoc = doc.fileType === "epub" ? doc : bestCompanion.doc;
+        onReadAlong?.(audioDoc, epubDoc);
+      },
+    } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
+    ...((doc.fileType === "audio" || doc.fileType === "epub") && onReadAlong ? [{
+      label: "Pair with...",
+      icon: <Link2 className="h-3.5 w-3.5 text-muted-foreground" />,
+      action: () => { setCtxPos(null); setShowPairPicker(true); },
+    } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
     {
       label: doc.isFavorite ? "Remove from Favorites" : "Add to Favorites",
       icon: <Sparkles className={"h-3.5 w-3.5 " + (doc.isFavorite ? "text-amber-500" : "text-muted-foreground")} />,
@@ -2120,7 +2292,7 @@ function LibraryCard({
       color: "text-destructive",
       action: () => onDelete(doc),
     },
-  ], [doc, onOpen, onDelete, onUpdate]);
+  ]; }, [doc, onOpen, onDelete, onUpdate, onReadAlong]);
 
   return (
     <div className="relative">
@@ -2203,6 +2375,65 @@ function LibraryCard({
         </Fragment>,
         document.body
       )}
+
+      {/* Pair Picker */}
+      {showPairPicker && (() => {
+        const targetType = doc.fileType === "audio" ? "epub" : "audio";
+        const allDocs = useDocumentStore.getState().documents;
+        const candidates = allDocs.filter(
+          d => d.id !== doc.id && d.fileType === targetType && !d.isArchived
+        );
+        const filtered = pairSearch
+          ? candidates.filter(d => d.title.toLowerCase().includes(pairSearch.toLowerCase()))
+          : candidates;
+        const typeLabel = targetType === "epub" ? "EPUB" : "audiobook";
+        return createPortal(
+          <Fragment>
+            <div className="fixed inset-0 z-[9998]" onClick={() => { setShowPairPicker(false); setPairSearch(""); }} />
+            <div className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl w-[320px] max-h-[400px] flex flex-col"
+              style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
+              <div className="p-3 border-b border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Pair with {typeLabel}</span>
+                  <button onClick={() => { setShowPairPicker(false); setPairSearch(""); }} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search..."
+                  value={pairSearch}
+                  onChange={(e) => setPairSearch(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"
+                />
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {filtered.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No {typeLabel}s found</p>
+                ) : filtered.map(d => (
+                  <button
+                    key={d.id}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                    onClick={() => {
+                      setShowPairPicker(false);
+                      setPairSearch("");
+                      const audioDoc = doc.fileType === "audio" ? doc : d;
+                      const epubDoc = doc.fileType === "epub" ? doc : d;
+                      onReadAlong?.(audioDoc, epubDoc);
+                    }}
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{d.title}</span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">{d.fileType}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Fragment>,
+          document.body
+        );
+      })()}
     </div>
   );
 }

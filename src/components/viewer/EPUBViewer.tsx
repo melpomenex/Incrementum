@@ -10,6 +10,7 @@ import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { normalizeHighlightColor } from "../../utils/highlightColors";
+import { buildSegmentCfiMap, findActiveSegment, type SyncSegment } from "../../utils/epubSync";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 import { getShortcutCombo, eventMatchesCombo } from "../common/KeyboardShortcuts";
 
@@ -95,6 +96,14 @@ interface EPUBViewerProps {
   persistedHighlights?: Array<{ id: string; cfiRange: string; color?: string | null; text: string }>;
   /** Increment to trigger rendition.next() for TTS chapter auto-advance */
   advanceChapterSignal?: number;
+  /** Transcript segments for audiobook sync */
+  syncSegments?: SyncSegment[];
+  /** Current audio playback time in seconds */
+  syncCurrentTime?: number;
+  /** Callback when sync state changes */
+  onSyncStateChange?: (state: { status: "idle" | "building" | "ready" | "error"; mappedCount: number; totalSegments: number }) => void;
+  /** Increment to force sync highlight + scroll to current audio position */
+  syncJumpSignal?: number;
 }
 
 export function EPUBViewer({
@@ -115,6 +124,10 @@ export function EPUBViewer({
   onProgressChange,
   persistedHighlights = [],
   advanceChapterSignal,
+  syncSegments,
+  syncCurrentTime,
+  onSyncStateChange,
+  syncJumpSignal,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,6 +151,13 @@ export function EPUBViewer({
   const liveSearchVersionRef = useRef(0);
   const activeLiveSearchCfiRef = useRef<string | null>(null);
   const activePersistedHighlightsRef = useRef<string[]>([]);
+
+  // Sync state
+  const syncSegmentsRef = useRef<SyncSegment[]>([]);
+  const syncMapRef = useRef<Map<number, string>>(new Map());
+  const syncCurrentChapterRef = useRef<string | null>(null);
+  const activeSyncHighlightRef = useRef<string | null>(null);
+  const syncNavigatingRef = useRef(false);
 
   // Get current theme colors
   const { theme } = useTheme();
@@ -284,6 +304,10 @@ export function EPUBViewer({
       .epub-persisted-highlight {
         background-color: rgba(255, 235, 59, 0.5) !important;
         border-radius: 0.12rem !important;
+      }
+      .epub-sync-highlight {
+        background: rgba(59, 130, 246, 0.3) !important;
+        border-radius: 2px !important;
       }
       p {
         line-height: ${lineHeightRef.current} !important;
@@ -740,6 +764,13 @@ export function EPUBViewer({
             if (chapter) {
               setCurrentChapter(chapter);
             }
+            // Rebuild sync map when chapter changes
+            const href = location.start?.href;
+            if (href && href !== syncCurrentChapterRef.current && syncSegmentsRef.current.length > 0) {
+              syncCurrentChapterRef.current = href;
+              syncMapRef.current = new Map();
+              setTimeout(() => buildSyncMapRef.current(), 300);
+            }
           });
 
           // Enable text selection
@@ -832,14 +863,10 @@ export function EPUBViewer({
   const searchVisibleContents = useCallback((query: string): string[] => {
     if (!rendition || !query.trim()) return [];
 
-    const terms = query
-      .split(/\s+/)
-      .map((term) => term.trim())
-      .filter(Boolean)
-      .slice(0, 8);
-    if (terms.length === 0) return [];
-
-    const regex = new RegExp(`(${terms.map(escapeRegex).join("|")})`, "gi");
+    const escapedQuery = escapeRegex(query.trim());
+    // Match the full phrase, allowing flexible whitespace between words
+    const flexibleRegex = escapedQuery.replace(/\\\s+/g, "\\s+");
+    const regex = new RegExp(flexibleRegex, "gi");
     const cfis: string[] = [];
     const seen = new Set<string>();
 
@@ -1047,7 +1074,8 @@ export function EPUBViewer({
       return;
     }
 
-    const runSearch = async () => {
+    // Debounce: only run the heavy search after user stops typing
+    const debounceTimer = setTimeout(async () => {
       let results: any[] = [];
       let visibleCfis: string[] = [];
       try {
@@ -1090,9 +1118,9 @@ export function EPUBViewer({
       await renderLiveSearchHighlights(cfis, targetIndex, {
         navigate: cfis.length > 0,
       });
-    };
+    }, 300);
 
-    void runSearch();
+    return () => clearTimeout(debounceTimer);
   }, [book, initialSearchTextQuote, rendition, removeSearchAnnotations, renderLiveSearchHighlights, reportLiveSearchResults, searchMatchIndex, searchQuery, searchVisibleContents]);
 
   useEffect(() => {
@@ -1174,6 +1202,95 @@ export function EPUBViewer({
     }
   }, [advanceChapterSignal]);
 
+  // --- Audiobook sync: build segment→CFI map when segments change or chapter loads ---
+  const buildSyncMapForChapter = useCallback(() => {
+    if (!rendition || syncSegmentsRef.current.length === 0) return;
+
+    const contentsList = rendition.getContents?.() ?? [];
+    if (contentsList.length === 0) return;
+
+    for (const contents of contentsList) {
+      const map = buildSegmentCfiMap(contents, syncSegmentsRef.current);
+      if (map.size > 0) {
+        syncMapRef.current = map;
+        onSyncStateChange?.({
+          status: "ready",
+          mappedCount: map.size,
+          totalSegments: syncSegmentsRef.current.length,
+        });
+        return;
+      }
+    }
+
+    onSyncStateChange?.({
+      status: "error",
+      mappedCount: 0,
+      totalSegments: syncSegmentsRef.current.length,
+    });
+  }, [rendition, onSyncStateChange]);
+
+  // Ref so the relocated handler can call the latest version
+  const buildSyncMapRef = useRef(buildSyncMapForChapter);
+  buildSyncMapRef.current = buildSyncMapForChapter;
+
+  // Keep syncSegments ref up to date
+  useEffect(() => {
+    syncSegmentsRef.current = syncSegments ?? [];
+    syncMapRef.current = new Map();
+    syncCurrentChapterRef.current = null;
+    if (syncSegments && syncSegments.length > 0) {
+      onSyncStateChange?.({ status: "building", mappedCount: 0, totalSegments: syncSegments.length });
+      // Build map after a short delay for content to render
+      const timer = setTimeout(() => buildSyncMapRef.current(), 300);
+      return () => clearTimeout(timer);
+    } else {
+      onSyncStateChange?.({ status: "idle", mappedCount: 0, totalSegments: 0 });
+    }
+  }, [syncSegments, buildSyncMapForChapter, onSyncStateChange]);
+
+  // Audiobook sync: highlight active segment
+  const lastSyncSegmentIdxRef = useRef<number | null>(null);
+  const syncJumpSignalRef = useRef(syncJumpSignal);
+  useEffect(() => {
+    // syncJumpSignal forces re-highlight of current segment
+    if (syncJumpSignal !== undefined && syncJumpSignal !== syncJumpSignalRef.current) {
+      syncJumpSignalRef.current = syncJumpSignal;
+      lastSyncSegmentIdxRef.current = null; // force re-process
+    }
+  }, [syncJumpSignal]);
+
+  useEffect(() => {
+    if (!rendition || !syncSegments || syncSegments.length === 0) return;
+    if (syncCurrentTime === undefined || syncCurrentTime === null) return;
+    if (syncMapRef.current.size === 0) return;
+
+    const active = findActiveSegment(syncSegments, syncCurrentTime);
+    if (!active || active.index === lastSyncSegmentIdxRef.current) return;
+
+    const cfi = syncMapRef.current.get(active.index);
+    if (!cfi) return;
+
+    lastSyncSegmentIdxRef.current = active.index;
+
+    // Remove previous sync highlight
+    if (activeSyncHighlightRef.current) {
+      try { rendition.annotations?.remove?.(activeSyncHighlightRef.current, "highlight"); } catch {}
+    }
+
+    // Add new highlight
+    try {
+      rendition.annotations?.highlight?.(cfi, {}, undefined, "epub-sync-highlight");
+      activeSyncHighlightRef.current = cfi;
+    } catch {}
+
+    // Auto-scroll
+    try {
+      syncNavigatingRef.current = true;
+      rendition.display(cfi);
+      setTimeout(() => { syncNavigatingRef.current = false; }, 500);
+    } catch {}
+  }, [rendition, syncSegments, syncCurrentTime, syncJumpSignal]);
+
   const handleTocClick = async (href: string) => {
     if (!rendition || !book) {
       console.warn("EPUBViewer: Cannot navigate - rendition or book not ready");
@@ -1210,8 +1327,16 @@ export function EPUBViewer({
         const targetHref = rawFragment ? `${spineItem.href}#${rawFragment}` : spineItem.href;
         console.log("EPUBViewer: Found spine item, navigating to:", targetHref, "index:", spineItem.index);
 
-        // Try multiple navigation methods for better Linux compatibility
-        // Method 1: Use spine.goto with index (most reliable on Linux/WebKitGTK)
+        // Method 1: Use rendition.display with the full href (preserves anchor fragments)
+        try {
+          await rendition.display(targetHref);
+          console.log("EPUBViewer: Successfully navigated using rendition.display");
+          return;
+        } catch (e) {
+          console.log("EPUBViewer: rendition.display failed:", e);
+        }
+
+        // Method 2: Use spine.goto with index (ignores fragments, but works as fallback)
         try {
           if (typeof spineItem.index === 'number') {
             await spine.goto(spineItem.index);
@@ -1220,15 +1345,6 @@ export function EPUBViewer({
           }
         } catch (e) {
           console.log("EPUBViewer: spine.goto with index failed:", e);
-        }
-
-        // Method 2: Use rendition.display with the spine href
-        try {
-          await rendition.display(targetHref);
-          console.log("EPUBViewer: Successfully navigated using rendition.display");
-          return;
-        } catch (e) {
-          console.log("EPUBViewer: rendition.display failed:", e);
         }
 
         // Method 3: Try navigating to the URL directly

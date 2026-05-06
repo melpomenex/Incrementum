@@ -80,7 +80,8 @@ if (isTauri()) {
   }
 
   safeListen<number>("transcription://progress", (event) => {
-    useTranscriptionStore.getState().setTranscriptionProgress(event.payload);
+    const p = typeof event.payload === 'number' ? event.payload : (event.payload as any).progress ?? 0;
+    useTranscriptionStore.getState().setTranscriptionProgress(p);
   });
 
   safeListen<{ id: string; progress: number }>("transcription://download-progress", (event) => {

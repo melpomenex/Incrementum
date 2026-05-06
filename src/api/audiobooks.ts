@@ -124,6 +124,8 @@ export function detectMultiPartAudiobook(filePaths: string[]): MultiPartAudioboo
     { regex: /^(.+?)\s+(?:part|pt|volume|vol|book|bk)\s*(\d+)$/i, group: 1 },
     // "Book Title - Part 1", "Book Title - Part 2"
     { regex: /^(.+?)\s*[-:]\s*(?:part|pt|volume|vol|book|bk)\s*(\d+)$/i, group: 1 },
+    // "Book Title - 001", "Book Title - 002" (dash then number, no keyword)
+    { regex: /^(.+?)\s*[-:]\s+(\d+)$/i, group: 1 },
     // "Book Title 1", "Book Title 2" (numbered at end)
     { regex: /^(.+?)\s+(\d+)$/i, group: 1 },
     // "01 Book Title", "02 Book Title" (numbered at start)
@@ -143,8 +145,13 @@ export function detectMultiPartAudiobook(filePaths: string[]): MultiPartAudioboo
       const allSameBase = groups.every(g => g === baseName);
       
       if (allSameBase) {
-        // Parse "Author - Title" from base name
-        const titleParts = baseName.split(" - ");
+        // Clean the base name: strip common audiobook suffixes
+        const cleanedBase = baseName
+          .replace(/\s*\((?:unabridged|abridged|audiobook)\)\s*$/i, "")
+          .trim();
+
+        // Parse "Author - Title" from cleaned base name
+        const titleParts = cleanedBase.split(" - ");
         const author = titleParts.length >= 2 ? titleParts[0].trim() : undefined;
         const title = titleParts.length >= 2 
           ? titleParts.slice(1).join(" - ").trim() 
@@ -173,11 +180,15 @@ export function detectMultiPartAudiobook(filePaths: string[]): MultiPartAudioboo
     const lastWithoutNumbers = last.replace(/\d+\s*$/g, '').trim();
     
     if (firstWithoutNumbers === lastWithoutNumbers && firstWithoutNumbers.length > 3) {
-      const titleParts = firstWithoutNumbers.split(" - ");
+      const cleanedFallback = firstWithoutNumbers
+        .replace(/\s*\((?:unabridged|abridged|audiobook)\)\s*$/i, "")
+        .replace(/\s*[-:]\s*$/, "")
+        .trim();
+      const titleParts = cleanedFallback.split(" - ");
       const author = titleParts.length >= 2 ? titleParts[0].trim() : undefined;
-      const title = titleParts.length >= 2 
-        ? titleParts.slice(1).join(" - ").trim() 
-        : firstWithoutNumbers;
+      const title = titleParts.length >= 2
+        ? titleParts.slice(1).join(" - ").trim()
+        : cleanedFallback;
       
       return {
         title,
