@@ -1593,6 +1593,7 @@ export const en: Dict = {
   "queueScroll.createExtractFromSel": "Create Extract from selection",
   "queueScroll.summarize": "Summarize",
   "queueScroll.failedSummarize": "Failed to generate summary",
+  "queueScroll.noProviderConfigured": "No AI provider configured. Add one in Settings → AI.",
   "queueScroll.summaryAssistant": "Summary (Assistant)",
   "queueScroll.summaryTerminal": "Summary (Terminal)",
   "queueScroll.autoRead": "Auto-read",

@@ -8,9 +8,9 @@ export type SummaryLength = "brief" | "medium" | "detailed";
 
 /** Summary length configuration with token limits */
 export const SUMMARY_LENGTH_CONFIG: Record<SummaryLength, { tokens: number; label: string }> = {
-  brief: { tokens: 100, label: "Brief (~75 words)" },
-  medium: { tokens: 200, label: "Medium (~150 words)" },
-  detailed: { tokens: 400, label: "Detailed (~300 words)" },
+  brief: { tokens: 150, label: "Brief (~100 words)" },
+  medium: { tokens: 300, label: "Medium (~200 words)" },
+  detailed: { tokens: 600, label: "Detailed (~400 words)" },
 };
 
 /** Summary focus area options */
@@ -53,6 +53,8 @@ export interface SummaryCacheEntry {
   focus: SummaryFocus;
   /** Hash of article content for invalidation */
   contentHash: string;
+  /** Whether to persist to localStorage (favorited articles only) */
+  persisted?: boolean;
   /** Article title for reference */
   articleTitle?: string;
   /** Article URL for reference */

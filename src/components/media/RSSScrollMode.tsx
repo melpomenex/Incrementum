@@ -49,8 +49,10 @@ import { EditExtractDialog } from "../extracts/EditExtractDialog";
 import type { Extract } from "../../api/extracts";
 import { useToastExtract } from "../../hooks/useToastExtract";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { summarizeContent } from "../../api/ai";
-import { isTauri, openExternal } from "../../lib/tauri";
+import { chatWithLLM, type LLMMessage } from "../../api/llm";
+import { getAIConfig, type AIConfig } from "../../api/ai";
+import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
+import { openExternal } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
@@ -247,7 +249,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Summary cache hook
-  const { getCachedSummary, cacheSummary, isCached } = useSummaryCache();
+  const { getCachedSummary, cacheSummary, setEntryPersisted, isCached } = useSummaryCache();
 
   // Auto-read mode - when enabled, marking one item as read auto-marks subsequent items
   const [autoReadMode, setAutoReadMode] = useState(() => {
@@ -552,7 +554,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           if (showSummary) {
             closeSummary();
           } else {
-            handleSummarize();
+            void handleSummarize();
           }
           break;
         case "j":
@@ -609,7 +611,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           : si
       )
     );
-  }, []);
+    // Update summary cache persistence
+    const articleId = `${feedId}-${itemId}`;
+    const willBeFavorite = !scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId)?.item.favorite;
+    setEntryPersisted(articleId, willBeFavorite);
+  }, [scrollItems, setEntryPersisted]);
 
   // Quick train: thumbs up/down on current article
   const handleQuickTrain = useCallback(async (sentiment: "like" | "dislike") => {
@@ -772,6 +778,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             : si
         )
       );
+
+      // Update summary cache persistence
+      setEntryPersisted(`${feedId}-${itemId}`, !wasFavorite);
 
       // Show undo toast
       setUndoState({
@@ -1377,6 +1386,47 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         return;
       }
 
+      // Resolve AI provider — try old AIConfig first, then LLMProvidersStore
+      let providerType: string = "openrouter";
+      let apiKey: string | undefined;
+      let model: string | undefined;
+      let baseUrl: string | undefined;
+
+      // 1. Try old AIConfig (Rust-side, in-memory only)
+      let aiConfig: AIConfig | null = null;
+      try { aiConfig = await getAIConfig(); } catch {}
+
+      if (aiConfig?.default_provider && aiConfig.api_keys) {
+        const providerMap: Record<string, string> = {
+          OpenAI: "openai", Anthropic: "anthropic", OpenRouter: "openrouter", Ollama: "ollama",
+        };
+        providerType = providerMap[aiConfig.default_provider] ?? "openrouter";
+        apiKey = providerType === "ollama"
+          ? undefined
+          : (aiConfig.api_keys as Record<string, string | undefined>)[providerType] ?? undefined;
+        model = String(aiConfig.models?.[`${providerType}_model` as keyof typeof aiConfig.models] ?? "");
+        baseUrl = providerType === "ollama"
+          ? (aiConfig.local_settings?.ollama_base_url || undefined) : undefined;
+      }
+
+      // 2. Fallback to LLMProvidersStore (Zustand/persisted) if no API key found
+      if (!apiKey) {
+        const providers = useLLMProvidersStore.getState().getEnabledProviders();
+        const withKey = providers.filter(p => p.apiKey && p.apiKey.trim().length > 0 && p.provider !== "ollama");
+        const chosen = withKey[0] || providers.find(p => p.provider === "ollama");
+        if (chosen) {
+          providerType = chosen.provider;
+          apiKey = chosen.apiKey || undefined;
+          model = chosen.model || undefined;
+          baseUrl = chosen.baseUrl || undefined;
+        }
+      }
+
+      if (providerType !== "ollama" && !apiKey) {
+        toast.error(t("queueScroll.noProviderConfigured"));
+        return;
+      }
+
       // Show panel
       setIsSummarizing(true);
       setSummaryText("");
@@ -1385,64 +1435,57 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       setLoadingStage("analyzing");
       setLoadingProgress(SUMMARY_LOADING_STAGES.analyzing.progress);
 
-      // Check if we're in Tauri mode
-      if (!isTauri()) {
-        // Browser mode - show placeholder summary
-        setLoadingStage("extracting");
-        setLoadingProgress(SUMMARY_LOADING_STAGES.extracting.progress);
-
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate processing
-
-        const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 20);
-        const excerpt = sentences.slice(0, 3).join(". ") + ".";
-        const summary = `## Quick Summary\n\n${excerpt}\n\n---\n\n*Note: AI summarization requires the desktop app for full functionality. This is an extractive preview.*`;
-
-        setLoadingStage("synthesizing");
-        setLoadingProgress(SUMMARY_LOADING_STAGES.synthesizing.progress);
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        setSummaryText(summary);
-        setLoadingStage("complete");
-        setLoadingProgress(100);
-        setIsSummarizing(false);
-
-        // Cache the result
-        cacheSummary(
-          articleId,
-          content,
-          summary,
-          { length, focus },
-          {
-            articleTitle: currentItem.item.title,
-            articleUrl: currentItem.item.link,
-          }
-        );
-        return;
-      }
-
       try {
-        // Simulate stages for better UX
         setLoadingStage("analyzing");
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        setLoadingProgress(SUMMARY_LOADING_STAGES.analyzing.progress);
+
+        const tokenLimit = SUMMARY_LENGTH_CONFIG[length].tokens;
+        const inputWindow = settings?.ai?.maxTokens && settings.ai.maxTokens > 0 ? settings.ai.maxTokens : 4000;
+        const trimmedContent = await trimToTokenWindow(content, inputWindow, String(model || ""));
+
+        const focusInstruction = focus === "actionable"
+          ? "Focus on actionable takeaways and next steps."
+          : focus === "background"
+            ? "Provide background context and explain why this matters."
+            : "Focus on key points and main conclusions.";
+
+        const messages: LLMMessage[] = [
+          {
+            role: "system",
+            content: `You are a concise article summarizer. ${focusInstruction} Keep the summary under ${tokenLimit} words. Use markdown formatting. Do not include preamble — output only the summary.`,
+          },
+          {
+            role: "user",
+            content: `Summarize this article:\n\n${trimmedContent}`,
+          },
+        ];
 
         setLoadingStage("extracting");
-        await new Promise((resolve) => setTimeout(resolve, 600));
         setLoadingProgress(SUMMARY_LOADING_STAGES.extracting.progress);
 
-        // Use the summarizeContent function (Tauri only) with selected length
-        const tokenLimit = SUMMARY_LENGTH_CONFIG[length].tokens;
-        const summary = await summarizeContent(content, tokenLimit);
+        const summary = (await Promise.race([
+          chatWithLLM({
+            provider: providerType as "openai" | "anthropic" | "ollama" | "openrouter",
+            model: model as string | undefined,
+            messages,
+            maxTokens: Math.max(tokenLimit * 4, 2048),
+            apiKey,
+            baseUrl,
+            temperature: 0.3,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Summarization timed out")), 30000)
+          ),
+        ])).content;
 
         setLoadingStage("synthesizing");
         setLoadingProgress(SUMMARY_LOADING_STAGES.synthesizing.progress);
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         setSummaryText(summary);
         setLoadingStage("complete");
         setLoadingProgress(100);
 
-        // Cache the result
+        // Cache the result (persist only if favorited)
         cacheSummary(
           articleId,
           content,
@@ -1451,6 +1494,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           {
             articleTitle: currentItem.item.title,
             articleUrl: currentItem.item.link,
+            favorited: currentItem.item.favorite,
           }
         );
       } catch (error) {
@@ -1473,6 +1517,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       modernSummaryFocus,
       getCachedSummary,
       cacheSummary,
+      settings,
     ]
   );
 
@@ -1649,7 +1694,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             <div className="flex items-center gap-2">
               {/* Summarize button */}
               <button
-                onClick={() => handleSummarize()}
+                onClick={() => { void handleSummarize(); }}
                 disabled={isSummarizing}
                 className={cn(
                   "p-2 rounded-lg transition-colors",
@@ -1980,19 +2025,19 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             setModernSummaryLength(length);
             // Regenerate if we have content and params changed
             if (summaryText && !isSummarizing) {
-              handleSummarize({ length, focus: modernSummaryFocus });
+              void handleSummarize({ length, focus: modernSummaryFocus });
             }
           }}
           onFocusChange={(focus) => {
             setModernSummaryFocus(focus);
             // Regenerate if we have content and params changed
             if (summaryText && !isSummarizing) {
-              handleSummarize({ length: modernSummaryLength, focus });
+              void handleSummarize({ length: modernSummaryLength, focus });
             }
           }}
           onPositionToggle={toggleAssistantPosition}
           onWidthChange={setPanelWidth}
-          onRegenerate={() => handleSummarize()}
+          onRegenerate={() => { void handleSummarize(); }}
           footerActions={
             summaryText ? (
               <SummaryActions
@@ -2050,7 +2095,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       >
         {/* Summary toggle */}
         <button
-          onClick={() => (showSummary ? closeSummary() : handleSummarize())}
+          onClick={() => { if (showSummary) closeSummary(); else void handleSummarize(); }}
           disabled={isSummarizing}
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm",
