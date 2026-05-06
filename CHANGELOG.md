@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.30.1] - 2026-05-05
+
+### Added
+- **Deck context menu** in View Decks modal — right-click, three-dot button, or long-press on any deck to access Study Now, Rename, Duplicate, Export (.apkg/.csv), Suspend/Unsuspend All, and Delete
+
+### Changed
+- Deck items in View Decks modal now render as `div` elements to support nested context menu trigger button
+
 ## [1.30.0] - 2026-05-05
 
 ### Added
