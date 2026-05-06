@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.30.2] - 2026-05-06
+
+### Fixed
+- **RSS feed images blocked by CSP** — Broadened `img-src` directive to allow all HTTPS images, fixing image loading failures in RSS scroll mode for news sources like NBC, Reuters, etc.
+- **PWA Card Review mobile UX** — Improved touch interaction and layout for card review on mobile PWA.
+- **RSS summaries in scroll mode** — Fixed summary text rendering in scroll review for RSS feed items.
+- **Vercel deployment** — Updated `pnpm-lock.yaml` to include `react-markdown@^10.1.0`, resolving frozen lockfile install failure.
+
+### Changed
+- **Removed "resumed" from position indicator** — Cleaned up reading position display.
+- **Updated HANDBOOK** documentation.
+
 ## [1.30.1] - 2026-05-05
 
 ### Added
