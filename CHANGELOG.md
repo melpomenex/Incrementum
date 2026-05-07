@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.32.0] - 2026-05-07
+
+### Added
+- **Podcast subscription & playback** — Subscribe to podcast feeds via URL with server-side RSS parsing (iTunes namespace). SQLite persistence for feeds and episodes. Full PodcastManager UI with sidebar, episode list, and discovery.
+- **Inline podcast player** — Stream episodes directly through AudiobookViewer with play/pause, seek, and speed controls. Playback position persists across sessions.
+- **Podcast queue integration** — Optionally include unplayed podcast episodes in the scroll reading queue with configurable settings (max items, unread-only filter).
+- **localStorage migration** — Existing podcast subscriptions automatically migrated from localStorage to SQLite on first launch.
+- **Browser sync endpoints** — 8 HTTP routes for podcast CRUD in PWA mode.
+- **Feed refresh error handling** — Graceful error toasts, per-feed retry button, and warning indicators for failed refreshes.
+
+### Fixed
+- **Schedule view crash on Windows/macOS** — `toFixed()` called on null stability/difficulty values in schedule items. Changed guards from `!== undefined` to `!= null`.
+- **DeckManager stability display** — Added null fallback for stability value to prevent crash.
+
 ## [1.31.0] - 2026-05-07
 
 ### Added
