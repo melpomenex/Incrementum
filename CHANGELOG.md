@@ -3,9 +3,9 @@
 ## [1.31.0] - 2026-05-07
 
 ### Added
-- **Recommendation engine** — Relevance scoring with classifier, tag affinity, rating history, and semantic similarity signals for smarter queue ordering
+- **RSS relevance scoring** — Client-side scorer ranks RSS queue items using classifier signals (author/tag/title/feed likes & dislikes), tag frequency, and recency. Higher-relevance articles surface first in scroll mode. Feed-scoped classifiers get double weight.
+- **Relevance indicator** — Colored dot on RSS articles in scroll queue: green (high), gray (neutral), red (low relevance).
 - **AI keychain storage** — AIKeyStore with OS keychain integration and AES-256-GCM encrypted file fallback for API key persistence
-- **Relevance indicator** — Visual component showing document relevance scores in the queue
 - **Scroll overlay controls** — New `ScrollOverlayControls` and `ScrollQueueSettings` components for queue scroll mode
 - **CI regression gate** — Automated security tests covering SQLi, path traversal, and SSRF prevention
 - **Database integrity check** — Startup validation of SQLite database integrity

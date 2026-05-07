@@ -31,6 +31,9 @@ import {
   toggleItemFavoriteAuto,
 } from "../api/rss";
 import { cn } from "../utils";
+import { scoreRssRelevance, type RssClassifier } from "../utils/rssRelevance";
+import { useClassifiersStore } from "../stores/classifiersStore";
+import { RelevanceIndicator } from "../components/media/RelevanceIndicator";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../components/common/ItemDetailsPopover";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../components/assistant/AssistantPanel";
 import { useToast } from "../components/common/Toast";
@@ -98,6 +101,8 @@ interface ScrollItem {
   estimatedTime?: number;
   /** Priority for engagement ordering */
   engagementScore?: number;
+  /** RSS relevance score (0.0-1.0) from classifier-based scoring */
+  relevanceScore?: number;
 }
 
 // Session storage keys for smart resume
@@ -622,17 +627,63 @@ export function QueueScrollPage() {
           ? filteredRssItems.slice(0, rssSettings.maxItemsPerSession)
           : filteredRssItems;
 
-        rssItems = limitedRssItems.map(({ feed, item }) => ({
-          id: `rss-${item.id}`,
-          type: "rss",
-          documentTitle: item.title,
-          rssItem: item,
-          rssFeed: feed,
-          category: feed.category ?? "rss",
-          estimatedTime: 5,
-          // Use stable random based on item ID
-          engagementScore: 4 + getStableRandom(item.id, 3),
-        }));
+        // Score RSS items for relevance using classifiers
+        const classifiers = useClassifiersStore.getState().classifiers;
+        const hasClassifiers = classifiers.length > 0;
+
+        rssItems = limitedRssItems.map(({ feed, item }) => {
+          let relevanceScore: number | undefined;
+          let engagementScore: number;
+
+          if (hasClassifiers) {
+            relevanceScore = scoreRssRelevance(
+              {
+                itemTitle: item.title,
+                itemAuthor: item.author,
+                itemTags: item.categories ?? [],
+                feedId: feed.id,
+                feedTitle: feed.title,
+                pubDate: item.pubDate,
+              },
+              classifiers.map((c): RssClassifier => ({
+                classifier_type: c.classifier_type,
+                value: c.value,
+                sentiment: c.sentiment,
+                scope: c.scope,
+                feed_id: c.feed_id,
+              })),
+            );
+            // Scale relevance 0-1 to engagementScore 0-10
+            engagementScore = relevanceScore * 10;
+          } else {
+            engagementScore = 4 + getStableRandom(item.id, 3);
+          }
+
+          return {
+            id: `rss-${item.id}`,
+            type: "rss",
+            documentTitle: item.title,
+            rssItem: item,
+            rssFeed: feed,
+            category: feed.category ?? "rss",
+            estimatedTime: 5,
+            engagementScore,
+            relevanceScore,
+          };
+        });
+
+        // Sort RSS items by relevance (highest first) — unless preferRecent is
+        // enabled, in which case we keep the chronological order from above.
+        if (!rssSettings.preferRecent && hasClassifiers) {
+          rssItems.sort((a, b) => (b.relevanceScore ?? 0.5) - (a.relevanceScore ?? 0.5));
+        } else if (rssSettings.preferRecent && hasClassifiers) {
+          // Within the chronological grouping, sort by relevance as tiebreaker
+          rssItems.sort((a, b) => {
+            const dateDiff = new Date(b.rssItem!.pubDate).getTime() - new Date(a.rssItem!.pubDate).getTime();
+            if (Math.abs(dateDiff) > 0) return dateDiff > 0 ? 1 : -1;
+            return (b.relevanceScore ?? 0.5) - (a.relevanceScore ?? 0.5);
+          });
+        }
       }
 
       // Create extract items
@@ -1866,8 +1917,9 @@ export function QueueScrollPage() {
                     </span>
                     <span>{renderedItem.rssFeed?.title}</span>
                   </div>
-                  <h1 className="text-3xl font-bold text-foreground mb-3 reading-title">
+                  <h1 className="text-3xl font-bold text-foreground mb-3 reading-title flex items-center gap-2">
                     {renderedItem.rssItem?.title}
+                    <RelevanceIndicator score={renderedItem.relevanceScore} className="mt-1.5" />
                   </h1>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground reading-meta">
                     {renderedItem.rssItem?.pubDate && (
