@@ -1,0 +1,15 @@
+openspec_version: "1.0"
+change_id: podcast-whisper-transcription
+title: "Podcast Whisper Transcription Pipeline"
+status: proposed
+created: "2026-05-06"
+phases:
+  - id: backend
+    name: "Rust Backend"
+    tasks: [1, 2, 3, 4, 5, 6, 7]
+  - id: frontend
+    name: "Frontend UI"
+    tasks: [8, 9, 10, 11, 12, 13, 14]
+  - id: polish
+    name: "Polish & Release"
+    tasks: [15, 16, 17]
