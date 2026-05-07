@@ -9,9 +9,9 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { X, Rss, Settings2, Percent, ListFilter, EyeOff, Eye, ArrowUpDown } from "lucide-react";
+import { X, Rss, Settings2, Percent, ListFilter, EyeOff, Eye, ArrowUpDown, Headphones } from "lucide-react";
 import { cn } from "../../utils";
-import { defaultSettings, useSettingsStore, type RSSQueueSettings } from "../../stores/settingsStore";
+import { defaultSettings, useSettingsStore, type RSSQueueSettings, type PodcastQueueSettings } from "../../stores/settingsStore";
 import { getSubscribedFeeds } from "../../api/rss";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
@@ -39,6 +39,12 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
   const [unreadOnly, setUnreadOnly] = useState(rssSettings.unreadOnly);
   const [preferRecent, setPreferRecent] = useState(rssSettings.preferRecent);
 
+  // Podcast queue local state
+  const podcastSettings = settings.podcastQueue ?? defaultSettings.podcastQueue;
+  const [podcastIncludeInQueue, setPodcastIncludeInQueue] = useState(podcastSettings.includeInQueue);
+  const [podcastMaxItems, setPodcastMaxItems] = useState(podcastSettings.maxItemsPerSession);
+  const [podcastUnreadOnly, setPodcastUnreadOnly] = useState(podcastSettings.unreadOnly);
+
   useEffect(() => {
     if (!isOpen) return;
     setIncludeInQueue(rssSettings.includeInQueue);
@@ -49,6 +55,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     setExcludedFeedIds(rssSettings.excludedFeedIds);
     setUnreadOnly(rssSettings.unreadOnly);
     setPreferRecent(rssSettings.preferRecent);
+    setPodcastIncludeInQueue(podcastSettings.includeInQueue);
+    setPodcastMaxItems(podcastSettings.maxItemsPerSession);
+    setPodcastUnreadOnly(podcastSettings.unreadOnly);
   }, [isOpen, rssSettings]);
   
   const handleSave = useCallback(() => {
@@ -64,9 +73,17 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     };
     
     updateSettingsCategory("rssQueue", newSettings);
+
+    const newPodcastSettings: PodcastQueueSettings = {
+      includeInQueue: podcastIncludeInQueue,
+      maxItemsPerSession: podcastMaxItems,
+      unreadOnly: podcastUnreadOnly,
+    };
+
+    updateSettingsCategory("podcastQueue", newPodcastSettings);
     toast.success(t("common.success"), t("settings.rssSettingsSaved"));
     onClose();
-  }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, updateSettingsCategory, toast, onClose]);
+  }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, podcastIncludeInQueue, podcastMaxItems, podcastUnreadOnly, updateSettingsCategory, toast, onClose]);
   
   const toggleFeedInclusion = useCallback((feedId: string) => {
     setIncludedFeedIds(prev => {
@@ -380,6 +397,93 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               )}
             </>
           )}
+
+          {/* Podcast Queue Settings */}
+          <div className="border-t border-border pt-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-500/10 rounded-lg">
+                <Headphones className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Podcast Queue</h2>
+                <p className="text-sm text-muted-foreground">
+                  Include podcast episodes in the scroll queue
+                </p>
+              </div>
+            </div>
+
+            {/* Podcast Toggle */}
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg mb-4">
+              <div className="flex items-center gap-3">
+                {podcastIncludeInQueue ? (
+                  <Eye className="w-5 h-5 text-green-500" />
+                ) : (
+                  <EyeOff className="w-5 h-5 text-muted-foreground" />
+                )}
+                <div>
+                  <h3 className="font-medium">Include podcasts in queue</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Show unplayed podcast episodes while scrolling
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPodcastIncludeInQueue(!podcastIncludeInQueue)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  podcastIncludeInQueue ? "bg-primary" : "bg-muted-foreground/20"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    podcastIncludeInQueue ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
+
+            {podcastIncludeInQueue && (
+              <>
+                {/* Max Episodes */}
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ListFilter className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">Max episodes per session</span>
+                    </div>
+                    <span className="text-sm font-medium">
+                      {podcastMaxItems === 0 ? "Unlimited" : podcastMaxItems}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    value={podcastMaxItems}
+                    onChange={(e) => setPodcastMaxItems(parseInt(e.target.value))}
+                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+
+                {/* Unread Only */}
+                <label className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={podcastUnreadOnly}
+                    onChange={(e) => setPodcastUnreadOnly(e.target.checked)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <div>
+                    <span className="font-medium">Unplayed only</span>
+                    <p className="text-sm text-muted-foreground">
+                      Only include episodes you haven't listened to yet
+                    </p>
+                  </div>
+                </label>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Footer */}

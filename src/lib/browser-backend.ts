@@ -1015,6 +1015,72 @@ const commandHandlers: Record<string, CommandHandler> = {
         };
     },
 
+    // Podcast subscription & playback commands (browser fallback)
+    subscribe_podcast: async (args) => {
+        // Browser fallback: return an empty feed object.
+        // Real podcast management requires Tauri or HTTP backend.
+        console.warn('[Browser] subscribe_podcast: no-op in browser fallback mode');
+        return {
+            id: `podcast-${Date.now()}`,
+            title: 'Browser Podcast',
+            description: '',
+            imageUrl: null,
+            author: null,
+            language: null,
+            link: null,
+            feedUrl: args.feedUrl as string || '',
+            lastFetched: null,
+            subscribedAt: new Date().toISOString(),
+            sortOrder: 0,
+            episodeCount: 0,
+            unplayedCount: 0,
+        };
+    },
+
+    unsubscribe_podcast: async (_args) => {
+        console.warn('[Browser] unsubscribe_podcast: no-op in browser fallback mode');
+    },
+
+    get_podcast_feeds: async () => {
+        return [];
+    },
+
+    refresh_podcast_feed: async (args) => {
+        const feedId = args.feedId as string;
+        console.warn(`[Browser] refresh_podcast_feed(${feedId}): no-op in browser fallback mode`);
+        return {
+            id: feedId,
+            title: 'Unknown Podcast',
+            description: '',
+            imageUrl: null,
+            author: null,
+            language: null,
+            link: null,
+            feedUrl: '',
+            lastFetched: null,
+            subscribedAt: new Date().toISOString(),
+            sortOrder: 0,
+            episodeCount: 0,
+            unplayedCount: 0,
+        };
+    },
+
+    get_podcast_episodes: async () => {
+        return [];
+    },
+
+    mark_episode_played: async (_args) => {
+        console.warn('[Browser] mark_episode_played: no-op in browser fallback mode');
+    },
+
+    update_episode_position: async (_args) => {
+        console.warn('[Browser] update_episode_position: no-op in browser fallback mode');
+    },
+
+    get_episode_position: async (_args) => {
+        return 0;
+    },
+
     read_document_file: async (args) => {
         // In browser mode, return the file from IndexedDB if stored
         const filePath = args.filePath as string;

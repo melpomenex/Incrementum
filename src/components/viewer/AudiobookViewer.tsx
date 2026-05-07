@@ -48,6 +48,7 @@ import { startTranscription } from "../../api/transcription";
 import { convertFileSrc, isTauri } from "../../lib/tauri";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
+import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed } from "../../api/podcast";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -57,6 +58,16 @@ interface AudiobookViewerProps {
   autoPlayOnOpen?: boolean;
   audioRef?: React.RefObject<HTMLAudioElement | null>;
   onTimeUpdate?: (currentTime: number) => void;
+  /** Direct URL to stream remote audio (for podcast episodes) */
+  remoteAudioUrl?: string;
+  /** Podcast episode ID for position persistence */
+  episodeId?: string;
+  /** Override title for podcast episodes */
+  episodeTitle?: string;
+  /** Parent podcast name for display */
+  podcastTitle?: string;
+  /** Callback when episode finishes playing */
+  onEpisodeEnded?: () => void;
 }
 
 interface AudiobookBookmark {
@@ -86,6 +97,11 @@ export function AudiobookViewer({
   autoPlayOnOpen = false,
   audioRef: externalAudioRef,
   onTimeUpdate,
+  remoteAudioUrl,
+  episodeId,
+  episodeTitle,
+  podcastTitle,
+  onEpisodeEnded,
 }: AudiobookViewerProps) {
   const internalAudioRef = useRef<HTMLAudioElement>(null);
   const audioRef = externalAudioRef ?? internalAudioRef;
@@ -421,6 +437,20 @@ export function AudiobookViewer({
     if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) {
       void loadSavedPosition();
     }
+
+    // For podcast episodes, restore saved position
+    if (episodeId && remoteAudioUrl) {
+ void (async () => {
+        try {
+          const pos = await getEpisodePosition(episodeId);
+          if (pos > 0) {
+            pendingSeekTimeRef.current = pos;
+          }
+        } catch (err) {
+          console.warn("[AudiobookViewer] Failed to load episode position:", err);
+        }
+      })();
+    }
     
     const savedVolume = localStorage.getItem("audiobook-volume");
     if (savedVolume) {
@@ -437,7 +467,7 @@ export function AudiobookViewer({
         audioRef.current.playbackRate = parseFloat(savedRate);
       }
     }
-  }, [document.id, document.currentPage, initialSeekTime, loadSavedPosition]);
+  }, [document.id, document.currentPage, initialSeekTime, loadSavedPosition, episodeId, remoteAudioUrl]);
   
   // Audio event handlers
   const handleTimeUpdate = useCallback(() => {
@@ -533,6 +563,12 @@ export function AudiobookViewer({
       }
       showInfo(t("viewer.nextPart"), t("viewer.playingPart", { current: nextPartIndex + 1, total: multiPartInfo.partFiles.length }));
       return;
+    }
+
+    // Podcast episode: mark as played when it ends naturally
+    if (episodeId && remoteAudioUrl) {
+      void markEpisodePlayed(episodeId, true);
+      onEpisodeEnded?.();
     }
     
     setIsPlaying(false);
@@ -744,6 +780,19 @@ export function AudiobookViewer({
 
     return () => window.clearInterval(id);
   }, [isPlaying, savePosition]);
+
+  // Podcast episode: save position periodically while playing
+  useEffect(() => {
+    if (!isPlaying || !episodeId || !remoteAudioUrl) return;
+
+    const id = window.setInterval(() => {
+      if (audioRef.current && audioRef.current.currentTime > 0) {
+        void updateEpisodePosition(episodeId, audioRef.current.currentTime);
+      }
+    }, 5000);
+
+    return () => window.clearInterval(id);
+  }, [isPlaying, episodeId, remoteAudioUrl]);
 
   useEffect(() => {
     if (!fallbackSrc || !pendingAutoplayAfterFallbackRef.current || !audioRef.current) {
@@ -1060,10 +1109,10 @@ export function AudiobookViewer({
       "flex flex-col bg-background h-full",
       isFullscreen && "fixed inset-0 z-50"
     )}>
-      {/* Audio element - use fileContent (blob URL) when available, otherwise fall back to partSources */}
+      {/* Audio element - use remoteAudioUrl (podcast), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
+        src={remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
@@ -1225,9 +1274,9 @@ export function AudiobookViewer({
               </div>
               
               {/* Info */}
-              <h1 className="text-xl font-bold text-center mb-1">{document.title}</h1>
+              <h1 className="text-xl font-bold text-center mb-1">{episodeTitle || document.title}</h1>
               <p className="text-muted-foreground text-center mb-2">
-                {metadata.author || document.metadata?.author}
+                {podcastTitle || metadata.author || document.metadata?.author}
               </p>
               
               {/* Multi-part indicator */}

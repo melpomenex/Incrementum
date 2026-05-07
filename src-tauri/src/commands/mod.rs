@@ -38,6 +38,7 @@ pub mod image_registry;
 pub mod substack;
 pub mod rss_features;
 pub mod curated_feeds;
+pub mod podcast;
 
 // Re-export error types for use in commands
 pub use crate::error::Result;
@@ -75,6 +76,9 @@ pub use image_registry::*;
 pub use substack::*;
 pub use rss_features::*;
 pub use mcp::*;
+
+// Podcast commands
+pub use podcast::*;
 
 // Cloud commands
 pub use cloud::oauth::*;

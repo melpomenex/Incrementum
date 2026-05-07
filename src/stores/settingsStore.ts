@@ -372,6 +372,15 @@ export interface RSSQueueSettings {
   preferRecent: boolean;
 }
 
+export interface PodcastQueueSettings {
+  /** Whether to include podcast episodes in the scroll queue */
+  includeInQueue: boolean;
+  /** Maximum number of podcast episodes to include per session (0 = unlimited) */
+  maxItemsPerSession: number;
+  /** Whether to only include unplayed episodes */
+  unreadOnly: boolean;
+}
+
 /**
  * RSS Summary Settings
  */
@@ -427,6 +436,7 @@ export interface Settings {
   tts: TTSSettings;
   scrollQueue: ScrollQueueSettings;
   rssQueue: RSSQueueSettings;
+  podcastQueue: PodcastQueueSettings;
   rssSummary: RSSSummarySettings;
   youtube: YouTubeSettings;
   features: FeatureFlags;
@@ -654,6 +664,11 @@ export const defaultSettings: Settings = {
     unreadOnly: true, // Only include unread items
     preferRecent: true, // Prefer newer items
   },
+  podcastQueue: {
+    includeInQueue: false,
+    maxItemsPerSession: 10,
+    unreadOnly: true,
+  },
   rssSummary: {
     mode: "modern",
     defaultLength: "medium",
@@ -800,6 +815,7 @@ export const useSettingsStore = create<SettingsState>()(
           tts: sanitizeTTSSettings(persisted.tts),
           scrollQueue: { ...defaultSettings.scrollQueue, ...persisted.scrollQueue },
           rssQueue: { ...defaultSettings.rssQueue, ...persisted.rssQueue },
+          podcastQueue: { ...defaultSettings.podcastQueue, ...persisted.podcastQueue },
           rssSummary: { ...defaultSettings.rssSummary, ...persisted.rssSummary },
           youtube: { ...defaultSettings.youtube, ...persisted.youtube },
           features: { ...defaultSettings.features, ...persisted.features },
