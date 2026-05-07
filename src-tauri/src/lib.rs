@@ -8,6 +8,7 @@ mod services;
 mod commands;
 mod processor;
 mod generator;
+mod podcast;
 mod algorithms;
 mod ai;
 mod anki;
@@ -1089,6 +1090,15 @@ pub fn run() {
             commands::reset_focus_timer_daily_stats,
             // Battery state command
             battery::get_battery_state,
+            // Podcast commands
+            commands::subscribe_podcast,
+            commands::unsubscribe_podcast,
+            commands::get_podcast_feeds,
+            commands::refresh_podcast_feed,
+            commands::get_podcast_episodes,
+            commands::mark_episode_played,
+            commands::update_episode_position,
+            commands::get_episode_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

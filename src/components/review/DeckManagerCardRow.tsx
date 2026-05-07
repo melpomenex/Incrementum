@@ -105,7 +105,7 @@ export function DeckManagerCardRow({
     return plain.length > 60 ? plain.slice(0, 57) + "…" : plain;
   }, [card.question]);
 
-  const stability = card.memory_state?.stability ?? card.interval;
+  const stability = card.memory_state?.stability ?? card.interval ?? 0;
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {

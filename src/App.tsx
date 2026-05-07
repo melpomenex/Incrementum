@@ -48,7 +48,8 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage").then(m => (
 const ContinueReadingPage = React.lazy(() => import("./pages/ContinueReadingPage").then(m => ({ default: m.ContinueReadingPage })));
 const KnowledgeGraphPage = React.lazy(() => import("./pages/KnowledgeGraphPage").then(m => ({ default: m.KnowledgeGraphPage })));
 const ImageRegistryPage = React.lazy(() => import("./pages/ImageRegistryPage").then(m => ({ default: m.ImageRegistryPage })));
-import { CommandCenter } from "./components/search/CommandCenter";
+const PodcastPage = React.lazy(() => import("./pages/PodcastPage").then(m => ({ default: m.PodcastPage })));
+import { CommandCenter} from "./components/search/CommandCenter";
 import { useI18n } from "./lib/i18n";
 
 // Storage keys
@@ -61,6 +62,7 @@ type AppPage =
   | "dashboard"
   | "documents"
   | "image-registry"
+  | "podcast"
   | "queue"
   | "queue-scroll"
   | "analytics"
@@ -109,6 +111,8 @@ function normalizePathToPage(path?: string): AppPage | null {
       return "queue";
     case "/settings":
       return "settings";
+    case "/podcast":
+      return "podcast";
     default:
       return null;
   }
@@ -120,6 +124,7 @@ function isAppPage(page: string): page is AppPage {
     "dashboard",
     "documents",
     "image-registry",
+    "podcast",
     "queue",
     "queue-scroll",
     "analytics",
@@ -608,6 +613,8 @@ function App() {
           return <DocumentsPage />;
         case "image-registry":
           return <ImageRegistryPage />;
+        case "podcast":
+          return <PodcastPage />;
         case "queue":
           return <QueuePage />;
         case "queue-scroll":

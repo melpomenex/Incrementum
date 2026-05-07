@@ -9,6 +9,7 @@ import { useTabsStore } from "../stores/tabsStore";
 import { useDocumentStore } from "../stores/documentStore";
 import { defaultSettings, useSettingsStore } from "../stores/settingsStore";
 import { DocumentViewer } from "../components/viewer/DocumentViewer";
+import { AudiobookViewer } from "../components/viewer/AudiobookViewer";
 import { FlashcardScrollItem } from "../components/review/FlashcardScrollItem";
 import { rateDocumentEngaging, getSmartStartPosition } from "../api/algorithm";
 import { getDueItems, type LearningItem } from "../api/learning-items";
@@ -30,6 +31,7 @@ import {
   markItemReadAuto,
   toggleItemFavoriteAuto,
 } from "../api/rss";
+import { getEpisodeQueue, markEpisodePlayed, type PodcastEpisode } from "../api/podcast";
 import { cn } from "../utils";
 import { scoreRssRelevance, type RssClassifier } from "../utils/rssRelevance";
 import { useClassifiersStore } from "../stores/classifiersStore";
@@ -88,11 +90,12 @@ const extractYouTubeId = (urlOrId: string): string => {
  */
 interface ScrollItem {
   id: string;
-  type: "document" | "rss" | "flashcard" | "extract";
+  type: "document" | "rss" | "flashcard" | "extract" | "podcast";
   documentId?: string;
   documentTitle: string;
   rssItem?: RSSFeedItem;
   rssFeed?: RSSFeed;
+  podcastEpisode?: PodcastEpisode;
   learningItem?: LearningItem;
   extract?: Extract;
   /** Topic/category for variety mixing */
@@ -686,6 +689,35 @@ export function QueueScrollPage() {
         }
       }
 
+      // Load podcast episodes based on settings
+      const podcastSettings = settings.podcastQueue;
+      let podcastItems: ScrollItem[] = [];
+
+      if (podcastSettings?.includeInQueue) {
+        try {
+          const episodeQueue = await getEpisodeQueue();
+          const filteredEpisodes = podcastSettings.unreadOnly
+            ? episodeQueue.filter(ep => !ep.played)
+            : episodeQueue;
+
+          const limitedEpisodes = podcastSettings.maxItemsPerSession > 0
+            ? filteredEpisodes.slice(0, podcastSettings.maxItemsPerSession)
+            : filteredEpisodes;
+
+          podcastItems = limitedEpisodes.map((ep) => ({
+            id: `podcast-${ep.id}`,
+            type: "podcast" as const,
+            documentTitle: ep.title,
+            podcastEpisode: ep,
+            category: "podcast",
+            estimatedTime: ep.duration ? Math.ceil(ep.duration / 60) : 15,
+            engagementScore: 4 + getStableRandom(ep.id, 5) * 2,
+          }));
+        } catch (error) {
+          console.warn("[QueueScroll] Failed to load podcast queue:", error);
+        }
+      }
+
       // Create extract items
       const extractItems: ScrollItem[] = dueExtracts.map((extract) => {
         // Find document title
@@ -709,7 +741,7 @@ export function QueueScrollPage() {
 
       // Calculate target review item count based on percentage setting
       const flashcardPercentage = settings.scrollQueue.flashcardPercentage;
-      const nonReviewItems = [...docItems, ...rssItems];
+      const nonReviewItems = [...docItems, ...rssItems, ...podcastItems];
       const totalNonReview = nonReviewItems.length;
 
       // Calculate target number of review items based on percentage
@@ -766,7 +798,7 @@ export function QueueScrollPage() {
     return () => {
       cancelled = true;
     };
-  }, [documentQueueItems, documents, dueFlashcards, dueExtracts, isRating, settings.scrollQueue, settings.rssQueue, applyVarietyMixing]);
+  }, [documentQueueItems, documents, dueFlashcards, dueExtracts, isRating, settings.scrollQueue, settings.rssQueue, settings.podcastQueue, applyVarietyMixing]);
 
   // Current item (for display during transition)
   const currentItem = scrollItems[currentIndex];
@@ -1179,8 +1211,8 @@ export function QueueScrollPage() {
 
       // For EPUB, PDF, and audio documents, don't auto-advance on scroll boundary
       // User must explicitly rate or use keyboard navigation to move to next item
-      if (isScrollableDocument) {
-        return; // Let the document scroll normally, no auto-advance
+      if (isScrollableDocument || currentItem?.type === "podcast") {
+        return; // Let the document/player scroll normally, no auto-advance
       }
 
       // Find the scrollable content element
@@ -1649,7 +1681,7 @@ export function QueueScrollPage() {
       } else {
         // Vertical gesture - check for navigation
         if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
-          if (isScrollableDocument) {
+          if (isScrollableDocument || currentItem?.type === "podcast") {
             return;
           }
 
@@ -1971,6 +2003,32 @@ export function QueueScrollPage() {
                 )}
               </div>
             </div>
+          ) : renderedItem?.type === "podcast" && renderedItem.podcastEpisode ? (
+            <AudiobookViewer
+              key={renderedItem.podcastEpisode.id}
+              document={{
+                id: renderedItem.podcastEpisode.id,
+                title: renderedItem.podcastEpisode.title,
+                filePath: "",
+                fileType: "audio",
+                content: "",
+                metadata: {},
+                createdAt: renderedItem.podcastEpisode.publishedDate
+                  ? new Date(renderedItem.podcastEpisode.publishedDate).toISOString()
+                  : new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              } as any}
+              remoteAudioUrl={renderedItem.podcastEpisode.audioUrl}
+              episodeId={renderedItem.podcastEpisode.id}
+              episodeTitle={renderedItem.podcastEpisode.title}
+              onEpisodeEnded={() => {
+                // Mark as played and remove from queue
+                if (renderedItem.podcastEpisode) {
+                  void markEpisodePlayed(renderedItem.podcastEpisode.id, true);
+                }
+                advanceAfterRemoval(renderedItem.id);
+              }}
+            />
           ) : renderedItem?.type === "extract" && renderedItem.extract ? (
             <ExtractScrollItem
               key={renderedItem.extract.id}
@@ -2169,7 +2227,7 @@ export function QueueScrollPage() {
           return fileType === "epub" || fileType === "pdf" || fileType === "audio"
             ? t("queueScroll.helpTextDocFile")
             : t("queueScroll.helpTextDocScroll");
-        })() : currentItem ? t("queueScroll.helpTextNonDoc") : undefined}
+        })() : currentItem?.type === "podcast" ? t("queueScroll.helpTextDocFile") : currentItem ? t("queueScroll.helpTextNonDoc") : undefined}
         onExit={handleExit}
         onShowSettings={() => setShowSettings(true)}
         onShowRssSettings={() => setShowRssSettings(true)}

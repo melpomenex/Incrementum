@@ -3531,6 +3531,253 @@ impl Repository {
             .await?;
         Ok(result.rows_affected() > 0)
     }
+
+    // ── Podcast feed operations ──────────────────────────────────────────────
+
+    pub async fn insert_podcast_feed(&self, feed: &crate::models::podcast::PodcastFeed) -> Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO podcast_feeds (
+                id, title, description, image_url, author, language,
+                link, feed_url, last_fetched, subscribed_at, sort_order
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            "#,
+        )
+        .bind(&feed.id)
+        .bind(&feed.title)
+        .bind(&feed.description)
+        .bind(&feed.image_url)
+        .bind(&feed.author)
+        .bind(&feed.language)
+        .bind(&feed.link)
+        .bind(&feed.feed_url)
+        .bind(&feed.last_fetched)
+        .bind(&feed.subscribed_at)
+        .bind(feed.sort_order)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_podcast_feed(&self, id: &str) -> Result<Option<crate::models::podcast::PodcastFeed>> {
+        let row = sqlx::query("SELECT * FROM podcast_feeds WHERE id = ?")
+            .bind(id)
+            .fetch_optional(self.pool())
+            .await?;
+
+        match row {
+            Some(row) => Ok(Some(map_row_to_podcast_feed(&row))),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn get_podcast_feed_by_url(&self, feed_url: &str) -> Result<Option<crate::models::podcast::PodcastFeed>> {
+        let row = sqlx::query("SELECT * FROM podcast_feeds WHERE feed_url = ?")
+            .bind(feed_url)
+            .fetch_optional(self.pool())
+            .await?;
+
+        match row {
+            Some(row) => Ok(Some(map_row_to_podcast_feed(&row))),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn get_podcast_feeds(&self) -> Result<Vec<crate::models::podcast::PodcastFeed>> {
+        let rows = sqlx::query("SELECT * FROM podcast_feeds ORDER BY sort_order, subscribed_at")
+            .fetch_all(self.pool())
+            .await?;
+
+        Ok(rows.iter().map(map_row_to_podcast_feed).collect())
+    }
+
+    pub async fn delete_podcast_feed(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM podcast_feeds WHERE id = ?")
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_podcast_feed_last_fetched(&self, id: &str, last_fetched: &str) -> Result<()> {
+        sqlx::query("UPDATE podcast_feeds SET last_fetched = ?1 WHERE id = ?2")
+            .bind(last_fetched)
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_podcast_feed_metadata(&self, feed: &crate::models::podcast::PodcastFeed) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE podcast_feeds SET
+                title = ?1, description = ?2, image_url = ?3,
+                author = ?4, link = ?5
+            WHERE id = ?6
+            "#,
+        )
+        .bind(&feed.title)
+        .bind(&feed.description)
+        .bind(&feed.image_url)
+        .bind(&feed.author)
+        .bind(&feed.link)
+        .bind(&feed.id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn count_podcast_episodes(&self, feed_id: &str) -> Result<i64> {
+        let result: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM podcast_episodes WHERE feed_id = ?"
+        )
+        .bind(feed_id)
+        .fetch_one(self.pool())
+        .await?;
+        Ok(result.0)
+    }
+
+    pub async fn count_unplayed_podcast_episodes(&self, feed_id: &str) -> Result<i64> {
+        let result: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM podcast_episodes WHERE feed_id = ? AND played = 0"
+        )
+        .bind(feed_id)
+        .fetch_one(self.pool())
+        .await?;
+        Ok(result.0)
+    }
+
+    pub async fn insert_podcast_episode(&self, feed_id: &str, episode: &crate::models::podcast::ParsedPodcastEpisode) -> Result<()> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+
+        sqlx::query(
+            r#"
+            INSERT OR IGNORE INTO podcast_episodes (
+                id, feed_id, guid, title, description, published_date,
+                duration, audio_url, audio_type, file_size, image_url,
+                link, played, playback_position, date_added
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, 0.0, ?13)
+            "#,
+        )
+        .bind(&id)
+        .bind(feed_id)
+        .bind(&episode.guid)
+        .bind(&episode.title)
+        .bind(&episode.description)
+        .bind(&episode.published_date)
+        .bind(episode.duration)
+        .bind(&episode.audio_url)
+        .bind(&episode.audio_type)
+        .bind(episode.file_size)
+        .bind(&episode.image_url)
+        .bind(&episode.link)
+        .bind(&now)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    /// Bulk insert podcast episodes, deduplicating by (feed_id, guid).
+    /// Uses INSERT OR IGNORE so existing episodes (with their played/position state) are preserved.
+    pub async fn insert_podcast_episodes_bulk(
+        &self,
+        feed_id: &str,
+        episodes: &[crate::models::podcast::ParsedPodcastEpisode],
+    ) -> Result<()> {
+        if episodes.is_empty() {
+            return Ok(());
+        }
+
+        let mut tx = self.pool().begin().await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to begin transaction: {}", e)))?;
+
+        for episode in episodes {
+            let id = uuid::Uuid::new_v4().to_string();
+            let now = Utc::now().to_rfc3339();
+
+            sqlx::query(
+                r#"
+                INSERT OR IGNORE INTO podcast_episodes (
+                    id, feed_id, guid, title, description, published_date,
+                    duration, audio_url, audio_type, file_size, image_url,
+                    link, played, playback_position, date_added
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, 0.0, ?13)
+                "#,
+            )
+            .bind(&id)
+            .bind(feed_id)
+            .bind(&episode.guid)
+            .bind(&episode.title)
+            .bind(&episode.description)
+            .bind(&episode.published_date)
+            .bind(episode.duration)
+            .bind(&episode.audio_url)
+            .bind(&episode.audio_type)
+            .bind(episode.file_size)
+            .bind(&episode.image_url)
+            .bind(&episode.link)
+            .bind(&now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to commit bulk insert: {}", e)))?;
+
+        Ok(())
+    }
+
+    pub async fn get_podcast_episodes(
+        &self,
+        feed_id: &str,
+        include_played: Option<bool>,
+    ) -> Result<Vec<crate::models::podcast::PodcastEpisode>> {
+        let sql = match include_played {
+            Some(false) => {
+                "SELECT * FROM podcast_episodes WHERE feed_id = ? AND played = 0 ORDER BY published_date DESC"
+            }
+            _ => {
+                "SELECT * FROM podcast_episodes WHERE feed_id = ? ORDER BY published_date DESC"
+            }
+        };
+
+        let rows = sqlx::query(sql)
+            .bind(feed_id)
+            .fetch_all(self.pool())
+            .await?;
+
+        Ok(rows.iter().map(map_row_to_podcast_episode).collect())
+    }
+
+    pub async fn update_episode_played(&self, episode_id: &str, played: bool) -> Result<()> {
+        sqlx::query("UPDATE podcast_episodes SET played = ?1 WHERE id = ?2")
+            .bind(played as i32)
+            .bind(episode_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_episode_position(&self, episode_id: &str, position: f64) -> Result<()> {
+        sqlx::query("UPDATE podcast_episodes SET playback_position = ?1 WHERE id = ?2")
+            .bind(position)
+            .bind(episode_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_episode_position(&self, episode_id: &str) -> Result<f64> {
+        let result: (f64,) = sqlx::query_as(
+            "SELECT playback_position FROM podcast_episodes WHERE id = ?"
+        )
+        .bind(episode_id)
+        .fetch_one(self.pool())
+        .await?;
+        Ok(result.0)
+    }
 }
 
 // Helper struct for study statistics rows
@@ -3544,6 +3791,47 @@ struct StudyStatsRow {
     new_cards: i32,
     learning_cards: i32,
     review_cards: i32,
+}
+
+// ── Podcast row mapping helpers ─────────────────────────────────────────────
+
+use crate::models::podcast::{PodcastFeed, PodcastEpisode};
+
+fn map_row_to_podcast_feed(row: &SqliteRow) -> PodcastFeed {
+    PodcastFeed {
+        id: row.get("id"),
+        title: row.get("title"),
+        description: row.try_get("description").ok().flatten(),
+        image_url: row.try_get("image_url").ok().flatten(),
+        author: row.try_get("author").ok().flatten(),
+        language: row.try_get("language").ok().flatten(),
+        link: row.try_get("link").ok().flatten(),
+        feed_url: row.get("feed_url"),
+        last_fetched: row.try_get("last_fetched").ok().flatten(),
+        subscribed_at: row.get("subscribed_at"),
+        sort_order: row.get("sort_order"),
+    }
+}
+
+fn map_row_to_podcast_episode(row: &SqliteRow) -> PodcastEpisode {
+    let played: i32 = row.try_get("played").unwrap_or(0);
+    PodcastEpisode {
+        id: row.get("id"),
+        feed_id: row.get("feed_id"),
+        guid: row.try_get("guid").ok().flatten(),
+        title: row.get("title"),
+        description: row.try_get("description").ok().flatten(),
+        published_date: row.try_get("published_date").ok().flatten(),
+        duration: row.try_get("duration").ok().flatten(),
+        audio_url: row.get("audio_url"),
+        audio_type: row.try_get("audio_type").ok().flatten(),
+        file_size: row.try_get("file_size").ok().flatten(),
+        image_url: row.try_get("image_url").ok().flatten(),
+        link: row.try_get("link").ok().flatten(),
+        played: played != 0,
+        playback_position: row.try_get("playback_position").unwrap_or(0.0),
+        date_added: row.get("date_added"),
+    }
 }
 
 #[cfg(test)]

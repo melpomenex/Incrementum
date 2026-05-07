@@ -26,6 +26,7 @@ import {
   Download,
   Search as SearchIcon,
   Images,
+  Headphones,
 } from "lucide-react";
 
 interface SidebarItem {
@@ -50,6 +51,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "dashboard", label: "nav.dashboard", icon: Home },
   { id: "documents", label: "nav.documents", icon: BookOpen },
   { id: "image-registry", label: "nav.images", icon: Images },
+  { id: "podcast", label: "podcastManager.podcasts", icon: Headphones },
   { id: "queue", label: "nav.queue", icon: Layers },
   { id: "knowledge-graph", label: "nav.graph", icon: Network },
   { id: "analytics", label: "nav.analytics", icon: BarChart3 },

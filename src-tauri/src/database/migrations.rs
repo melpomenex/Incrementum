@@ -1537,6 +1537,48 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_extracts_source_hash ON extracts(source_hash);
         "#,
     ),
+    // Migration 043: Add podcast subscription tables
+    Migration::new(
+        "043_add_podcast_tables",
+        r#"
+        CREATE TABLE IF NOT EXISTS podcast_feeds (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            image_url TEXT,
+            author TEXT,
+            language TEXT,
+            link TEXT,
+            feed_url TEXT NOT NULL UNIQUE,
+            last_fetched TEXT,
+            subscribed_at TEXT NOT NULL DEFAULT (datetime('now')),
+            sort_order INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS podcast_episodes (
+            id TEXT PRIMARY KEY,
+            feed_id TEXT NOT NULL REFERENCES podcast_feeds(id) ON DELETE CASCADE,
+            guid TEXT,
+            title TEXT NOT NULL,
+            description TEXT,
+            published_date TEXT,
+            duration INTEGER,
+            audio_url TEXT NOT NULL,
+            audio_type TEXT,
+            file_size INTEGER,
+            image_url TEXT,
+            link TEXT,
+            played INTEGER NOT NULL DEFAULT 0,
+            playback_position REAL DEFAULT 0.0,
+            date_added TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(feed_id, guid)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_podcast_episodes_feed ON podcast_episodes(feed_id);
+        CREATE INDEX IF NOT EXISTS idx_podcast_episodes_played ON podcast_episodes(feed_id, played);
+        CREATE INDEX IF NOT EXISTS idx_podcast_episodes_published ON podcast_episodes(published_date);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path
