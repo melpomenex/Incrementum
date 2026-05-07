@@ -20,6 +20,7 @@ export type TabType =
   | "doc-qa"
   | "notebooklm"
   | "image-registry"
+  | "podcast"
   | "audiobook-epub-sync";
 
 export interface Tab {
