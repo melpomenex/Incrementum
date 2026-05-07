@@ -1093,6 +1093,7 @@ pub fn run() {
             // Podcast commands
             commands::subscribe_podcast,
             commands::unsubscribe_podcast,
+            commands::rename_podcast_feed,
             commands::get_podcast_feeds,
             commands::refresh_podcast_feed,
             commands::get_podcast_episodes,

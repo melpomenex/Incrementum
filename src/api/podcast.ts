@@ -89,6 +89,26 @@ export async function subscribeToPodcast(feedUrl: string): Promise<PodcastFeed> 
 }
 
 /**
+ * Rename a podcast feed.
+ */
+export async function renamePodcastFeed(feedId: string, newTitle: string): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("rename_podcast_feed", { feedId, newTitle });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/feeds/${feedId}/rename`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_title: newTitle }),
+    });
+    if (!res.ok) throw new Error(`Failed to rename: ${res.statusText}`);
+    return;
+  }
+  // browser fallback: no-op
+  console.warn("[Browser] renamePodcastFeed: no-op in browser fallback mode");
+}
+
+/**
  * Unsubscribe from a podcast feed.
  */
 export async function unsubscribeFromPodcast(feedId: string): Promise<void> {
