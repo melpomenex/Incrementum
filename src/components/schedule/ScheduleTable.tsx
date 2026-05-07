@@ -65,14 +65,14 @@ function dueCell(dueDate: string, t: (k: string, v?: Record<string, number>) => 
   return <span className={cn("text-[11px] font-mono tabular-nums", color)}>{text}</span>;
 }
 
-function diffCell(d: number | undefined) {
-  if (d === undefined) return <span className="text-[11px] text-muted-foreground">—</span>;
+function diffCell(d: number | undefined | null) {
+  if (d == null) return <span className="text-[11px] text-muted-foreground">—</span>;
   const c = d <= 3 ? "text-green-400" : d <= 5 ? "text-amber-400" : d <= 7 ? "text-orange-400" : "text-red-400";
   return <span className={cn("text-[11px] font-mono tabular-nums", c)}>{d.toFixed(1)}</span>;
 }
 
-function stabCell(s: number | undefined) {
-  if (s === undefined) return <span className="text-[11px] text-muted-foreground">—</span>;
+function stabCell(s: number | undefined | null) {
+  if (s == null) return <span className="text-[11px] text-muted-foreground">—</span>;
   const pct = Math.min(100, (s / 30) * 100);
   const c = s >= 21 ? "bg-green-500" : s >= 7 ? "bg-lime-500" : s >= 3 ? "bg-amber-500" : "bg-red-500";
   return (
@@ -85,8 +85,8 @@ function stabCell(s: number | undefined) {
   );
 }
 
-function retCell(r: number | undefined) {
-  if (r === undefined) return <span className="text-[11px] text-muted-foreground">—</span>;
+function retCell(r: number | undefined | null) {
+  if (r == null) return <span className="text-[11px] text-muted-foreground">—</span>;
   const p = Math.round(r * 100);
   const c = p >= 90 ? "text-green-500" : p >= 70 ? "text-amber-500" : "text-red-500";
   return <span className={cn("text-[11px] font-mono tabular-nums", c)}>{p}%</span>;

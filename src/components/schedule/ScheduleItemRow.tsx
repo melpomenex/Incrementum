@@ -157,8 +157,8 @@ export function ScheduleItemRow({
 
   const Icon = getTypeIcon(item.itemType);
   const iconBg = getTypeBg(item.itemType);
-  const hasAlgoData = item.stability !== undefined || item.difficulty !== undefined
-    || item.interval !== undefined || item.reps !== undefined;
+  const hasAlgoData = item.stability != null || item.difficulty != null
+    || item.interval != null || item.reps != null;
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -280,20 +280,20 @@ export function ScheduleItemRow({
                   </span>
                 )}
 
-                {item.interval !== undefined && item.interval > 0 && (
+                {item.interval != null && item.interval > 0 && (
                   <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Repeat className="w-3 h-3" />
                     {formatInterval(item.interval, t)}
                   </span>
                 )}
 
-                {item.reps !== undefined && (
+                {item.reps != null && (
                   <span className="text-[10px] text-muted-foreground">
                     ×{item.reps}
                   </span>
                 )}
 
-                {item.lapses !== undefined && item.lapses > 0 && (
+                {item.lapses != null && item.lapses > 0 && (
                   <span className="flex items-center gap-0.5 text-[10px] text-red-400">
                     <AlertTriangle className="w-3 h-3" />
                     {item.lapses}
@@ -301,7 +301,7 @@ export function ScheduleItemRow({
                 )}
 
                 {/* Stability mini-bar inline */}
-                {item.stability !== undefined && item.stability > 0 && (
+                {item.stability != null && item.stability > 0 && (
                   <div className="flex items-center gap-1">
                     <div className="w-10 h-1 bg-muted rounded-full overflow-hidden">
                       <div
@@ -314,7 +314,7 @@ export function ScheduleItemRow({
                 )}
 
                 {/* Difficulty dot inline */}
-                {item.difficulty !== undefined && (
+                {item.difficulty != null && (
                   <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <span className={cn("w-1.5 h-1.5 rounded-full", difficultyDot(item.difficulty))} />
                     D{item.difficulty}
@@ -361,7 +361,7 @@ export function ScheduleItemRow({
           <div className="px-3 pb-3 sm:px-4 sm:pb-3 ml-[2.125rem] sm:ml-[2.75rem]">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/50">
               {/* Stability */}
-              {item.stability !== undefined && (
+              {item.stability != null && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground font-medium">
@@ -381,7 +381,7 @@ export function ScheduleItemRow({
               )}
 
               {/* Difficulty */}
-              {item.difficulty !== undefined && (
+              {item.difficulty != null && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground font-medium">
@@ -408,7 +408,7 @@ export function ScheduleItemRow({
               )}
 
               {/* Interval */}
-              {item.interval !== undefined && item.interval > 0 && (
+              {item.interval != null && item.interval > 0 && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground font-medium">
@@ -430,19 +430,19 @@ export function ScheduleItemRow({
               {/* Reps / Lapses / Retrievability / Tags */}
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  {item.reps !== undefined && (
+                  {item.reps != null && (
                     <span className="flex items-center gap-0.5">
                       <Repeat className="w-3 h-3 text-muted-foreground" />
                       <span className="text-[10px] font-mono text-foreground">{item.reps}</span>
                     </span>
                   )}
-                  {item.lapses !== undefined && item.lapses > 0 && (
+                  {item.lapses != null && item.lapses > 0 && (
                     <span className="flex items-center gap-0.5">
                       <AlertTriangle className="w-3 h-3 text-red-400" />
                       <span className="text-[10px] font-mono text-red-400">{item.lapses}</span>
                     </span>
                   )}
-                  {item.retrievability !== undefined && (
+                  {item.retrievability != null && (
                     <span className={cn("text-[10px] font-mono", retrievColor(item.retrievability))}>
                       R:{Math.round(item.retrievability * 100)}%
                     </span>
