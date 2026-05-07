@@ -15,6 +15,7 @@ import {
   RSSReader,
   DocumentQATab,
   NotebookLMTab,
+  PodcastTab,
 } from "./tabs/TabRegistry";
 import { WebArticleImportDialog } from "./import/WebArticleImportDialog";
 import { KnowledgeGraphPage } from "../pages/KnowledgeGraphPage";
@@ -45,6 +46,7 @@ import {
   Monitor,
   MessageSquare,
   Sparkles,
+  Headphones,
 } from "lucide-react";
 
 export type ToolbarPosition = "top" | "left" | "right";
@@ -229,6 +231,16 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       icon: <Newspaper className="w-4 h-4" />,
       type: "rss",
       content: RSSReader,
+      closable: true,
+    });
+  };
+
+  const handlePodcast = () => {
+    addTab({
+      title: "Podcasts",
+      icon: <Headphones className="w-4 h-4" />,
+      type: "podcast",
+      content: PodcastTab,
       closable: true,
     });
   };
@@ -505,6 +517,14 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       label: t("toolbar.rssFeeds"),
       shortcut: "",
       action: handleRss,
+      group: 2,
+    },
+    {
+      id: "podcast",
+      icon: Headphones,
+      label: t("toolbar.podcasts"),
+      shortcut: "",
+      action: handlePodcast,
       group: 2,
     },
     // Group 3: Navigation

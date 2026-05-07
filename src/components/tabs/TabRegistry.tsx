@@ -36,3 +36,4 @@ export const ScreenshotTab = debugLazy("ScreenshotTab", () => import("./Screensh
 export const DocumentQATab = debugLazy("DocumentQATab", () => import("./DocumentQATab").then(m => ({ default: m.DocumentQATab })));
 export const NotebookLMTab = debugLazy("NotebookLMTab", () => import("../../pages/NotebookLMPage").then(m => ({ default: m.NotebookLMPage })));
 export const ImageRegistryTab = debugLazy("ImageRegistryTab", () => import("./ImageRegistryTab").then(m => ({ default: m.ImageRegistryTab })));
+export const PodcastTab = debugLazy("PodcastTab", () => import("../media/PodcastManager").then(m => ({ default: m.PodcastManager })));
