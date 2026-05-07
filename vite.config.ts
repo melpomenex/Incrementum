@@ -97,46 +97,40 @@ export default defineConfig(async ({ mode }) => {
       sourcemap: false,
       // For PWA, we can use normal code splitting
       // For Tauri, inline everything to avoid CORS issues with dynamic imports
-      modulePreload: isPWA || !isProd,
-      cssCodeSplit: isPWA || !isProd,
+      modulePreload: true,
+      cssCodeSplit: true,
       rollupOptions: {
         // Externalize Tauri-specific modules that are only available in Tauri builds
         external: isPWA ? ["@tauri-apps/plugin-fs", "@tauri-apps/plugin-dialog", "@tauri-apps/api/path"] : [],
-        output:
-          isProd && !isPWA
-            ? {
-              // Inline all dynamic imports for Tauri to avoid CORS issues
-              inlineDynamicImports: true,
+        output: {
+          manualChunks: (id) => {
+            // Don't split lazy-loaded tab components - keep them in the main bundle
+            // to avoid dynamic import issues in Tauri
+            if (id.includes("DocumentQATab") || id.includes("tabs/")) {
+              return undefined;
             }
-            : {
-              manualChunks: (id) => {
-                // Don't split lazy-loaded tab components - keep them in the main bundle
-                // to avoid dynamic import issues in Tauri
-                if (id.includes("DocumentQATab") || id.includes("tabs/")) {
-                  return undefined;
-                }
-                // Vendor chunks for large libraries
-                if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router-dom")) {
-                  return "react-vendor";
-                }
-                if (id.includes("node_modules/@tanstack/react-query")) {
-                  return "query-vendor";
-                }
-                if (id.includes("node_modules/pdfjs-dist")) {
-                  return "pdf-vendor";
-                }
-                if (id.includes("node_modules/epubjs")) {
-                  return "epub-vendor";
-                }
-                if (id.includes("node_modules/lucide-react")) {
-                  return "ui-vendor";
-                }
-                if (id.includes("node_modules/zustand")) {
-                  return "zustand";
-                }
-                return undefined;
-              },
-            },
+            // Vendor chunks for large libraries
+            if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router-dom")) {
+              return "react-vendor";
+            }
+            if (id.includes("node_modules/@tanstack/react-query")) {
+              return "query-vendor";
+            }
+            if (id.includes("node_modules/pdfjs-dist")) {
+              return "pdf-vendor";
+            }
+            if (id.includes("node_modules/epubjs")) {
+              return "epub-vendor";
+            }
+            if (id.includes("node_modules/lucide-react")) {
+              return "ui-vendor";
+            }
+            if (id.includes("node_modules/zustand")) {
+              return "zustand";
+            }
+            return undefined;
+          },
+        },
       },
       chunkSizeWarningLimit: 1000,
     },

@@ -24,6 +24,7 @@ use crate::error::AppError;
 const KEYRING_SERVICE: &str = "com.incrementum.app";
 const TOKENS_DIR_NAME: &str = "tokens";
 
+#[derive(Clone)]
 pub struct AuthStore {
     app_data_dir: PathBuf,
 }
@@ -267,15 +268,23 @@ fn user_id() -> String {
 // ─────────────────────────────────────────────────────────────
 
 pub struct CloudAuthProvider {
-    providers: std::sync::Mutex<
+    providers: std::sync::Arc<std::sync::Mutex<
         HashMap<CloudProviderType, Arc<RwLock<Box<dyn CloudProvider>>>>,
-    >,
+    >>,
+}
+
+impl Clone for CloudAuthProvider {
+    fn clone(&self) -> Self {
+        Self {
+            providers: std::sync::Arc::clone(&self.providers),
+        }
+    }
 }
 
 impl CloudAuthProvider {
     pub fn new() -> Self {
         Self {
-            providers: std::sync::Mutex::new(HashMap::new()),
+            providers: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 

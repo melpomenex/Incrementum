@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import React, { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
+import { DynamicVirtualList } from "../common/VirtualList";
 import { useQueueStore } from "../../stores/queueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import type { QueueItem } from "../../types/queue";
@@ -1025,186 +1026,374 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     </label>
                   </div>
                 )}
-                {visibleItems?.map((item) => {
-                  const isExpanded = expandedIds.has(item.id);
-                  const status = getQueueStatus(item);
-                  const priorityVector = getPriorityVector(item);
-                  const estimateRange = getTimeEstimateRange(item);
-                  const learningHint = getLearningHint(item);
-                  return (
-                    <div
-                      key={item.id}
-                      data-queue-item-id={item.id}
-                      aria-selected={item.id === selectedId}
-                      className={`border rounded-lg bg-card transition-colors ${item.id === selectedId ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
-                        }`}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedId(item.id);
-                        setCtxItem(item);
-                        setCtxPos({ x: e.clientX, y: e.clientY });
-                      }}
-                    >
-                      <div
-                        onClick={(event) => {
-                          setSelectedId(item.id);
-                          if (item.itemType !== "learning-item") return;
+                {visibleItems?.length > 20 ? (
+                  <DynamicVirtualList
+                    items={visibleItems}
+                    renderItem={(item) => {
+                      const isExpanded = expandedIds.has(item.id);
+                      const status = getQueueStatus(item);
+                      const priorityVector = getPriorityVector(item);
+                      const estimateRange = getTimeEstimateRange(item);
+                      const learningHint = getLearningHint(item);
+                      return (
+                        <div
+                          key={item.id}
+                          data-queue-item-id={item.id}
+                          aria-selected={item.id === selectedId}
+                          className={`border rounded-lg bg-card transition-colors ${item.id === selectedId ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                            }`}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedId(item.id);
+                            setCtxItem(item);
+                            setCtxPos({ x: e.clientX, y: e.clientY });
+                          }}
+                        >
+                          <div
+                            onClick={(event) => {
+                              setSelectedId(item.id);
+                              if (item.itemType !== "learning-item") return;
 
-                          const isModifierMulti = event.metaKey || event.ctrlKey;
-                          if (event.shiftKey || isModifierMulti) {
-                            handleLearningItemSelection(
-                              item.id,
-                              !selectedIds.has(item.id),
-                              event.shiftKey
-                            );
-                          }
-                        }}
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
-                          if (item.itemType === "learning-item") {
-                            onStartReview?.(item.learningItemId ?? item.id);
-                            return;
-                          }
-                          onOpenDocument?.(item);
-                        }}
-                        className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {item.itemType === "learning-item" && (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(item.id)}
-                              onChange={(event) => {
-                                event.stopPropagation();
+                              const isModifierMulti = event.metaKey || event.ctrlKey;
+                              if (event.shiftKey || isModifierMulti) {
                                 handleLearningItemSelection(
                                   item.id,
                                   !selectedIds.has(item.id),
-                                  !!(event.nativeEvent as MouseEvent).shiftKey
+                                  event.shiftKey
                                 );
-                              }}
-                            />
-                          )}
-                          <StatusPill status={status} />
-                          {item.itemType === "document" && (() => {
-                            const fsrsInfo = getFsrsSchedulingInfo(item);
-                            return (
-                              <span
-                                className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-300"
-                                title={t("queue.nextReviewTitle", {
-                                  date: fsrsInfo.nextReviewDate
-                                    ? fsrsInfo.nextReviewDate.toLocaleDateString(locale)
-                                    : t("queue.notScheduled"),
-                                })}
-                              >
-                                <Clock className="w-3 h-3 inline mr-1" />
-                                {fsrsInfo.statusLabel}
-                              </span>
-                            );
-                          })()}
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-foreground line-clamp-1">
-                              {item.documentTitle}
-                              {item.itemType === "learning-item" && learningHint && (
-                                <span className="font-normal text-muted-foreground">
-                                  {" "}
-                                  — {learningHint}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatMinutesRange(estimateRange)} • {t("queue.priorityWithValue", { value: getPriorityScore(item, preset) })}
-                            </div>
-                            <TimeConfidenceBar min={estimateRange.min} max={estimateRange.max} />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <PriorityGlyph vector={priorityVector} />
-                          
-                          {/* Dismiss Button - Only for documents */}
-                          {item.itemType === "document" && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleDismissDocument(item);
-                              }}
-                              className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
-                              title={t("queueScroll.dismissTitle")}
-                            >
-                              <EyeOff className="w-4 h-4 text-white" />
-                              <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                {t("queue.dismiss")}
-                              </span>
-                            </button>
-                          )}
-                          
-                          <ItemDetailsPopover
-                            target={buildDetailsTarget(item)}
-                            onDismissStateChange={(dismissed) => {
-                              if (dismissed) {
-                                void refreshQueue();
                               }
                             }}
-                            renderTrigger={({ onClick, isOpen }) => (
+                            onDoubleClick={(event) => {
+                              event.stopPropagation();
+                              if (item.itemType === "learning-item") {
+                                onStartReview?.(item.learningItemId ?? item.id);
+                                return;
+                              }
+                              onOpenDocument?.(item);
+                            }}
+                            className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              {item.itemType === "learning-item" && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={(event) => {
+                                    event.stopPropagation();
+                                    handleLearningItemSelection(
+                                      item.id,
+                                      !selectedIds.has(item.id),
+                                      !!(event.nativeEvent as MouseEvent).shiftKey
+                                    );
+                                  }}
+                                />
+                              )}
+                              <StatusPill status={status} />
+                              {item.itemType === "document" && (() => {
+                                const fsrsInfo = getFsrsSchedulingInfo(item);
+                                return (
+                                  <span
+                                    className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-300"
+                                    title={t("queue.nextReviewTitle", {
+                                      date: fsrsInfo.nextReviewDate
+                                        ? fsrsInfo.nextReviewDate.toLocaleDateString(locale)
+                                        : t("queue.notScheduled"),
+                                    })}
+                                  >
+                                    <Clock className="w-3 h-3 inline mr-1" />
+                                    {fsrsInfo.statusLabel}
+                                  </span>
+                                );
+                              })()}
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-foreground line-clamp-1">
+                                  {item.documentTitle}
+                                  {item.itemType === "learning-item" && learningHint && (
+                                    <span className="font-normal text-muted-foreground">
+                                      {" "}
+                                      — {learningHint}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {formatMinutesRange(estimateRange)} • {t("queue.priorityWithValue", { value: getPriorityScore(item, preset) })}
+                                </div>
+                                <TimeConfidenceBar min={estimateRange.min} max={estimateRange.max} />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <PriorityGlyph vector={priorityVector} />
+
+                              {/* Dismiss Button - Only for documents */}
+                              {item.itemType === "document" && (
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleDismissDocument(item);
+                                  }}
+                                  className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
+                                  title={t("queueScroll.dismissTitle")}
+                                >
+                                  <EyeOff className="w-4 h-4 text-white" />
+                                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                                    {t("queue.dismiss")}
+                                  </span>
+                                </button>
+                              )}
+
+                              <ItemDetailsPopover
+                                target={buildDetailsTarget(item)}
+                                onDismissStateChange={(dismissed) => {
+                                  if (dismissed) {
+                                    void refreshQueue();
+                                  }
+                                }}
+                                renderTrigger={({ onClick, isOpen }) => (
+                                  <button
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      onClick();
+                                    }}
+                                    className={`p-2 rounded-md border border-border bg-background hover:bg-muted/60 ${isOpen ? "text-foreground" : "text-muted-foreground"
+                                      }`}
+                                    title={t("queue.itemDetails")}
+                                  >
+                                    <Info className="w-4 h-4" />
+                                  </button>
+                                )}
+                              />
                               <button
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  onClick();
+                                  toggleExpanded(item.id);
                                 }}
-                                className={`p-2 rounded-md border border-border bg-background hover:bg-muted/60 ${isOpen ? "text-foreground" : "text-muted-foreground"
-                                  }`}
-                                title={t("queue.itemDetails")}
+                                className="p-2 bg-muted rounded-md text-muted-foreground hover:text-foreground"
                               >
-                                <Info className="w-4 h-4" />
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                               </button>
-                            )}
-                          />
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleExpanded(item.id);
-                            }}
-                            className="p-2 bg-muted rounded-md text-muted-foreground hover:text-foreground"
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
+                            </div>
+                          </div>
 
-                      {isExpanded && (
-                        <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground space-y-2">
-                          <div className="flex items-center gap-3">
-                            <Sparkles className="w-4 h-4" />
-                            <span>
-                              {t("queue.fsrsSummary", {
-                                stability: getFsrsMetrics(item).stability,
-                                difficulty: getFsrsMetrics(item).difficulty,
-                                retrievability: Math.round(getFsrsMetrics(item).retrievability * 100),
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Target className="w-4 h-4" />
-                            <span>
-                              {t("queue.nextIntervalImpact", {
-                                days: getFsrsMetrics(item).nextIntervalDays,
-                                impact: getReadingImpact(item),
-                              })}
-                            </span>
-                          </div>
-                          {status === "drifted" && (
-                            <div className="flex items-center gap-3 text-muted-foreground">
-                              <AlertTriangle className="w-4 h-4" />
-                              <span>
-                                {t("queue.driftedStateMessage")}
-                              </span>
+                          {isExpanded && (
+                            <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground space-y-2">
+                              <div className="flex items-center gap-3">
+                                <Sparkles className="w-4 h-4" />
+                                <span>
+                                  {t("queue.fsrsSummary", {
+                                    stability: getFsrsMetrics(item).stability,
+                                    difficulty: getFsrsMetrics(item).difficulty,
+                                    retrievability: Math.round(getFsrsMetrics(item).retrievability * 100),
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Target className="w-4 h-4" />
+                                <span>
+                                  {t("queue.nextIntervalImpact", {
+                                    days: getFsrsMetrics(item).nextIntervalDays,
+                                    impact: getReadingImpact(item),
+                                  })}
+                                </span>
+                              </div>
+                              {status === "drifted" && (
+                                <div className="flex items-center gap-3 text-muted-foreground">
+                                  <AlertTriangle className="w-4 h-4" />
+                                  <span>
+                                    {t("queue.driftedStateMessage")}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    }}
+                    estimateSize={80}
+                    overscan={5}
+                  />
+                ) : (
+                  visibleItems?.map((item) => {
+                    const isExpanded = expandedIds.has(item.id);
+                    const status = getQueueStatus(item);
+                    const priorityVector = getPriorityVector(item);
+                    const estimateRange = getTimeEstimateRange(item);
+                    const learningHint = getLearningHint(item);
+                    return (
+                      <div
+                        key={item.id}
+                        data-queue-item-id={item.id}
+                        aria-selected={item.id === selectedId}
+                        className={`border rounded-lg bg-card transition-colors ${item.id === selectedId ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                          }`}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedId(item.id);
+                          setCtxItem(item);
+                          setCtxPos({ x: e.clientX, y: e.clientY });
+                        }}
+                      >
+                        <div
+                          onClick={(event) => {
+                            setSelectedId(item.id);
+                            if (item.itemType !== "learning-item") return;
+
+                            const isModifierMulti = event.metaKey || event.ctrlKey;
+                            if (event.shiftKey || isModifierMulti) {
+                              handleLearningItemSelection(
+                                item.id,
+                                !selectedIds.has(item.id),
+                                event.shiftKey
+                              );
+                            }
+                          }}
+                          onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            if (item.itemType === "learning-item") {
+                              onStartReview?.(item.learningItemId ?? item.id);
+                              return;
+                            }
+                            onOpenDocument?.(item);
+                          }}
+                          className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {item.itemType === "learning-item" && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(item.id)}
+                                onChange={(event) => {
+                                  event.stopPropagation();
+                                  handleLearningItemSelection(
+                                    item.id,
+                                    !selectedIds.has(item.id),
+                                    !!(event.nativeEvent as MouseEvent).shiftKey
+                                  );
+                                }}
+                              />
+                            )}
+                            <StatusPill status={status} />
+                            {item.itemType === "document" && (() => {
+                              const fsrsInfo = getFsrsSchedulingInfo(item);
+                              return (
+                                <span
+                                  className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-300"
+                                  title={t("queue.nextReviewTitle", {
+                                    date: fsrsInfo.nextReviewDate
+                                      ? fsrsInfo.nextReviewDate.toLocaleDateString(locale)
+                                      : t("queue.notScheduled"),
+                                  })}
+                                >
+                                  <Clock className="w-3 h-3 inline mr-1" />
+                                  {fsrsInfo.statusLabel}
+                                </span>
+                              );
+                            })()}
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground line-clamp-1">
+                                {item.documentTitle}
+                                {item.itemType === "learning-item" && learningHint && (
+                                  <span className="font-normal text-muted-foreground">
+                                    {" "}
+                                    — {learningHint}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatMinutesRange(estimateRange)} • {t("queue.priorityWithValue", { value: getPriorityScore(item, preset) })}
+                              </div>
+                              <TimeConfidenceBar min={estimateRange.min} max={estimateRange.max} />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <PriorityGlyph vector={priorityVector} />
+
+                            {/* Dismiss Button - Only for documents */}
+                            {item.itemType === "document" && (
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleDismissDocument(item);
+                                }}
+                                className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
+                                title={t("queueScroll.dismissTitle")}
+                              >
+                                <EyeOff className="w-4 h-4 text-white" />
+                                <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                                  {t("queue.dismiss")}
+                                </span>
+                              </button>
+                            )}
+
+                            <ItemDetailsPopover
+                              target={buildDetailsTarget(item)}
+                              onDismissStateChange={(dismissed) => {
+                                if (dismissed) {
+                                  void refreshQueue();
+                                }
+                              }}
+                              renderTrigger={({ onClick, isOpen }) => (
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onClick();
+                                  }}
+                                  className={`p-2 rounded-md border border-border bg-background hover:bg-muted/60 ${isOpen ? "text-foreground" : "text-muted-foreground"
+                                    }`}
+                                  title={t("queue.itemDetails")}
+                                >
+                                  <Info className="w-4 h-4" />
+                                </button>
+                              )}
+                            />
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleExpanded(item.id);
+                              }}
+                              className="p-2 bg-muted rounded-md text-muted-foreground hover:text-foreground"
+                            >
+                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground space-y-2">
+                            <div className="flex items-center gap-3">
+                              <Sparkles className="w-4 h-4" />
+                              <span>
+                                {t("queue.fsrsSummary", {
+                                  stability: getFsrsMetrics(item).stability,
+                                  difficulty: getFsrsMetrics(item).difficulty,
+                                  retrievability: Math.round(getFsrsMetrics(item).retrievability * 100),
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Target className="w-4 h-4" />
+                              <span>
+                                {t("queue.nextIntervalImpact", {
+                                  days: getFsrsMetrics(item).nextIntervalDays,
+                                  impact: getReadingImpact(item),
+                                })}
+                              </span>
+                            </div>
+                            {status === "drifted" && (
+                              <div className="flex items-center gap-3 text-muted-foreground">
+                                <AlertTriangle className="w-4 h-4" />
+                                <span>
+                                  {t("queue.driftedStateMessage")}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </>
           )}
@@ -1466,7 +1655,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   );
 }
 
-function PriorityGlyph({ vector }: { vector: ReturnType<typeof getPriorityVector> }) {
+const PriorityGlyph = React.memo(function PriorityGlyph({ vector }: { vector: ReturnType<typeof getPriorityVector> }) {
   const tooltip = `Retention ${vector.retentionRisk} • Load ${vector.cognitiveLoad} • Time ${vector.timeEfficiency} • Intent ${vector.userIntent} • Overdue ${vector.overduePenalty}`;
   return (
     <div className="flex items-center gap-1" title={tooltip}>
@@ -1479,9 +1668,9 @@ function PriorityGlyph({ vector }: { vector: ReturnType<typeof getPriorityVector
       </div>
     </div>
   );
-}
+});
 
-function StatusPill({ status }: { status: ReturnType<typeof getQueueStatus> }) {
+const StatusPill = React.memo(function StatusPill({ status }: { status: ReturnType<typeof getQueueStatus> }) {
   const label = getStatusLabel(status);
   const styles =
     status === "drifted"
@@ -1500,7 +1689,7 @@ function StatusPill({ status }: { status: ReturnType<typeof getQueueStatus> }) {
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-semibold ${styles}`}>{label}</span>
   );
-}
+});
 
 function TimeConfidenceBar({ min, max }: { min: number; max: number }) {
   const width = Math.min(100, Math.max(10, Math.round((min / Math.max(max, 1)) * 100)));

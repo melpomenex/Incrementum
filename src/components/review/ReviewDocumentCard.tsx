@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { FileText } from "lucide-react";
 import { useTabsStore } from "../../stores";
 import { DocumentViewer } from "../tabs/TabRegistry";
@@ -8,7 +8,7 @@ interface ReviewDocumentCardProps {
   item: ReviewDocumentItem;
 }
 
-export function ReviewDocumentCard({ item }: ReviewDocumentCardProps) {
+export const ReviewDocumentCard = React.memo(function ReviewDocumentCard({ item }: ReviewDocumentCardProps) {
   const { addTab } = useTabsStore();
 
   const progressLabel = useMemo(() => {
@@ -70,4 +70,4 @@ export function ReviewDocumentCard({ item }: ReviewDocumentCardProps) {
       </div>
     </div>
   );
-}
+});

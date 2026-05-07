@@ -35,6 +35,9 @@ mod battery;
 #[cfg(feature = "screenshot")]
 mod screenshot;
 
+#[cfg(test)]
+mod security_tests;
+
 use anyhow::Context;
 use database::Database;
 use std::io::Write;
@@ -143,6 +146,9 @@ pub fn run() {
     // NOTE: WebKitGTK environment variables for Linux are now set in main.rs
     // before this function is called. This ensures they are set early enough
     // to affect all WebKit initialization.
+
+    // Initialize tracing early so all startup logs are captured
+    tracing_subscriber::fmt::init();
 
     const LOCALHOST_PORT: u16 = 9527;
 
@@ -467,45 +473,82 @@ pub fn run() {
                 // Create repository for use in commands
                 let repo = database::Repository::new(pool.clone());
 
-                // Initialize cloud auth provider with persisted tokens
+                // Initialize cloud auth provider (managed immediately so commands can access it)
                 let auth_store = cloud::auth_store::AuthStore::new(app_dir.clone());
                 let cloud_auth_provider = cloud::auth_store::CloudAuthProvider::new();
 
-                // Load persisted tokens for each provider type
-                for provider_type in &[
-                    cloud::CloudProviderType::OneDrive,
-                    cloud::CloudProviderType::GoogleDrive,
-                    cloud::CloudProviderType::Dropbox,
-                ] {
-                    if let Ok(Some(token)) = auth_store.get_token(*provider_type).await {
-                        let provider: Box<dyn cloud::CloudProvider> = match provider_type {
-                            cloud::CloudProviderType::OneDrive => {
-                                Box::new(cloud::OneDriveProvider::with_token(
-                                    cloud::OneDriveConfig::default(),
-                                    token,
-                                ))
-                            }
-                            cloud::CloudProviderType::GoogleDrive => {
-                                Box::new(cloud::GoogleDriveProvider::with_token(
-                                    cloud::GoogleDriveConfig::default(),
-                                    token,
-                                ))
-                            }
-                            cloud::CloudProviderType::Dropbox => {
-                                Box::new(cloud::DropboxProvider::with_token(
-                                    cloud::DropboxConfig::default(),
-                                    token,
-                                ))
-                            }
-                        };
-                        cloud_auth_provider.set_provider(*provider_type, provider);
-                    }
-                }
-
                 app.manage(state);
-                app.manage(cloud_auth_provider);
-                app.manage(auth_store);
+                app.manage(cloud_auth_provider.clone());
+                app.manage(auth_store.clone());
+
+                // Load persisted cloud tokens in the background so they don't
+                // block app startup.  Providers are registered into the managed
+                // state once loaded.
+                let bg_cloud_auth = cloud_auth_provider.clone();
+                let bg_auth_store = auth_store.clone();
+                tauri::async_runtime::spawn(async move {
+                    for provider_type in &[
+                        cloud::CloudProviderType::OneDrive,
+                        cloud::CloudProviderType::GoogleDrive,
+                        cloud::CloudProviderType::Dropbox,
+                    ] {
+                        if let Ok(Some(token)) = bg_auth_store.get_token(*provider_type).await {
+                            let provider: Box<dyn cloud::CloudProvider> = match provider_type {
+                                cloud::CloudProviderType::OneDrive => {
+                                    Box::new(cloud::OneDriveProvider::with_token(
+                                        cloud::OneDriveConfig::default(),
+                                        token,
+                                    ))
+                                }
+                                cloud::CloudProviderType::GoogleDrive => {
+                                    Box::new(cloud::GoogleDriveProvider::with_token(
+                                        cloud::GoogleDriveConfig::default(),
+                                        token,
+                                    ))
+                                }
+                                cloud::CloudProviderType::Dropbox => {
+                                    Box::new(cloud::DropboxProvider::with_token(
+                                        cloud::DropboxConfig::default(),
+                                        token,
+                                    ))
+                                }
+                            };
+                            bg_cloud_auth.set_provider(*provider_type, provider);
+                        }
+                    }
+                    tracing::info!("Cloud auth token loading complete");
+                });
                 app.manage(AIState::default());
+                let ai_key_store = commands::ai_key_store::AIKeyStore::new(app_dir.clone());
+                app.manage(ai_key_store.clone());
+
+                // Load API keys from keychain into in-memory AIState on startup.
+                let ai_state_handle: tauri::State<'_, AIState> = app.state::<AIState>();
+                let ai_config_mutex = Arc::clone(&ai_state_handle.config);
+                let bg_key_store = ai_key_store.clone();
+                drop(ai_state_handle);
+                tauri::async_runtime::spawn(async move {
+                    for provider in &["openai", "anthropic", "openrouter"] {
+                        match bg_key_store.get_key(provider).await {
+                            Ok(Some(key)) => {
+                                let mut config = ai_config_mutex.lock().unwrap();
+                                let current = config.get_or_insert_with(Default::default);
+                                match *provider {
+                                    "openai" => current.api_keys.openai = Some(key),
+                                    "anthropic" => current.api_keys.anthropic = Some(key),
+                                    "openrouter" => current.api_keys.openrouter = Some(key),
+                                    _ => {}
+                                }
+                            }
+                            Ok(None) => {}
+                            Err(e) => {
+                                tracing::warn!("Failed to load AI key for {}: {}", provider, e);
+                            }
+                        }
+                    }
+                    tracing::info!("AI API keys loaded from keychain");
+                });
+
                 app.manage(FocusTimer::new());
                 app.manage(pocket_tts::PocketTTSState::default());
                 app.manage(transcription::TranscriptionState {
@@ -513,16 +556,25 @@ pub fn run() {
                     auto_queue: transcription::auto_queue::AutoTranscriptionQueue::new(app.handle().clone(), repo.clone()),
                 });
 
-                // Check and import demo content on first run (before repo is moved)
-                let _ = demo::check_and_import_demo_content(&repo).await;
+                // Check and import demo content in the background so it doesn't
+                // block app startup.
+                let demo_repo = repo.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = demo::check_and_import_demo_content(&demo_repo).await {
+                        tracing::warn!("Demo content import failed: {}", e);
+                    }
+                });
 
                 app.manage(repo);
 
-                // Initialize browser sync server if auto-start is enabled
+                // Initialize browser sync server in the background if auto-start is enabled.
+                let bg_app_handle = app_handle.clone();
                 let repo_arc = std::sync::Arc::new(database::Repository::new(pool));
-                let _ = browser_sync_server::initialize_if_enabled(repo_arc, app_handle.clone(), None).await;
-
-                tracing_subscriber::fmt::init();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = browser_sync_server::initialize_if_enabled(repo_arc, bg_app_handle, None).await {
+                        tracing::warn!("Browser sync server initialization failed: {}", e);
+                    }
+                });
 
                 if let Some(window) = app.get_webview_window("main") {
                     if !cfg!(debug_assertions) {
@@ -671,6 +723,8 @@ pub fn run() {
             commands::get_ai_config,
             commands::set_ai_config,
             commands::set_api_key,
+            commands::get_masked_api_key,
+            commands::remove_api_key,
             commands::generate_flashcards_from_extract,
             commands::generate_flashcards_from_content,
             commands::answer_question,

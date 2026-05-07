@@ -1,0 +1,100 @@
+name: CI Regression Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run Rust unit tests
+        working-directory: src-tauri
+        run: cargo test --lib -- --test-threads=1
+        env:
+          RUST_MIN_STACK: 33554432
+
+      - name: Check Rust compilation
+        working-directory: src-tauri
+        run: cargo check
+        env:
+          RUST_MIN_STACK: 33554432
+
+  bundle-size:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build frontend for bundle size check
+        run: npm run build || npx vite build
+        env:
+          INCREMENTUM_TAURI: "1"
+
+      - name: Check bundle size
+        run: |
+          TOTAL=$(find dist -name '*.js' -exec cat {} + 2>/dev/null | wc -c)
+          echo "Total JS bundle size: ${TOTAL} bytes"
+          THRESHOLD=2500000  # 2.5MB
+          if [ "$TOTAL" -gt "$THRESHOLD" ]; then
+            echo "::warning::Bundle size ${TOTAL} bytes exceeds threshold ${THRESHOLD}"
+          else
+            echo "Bundle size ${TOTAL} bytes is within threshold ${THRESHOLD}"
+          fi

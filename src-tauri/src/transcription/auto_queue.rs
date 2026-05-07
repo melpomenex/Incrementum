@@ -28,7 +28,7 @@ impl AutoTranscriptionQueue {
         tokio::spawn(async move {
             // On startup, reset any processing jobs back to pending
             if let Err(e) = repo.reset_processing_transcriptions().await {
-                eprintln!("Failed to reset processing transcriptions: {}", e);
+                tracing::warn!("Failed to reset processing transcriptions: {}", e);
             }
 
             loop {
@@ -38,27 +38,29 @@ impl AutoTranscriptionQueue {
                             AutoQueueCommand::Shutdown => break,
                             AutoQueueCommand::Enqueue(entry) => {
                                 if let Err(e) = repo.enqueue_transcription(&entry).await {
-                                    eprintln!("Failed to enqueue transcription: {}", e);
+                                    tracing::warn!("Failed to enqueue transcription: {}", e);
                                     continue;
                                 }
-                                let _ = app.emit("transcription://queue-updated", ());
+                                if let Err(e) = app.emit("transcription://queue-updated", ()) {
+                                    tracing::debug!("Failed to emit queue-updated: {}", e);
+                                }
                                 // Trigger processing
                                 if active_inner.lock().unwrap().is_none() {
                                     if let Err(e) = Self::process_next(&repo, &app, &active_inner).await {
-                                        eprintln!("Auto-transcription process error: {}", e);
+                                        tracing::warn!("Auto-transcription process error: {}", e);
                                     }
                                 }
                             }
                             AutoQueueCommand::Process => {
                                 if active_inner.lock().unwrap().is_none() {
                                     if let Err(e) = Self::process_next(&repo, &app, &active_inner).await {
-                                        eprintln!("Auto-transcription process error: {}", e);
+                                        tracing::warn!("Auto-transcription process error: {}", e);
                                     }
                                 }
                             }
                             AutoQueueCommand::Cancel(id) => {
                                 if let Err(e) = repo.cancel_transcription_job(&id).await {
-                                    eprintln!("Failed to cancel transcription job: {}", e);
+                                    tracing::warn!("Failed to cancel transcription job: {}", e);
                                 }
                                 let mut active = active_inner.lock().unwrap();
                                 if let Some(ref active_id) = *active {
@@ -66,7 +68,9 @@ impl AutoTranscriptionQueue {
                                         *active = None;
                                     }
                                 }
-                                let _ = app.emit("transcription://queue-updated", ());
+                                if let Err(e) = app.emit("transcription://queue-updated", ()) {
+                                    tracing::debug!("Failed to emit queue-updated: {}", e);
+                                }
                             }
                         }
                     }
@@ -117,7 +121,9 @@ impl AutoTranscriptionQueue {
             let mut active = active_job_id.lock().unwrap();
             *active = Some(entry.id.clone());
         }
-        let _ = app.emit("transcription://queue-updated", ());
+        if let Err(e) = app.emit("transcription://queue-updated", ()) {
+            tracing::debug!("Failed to emit queue-updated: {}", e);
+        }
 
         let result = Self::process_entry(&entry, repo, app).await;
 
@@ -143,7 +149,9 @@ impl AutoTranscriptionQueue {
             let mut active = active_job_id.lock().unwrap();
             *active = None;
         }
-        let _ = app.emit("transcription://queue-updated", ());
+        if let Err(e) = app.emit("transcription://queue-updated", ()) {
+            tracing::debug!("Failed to emit queue-updated: {}", e);
+        }
 
         // Process next in queue
         Box::pin(Self::process_next(repo, app, active_job_id)).await?;
@@ -202,8 +210,12 @@ impl AutoTranscriptionQueue {
             let id = progress_entry_id.clone();
             let app = progress_app.clone();
             tokio::spawn(async move {
-                let _ = repo.update_transcription_progress(&id, p).await;
-                let _ = app.emit("transcription://queue-updated", ());
+                if let Err(e) = repo.update_transcription_progress(&id, p).await {
+                    tracing::warn!("Failed to update transcription progress: {}", e);
+                }
+                if let Err(e) = app.emit("transcription://queue-updated", ()) {
+                    tracing::debug!("Failed to emit queue-updated: {}", e);
+                }
             });
         });
 
@@ -222,16 +234,21 @@ impl AutoTranscriptionQueue {
                     .unwrap_or(0);
 
                 if transcript_id > 0 {
-                    let _ = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                    if let Err(e) = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
                         .bind(transcript_id)
                         .bind(seg.start_ms)
                         .bind(seg.end_ms)
                         .bind(&seg.text)
                         .bind(seg.confidence)
                         .execute(repo.pool())
-                        .await;
+                        .await
+                    {
+                        tracing::warn!("Failed to insert transcript segment: {}", e);
+                    }
                 }
-                let _ = app.emit("transcription://segment", &seg);
+                if let Err(e) = app.emit("transcription://segment", &seg) {
+                    tracing::debug!("Failed to emit transcription segment: {}", e);
+                }
             });
         }, Some(progress_cb)).await?;
 
@@ -261,8 +278,10 @@ impl AutoTranscriptionQueue {
             .execute(repo.pool())
             .await?;
 
-        // Cleanup WAV
-        let _ = std::fs::remove_file(wav_path);
+        // Cleanup WAV (best-effort)
+        if let Err(e) = std::fs::remove_file(&wav_path) {
+            tracing::debug!("Failed to clean up WAV file {}: {}", wav_path.display(), e);
+        }
 
         Ok(())
     }

@@ -4,10 +4,12 @@ import {
   getAIConfig,
   setAIConfig,
   setApiKey,
+  getMaskedApiKey,
   testAIConnection,
   listOllamaModels,
   LLMProviderType,
   AIConfig,
+  isMaskedKey,
 } from "../../api/ai";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useI18n } from "../../lib/i18n";
@@ -43,6 +45,10 @@ export function AISettings() {
   const [openaiKey, setOpenaiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openrouterKey, setOpenrouterKey] = useState("");
+  // Track which keys are stored in keychain (to show indicator)
+  const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
+  const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
+  const [hasOpenrouterKey, setHasOpenrouterKey] = useState(false);
 
   // Context window tokens (for document content)
   const { settings, updateSettingsCategory } = useSettingsStore();
@@ -57,9 +63,16 @@ export function AISettings() {
         const loaded = await getAIConfig();
         if (loaded) {
           setConfigState(loaded);
-          setOpenaiKey(loaded.api_keys.openai || "");
-          setAnthropicKey(loaded.api_keys.anthropic || "");
-          setOpenrouterKey(loaded.api_keys.openrouter || "");
+          // Keys from backend are now masked. Show placeholder if masked.
+          const openaiVal = loaded.api_keys.openai || "";
+          const anthropicVal = loaded.api_keys.anthropic || "";
+          const openrouterVal = loaded.api_keys.openrouter || "";
+          setOpenaiKey(openaiVal && isMaskedKey(openaiVal) ? "" : openaiVal);
+          setAnthropicKey(anthropicVal && isMaskedKey(anthropicVal) ? "" : anthropicVal);
+          setOpenrouterKey(openrouterVal && isMaskedKey(openrouterVal) ? "" : openrouterVal);
+          setHasOpenaiKey(!!openaiVal);
+          setHasAnthropicKey(!!anthropicVal);
+          setHasOpenrouterKey(!!openrouterVal);
         }
         // Load context window tokens from settings store
         setContextWindowTokens(settings.ai.maxTokens);
@@ -78,24 +91,30 @@ export function AISettings() {
     try {
       setIsSaving(true);
 
-      // Save API keys first
+      // Save API keys only when the user entered a new one
       if (openaiKey) {
         await setApiKey("openai", openaiKey);
+        setHasOpenaiKey(true);
+        setOpenaiKey("");
       }
       if (anthropicKey) {
         await setApiKey("anthropic", anthropicKey);
+        setHasAnthropicKey(true);
+        setAnthropicKey("");
       }
       if (openrouterKey) {
         await setApiKey("openrouter", openrouterKey);
+        setHasOpenrouterKey(true);
+        setOpenrouterKey("");
       }
 
-      // Update config with API keys
+      // Update config (without plaintext keys — they're in the keychain now)
       const updatedConfig = {
         ...config,
         api_keys: {
-          openai: openaiKey || undefined,
-          anthropic: anthropicKey || undefined,
-          openrouter: openrouterKey || undefined,
+          openai: hasOpenaiKey ? "••••••••" : undefined,
+          anthropic: hasAnthropicKey ? "••••••••" : undefined,
+          openrouter: hasOpenrouterKey ? "••••••••" : undefined,
         },
       };
 
@@ -187,13 +206,18 @@ export function AISettings() {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               {t("aiSettings.openaiApiKey")}
+              {hasOpenaiKey && (
+                <span className="ml-2 text-xs text-green-500 font-normal flex items-center gap-1">
+                  <Check className="w-3 h-3 inline" /> Key stored in keychain
+                </span>
+              )}
             </label>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={openaiKey}
                 onChange={(e) => setOpenaiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={hasOpenaiKey ? "Enter new key to replace..." : "sk-..."}
                 className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button
@@ -214,13 +238,18 @@ export function AISettings() {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               {t("aiSettings.anthropicApiKey")}
+              {hasAnthropicKey && (
+                <span className="ml-2 text-xs text-green-500 font-normal flex items-center gap-1">
+                  <Check className="w-3 h-3 inline" /> Key stored in keychain
+                </span>
+              )}
             </label>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={anthropicKey}
                 onChange={(e) => setAnthropicKey(e.target.value)}
-                placeholder="sk-ant-..."
+                placeholder={hasAnthropicKey ? "Enter new key to replace..." : "sk-ant-..."}
                 className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button
@@ -241,13 +270,18 @@ export function AISettings() {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               {t("aiSettings.openrouterApiKey")}
+              {hasOpenrouterKey && (
+                <span className="ml-2 text-xs text-green-500 font-normal flex items-center gap-1">
+                  <Check className="w-3 h-3 inline" /> Key stored in keychain
+                </span>
+              )}
             </label>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={openrouterKey}
                 onChange={(e) => setOpenrouterKey(e.target.value)}
-                placeholder="sk-or-..."
+                placeholder={hasOpenrouterKey ? "Enter new key to replace..." : "sk-or-..."}
                 className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button

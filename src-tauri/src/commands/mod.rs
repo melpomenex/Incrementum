@@ -3,6 +3,7 @@
 pub mod analytics;
 pub mod algorithm;
 pub mod ai;
+pub mod ai_key_store;
 pub mod anna_archive;
 pub mod document;
 pub mod extract;

@@ -89,10 +89,29 @@ export async function setAIConfig(config: AIConfig): Promise<void> {
 }
 
 /**
- * Set API key for a provider
+ * Set API key for a provider (stores in OS keychain)
  */
 export async function setApiKey(provider: string, apiKey: string): Promise<void> {
   return await invokeCommand("set_api_key", { provider, apiKey });
+}
+
+/**
+ * Get a masked API key (last 4 characters visible)
+ */
+export async function getMaskedApiKey(provider: string): Promise<string | null> {
+  return await invokeCommand<string | null>("get_masked_api_key", { provider });
+}
+
+/**
+ * Remove an API key from keychain
+ */
+export async function removeApiKey(provider: string): Promise<void> {
+  return await invokeCommand("remove_api_key", { provider });
+}
+
+/** Check if a string looks like a masked key (contains asterisks) */
+export function isMaskedKey(key: string): boolean {
+  return key.includes("*");
 }
 
 /**

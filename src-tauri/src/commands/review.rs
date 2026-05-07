@@ -881,3 +881,32 @@ pub struct PreviewIntervals {
     pub good: f64,
     pub easy: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_review_rating_from_valid_values() {
+        assert!(matches!(ReviewRating::from(0), ReviewRating::Again));
+        assert!(matches!(ReviewRating::from(1), ReviewRating::Hard));
+        assert!(matches!(ReviewRating::from(2), ReviewRating::Hard));
+        assert!(matches!(ReviewRating::from(3), ReviewRating::Good));
+        assert!(matches!(ReviewRating::from(4), ReviewRating::Good));
+        assert!(matches!(ReviewRating::from(5), ReviewRating::Easy));
+    }
+
+    #[test]
+    fn test_algorithm_type_roundtrip() {
+        for name in &["fsrs", "sm2", "sm5", "sm8", "sm15", "sm18", "sm20"] {
+            let algo = AlgorithmType::from_str_lossy(name);
+            assert_eq!(algo.as_str(), *name);
+        }
+    }
+
+    #[test]
+    fn test_algorithm_type_unknown_defaults_to_sm2() {
+        let algo = AlgorithmType::from_str_lossy("unknown_algo");
+        assert_eq!(algo.as_str(), "sm2");
+    }
+}

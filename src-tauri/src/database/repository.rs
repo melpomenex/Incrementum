@@ -3,7 +3,7 @@
 use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
 use chrono::Utc;
 use std::collections::HashMap;
-use crate::error::Result;
+use crate::error::{Result, IncrementumError};
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage, TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
 
 #[derive(Clone)]
@@ -2187,7 +2187,9 @@ impl Repository {
             .execute(&self.pool)
             .await?;
 
-            self.get_rss_user_preferences_by_id(&id).await?.unwrap()
+            self.get_rss_user_preferences_by_id(&id).await?.ok_or_else(||
+                IncrementumError::Internal("failed to read back rss_user_preferences after update".into())
+            )?
         } else {
             // Create new preferences
             let id = uuid::Uuid::new_v4().to_string();
@@ -2227,7 +2229,9 @@ impl Repository {
             .execute(&self.pool)
             .await?;
 
-            self.get_rss_user_preferences_by_id(&id).await?.unwrap()
+            self.get_rss_user_preferences_by_id(&id).await?.ok_or_else(||
+                IncrementumError::Internal("failed to read back rss_user_preferences after insert".into())
+            )?
         };
 
         Ok(pref)
@@ -3546,7 +3550,7 @@ struct StudyStatsRow {
 mod tests {
     use super::*;
     use crate::database::connection::Database;
-    use crate::models::{ItemType, LearningItem};
+    use crate::models::{Document, Extract, FileType, ItemType, LearningItem};
     use sha2::{Digest, Sha256};
     use std::path::PathBuf;
 
@@ -3626,6 +3630,201 @@ mod tests {
             .expect("matching asset present");
 
         assert_eq!(matching.reference_count, 1);
+    }
+
+    // --- 8.2: Import round-trip tests ---
+
+    #[tokio::test]
+    async fn document_create_read_roundtrip() {
+        let repo = setup_repo().await;
+        let mut doc = Document::new("Test Book".to_string(), "/tmp/test.pdf".to_string(), FileType::Pdf);
+        doc.tags = vec!["tag1".to_string(), "tag2".to_string()];
+        doc.category = Some("science".to_string());
+        doc.priority_rating = 3;
+        let created = repo.create_document(&doc).await.expect("create");
+        let read = repo.get_document(&created.id).await.expect("get").expect("found");
+
+        assert_eq!(read.id, created.id);
+        assert_eq!(read.title, "Test Book");
+        assert!(matches!(read.file_type, FileType::Pdf));
+        assert_eq!(read.tags, vec!["tag1".to_string(), "tag2".to_string()]);
+        assert_eq!(read.category.as_deref(), Some("science"));
+        assert_eq!(read.priority_rating, 3);
+    }
+
+    #[tokio::test]
+    async fn extract_create_read_roundtrip() {
+        let repo = setup_repo().await;
+        let doc = repo.create_document(&Document::new("Src".to_string(), "/tmp/s.epub".to_string(), FileType::Epub)).await.expect("doc");
+        let mut ext = Extract::new(doc.id.clone(), "Important passage about gravity.".to_string());
+        ext.notes = Some("key concept".to_string());
+        ext.highlight_color = Some("yellow".to_string());
+        let created = repo.create_extract(&ext).await.expect("create");
+        let read = repo.get_extract(&created.id).await.expect("get").expect("found");
+
+        assert_eq!(read.id, created.id);
+        assert_eq!(read.document_id, doc.id);
+        assert_eq!(read.content, "Important passage about gravity.");
+        assert_eq!(read.notes.as_deref(), Some("key concept"));
+        assert_eq!(read.highlight_color.as_deref(), Some("yellow"));
+    }
+
+    #[tokio::test]
+    async fn learning_item_create_read_roundtrip() {
+        let repo = setup_repo().await;
+        let doc = repo.create_document(&Document::new("Src".to_string(), "/tmp/s.pdf".to_string(), FileType::Pdf)).await.expect("doc");
+        let mut item = LearningItem::new(ItemType::Qa, "What is gravity?".to_string());
+        item.document_id = Some(doc.id.clone());
+        item.answer = Some("A fundamental force of nature.".to_string());
+        item.difficulty = 5;
+        item.tags = vec!["physics".to_string()];
+        let created = repo.create_learning_item(&item).await.expect("create");
+        let items = repo.get_learning_items_by_document(&doc.id).await.expect("get");
+
+        assert_eq!(items.len(), 1);
+        let read = &items[0];
+        assert_eq!(read.id, created.id);
+        assert_eq!(read.question, "What is gravity?");
+        assert_eq!(read.answer.as_deref(), Some("A fundamental force of nature."));
+        assert_eq!(read.difficulty, 5);
+        assert_eq!(read.tags, vec!["physics".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn full_document_hierarchy_roundtrip() {
+        let repo = setup_repo().await;
+
+        // Create document
+        let doc = repo.create_document(&Document::new("Hierarchy Test".to_string(), "/tmp/h.pdf".to_string(), FileType::Pdf)).await.expect("doc");
+
+        // Create extract linked to document
+        let ext = Extract::new(doc.id.clone(), "Extract content here.".to_string());
+        let created_ext = repo.create_extract(&ext).await.expect("extract");
+
+        // Create learning items linked to extract and document
+        let mut item1 = LearningItem::new(ItemType::Flashcard, "Flashcard Q".to_string());
+        item1.document_id = Some(doc.id.clone());
+        item1.extract_id = Some(created_ext.id.clone());
+        item1.answer = Some("Flashcard A".to_string());
+
+        let mut item2 = LearningItem::with_answer(doc.id.clone(), ItemType::Cloze, "Cloze {{c1::text}} here.".to_string(), "text".to_string());
+        item2.extract_id = Some(created_ext.id.clone());
+
+        repo.create_learning_item(&item1).await.expect("item1");
+        repo.create_learning_item(&item2).await.expect("item2");
+
+        // Verify hierarchy
+        let read_doc = repo.get_document(&doc.id).await.expect("get doc").expect("doc exists");
+        assert_eq!(read_doc.id, doc.id);
+
+        let read_ext = repo.get_extract(&created_ext.id).await.expect("get ext").expect("ext exists");
+        assert_eq!(read_ext.document_id, doc.id);
+
+        let ext_items = repo.get_learning_items_by_extract(&created_ext.id).await.expect("ext items");
+        assert_eq!(ext_items.len(), 2);
+
+        let doc_items = repo.get_learning_items_by_document(&doc.id).await.expect("doc items");
+        assert_eq!(doc_items.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn document_update_roundtrip() {
+        let repo = setup_repo().await;
+        let doc = repo.create_document(&Document::new("Original".to_string(), "/tmp/u.pdf".to_string(), FileType::Pdf)).await.expect("create");
+
+        // Update via full document update
+        let mut updated = doc.clone();
+        updated.title = "Updated Title".to_string();
+        updated.category = Some("history".to_string());
+        updated.tags = vec!["a".to_string(), "b".to_string()];
+        repo.update_document(&updated.id, &updated).await.expect("update");
+
+        // Update dismiss
+        repo.update_document_dismiss(&doc.id, true).await.expect("dismiss");
+
+        // Update priority (requires rating, slider, score)
+        repo.update_document_priority(&doc.id, 4, 0, 0.0).await.expect("priority");
+
+        let read = repo.get_document(&doc.id).await.expect("get").expect("found");
+        assert_eq!(read.title, "Updated Title");
+        assert_eq!(read.category.as_deref(), Some("history"));
+        assert_eq!(read.tags, vec!["a".to_string(), "b".to_string()]);
+        assert!(read.is_dismissed);
+        assert_eq!(read.priority_rating, 4);
+    }
+
+    // --- 8.3: Migration correctness tests ---
+
+    #[tokio::test]
+    async fn all_migrations_apply_cleanly() {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate");
+
+        // Verify all migrations were tracked
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _schema_migrations")
+            .fetch_one(db.pool())
+            .await
+            .expect("count migrations");
+        let total = crate::database::migrations::MIGRATIONS.len() as i64;
+        assert_eq!(count.0, total, "All {} migrations should be tracked, but got {}", total, count.0);
+    }
+
+    #[tokio::test]
+    async fn all_migrations_are_idempotent() {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate 1");
+        // Running migrations a second time should not fail
+        db.migrate().await.expect("migrate 2");
+
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _schema_migrations")
+            .fetch_one(db.pool())
+            .await
+            .expect("count");
+        let total = crate::database::migrations::MIGRATIONS.len() as i64;
+        assert_eq!(count.0, total, "Migration count should be unchanged after second pass");
+    }
+
+    #[tokio::test]
+    async fn fresh_db_passes_integrity_check() {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate");
+
+        let row: (String,) = sqlx::query_as("PRAGMA integrity_check")
+            .fetch_one(db.pool())
+            .await
+            .expect("integrity check");
+        assert_eq!(row.0, "ok", "Fresh migrated DB should pass integrity check");
+    }
+
+    #[tokio::test]
+    async fn core_tables_exist_after_migration() {
+        let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
+        db.migrate().await.expect("migrate");
+
+        let expected_tables = [
+            "documents",
+            "extracts",
+            "learning_items",
+            "review_results",
+            "study_statistics",
+            "folders",
+            "_schema_migrations",
+        ];
+
+        for table in &expected_tables {
+            let result: (i64,) = sqlx::query_as(&format!(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{}'", table
+            ))
+            .fetch_one(db.pool())
+            .await
+            .unwrap_or((0,));
+
+            assert_eq!(
+                result.0, 1,
+                "Table '{}' should exist after migrations",
+                table
+            );
+        }
     }
 
 }
