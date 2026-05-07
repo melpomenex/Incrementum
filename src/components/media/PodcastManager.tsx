@@ -15,6 +15,9 @@ import {
   X,
   Pause,
   AlertCircle,
+  Link,
+  Pencil,
+  ExternalLink,
 } from "lucide-react";
 import {
   type PodcastFeed,
@@ -29,7 +32,14 @@ import {
   formatDuration,
   isValidPodcastUrl,
   discoverPodcasts,
+  renamePodcastFeed,
 } from "../../api/podcast";
+import {
+  useContextMenu,
+  ContextMenu,
+  ContextMenuItemType,
+  type ContextMenuItem,
+} from "../common/ContextMenu";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
@@ -60,6 +70,14 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
   const [refreshErrors, setRefreshErrors] = useState<Record<string, string>>({});
   const migrationRun = useRef(false);
+
+  // Context menu state
+  const feedContextMenu = useContextMenu("feed-context-menu");
+  const episodeContextMenu = useContextMenu("episode-context-menu");
+  const [contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
+  const [contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
+  const [renamingFeed, setRenamingFeed] = useState<PodcastFeed | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
 
   const selectedFeed = feeds.find((f) => f.id === selectedFeedId) ?? null;
 
@@ -316,6 +334,146 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   // Get total unplayed count
   const totalUnplayed = feeds.reduce((acc, feed) => acc + (feed.unplayedCount ?? 0), 0);
 
+  // Feed context menu handler
+  const handleFeedContextMenu = useCallback(
+    (e: React.MouseEvent, feed: PodcastFeed) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextFeed(feed);
+      feedContextMenu.showMenu(
+        { x: e.clientX, y: e.clientY },
+        [
+          {
+            id: "refresh",
+            label: "Refresh",
+            icon: <RefreshCw className="w-4 h-4" />,
+            onClick: () => handleRefreshFeed(feed),
+          },
+          {
+            id: "mark-all-played",
+            label: "Mark All as Played",
+            icon: <CheckCircle2 className="w-4 h-4" />,
+            onClick: async () => {
+              const feedEpisodes = await getPodcastEpisodes(feed.id, true);
+              const unplayed = feedEpisodes.filter((ep) => !ep.played);
+              await Promise.all(unplayed.map((ep) => markEpisodePlayed(ep.id, true)));
+              if (selectedFeedId === feed.id) await loadEpisodes(feed.id);
+              loadFeeds();
+            },
+          },
+          {
+            id: "copy-feed-url",
+            label: "Copy Feed URL",
+            icon: <Link className="w-4 h-4" />,
+            onClick: () => {
+              navigator.clipboard.writeText(feed.feedUrl);
+            },
+          },
+          { id: "sep1", type: ContextMenuItemType.Separator, label: "" },
+          {
+            id: "rename",
+            label: "Rename",
+            icon: <Pencil className="w-4 h-4" />,
+            onClick: () => {
+              setRenamingFeed(feed);
+              setRenameTitle(feed.title);
+            },
+          },
+          { id: "sep2", type: ContextMenuItemType.Separator, label: "" },
+          {
+            id: "unsubscribe",
+            label: "Unsubscribe",
+            icon: <Trash2 className="w-4 h-4" />, 
+            type: ContextMenuItemType.Danger,
+            onClick: () => handleRemoveSubscription(feed.id),
+          },
+        ]
+      );
+    },
+    [feedContextMenu, loadFeeds, loadEpisodes, selectedFeedId]
+  );
+
+  // Episode context menu handler
+  const handleEpisodeContextMenu = useCallback(
+    (e: React.MouseEvent, episode: PodcastEpisode, feed: PodcastFeed) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextEpisode(episode);
+      episodeContextMenu.showMenu(
+        { x: e.clientX, y: e.clientY },
+        [
+          {
+            id: "play",
+            label: "Play",
+            icon: <Play className="w-4 h-4" />,
+            onClick: () => handlePlayEpisode(feed, episode),
+          },
+          {
+            id: "mark-played",
+            label: "Mark as Played",
+            icon: <CheckCircle2 className="w-4 h-4" />,
+            onClick: async () => {
+              await markEpisodePlayed(episode.id, true);
+              if (selectedFeedId === feed.id) await loadEpisodes(feed.id);
+              loadFeeds();
+            },
+          },
+          {
+            id: "mark-unplayed",
+            label: "Mark as Unplayed",
+            icon: <Circle className="w-4 h-4" />,
+            onClick: async () => {
+              await markEpisodePlayed(episode.id, false);
+              if (selectedFeedId === feed.id) await loadEpisodes(feed.id);
+              loadFeeds();
+            },
+          },
+          { id: "sep1", type: ContextMenuItemType.Separator, label: "" },
+          {
+            id: "copy-episode-url",
+            label: "Copy Episode URL",
+            icon: <Link className="w-4 h-4" />,
+            onClick: () => {
+              navigator.clipboard.writeText(episode.link || episode.audioUrl);
+            },
+          },
+          {
+            id: "open-show-notes",
+            label: "Open Show Notes",
+            icon: <ExternalLink className="w-4 h-4" />,
+            disabled: !episode.link,
+            onClick: () => {
+              if (episode.link) window.open(episode.link, "_blank");
+            },
+          },
+        ]
+      );
+    },
+    [episodeContextMenu, loadFeeds, loadEpisodes, selectedFeedId]
+  );
+
+  // Rename handler
+  const handleRenameFeed = async () => {
+    if (!renamingFeed || !renameTitle.trim()) return;
+    try {
+      await renamePodcastFeed(renamingFeed.id, renameTitle.trim());
+      setFeeds((prev) =>
+        prev.map((f) =>
+          f.id === renamingFeed.id ? { ...f, title: renameTitle.trim() } : f
+        )
+      );
+      toast.success("Renamed", `Podcast renamed to "${renameTitle.trim()}"`);
+    } catch (error) {
+      toast.error(
+        "Failed to rename",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    } finally {
+      setRenamingFeed(null);
+      setRenameTitle("");
+    }
+  };
+
   return (
     <div className="h-full flex relative">
       {/* Sidebar - Podcast List */}
@@ -385,6 +543,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   <button
                     key={feed.id}
                     onClick={() => setSelectedFeedId(feed.id)}
+                    onContextMenu={(e) => handleFeedContextMenu(e, feed)}
                     className={`w-full p-3 text-left hover:bg-muted transition-colors border-b border-border ${
                       selectedFeedId === feed.id ? "bg-muted/50" : ""
                     }`}
@@ -531,6 +690,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                           "p-4 bg-card border rounded-lg hover:border-primary/50 transition-colors",
                           playingEpisode?.episode.id === episode.id ? "border-primary" : "border-border"
                         )}
+                        onContextMenu={(e) => handleEpisodeContextMenu(e, episode, selectedFeed)}
                       >
                         <div className="flex items-start gap-3">
                           {/* Play button */}
@@ -750,6 +910,65 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feed Context Menu */}
+      <ContextMenu
+        menuId="feed-context-menu"
+        items={feedContextMenu.items}
+        visible={feedContextMenu.visible}
+        position={feedContextMenu.position}
+        onClose={feedContextMenu.hideMenu}
+      />
+
+      {/* Episode Context Menu */}
+      <ContextMenu
+        menuId="episode-context-menu"
+        items={episodeContextMenu.items}
+        visible={episodeContextMenu.visible}
+        position={episodeContextMenu.position}
+        onClose={episodeContextMenu.hideMenu}
+      />
+
+      {/* Rename Feed Dialog */}
+      {renamingFeed && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Rename Podcast</h2>
+            <input
+              type="text"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameFeed();
+                if (e.key === "Escape") {
+                  setRenamingFeed(null);
+                  setRenameTitle("");
+                }
+              }}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setRenamingFeed(null);
+                  setRenameTitle("");
+                }}
+                className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameFeed}
+                disabled={!renameTitle.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>

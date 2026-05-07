@@ -481,6 +481,7 @@ pub async fn start_server(
         .route("/api/podcast/feeds", get(handle_podcast_list_feeds))
         .route("/api/podcast/feeds/:feed_id", delete(handle_podcast_unsubscribe))
         .route("/api/podcast/feeds/:feed_id/refresh", post(handle_podcast_refresh_feed))
+        .route("/api/podcast/feeds/:feed_id/rename", post(handle_podcast_rename_feed))
         .route("/api/podcast/feeds/:feed_id/episodes", get(handle_podcast_get_episodes))
         .route("/api/podcast/feeds/episodes", get(handle_podcast_get_episode_queue))
         .route("/api/podcast/episodes/:episode_id/played", post(handle_podcast_mark_played))
@@ -2917,6 +2918,11 @@ struct UpdatePositionRequest {
     position: f64,
 }
 
+#[derive(Deserialize)]
+struct RenameFeedRequest {
+    new_title: String,
+}
+
 async fn handle_podcast_subscribe(
     State(state): State<ServerState>,
     Json(payload): Json<SubscribeRequest>,
@@ -2992,6 +2998,17 @@ async fn handle_podcast_subscribe(
         episode_count,
         unplayed_count: episode_count,
     })).into_response()
+}
+
+async fn handle_podcast_rename_feed(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+    Json(payload): Json<RenameFeedRequest>,
+) -> Response {
+    match state.repo.rename_podcast_feed(&feed_id, &payload.new_title).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
 }
 
 async fn handle_podcast_unsubscribe(

@@ -84,6 +84,12 @@ pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) ->
     })
 }
 
+/// Rename a podcast feed
+#[tauri::command]
+pub async fn rename_podcast_feed(feed_id: String, new_title: String, repo: State<'_, Repository>) -> Result<()> {
+    repo.rename_podcast_feed(&feed_id, &new_title).await
+}
+
 /// Unsubscribe from a podcast feed (CASCADE deletes episodes)
 #[tauri::command]
 pub async fn unsubscribe_podcast(feed_id: String, repo: State<'_, Repository>) -> Result<()> {

@@ -3591,6 +3591,15 @@ impl Repository {
         Ok(rows.iter().map(map_row_to_podcast_feed).collect())
     }
 
+    pub async fn rename_podcast_feed(&self, id: &str, new_title: &str) -> Result<()> {
+        sqlx::query("UPDATE podcast_feeds SET title = ?1 WHERE id = ?2")
+            .bind(new_title)
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
     pub async fn delete_podcast_feed(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM podcast_feeds WHERE id = ?")
             .bind(id)
