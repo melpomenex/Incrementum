@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.33.0] - 2026-05-07
+
+### Added
+- **Whisper transcription for podcast episodes** — Transcribe any podcast episode using local Whisper models (base, small, medium, large). Download audio, run transcription in the background with progress events, and store the full transcript text. Cancellation support for in-progress jobs.
+- **Auto-transcribe after feed refresh** — When a feed has `auto_transcribe = true`, up to 3 untranscribed episodes are automatically queued for background transcription after each feed refresh. Non-blocking: the refresh response returns immediately.
+- **Transcript → Extract generation** — Completed transcripts automatically create a Document record (with `podcast`/`transcript` tags) and 3-5 Extract records split at sentence boundaries, making podcast content reviewable in the incremental reading system.
+- **Auto-transcribe feed settings** — Per-feed toggle to automatically transcribe new episodes, with optional language override.
+- **Whisper model management** — Download, install, and select Whisper models through the transcription engine's ModelManager.
+
+### Changed
+- **Refactored transcription into shared helper** — `run_transcription_job` extracted from the Tauri command so both manual and auto-transcribe paths share identical logic.
+- **`refresh_podcast_feed` signature** — Now accepts `AppHandle` and transcription tokens to support auto-transcribe background spawning.
+
 ## [1.32.0] - 2026-05-07
 
 ### Added

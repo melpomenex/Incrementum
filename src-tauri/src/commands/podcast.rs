@@ -11,11 +11,14 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
 use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed};
+use crate::models::document::{Document, FileType};
+use crate::models::extract::Extract;
 use crate::podcast::parser::parse_podcast_feed;
 use crate::transcription::engine::TranscriptionEngine;
 use crate::transcription::model_manager::ModelManager;
 use crate::transcription::engine::TranscriptSegment;
 use chrono::Utc;
+use tokio::io::AsyncWriteExt;
 
 /// Subscribe to a podcast feed
 #[tauri::command]
@@ -127,9 +130,16 @@ pub async fn get_podcast_feeds(repo: State<'_, Repository>) -> Result<Vec<Podcas
     Ok(results)
 }
 
-/// Refresh a podcast feed (refetch RSS, upsert new episodes)
+/// Refresh a podcast feed (refetch RSS, upsert new episodes).
+/// If the feed has `auto_transcribe = true`, background transcription is spawned
+/// for up to 3 untranscribed episodes after the refresh completes.
 #[tauri::command]
-pub async fn refresh_podcast_feed(feed_id: String, repo: State<'_, Repository>) -> Result<PodcastFeedResponse> {
+pub async fn refresh_podcast_feed(
+    feed_id: String,
+    app_handle: AppHandle,
+    repo: State<'_, Repository>,
+    tokens: State<'_, PodcastTranscriptionTokens>,
+) -> Result<PodcastFeedResponse> {
     let feed = repo
         .get_podcast_feed(&feed_id)
         .await?
@@ -189,11 +199,53 @@ pub async fn refresh_podcast_feed(feed_id: String, repo: State<'_, Repository>) 
     let episode_count = repo.count_podcast_episodes(&feed_id).await?;
     let unplayed_count = repo.count_unplayed_podcast_episodes(&feed_id).await?;
 
-    Ok(PodcastFeedResponse {
-        feed: updated_feed,
+    let response = PodcastFeedResponse {
+        feed: updated_feed.clone(),
         episode_count,
         unplayed_count,
-    })
+    };
+
+    // ── Auto-transcribe background job ──────────────────────────────────
+    if updated_feed.auto_transcribe {
+        let bg_repo = repo.inner().clone();
+        let bg_tokens = tokens.inner().clone();
+        let bg_app = app_handle.clone();
+        let bg_feed_id = feed_id.clone();
+        let bg_language = updated_feed.transcribe_language.clone();
+
+        tokio::spawn(async move {
+            match bg_repo.get_untranscribed_episodes(&bg_feed_id).await {
+                Ok(episodes) => {
+                    for ep in episodes.into_iter().take(3) {
+                        let repo = bg_repo.clone();
+                        let tokens = bg_tokens.clone();
+                        let app = bg_app.clone();
+                        let lang = bg_language.clone();
+                        let ep_id = ep.id.clone();
+
+                        tokio::spawn(async move {
+                            // Background best-effort — errors are logged, not propagated
+                            if let Err(e) = run_transcription_job(
+                                ep_id,
+                                None,
+                                lang,
+                                app,
+                                repo,
+                                tokens,
+                            ).await {
+                                eprintln!("[auto-transcribe] Transcription failed: {}", e);
+                            }
+                        });
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[auto-transcribe] Failed to query untranscribed episodes: {}", e);
+                }
+            }
+        });
+    }
+
+    Ok(response)
 }
 
 /// Get episodes for a podcast feed
@@ -264,6 +316,27 @@ pub async fn transcribe_podcast_episode(
     repo: State<'_, Repository>,
     tokens: State<'_, PodcastTranscriptionTokens>,
 ) -> Result<()> {
+    run_transcription_job(
+        episode_id,
+        model,
+        language,
+        app_handle,
+        repo.inner().clone(),
+        tokens.inner().clone(),
+    )
+    .await
+}
+
+/// Shared transcription logic used by both manual invocation and auto-transcribe.
+/// Downloads audio, runs Whisper, stores transcript, creates Document + Extract records.
+async fn run_transcription_job(
+    episode_id: String,
+    model: Option<String>,
+    language: Option<String>,
+    app_handle: AppHandle,
+    repo: Repository,
+    tokens: PodcastTranscriptionTokens,
+) -> Result<()> {
     // 1. Get episode
     let episode = repo
         .get_podcast_episode_by_id(&episode_id)
@@ -277,7 +350,6 @@ pub async fn transcribe_podcast_episode(
     // 2. Set status to downloading
     repo.update_episode_transcript_status(&episode_id, "downloading", None, None).await?;
 
-    // Emit progress
     let _ = app_handle.emit(
         "podcast://transcription-progress",
         serde_json::json!({
@@ -296,7 +368,6 @@ pub async fn transcribe_podcast_episode(
     std::fs::create_dir_all(&temp_dir)
         .map_err(|e| IncrementumError::Internal(format!("Failed to create temp dir: {}", e)))?;
 
-    // Determine file extension from audio_url or audio_type
     let ext = episode
         .audio_type
         .as_deref()
@@ -411,7 +482,7 @@ pub async fn transcribe_podcast_episode(
             repo.update_episode_transcript_status(
                 &episode_id,
                 "error",
-                Some(&format!("No Whisper model installed. Download one in Settings > Audio Transcription.")),
+                Some("No Whisper model installed. Download one in Settings > Audio Transcription."),
                 None,
             ).await?;
             cleanup(&tokens, &episode_id);
@@ -428,7 +499,6 @@ pub async fn transcribe_podcast_episode(
     let app_clone = app_handle.clone();
     let ep_id = episode_id.clone();
 
-    // Check cancellation flag before proceeding
     if cancel_token.load(Ordering::Relaxed) {
         let _ = std::fs::remove_file(&temp_file);
         repo.update_episode_transcript_status(&episode_id, "error", Some("Cancelled"), None)
@@ -453,14 +523,13 @@ pub async fn transcribe_podcast_episode(
                 &lang,
                 move |seg| {
                     if cancel_clone.load(Ordering::Relaxed) {
-                        return; // Will check after completion
+                        return;
                     }
                     if let Ok(mut guard) = segments_clone.lock() {
                         guard.push(seg);
                     }
                 },
                 Some(Box::new(move |p: i32| {
-                    // Map 0-100 whisper progress to 30-100
                     let mapped = 30 + ((p as f64 / 100.0) * 70.0) as i32;
                     let _ = app_clone.emit(
                         "podcast://transcription-progress",
@@ -475,7 +544,6 @@ pub async fn transcribe_podcast_episode(
             .await
             .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
 
-        // Check cancellation after completion
         if cancel_post.load(Ordering::Relaxed) {
             return Err(IncrementumError::Internal("Transcription cancelled".to_string()));
         }
@@ -511,6 +579,12 @@ pub async fn transcribe_podcast_episode(
     repo.update_episode_transcript_status(&episode_id, "done", None, Some(&full_text))
         .await?;
 
+    // 10. Create Document + Extract records from transcript
+    if let Err(e) = create_transcript_extracts(&repo, &episode, &full_text).await {
+        eprintln!("[transcription] Failed to create transcript extracts for {}: {}", episode_id, e);
+        // Non-fatal — transcript itself is still stored
+    }
+
     // 11. Emit completion
     let _ = app_handle.emit(
         "podcast://transcription-complete",
@@ -523,6 +597,77 @@ pub async fn transcribe_podcast_episode(
 
     cleanup(&tokens, &episode_id);
     Ok(())
+}
+
+// ── Transcript → Extract generation ────────────────────────────────────────
+
+/// Create a Document and Extract records from a completed transcript so the
+/// content is reviewable in the Incrementum extract system.
+async fn create_transcript_extracts(
+    repo: &Repository,
+    episode: &PodcastEpisode,
+    full_text: &str,
+) -> Result<()> {
+    let text = full_text.trim();
+    if text.is_empty() {
+        return Ok(());
+    }
+
+    // Create a Document record for the transcript
+    let doc_title = format!("{} (Transcript)", episode.title);
+    let mut doc = Document::new(doc_title, format!("podcast://{}", episode.id), FileType::Other);
+    doc.content = Some(text.to_string());
+    doc.tags = vec!["podcast".to_string(), "transcript".to_string()];
+    doc.is_favorite = false;
+    let doc = repo.create_document(&doc).await?;
+
+    // Split transcript into chunks for Extract records.
+    // Target ~1500 chars per chunk, breaking at sentence boundaries.
+    let chunks = split_transcript_into_chunks(text, 1500);
+
+    for chunk in &chunks {
+        let mut extract = Extract::new(doc.id.clone(), chunk.clone());
+        extract.tags = vec!["podcast".to_string(), "transcript".to_string()];
+        extract.category = Some("podcast".to_string());
+        extract.source_url = Some(format!("podcast://{}", episode.id));
+        repo.create_extract(&extract).await?;
+    }
+
+    Ok(())
+}
+
+/// Split text into chunks of roughly `target_len` characters at sentence boundaries.
+fn split_transcript_into_chunks(text: &str, target_len: usize) -> Vec<String> {
+    let sentences: Vec<&str> = text
+        .split(|c: char| c == '.' || c == '!' || c == '?' || c == '\n')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if sentences.is_empty() {
+        return vec![];
+    }
+
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+
+    for sentence in sentences {
+        // Add separator if not the first sentence in the chunk
+        if !current.is_empty() {
+            if current.len() + sentence.len() + 2 > target_len && !current.is_empty() {
+                chunks.push(std::mem::take(&mut current));
+            } else {
+                current.push(' ');
+            }
+        }
+        current.push_str(sentence);
+    }
+
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+
+    chunks
 }
 
 /// Get the transcript for a podcast episode
@@ -539,7 +684,6 @@ pub async fn get_podcast_transcript(
     let status = episode.transcript_status.clone();
     let text = episode.transcript_text.unwrap_or_default();
 
-    // If there's no transcript text yet, return early
     if text.is_empty() {
         return Ok(PodcastTranscriptResponse {
             text,
@@ -548,10 +692,10 @@ pub async fn get_podcast_transcript(
         });
     }
 
-    // For now, return the full text as a single "segment" since we don't
-    // store individual segments in the DB for podcast transcripts.
-    // The Whisper engine produces segments during transcription but they're
-    // concatenated. Future enhancement: store segments separately.
+    // Return the full text as a single segment.
+    // The Whisper engine produces segments during transcription but they are
+    // concatenated into the stored transcript. Individual segment timestamps
+    // could be added in a future enhancement.
     let segments = vec![TranscriptSegmentInfo {
         start_ms: 0,
         end_ms: episode.duration.unwrap_or(0) * 1000,
@@ -593,5 +737,3 @@ pub async fn set_feed_auto_transcribe(
 ) -> Result<()> {
     repo.set_feed_auto_transcribe(&feed_id, enabled, language.as_deref()).await
 }
-
-use tokio::io::AsyncWriteExt;
