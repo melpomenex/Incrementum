@@ -1108,7 +1108,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
       {/* Inline podcast player */}
       {playingEpisode && (
-        <div className="border-t border-border bg-card max-h-48 overflow-hidden flex-shrink-0">
+        <div className="border-t border-border bg-card h-64 flex-shrink-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border">
             <span className="text-sm font-medium text-foreground truncate">
               Now Playing: {playingEpisode.episode.title}
