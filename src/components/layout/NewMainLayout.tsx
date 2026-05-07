@@ -236,6 +236,7 @@ interface MobileBottomBarProps {
 const mobilePrimaryItems = [
   { id: "dashboard", label: "nav.dashboard", icon: Home },
   { id: "documents", label: "nav.documents", icon: BookOpen },
+  { id: "podcast", label: "podcastManager.podcasts", icon: Headphones },
   { id: "image-registry", label: "nav.images", icon: Images },
   { id: "queue", label: "nav.queue", icon: Layers },
   { id: "settings", label: "nav.settings", icon: Settings },
@@ -244,6 +245,7 @@ const mobilePrimaryItems = [
 const mobileSecondaryItems = [
   { id: "continue-reading", label: "nav.continue", icon: BookMarked },
   { id: "image-registry", label: "nav.images", icon: Images },
+  { id: "podcast", label: "podcastManager.podcasts", icon: Headphones },
   { id: "knowledge-graph", label: "nav.graph", icon: Network },
   { id: "analytics", label: "nav.analytics", icon: BarChart3 },
 ] as const;
