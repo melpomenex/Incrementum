@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.31.0] - 2026-05-07
+
+### Added
+- **Recommendation engine** — Relevance scoring with classifier, tag affinity, rating history, and semantic similarity signals for smarter queue ordering
+- **AI keychain storage** — AIKeyStore with OS keychain integration and AES-256-GCM encrypted file fallback for API key persistence
+- **Relevance indicator** — Visual component showing document relevance scores in the queue
+- **Scroll overlay controls** — New `ScrollOverlayControls` and `ScrollQueueSettings` components for queue scroll mode
+- **CI regression gate** — Automated security tests covering SQLi, path traversal, and SSRF prevention
+- **Database integrity check** — Startup validation of SQLite database integrity
+- **OpenSpec proposals** — Comprehensive audit remediation, recommendation engine, audiobook queue freeze fix, and session filter fixes
+
+### Fixed
+- **Audiobook queue freeze** — Blocking 8-second `probeMediaSource()` call skipped for audio files, preventing UI freeze in scroll mode
+- **Session customization filters not applied** — Customize Session modal filters (tags, categories, priority, suspended) now correctly affect the visible queue list, not just preview cards
+- **API key exposure** — AI config endpoint now redacts keys, showing only the last 4 characters
+- **AuthStore thread safety** — Wrapped provider fields in `Arc` for safe cloning across threads
+- **WAL/synchronous PRAGMAs** — Moved to `SqliteConnectOptions` so every pool connection inherits them
+
+### Changed
+- **Code splitting** — Lazy-loaded page components (LoginModal, WelcomeScreen, etc.) with `React.lazy` + `Suspense` for smaller initial bundle
+- **Vite chunking** — Configured manual chunks for better cache performance
+- **Font loading** — Improved with self-hosted fallbacks and `font-display: swap`
+- **Removed redundant `loadDocuments()` call** from App bootstrap
+
 ## [1.30.2] - 2026-05-06
 
 ### Fixed
