@@ -18,10 +18,16 @@ import {
   Link,
   Pencil,
   ExternalLink,
+  FileAudio,
+  FileText,
+  MessageSquare,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   type PodcastFeed,
   type PodcastEpisode,
+  type PodcastTranscriptResponse,
   subscribeToPodcast,
   unsubscribeFromPodcast,
   getSubscribedPodcasts,
@@ -33,7 +39,12 @@ import {
   isValidPodcastUrl,
   discoverPodcasts,
   renamePodcastFeed,
+  transcribePodcastEpisode,
+  getPodcastTranscript,
+  cancelPodcastTranscription,
+  setFeedAutoTranscribe,
 } from "../../api/podcast";
+import { isTauri, listen } from "../../lib/tauri";
 import {
   useContextMenu,
   ContextMenu,
@@ -74,10 +85,73 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   // Context menu state
   const feedContextMenu = useContextMenu("feed-context-menu");
   const episodeContextMenu = useContextMenu("episode-context-menu");
+
+  // Listen for transcription events (Tauri only)
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const unlisten1 = listen<{ episodeId: string; status: string; progress: number; message?: string }>(
+      "podcast://transcription-progress",
+      (e) => {
+        const { episodeId, status, progress } = e.payload;
+        setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status, progress }));
+      },
+    );
+
+    const unlisten2 = listen<{ episodeId: string; segmentCount: number; duration: number }>(
+      "podcast://transcription-complete",
+      (e) => {
+        const { episodeId } = e.payload;
+        setTranscriptionProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+        // Reload episodes to get updated transcript status
+        if (selectedFeedIdRef.current) {
+          loadEpisodes(selectedFeedIdRef.current);
+        }
+        loadFeeds();
+      },
+    );
+
+    const unlisten3 = listen<{ episodeId: string; error: string }>(
+      "podcast://transcription-error",
+      (e) => {
+        const { episodeId, error } = e.payload;
+        setTranscriptionProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+        toast.error("Transcription failed", error);
+        // Reload episodes to show error state
+        if (selectedFeedIdRef.current) {
+          loadEpisodes(selectedFeedIdRef.current);
+        }
+      },
+    );
+
+    return () => {
+      unlisten1.then((f) => f());
+      unlisten2.then((f) => f());
+      unlisten3.then((f) => f());
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
   const [contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
   const [renamingFeed, setRenamingFeed] = useState<PodcastFeed | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
+
+  // Transcription state
+  const [transcriptionProgress, setTranscriptionProgress] = useState<Map<string, { status: string; progress: number }>>(new Map());
+  const [viewingTranscript, setViewingTranscript] = useState<{ episode: PodcastEpisode; transcript: PodcastTranscriptResponse } | null>(null);
+  const [transcriptSearchQuery, setTranscriptSearchQuery] = useState("");
+  const [transcriptCopied, setTranscriptCopied] = useState(false);
+  const [langDialogFeed, setLangDialogFeed] = useState<PodcastFeed | null>(null);
+  const [langDialogValue, setLangDialogValue] = useState("");
+  const selectedFeedIdRef = useRef(selectedFeedId);
+  selectedFeedIdRef.current = selectedFeedId;
 
   const selectedFeed = feeds.find((f) => f.id === selectedFeedId) ?? null;
 
@@ -371,6 +445,20 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
           },
           { id: "sep1", type: ContextMenuItemType.Separator, label: "" },
           {
+            id: "auto-transcribe",
+            label: "Auto-Transcribe New Episodes",
+            icon: <FileAudio className="w-4 h-4" />,
+            type: ContextMenuItemType.Checkbox,
+            checked: feed.autoTranscribe,
+            onClick: () => handleToggleAutoTranscribe(feed),
+          },
+          {
+            id: "set-language",
+            label: "Set Transcription Language",
+            onClick: () => handleSetTranscriptionLanguage(feed),
+          },
+          { id: "sep1b", type: ContextMenuItemType.Separator, label: "" },
+          {
             id: "rename",
             label: "Rename",
             icon: <Pencil className="w-4 h-4" />,
@@ -471,6 +559,116 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     } finally {
       setRenamingFeed(null);
       setRenameTitle("");
+    }
+  };
+
+  // Transcription handlers
+  const handleTranscribe = async (episodeId: string) => {
+    try {
+      setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "starting", progress: 0 }));
+      await transcribePodcastEpisode(episodeId);
+    } catch (error) {
+      setTranscriptionProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(episodeId);
+        return next;
+      });
+      toast.error(
+        "Failed to start transcription",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    }
+  };
+
+  const handleCancelTranscription = async (episodeId: string) => {
+    try {
+      await cancelPodcastTranscription(episodeId);
+      setTranscriptionProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(episodeId);
+        return next;
+      });
+      if (selectedFeedId) loadEpisodes(selectedFeedId);
+    } catch (error) {
+      toast.error("Failed to cancel", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleViewTranscript = async (episode: PodcastEpisode) => {
+    try {
+      const transcript = await getPodcastTranscript(episode.id);
+      setViewingTranscript({ episode, transcript });
+      setTranscriptSearchQuery("");
+      setTranscriptCopied(false);
+    } catch (error) {
+      toast.error("Failed to load transcript", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleCopyTranscript = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setTranscriptCopied(true);
+      setTimeout(() => setTranscriptCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const handleChatAboutThis = async (episode: PodcastEpisode, feed: PodcastFeed) => {
+    // Create a document with the transcript for the assistant
+    const transcriptText = episode.transcriptText || (await getPodcastTranscript(episode.id)).text;
+    if (!transcriptText) {
+      toast.error("No transcript available", "Transcribe the episode first");
+      return;
+    }
+
+    try {
+      const { createDocument } = await import("../../api/documents");
+      const title = `${episode.title} (Transcript)`;
+      const doc = await createDocument(title, `podcast://${episode.id}`, "transcript");
+      // Update the document content with the transcript text
+      const { updateDocumentContent } = await import("../../api/documents");
+      await updateDocumentContent(doc.id, transcriptText);
+      toast.success("Document created", `Created "${title}" for AI chat`);
+    } catch (error) {
+      toast.error("Failed to create document", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleToggleAutoTranscribe = async (feed: PodcastFeed) => {
+    try {
+      const newEnabled = !feed.autoTranscribe;
+      await setFeedAutoTranscribe(feed.id, newEnabled, feed.transcribeLanguage || undefined);
+      setFeeds((prev) =>
+        prev.map((f) => (f.id === feed.id ? { ...f, autoTranscribe: newEnabled } : f))
+      );
+      toast.success(
+        newEnabled ? "Auto-transcribe enabled" : "Auto-transcribe disabled",
+        newEnabled ? `New episodes of "${feed.title}" will be transcribed automatically` : `"${feed.title}" won't auto-transcribe new episodes`
+      );
+    } catch (error) {
+      toast.error("Failed to update", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleSetTranscriptionLanguage = async (feed: PodcastFeed) => {
+    setLangDialogFeed(feed);
+    setLangDialogValue(feed.transcribeLanguage || "en");
+  };
+
+  const handleSaveTranscriptionLanguage = async () => {
+    if (!langDialogFeed) return;
+    try {
+      await setFeedAutoTranscribe(langDialogFeed.id, langDialogFeed.autoTranscribe, langDialogValue || undefined);
+      setFeeds((prev) =>
+        prev.map((f) => (f.id === langDialogFeed.id ? { ...f, transcribeLanguage: langDialogValue || null } : f))
+      );
+      setLangDialogFeed(null);
+      setLangDialogValue("");
+      toast.success("Language updated");
+    } catch (error) {
+      toast.error("Failed to update language", error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -697,6 +895,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                           <button
                             onClick={() => handlePlayEpisode(selectedFeed, episode)}
                             className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity flex items-center justify-center"
+                            title={playingEpisode?.episode.id === episode.id ? "Pause" : "Play"}
                           >
                             {playingEpisode?.episode.id === episode.id ? (
                               <Pause className="w-5 h-5" fill="currentColor" />
@@ -716,6 +915,62 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                               Now Playing
                             </div>
                           )}
+
+                          {/* Transcription status indicators */}
+                          {(() => {
+                            const progress = transcriptionProgress.get(episode.id);
+                            if (progress) {
+                              // In progress
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-shrink-0 w-10 h-10 border border-primary/30 rounded-full flex items-center justify-center">
+                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                  </div>
+                                </div>
+                              );
+                            }
+                            if (episode.transcriptStatus === "done") {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleViewTranscript(episode)}
+                                    className="flex-shrink-0 w-10 h-10 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center"
+                                    title="View Transcript"
+                                  >
+                                    <FileText className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleChatAboutThis(episode, selectedFeed)}
+                                    className="flex-shrink-0 w-10 h-10 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center"
+                                    title="Chat About This"
+                                  >
+                                    <MessageSquare className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              );
+                            }
+                            if (episode.transcriptStatus === "error") {
+                              return (
+                                <button
+                                  onClick={() => handleTranscribe(episode.id)}
+                                  className="flex-shrink-0 w-10 h-10 border border-destructive/30 text-destructive rounded-full hover:bg-destructive/10 transition-colors flex items-center justify-center"
+                                  title={`Retry transcription: ${episode.transcriptError || "Unknown error"}`}
+                                >
+                                  <AlertCircle className="w-5 h-5" />
+                                </button>
+                              );
+                            }
+                            // No transcript yet
+                            return (
+                              <button
+                                onClick={() => handleTranscribe(episode.id)}
+                                className="flex-shrink-0 w-10 h-10 border border-border text-muted-foreground rounded-full hover:text-foreground hover:border-primary/50 transition-colors flex items-center justify-center"
+                                title="Transcribe with Whisper"
+                              >
+                                <FileAudio className="w-5 h-5" />
+                              </button>
+                            );
+                          })()}
 
                           {/* Episode info */}
                           <div className="flex-1 min-w-0">
@@ -746,6 +1001,63 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                                 </span>
                               )}
                             </div>
+
+                            {/* Transcription progress bar */}
+                            {(() => {
+                              const progress = transcriptionProgress.get(episode.id);
+                              if (!progress) {
+                                // Error state
+                                if (episode.transcriptStatus === "error") {
+                                  return (
+                                    <div className="mt-2 flex items-center gap-2 text-xs">
+                                      <span className="text-destructive">Transcription Failed: {episode.transcriptError || "Unknown error"}</span>
+                                      <button
+                                        onClick={() => handleTranscribe(episode.id)}
+                                        className="text-primary hover:underline"
+                                      >
+                                        Retry
+                                      </button>
+                                    </div>
+                                  );
+                                }
+                                // Done state
+                                if (episode.transcriptStatus === "done") {
+                                  return (
+                                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                      <FileText className="w-3 h-3" />
+                                      <span>Transcript available</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }
+                              return (
+                                <div className="mt-2 space-y-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">
+                                      {progress.status === "downloading"
+                                        ? "Downloading audio..."
+                                        : progress.status === "starting"
+                                        ? "Starting transcription..."
+                                        : `Transcribing... ${progress.progress}%`}
+                                    </span>
+                                    <button
+                                      onClick={() => handleCancelTranscription(episode.id)}
+                                      className="text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Cancel"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all duration-300 rounded-full"
+                                      style={{ width: `${Math.max(progress.progress, 5)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Actions */}
@@ -910,6 +1222,163 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transcript Viewer Panel */}
+      {viewingTranscript && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setViewingTranscript(null)}
+          />
+          {/* Panel */}
+          <div className="relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg">
+            {/* Header */}
+            <div className="p-4 border-b border-border flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-foreground truncate">
+                  {viewingTranscript.episode.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Transcript
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingTranscript(null)}
+                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Actions bar */}
+            <div className="p-3 border-b border-border flex items-center gap-2">
+              <button
+                onClick={() => handleCopyTranscript(viewingTranscript.transcript.text)}
+                className={cn(
+                  "px-3 py-1.5 text-xs rounded-lg flex items-center gap-1 transition-colors",
+                  transcriptCopied
+                    ? "bg-green-500/10 text-green-600"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                {transcriptCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {transcriptCopied ? "Copied" : "Copy"}
+              </button>
+              <button
+                onClick={() => {
+                  const feed = feeds.find((f) => f.id === viewingTranscript.episode.feedId);
+                  if (feed) {
+                    handleChatAboutThis(viewingTranscript.episode, feed);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg flex items-center gap-1 transition-colors"
+              >
+                <MessageSquare className="w-3 h-3" />
+                Chat About This
+              </button>
+              {/* Search */}
+              <div className="flex-1" />
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={transcriptSearchQuery}
+                  onChange={(e) => setTranscriptSearchQuery(e.target.value)}
+                  placeholder="Search transcript..."
+                  className="pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-36"
+                />
+              </div>
+            </div>
+
+            {/* Transcript content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {viewingTranscript.transcript.segments.length > 0 ? (
+                viewingTranscript.transcript.segments
+                  .filter((seg) =>
+                    !transcriptSearchQuery ||
+                    seg.text.toLowerCase().includes(transcriptSearchQuery.toLowerCase())
+                  )
+                  .map((seg, i) => {
+                    const startSec = seg.start / 1000;
+                    const mm = String(Math.floor(startSec / 60)).padStart(2, "0");
+                    const ss = String(Math.floor(startSec % 60)).padStart(2, "0");
+                    return (
+                      <div key={i} className="mb-3">
+                        <span className="text-[10px] text-muted-foreground font-mono mr-2">[{mm}:{ss}]</span>
+                        <span className="text-sm text-foreground leading-relaxed">{seg.text}</span>
+                      </div>
+                    );
+                  })
+              ) : (
+                // No segments — show full text with search filter
+                <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {transcriptSearchQuery
+                    ? viewingTranscript.transcript.text
+                        .split(/(?<=[.!?])\s+/)
+                        .filter((sentence) =>
+                          sentence.toLowerCase().includes(transcriptSearchQuery.toLowerCase())
+                        )
+                        .join(" ")
+                    : viewingTranscript.transcript.text}
+                  {transcriptSearchQuery &&
+                    viewingTranscript.transcript.text
+                      .split(/(?<=[.!?])\s+/)
+                      .filter((s) => s.toLowerCase().includes(transcriptSearchQuery.toLowerCase()))
+                      .length === 0 && (
+                      <p className="text-muted-foreground mt-2">No matches found.</p>
+                    )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Set Transcription Language Dialog */}
+      {langDialogFeed && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Set Transcription Language</h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Language code for Whisper transcription (e.g., "en", "es", "fr", "de"). Use "auto" for auto-detect.
+            </p>
+            <input
+              type="text"
+              value={langDialogValue}
+              onChange={(e) => setLangDialogValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveTranscriptionLanguage();
+                if (e.key === "Escape") {
+                  setLangDialogFeed(null);
+                  setLangDialogValue("");
+                }
+              }}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-4"
+              placeholder="en"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setLangDialogFeed(null);
+                  setLangDialogValue("");
+                }}
+                className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTranscriptionLanguage}
+                disabled={!langDialogValue.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>

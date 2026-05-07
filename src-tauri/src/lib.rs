@@ -557,6 +557,9 @@ pub fn run() {
                     auto_queue: transcription::auto_queue::AutoTranscriptionQueue::new(app.handle().clone(), repo.clone()),
                 });
 
+                // Podcast transcription cancellation tokens
+                app.manage(commands::podcast::PodcastTranscriptionTokens::default());
+
                 // Check and import demo content in the background so it doesn't
                 // block app startup.
                 let demo_repo = repo.clone();
@@ -1100,6 +1103,11 @@ pub fn run() {
             commands::mark_episode_played,
             commands::update_episode_position,
             commands::get_episode_position,
+            // Podcast transcription commands
+            commands::podcast::transcribe_podcast_episode,
+            commands::podcast::get_podcast_transcript,
+            commands::podcast::cancel_podcast_transcription,
+            commands::podcast::set_feed_auto_transcribe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
