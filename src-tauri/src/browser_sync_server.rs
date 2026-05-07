@@ -68,6 +68,8 @@ use crate::commands::rss_features::{
 use crate::commands::review::apply_review;
 use crate::database::Repository;
 use crate::error::AppError;
+use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode};
+use crate::podcast::parser::parse_podcast_feed;
 use crate::models::{Document, DocumentImageAsset, FileType, Extract, ItemType, LearningItem};
 use tauri::{AppHandle, Emitter};
 use axum::{
@@ -474,6 +476,15 @@ pub async fn start_server(
         // Document progress endpoints
         .route("/api/documents/:id", get(handle_get_document))
         .route("/api/documents/:id/progress", post(handle_update_progress))
+        // Podcast endpoints
+        .route("/api/podcast/subscribe", post(handle_podcast_subscribe))
+        .route("/api/podcast/feeds", get(handle_podcast_list_feeds))
+        .route("/api/podcast/feeds/:feed_id", delete(handle_podcast_unsubscribe))
+        .route("/api/podcast/feeds/:feed_id/refresh", post(handle_podcast_refresh_feed))
+        .route("/api/podcast/feeds/:feed_id/episodes", get(handle_podcast_get_episodes))
+        .route("/api/podcast/feeds/episodes", get(handle_podcast_get_episode_queue))
+        .route("/api/podcast/episodes/:episode_id/played", post(handle_podcast_mark_played))
+        .route("/api/podcast/episodes/:episode_id/position", post(handle_podcast_update_position).get(handle_podcast_get_position))
         // Automation API endpoints
         .route("/api/automation/cards", post(handle_automation_create_card))
         .route("/api/automation/reviews/due-count", get(handle_automation_due_count))
@@ -2885,6 +2896,262 @@ pub async fn rotate_automation_api_key() -> Result<String, AppError> {
     config.api_key = Some(new_key.clone());
     save_config(&config)?;
     Ok(new_key)
+}
+
+// ============================================================================
+// Podcast HTTP handlers
+// ============================================================================
+
+#[derive(Deserialize)]
+struct SubscribeRequest {
+    feed_url: String,
+}
+
+#[derive(Deserialize)]
+struct MarkPlayedRequest {
+    played: bool,
+}
+
+#[derive(Deserialize)]
+struct UpdatePositionRequest {
+    position: f64,
+}
+
+async fn handle_podcast_subscribe(
+    State(state): State<ServerState>,
+    Json(payload): Json<SubscribeRequest>,
+) -> Response {
+    // Check if already subscribed
+    if let Ok(Some(existing)) = state.repo.get_podcast_feed_by_url(&payload.feed_url).await {
+        let episode_count = state.repo.count_podcast_episodes(&existing.id).await.unwrap_or(0);
+        let unplayed_count = state.repo.count_unplayed_podcast_episodes(&existing.id).await.unwrap_or(0);
+        return (StatusCode::OK, Json(PodcastFeedResponse {
+            feed: existing,
+            episode_count,
+            unplayed_count,
+        })).into_response();
+    }
+
+    // Fetch and parse the feed
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .user_agent("Incrementum/1.31.0")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to build HTTP client: {}", e)),
+    };
+
+    let response = match client.get(&payload.feed_url).send().await {
+        Ok(r) => r,
+        Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to fetch podcast feed: {}", e)),
+    };
+
+    if !response.status().is_success() {
+        return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to fetch podcast feed: HTTP {}", response.status()));
+    }
+
+    let xml = match response.text().await {
+        Ok(t) => t,
+        Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to read feed response: {}", e)),
+    };
+
+    let parsed = match parse_podcast_feed(&xml) {
+        Ok(p) => p,
+        Err(e) => return error_response(StatusCode::UNPROCESSABLE_ENTITY, &format!("Failed to parse podcast feed: {}", e)),
+    };
+
+    let feed_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let feed = PodcastFeed {
+        id: feed_id.clone(),
+        title: parsed.title,
+        description: parsed.description,
+        image_url: parsed.image_url,
+        author: parsed.author,
+        language: parsed.language,
+        link: parsed.link,
+        feed_url: payload.feed_url.clone(),
+        last_fetched: Some(now.clone()),
+        subscribed_at: now,
+        sort_order: 0,
+    };
+
+    if let Err(e) = state.repo.insert_podcast_feed(&feed).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+    if let Err(e) = state.repo.insert_podcast_episodes_bulk(&feed_id, &parsed.episodes).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+
+    let episode_count = parsed.episodes.len() as i64;
+    (StatusCode::OK, Json(PodcastFeedResponse {
+        feed,
+        episode_count,
+        unplayed_count: episode_count,
+    })).into_response()
+}
+
+async fn handle_podcast_unsubscribe(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+) -> Response {
+    match state.repo.delete_podcast_feed(&feed_id).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_list_feeds(
+    State(state): State<ServerState>,
+) -> Response {
+    match state.repo.get_podcast_feeds().await {
+        Ok(feeds) => {
+            let mut results = Vec::new();
+            for feed in feeds {
+                let episode_count = state.repo.count_podcast_episodes(&feed.id).await.unwrap_or(0);
+                let unplayed_count = state.repo.count_unplayed_podcast_episodes(&feed.id).await.unwrap_or(0);
+                results.push(PodcastFeedResponse { feed, episode_count, unplayed_count });
+            }
+            (StatusCode::OK, Json(results)).into_response()
+        }
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_refresh_feed(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+) -> Response {
+    let feed = match state.repo.get_podcast_feed(&feed_id).await {
+        Ok(Some(f)) => f,
+        Ok(None) => return error_response(StatusCode::NOT_FOUND, &format!("Podcast feed {} not found", feed_id)),
+        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+
+    let feed_url = feed.feed_url.clone();
+
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .user_agent("Incrementum/1.31.0")
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to build HTTP client: {}", e)),
+    };
+
+    let response = match client.get(&feed_url).send().await {
+        Ok(r) => r,
+        Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to fetch podcast feed: {}", e)),
+    };
+
+    if !response.status().is_success() {
+        return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to fetch podcast feed: HTTP {}", response.status()));
+    }
+
+    let xml = match response.text().await {
+        Ok(t) => t,
+        Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("Failed to read feed response: {}", e)),
+    };
+
+    let parsed = match parse_podcast_feed(&xml) {
+        Ok(p) => p,
+        Err(e) => return error_response(StatusCode::UNPROCESSABLE_ENTITY, &format!("Failed to parse podcast feed: {}", e)),
+    };
+
+    let mut updated_feed = feed.clone();
+    updated_feed.title = parsed.title;
+    updated_feed.description = parsed.description;
+    if parsed.image_url.is_some() { updated_feed.image_url = parsed.image_url; }
+    if parsed.author.is_some() { updated_feed.author = parsed.author; }
+    let now = chrono::Utc::now().to_rfc3339();
+    updated_feed.last_fetched = Some(now.clone());
+
+    if let Err(e) = state.repo.update_podcast_feed_metadata(&updated_feed).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+    if let Err(e) = state.repo.update_podcast_feed_last_fetched(&feed_id, &now).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+    if let Err(e) = state.repo.insert_podcast_episodes_bulk(&feed_id, &parsed.episodes).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+
+    let episode_count = state.repo.count_podcast_episodes(&feed_id).await.unwrap_or(0);
+    let unplayed_count = state.repo.count_unplayed_podcast_episodes(&feed_id).await.unwrap_or(0);
+
+    (StatusCode::OK, Json(PodcastFeedResponse {
+        feed: updated_feed,
+        episode_count,
+        unplayed_count,
+    })).into_response()
+}
+
+async fn handle_podcast_get_episodes(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let include_played = params.get("include_played").map(|v| v == "true").unwrap_or(true);
+    match state.repo.get_podcast_episodes(&feed_id, Some(include_played)).await {
+        Ok(episodes) => (StatusCode::OK, Json(episodes)).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_get_episode_queue(
+    State(state): State<ServerState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let include_played = params.get("include_played").map(|v| v == "true").unwrap_or(false);
+    // Get episodes across all feeds
+    match state.repo.get_podcast_feeds().await {
+        Ok(feeds) => {
+            let mut all_episodes: Vec<PodcastEpisode> = Vec::new();
+            for feed in feeds {
+                if let Ok(episodes) = state.repo.get_podcast_episodes(&feed.id, Some(include_played)).await {
+                    all_episodes.extend(episodes);
+                }
+            }
+            (StatusCode::OK, Json(all_episodes)).into_response()
+        }
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_mark_played(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+    Json(payload): Json<MarkPlayedRequest>,
+) -> Response {
+    match state.repo.update_episode_played(&episode_id, payload.played).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_update_position(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+    Json(payload): Json<UpdatePositionRequest>,
+) -> Response {
+    match state.repo.update_episode_position(&episode_id, payload.position).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_get_position(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+) -> Response {
+    match state.repo.get_episode_position(&episode_id).await {
+        Ok(pos) => (StatusCode::OK, Json(json!({"position": pos}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
 }
 
 /// Initialize browser sync server (called on app startup)

@@ -14,6 +14,7 @@ import {
   Loader2,
   X,
   Pause,
+  AlertCircle,
 } from "lucide-react";
 import {
   type PodcastFeed,
@@ -57,6 +58,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
+  const [refreshErrors, setRefreshErrors] = useState<Record<string, string>>({});
   const migrationRun = useRef(false);
 
   const selectedFeed = feeds.find((f) => f.id === selectedFeedId) ?? null;
@@ -155,15 +157,22 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     setIsAdding(true);
     try {
       const feed = await subscribeToPodcast(newFeedUrl);
+      // Only add the feed and close the dialog on success
       setFeeds((prev) => [...prev, feed]);
       setSelectedFeedId(feed.id);
       setShowAddDialog(false);
       setNewFeedUrl("");
       toast.success("Subscribed", `Added "${feed.title}"`);
     } catch (error) {
+      // Show a descriptive error — don't add a broken feed
+      const msg = error instanceof Error ? error.message : "Unknown error";
       toast.error(
         "Failed to subscribe",
-        error instanceof Error ? error.message : "Unknown error"
+        msg.includes("fetch")
+          ? "Could not reach the feed URL. Check the address and try again."
+          : msg.includes("parse")
+            ? "The URL doesn't appear to be a valid podcast feed."
+            : msg
       );
     } finally {
       setIsAdding(false);
@@ -233,16 +242,22 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   // Refresh feed
   const handleRefreshFeed = async (feed: PodcastFeed) => {
     setIsRefreshing(feed.id);
+    // Clear previous error for this feed while refreshing
+    setRefreshErrors((prev) => {
+      const next = { ...prev };
+      delete next[feed.id];
+      return next;
+    });
     try {
       const updated = await refreshFeed(feed.id);
       setFeeds((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
       await loadEpisodes(feed.id);
       toast.success("Refreshed", `"${updated.title}" updated`);
     } catch (error) {
-      toast.error(
-        "Refresh failed",
-        error instanceof Error ? error.message : "Unknown error"
-      );
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      toast.error("Refresh failed", msg);
+      // Store the error so we can show a retry button — do NOT clear episodes
+      setRefreshErrors((prev) => ({ ...prev, [feed.id]: msg }));
     } finally {
       setIsRefreshing(null);
     }
@@ -390,8 +405,13 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-foreground truncate">
+                        <h3 className="text-sm font-medium text-foreground truncate flex items-center gap-1">
                           {feed.title}
+                          {refreshErrors[feed.id] && (
+                            <span title={`Refresh failed: ${refreshErrors[feed.id]}`}>
+                              <AlertCircle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                            </span>
+                          )}
                         </h3>
                         {feed.author && (
                           <p className="text-xs text-muted-foreground truncate">
@@ -451,14 +471,19 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                     <button
                       onClick={() => handleRefreshFeed(selectedFeed)}
                       disabled={isRefreshing === selectedFeed.id}
-                      className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                      className={cn(
+                        "px-3 py-1.5 text-sm rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1",
+                        refreshErrors[selectedFeed.id]
+                          ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/30"
+                          : "bg-secondary text-secondary-foreground"
+                      )}
                     >
                       {isRefreshing === selectedFeed.id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         <RefreshCw className="w-3 h-3" />
                       )}
-                      Refresh
+                      {refreshErrors[selectedFeed.id] ? "Retry" : "Refresh"}
                     </button>
                     <button
                       onClick={() => handleRemoveSubscription(selectedFeed.id)}
