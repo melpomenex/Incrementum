@@ -1108,8 +1108,8 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
       {/* Inline podcast player */}
       {playingEpisode && (
-        <div className="border-t border-border bg-card h-64 flex-shrink-0">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+        <div className="border-t border-border bg-card h-64 flex-shrink-0 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
             <span className="text-sm font-medium text-foreground truncate">
               Now Playing: {playingEpisode.episode.title}
             </span>
@@ -1120,6 +1120,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
+          <div className="flex-1 min-h-0">
           <AudiobookViewer
             document={{
               id: playingEpisode.episode.id,
@@ -1139,6 +1140,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             podcastTitle={playingEpisode.feed.title}
             onEpisodeEnded={handleEpisodeEnded}
           />
+          </div>
         </div>
       )}
 
