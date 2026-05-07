@@ -444,7 +444,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       </div>
 
       {/* Main Content - Episodes */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {selectedFeed ? (
           <>
             {/* Feed Header */}
@@ -498,7 +498,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             </div>
 
             {/* Episodes List */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
               {isLoadingEpisodes ? (
                 <div className="flex items-center justify-center h-32">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -636,7 +636,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
       {/* Inline podcast player */}
       {playingEpisode && (
-        <div className="border-t border-border bg-card">
+        <div className="border-t border-border bg-card max-h-48 overflow-hidden flex-shrink-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border">
             <span className="text-sm font-medium text-foreground truncate">
               Now Playing: {playingEpisode.episode.title}
