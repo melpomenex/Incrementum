@@ -25,6 +25,8 @@ export interface PodcastFeed {
   sortOrder: number;
   episodeCount: number;
   unplayedCount: number;
+  autoTranscribe: boolean;
+  transcribeLanguage?: string | null;
 }
 
 /**
@@ -46,6 +48,10 @@ export interface PodcastEpisode {
   played: boolean;
   playbackPosition: number; // seconds
   dateAdded: string;
+  transcriptStatus: string;
+  transcriptError?: string | null;
+  transcribedAt?: string | null;
+  transcriptText?: string | null;
 }
 
 // ============================================================================
@@ -258,6 +264,103 @@ export async function getEpisodePosition(episodeId: string): Promise<number> {
     return data.position ?? 0;
   }
   return invokeCommand<number>("get_episode_position", { episodeId });
+}
+
+// ============================================================================
+// Transcription API
+// ============================================================================
+
+export interface TranscriptSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface PodcastTranscriptResponse {
+  text: string;
+  segments: TranscriptSegment[];
+  status: string;
+}
+
+/**
+ * Start transcription for a podcast episode.
+ */
+export async function transcribePodcastEpisode(
+  episodeId: string,
+  model?: string,
+  language?: string,
+): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("transcribe_podcast_episode", { episodeId, model, language });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/transcribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model ?? null, language: language ?? null }),
+    });
+    if (!res.ok) throw new Error(`Failed to start transcription: ${res.statusText}`);
+    return;
+  }
+  // browser: no-op
+  console.warn("[Browser] transcribePodcastEpisode: no-op in browser fallback mode");
+}
+
+/**
+ * Get transcript for a podcast episode.
+ */
+export async function getPodcastTranscript(
+  episodeId: string,
+): Promise<PodcastTranscriptResponse> {
+  if (isTauri()) {
+    return invokeCommand<PodcastTranscriptResponse>("get_podcast_transcript", { episodeId });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/transcript`);
+    if (!res.ok) throw new Error(`Failed to get transcript: ${res.statusText}`);
+    return res.json();
+  }
+  throw new Error("Transcripts not available in browser fallback mode");
+}
+
+/**
+ * Cancel an in-progress transcription.
+ */
+export async function cancelPodcastTranscription(episodeId: string): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("cancel_podcast_transcription", { episodeId });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/cancel-transcription`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error(`Failed to cancel transcription: ${res.statusText}`);
+    return;
+  }
+  console.warn("[Browser] cancelPodcastTranscription: no-op in browser fallback mode");
+}
+
+/**
+ * Set auto-transcribe for a feed.
+ */
+export async function setFeedAutoTranscribe(
+  feedId: string,
+  enabled: boolean,
+  language?: string,
+): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("set_feed_auto_transcribe", { feedId, enabled, language });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/feeds/${feedId}/auto-transcribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled, language: language ?? null }),
+    });
+    if (!res.ok) throw new Error(`Failed to set auto-transcribe: ${res.statusText}`);
+    return;
+  }
+  console.warn("[Browser] setFeedAutoTranscribe: no-op in browser fallback mode");
 }
 
 // ============================================================================

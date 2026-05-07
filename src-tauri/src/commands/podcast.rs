@@ -1,10 +1,20 @@
 //! Podcast subscription commands
 
-use tauri::State;
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use futures_util::StreamExt;
+use serde::{Serialize, Deserialize};
+use tauri::{AppHandle, Emitter, Manager, State};
 use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
 use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed};
 use crate::podcast::parser::parse_podcast_feed;
+use crate::transcription::engine::TranscriptionEngine;
+use crate::transcription::model_manager::ModelManager;
+use crate::transcription::engine::TranscriptSegment;
 use chrono::Utc;
 
 /// Subscribe to a podcast feed
@@ -67,6 +77,8 @@ pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) ->
         last_fetched: Some(now.clone()),
         subscribed_at: now,
         sort_order: 0,
+        auto_transcribe: false,
+        transcribe_language: None,
     };
 
     // Insert feed into DB
@@ -222,3 +234,364 @@ pub async fn get_episode_position(
 ) -> Result<f64> {
     repo.get_episode_position(&episode_id).await
 }
+
+// ── Podcast transcription ──────────────────────────────────────────────────
+
+/// Managed state for podcast transcription cancellation tokens
+pub type PodcastTranscriptionTokens = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PodcastTranscriptResponse {
+    pub text: String,
+    pub segments: Vec<TranscriptSegmentInfo>,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TranscriptSegmentInfo {
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub text: String,
+}
+
+/// Transcribe a podcast episode using Whisper
+#[tauri::command]
+pub async fn transcribe_podcast_episode(
+    episode_id: String,
+    model: Option<String>,
+    language: Option<String>,
+    app_handle: AppHandle,
+    repo: State<'_, Repository>,
+    tokens: State<'_, PodcastTranscriptionTokens>,
+) -> Result<()> {
+    // 1. Get episode
+    let episode = repo
+        .get_podcast_episode_by_id(&episode_id)
+        .await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
+
+    let audio_url = episode.audio_url.clone();
+    let model_id = model.unwrap_or_else(|| "base".to_string());
+    let lang = language.unwrap_or_else(|| "auto".to_string());
+
+    // 2. Set status to downloading
+    repo.update_episode_transcript_status(&episode_id, "downloading", None, None).await?;
+
+    // Emit progress
+    let _ = app_handle.emit(
+        "podcast://transcription-progress",
+        serde_json::json!({
+            "episodeId": &episode_id,
+            "status": "downloading",
+            "progress": 0
+        }),
+    );
+
+    // 3. Download audio to temp file
+    let temp_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| IncrementumError::Internal(e.to_string()))?
+        .join("temp_transcription");
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create temp dir: {}", e)))?;
+
+    // Determine file extension from audio_url or audio_type
+    let ext = episode
+        .audio_type
+        .as_deref()
+        .and_then(|t| t.split('/').last())
+        .unwrap_or("mp3");
+    let temp_file = temp_dir.join(format!("{}_episode.{}", episode_id, ext));
+
+    // Insert cancellation token
+    let cancel_token = Arc::new(AtomicBool::new(false));
+    {
+        let mut map = tokens.lock().unwrap();
+        map.insert(episode_id.clone(), cancel_token.clone());
+    }
+
+    // Cleanup token when done (success or error)
+    let cleanup = |tokens: &PodcastTranscriptionTokens, id: &str| {
+        if let Ok(mut map) = tokens.lock() {
+            map.remove(id);
+        }
+    };
+
+    // Download with streaming progress
+    let download_result: std::result::Result<(), IncrementumError> = async {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(300))
+            .build()
+            .map_err(|e| IncrementumError::Internal(format!("HTTP client error: {}", e)))?;
+
+        let response = client
+            .get(&audio_url)
+            .send()
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Download failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(IncrementumError::Internal(format!(
+                "Download failed: HTTP {}",
+                response.status()
+            )));
+        }
+
+        let total_size = response.content_length().unwrap_or(0);
+        let mut downloaded: u64 = 0;
+        let mut file = tokio::fs::File::create(&temp_file)
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to create temp file: {}", e)))?;
+
+        let mut stream = response.bytes_stream();
+        while let Some(item) = stream.next().await {
+            if cancel_token.load(Ordering::Relaxed) {
+                return Err(IncrementumError::Internal("Transcription cancelled".to_string()));
+            }
+            let chunk = item
+                .map_err(|e| IncrementumError::Internal(format!("Download stream error: {}", e)))?;
+            file.write_all(&chunk)
+                .await
+                .map_err(|e| IncrementumError::Internal(format!("Write error: {}", e)))?;
+            downloaded += chunk.len() as u64;
+
+            if total_size > 0 {
+                let download_pct = (downloaded as f64 / total_size as f64) * 30.0;
+                let _ = app_handle.emit(
+                    "podcast://transcription-progress",
+                    serde_json::json!({
+                        "episodeId": &episode_id,
+                        "status": "downloading",
+                        "progress": download_pct as i32
+                    }),
+                );
+            }
+        }
+        file.flush()
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Flush error: {}", e)))?;
+        Ok(())
+    }
+    .await;
+
+    if let Err(e) = download_result {
+        let _ = std::fs::remove_file(&temp_file);
+        repo.update_episode_transcript_status(&episode_id, "error", Some(&e.to_string()), None)
+            .await?;
+        cleanup(&tokens, &episode_id);
+        return Err(e);
+    }
+
+    // 5. Set status to transcribing
+    repo.update_episode_transcript_status(&episode_id, "transcribing", None, None).await?;
+    let _ = app_handle.emit(
+        "podcast://transcription-progress",
+        serde_json::json!({
+            "episodeId": &episode_id,
+            "status": "transcribing",
+            "progress": 30
+        }),
+    );
+
+    // 6. Prepare + transcribe using TranscriptionEngine
+    let model_manager = ModelManager::new(&app_handle)
+        .map_err(|e| IncrementumError::Internal(e.to_string()))?;
+
+    let mut selected_model = model_id;
+    if !model_manager.is_model_installed(&selected_model) {
+        if let Some(fallback) = model_manager
+            .list_profiles()
+            .into_iter()
+            .find(|p| model_manager.is_model_installed(&p.id))
+        {
+            selected_model = fallback.id;
+        } else {
+            let _ = std::fs::remove_file(&temp_file);
+            repo.update_episode_transcript_status(
+                &episode_id,
+                "error",
+                Some(&format!("No Whisper model installed. Download one in Settings > Audio Transcription.")),
+                None,
+            ).await?;
+            cleanup(&tokens, &episode_id);
+            return Err(IncrementumError::InvalidInput(
+                "No Whisper model installed.".to_string(),
+            ));
+        }
+    }
+
+    let engine = TranscriptionEngine::new(app_handle.clone());
+    let segments: Arc<Mutex<Vec<TranscriptSegment>>> = Arc::new(Mutex::new(Vec::new()));
+    let segments_clone = segments.clone();
+    let cancel_clone = cancel_token.clone();
+    let app_clone = app_handle.clone();
+    let ep_id = episode_id.clone();
+
+    // Check cancellation flag before proceeding
+    if cancel_token.load(Ordering::Relaxed) {
+        let _ = std::fs::remove_file(&temp_file);
+        repo.update_episode_transcript_status(&episode_id, "error", Some("Cancelled"), None)
+            .await?;
+        cleanup(&tokens, &episode_id);
+        return Err(IncrementumError::Internal("Transcription cancelled".to_string()));
+    }
+
+    let transcribe_result = async {
+        let prepared = engine
+            .prepare_audio(Path::new(&temp_file))
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Audio preparation failed: {}", e)))?;
+
+        let model_path = model_manager.get_model_path(&selected_model);
+
+        let cancel_post = cancel_clone.clone();
+        engine
+            .transcribe(
+                &prepared,
+                &model_path,
+                &lang,
+                move |seg| {
+                    if cancel_clone.load(Ordering::Relaxed) {
+                        return; // Will check after completion
+                    }
+                    if let Ok(mut guard) = segments_clone.lock() {
+                        guard.push(seg);
+                    }
+                },
+                Some(Box::new(move |p: i32| {
+                    // Map 0-100 whisper progress to 30-100
+                    let mapped = 30 + ((p as f64 / 100.0) * 70.0) as i32;
+                    let _ = app_clone.emit(
+                        "podcast://transcription-progress",
+                        serde_json::json!({
+                            "episodeId": &ep_id,
+                            "status": "transcribing",
+                            "progress": mapped
+                        }),
+                    );
+                })),
+            )
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+
+        // Check cancellation after completion
+        if cancel_post.load(Ordering::Relaxed) {
+            return Err(IncrementumError::Internal("Transcription cancelled".to_string()));
+        }
+
+        Ok::<(), IncrementumError>(())
+    }
+    .await;
+
+    // Cleanup temp file
+    let _ = std::fs::remove_file(&temp_file);
+
+    if let Err(e) = transcribe_result {
+        repo.update_episode_transcript_status(&episode_id, "error", Some(&e.to_string()), None)
+            .await?;
+        cleanup(&tokens, &episode_id);
+        return Err(e);
+    }
+
+    // 8. Concatenate segments into full transcript text
+    let mut segments_vec = {
+        let mut guard = segments.lock().unwrap_or_else(|e| e.into_inner());
+        guard.sort_by(|a, b| a.start_ms.cmp(&b.start_ms));
+        guard.clone()
+    };
+
+    let full_text: String = segments_vec
+        .iter()
+        .map(|s| s.text.trim())
+        .collect::<Vec<&str>>()
+        .join(" ");
+
+    // 9. Store transcript in DB
+    repo.update_episode_transcript_status(&episode_id, "done", None, Some(&full_text))
+        .await?;
+
+    // 11. Emit completion
+    let _ = app_handle.emit(
+        "podcast://transcription-complete",
+        serde_json::json!({
+            "episodeId": &episode_id,
+            "segmentCount": segments_vec.len(),
+            "duration": episode.duration
+        }),
+    );
+
+    cleanup(&tokens, &episode_id);
+    Ok(())
+}
+
+/// Get the transcript for a podcast episode
+#[tauri::command]
+pub async fn get_podcast_transcript(
+    episode_id: String,
+    repo: State<'_, Repository>,
+) -> Result<PodcastTranscriptResponse> {
+    let episode = repo
+        .get_podcast_episode_by_id(&episode_id)
+        .await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
+
+    let status = episode.transcript_status.clone();
+    let text = episode.transcript_text.unwrap_or_default();
+
+    // If there's no transcript text yet, return early
+    if text.is_empty() {
+        return Ok(PodcastTranscriptResponse {
+            text,
+            segments: Vec::new(),
+            status,
+        });
+    }
+
+    // For now, return the full text as a single "segment" since we don't
+    // store individual segments in the DB for podcast transcripts.
+    // The Whisper engine produces segments during transcription but they're
+    // concatenated. Future enhancement: store segments separately.
+    let segments = vec![TranscriptSegmentInfo {
+        start_ms: 0,
+        end_ms: episode.duration.unwrap_or(0) * 1000,
+        text: text.clone(),
+    }];
+
+    Ok(PodcastTranscriptResponse {
+        text,
+        segments,
+        status,
+    })
+}
+
+/// Cancel an in-progress podcast transcription
+#[tauri::command]
+pub async fn cancel_podcast_transcription(
+    episode_id: String,
+    tokens: State<'_, PodcastTranscriptionTokens>,
+) -> Result<()> {
+    let map = tokens.lock().unwrap();
+    if let Some(token) = map.get(&episode_id) {
+        token.store(true, Ordering::Relaxed);
+        Ok(())
+    } else {
+        Err(IncrementumError::NotFound(format!(
+            "No active transcription for episode {}",
+            episode_id
+        )))
+    }
+}
+
+/// Set auto-transcribe settings for a podcast feed
+#[tauri::command]
+pub async fn set_feed_auto_transcribe(
+    feed_id: String,
+    enabled: bool,
+    language: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    repo.set_feed_auto_transcribe(&feed_id, enabled, language.as_deref()).await
+}
+
+use tokio::io::AsyncWriteExt;

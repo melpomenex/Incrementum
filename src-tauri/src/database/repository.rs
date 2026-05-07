@@ -3539,8 +3539,9 @@ impl Repository {
             r#"
             INSERT INTO podcast_feeds (
                 id, title, description, image_url, author, language,
-                link, feed_url, last_fetched, subscribed_at, sort_order
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                link, feed_url, last_fetched, subscribed_at, sort_order,
+                auto_transcribe, transcribe_language
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             "#,
         )
         .bind(&feed.id)
@@ -3554,6 +3555,8 @@ impl Repository {
         .bind(&feed.last_fetched)
         .bind(&feed.subscribed_at)
         .bind(feed.sort_order)
+        .bind(feed.auto_transcribe as i32)
+        .bind(&feed.transcribe_language)
         .execute(self.pool())
         .await?;
         Ok(())
@@ -3787,6 +3790,84 @@ impl Repository {
         .await?;
         Ok(result.0)
     }
+
+    // ── Podcast transcription helpers ────────────────────────────────────────
+
+    pub async fn get_podcast_episode_by_id(&self, episode_id: &str) -> Result<Option<crate::models::podcast::PodcastEpisode>> {
+        let row = sqlx::query("SELECT * FROM podcast_episodes WHERE id = ?")
+            .bind(episode_id)
+            .fetch_optional(self.pool())
+            .await?;
+        match row {
+            Some(row) => Ok(Some(map_row_to_podcast_episode(&row))),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn update_episode_transcript_status(
+        &self,
+        episode_id: &str,
+        status: &str,
+        error: Option<&str>,
+        transcript: Option<&str>,
+    ) -> Result<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            r#"
+            UPDATE podcast_episodes
+            SET transcript_status = ?1,
+                transcript_error = ?2,
+                transcript_text = COALESCE(?3, transcript_text),
+                transcribed_at = CASE WHEN ?1 = 'done' THEN ?4 ELSE transcribed_at END
+            WHERE id = ?5
+            "#,
+        )
+        .bind(status)
+        .bind(error)
+        .bind(transcript)
+        .bind(&now)
+        .bind(episode_id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn set_feed_auto_transcribe(
+        &self,
+        feed_id: &str,
+        enabled: bool,
+        language: Option<&str>,
+    ) -> Result<()> {
+        sqlx::query(
+            "UPDATE podcast_feeds SET auto_transcribe = ?1, transcribe_language = ?2 WHERE id = ?3"
+        )
+        .bind(enabled as i32)
+        .bind(language)
+        .bind(feed_id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_untranscribed_episodes(
+        &self,
+        feed_id: &str,
+    ) -> Result<Vec<crate::models::podcast::PodcastEpisode>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT * FROM podcast_episodes
+            WHERE feed_id = ?
+              AND (transcript_status IS NULL OR transcript_status = 'none')
+              AND audio_url IS NOT NULL
+              AND audio_url != ''
+            ORDER BY published_date DESC
+            "#,
+        )
+        .bind(feed_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(map_row_to_podcast_episode).collect())
+    }
 }
 
 // Helper struct for study statistics rows
@@ -3819,6 +3900,8 @@ fn map_row_to_podcast_feed(row: &SqliteRow) -> PodcastFeed {
         last_fetched: row.try_get("last_fetched").ok().flatten(),
         subscribed_at: row.get("subscribed_at"),
         sort_order: row.get("sort_order"),
+        auto_transcribe: row.try_get("auto_transcribe").unwrap_or(0) != 0,
+        transcribe_language: row.try_get("transcribe_language").ok().flatten(),
     }
 }
 
@@ -3840,6 +3923,10 @@ fn map_row_to_podcast_episode(row: &SqliteRow) -> PodcastEpisode {
         played: played != 0,
         playback_position: row.try_get("playback_position").unwrap_or(0.0),
         date_added: row.get("date_added"),
+        transcript_text: row.try_get("transcript_text").ok().flatten(),
+        transcript_status: row.try_get("transcript_status").unwrap_or_else(|_| "none".to_string()),
+        transcript_error: row.try_get("transcript_error").ok().flatten(),
+        transcribed_at: row.try_get("transcribed_at").ok().flatten(),
     }
 }
 

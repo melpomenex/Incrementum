@@ -16,6 +16,8 @@ pub struct PodcastFeed {
     pub last_fetched: Option<String>,
     pub subscribed_at: String,
     pub sort_order: i32,
+    pub auto_transcribe: bool,
+    pub transcribe_language: Option<String>,
 }
 
 /// Response type for podcast feed with episode count
@@ -45,6 +47,10 @@ pub struct PodcastEpisode {
     pub played: bool,
     pub playback_position: f64,
     pub date_added: String,
+    pub transcript_text: Option<String>,
+    pub transcript_status: String,
+    pub transcript_error: Option<String>,
+    pub transcribed_at: Option<String>,
 }
 
 /// Parsed podcast feed from RSS XML (intermediate struct before DB insert)

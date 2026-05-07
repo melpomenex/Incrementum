@@ -71,7 +71,7 @@ use crate::error::AppError;
 use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode};
 use crate::podcast::parser::parse_podcast_feed;
 use crate::models::{Document, DocumentImageAsset, FileType, Extract, ItemType, LearningItem};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -486,6 +486,10 @@ pub async fn start_server(
         .route("/api/podcast/feeds/episodes", get(handle_podcast_get_episode_queue))
         .route("/api/podcast/episodes/:episode_id/played", post(handle_podcast_mark_played))
         .route("/api/podcast/episodes/:episode_id/position", post(handle_podcast_update_position).get(handle_podcast_get_position))
+        .route("/api/podcast/episodes/:episode_id/transcribe", post(handle_podcast_transcribe))
+        .route("/api/podcast/episodes/:episode_id/transcript", get(handle_podcast_get_transcript))
+        .route("/api/podcast/episodes/:episode_id/cancel-transcription", post(handle_podcast_cancel_transcription))
+        .route("/api/podcast/feeds/:feed_id/auto-transcribe", post(handle_podcast_set_auto_transcribe))
         // Automation API endpoints
         .route("/api/automation/cards", post(handle_automation_create_card))
         .route("/api/automation/reviews/due-count", get(handle_automation_due_count))
@@ -2983,6 +2987,8 @@ async fn handle_podcast_subscribe(
         last_fetched: Some(now.clone()),
         subscribed_at: now,
         sort_order: 0,
+        auto_transcribe: false,
+        transcribe_language: None,
     };
 
     if let Err(e) = state.repo.insert_podcast_feed(&feed).await {
@@ -3167,6 +3173,226 @@ async fn handle_podcast_get_position(
 ) -> Response {
     match state.repo.get_episode_position(&episode_id).await {
         Ok(pos) => (StatusCode::OK, Json(json!({"position": pos}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+#[derive(Deserialize)]
+struct TranscribeRequest {
+    model: Option<String>,
+    language: Option<String>,
+}
+
+async fn handle_podcast_transcribe(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+    Json(payload): Json<TranscribeRequest>,
+) -> Response {
+    // Get episode
+    let episode = match state.repo.get_podcast_episode_by_id(&episode_id).await {
+        Ok(Some(ep)) => ep,
+        Ok(None) => return error_response(StatusCode::NOT_FOUND, "Episode not found"),
+        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+
+    let audio_url = episode.audio_url.clone();
+    let model_id = payload.model.unwrap_or_else(|| "base".to_string());
+    let lang = payload.language.unwrap_or_else(|| "auto".to_string());
+    let ep_id = episode_id.clone();
+    let ep_duration = episode.duration.unwrap_or(0);
+    let app_handle = state.app_handle.clone();
+    let repo = state.repo.clone();
+
+    // Set status to downloading
+    if let Err(e) = repo.update_episode_transcript_status(&episode_id, "downloading", None, None).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+    }
+    let _ = app_handle.emit(
+        "podcast://transcription-progress",
+        serde_json::json!({ "episodeId": &episode_id, "status": "downloading", "progress": 0 }),
+    );
+
+    // Spawn the full transcription pipeline (download + transcribe)
+    tokio::spawn(async move {
+        use crate::transcription::engine::{TranscriptionEngine, TranscriptSegment};
+        use crate::transcription::model_manager::ModelManager;
+        use tokio::io::AsyncWriteExt;
+        use std::sync::{Arc, Mutex};
+
+        // --- Download audio ---
+        let temp_dir = match app_handle.path().app_data_dir() {
+            Ok(d) => d.join("temp_transcription"),
+            Err(e) => {
+                let _ = repo.update_episode_transcript_status(&ep_id, "error", Some(&format!("{}", e)), None).await;
+                let _ = app_handle.emit("podcast://transcription-error", serde_json::json!({ "episodeId": &ep_id, "error": e.to_string() }));
+                return;
+            }
+        };
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let ext = "mp3";
+        let temp_file = temp_dir.join(format!("{}_episode.{}", ep_id, ext));
+
+        let download_ok = async {
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(300))
+                .build().map_err(|e| format!("HTTP client error: {}", e))?;
+            let response = client.get(&audio_url).send().await
+                .map_err(|e| format!("Download failed: {}", e))?;
+            if !response.status().is_success() {
+                return Err(format!("Download failed: HTTP {}", response.status()));
+            }
+            let total_size = response.content_length().unwrap_or(0);
+            let mut downloaded: u64 = 0;
+            let mut file = tokio::fs::File::create(&temp_file).await
+                .map_err(|e| format!("Failed to create temp file: {}", e))?;
+            let mut stream = response.bytes_stream();
+            use futures_util::StreamExt;
+            while let Some(item) = stream.next().await {
+                let chunk = item.map_err(|e| format!("Download stream error: {}", e))?;
+                file.write_all(&chunk).await
+                    .map_err(|e| format!("Write error: {}", e))?;
+                downloaded += chunk.len() as u64;
+                if total_size > 0 {
+                    let pct = (downloaded as f64 / total_size as f64) * 30.0;
+                    let _ = app_handle.emit("podcast://transcription-progress", serde_json::json!({
+                        "episodeId": &ep_id, "status": "downloading", "progress": pct as i32
+                    }));
+                }
+            }
+            file.flush().await
+                .map_err(|e| format!("Flush error: {}", e))?;
+            Ok::<(), String>(())
+        }.await;
+
+        if let Err(e) = download_ok {
+            let _ = std::fs::remove_file(&temp_file);
+            let _ = repo.update_episode_transcript_status(&ep_id, "error", Some(&e), None).await;
+            let _ = app_handle.emit("podcast://transcription-error", serde_json::json!({ "episodeId": &ep_id, "error": e }));
+            return;
+        }
+
+        // --- Transcribe ---
+        let _ = repo.update_episode_transcript_status(&ep_id, "transcribing", None, None).await;
+        let _ = app_handle.emit("podcast://transcription-progress", serde_json::json!({
+            "episodeId": &ep_id, "status": "transcribing", "progress": 30
+        }));
+
+        let model_manager = match ModelManager::new(&app_handle) {
+            Ok(m) => m,
+            Err(e) => {
+                let _ = std::fs::remove_file(&temp_file);
+                let _ = repo.update_episode_transcript_status(&ep_id, "error", Some(&format!("{}", e)), None).await;
+                let _ = app_handle.emit("podcast://transcription-error", serde_json::json!({ "episodeId": &ep_id, "error": e.to_string() }));
+                return;
+            }
+        };
+
+        let mut selected_model = model_id;
+        if !model_manager.is_model_installed(&selected_model) {
+            if let Some(fallback) = model_manager.list_profiles().into_iter().find(|p| model_manager.is_model_installed(&p.id)) {
+                selected_model = fallback.id;
+            } else {
+                let _ = std::fs::remove_file(&temp_file);
+                let err_msg = "No Whisper model installed. Download one in Settings > Audio Transcription.";
+                let _ = repo.update_episode_transcript_status(&ep_id, "error", Some(err_msg), None).await;
+                let _ = app_handle.emit("podcast://transcription-error", serde_json::json!({ "episodeId": &ep_id, "error": err_msg }));
+                return;
+            }
+        }
+
+        let engine = TranscriptionEngine::new(app_handle.clone());
+        let segments: Arc<Mutex<Vec<TranscriptSegment>>> = Arc::new(Mutex::new(Vec::new()));
+        let segments_clone = segments.clone();
+        let app_clone = app_handle.clone();
+        let ep_id_clone = ep_id.clone();
+
+        let transcribe_result = async {
+            let prepared = engine.prepare_audio(std::path::Path::new(&temp_file)).await
+                .map_err(|e| format!("Audio preparation failed: {}", e))?;
+            let model_path = model_manager.get_model_path(&selected_model);
+            engine.transcribe(
+                &prepared, &model_path, &lang,
+                move |seg| {
+                    if let Ok(mut guard) = segments_clone.lock() {
+                        guard.push(seg);
+                    }
+                },
+                Some(Box::new(move |p: i32| {
+                    let mapped = 30 + ((p as f64 / 100.0) * 70.0) as i32;
+                    let _ = app_clone.emit("podcast://transcription-progress", serde_json::json!({
+                        "episodeId": &ep_id_clone, "status": "transcribing", "progress": mapped
+                    }));
+                })),
+            ).await.map_err(|e| format!("Transcription failed: {}", e))?;
+            Ok::<(), String>(())
+        }.await;
+
+        let _ = std::fs::remove_file(&temp_file);
+
+        match transcribe_result {
+            Ok(()) => {
+                let mut segs = {
+                    let mut guard = segments.lock().unwrap_or_else(|e| e.into_inner());
+                    guard.sort_by(|a, b| a.start_ms.cmp(&b.start_ms));
+                    guard.clone()
+                };
+                let full_text: String = segs.iter().map(|s| s.text.trim()).collect::<Vec<&str>>().join(" ");
+                let _ = repo.update_episode_transcript_status(&ep_id, "done", None, Some(&full_text)).await;
+                let _ = app_handle.emit("podcast://transcription-complete", serde_json::json!({
+                    "episodeId": &ep_id, "segmentCount": segs.len(), "duration": ep_duration
+                }));
+            }
+            Err(e) => {
+                let _ = repo.update_episode_transcript_status(&ep_id, "error", Some(&e), None).await;
+                let _ = app_handle.emit("podcast://transcription-error", serde_json::json!({ "episodeId": &ep_id, "error": e }));
+            }
+        }
+    });
+
+    (StatusCode::OK, Json(json!({"ok": true}))).into_response()
+}
+
+async fn handle_podcast_get_transcript(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+) -> Response {
+    match state.repo.get_podcast_episode_by_id(&episode_id).await {
+        Ok(Some(episode)) => {
+            (StatusCode::OK, Json(json!({
+                "text": episode.transcript_text,
+                "segments": [],
+                "status": episode.transcript_status,
+            }))).into_response()
+        }
+        Ok(None) => error_response(StatusCode::NOT_FOUND, "Episode not found"),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+async fn handle_podcast_cancel_transcription(
+    State(state): State<ServerState>,
+    axum::extract::Path(episode_id): axum::extract::Path<String>,
+) -> Response {
+    // Reset status to none
+    match state.repo.update_episode_transcript_status(&episode_id, "none", None, None).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
+#[derive(Deserialize)]
+struct AutoTranscribeRequest {
+    enabled: bool,
+    language: Option<String>,
+}
+
+async fn handle_podcast_set_auto_transcribe(
+    State(state): State<ServerState>,
+    axum::extract::Path(feed_id): axum::extract::Path<String>,
+    Json(payload): Json<AutoTranscribeRequest>,
+) -> Response {
+    match state.repo.set_feed_auto_transcribe(&feed_id, payload.enabled, payload.language.as_deref()).await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true}))).into_response(),
         Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }

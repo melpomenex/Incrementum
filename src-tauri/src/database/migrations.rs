@@ -1579,6 +1579,21 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_podcast_episodes_published ON podcast_episodes(published_date);
         "#,
     ),
+    // Migration 044: Add podcast transcript columns
+    Migration::new(
+        "044_add_podcast_transcript_columns",
+        r#"
+        -- podcast_episodes transcript columns
+        ALTER TABLE podcast_episodes ADD COLUMN transcript_text TEXT DEFAULT NULL;
+        ALTER TABLE podcast_episodes ADD COLUMN transcript_status TEXT DEFAULT 'none';
+        ALTER TABLE podcast_episodes ADD COLUMN transcript_error TEXT DEFAULT NULL;
+        ALTER TABLE podcast_episodes ADD COLUMN transcribed_at TEXT DEFAULT NULL;
+
+        -- podcast_feeds auto-transcribe settings
+        ALTER TABLE podcast_feeds ADD COLUMN auto_transcribe INTEGER DEFAULT 0;
+        ALTER TABLE podcast_feeds ADD COLUMN transcribe_language TEXT DEFAULT NULL;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path
