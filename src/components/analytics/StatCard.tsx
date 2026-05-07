@@ -1,3 +1,4 @@
+import React from "react";
 import { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
@@ -20,7 +21,7 @@ const colorClasses = {
   red: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
-export function StatCard({
+export const StatCard = React.memo(function StatCard({
   title,
   value,
   icon: Icon,
@@ -60,4 +61,4 @@ export function StatCard({
       </div>
     </div>
   );
-}
+});

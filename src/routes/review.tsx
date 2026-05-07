@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useReviewStore } from "../stores/reviewStore";
 import { ReviewCard } from "../components/review/ReviewCard";
 import { RatingButtons } from "../components/review/RatingButtons";
@@ -45,7 +46,31 @@ export function Review() {
     setPendingReviewMetadata,
     nextCard,
     resetSession,
-  } = useReviewStore();
+  } = useReviewStore(useShallow(state => ({
+    currentCard: state.currentCard,
+    queue: state.queue,
+    isLoading: state.isLoading,
+    isAnswerShown: state.isAnswerShown,
+    isSubmitting: state.isSubmitting,
+    error: state.error,
+    reviewsCompleted: state.reviewsCompleted,
+    correctCount: state.correctCount,
+    sessionStartTime: state.sessionStartTime,
+    currentIndex: state.currentIndex,
+    streak: state.streak,
+    reviewMode: state.reviewMode,
+    canUndoLastReview: state.canUndoLastReview,
+    lastUndoError: state.lastUndoError,
+    getEstimatedTimeRemaining: state.getEstimatedTimeRemaining,
+    loadQueue: state.loadQueue,
+    showAnswer: state.showAnswer,
+    submitRating: state.submitRating,
+    undoLastReview: state.undoLastReview,
+    setReviewMode: state.setReviewMode,
+    setPendingReviewMetadata: state.setPendingReviewMetadata,
+    nextCard: state.nextCard,
+    resetSession: state.resetSession,
+  })));
   const [typedAnswer, setTypedAnswer] = useState("");
   const [typedFeedback, setTypedFeedback] = useState<{
     correct: boolean;

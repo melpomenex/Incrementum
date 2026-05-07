@@ -243,6 +243,12 @@ mod tests {
             progress: 0,
             source: None,
             position: None,
+            stability: None,
+            difficulty: None,
+            interval: None,
+            retrievability: None,
+            lapses: None,
+            reps: None,
         }
     }
 
@@ -267,6 +273,12 @@ mod tests {
             progress: 0,
             source: None,
             position: None,
+            stability: None,
+            difficulty: None,
+            interval: None,
+            retrievability: None,
+            lapses: None,
+            reps: None,
         }
     }
 
@@ -387,6 +399,12 @@ mod tests {
                 progress: 0,
                 source: None,
                 position: None,
+                stability: None,
+                difficulty: None,
+                interval: None,
+                retrievability: None,
+                lapses: None,
+                reps: None,
             },
             QueueItem {
                 id: "due_tomorrow".to_string(),
@@ -408,6 +426,12 @@ mod tests {
                 progress: 0,
                 source: None,
                 position: None,
+                stability: None,
+                difficulty: None,
+                interval: None,
+                retrievability: None,
+                lapses: None,
+                reps: None,
             },
         ];
 

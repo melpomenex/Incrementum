@@ -89,7 +89,7 @@ if (typeof window !== 'undefined') {
 
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import "./styles/offline-fonts.css";
+import { loadSelectedFonts } from "./utils/fonts";
 import "./index.css";
 import "./styles/mobile.css";
 import { HashRouter, Routes, Route } from "react-router-dom";
@@ -195,6 +195,19 @@ if (isNetworkDebugEnabled()) {
 
 // Initialize PWA (works in both Tauri and Web)
 initializePWA();
+
+// Dynamically load only the user's selected font from bundled @fontsource packages.
+// Inter is imported statically as the critical default (see utils/fonts.ts).
+try {
+  const raw = localStorage.getItem("incrementum-settings");
+  const parsed = raw ? JSON.parse(raw) : null;
+  const fontFamily = parsed?.state?.settings?.appearance?.fontFamily;
+  if (fontFamily && fontFamily !== "Inter" && fontFamily !== "system-ui" && fontFamily !== "serif" && fontFamily !== "sans-serif" && fontFamily !== "monospace") {
+    void loadSelectedFonts([fontFamily]);
+  }
+} catch {
+  // Settings not yet available or parse error — Inter is already loaded statically.
+}
 
 // Only enable browser localStorage mirroring in standalone web installs.
 // In desktop Tauri this adds global write amplification without helping UX.

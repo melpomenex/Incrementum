@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download, CalendarClock } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { useQueueStore } from "../stores";
 import { QueueStatsDisplay } from "../components/queue/QueueStats";
 import { BulkActionBar } from "../components/queue/BulkActionBar";
@@ -38,7 +39,28 @@ export function Queue() {
     bulkOperationLoading,
     bulkOperationResult,
     clearBulkResult,
-  } = useQueueStore();
+  } = useQueueStore(useShallow(state => ({
+    filteredItems: state.filteredItems,
+    stats: state.stats,
+    isLoading: state.isLoading,
+    error: state.error,
+    searchQuery: state.searchQuery,
+    setSearchQuery: state.setSearchQuery,
+    sortOptions: state.sortOptions,
+    setSortOptions: state.setSortOptions,
+    loadQueue: state.loadQueue,
+    loadStats: state.loadStats,
+    selectedIds: state.selectedIds,
+    setSelected: state.setSelected,
+    selectAll: state.selectAll,
+    clearSelection: state.clearSelection,
+    bulkSuspend: state.bulkSuspend,
+    bulkUnsuspend: state.bulkUnsuspend,
+    bulkDelete: state.bulkDelete,
+    bulkOperationLoading: state.bulkOperationLoading,
+    bulkOperationResult: state.bulkOperationResult,
+    clearBulkResult: state.clearBulkResult,
+  })));
 
   const [showFilters, setShowFilters] = useState(false);
   const [allSelected, setAllSelected] = useState(false);

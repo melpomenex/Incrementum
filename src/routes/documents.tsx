@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link2, Mic } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { useDocumentStore } from "../stores";
 import { useStudyDeckStore } from "../stores/studyDeckStore";
 import { EnhancedFilePicker } from "../components/documents/EnhancedFilePicker";
@@ -16,7 +17,22 @@ import { invokeCommand } from "../lib/tauri";
 export function Documents() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromUrl, importFromArxiv, addDocument, setError, setImporting, setImportProgress } = useDocumentStore();
+  const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromUrl, importFromArxiv, addDocument, setError, setImporting, setImportProgress } = useDocumentStore(useShallow(state => ({
+    documents: state.documents,
+    isLoading: state.isLoading,
+    isImporting: state.isImporting,
+    importProgress: state.importProgress,
+    error: state.error,
+    loadDocuments: state.loadDocuments,
+    openFilePickerAndImport: state.openFilePickerAndImport,
+    importFromFiles: state.importFromFiles,
+    importFromUrl: state.importFromUrl,
+    importFromArxiv: state.importFromArxiv,
+    addDocument: state.addDocument,
+    setError: state.setError,
+    setImporting: state.setImporting,
+    setImportProgress: state.setImportProgress,
+  })));
   const [isDragging, setIsDragging] = useState(false);
   const [showImportPicker, setShowImportPicker] = useState(false);
   const [, setInitialImportSource] = useState<'local' | 'url' | 'arxiv'>('local');

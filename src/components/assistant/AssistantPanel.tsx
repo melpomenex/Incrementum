@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -197,6 +197,18 @@ const isCaretOnLastLine = (textarea: HTMLTextAreaElement) => {
   if (caret !== selectionEnd) return false;
   return !textarea.value.slice(caret).includes("\n");
 };
+
+/** Memoized markdown renderer — avoids re-running renderMarkdown on unrelated re-renders. */
+function MemoizedMarkdown({ content }: { content: string }) {
+  const html = useMemo(() => renderMarkdown(content), [content]);
+  return (
+    <div
+      className="assistant-markdown leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 
 export function AssistantPanel({
   context,
@@ -1631,10 +1643,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                 {message.role === "user" ? (
                   message.content
                 ) : (
-                  <div
-                    className="assistant-markdown leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                  />
+                  <MemoizedMarkdown content={message.content} />
                 )}
               </div>
 

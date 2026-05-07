@@ -60,7 +60,25 @@ impl serde::Serialize for IncrementumError {
     where
         S: serde::ser::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        use serde::ser::SerializeMap;
+
+        let (type_name, message) = match self {
+            Self::Database(e) => ("database", e.to_string()),
+            Self::Io(e) => ("io", e.to_string()),
+            Self::Serialization(e) => ("serialization", e.to_string()),
+            Self::Fsrs(e) => ("fsrs", e.to_string()),
+            Self::NotFound(msg) => ("not_found", msg.clone()),
+            Self::InvalidInput(msg) => ("invalid_input", msg.clone()),
+            Self::Internal(msg) => ("internal", msg.clone()),
+            Self::IntegrationError(msg) => ("integration_error", msg.clone()),
+            Self::SyncError(msg) => ("sync_error", msg.clone()),
+            Self::ShellError(msg) => ("shell_error", msg.clone()),
+        };
+
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("type", type_name)?;
+        map.serialize_entry("message", &message)?;
+        map.end()
     }
 }
 

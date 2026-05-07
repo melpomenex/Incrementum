@@ -5,6 +5,7 @@
 //! - Q&A with document context
 //! - Content summarization
 //! - AI configuration management
+//! - API key keychain storage
 
 use crate::ai::{
     flashcard_generator::{FlashcardGenerationOptions, FlashcardGenerator},
@@ -13,21 +14,22 @@ use crate::ai::{
     AIConfig, AIProvider, LLMProviderType, Message,
 };
 use crate::commands::Result;
+use crate::commands::ai_key_store;
 use crate::database::Repository;
 use crate::error::IncrementumError;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 // Global AI configuration state
 pub struct AIState {
-    pub config: Mutex<Option<AIConfig>>,
+    pub config: Arc<Mutex<Option<AIConfig>>>,
 }
 
 impl Default for AIState {
     fn default() -> Self {
         Self {
-            config: Mutex::new(None),
+            config: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -65,11 +67,37 @@ impl From<crate::ai::flashcard_generator::GeneratedFlashcard> for TauriGenerated
     }
 }
 
-/// Get AI configuration
+/// Get AI configuration (API keys are redacted to last 4 characters)
 #[tauri::command]
-pub async fn get_ai_config(state: State<'_, AIState>) -> Result<Option<AIConfig>> {
+pub async fn get_ai_config(state: State<'_, AIState>) -> Result<Option<serde_json::Value>> {
     let config = state.config.lock().unwrap();
-    Ok(config.clone())
+    let Some(config) = config.as_ref() else {
+        return Ok(None);
+    };
+
+    // Build a redacted version of the config for the frontend
+    let mut config_map = serde_json::to_value(config)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to serialize AI config: {}", e)))?;
+
+    if let Some(obj) = config_map.as_object_mut() {
+        if let Some(api_keys) = obj.get_mut("api_keys").and_then(|v| v.as_object_mut()) {
+            for (provider, value) in api_keys.iter_mut() {
+                if let Some(key) = value.as_str() {
+                    if key.len() > 4 {
+                        *value = serde_json::Value::String(format!(
+                            "{}{}",
+                            "*".repeat(key.len() - 4),
+                            &key[key.len() - 4..]
+                        ));
+                    } else if !key.is_empty() {
+                        *value = serde_json::Value::String("*".repeat(key.len()));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Some(config_map))
 }
 
 /// Set AI configuration
@@ -80,21 +108,76 @@ pub async fn set_ai_config(config: AIConfig, state: State<'_, AIState>) -> Resul
     Ok(())
 }
 
-/// Set API key for a provider
+/// Set API key for a provider (stores in OS keychain and in-memory state)
 #[tauri::command]
 pub async fn set_api_key(
     provider: String,
     api_key: String,
     state: State<'_, AIState>,
+    key_store: State<'_, ai_key_store::AIKeyStore>,
 ) -> Result<()> {
+    let provider_lower = provider.to_lowercase();
+
+    match provider_lower.as_str() {
+        "openai" | "anthropic" | "openrouter" => {}
+        _ => return Err(IncrementumError::InvalidInput(format!("Unknown provider: {}", provider))),
+    }
+
+    // Store in keychain
+    key_store.store_key(&provider_lower, &api_key).await?;
+
+    // Also update in-memory state for immediate use
     let mut config = state.config.lock().unwrap();
     let mut current = config.clone().unwrap_or_default();
 
-    match provider.to_lowercase().as_str() {
+    match provider_lower.as_str() {
         "openai" => current.api_keys.openai = Some(api_key),
         "anthropic" => current.api_keys.anthropic = Some(api_key),
         "openrouter" => current.api_keys.openrouter = Some(api_key),
+        _ => unreachable!(),
+    }
+
+    *config = Some(current);
+    Ok(())
+}
+
+/// Get a masked API key for display (last 4 characters)
+#[tauri::command]
+pub async fn get_masked_api_key(
+    provider: String,
+    key_store: State<'_, ai_key_store::AIKeyStore>,
+) -> Result<Option<String>> {
+    let provider_lower = provider.to_lowercase();
+    match provider_lower.as_str() {
+        "openai" | "anthropic" | "openrouter" => {}
         _ => return Err(IncrementumError::InvalidInput(format!("Unknown provider: {}", provider))),
+    }
+    key_store.get_masked_key(&provider_lower).await
+}
+
+/// Remove an API key from keychain and in-memory state
+#[tauri::command]
+pub async fn remove_api_key(
+    provider: String,
+    state: State<'_, AIState>,
+    key_store: State<'_, ai_key_store::AIKeyStore>,
+) -> Result<()> {
+    let provider_lower = provider.to_lowercase();
+    match provider_lower.as_str() {
+        "openai" | "anthropic" | "openrouter" => {}
+        _ => return Err(IncrementumError::InvalidInput(format!("Unknown provider: {}", provider))),
+    }
+
+    key_store.remove_key(&provider_lower).await?;
+
+    let mut config = state.config.lock().unwrap();
+    let mut current = config.clone().unwrap_or_default();
+
+    match provider_lower.as_str() {
+        "openai" => current.api_keys.openai = None,
+        "anthropic" => current.api_keys.anthropic = None,
+        "openrouter" => current.api_keys.openrouter = None,
+        _ => unreachable!(),
     }
 
     *config = Some(current);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Eye, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
@@ -15,7 +15,7 @@ interface FlashcardScrollItemProps {
  * Full-screen flashcard component for scroll mode review.
  * Shows question, allows revealing answer, and provides rating buttons.
  */
-export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollItemProps) {
+export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollItemProps) {
     const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const { click } = useHapticFeedback();
@@ -86,10 +86,15 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         warmAnkiLatexNormalization([learningItem.question, learningItem.answer, learningItem.cloze_text]);
     }, [learningItem.question, learningItem.answer, learningItem.cloze_text]);
 
+    // Memoize rendered HTML to avoid re-computing on every render
+    const questionHtml = useMemo(() => renderAnkiHtmlWithLatex(learningItem.question), [learningItem.question]);
+    const answerHtml = useMemo(() => learningItem.answer ? renderAnkiHtmlWithLatex(learningItem.answer) : "", [learningItem.answer]);
+
+
     // Render cloze text with blanks or revealed answers
     const renderClozeText = () => {
         if (!learningItem.cloze_text) {
-            return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.question) }} />;
+            return <span dangerouslySetInnerHTML={{ __html: questionHtml }} />;
         }
 
         // If cloze_ranges are available, use range-based rendering
@@ -222,7 +227,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
             case "Qa":
             case "Basic":
             default:
-                return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.question) }} />;
+                return <span dangerouslySetInnerHTML={{ __html: questionHtml }} />;
         }
     };
 
@@ -232,7 +237,7 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
         }
         if (!learningItem.answer) return null;
         
-        return <span dangerouslySetInnerHTML={{ __html: renderAnkiHtmlWithLatex(learningItem.answer) }} />;
+        return <span dangerouslySetInnerHTML={{ __html: answerHtml }} />;
     };
 
     const answerContent = renderAnswerContent();
@@ -358,4 +363,4 @@ export function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollIte
             </div>
         </div>
     );
-}
+});

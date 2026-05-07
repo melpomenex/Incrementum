@@ -11,6 +11,13 @@ const LLM_STREAM_CHUNK: &str = "llm:stream:chunk";
 const LLM_STREAM_DONE: &str = "llm:stream:done";
 const LLM_STREAM_ERROR: &str = "llm:stream:error";
 
+#[inline]
+fn emit_stream_event(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
+    if let Err(e) = app.emit(event, payload) {
+        tracing::debug!(event, error = %e, "failed to emit LLM stream event");
+    }
+}
+
 // OpenAI API Types
 #[derive(Debug, Serialize)]
 struct OpenAIRequest {
@@ -328,7 +335,7 @@ pub async fn llm_stream_chat(
     let requires_api_key = provider_requires_api_key(&provider, &base_url);
 
     if api_key.is_none() && requires_api_key {
-        let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+        emit_stream_event(&app, LLM_STREAM_ERROR, serde_json::json!({
             "error": "API key is required"
         }));
         return Err("API key is required".to_string());
@@ -348,7 +355,7 @@ pub async fn llm_stream_chat(
             stream_openai(&app, &client, &model, messages, temperature, max_tokens, Some(api_key.as_deref().unwrap()), &base_url).await?
         }
         _ => {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(&app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Unknown provider: {}", provider)
             }));
             return Err(format!("Unknown provider: {}", provider));
@@ -388,7 +395,7 @@ async fn stream_openai(
         .send()
         .await
         .map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("OpenAI API request failed: {}", e)
             }));
             format!("OpenAI API request failed: {}", e)
@@ -397,7 +404,7 @@ async fn stream_openai(
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+        emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
             "error": format!("OpenAI API error ({}): {}", status, error_text)
         }));
         return Err(format!("OpenAI API error ({}): {}", status, error_text));
@@ -409,7 +416,7 @@ async fn stream_openai(
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Stream error: {}", e)
             }));
             format!("Stream error: {}", e)
@@ -429,13 +436,13 @@ async fn stream_openai(
                 if let Ok(chunk_data) = serde_json::from_str::<OpenAIStreamChunk>(json_str) {
                     if let Some(choice) = chunk_data.choices.first() {
                         if let Some(content) = &choice.delta.content {
-                            let _ = app.emit(LLM_STREAM_CHUNK, serde_json::json!({
+                            emit_stream_event(app, LLM_STREAM_CHUNK, serde_json::json!({
                                 "content": content,
                                 "done": choice.finish_reason.is_some()
                             }));
 
                             if choice.finish_reason.is_some() {
-                                let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+                                emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
                                 return Ok(());
                             }
                         }
@@ -447,7 +454,7 @@ async fn stream_openai(
         buffer.clear();
     }
 
-    let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+    emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
     Ok(())
 }
 
@@ -487,7 +494,7 @@ async fn stream_anthropic(
         .send()
         .await
         .map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Anthropic API request failed: {}", e)
             }));
             format!("Anthropic API request failed: {}", e)
@@ -496,7 +503,7 @@ async fn stream_anthropic(
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+        emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
             "error": format!("Anthropic API error ({}): {}", status, error_text)
         }));
         return Err(format!("Anthropic API error ({}): {}", status, error_text));
@@ -508,7 +515,7 @@ async fn stream_anthropic(
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Stream error: {}", e)
             }));
             format!("Stream error: {}", e)
@@ -530,7 +537,7 @@ async fn stream_anthropic(
                     "content_block_delta" => {
                         if let Some(delta) = chunk_data.delta {
                             if let Some(text) = delta.text {
-                                let _ = app.emit(LLM_STREAM_CHUNK, serde_json::json!({
+                                emit_stream_event(app, LLM_STREAM_CHUNK, serde_json::json!({
                                     "content": text,
                                     "done": false
                                 }));
@@ -538,11 +545,11 @@ async fn stream_anthropic(
                         }
                     }
                     "message_stop" => {
-                        let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+                        emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
                         return Ok(());
                     }
                     "error" => {
-                        let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+                        emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                             "error": "Anthropic streaming error"
                         }));
                         return Err("Anthropic streaming error".to_string());
@@ -555,7 +562,7 @@ async fn stream_anthropic(
         buffer.clear();
     }
 
-    let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+    emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
     Ok(())
 }
 
@@ -584,7 +591,7 @@ async fn stream_ollama(
         .send()
         .await
         .map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Ollama API request failed: {}", e)
             }));
             format!("Ollama API request failed: {}", e)
@@ -593,7 +600,7 @@ async fn stream_ollama(
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+        emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
             "error": format!("Ollama API error ({}): {}", status, error_text)
         }));
         return Err(format!("Ollama API error ({}): {}", status, error_text));
@@ -605,7 +612,7 @@ async fn stream_ollama(
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| {
-            let _ = app.emit(LLM_STREAM_ERROR, serde_json::json!({
+            emit_stream_event(app, LLM_STREAM_ERROR, serde_json::json!({
                 "error": format!("Stream error: {}", e)
             }));
             format!("Stream error: {}", e)
@@ -625,13 +632,13 @@ async fn stream_ollama(
                 if let Ok(chunk_data) = serde_json::from_str::<OpenAIStreamChunk>(json_str) {
                     if let Some(choice) = chunk_data.choices.first() {
                         if let Some(content) = &choice.delta.content {
-                            let _ = app.emit(LLM_STREAM_CHUNK, serde_json::json!({
+                            emit_stream_event(app, LLM_STREAM_CHUNK, serde_json::json!({
                                 "content": content,
                                 "done": choice.finish_reason.is_some()
                             }));
 
                             if choice.finish_reason.is_some() {
-                                let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+                                emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
                                 return Ok(());
                             }
                         }
@@ -643,7 +650,7 @@ async fn stream_ollama(
         buffer.clear();
     }
 
-    let _ = app.emit(LLM_STREAM_DONE, serde_json::json!({}));
+    emit_stream_event(app, LLM_STREAM_DONE, serde_json::json!({}));
     Ok(())
 }
 

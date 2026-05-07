@@ -395,7 +395,9 @@ pub async fn import_podcast_audio_file(
                 "distil-small.en".to_string(),
                 language.as_deref().unwrap_or("en").to_string(),
             );
-            let _ = transcription_state.auto_queue.enqueue(entry);
+            if let Err(e) = transcription_state.auto_queue.enqueue(entry) {
+                tracing::warn!("Failed to enqueue podcast transcription: {}", e);
+            }
         }
     }
 

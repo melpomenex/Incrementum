@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useAnalyticsStore } from "../stores/analyticsStore";
 import { invokeCommand } from "../lib/tauri";
 import {
@@ -13,7 +14,12 @@ import { useI18n } from "../lib/i18n";
 
 export function AnalyticsPage() {
   const { dashboardStats, activityData, categoryStats, loadAll } =
-    useAnalyticsStore();
+    useAnalyticsStore(useShallow(s => ({
+      dashboardStats: s.dashboardStats,
+      activityData: s.activityData,
+      categoryStats: s.categoryStats,
+      loadAll: s.loadAll,
+    })));
   const [timeRange, setTimeRange] = useState<string>("7d");
   const { t } = useI18n();
 

@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "../lib/i18n";
 import type { TabPane } from "../stores/tabsStore";
-import { ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles, ExternalLink, Info, Settings2, Lightbulb, MessageSquare, Code, Rss, EyeOff, FileText, List, Brain } from "lucide-react";
+import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
@@ -41,6 +42,8 @@ import { fetchYouTubeTranscript } from "../api/youtube";
 import { ReaderTTSControls } from "../components/common/ReaderTTSControls";
 import { usePaneId } from "../components/common/Tabs/TabContent";
 import { DocumentViewer as DocumentViewerTab } from "../components/tabs/TabRegistry";
+import { ScrollQueueSettings } from "../components/queue/ScrollQueueSettings";
+import { ScrollOverlayControls } from "../components/queue/ScrollOverlayControls";
 import type { ExtractSourceContext } from "../types/extractNavigation";
 
 const buildTranscriptText = (segments: Array<{ text: string }>): string =>
@@ -120,10 +123,26 @@ const SESSION_KEYS = {
  */
 export function QueueScrollPage() {
   const { t } = useI18n();
-  const { filteredItems: allQueueItems, loadQueue } = useQueueStore();
-  const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore();
-  const { rootPane, closeTab, updateTab, addTab } = useTabsStore();
-  const { settings, updateSettingsCategory } = useSettingsStore();
+  const { filteredItems: allQueueItems, loadQueue } = useQueueStore(useShallow(s => ({
+    filteredItems: s.filteredItems,
+    loadQueue: s.loadQueue,
+  })));
+  const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore(useShallow(s => ({
+    documents: s.documents,
+    loadDocuments: s.loadDocuments,
+    addDocument: s.addDocument,
+    updateDocument: s.updateDocument,
+  })));
+  const { rootPane, closeTab, updateTab, addTab } = useTabsStore(useShallow(s => ({
+    rootPane: s.rootPane,
+    closeTab: s.closeTab,
+    updateTab: s.updateTab,
+    addTab: s.addTab,
+  })));
+  const { settings, updateSettingsCategory } = useSettingsStore(useShallow(s => ({
+    settings: s.settings,
+    updateSettingsCategory: s.updateSettingsCategory,
+  })));
   const paneId = usePaneId();
 
   // Get active tab ID from the first tab pane
@@ -2073,415 +2092,98 @@ export function QueueScrollPage() {
       )}
 
       {/* Scroll Queue Settings Panel */}
-      {showSettings && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm pointer-events-auto">
-          <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-foreground">{t("queueScroll.queueSettingsTitle")}</h2>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="p-2 rounded-lg hover:bg-muted transition-colors"
-                title={t("queueScroll.closeSettings")}
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Flashcard Percentage Setting */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-foreground">
-                    Flashcard Percentage
-                  </label>
-                  <span className="text-sm font-mono text-primary">
-                    {settings.scrollQueue.flashcardPercentage}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={settings.scrollQueue.flashcardPercentage}
-                  onChange={(e) => {
-                    updateSettingsCategory('scrollQueue', {
-                      flashcardPercentage: parseInt(e.target.value)
-                    });
-                  }}
-                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Percentage of the queue that should be flashcards and extracts.
-                </p>
-              </div>
-
-              {/* Extracts Count as Flashcards Toggle */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-sm font-medium text-foreground">
-                    Extracts count as flashcards
-                  </label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Include extracts in the flashcard percentage calculation
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    updateSettingsCategory('scrollQueue', {
-                      extractsCountAsFlashcards: !settings.scrollQueue.extractsCountAsFlashcards
-                    });
-                  }}
-                  className={cn(
-                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                    settings.scrollQueue.extractsCountAsFlashcards ? "bg-primary" : "bg-muted"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      settings.scrollQueue.extractsCountAsFlashcards ? "translate-x-6" : "translate-x-1"
-                    )}
-                  />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-border">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                {t("common.done")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ScrollQueueSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        flashcardPercentage={settings.scrollQueue.flashcardPercentage}
+        extractsCountAsFlashcards={settings.scrollQueue.extractsCountAsFlashcards}
+        onUpdateSetting={(key, value) => updateSettingsCategory('scrollQueue', { [key]: value })}
+      />
 
       {/* Overlay Controls */}
-      <div
-        className={cn(
-          "fixed inset-0 pointer-events-none transition-opacity duration-300 z-50",
-          showControls ? "opacity-100" : "opacity-0"
-        )}
-      >
-        {/* Top Bar - Position & Exit */}
-        <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleExit}
-                className="p-2 rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
-                title={t("queueScroll.exitScrollMode")}
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-              <div className="text-white font-medium text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg">
-                {currentIndex + 1} / {scrollItems.length}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {detailsTarget && (
-                <ItemDetailsPopover
-                  target={detailsTarget}
-                  onDismissStateChange={(dismissed) => {
-                    if (!dismissed) return;
-
-                    if (
-                      detailsTarget.type === "document" &&
-                      currentItem?.type === "document" &&
-                      currentItem.documentId === detailsTarget.id
-                    ) {
-                      advanceAfterRemoval(currentItem.id);
-                    }
-                    void loadQueue();
-                  }}
-                  renderTrigger={({ onClick, isOpen }) => (
-                    <button
-                      onClick={onClick}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60",
-                        isOpen && "bg-black/60"
-                      )}
-                      title={t("queueScroll.itemDetails")}
-                    >
-                      <Info className="w-4 h-4" />
-                      {t("queueScroll.details")}
-                    </button>
-                  )}
-                />
-              )}
-              <button
-                onClick={() => setShowSettings(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                title={t("queueScroll.queueSettings")}
-              >
-                <Settings2 className="w-4 h-4" />
-                {t("common.settings")}
-              </button>
-              <button
-                onClick={() => setShowRssSettings(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                title={t("queueScroll.rssQueueSettings")}
-              >
-                <Rss className="w-4 h-4" />
-                {t("queueScroll.rss")}
-              </button>
-              <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
-                {currentItem.type === "document" && (
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-blue-500/30 rounded text-xs shrink-0">{t("queueScroll.docShort")}</span>
-                    <span className="truncate">{currentItem.documentTitle}</span>
-                  </span>
-                )}
-                {currentItem.type === "flashcard" && (
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-purple-500/30 rounded text-xs shrink-0">{t("queueScroll.cardShort")}</span>
-                    <span className="truncate">{currentItem.documentTitle}</span>
-                  </span>
-                )}
-                {currentItem.type === "rss" && (
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-orange-500/30 rounded text-xs shrink-0">{t("queueScroll.rssShort")}</span>
-                    <span className="truncate">{currentItem.documentTitle}</span>
-                  </span>
-                )}
-                {currentItem.type === "extract" && (
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="px-1.5 py-0.5 bg-yellow-500/30 rounded text-xs shrink-0">{t("queueScroll.extractShort")}</span>
-                    <span className="truncate">{currentItem.documentTitle}</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Scroll Mode Toolbar - Document/RSS items only */}
-        {(currentItem.type === "document" || currentItem.type === "rss") && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-auto">
-            <div className="flex items-center gap-1 px-2 py-1.5 bg-black/40 backdrop-blur-sm rounded-lg">
-              {currentItem.documentId && (
-                <div className="flex items-center gap-0.5 bg-white/10 rounded-md p-0.5">
-                  <button
-                    onClick={() => setScrollViewMode("document")}
-                    className={cn(
-                      "p-1.5 rounded-md transition-colors",
-                      scrollViewMode === "document" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
-                    )}
-                    title={t("viewer.viewDocument")}
-                  >
-                    <FileText className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setScrollViewMode("extracts")}
-                    className={cn(
-                      "p-1.5 rounded-md transition-colors",
-                      scrollViewMode === "extracts" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
-                    )}
-                    title={t("viewer.viewExtracts")}
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setScrollViewMode("cards")}
-                    className={cn(
-                      "p-1.5 rounded-md transition-colors",
-                      scrollViewMode === "cards" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"
-                    )}
-                    title={t("viewer.viewLearningCards")}
-                  >
-                    <Brain className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              {scrollViewMode === "document" && currentItem.type === "document" && (
-                <button
-                  onClick={() => setIsExtractDialogOpen(true)}
-                  className="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-                  title={t("viewer.createExtract")}
-                >
-                  <Lightbulb className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Side Rating Controls - Only for documents and RSS (flashcards have inline rating) */}
-        {currentItem.type !== "flashcard" && (
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
-            {currentItem.type === "document" && !isNewDocument ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleRating(1)}
-                  disabled={isRating}
-                  className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t("queueScroll.againTitle")}
-                >
-                  <AlertCircle className="w-6 h-6 text-white" />
-                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {t("queueScroll.again")}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleRating(2)}
-                  disabled={isRating}
-                  className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t("queueScroll.hardTitle")}
-                >
-                  <Star className="w-6 h-6 text-white" />
-                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {t("queueScroll.hard")}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleRating(3)}
-                  disabled={isRating}
-                  className="group p-3 rounded-full bg-blue-500/80 backdrop-blur-sm hover:bg-blue-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t("queueScroll.goodTitle")}
-                >
-                  <CheckCircle className="w-6 h-6 text-white" />
-                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {t("queueScroll.good")}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleRating(4)}
-                  disabled={isRating}
-                  className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t("queueScroll.easyTitle")}
-                >
-                  <Sparkles className="w-6 h-6 text-white" />
-                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {t("queueScroll.easy")}
-                  </span>
-                </button>
-
-                {/* Dismiss Button - Only for documents */}
-                {currentItem.type === "document" && (
-                  <button
-                    type="button"
-                    onClick={handleDismiss}
-                    disabled={isRating}
-                    className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                    title={t("queueScroll.dismissTitle")}
-                  >
-                    <EyeOff className="w-6 h-6 text-white" />
-                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {t("queueScroll.dismissLabel")}
-                    </span>
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("[QueueScroll] Mark as Read clicked:", {
-                      id: currentItem?.id,
-                      type: currentItem?.type,
-                      documentId: currentItem?.documentId,
-                      isRating,
-                      isNewDocument
-                    });
-                    if (!isRating && currentItem) {
-                      handleRating(3);
-                    } else {
-                      console.log("[QueueScroll] Mark as Read blocked - isRating:", isRating, "hasItem:", !!currentItem);
-                    }
-                  }}
-                  disabled={isRating}
-                  className="group relative p-4 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                  title={currentItem?.type === "document" ? t("queueScroll.markAsReadGood") : t("queueScroll.markAsRead")}
-                >
-                  <CheckCircle className="w-7 h-7 text-white" />
-                  <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    {currentItem?.type === "document" ? t("queueScroll.markAsReadGood") : t("queueScroll.markAsRead")}
-                  </span>
-                </button>
-
-                {/* Dismiss Button for new documents */}
-                {currentItem?.type === "document" && (
-                  <button
-                    type="button"
-                    onClick={handleDismiss}
-                    disabled={isRating}
-                    className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                    title={t("queueScroll.dismissTitle")}
-                  >
-                    <EyeOff className="w-6 h-6 text-white" />
-                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {t("queueScroll.dismissLabel")}
-                    </span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Bottom Navigation Arrows */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto">
-          <button
-            onClick={goToPrevious}
-            disabled={currentIndex === 0}
-            className={cn(
-              "p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg",
-              currentIndex === 0 && "opacity-30 cursor-not-allowed"
-            )}
-            title={t("queueScroll.previousDocument")}
-          >
-            <ChevronUp className="w-6 h-6 text-white" />
-          </button>
-
-          <button
-            onClick={goToNext}
-            disabled={currentIndex === scrollItems.length - 1}
-            className={cn(
-              "p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg",
-              currentIndex === scrollItems.length - 1 && "opacity-30 cursor-not-allowed"
-            )}
-            title={t("queueScroll.nextDocument")}
-          >
-            <ChevronDown className="w-6 h-6 text-white" />
-          </button>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 pointer-events-none">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{
-              width: `${((currentIndex + 1) / scrollItems.length) * 100}%`,
+      <ScrollOverlayControls
+        showControls={showControls}
+        currentIndex={currentIndex}
+        totalItems={scrollItems.length}
+        itemType={currentItem?.type ?? "document"}
+        itemTitle={currentItem?.documentTitle ?? ""}
+        itemDocumentId={currentItem?.documentId}
+        isNewDocument={isNewDocument}
+        isRating={isRating}
+        scrollViewMode={scrollViewMode}
+        helpText={currentItem?.type === "document" ? (() => {
+          const doc = documents.find(d => d.id === currentItem?.documentId);
+          const fileType = doc?.fileType || doc?.filePath?.split('.').pop()?.toLowerCase();
+          return fileType === "epub" || fileType === "pdf" || fileType === "audio"
+            ? t("queueScroll.helpTextDocFile")
+            : t("queueScroll.helpTextDocScroll");
+        })() : currentItem ? t("queueScroll.helpTextNonDoc") : undefined}
+        onExit={handleExit}
+        onShowSettings={() => setShowSettings(true)}
+        onShowRssSettings={() => setShowRssSettings(true)}
+        onSetScrollViewMode={setScrollViewMode}
+        onOpenExtractDialog={() => setIsExtractDialogOpen(true)}
+        onRate={handleRating}
+        onDismiss={handleDismiss}
+        onGoToNext={goToNext}
+        onGoToPrevious={goToPrevious}
+        detailsButton={detailsTarget ? (
+          <ItemDetailsPopover
+            target={detailsTarget}
+            onDismissStateChange={(dismissed) => {
+              if (!dismissed) return;
+              if (
+                detailsTarget.type === "document" &&
+                currentItem?.type === "document" &&
+                currentItem.documentId === detailsTarget.id
+              ) {
+                advanceAfterRemoval(currentItem.id);
+              }
+              void loadQueue();
             }}
+            renderTrigger={({ onClick, isOpen }) => (
+              <button
+                onClick={onClick}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60",
+                  isOpen && "bg-black/60"
+                )}
+                title={t("queueScroll.itemDetails")}
+              >
+                <Info className="w-4 h-4" />
+                {t("queueScroll.details")}
+              </button>
+            )}
           />
-        </div>
-
-        {/* Help Text */}
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none">
-          {currentItem?.type === "document" && (() => {
-            const doc = documents.find(d => d.id === currentItem.documentId);
-            const fileType = doc?.fileType || doc?.filePath?.split('.').pop()?.toLowerCase();
-            return fileType === "epub" || fileType === "pdf" || fileType === "audio"
-              ? t("queueScroll.helpTextDocFile")
-              : t("queueScroll.helpTextDocScroll");
-          })()}
-          {currentItem?.type !== "document" && t("queueScroll.helpTextNonDoc")}
-        </div>
-      </div>
+        ) : undefined}
+        labels={{
+          exit: t("queueScroll.exitScrollMode"),
+          settings: t("common.settings"),
+          rss: t("queueScroll.rss"),
+          viewDocument: t("viewer.viewDocument"),
+          viewExtracts: t("viewer.viewExtracts"),
+          viewLearningCards: t("viewer.viewLearningCards"),
+          createExtract: t("viewer.createExtract"),
+          again: t("queueScroll.again"),
+          againTitle: t("queueScroll.againTitle"),
+          hard: t("queueScroll.hard"),
+          hardTitle: t("queueScroll.hardTitle"),
+          good: t("queueScroll.good"),
+          goodTitle: t("queueScroll.goodTitle"),
+          easy: t("queueScroll.easy"),
+          easyTitle: t("queueScroll.easyTitle"),
+          dismissLabel: t("queueScroll.dismissLabel"),
+          dismissTitle: t("queueScroll.dismissTitle"),
+          markAsRead: t("queueScroll.markAsRead"),
+          markAsReadGood: t("queueScroll.markAsReadGood"),
+          previousDocument: t("queueScroll.previousDocument"),
+          nextDocument: t("queueScroll.nextDocument"),
+          docShort: t("queueScroll.docShort"),
+          cardShort: t("queueScroll.cardShort"),
+          rssShort: t("queueScroll.rssShort"),
+          extractShort: t("queueScroll.extractShort"),
+        }}
+      />
 
       {/* RSS Queue Settings Modal */}
       <RSSQueueSettingsModal

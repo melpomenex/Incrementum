@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useAnalyticsStore } from "../stores/analyticsStore";
 import { StatCard } from "../components/analytics/StatCard";
 import { StudyStreak } from "../components/analytics/StudyStreak";
@@ -25,7 +26,15 @@ export function Dashboard() {
     isLoading,
     error,
     loadAll,
-  } = useAnalyticsStore();
+  } = useAnalyticsStore(useShallow(state => ({
+    dashboardStats: state.dashboardStats,
+    memoryStats: state.memoryStats,
+    activityData: state.activityData,
+    categoryStats: state.categoryStats,
+    isLoading: state.isLoading,
+    error: state.error,
+    loadAll: state.loadAll,
+  })));
   const { t } = useI18n();
 
   useEffect(() => {

@@ -1,15 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import { NewMainLayout, MainContent } from "./components/layout/NewMainLayout";
 import { useAnalyticsStore } from "./stores/analyticsStore";
 import { useDocumentStore } from "./stores/documentStore";
 import { useStudyDeckStore } from "./stores/studyDeckStore";
 import { invokeCommand, isTauri } from "./lib/tauri";
 import * as syncClient from "./lib/sync-client";
-import { LoginModal } from "./components/auth/LoginModal";
-import { WelcomeScreen } from "./components/onboarding/WelcomeScreen";
-import { SignupPrompt } from "./components/onboarding/SignupPrompt";
-import { InteractiveTutorial } from "./components/onboarding/InteractiveTutorial";
-import { KeyboardShortcutsHelp } from "./components/common/KeyboardShortcutsHelp";
+// Conditional UI components — lazy loaded
+const LoginModal = React.lazy(() => import("./components/auth/LoginModal").then(m => ({ default: m.LoginModal })));
+const WelcomeScreen = React.lazy(() => import("./components/onboarding/WelcomeScreen"));
+const SignupPrompt = React.lazy(() => import("./components/onboarding/SignupPrompt").then(m => ({ default: m.SignupPrompt })));
+const InteractiveTutorial = React.lazy(() => import("./components/onboarding/InteractiveTutorial"));
+const KeyboardShortcutsHelp = React.lazy(() => import("./components/common/KeyboardShortcutsHelp"));
 import {
   eventMatchesCombo,
   useShortcutStore,
@@ -21,7 +22,7 @@ import { initializeNotifications } from "./utils/notificationService";
 import { registerOpenDocumentCallback } from "./lib/videoTranscriptionQueue";
 import { HAPTIC_FEEDBACK_CSS } from "./hooks/useHapticFeedback";
 import { checkForUpdates, type UpdateInfo } from "./utils/updateChecker";
-import { UpdateAvailableDialog } from "./components/settings/UpdateAvailableDialog";
+const UpdateAvailableDialog = React.lazy(() => import("./components/settings/UpdateAvailableDialog").then(m => ({ default: m.UpdateAvailableDialog })));
 
 // PWA Components
 import { PWAInstallPrompt, UpdateNotification } from "./components/pwa";
@@ -38,15 +39,15 @@ import {
   isEditableShortcutTarget,
 } from "./utils/commandPaletteShortcut";
 
-// Page components
-import { DocumentsPage } from "./pages/DocumentsPage";
-import { QueuePage } from "./pages/QueuePage";
-import { QueueScrollPage } from "./pages/QueueScrollPage";
-import { AnalyticsPage } from "./pages/AnalyticsPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { ContinueReadingPage } from "./pages/ContinueReadingPage";
-import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
-import { ImageRegistryPage } from "./pages/ImageRegistryPage";
+// Page components — lazy loaded for code splitting
+const DocumentsPage = React.lazy(() => import("./pages/DocumentsPage").then(m => ({ default: m.DocumentsPage })));
+const QueuePage = React.lazy(() => import("./pages/QueuePage").then(m => ({ default: m.QueuePage })));
+const QueueScrollPage = React.lazy(() => import("./pages/QueueScrollPage").then(m => ({ default: m.QueueScrollPage })));
+const AnalyticsPage = React.lazy(() => import("./pages/AnalyticsPage").then(m => ({ default: m.AnalyticsPage })));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const ContinueReadingPage = React.lazy(() => import("./pages/ContinueReadingPage").then(m => ({ default: m.ContinueReadingPage })));
+const KnowledgeGraphPage = React.lazy(() => import("./pages/KnowledgeGraphPage").then(m => ({ default: m.KnowledgeGraphPage })));
+const ImageRegistryPage = React.lazy(() => import("./pages/ImageRegistryPage").then(m => ({ default: m.ImageRegistryPage })));
 import { CommandCenter } from "./components/search/CommandCenter";
 import { useI18n } from "./lib/i18n";
 
@@ -254,7 +255,6 @@ function GlobalDragDropHandler({ activePage }: { activePage: string }) {
 function App() {
   const [currentPage, setCurrentPage] = useState<AppPage>("dashboard");
   const loadAll = useAnalyticsStore((state) => state.loadAll);
-  const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
 
   // Auth state
@@ -301,7 +301,6 @@ function App() {
 
   useEffect(() => {
     loadAll();
-    loadDocuments();
     setIsAuthenticated(syncClient.isAuthenticated());
     setUser(syncClient.getUser());
 
@@ -328,7 +327,7 @@ function App() {
       unsubscribe();
       unregisterCallback();
     };
-  }, [loadAll, loadDocuments]);
+  }, [loadAll]);
 
   // Startup update check (Tauri only)
   useEffect(() => {
@@ -599,28 +598,35 @@ function App() {
   };
 
   const renderPage = () => {
-    switch (currentPage) {
-      case "continue-reading":
-        return <ContinueReadingPage />;
-      case "dashboard":
-        return <DashboardPage onNavigate={handleNavigate} />;
-      case "documents":
-        return <DocumentsPage />;
-      case "image-registry":
-        return <ImageRegistryPage />;
-      case "queue":
-        return <QueuePage />;
-      case "queue-scroll":
-        return <QueueScrollPage />;
-      case "analytics":
-        return <AnalyticsPage />;
-      case "knowledge-graph":
-        return <KnowledgeGraphPage />;
-      case "settings":
-        return <SettingsPage />;
-      default:
-        return <DashboardPage onNavigate={handleNavigate} />;
-    }
+    const page = (() => {
+      switch (currentPage) {
+        case "continue-reading":
+          return <ContinueReadingPage />;
+        case "dashboard":
+          return <DashboardPage onNavigate={handleNavigate} />;
+        case "documents":
+          return <DocumentsPage />;
+        case "image-registry":
+          return <ImageRegistryPage />;
+        case "queue":
+          return <QueuePage />;
+        case "queue-scroll":
+          return <QueueScrollPage />;
+        case "analytics":
+          return <AnalyticsPage />;
+        case "knowledge-graph":
+          return <KnowledgeGraphPage />;
+        case "settings":
+          return <SettingsPage />;
+        default:
+          return <DashboardPage onNavigate={handleNavigate} />;
+      }
+    })();
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>}>
+        {page}
+      </Suspense>
+    );
   };
 
   // Full-screen pages without layout
@@ -632,10 +638,12 @@ function App() {
   if (onboardingStep === 'welcome') {
     return (
       <>
-        <WelcomeScreen
-          onComplete={handleWelcomeComplete}
-          onImportDemo={handleImportDemoContent}
-        />
+        <Suspense fallback={null}>
+          <WelcomeScreen
+            onComplete={handleWelcomeComplete}
+            onImportDemo={handleImportDemoContent}
+          />
+        </Suspense>
         {/* Show app behind the onboarding overlay */}
         <NewMainLayout
           activeItem={currentPage}
@@ -656,10 +664,12 @@ function App() {
   if (onboardingStep === 'tutorial') {
     return (
       <>
-        <InteractiveTutorial
-          onComplete={handleTutorialComplete}
-          onSkip={handleTutorialSkip}
-        />
+        <Suspense fallback={null}>
+          <InteractiveTutorial
+            onComplete={handleTutorialComplete}
+            onSkip={handleTutorialSkip}
+          />
+        </Suspense>
         <NewMainLayout
           activeItem={currentPage}
           onPageChange={handlePageChange}
@@ -679,10 +689,12 @@ function App() {
   if (onboardingStep === 'signup') {
     return (
       <>
-        <SignupPrompt
-          onSignup={handleSignupFromOnboarding}
-          onContinueDemo={handleCompleteOnboarding}
-        />
+        <Suspense fallback={null}>
+          <SignupPrompt
+            onSignup={handleSignupFromOnboarding}
+            onContinueDemo={handleCompleteOnboarding}
+          />
+        </Suspense>
         <NewMainLayout
           activeItem={currentPage}
           onPageChange={handlePageChange}
@@ -713,17 +725,23 @@ function App() {
       >
         {renderPage()}
       </NewMainLayout>
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onAuthenticated={handleAuthenticated}
-      />
-      <KeyboardShortcutsHelp
-        isOpen={showShortcutsHelp}
-        onClose={() => setShowShortcutsHelp(false)}
-      />
+      <Suspense fallback={null}>
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onAuthenticated={handleAuthenticated}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <KeyboardShortcutsHelp
+          isOpen={showShortcutsHelp}
+          onClose={() => setShowShortcutsHelp(false)}
+        />
+      </Suspense>
       {updateInfo && (
-        <UpdateAvailableDialog update={updateInfo} onClose={() => setUpdateInfo(null)} />
+        <Suspense fallback={null}>
+          <UpdateAvailableDialog update={updateInfo} onClose={() => setUpdateInfo(null)} />
+        </Suspense>
       )}
       {/* PWA Components */}
       <PWAInstallPrompt
@@ -752,13 +770,15 @@ interface DashboardPageProps {
 function DashboardPage({ onNavigate }: DashboardPageProps) {
   const dashboardStats = useAnalyticsStore((state) => state.dashboardStats);
   const documents = useDocumentStore((state) => state.documents);
+  const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const [recentActivity, setRecentActivity] = useState<ActivityDataPoint[]>([]);
   const [activeTab, setActiveTab] = useState("review");
   const { t } = useI18n();
 
   useEffect(() => {
+    loadDocuments();
     loadRecentActivity();
-  }, []);
+  }, [loadDocuments]);
 
   const loadRecentActivity = async () => {
     try {

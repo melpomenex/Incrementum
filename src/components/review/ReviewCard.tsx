@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { LearningItem } from "../../api/review";
 import { Brain, FileText, Volume2, VolumeX, Pause, Play } from "lucide-react";
 import { useTTS } from "../../hooks/useTTS";
@@ -23,7 +23,7 @@ interface ReviewCardProps {
   } | null) => void;
 }
 
-export function ReviewCard({
+export const ReviewCard = React.memo(function ReviewCard({
   card,
   showAnswer,
   onShowAnswer,
@@ -126,8 +126,8 @@ export function ReviewCard({
 
   const questionText = getPlainText(card.question);
   const answerText = card.answer ? getPlainText(card.answer) : "";
-  const questionHtml = renderAnkiHtmlWithLatex(card.question || "");
-  const answerHtml = card.answer ? renderAnkiHtmlWithLatex(card.answer) : "";
+  const questionHtml = useMemo(() => renderAnkiHtmlWithLatex(card.question || ""), [card.question]);
+  const answerHtml = useMemo(() => renderAnkiHtmlWithLatex(card.answer || ""), [card.answer]);
   const interactionMetadata = ((card as any)?.interaction_metadata ?? {}) as LearningItemInteractionMetadata;
   const audioQuestionUrl = interactionMetadata?.audioQuestionUrl || interactionMetadata?.audio_question_url;
   const audioAnswerUrl = interactionMetadata?.audioAnswerUrl || interactionMetadata?.audio_answer_url;
@@ -591,4 +591,4 @@ export function ReviewCard({
       )}
     </div>
   );
-}
+});
