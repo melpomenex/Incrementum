@@ -727,6 +727,42 @@ pub async fn cancel_podcast_transcription(
     }
 }
 
+/// Import a podcast episode as a document in the incremental reading system
+#[tauri::command]
+pub async fn import_podcast_episode_as_document(
+    episode_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Document> {
+    // 1. Get episode
+    let episode = repo
+        .get_podcast_episode_by_id(&episode_id)
+        .await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
+
+    // 2. Check if already imported (using audio_url as unique identifier)
+    if let Some(existing) = repo.find_document_by_url(&episode.audio_url).await? {
+        return Ok(existing);
+    }
+
+    // 3. Create a new Document record
+    let mut doc = Document::new(episode.title, episode.audio_url, FileType::Audio);
+    doc.date_added = Utc::now();
+    doc.date_modified = Utc::now();
+    doc.next_reading_date = Some(Utc::now()); // Make it due immediately
+    doc.priority_rating = 8; // High priority for new items
+    doc.tags = vec!["podcast".to_string()];
+    
+    if let Some(image_url) = episode.image_url {
+        doc.cover_image_url = Some(image_url);
+        doc.cover_image_source = Some("podcast".to_string());
+    }
+
+    // 4. Save to DB
+    let created = repo.create_document(&doc).await?;
+    
+    Ok(created)
+}
+
 /// Set auto-transcribe settings for a podcast feed
 #[tauri::command]
 pub async fn set_feed_auto_transcribe(

@@ -212,7 +212,7 @@ function Row({ item, idx, isExpanded, onToggleExpand, onPostpone, onOpen, onSusp
         onClick={onToggleExpand}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtx({ x: e.clientX, y: e.clientY }); }}
         onDoubleClick={() => onOpen?.(item)}>
-        <td className="px-2 py-1.5 text-[11px] font-mono tabular-nums text-muted-foreground/60 w-7 text-right">
+        <td className="px-2 py-1 text-[11px] font-mono tabular-nums text-muted-foreground/60 w-7 text-right">
           <span className="inline-flex items-center gap-0.5">
             {isExpanded
               ? <ChevronDown className="w-3 h-3 text-muted-foreground/80" />
@@ -220,22 +220,22 @@ function Row({ item, idx, isExpanded, onToggleExpand, onPostpone, onOpen, onSusp
             {idx}
           </span>
         </td>
-        <td className="px-2 py-1.5 text-[12px] font-medium text-foreground line-clamp-1 max-w-[280px] min-w-[120px]">{item.documentTitle || "Untitled"}</td>
-        <td className="px-1.5 py-1.5 w-8 text-center">{typeBadge(item.itemType, t)}</td>
-        <td className="px-1.5 py-1.5 w-8 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.priority}</td>
-        <td className="px-1.5 py-1.5 w-12 text-[11px] font-mono tabular-nums text-muted-foreground text-center">
+        <td className="px-2 py-1 text-[12px] font-medium text-foreground line-clamp-1 max-w-[280px] min-w-[120px]">{item.documentTitle || "Untitled"}</td>
+        <td className="px-1.5 py-1 w-8 text-center">{typeBadge(item.itemType, t)}</td>
+        <td className="px-1.5 py-1 w-8 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.priority}</td>
+        <td className="px-1.5 py-1 w-12 text-[11px] font-mono tabular-nums text-muted-foreground text-center">
           {item.interval != null && item.interval > 0 ? fmtInterval(item.interval, t) : "—"}
         </td>
-        <td className="px-1.5 py-1.5 w-8 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.reps ?? "—"}</td>
-        <td className={cn("px-1.5 py-1.5 w-8 text-center text-[11px] font-mono tabular-nums", (item.lapses ?? 0) > 0 ? "text-red-400" : "text-muted-foreground")}>{item.lapses ?? 0}</td>
-        <td className="px-1.5 py-1.5 w-14 text-center">{dueCell(item.dueDate, t)}</td>
-        <td className="px-1.5 py-1.5 w-8 text-center">{diffCell(item.difficulty)}</td>
-        <td className="px-1.5 py-1.5 w-16">{stabCell(item.stability)}</td>
-        <td className="px-1.5 py-1.5 w-10 text-center">{retCell(item.retrievability)}</td>
-        <td className="px-1.5 py-1.5 w-10 text-center">{progCell(item.progress)}</td>
-        <td className="px-1.5 py-1.5 w-10 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.estimatedTime > 0 ? `${item.estimatedTime}m` : "—"}</td>
+        <td className="px-1.5 py-1 w-8 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.reps ?? "—"}</td>
+        <td className={cn("px-1.5 py-1 w-8 text-center text-[11px] font-mono tabular-nums", (item.lapses ?? 0) > 0 ? "text-red-400" : "text-muted-foreground")}>{item.lapses ?? 0}</td>
+        <td className="px-1.5 py-1 w-14 text-center">{dueCell(item.dueDate, t)}</td>
+        <td className="px-1.5 py-1 w-8 text-center">{diffCell(item.difficulty)}</td>
+        <td className="px-1.5 py-1 w-16">{stabCell(item.stability)}</td>
+        <td className="px-1.5 py-1 w-10 text-center">{retCell(item.retrievability)}</td>
+        <td className="px-1.5 py-1 w-10 text-center">{progCell(item.progress)}</td>
+        <td className="px-1.5 py-1 w-10 text-center text-[11px] font-mono tabular-nums text-muted-foreground">{item.estimatedTime > 0 ? `${item.estimatedTime}m` : "—"}</td>
         {canPost ? (
-          <td className="px-1.5 py-1.5 w-24 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+          <td className="px-1.5 py-1 w-24 text-right opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="flex items-center justify-end gap-0.5">
               {([1, 3, 7] as const).map(d => (
                 <button key={d} onClick={e => { e.stopPropagation(); postpone(d); }} disabled={busy}
@@ -453,8 +453,8 @@ function ExpandedRow({ item, onPostpone, onOpen, busyId, setBusyId }: {
 /* ── table ── */
 
 const COLS = 14 as const;
-const ROW_H = 37;
-const HEADER_H = 29;
+const ROW_H = 32;
+const HEADER_H = 28;
 
 export function ScheduleTable({ groups, onPostpone, onOpen, onSuspend, onUnsuspend, onDelete, onDismiss }: ScheduleTableProps) {
   const { t } = useI18n();
@@ -565,19 +565,19 @@ export function ScheduleTable({ groups, onPostpone, onOpen, onSuspend, onUnsuspe
       <table className="w-full border-collapse text-xs">
         <thead className="sticky top-0 z-10">
           <tr className="bg-background/95 backdrop-blur-sm border-b border-border text-muted-foreground">
-            <th className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-right w-7">#</th>
-            <th className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-left min-w-[120px]">{t("schedule.title")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colType")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colPriority")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-12">{t("schedule.colInterval")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colReps")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colLapses")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-14">{t("schedule.colDue")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colDifficulty")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-left w-16">{t("schedule.colStability")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colRetrievability")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colProgress")}</th>
-            <th className="px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colTime")}</th>
+            <th className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-right w-7">#</th>
+            <th className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-left min-w-[120px]">{t("schedule.title")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colType")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colPriority")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-12">{t("schedule.colInterval")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colReps")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-8">{t("schedule.colLapses")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-14">{t("schedule.colDue")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colDifficulty")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-left w-16">{t("schedule.colStability")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colRetrievability")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colProgress")}</th>
+            <th className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-center w-10">{t("schedule.colTime")}</th>
             <th className="w-24" />
           </tr>
         </thead>

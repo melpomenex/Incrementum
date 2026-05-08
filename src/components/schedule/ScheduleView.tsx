@@ -5,8 +5,8 @@ import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem, ForecastPoint } from "../../types/queue";
 import { getWorkloadForecast } from "../../api/analytics";
 import { getQueue, postponeItem, bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
-import { ScheduleTimeline } from "./ScheduleTimeline";
-import { ScheduleSummary } from "./ScheduleSummary";
+import { ScheduleDashboard } from "./ScheduleDashboard";
+import { ScheduleToolbar } from "./ScheduleToolbar";
 import { ScheduleItemList } from "./ScheduleItemList";
 import { SpreadModal } from "./SpreadModal";
 import { useToast } from "../common/Toast";
@@ -67,10 +67,25 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
   const [scheduleItems, setScheduleItems] = useState<ScheduleDayItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"cards" | "table">(() => {
+    const saved = localStorage.getItem("incrementum_schedule_view_mode");
+    return (saved as "cards" | "table") || (isMobile ? "cards" : "table");
+  });
+  const [isDashboardCollapsed, setIsDashboardCollapsed] = useState(() => {
+    return localStorage.getItem("incrementum_schedule_dashboard_collapsed") === "true";
+  });
 
   // Spread modal state
   const [showSpread, setShowSpread] = useState(false);
   const [spreadSourceDate, setSpreadSourceDate] = useState<string>("");
+
+  useEffect(() => {
+    localStorage.setItem("incrementum_schedule_view_mode", viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem("incrementum_schedule_dashboard_collapsed", String(isDashboardCollapsed));
+  }, [isDashboardCollapsed]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -228,6 +243,11 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
 
   // Handle spread from toolbar
   const handleSpreadToolbar = useCallback(() => {
+    if (selectedDate) {
+      setSpreadSourceDate(selectedDate);
+      setShowSpread(true);
+      return;
+    }
     // Find the most overloaded day in next 14 days
     const next14 = forecast.slice(0, 14);
     let peak = next14[0];
@@ -289,55 +309,27 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
 
   return (
     <div className={cn("flex flex-col h-full bg-background", isMobile && "pb-safe")}>
-      {/* Header with toolbar */}
-      <div className="px-4 py-3 border-b border-border bg-card space-y-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-base font-semibold text-foreground">
-            {t("schedule.title")}
-          </h1>
-          <button
-            onClick={handleSpreadToolbar}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            {t("schedule.spreadOverloaded")}
-          </button>
-        </div>
+      <ScheduleToolbar
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onSpread={handleSpreadToolbar}
+        isDashboardCollapsed={isDashboardCollapsed}
+        onToggleDashboard={() => setIsDashboardCollapsed(!isDashboardCollapsed)}
+        selectedDate={selectedDate}
+        onClearDate={() => setSelectedDate(null)}
+        isMobile={isMobile}
+      />
 
-        {/* Timeline */}
-        <ScheduleTimeline
-          forecast={forecast}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
-
-        {/* Summary stats */}
-        <ScheduleSummary
-          forecast={forecast}
-          dueTodayCount={dueTodayCount}
-          overdueCount={overdueCount}
-        />
-      </div>
-
-      {/* Contextual spread button when a day is selected */}
-      {selectedDate && (() => {
-        const dayItems = getItemsForDate(selectedDate);
-        if (dayItems.length < 5) return null;
-        return (
-          <div className="px-4 py-2 bg-primary/5 border-b border-border flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {t("schedule.itemsDue", { count: dayItems.length })}
-            </span>
-            <button
-              onClick={() => handleSpreadDate(selectedDate)}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              <Zap className="w-3 h-3" />
-              {t("schedule.spread")}
-            </button>
-          </div>
-        );
-      })()}
+      <ScheduleDashboard
+        forecast={forecast}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        dueTodayCount={dueTodayCount}
+        overdueCount={overdueCount}
+        isCollapsed={isDashboardCollapsed}
+        onToggleCollapse={() => setIsDashboardCollapsed(!isDashboardCollapsed)}
+        isMobile={isMobile}
+      />
 
       {/* Item list */}
       <ScheduleItemList
@@ -351,6 +343,7 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
         onDismiss={handleDismiss}
         isLoading={isLoading}
         isMobile={isMobile}
+        viewMode={viewMode}
       />
 
       {/* Spread modal */}

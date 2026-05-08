@@ -18,6 +18,7 @@ interface ScheduleItemListProps {
   onDismiss?: (itemId: string) => Promise<void>;
   isLoading: boolean;
   isMobile?: boolean;
+  viewMode?: "cards" | "table";
 }
 
 function formatSectionLabel(dateStr: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
@@ -169,9 +170,9 @@ export function ScheduleItemList({
   onDismiss,
   isLoading,
   isMobile = false,
+  viewMode = "table",
 }: ScheduleItemListProps) {
   const { t } = useI18n();
-  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
 
   // Group items by date
   const grouped = useMemo(() => {
@@ -253,38 +254,6 @@ export function ScheduleItemList({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* View toggle */}
-      {!isMobile && (
-        <div className="flex items-center justify-end px-4 py-1.5 border-b border-border/50 bg-background">
-          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded transition-colors",
-                viewMode === "cards"
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <LayoutGrid className="w-3 h-3" />
-              {t("schedule.viewCards")}
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded transition-colors",
-                viewMode === "table"
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Table2 className="w-3 h-3" />
-              {t("schedule.viewTable")}
-            </button>
-          </div>
-        </div>
-      )}
-
       {viewMode === "table" ? (
         <ScheduleTable
           groups={visibleGroups}

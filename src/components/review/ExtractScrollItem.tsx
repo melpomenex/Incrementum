@@ -343,7 +343,7 @@ export function ExtractScrollItem({
                 </div>
 
                 {/* Content Editor / Progressive Disclosure */}
-                <div className="bg-card border border-border rounded-2xl shadow-xl min-h-[300px] max-h-[60vh] overflow-y-auto relative">
+                <div data-extract-scroll="true" className="bg-card border border-border rounded-2xl shadow-xl min-h-[300px] max-h-[60vh] overflow-y-auto relative">
                     {(() => {
                         const { text, isSummary, levelLabel } = getDisplayContent();
 

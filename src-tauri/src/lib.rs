@@ -1103,6 +1103,7 @@ pub fn run() {
             commands::mark_episode_played,
             commands::update_episode_position,
             commands::get_episode_position,
+            commands::import_podcast_episode_as_document,
             // Podcast transcription commands
             commands::podcast::transcribe_podcast_episode,
             commands::podcast::get_podcast_transcript,

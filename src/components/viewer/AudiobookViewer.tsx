@@ -164,7 +164,8 @@ export function AudiobookViewer({
     }
 
     // Skip local file cover extraction for remote podcast episodes
-    if (!document.filePath && remoteAudioUrl) {
+    const isRemote = document.filePath?.startsWith("http://") || document.filePath?.startsWith("https://") || document.filePath?.startsWith("data:");
+    if (isRemote || (!document.filePath && remoteAudioUrl)) {
       return;
     }
 
@@ -397,26 +398,36 @@ export function AudiobookViewer({
     [multiPartInfo?.partDurations]
   );
 
-  const savePosition = useCallback(
+  const persistPosition = useCallback(
     async (timeInPart: number) => {
       const docId = documentIdRef.current;
-      if (!docId) return;
-
       const globalSeconds = toGlobalSeconds(currentPartIndex, timeInPart);
       const rounded = Math.floor(globalSeconds);
 
       if (!Number.isFinite(rounded) || rounded < 0) return;
       if (Math.abs(rounded - lastSavedGlobalTimeRef.current) < 1) return;
+      lastSavedGlobalTimeRef.current = rounded;
+
+      const promises: Promise<any>[] = [];
+
+      // 1. Save to document system (IR system)
+      if (docId) {
+        promises.push(updateDocumentProgressAuto(docId, rounded));
+        promises.push(saveDocumentPosition(docId, timePosition(rounded, getTotalDurationSeconds())));
+      }
+
+      // 2. Save to podcast system (Podcast manager)
+      if (episodeId) {
+        promises.push(updateEpisodePosition(episodeId, timeInPart));
+      }
 
       try {
-        await updateDocumentProgressAuto(docId, rounded);
-        await saveDocumentPosition(docId, timePosition(rounded, getTotalDurationSeconds()));
-        lastSavedGlobalTimeRef.current = rounded;
+        await Promise.all(promises);
       } catch (error) {
-        console.warn("[AudiobookViewer] Failed to save position:", error);
+        console.warn("[AudiobookViewer] Failed to persist position:", error);
       }
     },
-    [currentPartIndex, getTotalDurationSeconds, toGlobalSeconds]
+    [currentPartIndex, episodeId, getTotalDurationSeconds, toGlobalSeconds]
   );
 
   const loadSavedPosition = useCallback(async () => {
@@ -443,7 +454,15 @@ export function AudiobookViewer({
     if (multiPartInfo && partIndex !== currentPartIndex) {
       setCurrentPartIndex(partIndex);
     }
-    pendingSeekTimeRef.current = timeInPart;
+    
+    // Immediate seek if possible, otherwise queue it
+    if (audioRef.current && audioRef.current.readyState >= 1) {
+      audioRef.current.currentTime = timeInPart;
+      setCurrentTime(timeInPart);
+      currentTimeRef.current = timeInPart;
+    } else {
+      pendingSeekTimeRef.current = timeInPart;
+    }
   }, [currentPartIndex, document.currentPage, document.id, fromGlobalSeconds, multiPartInfo]);
 
   // Load saved progress + audio prefs
@@ -454,11 +473,18 @@ export function AudiobookViewer({
 
     // For podcast episodes, restore saved position
     if (episodeId && remoteAudioUrl) {
- void (async () => {
+      void (async () => {
         try {
           const pos = await getEpisodePosition(episodeId);
           if (pos > 0) {
-            pendingSeekTimeRef.current = pos;
+            // Immediate seek if possible, otherwise queue it
+            if (audioRef.current && audioRef.current.readyState >= 1) {
+              audioRef.current.currentTime = pos;
+              setCurrentTime(pos);
+              currentTimeRef.current = pos;
+            } else {
+              pendingSeekTimeRef.current = pos;
+            }
           }
         } catch (err) {
           console.warn("[AudiobookViewer] Failed to load episode position:", err);
@@ -538,25 +564,82 @@ export function AudiobookViewer({
     }
   }, [activeSegmentId, currentPartIndex, showTranscript, toGlobalSeconds, transcript]);
   
+  const [isWaitingForSeek, setIsWaitingForSeek] = useState(false);
+  const seekRetryCountRef = useRef(0);
+
+  const seek = useCallback((time: number) => {
+    if (!audioRef.current) return;
+    
+    const clamped = Math.max(0, Math.min(durationRef.current || duration || time, time));
+    
+    try {
+      console.log(`[AudiobookViewer] Attempting seek to ${clamped}s (readyState: ${audioRef.current.readyState})`);
+      audioRef.current.currentTime = clamped;
+      
+      // Check if seek was successful
+      if (Math.abs(audioRef.current.currentTime - clamped) > 0.5 && clamped > 0) {
+        console.warn(`[AudiobookViewer] Seek to ${clamped}s was ignored by browser. Queuing retry.`);
+        pendingSeekTimeRef.current = clamped;
+        setIsWaitingForSeek(true);
+      } else {
+        setIsWaitingForSeek(false);
+        setCurrentTime(clamped);
+        currentTimeRef.current = clamped;
+        currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
+        seekRetryCountRef.current = 0;
+      }
+    } catch (err) {
+      console.error("[AudiobookViewer] Seek error:", err);
+      pendingSeekTimeRef.current = clamped;
+      setIsWaitingForSeek(true);
+    }
+  }, [currentPartIndex, duration, toGlobalSeconds]);
+
+  const attemptPendingSeek = useCallback(() => {
+    if (pendingSeekTimeRef.current != null && audioRef.current) {
+      const target = pendingSeekTimeRef.current;
+      
+      // Check if target is within seekable ranges
+      let isSeekable = false;
+      for (let i = 0; i < audioRef.current.seekable.length; i++) {
+        if (target >= audioRef.current.seekable.start(i) && target <= audioRef.current.seekable.end(i)) {
+          isSeekable = true;
+          break;
+        }
+      }
+
+      if (isSeekable || audioRef.current.readyState >= 1) {
+        console.log(`[AudiobookViewer] Retrying pending seek to ${target}s...`);
+        pendingSeekTimeRef.current = null;
+        seek(target);
+      } else {
+        seekRetryCountRef.current++;
+        if (seekRetryCountRef.current > 50) { // Limit retries
+          console.warn("[AudiobookViewer] Seek retry limit reached. User might need to play first.");
+          pendingSeekTimeRef.current = null;
+          setIsWaitingForSeek(false);
+        }
+      }
+    }
+  }, [seek]);
+
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
       durationRef.current = audioRef.current.duration;
-
-      // Apply a deferred seek after the correct src has loaded.
-      if (pendingSeekTimeRef.current != null) {
-        const t = pendingSeekTimeRef.current;
-        pendingSeekTimeRef.current = null;
-        audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || t, t));
-        setCurrentTime(audioRef.current.currentTime);
-        currentTimeRef.current = audioRef.current.currentTime;
-      }
+      attemptPendingSeek();
 
       if (autoPlayOnOpen && appliedInitialSeekRef.current === `${document.id}:${initialSeekTime}`) {
         audioRef.current.play().catch(() => {
           setIsPlaying(false);
         });
       }
+    }
+  };
+  
+  const handleProgress = () => {
+    if (isWaitingForSeek) {
+      attemptPendingSeek();
     }
   };
   
@@ -608,7 +691,7 @@ export function AudiobookViewer({
   const handlePause = () => {
     setIsPlaying(false);
     if (audioRef.current) {
-      void savePosition(audioRef.current.currentTime);
+      void persistPosition(audioRef.current.currentTime);
     }
   };
 
@@ -644,7 +727,9 @@ export function AudiobookViewer({
     }
 
     const playbackFilePath = preparedPlaybackPath || document.filePath;
-    if (!isTauri() || !playbackFilePath) {
+    const isRemotePath = playbackFilePath?.startsWith("http://") || playbackFilePath?.startsWith("https://") || playbackFilePath?.startsWith("data:");
+    
+    if (!isTauri() || !playbackFilePath || isRemotePath) {
       showError(t("viewer.playbackFailed"), t("viewer.unableToLoadAudio"));
       return false;
     }
@@ -720,16 +805,6 @@ export function AudiobookViewer({
       pendingAutoplayAfterFallbackRef.current = false;
     }
   };
-  
-  const seek = (time: number) => {
-    if (audioRef.current) {
-      const clamped = Math.max(0, Math.min(duration, time));
-      audioRef.current.currentTime = clamped;
-      setCurrentTime(clamped);
-      currentTimeRef.current = clamped;
-      currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
-    }
-  };
 
   useEffect(() => {
     if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) return;
@@ -749,30 +824,16 @@ export function AudiobookViewer({
     }
 
     pendingSeekTimeRef.current = timeInPart;
-    if (audioRef.current && Number.isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
-      const clamped = Math.max(0, Math.min(audioRef.current.duration, timeInPart));
-      audioRef.current.currentTime = clamped;
-      setCurrentTime(clamped);
-      currentTimeRef.current = clamped;
-      currentGlobalTimeRef.current = toGlobalSeconds(partIndex, clamped);
-
-      if (autoPlayOnOpen) {
-        audioRef.current.play().catch(() => {
-          setIsPlaying(false);
-        });
-      }
-    }
+    attemptPendingSeek();
   }, [
-    autoPlayOnOpen,
+    attemptPendingSeek,
     currentPartIndex,
     document.id,
     fromGlobalSeconds,
     initialSeekTime,
     initialTranscriptSegmentId,
     multiPartInfo,
-    toGlobalSeconds,
   ]);
-
   useEffect(() => {
     if (!showTranscript || !initialTranscriptSegmentId) return;
 
@@ -782,31 +843,27 @@ export function AudiobookViewer({
     }, 0);
   }, [activeSegments.length, initialTranscriptSegmentId, showTranscript, transcript?.segments?.length]);
 
+  // Save position on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        void persistPosition(currentTimeRef.current);
+      }
+    };
+  }, [persistPosition]);
+
   // Auto-save every 5s while playing
   useEffect(() => {
     if (!isPlaying) return;
 
     const id = window.setInterval(() => {
       if (audioRef.current) {
-        void savePosition(audioRef.current.currentTime);
+        void persistPosition(audioRef.current.currentTime);
       }
     }, 5000);
 
     return () => window.clearInterval(id);
-  }, [isPlaying, savePosition]);
-
-  // Podcast episode: save position periodically while playing
-  useEffect(() => {
-    if (!isPlaying || !episodeId || !remoteAudioUrl) return;
-
-    const id = window.setInterval(() => {
-      if (audioRef.current && audioRef.current.currentTime > 0) {
-        void updateEpisodePosition(episodeId, audioRef.current.currentTime);
-      }
-    }, 5000);
-
-    return () => window.clearInterval(id);
-  }, [isPlaying, episodeId, remoteAudioUrl]);
+  }, [isPlaying, persistPosition]);
 
   useEffect(() => {
     if (!fallbackSrc || !pendingAutoplayAfterFallbackRef.current || !audioRef.current) {
@@ -1129,6 +1186,7 @@ export function AudiobookViewer({
         src={remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onProgress={handleProgress}
         onEnded={handleEnded}
         onPlay={() => setIsPlaying(true)}
         onPause={handlePause}
@@ -1335,9 +1393,17 @@ export function AudiobookViewer({
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>{audiobookApi.formatDuration(currentTime)}</span>
+                <div className="flex items-center gap-1">
+                  <span>{audiobookApi.formatDuration(currentTime)}</span>
+                  {isWaitingForSeek && (
+                    <span className="text-[10px] bg-primary/20 text-primary px-1 rounded animate-pulse">
+                      {t("viewer.loadingPosition") || "Loading position..."}
+                    </span>
+                  )}
+                </div>
                 <span>{audiobookApi.formatDuration(duration)}</span>
               </div>
+
             </div>
             
             {/* Control buttons */}
