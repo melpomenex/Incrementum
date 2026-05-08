@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.34.0] - 2026-05-08
+
+### Added
+- **Podcast queue integration** — Insert individual podcast episodes directly into the review queue via a new Tauri command and frontend API
+- **Podcast playback position persistence** — Robust save/resume of playback position for podcast episodes, surviving app restarts
+- **Schedule dashboard** — New `ScheduleDashboard` component with summary views and improved layout
+- **Schedule toolbar** — New `ScheduleToolbar` with filtering and view controls for the schedule page
+
+### Changed
+- **AudiobookViewer refactor** — Major cleanup and improvement of the audiobook viewer component with better state management
+- **DocumentViewer** — Enhanced viewer with additional controls and improved UX
+- **Schedule view restructured** — Cleaner component hierarchy with dashboard, toolbar, and view separation
+- **Queue scroll page** — Minor improvements to the scroll queue flow
+
+### Fixed
+- **ExtractScrollItem** — Minor rendering fix for extract scroll items in review mode
+
 ## [1.33.1] - 2026-05-07
 
 ### Fixed
