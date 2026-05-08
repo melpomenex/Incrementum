@@ -58,6 +58,7 @@ import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { cn } from "../../utils";
+import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
 
 interface PodcastManagerProps {
   onPlayEpisode?: (feed: PodcastFeed, episode: PodcastEpisode) => void;
@@ -85,6 +86,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [playerWidth, setPlayerWidth] = useState(320);
   const [refreshErrors, setRefreshErrors] = useState<Record<string, string>>({});
   const migrationRun = useRef(false);
+  const confirmDialog = useConfirmDialog();
 
   // Context menu state
   const feedContextMenu = useContextMenu("feed-context-menu");
@@ -293,21 +295,29 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Remove subscription
   const handleRemoveSubscription = async (feedId: string) => {
-    if (!confirm(t("podcastManager.unsubscribeConfirm"))) return;
-
-    try {
-      await unsubscribeFromPodcast(feedId);
-      setFeeds((prev) => prev.filter((f) => f.id !== feedId));
-      if (selectedFeedId === feedId) {
-        setSelectedFeedId(null);
-      }
-      toast.success("Unsubscribed", "Podcast removed");
-    } catch (error) {
-      toast.error(
-        "Failed to unsubscribe",
-        error instanceof Error ? error.message : "Unknown error"
-      );
-    }
+    const feed = feeds.find((f) => f.id === feedId);
+    confirmDialog.confirm({
+      title: "Unsubscribe",
+      message: t("podcastManager.unsubscribeConfirm"),
+      confirmLabel: "Unsubscribe",
+      variant: "danger",
+      itemName: "podcast",
+      onConfirm: async () => {
+        try {
+          await unsubscribeFromPodcast(feedId);
+          setFeeds((prev) => prev.filter((f) => f.id !== feedId));
+          if (selectedFeedId === feedId) {
+            setSelectedFeedId(null);
+          }
+          toast.success("Unsubscribed", "Podcast removed");
+        } catch (error) {
+          toast.error(
+            "Failed to unsubscribe",
+            error instanceof Error ? error.message : "Unknown error"
+          );
+        }
+      },
+    });
   };
 
   // Play episode
@@ -1490,6 +1500,18 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.close}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmLabel={confirmDialog.variant === "danger" ? "Unsubscribe" : "Confirm"}
+        itemName={confirmDialog.itemName}
+      />
     </div>
   );
 }
