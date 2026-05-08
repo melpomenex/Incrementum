@@ -135,6 +135,19 @@ export async function resolveLocalMediaSource(
   filePath: string,
   mediaType: LocalMediaType,
 ): Promise<ResolvedLocalMediaSource> {
+  // If it's already a remote URL, return it directly
+  if (filePath.startsWith("http://") || filePath.startsWith("https://") || filePath.startsWith("data:")) {
+    return {
+      src: filePath,
+      mimeType: inferMimeType(filePath, mediaType),
+      mediaType,
+      originalPath: filePath,
+      strategy: "tauri-asset", // Using this strategy to mean "direct URL"
+      revokeSrcOnDispose: false,
+      attempts: [{ strategy: "tauri-asset", status: "success", detail: "Remote URL detected, using directly." }],
+    };
+  }
+
   const mimeType = inferMimeType(filePath, mediaType);
   const attempts: LocalMediaResolutionAttempt[] = [];
 

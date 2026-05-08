@@ -8,12 +8,14 @@ interface ScheduleSummaryProps {
   forecast: ForecastPoint[];
   dueTodayCount: number;
   overdueCount: number;
+  isCompact?: boolean;
 }
 
 export function ScheduleSummary({
   forecast,
   dueTodayCount,
   overdueCount,
+  isCompact = false,
 }: ScheduleSummaryProps) {
   const { t } = useI18n();
 
@@ -79,21 +81,29 @@ export function ScheduleSummary({
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+    <div className={cn(
+      "flex gap-2 pb-1",
+      isCompact ? "grid grid-cols-2 lg:grid-cols-2" : "overflow-x-auto scrollbar-hide"
+    )}>
       {items.map((item, i) => (
         <div
           key={i}
           className={cn(
             "flex-shrink-0 px-3 py-2 rounded-lg bg-muted/50 min-w-0",
+            isCompact && "py-1.5"
           )}
         >
-          <div className="text-[10px] text-muted-foreground leading-tight truncate">
-            {item.label}
-          </div>
+          {item.label && (
+            <div className="text-[10px] text-muted-foreground leading-tight truncate">
+              {item.label}
+            </div>
+          )}
           <div
             className={cn(
-              "text-sm font-semibold leading-tight mt-0.5 truncate",
+              "text-sm font-semibold leading-tight truncate",
+              !item.label ? "mt-0" : "mt-0.5",
               item.highlight ? "text-red-500 dark:text-red-400" : "text-foreground",
+              isCompact && "text-xs"
             )}
           >
             {item.value}

@@ -37,12 +37,14 @@ interface ScheduleTimelineProps {
   selectedDate: string | null;
   /** Called when a date cell is tapped/clicked */
   onSelectDate: (date: string | null) => void;
+  className?: string;
 }
 
 export function ScheduleTimeline({
   forecast,
   selectedDate,
   onSelectDate,
+  className,
 }: ScheduleTimelineProps) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,7 +71,7 @@ export function ScheduleTimeline({
   }, []);
 
   return (
-    <div className="relative">
+    <div className={cn("relative", className)}>
       <div
         ref={scrollRef}
         className="flex gap-1 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide"

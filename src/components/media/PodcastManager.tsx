@@ -25,9 +25,6 @@ import {
   Check,
 } from "lucide-react";
 import {
-  type PodcastFeed,
-  type PodcastEpisode,
-  type PodcastTranscriptResponse,
   subscribeToPodcast,
   unsubscribeFromPodcast,
   getSubscribedPodcasts,
@@ -43,6 +40,12 @@ import {
   getPodcastTranscript,
   cancelPodcastTranscription,
   setFeedAutoTranscribe,
+  importPodcastEpisodeAsDocument,
+} from "../../api/podcast";
+import type {
+  PodcastFeed,
+  PodcastEpisode,
+  PodcastTranscriptResponse,
 } from "../../api/podcast";
 import { isTauri, listen } from "../../lib/tauri";
 import {
@@ -522,6 +525,19 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               await markEpisodePlayed(episode.id, true);
               if (selectedFeedId === feed.id) await loadEpisodes(feed.id);
               loadFeeds();
+            },
+          },
+          {
+            id: "insert-to-queue",
+            label: t("podcastManager.insertToQueue"),
+            icon: <Plus className="w-4 h-4" />,
+            onClick: async () => {
+              try {
+                await importPodcastEpisodeAsDocument(episode.id);
+                toast.success(t("podcastManager.insertedToQueue"));
+              } catch (err) {
+                toast.error(t("podcastManager.insertToQueueFailed"), err instanceof Error ? err.message : String(err));
+              }
             },
           },
           {

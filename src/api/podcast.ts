@@ -4,6 +4,18 @@
 
 import { invokeCommand, isTauri } from "../lib/tauri";
 
+/**
+ * Import a podcast episode as a document in the incremental reading system.
+ */
+export async function importPodcastEpisodeAsDocument(episodeId: string): Promise<any> {
+  if (isTauri()) {
+    return invokeCommand<any>("import_podcast_episode_as_document", { episodeId });
+  }
+  // Browser fallback not implemented for this specific command
+  console.warn("[Browser] importPodcastEpisodeAsDocument: not implemented");
+  return null;
+}
+
 // ============================================================================
 // Types (camelCase — Tauri auto-converts from snake_case)
 // ============================================================================

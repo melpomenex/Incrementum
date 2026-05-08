@@ -153,6 +153,22 @@ function isEpubSelectionContext(value: unknown): value is EpubSelectionContext {
   return Boolean(value && typeof value === "object" && (value as { type?: string }).type === "epub");
 }
 
+function computeExtractPageNumber(params: {
+  selectionContext: unknown;
+  viewerPageNumber: number;
+  scrollPercent: number | undefined;
+  totalPages: number;
+  isEpubDoc: boolean;
+}): number {
+  if (isPdfSelectionContext(params.selectionContext)) {
+    return params.selectionContext.pages[0]?.pageNumber ?? params.viewerPageNumber;
+  }
+  if (params.isEpubDoc && params.totalPages > 0 && params.scrollPercent != null) {
+    return Math.max(1, Math.ceil((params.scrollPercent / 100) * params.totalPages));
+  }
+  return params.viewerPageNumber;
+}
+
 function toExtractDialogColor(color?: string): string | undefined {
   switch (color) {
     case "yellow":
@@ -1363,15 +1379,19 @@ export function DocumentViewer({
         if (!doc.filePath) {
           throw new Error("Audio document is missing a file path.");
         }
-        const src = await convertFileSrc(doc.filePath);
+        
+        // If it's a remote URL, use it directly. Otherwise, use convertFileSrc for local paths.
+        const isRemote = doc.filePath.startsWith("http://") || doc.filePath.startsWith("https://") || doc.filePath.startsWith("data:");
+        const src = isRemote ? doc.filePath : await convertFileSrc(doc.filePath);
+        
         const resolvedSource: ResolvedLocalMediaSource = {
           src,
           mimeType: inferMimeType(doc.filePath, "audio"),
           mediaType: "audio",
           originalPath: doc.filePath,
-          strategy: "tauri-asset",
+          strategy: isRemote ? "tauri-asset" : "tauri-asset", // keep strategy same for now
           revokeSrcOnDispose: false,
-          attempts: [{ strategy: "tauri-asset", status: "success", detail: "Direct convertFileSrc; skipped probe for audio." }],
+          attempts: [{ strategy: "tauri-asset", status: "success", detail: isRemote ? "Remote URL detected, using directly." : "Direct convertFileSrc; skipped probe for audio." }],
         };
         mediaSourceRef.current = resolvedSource;
         setMediaSource(resolvedSource);
@@ -2890,7 +2910,13 @@ export function DocumentViewer({
     createInstantExtract({
       documentId,
       text,
-      pageNumber: isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber,
+      pageNumber: computeExtractPageNumber({
+        selectionContext,
+        viewerPageNumber: pageNumber,
+        scrollPercent: lastScrollStateRef.current?.scrollPercent,
+        totalPages,
+        isEpubDoc: docType === "epub",
+      }),
       selectionContext: selectionContext ?? undefined,
     });
     clearTextSelection();
@@ -4767,6 +4793,7 @@ export function DocumentViewer({
             <AudiobookViewer
               document={currentDocument}
               fileContent={mediaSource.src}
+              remoteAudioUrl={(currentDocument.filePath.startsWith("http://") || currentDocument.filePath.startsWith("https://") || currentDocument.filePath.startsWith("data:")) ? currentDocument.filePath : undefined}
               initialSeekTime={initialJump?.kind === "audio" ? initialJump.timeSeconds : undefined}
               initialTranscriptSegmentId={initialJump?.kind === "audio" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "audio"}
@@ -5248,7 +5275,13 @@ export function DocumentViewer({
                   createInstantExtract({
                     documentId,
                     text: activeExtractSelection,
-                    pageNumber: isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber,
+                    pageNumber: computeExtractPageNumber({
+                      selectionContext,
+                      viewerPageNumber: pageNumber,
+                      scrollPercent: lastScrollStateRef.current?.scrollPercent,
+                      totalPages,
+                      isEpubDoc: docType === "epub",
+                    }),
                     selectionContext: selectionContext ?? undefined,
                   });
                   clearTextSelection();
@@ -5353,7 +5386,13 @@ export function DocumentViewer({
       <CreateExtractDialog
         documentId={currentDocument.id}
         selectedText={activeExtractSelection}
-        pageNumber={isPdfSelectionContext(selectionContext) ? (selectionContext.pages[0]?.pageNumber ?? pageNumber) : pageNumber}
+        pageNumber={computeExtractPageNumber({
+          selectionContext,
+          viewerPageNumber: pageNumber,
+          scrollPercent: lastScrollStateRef.current?.scrollPercent,
+          totalPages,
+          isEpubDoc: docType === "epub",
+        })}
         selectionContext={selectionContext}
         initialHighlightColor={initialHighlightColor}
         isOpen={isExtractDialogOpen}

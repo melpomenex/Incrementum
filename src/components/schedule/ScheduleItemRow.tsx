@@ -229,7 +229,7 @@ export function ScheduleItemRow({
         }}
       >
         {/* Header row */}
-        <div className="px-3 py-2.5 sm:px-4">
+        <div className="px-3 py-1.5 sm:px-4">
           <div className="flex items-start gap-2.5 sm:gap-3">
             {/* Type icon */}
             <div

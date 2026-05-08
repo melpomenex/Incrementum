@@ -1209,10 +1209,10 @@ export function QueueScrollPage() {
         }
       }
 
-      // For EPUB, PDF, and audio documents, don't auto-advance on scroll boundary
+      // For EPUB, PDF, audio documents, and extract review items, don't auto-advance on scroll
       // User must explicitly rate or use keyboard navigation to move to next item
-      if (isScrollableDocument || currentItem?.type === "podcast") {
-        return; // Let the document/player scroll normally, no auto-advance
+      if (isScrollableDocument || currentItem?.type === "podcast" || currentItem?.type === "extract") {
+        return; // Let the document/player/extract scroll normally, no auto-advance
       }
 
       // Find the scrollable content element
@@ -1221,7 +1221,15 @@ export function QueueScrollPage() {
         return;
       }
       const transcriptScrollElement = target.closest('[data-transcript-scroll="true"]') as HTMLElement | null;
+      const extractScrollContainer = target.closest('[data-extract-scroll="true"]') as HTMLElement | null;
+      // For textareas inside extract cards, the textarea itself handles scrolling
+      // internally — the parent overflow container never scrolls, so we must check
+      // the textarea's scroll position instead of the container's.
+      const extractScrollElement = (target.tagName === 'TEXTAREA' && extractScrollContainer)
+        ? (target as HTMLElement)
+        : extractScrollContainer;
       const scrollableElement = transcriptScrollElement
+        || extractScrollElement
         || target.closest('[class*="overflow"]') as HTMLElement
         || target.closest('.prose') as HTMLElement
         || document.documentElement;
@@ -1681,12 +1689,17 @@ export function QueueScrollPage() {
       } else {
         // Vertical gesture - check for navigation
         if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
-          if (isScrollableDocument || currentItem?.type === "podcast") {
+          if (isScrollableDocument || currentItem?.type === "podcast" || currentItem?.type === "extract") {
             return;
           }
 
           const transcriptScrollElement = target.closest('[data-transcript-scroll="true"]') as HTMLElement | null;
+          const extractScrollContainer = target.closest('[data-extract-scroll="true"]') as HTMLElement | null;
+          const extractScrollElement = (target.tagName === 'TEXTAREA' && extractScrollContainer)
+            ? (target as HTMLElement)
+            : extractScrollContainer;
           const scrollableElement = transcriptScrollElement
+            || extractScrollElement
             || target.closest('[class*="overflow"]') as HTMLElement
             || target.closest('.prose') as HTMLElement
             || document.documentElement;
