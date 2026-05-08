@@ -14,6 +14,8 @@ import { cn } from "../../utils";
 
 interface ScheduleViewProps {
   isMobile?: boolean;
+  onStartReview?: (itemId?: string) => void;
+  onOpenDocument?: (documentId: string, title: string) => void;
 }
 
 function queueItemToScheduleDay(item: {
@@ -57,7 +59,7 @@ function queueItemToScheduleDay(item: {
   };
 }
 
-export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
+export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }: ScheduleViewProps) {
   const { t } = useI18n();
   const toast = useToast();
 
@@ -81,12 +83,10 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
 
       setForecast(forecastData.points);
 
-      // Filter queue items to those with due dates (scheduled items)
       const scheduled = queueItems
         .map(queueItemToScheduleDay)
         .filter((i): i is ScheduleDayItem => i !== null);
 
-      // Sort by due date, then priority
       scheduled.sort((a, b) => {
         const dateDiff = a.dueDate.localeCompare(b.dueDate);
         if (dateDiff !== 0) return dateDiff;
@@ -98,6 +98,26 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
       console.error("Failed to load schedule data:", err);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Lightweight reload — queue items only (no forecast)
+  const reloadItems = useCallback(async () => {
+    try {
+      const queueItems = await getQueue();
+      const scheduled = queueItems
+        .map(queueItemToScheduleDay)
+        .filter((i): i is ScheduleDayItem => i !== null);
+
+      scheduled.sort((a, b) => {
+        const dateDiff = a.dueDate.localeCompare(b.dueDate);
+        if (dateDiff !== 0) return dateDiff;
+        return b.priority - a.priority;
+      });
+
+      setScheduleItems(scheduled);
+    } catch (err) {
+      console.error("Failed to reload items:", err);
     }
   }, []);
 
@@ -146,19 +166,21 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
         toast.success(
           t("schedule.postponed", { count: days }),
         );
-        await loadData();
+        await reloadItems();
       } catch {
         toast.error(t("schedule.postponeFailed"));
       }
     },
-    [loadData, toast, t],
+    [reloadItems, toast, t],
   );
 
   const handleOpen = useCallback(async (item: ScheduleDayItem) => {
-    // Navigate to document or start review
-    // For now just log — the parent component handles navigation
-    console.log("[schedule] Open item:", item.id, item.itemType);
-  }, []);
+    if (item.itemType === "learning-item") {
+      onStartReview?.(item.id);
+    } else {
+      onOpenDocument?.(item.documentId, item.documentTitle);
+    }
+  }, [onStartReview, onOpenDocument]);
 
   const handleSuspend = useCallback(async (itemId: string, itemType: string) => {
     try {
@@ -166,11 +188,11 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
         await bulkSuspendItems([itemId]);
         toast.success(t("schedule.itemSuspended"));
       }
-      await loadData();
+      await reloadItems();
     } catch {
       toast.error(t("schedule.actionFailed"));
     }
-  }, [loadData, toast, t]);
+  }, [reloadItems, toast, t]);
 
   const handleUnsuspend = useCallback(async (itemId: string, itemType: string) => {
     try {
@@ -178,32 +200,31 @@ export function ScheduleView({ isMobile = false }: ScheduleViewProps) {
         await bulkUnsuspendItems([itemId]);
         toast.success(t("schedule.itemUnsuspended"));
       }
-      await loadData();
+      await reloadItems();
     } catch {
       toast.error(t("schedule.actionFailed"));
     }
-  }, [loadData, toast, t]);
+  }, [reloadItems, toast, t]);
 
   const handleDelete = useCallback(async (itemId: string, itemType: string) => {
     try {
       await bulkDeleteItems([itemId]);
       toast.success(t("schedule.itemDeleted"));
-      await loadData();
+      await reloadItems();
     } catch {
       toast.error(t("schedule.actionFailed"));
     }
-  }, [loadData, toast, t]);
+  }, [reloadItems, toast, t]);
 
   const handleDismiss = useCallback(async (itemId: string) => {
-    // Dismiss is archive/dismiss for documents — uses delete for now
     try {
       await bulkDeleteItems([itemId]);
       toast.success(t("schedule.itemDismissed"));
-      await loadData();
+      await reloadItems();
     } catch {
       toast.error(t("schedule.actionFailed"));
     }
-  }, [loadData, toast, t]);
+  }, [reloadItems, toast, t]);
 
   // Handle spread from toolbar
   const handleSpreadToolbar = useCallback(() => {

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// A subscribed podcast feed
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PodcastFeed {
     pub id: String,
     pub title: String,
@@ -31,6 +32,7 @@ pub struct PodcastFeedResponse {
 
 /// A podcast episode
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PodcastEpisode {
     pub id: String,
     pub feed_id: String,

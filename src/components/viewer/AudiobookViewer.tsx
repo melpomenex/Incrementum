@@ -163,21 +163,30 @@ export function AudiobookViewer({
       return;
     }
 
+    // Skip local file cover extraction for remote podcast episodes
+    if (!document.filePath && remoteAudioUrl) {
+      return;
+    }
+
     let cancelled = false;
 
     const fetchCover = async () => {
       try {
-        // Step 1: Try to extract embedded cover from audio file
-        const embeddedCover = await audiobookApi.extractAudioCoverArt(document.filePath);
-        if (cancelled) return;
+        // Step 1: Try to extract embedded cover from audio file (only if we have a local file)
+        if (document.filePath) {
+          const embeddedCover = await audiobookApi.extractAudioCoverArt(document.filePath);
+          if (cancelled) return;
 
-        if (embeddedCover) {
-          setLocalCoverUrl(embeddedCover);
-          await updateDocumentApi(document.id, {
-            ...document,
-            coverImageUrl: embeddedCover,
-          } as any);
-          return;
+          if (embeddedCover) {
+            setLocalCoverUrl(embeddedCover);
+            try {
+              await updateDocumentApi(document.id, {
+                ...document,
+                coverImageUrl: embeddedCover,
+              } as any);
+            } catch {}
+            return;
+          }
         }
 
         // Step 2: Search Google Books using title/author
@@ -187,10 +196,12 @@ export function AudiobookViewer({
 
         if (covers.length > 0) {
           setLocalCoverUrl(covers[0]);
-          await updateDocumentApi(document.id, {
-            ...document,
-            coverImageUrl: covers[0],
-          } as any);
+          try {
+            await updateDocumentApi(document.id, {
+              ...document,
+              coverImageUrl: covers[0],
+            } as any);
+          } catch {}
         }
       } catch (error) {
         console.error("[AudiobookViewer] Failed to auto-fetch cover:", error);
@@ -200,12 +211,15 @@ export function AudiobookViewer({
     fetchCover();
 
     return () => { cancelled = true; };
-  }, [document.id, document.coverImageUrl]);
+  }, [document.id, document.coverImageUrl, document.filePath, remoteAudioUrl]);
 
-  // Debug fileContent
+  // Debug logging
   useEffect(() => {
     console.log('[AudiobookViewer] fileContent:', fileContent ? fileContent.substring(0, 100) + '...' : 'undefined');
   }, [fileContent]);
+  useEffect(() => {
+    console.log('[AudiobookViewer] remoteAudioUrl:', remoteAudioUrl || 'undefined');
+  }, [remoteAudioUrl]);
 
   // Load audiobook data
   useEffect(() => {
@@ -1112,7 +1126,7 @@ export function AudiobookViewer({
       {/* Audio element - use remoteAudioUrl (podcast), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || "" : "")}
+        src={remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}

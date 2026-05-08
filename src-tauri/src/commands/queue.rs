@@ -90,10 +90,7 @@ async fn get_queue_items_from_repo(
 
     // Get video extracts for spaced repetition review
     let due_video_extracts = repo.get_due_video_extracts(&now).await?;
-    let all_video_extracts = repo.get_all_video_extracts().await.unwrap_or_default();
-    let new_video_extracts: Vec<_> = all_video_extracts.into_iter()
-        .filter(|e| e.review_count == 0 && e.next_review_date.is_none())
-        .collect();
+    let new_video_extracts = repo.get_new_video_extracts().await.unwrap_or_default();
     let video_extracts: Vec<_> = due_video_extracts.into_iter().chain(new_video_extracts.into_iter()).collect();
     for extract in &video_extracts {
         all_doc_ids.insert(extract.document_id.clone());
@@ -505,14 +502,23 @@ pub async fn get_queue_with_playlist_intersperse(
     
     // Get subscription info for each video to determine intersperse interval
     let mut playlist_queue_items: Vec<QueueItem> = Vec::new();
-    
+
+    // Batch collect all document IDs and subscription IDs
+    let doc_ids: Vec<String> = playlist_videos.iter()
+        .filter_map(|v| v.document_id.clone())
+        .collect();
+    let sub_ids: Vec<String> = playlist_videos.iter()
+        .map(|v| v.subscription_id.clone())
+        .collect();
+
+    // Batch fetch documents and subscriptions
+    let docs_map = repo.get_documents_by_ids(&doc_ids).await.unwrap_or_default();
+    let subs_map = repo.get_playlist_subscriptions_by_ids(&sub_ids).await.unwrap_or_default();
+
     for video in playlist_videos {
-        // Get the associated document
         if let Some(doc_id) = &video.document_id {
-            if let Ok(Some(doc)) = repo.get_document(doc_id).await {
-                // Get subscription to get the intersperse interval
-                if let Ok(Some(sub)) = repo.get_playlist_subscription(&video.subscription_id).await {
-                    // Only include if subscription is active
+            if let Some(doc) = docs_map.get(doc_id) {
+                if let Some(sub) = subs_map.get(&video.subscription_id) {
                     if sub.is_active {
                         let progress = match (doc.current_page, doc.total_pages) {
                             (Some(current), Some(total)) if total > 0 => {
@@ -520,15 +526,14 @@ pub async fn get_queue_with_playlist_intersperse(
                             }
                             _ => 0,
                         };
-                        
-                        // Calculate priority based on subscription settings
+
                         let priority = calculate_fsrs_document_priority(
                             doc.next_reading_date,
                             doc.stability,
                             doc.difficulty,
                             sub.priority_rating,
                         );
-                        
+
                         playlist_queue_items.push(QueueItem {
                             id: video.id.clone(),
                             document_id: doc.id.clone(),

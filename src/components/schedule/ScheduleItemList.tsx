@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
@@ -34,6 +34,130 @@ function formatSectionLabel(dateStr: string, t: (key: string, vars?: Record<stri
   return `${month} ${day}`;
 }
 
+/** Flattened list item: either a date header or a schedule item */
+type FlatItem =
+  | { kind: "header"; date: string; count: number }
+  | { kind: "item"; item: ScheduleDayItem };
+
+/** Virtualized card list with date headers interleaved */
+function VirtualizedCardList({
+  flatItems,
+  onPostpone,
+  onOpen,
+  onSuspend,
+  onUnsuspend,
+  onDelete,
+  onDismiss,
+  isMobile,
+}: {
+  flatItems: FlatItem[];
+  onPostpone: (itemId: string, days: number, itemType?: string) => Promise<void>;
+  onOpen?: (item: ScheduleDayItem) => void;
+  onSuspend?: (itemId: string, itemType: string) => Promise<void>;
+  onUnsuspend?: (itemId: string, itemType: string) => Promise<void>;
+  onDelete?: (itemId: string, itemType: string) => Promise<void>;
+  onDismiss?: (itemId: string) => Promise<void>;
+  isMobile?: boolean;
+}) {
+  const { t } = useI18n();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const itemHeightsRef = useRef<Map<number, number>>(new Map());
+  const [_, forceUpdate] = useState({});
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const updateHeight = () => setContainerHeight(container.clientHeight);
+    updateHeight();
+    let rafId: number | null = null;
+    const ro = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateHeight);
+    });
+    ro.observe(container);
+    return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId); };
+  }, []);
+
+  const defaultH = 80;
+  const overscan = 5;
+  const getItemHeight = (i: number) => itemHeightsRef.current.get(i) ?? (flatItems[i]?.kind === "header" ? 36 : defaultH);
+  const getItemOffset = (i: number) => { let o = 0; for (let j = 0; j < i; j++) o += getItemHeight(j); return o; };
+  const totalHeight = getItemOffset(flatItems.length);
+
+  const findStart = () => {
+    let off = 0;
+    for (let i = 0; i < flatItems.length; i++) {
+      off += getItemHeight(i);
+      if (off > scrollTop) return Math.max(0, i - overscan);
+    }
+    return 0;
+  };
+  const findEnd = (start: number) => {
+    let off = getItemOffset(start);
+    for (let i = start; i < flatItems.length; i++) {
+      off += getItemHeight(i);
+      if (off > scrollTop + containerHeight + overscan * defaultH) return Math.min(flatItems.length, i + overscan);
+    }
+    return flatItems.length;
+  };
+
+  const startIdx = findStart();
+  const endIdx = findEnd(startIdx);
+  const visible = flatItems.slice(startIdx, endIdx);
+
+  const measureRef = useCallback((index: number) => (el: HTMLElement | null) => {
+    if (el) {
+      const h = el.getBoundingClientRect().height;
+      if (itemHeightsRef.current.get(index) !== h) {
+        itemHeightsRef.current.set(index, h);
+        forceUpdate({});
+      }
+    }
+  }, []);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => setScrollTop(e.currentTarget.scrollTop), []);
+
+  return (
+    <div ref={containerRef} className="flex-1 overflow-auto" onScroll={handleScroll} style={{ willChange: "transform" }}>
+      <div style={{ height: totalHeight, position: "relative" }}>
+        {visible.map((entry, vi) => {
+          const ai = startIdx + vi;
+          const top = getItemOffset(ai);
+          const isHeader = entry.kind === "header";
+
+          return (
+            <div key={ai} ref={measureRef(ai)} style={{ position: "absolute", top, left: 0, right: 0 }}>
+              {isHeader ? (
+                <div className="px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {formatSectionLabel(entry.date, t)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {t("schedule.itemsDue", { count: entry.count })}
+                  </span>
+                </div>
+              ) : (
+                <ScheduleItemRow
+                  item={entry.item}
+                  onPostpone={onPostpone}
+                  onOpen={onOpen}
+                  onSuspend={onSuspend}
+                  onUnsuspend={onUnsuspend}
+                  onDelete={onDelete}
+                  onDismiss={onDismiss}
+                  isMobile={isMobile}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ScheduleItemList({
   items,
   selectedDate,
@@ -66,18 +190,24 @@ export function ScheduleItemList({
     }));
   }, [items]);
 
-  // Filter by selected date if set (normalize both sides to YYYY-MM-DD for comparison)
+  // Filter by selected date
   const visibleGroups = useMemo(() => {
     if (!selectedDate) return grouped;
     const sel = selectedDate.slice(0, 10);
     return grouped.filter((g) => g.date.slice(0, 10) === sel);
   }, [grouped, selectedDate]);
 
-  // Groups for table view
-  const visibleTableGroups = useMemo(
-    () => visibleGroups,
-    [visibleGroups],
-  );
+  // Flatten groups for virtualized card list
+  const flatItems = useMemo<FlatItem[]>(() => {
+    const flat: FlatItem[] = [];
+    for (const group of visibleGroups) {
+      flat.push({ kind: "header", date: group.date, count: group.items.length });
+      for (const item of group.items) {
+        flat.push({ kind: "item", item });
+      }
+    }
+    return flat;
+  }, [visibleGroups]);
 
   if (isLoading) {
     return (
@@ -157,7 +287,7 @@ export function ScheduleItemList({
 
       {viewMode === "table" ? (
         <ScheduleTable
-          groups={visibleTableGroups}
+          groups={visibleGroups}
           onPostpone={onPostpone}
           onOpen={onOpen}
           onSuspend={onSuspend}
@@ -166,36 +296,16 @@ export function ScheduleItemList({
           onDismiss={onDismiss}
         />
       ) : (
-        /* Card view */
-        <div className="flex-1 overflow-y-auto">
-          {visibleGroups.map((group) => (
-            <div key={group.date}>
-              <div className="sticky top-0 z-10 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {formatSectionLabel(group.date, t)}
-                </span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {t("schedule.itemsDue", { count: group.items.length })}
-                </span>
-              </div>
-              <div className="divide-y divide-border">
-                {group.items.map((item) => (
-                  <ScheduleItemRow
-                    key={item.id}
-                    item={item}
-                    onPostpone={onPostpone}
-                    onOpen={onOpen}
-                    onSuspend={onSuspend}
-                    onUnsuspend={onUnsuspend}
-                    onDelete={onDelete}
-                    onDismiss={onDismiss}
-                    isMobile={isMobile}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <VirtualizedCardList
+          flatItems={flatItems}
+          onPostpone={onPostpone}
+          onOpen={onOpen}
+          onSuspend={onSuspend}
+          onUnsuspend={onUnsuspend}
+          onDelete={onDelete}
+          onDismiss={onDismiss}
+          isMobile={isMobile}
+        />
       )}
     </div>
   );

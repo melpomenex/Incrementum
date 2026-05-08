@@ -3091,6 +3091,181 @@ impl Repository {
         Ok(extracts)
     }
 
+    /// Get new video extracts (no reviews yet) — server-side filtered
+    pub async fn get_new_video_extracts(&self) -> Result<Vec<crate::models::VideoExtract>> {
+        let rows = sqlx::query(
+            "SELECT * FROM video_extracts WHERE review_count = 0 AND next_review_date IS NULL ORDER BY date_created DESC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut extracts = Vec::new();
+        for row in rows {
+            let tags_json: String = row.try_get("tags")?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            let memory_state_json: Option<String> = row.try_get("memory_state").ok();
+            let memory_state = memory_state_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            extracts.push(crate::models::VideoExtract {
+                id: row.try_get("id")?,
+                document_id: row.try_get("document_id")?,
+                start_time: row.try_get("start_time")?,
+                end_time: row.try_get("end_time")?,
+                title: row.try_get("title")?,
+                transcript_text: row.try_get("transcript_text").ok(),
+                notes: row.try_get("notes").ok(),
+                tags,
+                thumbnail_url: row.try_get("thumbnail_url").ok(),
+                memory_state,
+                next_review_date: row.try_get("next_review_date").ok(),
+                last_review_date: row.try_get("last_review_date").ok(),
+                review_count: row.try_get("review_count").unwrap_or(0),
+                reps: row.try_get("reps").unwrap_or(0),
+                date_created: row.try_get("date_created")?,
+                date_modified: row.try_get("date_modified")?,
+            });
+        }
+
+        Ok(extracts)
+    }
+
+    /// Batch fetch documents by IDs
+    pub async fn get_documents_by_ids(&self, ids: &[String]) -> Result<HashMap<String, Document>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let query_str = format!("SELECT * FROM documents WHERE id IN ({})", placeholders.join(", "));
+        let mut query = sqlx::query(&query_str);
+        for id in ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut map = HashMap::new();
+        for row in rows {
+            let file_type: String = row.get("file_type");
+            let tags_json: String = row.get("tags");
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let metadata_json: Option<String> = row.try_get("metadata")?;
+            let metadata: Option<DocumentMetadata> = metadata_json
+                .and_then(|json| serde_json::from_str(&json).ok());
+
+            let doc = Document {
+                id: row.get("id"),
+                title: row.get("title"),
+                file_path: row.get("file_path"),
+                file_type: Self::parse_file_type(&file_type),
+                content: Self::decode_optional_text(&row, "content"),
+                content_hash: row.get("content_hash"),
+                total_pages: row.get("total_pages"),
+                current_page: row.get("current_page"),
+                current_scroll_percent: row.try_get("current_scroll_percent").ok(),
+                current_cfi: row.try_get("current_cfi").ok(),
+                current_view_state: row.try_get("current_view_state").ok(),
+                position_json: row.try_get("position_json").ok(),
+                progress_percent: row.try_get("progress_percent").ok(),
+                category: row.get("category"),
+                tags,
+                date_added: row.get("date_added"),
+                date_modified: row.get("date_modified"),
+                date_last_reviewed: row.get("date_last_reviewed"),
+                extract_count: row.get("extract_count"),
+                learning_item_count: row.get("learning_item_count"),
+                priority_rating: row.get("priority_rating"),
+                priority_slider: row.get("priority_slider"),
+                priority_score: row.get("priority_score"),
+                is_archived: row.get("is_archived"),
+                is_favorite: row.get("is_favorite"),
+                is_dismissed: row.try_get("is_dismissed").unwrap_or(false),
+                metadata,
+                cover_image_url: row.try_get("cover_image_url").ok(),
+                cover_image_source: row.try_get("cover_image_source").ok(),
+                next_reading_date: row.try_get("next_reading_date").ok(),
+                reading_count: row.try_get("reading_count").unwrap_or(0),
+                stability: row.try_get("stability").ok(),
+                difficulty: row.try_get("difficulty").ok(),
+                reps: row.try_get("reps").ok(),
+                total_time_spent: row.try_get("total_time_spent").ok(),
+                consecutive_count: row.try_get("consecutive_count").ok(),
+            };
+            map.insert(doc.id.clone(), doc);
+        }
+        Ok(map)
+    }
+
+    /// Batch fetch playlist subscriptions by IDs
+    pub async fn get_playlist_subscriptions_by_ids(&self, ids: &[String]) -> Result<HashMap<String, crate::models::PlaylistSubscription>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let query_str = format!("SELECT * FROM youtube_playlist_subscriptions WHERE id IN ({})", placeholders.join(", "));
+        let mut query = sqlx::query(&query_str);
+        for id in ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut map = HashMap::new();
+        for row in rows {
+            let sub = crate::models::PlaylistSubscription {
+                id: row.get("id"),
+                playlist_id: row.get("playlist_id"),
+                playlist_url: row.get("playlist_url"),
+                title: row.get("title"),
+                channel_name: row.get("channel_name"),
+                channel_id: row.get("channel_id"),
+                description: row.get("description"),
+                thumbnail_url: row.get("thumbnail_url"),
+                total_videos: row.get("total_videos"),
+                is_active: row.get::<i32, _>("is_active") != 0,
+                auto_import_new: row.get::<i32, _>("auto_import_new") != 0,
+                queue_intersperse_interval: row.get("queue_intersperse_interval"),
+                priority_rating: row.get("priority_rating"),
+                last_refreshed_at: row.get("last_refreshed_at"),
+                refresh_interval_hours: row.get("refresh_interval_hours"),
+                created_at: row.get("created_at"),
+                modified_at: row.get("modified_at"),
+            };
+            map.insert(sub.id.clone(), sub);
+        }
+        Ok(map)
+    }
+
+    /// Get workload forecast using GROUP BY aggregation (replaces per-day loop)
+    pub async fn get_workload_forecast_grouped(
+        &self,
+        start_date: chrono::NaiveDate,
+        horizon_days: i32,
+    ) -> Result<(Vec<(String, i64)>, Vec<(String, i64)>)> {
+        let end_date = start_date + chrono::Duration::days(horizon_days as i64 - 1);
+        let day_start = start_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let day_end = end_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+        let learning_rows: Vec<(String, i64)> = sqlx::query_as(
+            "SELECT DATE(due_date) as day, COUNT(*) as count FROM learning_items WHERE due_date >= ?1 AND due_date <= ?2 AND is_suspended = false GROUP BY DATE(due_date)"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(IncrementumError::Database)?;
+
+        let doc_rows: Vec<(String, i64)> = sqlx::query_as(
+            "SELECT DATE(next_reading_date) as day, COUNT(*) as count FROM documents WHERE next_reading_date >= ?1 AND next_reading_date <= ?2 AND is_archived = false GROUP BY DATE(next_reading_date)"
+        )
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(IncrementumError::Database)?;
+
+        Ok((learning_rows, doc_rows))
+    }
+
     /// Get all video extracts
     pub async fn get_all_video_extracts(&self) -> Result<Vec<crate::models::VideoExtract>> {
         let rows = sqlx::query("SELECT * FROM video_extracts ORDER BY date_created DESC")

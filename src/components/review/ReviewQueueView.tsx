@@ -870,7 +870,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
       </div>
 
       {queueMode === "schedule" ? (
-        <ScheduleView />
+        <ScheduleView
+          onStartReview={onStartReview}
+          onOpenDocument={(docId, title) => onOpenDocument?.({ id: docId, documentId: docId, documentTitle: title, itemType: "document" } as QueueItem)}
+        />
       ) : (
       <>
       <div className="flex-1 flex overflow-hidden">

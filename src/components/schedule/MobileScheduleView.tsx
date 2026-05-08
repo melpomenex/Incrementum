@@ -1,10 +1,10 @@
 import { ScheduleView } from "./ScheduleView";
 
-/**
- * Mobile wrapper for the Schedule View.
- * Currently delegates to the main ScheduleView with isMobile=true.
- * Future: could add mobile-specific gesture handling, swipe actions, etc.
- */
-export function MobileScheduleView() {
-  return <ScheduleView isMobile />;
+interface MobileScheduleViewProps {
+  onStartReview?: (itemId?: string) => void;
+  onOpenDocument?: (documentId: string, title: string) => void;
+}
+
+export function MobileScheduleView({ onStartReview, onOpenDocument }: MobileScheduleViewProps) {
+  return <ScheduleView isMobile onStartReview={onStartReview} onOpenDocument={onOpenDocument} />;
 }

@@ -596,37 +596,26 @@ pub async fn get_due_workload_forecast(
     days: Option<i32>,
     repo: State<'_, Repository>,
 ) -> Result<DueWorkloadForecast> {
-    let pool = repo.pool();
     let horizon_days = days.unwrap_or(90).clamp(1, 365);
     let start = Utc::now().date_naive();
-    let mut points = Vec::with_capacity(horizon_days as usize);
 
+    let (learning_rows, doc_rows) = repo
+        .get_workload_forecast_grouped(start, horizon_days)
+        .await?;
+
+    use std::collections::HashMap;
+    let learning_map: HashMap<String, i64> = learning_rows.into_iter().collect();
+    let doc_map: HashMap<String, i64> = doc_rows.into_iter().collect();
+
+    let mut points = Vec::with_capacity(horizon_days as usize);
     for i in 0..horizon_days {
         let date = start + Duration::days(i as i64);
-        let day_start = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
-        let day_end = date.and_hms_opt(23, 59, 59).unwrap().and_utc();
-
-        let due_learning_items: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM learning_items WHERE due_date >= ?1 AND due_date <= ?2 AND is_suspended = false"
-        )
-        .bind(day_start)
-        .bind(day_end)
-        .fetch_one(pool)
-        .await
-        .map_err(crate::error::IncrementumError::Database)?;
-
-        let due_documents: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM documents WHERE next_reading_date >= ?1 AND next_reading_date <= ?2 AND is_archived = false"
-        )
-        .bind(day_start)
-        .bind(day_end)
-        .fetch_one(pool)
-        .await
-        .map_err(crate::error::IncrementumError::Database)?;
-
+        let date_str = date.to_string();
+        let due_learning_items = learning_map.get(&date_str).copied().unwrap_or(0);
+        let due_documents = doc_map.get(&date_str).copied().unwrap_or(0);
         let due_total = due_learning_items + due_documents;
         points.push(DueForecastPoint {
-            date: date.to_string(),
+            date: date_str,
             due_learning_items: due_learning_items as i32,
             due_documents: due_documents as i32,
             due_total: due_total as i32,

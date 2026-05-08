@@ -327,7 +327,10 @@ export function MobileQueueView({
       </div>
 
       {activeTab === "schedule" ? (
-        <MobileScheduleView />
+        <MobileScheduleView
+          onStartReview={onStartReview}
+          onOpenDocument={(docId, title) => onOpenDocument?.({ id: docId, documentId: docId, documentTitle: title, itemType: "document" } as QueueItem)}
+        />
       ) : (
       <>
       {/* Quick Filters (Reading only) */}
