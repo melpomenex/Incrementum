@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.33.1] - 2026-05-07
+
+### Fixed
+- **Podcast player controls clipped** — Increased player height so playback controls are fully visible
+- **AudiobookViewer container sizing** — Viewer now properly fills its container in the podcast player
+
+### Changed
+- **Schedule view performance** — Optimized rendering for large datasets to reduce jank
+
 ## [1.33.0] - 2026-05-07
 
 ### Added
