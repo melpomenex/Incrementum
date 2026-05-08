@@ -79,12 +79,29 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
+  const [playerWidth, setPlayerWidth] = useState(320);
   const [refreshErrors, setRefreshErrors] = useState<Record<string, string>>({});
   const migrationRun = useRef(false);
 
   // Context menu state
   const feedContextMenu = useContextMenu("feed-context-menu");
   const episodeContextMenu = useContextMenu("episode-context-menu");
+
+  const startPlayerResize = useCallback(() => {
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMouseMove = (e: MouseEvent) => {
+      setPlayerWidth(Math.max(240, Math.min(600, window.innerWidth - e.clientX)));
+    };
+    const onMouseUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, []);
 
   // Listen for transcription events (Tauri only)
   useEffect(() => {
@@ -292,6 +309,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Play episode
   const handlePlayEpisode = (feed: PodcastFeed, episode: PodcastEpisode) => {
+    console.log("[PodcastManager] Play episode:", { id: episode.id, title: episode.title, audioUrl: episode.audioUrl });
     onPlayEpisode?.(feed, episode);
     setPlayingEpisode({ episode, feed });
   };
@@ -1108,7 +1126,18 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
       {/* Inline podcast player */}
       {playingEpisode && (
-        <div className="border-t border-border bg-card h-64 flex-shrink-0 flex flex-col">
+        <div
+          className="border-l border-border bg-card flex-shrink-0 flex flex-col overflow-hidden relative"
+          style={{ width: playerWidth }}
+        >
+          {/* Drag handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 z-10"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              startPlayerResize();
+            }}
+          />
           <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
             <span className="text-sm font-medium text-foreground truncate">
               Now Playing: {playingEpisode.episode.title}
@@ -1128,6 +1157,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               filePath: "",
               fileType: "audio",
               content: "",
+              coverImageUrl: playingEpisode.episode.imageUrl || playingEpisode.feed.imageUrl,
               metadata: {},
               createdAt: playingEpisode.episode.publishedDate
                 ? new Date(playingEpisode.episode.publishedDate).toISOString()
