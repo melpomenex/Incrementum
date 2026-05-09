@@ -1,7 +1,7 @@
 //! Podcast subscription commands
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -772,4 +772,118 @@ pub async fn set_feed_auto_transcribe(
     repo: State<'_, Repository>,
 ) -> Result<()> {
     repo.set_feed_auto_transcribe(&feed_id, enabled, language.as_deref()).await
+}
+
+fn podcast_audio_dir() -> std::result::Result<PathBuf, IncrementumError> {
+    let dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("incrementum")
+        .join("podcast-audio");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create podcast-audio dir: {}", e)))?;
+    Ok(dir)
+}
+
+/// Find existing downloaded file for an episode (checks common extensions)
+fn find_existing_download(episode_id: &str) -> Option<PathBuf> {
+    let dir = podcast_audio_dir().ok()?;
+    for entry in std::fs::read_dir(&dir).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with(&format!("{}.", episode_id)) {
+            return Some(entry.path());
+        }
+    }
+    None
+}
+
+/// Download a podcast episode audio file for local playback
+#[tauri::command]
+pub async fn download_podcast_episode(
+    episode_id: String,
+    audio_url: String,
+    audio_type: Option<String>,
+    app_handle: AppHandle,
+) -> Result<String> {
+    // Check if already downloaded
+    if let Some(existing) = find_existing_download(&episode_id) {
+        return Ok(existing.to_string_lossy().to_string());
+    }
+
+    let audio_dir = podcast_audio_dir()?;
+    let ext = audio_type
+        .as_deref()
+        .and_then(|t| t.split('/').last())
+        .unwrap_or("mp3");
+    let dest_path = audio_dir.join(format!("{}.{}", episode_id, ext));
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("HTTP client error: {}", e)))?;
+
+    let response = client
+        .get(&audio_url)
+        .send()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Download failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(IncrementumError::Internal(format!(
+            "Download failed: HTTP {}",
+            response.status()
+        )));
+    }
+
+    let total_size = response.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
+    let mut file = tokio::fs::File::create(&dest_path)
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create file: {}", e)))?;
+
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| IncrementumError::Internal(format!("Download error: {}", e)))?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Write error: {}", e)))?;
+        downloaded += chunk.len() as u64;
+
+        if total_size > 0 {
+            let progress = ((downloaded as f64 / total_size as f64) * 100.0) as u32;
+            let _ = app_handle.emit(
+                "podcast://download-progress",
+                serde_json::json!({ "episodeId": &episode_id, "progress": progress }),
+            );
+        }
+    }
+
+    file.flush()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Flush error: {}", e)))?;
+
+    let _ = app_handle.emit(
+        "podcast://download-complete",
+        serde_json::json!({ "episodeId": &episode_id, "path": dest_path.to_string_lossy() }),
+    );
+
+    Ok(dest_path.to_string_lossy().to_string())
+}
+
+/// Get the local file path for a downloaded episode (null if not downloaded)
+#[tauri::command]
+pub async fn get_downloaded_episode_path(episode_id: String) -> Result<Option<String>> {
+    Ok(find_existing_download(&episode_id)
+        .map(|p| p.to_string_lossy().to_string()))
+}
+
+/// Delete a downloaded episode audio file
+#[tauri::command]
+pub async fn delete_downloaded_episode(episode_id: String) -> Result<()> {
+    if let Some(path) = find_existing_download(&episode_id) {
+        std::fs::remove_file(&path)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to delete: {}", e)))?;
+    }
+    Ok(())
 }
