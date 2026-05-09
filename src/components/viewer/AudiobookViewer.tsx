@@ -260,7 +260,7 @@ export function AudiobookViewer({
 
   useEffect(() => {
     const ext = document.filePath?.split(".").pop()?.toLowerCase();
-    if (!isTauri() || ext !== "m4b" || !document.filePath) {
+    if (!isTauri() || !document.filePath) {
       setPreparedPlaybackPath(null);
       setPreparedPlaybackSrc(null);
       return;
@@ -269,14 +269,24 @@ export function AudiobookViewer({
     let cancelled = false;
     void (async () => {
       try {
-        const preparedPath = await audiobookApi.prepareAudiobookPlayback(document.filePath);
-        const preparedUrl = await convertFileSrc(preparedPath);
-        if (!cancelled) {
-          setPreparedPlaybackPath(preparedPath);
-          setPreparedPlaybackSrc(preparedUrl);
+        // m4b files need transcoding via prepareAudiobookPlayback
+        if (ext === "m4b") {
+          const preparedPath = await audiobookApi.prepareAudiobookPlayback(document.filePath);
+          const preparedUrl = await convertFileSrc(preparedPath);
+          if (!cancelled) {
+            setPreparedPlaybackPath(preparedPath);
+            setPreparedPlaybackSrc(preparedUrl);
+          }
+        } else {
+          // Other audio formats (mp3, etc.) can play directly via convertFileSrc
+          const url = await convertFileSrc(document.filePath);
+          if (!cancelled) {
+            setPreparedPlaybackPath(document.filePath);
+            setPreparedPlaybackSrc(url);
+          }
         }
       } catch (error) {
-        console.error("[AudiobookViewer] Failed to prepare m4b playback:", error);
+        console.error("[AudiobookViewer] Failed to prepare playback:", error);
         if (!cancelled) {
           setPreparedPlaybackPath(null);
           setPreparedPlaybackSrc(null);
@@ -472,19 +482,15 @@ export function AudiobookViewer({
     }
 
     // For podcast episodes, restore saved position
-    if (episodeId && remoteAudioUrl) {
+    if (episodeId) {
       void (async () => {
         try {
           const pos = await getEpisodePosition(episodeId);
           if (pos > 0) {
-            // Immediate seek if possible, otherwise queue it
-            if (audioRef.current && audioRef.current.readyState >= 1) {
-              audioRef.current.currentTime = pos;
-              setCurrentTime(pos);
-              currentTimeRef.current = pos;
-            } else {
-              pendingSeekTimeRef.current = pos;
-            }
+            // Always queue via pendingSeekTimeRef — the seek retry mechanism
+            // in handleLoadedMetadata/handleProgress will apply it once audio is ready
+            pendingSeekTimeRef.current = pos;
+            setIsWaitingForSeek(true);
           }
         } catch (err) {
           console.warn("[AudiobookViewer] Failed to load episode position:", err);
@@ -569,25 +575,19 @@ export function AudiobookViewer({
 
   const seek = useCallback((time: number) => {
     if (!audioRef.current) return;
-    
+
     const clamped = Math.max(0, Math.min(durationRef.current || duration || time, time));
-    
+
     try {
-      console.log(`[AudiobookViewer] Attempting seek to ${clamped}s (readyState: ${audioRef.current.readyState})`);
       audioRef.current.currentTime = clamped;
-      
-      // Check if seek was successful
-      if (Math.abs(audioRef.current.currentTime - clamped) > 0.5 && clamped > 0) {
-        console.warn(`[AudiobookViewer] Seek to ${clamped}s was ignored by browser. Queuing retry.`);
-        pendingSeekTimeRef.current = clamped;
-        setIsWaitingForSeek(true);
-      } else {
-        setIsWaitingForSeek(false);
-        setCurrentTime(clamped);
-        currentTimeRef.current = clamped;
-        currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
-        seekRetryCountRef.current = 0;
-      }
+
+      // Optimistically update UI — the actual position will be confirmed
+      // by the 'seeked' event / handleTimeUpdate
+      setCurrentTime(clamped);
+      currentTimeRef.current = clamped;
+      currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
+      seekRetryCountRef.current = 0;
+      setIsWaitingForSeek(false);
     } catch (err) {
       console.error("[AudiobookViewer] Seek error:", err);
       pendingSeekTimeRef.current = clamped;
@@ -663,7 +663,7 @@ export function AudiobookViewer({
     }
 
     // Podcast episode: mark as played when it ends naturally
-    if (episodeId && remoteAudioUrl) {
+    if (episodeId) {
       void markEpisodePlayed(episodeId, true);
       onEpisodeEnded?.();
     }

@@ -279,6 +279,94 @@ export async function getEpisodePosition(episodeId: string): Promise<number> {
 }
 
 // ============================================================================
+// Episode Download API
+// ============================================================================
+
+export async function downloadEpisodeAudio(
+  episodeId: string,
+  audioUrl: string,
+  audioType?: string,
+): Promise<string> {
+  if (isTauri()) {
+    return invokeCommand<string>("download_podcast_episode", { episodeId, audioUrl, audioType });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audioUrl, audioType }),
+    });
+    if (!res.ok) throw new Error(`Failed to download: ${res.statusText}`);
+    const data = await res.json();
+    return data.path;
+  }
+  return invokeCommand<string>("download_podcast_episode", { episodeId, audioUrl, audioType });
+}
+
+export async function getDownloadedEpisodePath(
+  episodeId: string,
+): Promise<string | null> {
+  if (isTauri()) {
+    return invokeCommand<string | null>("get_downloaded_episode_path", { episodeId });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/download`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.path ?? null;
+  }
+  return invokeCommand<string | null>("get_downloaded_episode_path", { episodeId });
+}
+
+export async function deleteDownloadedEpisode(
+  episodeId: string,
+): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("delete_downloaded_episode", { episodeId });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/download`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`Failed to delete download: ${res.statusText}`);
+    return;
+  }
+  return invokeCommand<void>("delete_downloaded_episode", { episodeId });
+}
+
+/**
+ * Probe a local audio file for its duration using the browser's Audio API.
+ * Returns duration in seconds, or null if it can't be determined.
+ */
+export async function probeAudioDuration(localPath: string): Promise<number | null> {
+  try {
+    const { convertFileSrc } = await import("../lib/tauri");
+    const url = await convertFileSrc(localPath);
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.preload = "metadata";
+      const timeout = setTimeout(() => {
+        audio.src = "";
+        resolve(null);
+      }, 5000);
+      audio.addEventListener("loadedmetadata", () => {
+        clearTimeout(timeout);
+        const dur = audio.duration;
+        audio.src = "";
+        resolve(Number.isFinite(dur) && dur > 0 ? Math.round(dur) : null);
+      });
+      audio.addEventListener("error", () => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+      audio.src = url;
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
 // Transcription API
 // ============================================================================
 

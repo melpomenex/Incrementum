@@ -23,6 +23,8 @@ import {
   MessageSquare,
   Copy,
   Check,
+  Download,
+  HardDrive,
 } from "lucide-react";
 import {
   subscribeToPodcast,
@@ -34,6 +36,10 @@ import {
   parsePodcastFeed,
   formatDuration,
   isValidPodcastUrl,
+  downloadEpisodeAudio,
+  getDownloadedEpisodePath,
+  deleteDownloadedEpisode,
+  probeAudioDuration,
   discoverPodcasts,
   renamePodcastFeed,
   transcribePodcastEpisode,
@@ -47,7 +53,7 @@ import type {
   PodcastEpisode,
   PodcastTranscriptResponse,
 } from "../../api/podcast";
-import { isTauri, listen } from "../../lib/tauri";
+import { isTauri, listen, convertFileSrc } from "../../lib/tauri";
 import {
   useContextMenu,
   ContextMenu,
@@ -58,7 +64,10 @@ import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { cn } from "../../utils";
+import { podcastFeedSearch } from "../../utils/podcastSearch";
 import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
+import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
+import { resolveGenericAssistantContext, type ResolvedAssistantContext } from "../../utils/assistantContext";
 
 interface PodcastManagerProps {
   onPlayEpisode?: (feed: PodcastFeed, episode: PodcastEpisode) => void;
@@ -75,6 +84,8 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [filter, setFilter] = useState<"all" | "unplayed" | "inprogress">("all");
+  const [episodeSearch, setEpisodeSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "duration" | "title">("newest");
   const [isRefreshing, setIsRefreshing] = useState<string | null>(null);
   const [showDiscover, setShowDiscover] = useState(false);
   const [discoverResults, setDiscoverResults] = useState<
@@ -83,7 +94,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
-  const [playerWidth, setPlayerWidth] = useState(320);
+  const [playerWidth, setPlayerWidth] = useState(() => {
+    const saved = localStorage.getItem("podcast-player-width");
+    return saved ? parseInt(saved, 10) : 320;
+  });
   const [refreshErrors, setRefreshErrors] = useState<Record<string, string>>({});
   const migrationRun = useRef(false);
   const confirmDialog = useConfirmDialog();
@@ -92,17 +106,30 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const feedContextMenu = useContextMenu("feed-context-menu");
   const episodeContextMenu = useContextMenu("episode-context-menu");
 
+  // Clear selection when search filters out the selected feed
+  useEffect(() => {
+    if (!selectedFeedId) return;
+    const filtered = podcastFeedSearch(searchQuery, feeds);
+    if (!filtered.some((f) => f.id === selectedFeedId)) {
+      setSelectedFeedId(null);
+    }
+  }, [searchQuery, feeds, selectedFeedId]);
+
   const startPlayerResize = useCallback(() => {
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
     const onMouseMove = (e: MouseEvent) => {
-      setPlayerWidth(Math.max(240, Math.min(600, window.innerWidth - e.clientX)));
+      setPlayerWidth(Math.max(300, Math.min(1200, window.innerWidth - e.clientX)));
     };
     const onMouseUp = () => {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      setPlayerWidth((w) => {
+        localStorage.setItem("podcast-player-width", String(w));
+        return w;
+      });
     };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
@@ -160,6 +187,77 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       unlisten3.then((f) => f());
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Download event listeners
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const u1 = listen<{ episodeId: string; progress: number }>(
+      "podcast://download-progress",
+      (e) => {
+        const { episodeId, progress } = e.payload;
+        setDownloadProgress((prev) => new Map(prev).set(episodeId, progress));
+      },
+    );
+
+    const u2 = listen<{ episodeId: string; path: string }>(
+      "podcast://download-complete",
+      (e) => {
+        const { episodeId, path } = e.payload;
+        setDownloadedEpisodes((prev) => new Map(prev).set(episodeId, path));
+        setDownloadingEpisodes((prev) => {
+          const next = new Set(prev);
+          next.delete(episodeId);
+          return next;
+        });
+        setDownloadProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+        // Probe duration for this episode
+        void (async () => {
+          const duration = await probeAudioDuration(path);
+          if (duration) {
+            setEpisodes((prev) =>
+              prev.map((ep) => (ep.id === episodeId ? { ...ep, duration } : ep))
+            );
+          }
+        })();
+      },
+    );
+
+    return () => {
+      u1.then((f) => f());
+      u2.then((f) => f());
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check downloaded paths and probe duration for episodes missing it
+  useEffect(() => {
+    if (!isTauri() || episodes.length === 0) return;
+    void (async () => {
+      const paths = new Map<string, string>();
+      for (const ep of episodes) {
+        const path = await getDownloadedEpisodePath(ep.id);
+        if (path) paths.set(ep.id, path);
+      }
+      setDownloadedEpisodes(paths);
+
+      // Probe duration for downloaded episodes missing it
+      const needsDuration = [...paths.entries()].filter(
+        ([id]) => episodes.find((ep) => ep.id === id && !ep.duration)
+      );
+      for (const [id, path] of needsDuration) {
+        const duration = await probeAudioDuration(path);
+        if (duration) {
+          setEpisodes((prev) =>
+            prev.map((ep) => (ep.id === id ? { ...ep, duration } : ep))
+          );
+        }
+      }
+    })();
+  }, [episodes]); // eslint-disable-line react-hooks/exhaustive-deps
   const [contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
   const [contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
   const [renamingFeed, setRenamingFeed] = useState<PodcastFeed | null>(null);
@@ -170,6 +268,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [viewingTranscript, setViewingTranscript] = useState<{ episode: PodcastEpisode; transcript: PodcastTranscriptResponse } | null>(null);
   const [transcriptSearchQuery, setTranscriptSearchQuery] = useState("");
   const [transcriptCopied, setTranscriptCopied] = useState(false);
+  const [chattingTranscript, setChattingTranscript] = useState<{ episode: PodcastEpisode; text: string } | null>(null);
+  const [downloadedEpisodes, setDownloadedEpisodes] = useState<Map<string, string>>(new Map());
+  const [downloadProgress, setDownloadProgress] = useState<Map<string, number>>(new Map());
+  const [downloadingEpisodes, setDownloadingEpisodes] = useState<Set<string>>(new Set());
   const [langDialogFeed, setLangDialogFeed] = useState<PodcastFeed | null>(null);
   const [langDialogValue, setLangDialogValue] = useState("");
   const selectedFeedIdRef = useRef(selectedFeedId);
@@ -256,6 +358,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   useEffect(() => {
     if (selectedFeedId) {
       loadEpisodes(selectedFeedId);
+      setEpisodeSearch("");
     } else {
       setEpisodes([]);
     }
@@ -424,16 +527,49 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Filter episodes
   const getFilteredEpisodes = (): PodcastEpisode[] => {
+    let filtered: PodcastEpisode[];
     switch (filter) {
       case "unplayed":
-        return episodes.filter((ep) => !ep.played);
+        filtered = episodes.filter((ep) => !ep.played);
+        break;
       case "inprogress":
-        return episodes.filter(
+        filtered = episodes.filter(
           (ep) => ep.playbackPosition > 0 && !ep.played
         );
+        break;
       default:
-        return episodes;
+        filtered = episodes;
     }
+
+    if (episodeSearch.trim()) {
+      const q = episodeSearch.toLowerCase();
+      filtered = filtered.filter(
+        (ep) =>
+          ep.title.toLowerCase().includes(q) ||
+          (ep.description ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    // Sort episodes
+    const sorted = [...filtered];
+    const toDate = (d: string | null) => d ? new Date(d).getTime() : 0;
+    switch (sortOrder) {
+      case "oldest":
+        sorted.sort((a, b) => toDate(a.publishedDate) - toDate(b.publishedDate));
+        break;
+      case "duration":
+        sorted.sort((a, b) => (b.duration || 0) - (a.duration || 0));
+        break;
+      case "title":
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "newest":
+      default:
+        sorted.sort((a, b) => toDate(b.publishedDate) - toDate(a.publishedDate));
+        break;
+    }
+
+    return sorted;
   };
 
   // Get total unplayed count
@@ -562,6 +698,18 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
           },
           { id: "sep1", type: ContextMenuItemType.Separator, label: "" },
           {
+            id: "download",
+            label: downloadedEpisodes.has(episode.id) ? "Delete Download" : "Download Episode",
+            icon: downloadedEpisodes.has(episode.id) ? <Trash2 className="w-4 h-4" /> : <Download className="w-4 h-4" />,
+            onClick: () => {
+              if (downloadedEpisodes.has(episode.id)) {
+                handleDeleteDownload(episode.id);
+              } else {
+                handleDownloadEpisode(episode);
+              }
+            },
+          },
+          {
             id: "copy-episode-url",
             label: "Copy Episode URL",
             icon: <Link className="w-4 h-4" />,
@@ -660,23 +808,46 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   };
 
   const handleChatAboutThis = async (episode: PodcastEpisode, feed: PodcastFeed) => {
-    // Create a document with the transcript for the assistant
-    const transcriptText = episode.transcriptText || (await getPodcastTranscript(episode.id)).text;
-    if (!transcriptText) {
-      toast.error("No transcript available", "Transcribe the episode first");
-      return;
-    }
-
     try {
-      const { createDocument } = await import("../../api/documents");
-      const title = `${episode.title} (Transcript)`;
-      const doc = await createDocument(title, `podcast://${episode.id}`, "transcript");
-      // Update the document content with the transcript text
-      const { updateDocumentContent } = await import("../../api/documents");
-      await updateDocumentContent(doc.id, transcriptText);
-      toast.success("Document created", `Created "${title}" for AI chat`);
+      const transcriptText = episode.transcriptText || (await getPodcastTranscript(episode.id)).text;
+      if (!transcriptText) {
+        toast.error("No transcript available", "Transcribe the episode first");
+        return;
+      }
+      setChattingTranscript({ episode, text: transcriptText });
+      setViewingTranscript(null);
     } catch (error) {
-      toast.error("Failed to create document", error instanceof Error ? error.message : "Unknown error");
+      toast.error("Failed to load transcript", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  const handleDownloadEpisode = async (episode: PodcastEpisode) => {
+    if (downloadingEpisodes.has(episode.id)) return;
+    setDownloadingEpisodes((prev) => new Set(prev).add(episode.id));
+    try {
+      const path = await downloadEpisodeAudio(episode.id, episode.audioUrl, episode.audioType ?? undefined);
+      setDownloadedEpisodes((prev) => new Map(prev).set(episode.id, path));
+    } catch (error) {
+      toast.error("Download failed", error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setDownloadingEpisodes((prev) => {
+        const next = new Set(prev);
+        next.delete(episode.id);
+        return next;
+      });
+    }
+  };
+
+  const handleDeleteDownload = async (episodeId: string) => {
+    try {
+      await deleteDownloadedEpisode(episodeId);
+      setDownloadedEpisodes((prev) => {
+        const next = new Map(prev);
+        next.delete(episodeId);
+        return next;
+      });
+    } catch (error) {
+      toast.error("Delete failed", error instanceof Error ? error.message : "Unknown error");
     }
   };
 
@@ -753,8 +924,16 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search podcasts..."
-              className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -777,11 +956,19 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             </div>
           ) : (
             <div>
-              {feeds
-                .filter((feed) =>
-                  feed.title.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map((feed) => (
+              {(() => {
+                const filteredFeeds = podcastFeedSearch(searchQuery, feeds);
+
+                if (filteredFeeds.length === 0 && searchQuery.trim()) {
+                  return (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No podcasts found for "{searchQuery}"</p>
+                    </div>
+                  );
+                }
+
+                return filteredFeeds.map((feed) => (
                   <button
                     key={feed.id}
                     onClick={() => setSelectedFeedId(feed.id)}
@@ -830,7 +1017,8 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                       </div>
                     </div>
                   </button>
-                ))}
+                ));
+              })()}
             </div>
           )}
         </div>
@@ -865,9 +1053,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   {selectedFeed.author && (
                     <p className="text-muted-foreground mb-2">{selectedFeed.author}</p>
                   )}
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                    {selectedFeed.description}
-                  </p>
+                  <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline" dangerouslySetInnerHTML={{ __html: selectedFeed.description || "" }} />
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleRefreshFeed(selectedFeed)}
@@ -906,7 +1092,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                 </div>
               ) : (
                 <>
-                  {/* Filter */}
+                  {/* Filter & Sort */}
                   <div className="flex items-center gap-2 mb-4">
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <select
@@ -918,9 +1104,37 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                       <option value="unplayed">Unplayed</option>
                       <option value="inprogress">In Progress</option>
                     </select>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest" | "duration" | "title")}
+                      className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                      <option value="duration">Longest First</option>
+                      <option value="title">By Title</option>
+                    </select>
                     <span className="text-sm text-muted-foreground">
                       {getFilteredEpisodes().length} episodes
                     </span>
+                    <div className="ml-auto relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={episodeSearch}
+                        onChange={(e) => setEpisodeSearch(e.target.value)}
+                        placeholder="Search episodes..."
+                        className="pl-8 pr-7 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-48"
+                      />
+                      {episodeSearch && (
+                        <button
+                          onClick={() => setEpisodeSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Episodes */}
@@ -947,6 +1161,43 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                               <Play className="w-5 h-5" fill="currentColor" />
                             )}
                           </button>
+
+                          {/* Download button */}
+                          {(() => {
+                            const isDownloaded = downloadedEpisodes.has(episode.id);
+                            const isDownloading = downloadingEpisodes.has(episode.id);
+                            const progress = downloadProgress.get(episode.id);
+                            if (isDownloading) {
+                              return (
+                                <div className="flex-shrink-0 w-10 h-10 border border-primary/30 rounded-full flex items-center justify-center relative">
+                                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                  {progress !== undefined && (
+                                    <span className="absolute -bottom-0.5 text-[8px] text-primary font-medium">{progress}%</span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            if (isDownloaded) {
+                              return (
+                                <button
+                                  onClick={() => handleDeleteDownload(episode.id)}
+                                  className="flex-shrink-0 w-10 h-10 bg-green-500/10 text-green-600 rounded-full hover:bg-green-500/20 transition-colors flex items-center justify-center"
+                                  title="Downloaded — click to delete"
+                                >
+                                  <HardDrive className="w-4 h-4" />
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => handleDownloadEpisode(episode)}
+                                className="flex-shrink-0 w-10 h-10 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center"
+                                title="Download episode"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                            );
+                          })()}
 
                           {/* Now Playing indicator */}
                           {playingEpisode?.episode.id === episode.id && (
@@ -1022,9 +1273,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                               {episode.title}
                             </h3>
                             {episode.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                                {episode.description}
-                              </p>
+                              <div
+                                className="text-xs text-muted-foreground line-clamp-2 mb-2 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline"
+                                dangerouslySetInnerHTML={{ __html: episode.description }}
+                              />
                             )}
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -1126,7 +1378,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
                     {getFilteredEpisodes().length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
-                        <p>No episodes match the current filter</p>
+                        <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>{episodeSearch.trim()
+                          ? `No episodes match "${episodeSearch}"`
+                          : "No episodes match the current filter"}</p>
                       </div>
                     )}
                   </div>
@@ -1180,7 +1435,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             document={{
               id: playingEpisode.episode.id,
               title: playingEpisode.episode.title,
-              filePath: "",
+              filePath: downloadedEpisodes.get(playingEpisode.episode.id) || "",
               fileType: "audio",
               content: "",
               coverImageUrl: playingEpisode.episode.imageUrl || playingEpisode.feed.imageUrl,
@@ -1190,7 +1445,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                 : new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             } as any}
-            remoteAudioUrl={playingEpisode.episode.audioUrl}
+            remoteAudioUrl={downloadedEpisodes.has(playingEpisode.episode.id) ? undefined : playingEpisode.episode.audioUrl}
             episodeId={playingEpisode.episode.id}
             episodeTitle={playingEpisode.episode.title}
             podcastTitle={playingEpisode.feed.title}
@@ -1392,6 +1647,54 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                     )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Chat Panel */}
+      {chattingTranscript && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setChattingTranscript(null)}
+          />
+          <div className="relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg">
+            {/* Header */}
+            <div className="p-4 border-b border-border flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-foreground truncate">
+                  {chattingTranscript.episode.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Chat with transcript
+                </p>
+              </div>
+              <button
+                onClick={() => setChattingTranscript(null)}
+                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Assistant Panel */}
+            <div className="flex-1 min-h-0">
+              <AssistantPanel
+                context={{
+                  type: "document",
+                  content: chattingTranscript.text,
+                  status: "ready",
+                  source: "document",
+                  metadata: {
+                    title: chattingTranscript.episode.title,
+                  },
+                  resolveForPrompt: async (_prompt: string): Promise<ResolvedAssistantContext> => {
+                    return resolveGenericAssistantContext(chattingTranscript.text, "document");
+                  },
+                }}
+                className="h-full border-0"
+              />
             </div>
           </div>
         </div>

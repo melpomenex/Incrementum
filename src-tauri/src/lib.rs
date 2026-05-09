@@ -1109,6 +1109,9 @@ pub fn run() {
             commands::podcast::get_podcast_transcript,
             commands::podcast::cancel_podcast_transcription,
             commands::podcast::set_feed_auto_transcribe,
+            commands::podcast::download_podcast_episode,
+            commands::podcast::get_downloaded_episode_path,
+            commands::podcast::delete_downloaded_episode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
