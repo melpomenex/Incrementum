@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff, Highlighter, Copy } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri, isPWA, convertFileSrc } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { ContextMenu, ContextMenuItemType, type ContextMenuItem } from "../common/ContextMenu";
 import { PDFViewer } from "./PDFViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { EPUBViewer } from "./EPUBViewer";
@@ -763,6 +764,13 @@ export function DocumentViewer({
   const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean } | null>(null);
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
   const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
+  const [contextMenuState, setContextMenuState] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    selectedText: string;
+    selectionContext?: SelectionContext | null;
+  } | null>(null);
   const lastSelectionRef = useRef("");
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
@@ -927,7 +935,9 @@ export function DocumentViewer({
       if (context) {
         setSelectionContext(context);
       } else if (context === undefined) {
-        setSelectionContext(null);
+        // Preserve existing selectionContext — generic selectionchange events
+        // (e.g. from EPUB handleSelectionChange) pass undefined and should not
+        // wipe context set by rendition.on("selected")
       }
     } else {
       setSelectedText("");
@@ -944,6 +954,7 @@ export function DocumentViewer({
     lastSelectionRef.current = "";
     setSelectionContext(null);
     setInitialHighlightColor(undefined);
+    setContextMenuState(null);
     // Clear the browser's text selection
     window.getSelection()?.removeAllRanges();
     // Also clear selection inside the HTML iframe if present
@@ -1320,6 +1331,120 @@ export function DocumentViewer({
     },
   });
 
+  // Build context menu items for text selection in non-PDF viewers
+  const buildContextMenuItems = useCallback((selectedText: string, contextOverride?: SelectionContext | null): ContextMenuItem[] => {
+    const effectiveContext = selectionContext ?? contextOverride;
+    const items: ContextMenuItem[] = [];
+
+    items.push({
+      id: "extract",
+      label: t("viewer.createExtract"),
+      icon: <Lightbulb className="w-4 h-4" />,
+      onClick: () => {
+        createInstantExtract({
+          documentId,
+          text: selectedText,
+          pageNumber: computeExtractPageNumber({
+            selectionContext: effectiveContext,
+            viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+            scrollPercent: lastScrollStateRef.current?.scrollPercent,
+            totalPages: currentDocument?.totalPages ?? 0,
+            isEpubDoc: docType === "epub",
+          }),
+          selectionContext: effectiveContext ?? undefined,
+        });
+        clearTextSelection();
+      },
+    });
+
+    items.push({
+      id: "extract-dialog",
+      label: t("viewer.addNote"),
+      icon: <FileText className="w-4 h-4" />,
+      onClick: () => {
+        setSelectedText(selectedText);
+        lastSelectionRef.current = selectedText;
+        setIsExtractDialogOpen(true);
+      },
+    });
+
+    items.push({
+      id: "highlight",
+      label: t("viewer.highlight"),
+      icon: <Highlighter className="w-4 h-4" />,
+      type: ContextMenuItemType.Submenu,
+      children: (["yellow", "green", "blue", "pink", "purple"] as const).map((color) => ({
+        id: `highlight-${color}`,
+        label: t(`viewer.${color}Highlight`),
+        onClick: () => {
+          createInstantExtract({
+            documentId,
+            text: selectedText,
+            color,
+            pageNumber: computeExtractPageNumber({
+              selectionContext: effectiveContext,
+              viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+              scrollPercent: lastScrollStateRef.current?.scrollPercent,
+              totalPages: currentDocument?.totalPages ?? 0,
+              isEpubDoc: docType === "epub",
+            }),
+            selectionContext: effectiveContext ?? undefined,
+          });
+          clearTextSelection();
+        },
+      })),
+    });
+
+    items.push({ id: "sep1", label: "", type: ContextMenuItemType.Separator });
+
+    items.push({
+      id: "copy",
+      label: t("viewer.copy"),
+      shortcut: "Ctrl+C",
+      icon: <Copy className="w-4 h-4" />,
+      onClick: () => {
+        navigator.clipboard.writeText(selectedText);
+      },
+    });
+
+    items.push({
+      id: "dictionary",
+      label: t("viewer.lookupDictionaryThesaurus"),
+      icon: <Languages className="w-4 h-4" />,
+      onClick: () => {
+        const word = selectedText.trim().split(/\s+/)[0] || "";
+        if (!word) return;
+        setIsDictionaryLoading(true);
+        lookupDictionary(word)
+          .then((result) => setDictionaryResult(result))
+          .catch((error) => {
+            toast.error(t("viewer.lookupFailed"), error instanceof Error ? error.message : t("viewer.failedToLookupWord"));
+          })
+          .finally(() => setIsDictionaryLoading(false));
+      },
+    });
+
+    items.push({ id: "sep2", label: "", type: ContextMenuItemType.Separator });
+
+    items.push({
+      id: "flashcard",
+      label: t("extractScrollItem.createFlashcard"),
+      icon: <Sparkles className="w-4 h-4" />,
+      onClick: () => {
+        setFlashcardStudioSeed({
+          key: `ctx-${currentDocument?.id}-${Date.now()}`,
+          documentId: currentDocument?.id,
+          excerpt: selectedText,
+          draftCardType: "qa",
+          resetDraftCards: true,
+          autoEditDraft: true,
+        });
+      },
+    });
+
+    return items;
+  }, [documentId, selectionContext, docType, currentDocument, createInstantExtract, clearTextSelection, toast, t]);
+
   const loadDocumentData = useCallback(async (doc: typeof currentDocument) => {
     if (!doc) return;
 
@@ -1532,6 +1657,7 @@ export function DocumentViewer({
     }
 
     setOcrContextText(null);
+    setContextMenuState(null);
 
     // Only reload if documentId actually changed, OR if we haven't successfully loaded this document yet
     const shouldLoad = documentId !== lastDocumentIdRef.current ||
@@ -3751,10 +3877,19 @@ export function DocumentViewer({
         margin: 0 auto !important;
         padding: 1.5rem !important;
       }
-      /* Reset all text colors to foreground, but preserve page card backgrounds */
-      body, .page, .page-content, .page-content *,
-      .pdf-header, .pdf-header *, .line-block {
-        color: ${fg} !important;
+      /* Strip cosmetic inline styles from all elements so theme tokens apply */
+      body * {
+        color: inherit !important;
+        background-color: transparent !important;
+        font-family: inherit !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+        font-style: inherit !important;
+        line-height: inherit !important;
+        letter-spacing: inherit !important;
+        text-align: inherit !important;
+        text-decoration: inherit !important;
+        text-transform: inherit !important;
       }
       /* Preserve explicit background on page cards and header */
       .page {
@@ -4759,6 +4894,7 @@ export function DocumentViewer({
             documentId={currentDocument.id}
             onLoad={(toc) => handleDocumentLoad(0, toc)}
             onSelectionChange={updateSelection}
+            onContextMenu={({ x, y, selectedText: text, selectionContext: ctx }) => setContextMenuState({ visible: true, x, y, selectedText: text, selectionContext: ctx })}
             onContextTextChange={handlePdfContextTextChange}
             highlightQuery={jumpHighlightQuery}
             initialSearchMatchIndex={initialJump?.kind === "epub" ? initialJump.matchIndex : undefined}
@@ -4925,6 +5061,7 @@ export function DocumentViewer({
                 resetDraftCards: true,
                 autoEditDraft: true,
               })}
+              onContextMenu={({ x, y, selectedText: text, selectionContext: ctx }) => setContextMenuState({ visible: true, x, y, selectedText: text, selectionContext: ctx })}
               onScrollPositionChange={(scrollPercent) => {
                 handleScrollPositionChange({
                   pageNumber: 1,
@@ -5453,6 +5590,17 @@ export function DocumentViewer({
             <Maximize className="w-5 h-5 text-foreground" />
           </div>
         </button>
+      )}
+
+      {/* Text selection context menu for non-PDF viewers */}
+      {contextMenuState && contextMenuState.visible && docType !== "pdf" && (
+        <ContextMenu
+          menuId="text-selection-context-menu"
+          items={buildContextMenuItems(contextMenuState.selectedText, contextMenuState.selectionContext)}
+          visible={contextMenuState.visible}
+          position={{ x: contextMenuState.x, y: contextMenuState.y }}
+          onClose={() => setContextMenuState(null)}
+        />
       )}
 
       {/* Flashcard Studio from right-click context menu */}

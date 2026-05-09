@@ -209,11 +209,11 @@
           if (!originalEl) return;
 
           const computed = window.getComputedStyle(originalEl);
+          // Structural properties only — cosmetic properties are handled
+          // by the app's theme system at render time
           const essentialStyles = [
-            'font-family', 'font-size', 'font-weight', 'font-style',
-            'line-height', 'color', 'background-color', 'text-decoration',
-            'text-align', 'margin', 'padding', 'border', 'border-radius',
-            'display', 'list-style-type'
+            'display', 'margin', 'padding', 'border', 'border-radius',
+            'list-style-type', 'white-space', 'overflow-x'
           ];
 
           const inlineStyles = essentialStyles
@@ -346,19 +346,16 @@
     const clone = root.cloneNode(true);
     const originalElements = [root, ...root.querySelectorAll('*')];
     const clonedElements = [clone, ...clone.querySelectorAll('*')];
+    // Structural properties only — cosmetic properties (color, font, etc.)
+    // are handled by the app's theme system at render time
     const styleProps = [
       'display',
-      'font-family',
-      'font-size',
-      'font-weight',
-      'font-style',
-      'line-height',
-      'color',
-      'background-color',
-      'text-align',
-      'text-decoration',
-      'text-transform',
-      'letter-spacing',
+      'flex-direction',
+      'flex-wrap',
+      'justify-content',
+      'align-items',
+      'grid-template-columns',
+      'grid-template-rows',
       'margin-top',
       'margin-right',
       'margin-bottom',
@@ -367,7 +364,13 @@
       'padding-right',
       'padding-bottom',
       'padding-left',
-      'list-style-type'
+      'width',
+      'max-width',
+      'min-width',
+      'border-collapse',
+      'list-style-type',
+      'white-space',
+      'overflow-x'
     ];
 
     for (let i = 0; i < originalElements.length; i++) {

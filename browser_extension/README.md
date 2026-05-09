@@ -56,13 +56,16 @@ A powerful browser extension that seamlessly integrates with Incrementum to capt
 
 #### Firefox (Recommended)
 
-**Option A: Signed XPI (Permanent Install)**
+**Option A: Firefox Add-ons (Permanent Install)**
+1. Install from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/cf99d3a803c547cca595/)
+2. Click "Add to Firefox" — signed and auto-updates
+
+**Option B: Signed XPI (Manual Install)**
 1. Pull the repo and locate `browser_extension/incrementum-browser-sync.xpi`
 2. Drag the `.xpi` file into a Firefox window
 3. Click "Add" in the confirmation prompt
-4. The extension installs permanently — no developer mode needed
 
-**Option B: Developer Mode (Temporary, reloads on restart)**
+**Option C: Developer Mode (Temporary, reloads on restart)**
 1. Open Firefox and navigate to `about:debugging`
 2. Click "This Firefox" in the sidebar
 3. Click "Load Temporary Add-on…"
@@ -345,7 +348,12 @@ The extension communicates with the BrowserSyncServer which provides:
 
 ## 📝 Changelog
 
-### Version 2.1.0 (Latest)
+### Version 1.2.0 (Latest)
+- Save Link now fetches content server-side via Readability instead of opening hidden tabs
+- Clean, theme-styled rendering — saved content matches your app theme
+- Structural-only CSS capture (no cosmetic inline styles from source pages)
+
+### Version 2.1.0
 - 🐛 **FIXED**: "Failed to fetch" error - Updated API endpoint from root to `/api/content`
 - ✨ **NEW**: Complete settings UI redesign with modern interface
 - ✨ **NEW**: Real-time connection testing with live status updates
