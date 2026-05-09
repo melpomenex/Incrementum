@@ -1,14 +1,24 @@
 /**
- * RichContentRenderer - Safely renders rich HTML content with 1:1 visual fidelity
+ * RichContentRenderer - Safely renders rich HTML content with theme-aware styling
  *
  * Uses sandboxed iframe for HTML content to:
- * - Preserve original CSS styling and layout
+ * - Apply the user's active theme colors and fonts
+ * - Preserve structural layout (flex, grid, spacing)
  * - Prevent XSS attacks via sandbox restrictions
  * - Isolate content from the parent document
  */
 
 import { useRef, useEffect, useState } from "react";
 import { ExternalLink, FileText, Loader2 } from "lucide-react";
+
+interface ThemeColors {
+  background: string;
+  foreground: string;
+  primary: string;
+  muted: string;
+  mutedForeground: string;
+  border: string;
+}
 
 interface RichContentRendererProps {
   /** Plain text content (required for fallback and accessibility) */
@@ -32,25 +42,20 @@ interface RichContentRendererProps {
  * while preserving styling for visual fidelity
  */
 function sanitizeHtml(html: string): string {
-  // Create a temporary container
   const container = document.createElement("div");
   container.innerHTML = html;
 
-  // Remove script tags and their content
   const scripts = container.querySelectorAll("script");
   scripts.forEach((script) => script.remove());
 
-  // Remove event handlers from all elements
   const allElements = container.querySelectorAll("*");
   allElements.forEach((element) => {
-    // Remove all event handler attributes (on*)
     Array.from(element.attributes).forEach((attr) => {
       if (attr.name.startsWith("on")) {
         element.removeAttribute(attr.name);
       }
     });
 
-    // Remove javascript: URLs
     if (element instanceof HTMLAnchorElement && element.href?.startsWith("javascript:")) {
       element.removeAttribute("href");
     }
@@ -59,29 +64,38 @@ function sanitizeHtml(html: string): string {
     }
   });
 
-  // Remove iframes (potential for embedding malicious content)
   const iframes = container.querySelectorAll("iframe");
   iframes.forEach((iframe) => iframe.remove());
 
-  // Remove object, embed, and applet tags
   const embeds = container.querySelectorAll("object, embed, applet");
   embeds.forEach((embed) => embed.remove());
 
-  // Remove form elements that could be used for phishing
   const forms = container.querySelectorAll("form");
   forms.forEach((form) => form.remove());
 
-  // Remove base tags that could redirect URLs
   const bases = container.querySelectorAll("base");
   bases.forEach((base) => base.remove());
 
   return container.innerHTML;
 }
 
+function readThemeColors(): ThemeColors {
+  const root = document.documentElement;
+  const cs = getComputedStyle(root);
+  return {
+    background: cs.getPropertyValue("--color-background").trim() || "#ffffff",
+    foreground: cs.getPropertyValue("--color-foreground").trim() || "#1a1a1a",
+    primary: cs.getPropertyValue("--color-primary").trim() || "#0066cc",
+    muted: cs.getPropertyValue("--color-muted").trim() || "#f5f5f5",
+    mutedForeground: cs.getPropertyValue("--color-muted-foreground").trim() || "#555555",
+    border: cs.getPropertyValue("--color-border").trim() || "#dddddd",
+  };
+}
+
 /**
- * Creates an HTML document for the iframe with proper styling
+ * Creates an HTML document for the iframe with theme-aware styling
  */
-function createIframeDocument(htmlContent: string): string {
+function createIframeDocument(htmlContent: string, theme: ThemeColors): string {
   const sanitized = sanitizeHtml(htmlContent);
 
   return `
@@ -91,7 +105,6 @@ function createIframeDocument(htmlContent: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Reset and base styles */
     * {
       box-sizing: border-box;
     }
@@ -100,27 +113,35 @@ function createIframeDocument(htmlContent: string): string {
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       line-height: 1.6;
-      color: #1a1a1a;
+      color: ${theme.foreground};
       background: transparent;
     }
     body {
       padding: 8px;
     }
+    /* Strip cosmetic inline styles so theme tokens cascade */
+    body * {
+      color: inherit !important;
+      background-color: transparent !important;
+      font-family: inherit !important;
+      font-size: inherit !important;
+    }
     /* Ensure images are responsive */
     img {
-      max-width: 100%;
-      height: auto;
+      max-width: 100% !important;
+      height: auto !important;
+      border-radius: 6px !important;
     }
-    /* Make links visible but non-functional in sandbox */
+    /* Make links use theme primary color */
     a {
-      color: #0066cc;
-      text-decoration: underline;
+      color: ${theme.primary} !important;
+      text-decoration: underline !important;
       cursor: pointer;
     }
     /* Preserve code styling */
     pre, code {
       font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-      background-color: #f5f5f5;
+      background-color: ${theme.muted} !important;
       border-radius: 4px;
     }
     pre {
@@ -136,12 +157,13 @@ function createIframeDocument(htmlContent: string): string {
       width: 100%;
     }
     th, td {
-      border: 1px solid #ddd;
+      border: 1px solid ${theme.border};
       padding: 8px;
       text-align: left;
     }
     th {
-      background-color: #f5f5f5;
+      background-color: ${theme.muted} !important;
+      font-weight: 600 !important;
     }
     /* List styling */
     ul, ol {
@@ -149,10 +171,10 @@ function createIframeDocument(htmlContent: string): string {
     }
     /* Blockquote styling */
     blockquote {
-      border-left: 4px solid #0066cc;
+      border-left: 4px solid ${theme.primary};
       margin-left: 0;
       padding-left: 16px;
-      color: #555;
+      color: ${theme.mutedForeground} !important;
     }
   </style>
 </head>
@@ -176,7 +198,6 @@ export function RichContentRenderer({
   const [iframeHeight, setIframeHeight] = useState(100);
   const [isLoading, setIsLoading] = useState(true);
 
-  // If no HTML content or text-only mode, render plain text
   if (!htmlContent || mode === "text-only") {
     return (
       <div className={`text-sm text-foreground leading-relaxed ${className}`}>
@@ -200,7 +221,6 @@ export function RichContentRenderer({
     );
   }
 
-  // For preview mode, show text preview with an indication that rich content is available
   if (mode === "preview") {
     return (
       <div className={`${className}`}>
@@ -213,7 +233,6 @@ export function RichContentRenderer({
     );
   }
 
-  // Full mode: render in sandboxed iframe
   const handleIframeLoad = () => {
     setIsLoading(false);
     if (iframeRef.current?.contentWindow?.document?.body) {
@@ -225,7 +244,8 @@ export function RichContentRenderer({
 
   useEffect(() => {
     if (iframeRef.current && expanded) {
-      const doc = createIframeDocument(htmlContent);
+      const theme = readThemeColors();
+      const doc = createIframeDocument(htmlContent, theme);
       const blob = new Blob([doc], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       iframeRef.current.src = url;
@@ -246,8 +266,8 @@ export function RichContentRenderer({
       <iframe
         ref={iframeRef}
         title="Rich content"
-        className="w-full border-0 rounded-lg bg-white"
-        style={{ height: `${iframeHeight}px`, maxHeight }}
+        className="w-full border-0 rounded-lg"
+        style={{ height: `${iframeHeight}px`, maxHeight, background: "transparent" }}
         sandbox="allow-same-origin"
         onLoad={handleIframeLoad}
       />

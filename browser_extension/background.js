@@ -634,48 +634,7 @@ async function saveLink(url, sourceTabId, linkText) {
   try {
     console.log('[DEBUG] saveLink called for URL:', url);
 
-    // Create a new tab to extract content
-    const tab = await chrome.tabs.create({
-      url: url,
-      active: false  // Don't focus the tab
-    });
-
-    // Wait for the tab to finish loading
-    await new Promise((resolve) => {
-      const listener = (tabId, changeInfo) => {
-        if (tabId === tab.id && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener);
-          resolve();
-        }
-      };
-      chrome.tabs.onUpdated.addListener(listener);
-    });
-
-    // Additional wait for dynamic content to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Try to extract page content using the content script
-    let pageContent = '';
-    let pageHtml = undefined;
-    let extractedImages = undefined;
-    let extractedTitle = '';
-    try {
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        action: 'getPageContent'
-      });
-      if (response && response.success) {
-        pageContent = response.page?.text || response.content || '';
-        pageHtml = response.page?.html_content;
-        extractedImages = response.page?.extracted_images;
-        extractedTitle = response.page?.title?.trim() || '';
-        console.log('[DEBUG] Successfully extracted page content, length:', pageContent.length);
-      }
-    } catch (error) {
-      console.log('[DEBUG] Could not get content from content script:', error.message);
-    }
-
-    const resolvedTabTitle = typeof tab.title === 'string' ? tab.title.trim() : '';
-    const resolvedLinkText = typeof linkText === 'string' ? linkText.trim() : '';
+    // Resolve a title without opening a tab — use link text or hostname
     let fallbackTitle = '';
     try {
       fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
@@ -683,20 +642,16 @@ async function saveLink(url, sourceTabId, linkText) {
       fallbackTitle = 'Saved link';
     }
 
-    // Prefer the actual destination page title. Fall back to link text and then hostname.
-    const title = extractedTitle || resolvedTabTitle || resolvedLinkText || fallbackTitle;
+    const resolvedLinkText = typeof linkText === 'string' ? linkText.trim() : '';
+    const title = resolvedLinkText || fallbackTitle;
 
-    // Close the tab
-    await chrome.tabs.remove(tab.id);
-
-    // Save to Incrementum
-    console.log('[DEBUG] Saving link with content length:', pageContent.length);
+    // Send URL-only to the app — the backend will fetch and extract
+    // clean article content via Readability (same pipeline as Import URL)
+    console.log('[DEBUG] Saving link as URL-only import:', url);
     const result = await sendToIncrementum({
       url,
       title,
-      text: pageContent,
-      html_content: pageHtml,
-      extracted_images: extractedImages,
+      text: '',
       type: 'page'
     });
     await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
