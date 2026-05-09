@@ -693,9 +693,10 @@ export function PDFViewer({
 
       try {
         const loadDocument = async () => {
-          // In WebKitGTK/Tauri, embedded fonts in some PDFs can trigger excessive glyph parsing.
-          // Use path-based font rendering for better stability, but keep worker enabled first.
-          const shouldDisableFontFace = isTauriRuntime;
+          // Embedded fonts must be enabled for accurate text layer positioning and selection.
+          // Previously disabled on WebKitGTK/Tauri to avoid glyph parsing issues, but this
+          // broke text selectability on PDFs that work fine in native Linux readers.
+          const shouldDisableFontFace = false;
           const sources = createPdfLoadSourceFactories({
             fileUrl,
             fileData,
