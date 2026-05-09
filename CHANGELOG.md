@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.35.0] - 2026-05-08
+
+### Added
+- **Podcast episode download** — Download episodes locally with progress tracking, playback from local file, and delete management
+- **Podcast feed search** — Search feeds by title, author, or description with HTML stripping support
+- **Episode search & sort** — Filter episodes by text, sort by newest/oldest/duration/title
+- **Inline transcript chat** — Chat with AI about a podcast transcript directly from a slide-out panel
+- **Downloaded episode indicator** — Visual status for downloaded/download-in-progress episodes
+- **Player width persistence** — Podcast player resize width saved to localStorage
+
+### Changed
+- **AudiobookViewer local playback** — Non-m4b audio files (mp3, etc.) now play directly via `convertFileSrc` without transcoding
+- **Episode position restore** — Simplified seek-on-load logic to always use the retry mechanism
+- **Feed description rendering** — HTML descriptions rendered properly in feed header and episode list
+- **Unsubscribe confirmation** — Replaced browser `confirm()` with custom `ConfirmDialog` component
+
+### Fixed
+- **ACL permissions** — Added `dialog:allow-ask` and `dialog:allow-message` to Tauri capabilities
+
 ## [1.34.0] - 2026-05-08
 
 ### Added
