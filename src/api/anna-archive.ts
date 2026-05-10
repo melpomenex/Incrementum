@@ -1,5 +1,27 @@
 import { invokeCommand } from "../lib/tauri";
 
+console.log('[AnnaArchive] Module initialized v3');
+
+/**
+ * Get the Anna's Archive URL for a book
+ * 
+ * @param md5 - The MD5 hash of the book
+ * @returns Full URL to the book's page on Anna's Archive
+ */
+export const getAnnasArchiveUrl = (md5: string): string => {
+  return `https://annas-archive.gl/md5/${md5}`;
+};
+
+/**
+ * Get the cover image URL for a book
+ * 
+ * @param md5 - The MD5 hash of the book
+ * @returns Full URL to the cover image
+ */
+export const getCoverImageUrl = (md5: string): string => {
+  return `https://annas-archive.gl/covers/${md5}.jpg`;
+};
+
 export type BookFormat = "pdf" | "epub" | "mobi" | "azw3" | "djvu" | "cbz" | "cbr" | "zip" | "rtf";
 
 export interface BookSearchResult {
@@ -32,11 +54,7 @@ export interface DownloadResult {
 }
 
 /**
- * Search for books on LibGen.li (Library Genesis)
- * 
- * Note: This function searches LibGen.li (not Anna's Archive directly) as it provides
- * a more reliable search API with faster response times. LibGen.li is one of the
- * largest free book libraries with over 3 million titles.
+ * Search for books on Anna's Archive
  *
  * @param query - Search query (title, author, ISBN, etc.)
  * @param limit - Maximum number of results (default: 20, max: 100)
@@ -50,7 +68,7 @@ export async function searchBooks(query: string, limit?: number): Promise<BookSe
 }
 
 /**
- * Download a book from LibGen.li
+ * Download a book from Anna's Archive
  *
  * @param bookId - The MD5 hash of the book to download (used as ID)
  * @param format - The format to download (pdf, epub, etc.)
@@ -70,7 +88,7 @@ export async function downloadBook(
 }
 
 /**
- * Get available LibGen mirror domains
+ * Get available Anna's Archive mirror domains
  *
  * @returns Array of mirror URLs
  */
@@ -134,26 +152,4 @@ export function getFormatDisplayName(format: BookFormat): string {
     rtf: "RTF",
   };
   return names[format] ?? format.toUpperCase();
-}
-
-/**
- * Get the LibGen.li URL for a book
- * 
- * @param md5 - The MD5 hash of the book
- * @returns Full URL to the book's page on LibGen.li
- */
-export function getLibGenBookUrl(md5: string): string {
-  return `https://libgen.li/ads.php?md5=${md5}`;
-}
-
-/**
- * Get the cover image URL for a book
- * 
- * @param fileId - The file ID from LibGen
- * @returns Full URL to the cover image
- */
-export function getCoverImageUrl(fileId: string): string {
-  // LibGen stores covers in a directory structure based on file ID prefix
-  const prefix = fileId.slice(0, Math.min(3, fileId.length));
-  return `https://libgen.li/covers/${prefix}/${fileId}-g.jpg`;
 }

@@ -1,26 +1,21 @@
-//! Anna's Archive / LibGen integration for book search and download
+//! Anna's Archive integration for book search and download
 //!
-//! This module provides functionality to search for books on Library Genesis (LibGen)
-//! and download them directly into the user's library.
-//!
-//! Uses multiple search strategies:
-//! 1. Primary: libgen.li index.php search (modern interface, comprehensive results)
-//! 2. Fallback: libgen.rs search.php (simpler interface, more reliable)
+//! Search uses HTTP scraping. Downloads use a Playwright-based Python helper
+//! script to handle Cloudflare challenges and JavaScript-based download flows.
 
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use regex::Regex;
 use std::collections::HashSet;
 use std::time::Duration;
-use futures_util::StreamExt;
 
-/// LibGen mirror domains (in order of preference)
-/// Updated to working mirrors as of 2025
-const LIBGEN_MIRRORS: &[&str] = &[
-    "https://libgen.li",
-    "https://libgen.is",
-    "https://libgen.rs",
-    "https://libgen.gs",
+/// Anna's Archive mirror domains (in order of preference)
+/// Updated to working mirrors as of May 2026
+const ANNAS_ARCHIVE_MIRRORS: &[&str] = &[
+    "https://annas-archive.gl",
+    "https://annas-archive.pk",
+    "https://annas-archive.gd",
+    "https://annas-archive.pm",
 ];
 
 /// Book format types supported for download
@@ -72,7 +67,7 @@ impl BookFormat {
     }
 }
 
-/// Book search result from LibGen
+/// Book search result from Anna's Archive
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookSearchResult {
     pub id: String,
@@ -89,27 +84,8 @@ pub struct BookSearchResult {
     pub file_size: Option<String>,
 }
 
-/// Download progress update
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DownloadProgress {
-    pub book_id: String,
-    pub progress: f32, // 0.0 to 1.0
-    pub bytes_downloaded: u64,
-    pub total_bytes: Option<u64>,
-    pub status: DownloadStatus,
-}
 
-/// Download status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DownloadStatus {
-    Connecting,
-    Downloading,
-    Completed,
-    Failed(String),
-    Cancelled,
-}
-
-/// Internal state for LibGen client
+/// Internal state for Anna's Archive client
 #[derive(Clone)]
 pub struct AnnaArchiveClient {
     current_mirror_index: usize,
@@ -117,11 +93,11 @@ pub struct AnnaArchiveClient {
 }
 
 impl AnnaArchiveClient {
-    /// Create a new LibGen client
+    /// Create a new Anna's Archive client
     pub fn new() -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .build()
             .unwrap_or_default();
 
@@ -133,14 +109,14 @@ impl AnnaArchiveClient {
 
     /// Get the current mirror URL
     fn get_current_mirror(&self) -> &'static str {
-        LIBGEN_MIRRORS.get(self.current_mirror_index)
+        ANNAS_ARCHIVE_MIRRORS.get(self.current_mirror_index)
             .copied()
-            .unwrap_or(LIBGEN_MIRRORS[0])
+            .unwrap_or(ANNAS_ARCHIVE_MIRRORS[0])
     }
 
     /// Try the next mirror
     fn try_next_mirror(&mut self) -> Option<&'static str> {
-        if self.current_mirror_index + 1 < LIBGEN_MIRRORS.len() {
+        if self.current_mirror_index + 1 < ANNAS_ARCHIVE_MIRRORS.len() {
             self.current_mirror_index += 1;
             Some(self.get_current_mirror())
         } else {
@@ -148,42 +124,17 @@ impl AnnaArchiveClient {
         }
     }
 
-    /// Search for books on LibGen
-    /// Tries multiple search strategies and mirrors for best results
+    /// Search for books on Anna's Archive
+    /// Tries multiple mirrors for best results
     pub async fn search_books(&self, query: &str, limit: usize) -> Result<Vec<BookSearchResult>> {
         let encoded_query = urlencoding::encode(query);
         let mut last_error = None;
         let mut client = self.clone();
 
-        // Try each mirror with both search methods
+        // Try each mirror
         loop {
             let mirror = client.get_current_mirror();
-
-            // Strategy 1: Try index.php search (libgen.li style)
-            if mirror.contains("libgen.li") {
-                let search_url = format!(
-                    "{}/index.php?req={}&columns%5B%5D=t&columns%5B%5D=a&columns%5B%5D=s&columns%5B%5D=y&columns%5B%5D=p&columns%5B%5D=i&objects%5B%5D=f&objects%5B%5D=e&objects%5B%5D=s&objects%5B%5D=a&objects%5B%5D=p&objects%5B%5D=w&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res={}&filesuns=all&curtab=f",
-                    mirror,
-                    encoded_query,
-                    limit.min(100)
-                );
-
-                match client.fetch_search_results(&search_url).await {
-                    Ok(results) if !results.is_empty() => {
-                        return Ok(client.filter_and_deduplicate(results, limit));
-                    }
-                    Ok(_) => {} // Empty results, try next strategy
-                    Err(e) => last_error = Some(e),
-                }
-            }
-
-            // Strategy 2: Try search.php (libgen.rs/is style)
-            let search_url = format!(
-                "{}/search.php?req={}&open=0&res={}&view=simple&phrase=1&column=def",
-                mirror,
-                encoded_query,
-                limit.min(100)
-            );
+            let search_url = format!("{}/search?q={}", mirror, encoded_query);
 
             match client.fetch_search_results(&search_url).await {
                 Ok(results) if !results.is_empty() => {
@@ -228,15 +179,7 @@ impl AnnaArchiveClient {
             crate::error::IncrementumError::Internal(format!("Failed to read response: {}", e))
         })?;
 
-        // Try parsing as index.php format first
-        if let Ok(results) = self.parse_indexphp_results(&html) {
-            if !results.is_empty() {
-                return Ok(results);
-            }
-        }
-
-        // Fall back to search.php format
-        self.parse_searchphp_results(&html)
+        self.parse_annas_archive_results(&html)
     }
 
     /// Filter out non-books and deduplicate results
@@ -257,7 +200,7 @@ impl AnnaArchiveClient {
             }
 
             // Deduplicate by title + author + year
-            let key = (
+            let key = format!("{}-{}-{}", 
                 book.title.to_lowercase(),
                 book.author.as_ref().map(|a| a.to_lowercase()).unwrap_or_default(),
                 book.year.unwrap_or(0)
@@ -271,418 +214,162 @@ impl AnnaArchiveClient {
         filtered
     }
 
-    /// Parse index.php search results (libgen.li format)
-    fn parse_indexphp_results(&self, html: &str) -> Result<Vec<BookSearchResult>> {
+    /// Parse Anna's Archive search results
+    fn parse_annas_archive_results(&self, html: &str) -> Result<Vec<BookSearchResult>> {
         let mut results = Vec::new();
-        let mut seen_ids = HashSet::new();
-
-        // Find the table body containing results
-        let table_body_start = html.find("<tbody>").unwrap_or(0);
-        let table_body_end = html[table_body_start..].find("</tbody>").map_or(html.len(), |p| table_body_start + p);
-        let table_content = &html[table_body_start..table_body_end + 8];
-
-        // Find all table rows
-        let row_regex = Regex::new(r#"<tr[^>]*>(.*?)</tr>"#).unwrap();
-        let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
-
-        for caps in row_regex.captures_iter(table_content) {
-            let row = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-
-            // Skip header rows
-            if row.contains("<th") || row.len() < 100 {
-                continue;
-            }
-
-            // Extract MD5 from the mirrors column
-            let md5 = md5_re.captures(row)
+        
+        // Anna's Archive uses <a> tags with class "js-vim-focus" for results
+        // Use a more robust item matching that handles varying attribute order and multiple items
+        let item_re = Regex::new(r#"(?s)<a\s+[^>]*?class="[^"]*js-vim-focus[^"]*"[^>]*?>(.*?)</a>"#).unwrap();
+        let href_re = Regex::new(r#"href="([^"]+?)""#).unwrap();
+        let title_re = Regex::new(r#"(?s)<h3[^>]*?>(.*?)</h3>"#).unwrap();
+        // Look for metadata div first (has more distinct structure)
+        let meta_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?text-gray-500[^"]*?"[^>]*?>(.*?)</div>"#).unwrap();
+        // Author is typically an italic div or a div right after title
+        let italic_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?italic[^"]*?"[^>]*?>(.*?)</div>"#).unwrap();
+        
+        for caps in item_re.captures_iter(html) {
+            let full_match = caps.get(0).map(|m| m.as_str()).unwrap_or("");
+            let content = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            
+            let href = href_re.captures(full_match)
                 .and_then(|c| c.get(1))
-                .map(|m| m.as_str().to_string())
-                .unwrap_or_default();
-
-            // Skip if no MD5 found or already processed
-            if md5.is_empty() || !seen_ids.insert(md5.clone()) {
-                continue;
-            }
-
-            // Parse the row
-            if let Some(result) = self.parse_indexphp_row(row, &md5) {
-                results.push(result);
-            }
-        }
-
-        Ok(results)
-    }
-
-    /// Parse search.php results (libgen.rs/is format)
-    fn parse_searchphp_results(&self, html: &str) -> Result<Vec<BookSearchResult>> {
-        let mut results = Vec::new();
-        let mut seen_ids = HashSet::new();
-
-        // Find table with class "c" (the main results table)
-        let table_start = html.find(r#"class="c""#).unwrap_or(0);
-        let table_content = &html[table_start..];
-
-        // Find all table rows
-        let row_regex = Regex::new(r#"<tr[^>]*>(.*?)</tr>"#).unwrap();
-        let cell_regex = Regex::new(r#"<td[^>]*>(.*?)</td>"#).unwrap();
-        let md5_re = Regex::new(r#"md5=([a-fA-F0-9]{32})"#).unwrap();
-
-        for caps in row_regex.captures_iter(table_content) {
-            let row = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-
-            // Skip header rows
-            if row.contains("<th") || row.len() < 50 {
-                continue;
-            }
-
-            // Extract cells
-            let cells: Vec<&str> = cell_regex.captures_iter(row)
-                .filter_map(|c| c.get(1))
                 .map(|m| m.as_str())
-                .collect();
-
-            if cells.len() < 9 {
+                .unwrap_or("");
+                
+            if href.is_empty() {
                 continue;
             }
 
-            // Extract MD5 from the last column (mirrors/get link)
-            let md5 = md5_re.captures(cells[cells.len()-1])
+            let md5 = if href.starts_with("/md5/") {
+                Some(href.trim_start_matches("/md5/").to_string())
+            } else {
+                None
+            };
+
+            let title_raw = title_re.captures(content)
                 .and_then(|c| c.get(1))
-                .map(|m| m.as_str().to_string())
-                .unwrap_or_default();
-
-            if md5.is_empty() || !seen_ids.insert(md5.clone()) {
-                continue;
-            }
-
-            // Parse cells (search.php format):
-            // [0] = ID, [1] = Author, [2] = Title, [3] = Publisher, [4] = Year
-            // [5] = Pages, [6] = Language, [7] = Size, [8] = Extension, [9] = Mirrors
-            let author = strip_html_tags(cells.get(1).unwrap_or(&"")).trim().to_string();
-            let title = strip_html_tags(cells.get(2).unwrap_or(&"")).trim().to_string();
-            let year = cells.get(4)
-                .and_then(|c| strip_html_tags(c).trim().parse::<i32>().ok());
-            let file_size = cells.get(7).map(|c| strip_html_tags(c).trim().to_string());
-            let extension = strip_html_tags(cells.get(8).unwrap_or(&"")).trim().to_lowercase();
-
-            if title.is_empty() || title.len() < 2 {
-                continue;
-            }
-
-            let formats = BookFormat::from_extension(&extension)
-                .map(|f| vec![f])
-                .unwrap_or_else(|| vec![BookFormat::Pdf]);
-
-            results.push(BookSearchResult {
-                id: md5.clone(),
-                title,
-                author: if author.is_empty() { None } else { Some(author) },
-                year,
+                .map(|m| strip_html_tags(m.as_str()))
+                .unwrap_or_else(|| "Unknown Title".to_string());
+            let title = title_raw.split_whitespace().collect::<Vec<_>>().join(" ");
+                
+            let mut result = BookSearchResult {
+                id: md5.clone().unwrap_or_else(|| href.to_string()),
+                title: title.clone(),
+                author: None,
+                year: None,
                 publisher: None,
                 language: None,
-                formats,
-                cover_url: None, // search.php doesn't provide cover URLs easily
+                formats: Vec::new(),
+                cover_url: None,
                 description: None,
                 isbn: None,
-                md5: Some(md5),
-                file_size,
-            });
+                md5,
+                file_size: None,
+            };
+
+            // 1. Try to find metadata div (contains formats, lang, size, etc.)
+            for meta_caps in meta_div_re.captures_iter(content) {
+                let meta_text = strip_html_tags(meta_caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+                let cleaned = meta_text.split_whitespace().collect::<Vec<_>>().join(" ");
+                if cleaned.contains('·') || cleaned.contains('|') || cleaned.matches(',').count() > 1 || cleaned.contains('•') {
+                    self.parse_metadata_string(&cleaned, &mut result);
+                }
+            }
+
+            // 2. Try to find author (italic div)
+            if let Some(author_caps) = italic_div_re.captures(content) {
+                let author_text = strip_html_tags(author_caps.get(1).map(|m| m.as_str()).unwrap_or(""));
+                let cleaned = author_text.split_whitespace().collect::<Vec<_>>().join(" ");
+                if !cleaned.is_empty() && cleaned != title && cleaned.len() < 100 {
+                    result.author = Some(cleaned);
+                }
+            }
+
+            // 3. Fallback format extraction
+            if result.formats.is_empty() {
+                let stripped_content = strip_html_tags(content);
+                self.parse_metadata_string(&stripped_content, &mut result);
+            }
+
+            // Cover URL fallback
+            if result.cover_url.is_none() {
+                if let Some(ref md5_val) = result.md5 {
+                    result.cover_url = Some(format!("{}/covers/{}.jpg", self.get_current_mirror(), md5_val));
+                }
+            }
+
+            results.push(result);
         }
 
         Ok(results)
     }
 
-    /// Parse a single index.php table row
-    fn parse_indexphp_row(&self, row: &str, md5: &str) -> Option<BookSearchResult> {
-        let cell_regex = Regex::new(r#"<td[^>]*>(.*?)</td>"#).unwrap();
-        let cells: Vec<&str> = cell_regex.captures_iter(row)
-            .filter_map(|c| c.get(1))
-            .map(|m| m.as_str())
-            .collect();
-
-        if cells.len() < 8 {
-            return None;
-        }
-
-        let title = self.extract_title_from_cell(cells.first().unwrap_or(&""))
-            .unwrap_or_else(|| "Unknown Title".to_string());
-
-        let author = self.extract_author_from_cell(cells.get(1).unwrap_or(&""));
-        let publisher = self.extract_publisher_from_cell(cells.get(2).unwrap_or(&""));
-        let year = self.extract_year_from_cell(cells.get(3).unwrap_or(&""));
-        let language = self.extract_language_from_cell(cells.get(4).unwrap_or(&""));
-        let file_size = self.extract_file_size_from_cell(cells.get(6).unwrap_or(&""));
-        let formats = self.extract_formats_from_cell(cells.get(7).unwrap_or(&""));
-
-        let file_id = self.extract_file_id_from_cell(cells.get(6).unwrap_or(&""));
-        let cover_url = file_id.map(|id| format!("{}/covers/{}/{}-g.jpg", 
-            self.get_current_mirror(),
-            &id[..(id.len().min(3))].to_string(),
-            id
-        ));
-
-        Some(BookSearchResult {
-            id: md5.to_string(),
-            title,
-            author,
-            year,
-            publisher,
-            language,
-            formats,
-            cover_url,
-            description: None,
-            isbn: None,
-            md5: Some(md5.to_string()),
-            file_size,
-        })
-    }
-
-    /// Extract title from the first table cell
-    fn extract_title_from_cell(&self, cell: &str) -> Option<String> {
-        let title_re = Regex::new(r#"<a[^>]*href="edition\.php[^"]*"[^>]*>([^<]+)</a>"#).unwrap();
+    /// Parse metadata string from Anna's Archive
+    fn parse_metadata_string(&self, meta: &str, result: &mut BookSearchResult) {
+        // Formats can be "English [en] · EPUB · 2.0MB · 2003"
+        // We handle multiple possible separators
+        let separators = ['·', ',', '|', '·', '•'];
+        let mut parts: Vec<String> = Vec::new();
         
-        if let Some(caps) = title_re.captures(cell) {
-            let title = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            let cleaned = strip_html_tags(title).trim().to_string();
-            if !cleaned.is_empty() && cleaned.len() > 2 {
-                return Some(cleaned);
+        let mut current = String::new();
+        for c in meta.chars() {
+            if separators.contains(&c) {
+                if !current.trim().is_empty() {
+                    parts.push(current.trim().to_string());
+                }
+                current = String::new();
+            } else {
+                current.push(c);
             }
         }
-
-        let link_re = Regex::new(r#"<a[^>]*>([^<]{10,200})</a>"#).unwrap();
-        if let Some(caps) = link_re.captures(cell) {
-            let title = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            let cleaned = strip_html_tags(title).trim().to_string();
-            if !cleaned.is_empty() && cleaned.len() > 3 {
-                return Some(cleaned);
-            }
+        if !current.trim().is_empty() {
+            parts.push(current.trim().to_string());
         }
-
-        let bold_re = Regex::new(r#"<b>([^<]+)</b>"#).unwrap();
-        if let Some(caps) = bold_re.captures(cell) {
-            let title = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            let cleaned = strip_html_tags(title).trim().to_string();
-            if !cleaned.is_empty() && cleaned.len() > 3 {
-                return Some(cleaned);
-            }
-        }
-
-        None
-    }
-
-    /// Extract author from the second table cell
-    fn extract_author_from_cell(&self, cell: &str) -> Option<String> {
-        let cleaned = strip_html_tags(cell).trim().to_string();
-        if !cleaned.is_empty() && cleaned.len() > 1 && cleaned.len() < 200 {
-            let author = cleaned
-                .trim_start_matches("Review by:")
-                .trim_start_matches("by ")
-                .trim()
-                .to_string();
-            if !author.is_empty() {
-                return Some(author);
-            }
-        }
-        None
-    }
-
-    /// Extract publisher from the third table cell
-    fn extract_publisher_from_cell(&self, cell: &str) -> Option<String> {
-        let cleaned = strip_html_tags(cell).trim().to_string();
-        if !cleaned.is_empty() && cleaned.len() > 1 && cleaned.len() < 100 {
-            return Some(cleaned);
-        }
-        None
-    }
-
-    /// Extract year from the fourth table cell
-    fn extract_year_from_cell(&self, cell: &str) -> Option<i32> {
-        let year_re = Regex::new(r#"\b(19|20)\d{2}\b"#).unwrap();
-        year_re.captures(cell)
-            .and_then(|c| c.get(0))
-            .and_then(|m| m.as_str().parse::<i32>().ok())
-    }
-
-    /// Extract language from the fifth table cell
-    fn extract_language_from_cell(&self, cell: &str) -> Option<String> {
-        let cleaned = strip_html_tags(cell).trim().to_string();
-        if !cleaned.is_empty() && cleaned.len() > 1 && cleaned.len() < 50 {
-            return Some(cleaned);
-        }
-        None
-    }
-
-    /// Extract file size from the seventh table cell
-    fn extract_file_size_from_cell(&self, cell: &str) -> Option<String> {
-        let size_re = Regex::new(r#"(\d+(?:\.\d+)?)\s*(KB|MB|GB|kb|mb|gb)"#).unwrap();
-        size_re.captures(cell)
-            .and_then(|c| c.get(0))
-            .map(|m| m.as_str().to_string())
-    }
-
-    /// Extract file ID from the size cell (used for cover URL)
-    fn extract_file_id_from_cell(&self, cell: &str) -> Option<String> {
-        let id_re = Regex::new(r#"file\.php\?id=(\d+)"#).unwrap();
-        id_re.captures(cell)
-            .and_then(|c| c.get(1))
-            .map(|m| m.as_str().to_string())
-    }
-
-    /// Extract format from the eighth table cell
-    fn extract_formats_from_cell(&self, cell: &str) -> Vec<BookFormat> {
-        let mut formats: Vec<BookFormat> = Vec::new();
         
-        let ext = strip_html_tags(cell).trim().to_lowercase();
-        
-        if let Some(format) = BookFormat::from_extension(&ext) {
-            formats.push(format);
-        }
-
-        if formats.is_empty() {
-            let cell_upper = cell.to_uppercase();
-            if cell_upper.contains("PDF") {
-                formats.push(BookFormat::Pdf);
-            } else if cell_upper.contains("EPUB") {
-                formats.push(BookFormat::Epub);
-            } else if cell_upper.contains("MOBI") {
-                formats.push(BookFormat::Mobi);
-            } else if cell_upper.contains("AZW") {
-                formats.push(BookFormat::Azw3);
-            } else if cell_upper.contains("DJVU") {
-                formats.push(BookFormat::Djvu);
-            } else if cell_upper.contains("CBZ") {
-                formats.push(BookFormat::Cbz);
-            } else if cell_upper.contains("CBR") {
-                formats.push(BookFormat::Cbr);
-            } else if cell_upper.contains("RTF") {
-                formats.push(BookFormat::Rtf);
+        for part in parts {
+            let part_lower = part.to_lowercase();
+            
+            // Language: "English [en]"
+            if part.contains('[') && part.contains(']') {
+                result.language = Some(part);
+                continue;
             }
-        }
-
-        if formats.is_empty() {
-            formats.push(BookFormat::Pdf);
-        }
-
-        formats
-    }
-
-    /// Download a book from LibGen
-    pub async fn download_book(
-        &self,
-        md5: &str,
-        _format: BookFormat,
-        download_path: &std::path::Path,
-        progress_callback: impl Fn(DownloadProgress),
-    ) -> Result<std::path::PathBuf> {
-        // Try multiple download URL formats
-        let download_urls = vec![
-            format!("{}/ads.php?md5={}&download=1", self.get_current_mirror(), md5),
-            format!("{}/get.php?md5={}", self.get_current_mirror(), md5),
-            format!("{}/download.php?md5={}", self.get_current_mirror(), md5),
-        ];
-
-        progress_callback(DownloadProgress {
-            book_id: md5.to_string(),
-            progress: 0.0,
-            bytes_downloaded: 0,
-            total_bytes: None,
-            status: DownloadStatus::Connecting,
-        });
-
-        let mut last_error = None;
-
-        for download_url in download_urls {
-            match self.try_download(&download_url, download_path, md5, &progress_callback).await {
-                Ok(path) => return Ok(path),
-                Err(e) => {
-                    last_error = Some(e);
+            
+            // Format: "EPUB", "PDF"
+            if let Some(format) = BookFormat::from_extension(&part) {
+                if !result.formats.contains(&format) {
+                    result.formats.push(format);
+                }
+                continue;
+            }
+            
+            // Size: "2.0MB"
+            if part_lower.contains("kb") || part_lower.contains("mb") || part_lower.contains("gb") {
+                result.file_size = Some(part);
+                continue;
+            }
+            
+            // Year: "2003"
+            if let Ok(year) = part.parse::<i32>() {
+                if year > 1800 && year < 2100 {
+                    result.year = Some(year);
                     continue;
                 }
             }
         }
-
-        Err(last_error.unwrap_or_else(|| {
-            crate::error::IncrementumError::Internal("All download methods failed".to_string())
-        }))
-    }
-
-    /// Try to download from a specific URL
-    async fn try_download(
-        &self,
-        url: &str,
-        download_path: &std::path::Path,
-        book_id: &str,
-        progress_callback: &impl Fn(DownloadProgress),
-    ) -> Result<std::path::PathBuf> {
-        let response = self.http_client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to connect: {}", e)))?;
-
-        if !response.status().is_success() {
-            return Err(crate::error::IncrementumError::Internal(
-                format!("Download failed with status: {}", response.status())
-            ));
+        
+        // Final format fallback: if we still have no formats, try scanning the raw string for known extensions
+        if result.formats.is_empty() {
+            for ext in ["epub", "pdf", "mobi", "azw3", "djvu", "cbz", "cbr"] {
+                if meta.to_lowercase().contains(ext) {
+                    if let Some(format) = BookFormat::from_extension(ext) {
+                        result.formats.push(format);
+                        break;
+                    }
+                }
+            }
         }
-
-        let total_bytes = response.content_length();
-        let final_path = download_path.to_path_buf();
-
-        progress_callback(DownloadProgress {
-            book_id: book_id.to_string(),
-            progress: 0.0,
-            bytes_downloaded: 0,
-            total_bytes,
-            status: DownloadStatus::Downloading,
-        });
-
-        let mut file = tokio::fs::File::create(&final_path).await.map_err(|e| {
-            crate::error::IncrementumError::Internal(format!("Failed to create file: {}", e))
-        })?;
-
-        let mut stream = response.bytes_stream();
-        let mut bytes_downloaded: u64 = 0;
-
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| {
-                crate::error::IncrementumError::Internal(format!("Failed to download chunk: {}", e))
-            })?;
-
-            tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await.map_err(|e| {
-                crate::error::IncrementumError::Internal(format!("Failed to write to file: {}", e))
-            })?;
-
-            bytes_downloaded += chunk.len() as u64;
-
-            let progress = if let Some(total) = total_bytes {
-                bytes_downloaded as f32 / total as f32
-            } else {
-                0.0
-            };
-
-            progress_callback(DownloadProgress {
-                book_id: book_id.to_string(),
-                progress,
-                bytes_downloaded,
-                total_bytes,
-                status: DownloadStatus::Downloading,
-            });
-        }
-
-        tokio::io::AsyncWriteExt::flush(&mut file).await.map_err(|e| {
-            crate::error::IncrementumError::Internal(format!("Failed to flush file: {}", e))
-        })?;
-
-        progress_callback(DownloadProgress {
-            book_id: book_id.to_string(),
-            progress: 1.0,
-            bytes_downloaded,
-            total_bytes,
-            status: DownloadStatus::Completed,
-        });
-
-        Ok(final_path)
     }
 }
 
@@ -699,7 +386,7 @@ impl Default for AnnaArchiveClient {
     }
 }
 
-/// Search for books on LibGen (via "Anna's Archive" UI)
+/// Search for books on Anna's Archive
 #[tauri::command]
 pub async fn search_books(query: String, limit: Option<usize>) -> Result<Vec<BookSearchResult>> {
     let client = AnnaArchiveClient::new();
@@ -732,61 +419,180 @@ pub struct DownloadResult {
     pub file_size: u64,
 }
 
-/// Download a book from LibGen (via "Anna's Archive" UI)
+/// Resolve the path to the Python download helper script
+fn get_download_script_path() -> Result<std::path::PathBuf> {
+    let script_name = "anna_download.py";
+
+    // Dev mode: relative to CARGO_MANIFEST_DIR
+    let dev_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts")
+        .join(script_name);
+    if dev_path.exists() {
+        return Ok(dev_path);
+    }
+
+    // Try executable directory
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let candidate = exe_dir.join("scripts").join(script_name);
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+            // macOS .app bundle pattern
+            if let Some(parent) = exe_dir.parent() {
+                let candidate = parent.join("scripts").join(script_name);
+                if candidate.exists() {
+                    return Ok(candidate);
+                }
+            }
+        }
+    }
+
+    Err(crate::error::IncrementumError::Internal(
+        "Anna's Archive download script not found".to_string(),
+    ))
+}
+
+/// Find the system Python 3 binary
+fn find_python3() -> Result<std::path::PathBuf> {
+    for name in &["python3", "python"] {
+        if let Ok(output) = std::process::Command::new(name)
+            .arg("--version")
+            .output()
+        {
+            if output.status.success() {
+                return Ok(std::path::PathBuf::from(name));
+            }
+        }
+    }
+
+    let candidates = [
+        "/usr/bin/python3",
+        "/usr/local/bin/python3",
+        "/bin/python3",
+    ];
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return Ok(std::path::PathBuf::from(path));
+        }
+    }
+
+    Err(crate::error::IncrementumError::Internal(
+        "Python 3 not found. Install Python 3 to use Anna's Archive downloads.".to_string(),
+    ))
+}
+
+/// Download a book from Anna's Archive via Playwright helper script
 #[tauri::command]
 pub async fn download_book(
     book_id: String,
     format: BookFormat,
     download_path: Option<String>,
 ) -> Result<DownloadResult> {
-    let client = AnnaArchiveClient::new();
+    let python = find_python3()?;
+    let script = get_download_script_path()?;
 
     let download_dir = if let Some(path) = download_path {
         if path.is_empty() || path == "temp" {
-            let temp_dir = std::env::temp_dir();
-            temp_dir.join("incrementum-downloads")
+            std::env::temp_dir().join("incrementum-downloads")
         } else {
             let path_buf = std::path::PathBuf::from(&path);
             if path_buf.extension().is_some() {
                 path_buf.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| {
-                    let temp_dir = std::env::temp_dir();
-                    temp_dir.join("incrementum-downloads")
+                    std::env::temp_dir().join("incrementum-downloads")
                 })
             } else {
                 path_buf
             }
         }
     } else {
-        let temp_dir = std::env::temp_dir();
-        temp_dir.join("incrementum-downloads")
+        std::env::temp_dir().join("incrementum-downloads")
     };
 
     tokio::fs::create_dir_all(&download_dir).await.map_err(|e| {
         crate::error::IncrementumError::Internal(format!("Failed to create download directory: {}", e))
     })?;
 
-    let file_name = format!("{}.{}", book_id, format);
-    let file_path = download_dir.join(&file_name);
+    let args = [
+        script.to_string_lossy().to_string(),
+        "--md5".to_string(),
+        book_id.clone(),
+        "--output-dir".to_string(),
+        download_dir.to_string_lossy().to_string(),
+        "--format".to_string(),
+        format.to_string(),
+        "--timeout".to_string(),
+        "180".to_string(),
+    ];
 
-    let final_path = client.download_book(&book_id, format.clone(), &file_path, |progress| {
-        eprintln!("Download progress: {:?}", progress);
-    }).await?;
+    let output = tokio::time::timeout(
+        Duration::from_secs(300),
+        tokio::process::Command::new(&python)
+            .args(&args)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .env_remove("PYTHONHOME")
+            .env_remove("PYTHONPATH")
+            .env_remove("PYTHONUSERBASE")
+            .env_remove("PYTHONNOUSERSITE")
+            .env("PLAYWRIGHT_BROWSERS_PATH", "0")
+            .output(),
+    )
+    .await
+    .map_err(|_| crate::error::IncrementumError::Internal("Download timed out after 5 minutes".to_string()))?
+    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to run download script: {}", e)))?;
 
-    let file_size = tokio::fs::metadata(&final_path).await
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
-    Ok(DownloadResult {
-        file_path: final_path.to_string_lossy().to_string(),
-        file_name,
-        file_size,
-    })
+    if !output.status.success() || stdout.is_empty() {
+        let error_msg = if stderr.contains("ModuleNotFoundError") && stderr.contains("playwright") {
+            "Playwright is not installed. Install with: pip install playwright && playwright install chromium".to_string()
+        } else if !stderr.is_empty() {
+            format!("Download error: {}", stderr.chars().take(500).collect::<String>())
+        } else {
+            "Download failed with no output".to_string()
+        };
+        return Err(crate::error::IncrementumError::Internal(error_msg));
+    }
+
+    let result: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| crate::error::IncrementumError::Internal(format!(
+            "Failed to parse download result: {}. Output: {}",
+            e,
+            stdout.chars().take(200).collect::<String>()
+        )))?;
+
+    if result["success"].as_bool().unwrap_or(false) {
+        Ok(DownloadResult {
+            file_path: result["file_path"].as_str().unwrap_or_default().to_string(),
+            file_name: result["file_name"].as_str().unwrap_or_default().to_string(),
+            file_size: result["file_size"].as_u64().unwrap_or(0),
+        })
+    } else {
+        let error_type = result["error_type"].as_str().unwrap_or("unknown");
+        let error_msg = result["error"].as_str().unwrap_or("Unknown download error");
+
+        let message = match error_type {
+            "playwright_missing" => format!(
+                "{}. Install with: pip install playwright && playwright install chromium",
+                error_msg
+            ),
+            "cloudflare_blocked" => format!(
+                "{}. Try again later or use a VPN.",
+                error_msg
+            ),
+            _ => error_msg.to_string(),
+        };
+
+        Err(crate::error::IncrementumError::Internal(message))
+    }
 }
 
-/// Get available LibGen mirrors
+/// Get available Anna's Archive mirrors
 #[tauri::command]
 pub fn get_available_mirrors() -> Vec<String> {
-    LIBGEN_MIRRORS.iter().map(|s| s.to_string()).collect()
+    ANNAS_ARCHIVE_MIRRORS.iter().map(|s| s.to_string()).collect()
 }
 
 #[cfg(test)]
@@ -870,5 +676,31 @@ mod tests {
 
         let filtered = client.filter_and_deduplicate(results, 10);
         assert_eq!(filtered.len(), 1); // One unique non-journal book
+    }
+
+    #[test]
+    fn test_parse_annas_archive_results() {
+        let client = AnnaArchiveClient::new();
+        let html = r#"
+            <a href="/md5/abc123def456" class="js-vim-focus custom-a flex items-center">
+                <div class="flex-grow">
+                    <h3 class="text-lg font-bold">Test Book Title</h3>
+                    <div class="text-sm italic">Author Name</div>
+                    <div class="text-sm text-gray-500 mt-1">
+                        English [en] · EPUB · 2.0MB · 2021 · Book
+                    </div>
+                </div>
+            </a>
+        "#;
+        
+        let results = client.parse_annas_archive_results(html).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Test Book Title");
+        assert_eq!(results[0].md5, Some("abc123def456".to_string()));
+        assert_eq!(results[0].author, Some("Author Name".to_string()));
+        assert_eq!(results[0].year, Some(2021));
+        assert_eq!(results[0].formats, vec![BookFormat::Epub]);
+        assert_eq!(results[0].language, Some("English [en]".to_string()));
+        assert_eq!(results[0].file_size, Some("2.0MB".to_string()));
     }
 }

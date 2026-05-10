@@ -66,6 +66,12 @@ export function usePdfCustomSelection(
   // Track which pages have been indexed
   const indexedPagesRef = useRef<Set<number>>(new Set());
 
+  // Track per-page extraction success for fallback decisions
+  const extractionSuccessRef = useRef<Map<number, boolean>>(new Map());
+
+  // Pending selection requests for pages not yet indexed
+  const pendingSelectionRef = useRef<Map<number, { x: number; y: number; timeout: ReturnType<typeof setTimeout> }>>(new Map());
+
   // Selection state for rendering
   const [selectionState, setSelectionState] = useState<SelectionState>(
     createInitialSelectionState
@@ -76,6 +82,9 @@ export function usePdfCustomSelection(
 
   // Track current viewport scales for re-extraction
   const lastScalesRef = useRef<number[]>([]);
+
+  // Bump counter to force re-render so PDFViewer can re-evaluate per-page CSS classes
+  const [extractionRevision, setExtractionRevision] = useState(0);
 
   /**
    * Initialize core instances.
@@ -96,6 +105,12 @@ export function usePdfCustomSelection(
     });
 
     indexedPagesRef.current = new Set();
+    extractionSuccessRef.current = new Map();
+    // Clear any pending selection timeouts
+    for (const pending of pendingSelectionRef.current.values()) {
+      clearTimeout(pending.timeout);
+    }
+    pendingSelectionRef.current = new Map();
     setIsReady(false);
 
     return () => {
@@ -103,6 +118,11 @@ export function usePdfCustomSelection(
       spatialIndexRef.current = null;
       engineRef.current = null;
       indexedPagesRef.current.clear();
+      extractionSuccessRef.current.clear();
+      for (const pending of pendingSelectionRef.current.values()) {
+        clearTimeout(pending.timeout);
+      }
+      pendingSelectionRef.current.clear();
     };
   }, [enabled]);
 
@@ -130,9 +150,30 @@ export function usePdfCustomSelection(
           pageIndex
         );
 
+        if (pageData.tokens.length === 0) {
+          console.warn(
+            `[usePdfCustomSelection] Page ${pageIndex + 1}: token extraction returned 0 items (empty or image-only page)`
+          );
+          extractionSuccessRef.current.set(pageIndex, false);
+          indexedPagesRef.current.add(pageIndex);
+          lastScalesRef.current[pageIndex] = viewport.scale;
+          setExtractionRevision((n) => n + 1);
+          return;
+        }
+
         spatialIndexRef.current.addPage(pageData);
         indexedPagesRef.current.add(pageIndex);
+        extractionSuccessRef.current.set(pageIndex, true);
         lastScalesRef.current[pageIndex] = viewport.scale;
+        setExtractionRevision((n) => n + 1);
+
+        // Replay pending selection if one was queued for this page
+        const pending = pendingSelectionRef.current.get(pageIndex);
+        if (pending) {
+          pendingSelectionRef.current.delete(pageIndex);
+          clearTimeout(pending.timeout);
+          engineRef.current?.handlePointerDown(pageIndex, pending.x, pending.y);
+        }
 
         // Update ready state
         if (!isReady && indexedPagesRef.current.size > 0) {
@@ -141,9 +182,12 @@ export function usePdfCustomSelection(
         }
       } catch (error) {
         console.warn(
-          `[usePdfCustomSelection] Failed to extract tokens for page ${pageIndex + 1}:`,
-          error
+          `[usePdfCustomSelection] Page ${pageIndex + 1}: token extraction failed –`,
+          error instanceof Error ? error.message : error
         );
+        extractionSuccessRef.current.set(pageIndex, false);
+        indexedPagesRef.current.add(pageIndex);
+        setExtractionRevision((n) => n + 1);
       }
     },
     [pdf, pageViewportRefs, isReady]
@@ -158,6 +202,7 @@ export function usePdfCustomSelection(
     // Clear existing index
     spatialIndexRef.current?.clear();
     indexedPagesRef.current.clear();
+    extractionSuccessRef.current.clear();
 
     // Extract tokens for all pages with viewports
     for (let i = 0; i < pageViewportRefs.current.length; i++) {
@@ -238,8 +283,25 @@ export function usePdfCustomSelection(
       const coords = getViewportCoords(pageIndex, event);
       if (!coords) return;
 
+      // If page extraction already failed, let native selection handle it
+      if (extractionSuccessRef.current.get(pageIndex) === false) {
+        return;
+      }
+
       // Ensure page is indexed before selection
       if (!indexedPagesRef.current.has(pageIndex)) {
+        // Clear any existing pending selection for this page
+        const existing = pendingSelectionRef.current.get(pageIndex);
+        if (existing) clearTimeout(existing.timeout);
+
+        // Queue the selection and trigger extraction
+        const timeout = setTimeout(() => {
+          pendingSelectionRef.current.delete(pageIndex);
+          // After timeout, the page will fall back to native selection
+          // since extractionSuccessRef won't be set to true
+        }, 2000);
+
+        pendingSelectionRef.current.set(pageIndex, { x: coords.x, y: coords.y, timeout });
         extractPageTokens(pageIndex);
         return;
       }
@@ -331,6 +393,8 @@ export function usePdfCustomSelection(
     clearSelection,
     isReady,
     refreshTokens,
+    extractionSuccessMap: extractionSuccessRef,
+    extractionRevision,
   };
 }
 

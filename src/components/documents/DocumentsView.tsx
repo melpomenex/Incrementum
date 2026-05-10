@@ -807,7 +807,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 <BookAudio className="w-4 h-4" />
                 {t("documentsView.audiobook")}
               </button>
-              {isTauri() && isMac() && (
+              {false && isTauri() && (
                 <button
                   onClick={() => setShowAnnaArchiveSearch(true)}
                   className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
@@ -2541,7 +2541,7 @@ function MobileImportMenu({
             <span>{t("documentsView.audiobook")}</span>
           </button>
 
-          {isTauri() && isMac() && (
+          {false && isTauri() && (
             <>
               <div className="my-1 border-t border-border" />
               <button

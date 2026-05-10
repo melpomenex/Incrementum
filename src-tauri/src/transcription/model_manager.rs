@@ -129,12 +129,16 @@ impl ModelManager {
         file.flush().await?;
         drop(file);
 
-        // Verify hash (if provided)
-        // let hash = format!("{:x}", hasher.finalize());
-        // if hash != profile.sha256 {
-        //     fs::remove_file(&temp_path)?;
-        //     return Err(anyhow!("Model hash verification failed"));
-        // }
+        // Verify hash to ensure model integrity
+        let hash = format!("{:x}", hasher.finalize());
+        if !profile.sha256.is_empty() && hash != profile.sha256 {
+            let _ = fs::remove_file(&temp_path);
+            return Err(anyhow!(
+                "Model hash verification failed: expected {}, got {}",
+                profile.sha256,
+                hash
+            ));
+        }
 
         fs::rename(&temp_path, &dest_path)?;
 

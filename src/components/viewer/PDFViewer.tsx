@@ -2800,7 +2800,7 @@ export function PDFViewer({
                         }}
                         className={cn(
                           "textLayerContainer",
-                          ENABLE_CUSTOM_PDF_SELECTION && "customSelectionActive"
+                          ENABLE_CUSTOM_PDF_SELECTION && customSelection.extractionRevision > -1 && customSelection.extractionSuccessMap.current.get(index) === true && "customSelectionActive"
                         )}
                         style={{
                           transformOrigin: "0 0",

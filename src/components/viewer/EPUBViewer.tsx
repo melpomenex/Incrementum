@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react";
-import type { SelectionContext } from "../../types/selection";
+import type { EpubSelectionContext, SelectionContext } from "../../types/selection";
 import ePub from "epubjs";
 import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -79,6 +79,8 @@ interface EPUBViewerProps {
   documentId?: string;
   onLoad?: (toc: any[]) => void;
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
+  /** Callback when user right-clicks on selected text */
+  onContextMenu?: (event: { x: number; y: number; selectedText: string; selectionContext?: SelectionContext | null }) => void;
   onContextTextChange?: (text: string) => void;
   initialCfi?: string;
   initialSearchMatchIndex?: number;
@@ -113,6 +115,7 @@ export function EPUBViewer({
   documentId,
   onLoad,
   onSelectionChange,
+  onContextMenu,
   onContextTextChange,
   initialCfi,
   initialSearchMatchIndex,
@@ -144,6 +147,7 @@ export function EPUBViewer({
   const [progressPercent, setProgressPercent] = useState(0);
   const [currentChapter, setCurrentChapter] = useState("");
   const selectionActiveRef = useRef(false);
+  const lastEpubSelectionContextRef = useRef<EpubSelectionContext | null>(null);
   const initialDisplayCompleteRef = useRef(false);
   const activeSearchHighlightsRef = useRef<string[]>([]);
   const liveSearchHighlightsRef = useRef<string[]>([]);
@@ -176,6 +180,8 @@ export function EPUBViewer({
   onContextTextChangeRef.current = onContextTextChange;
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
   const onProgressChangeRef = useRef(onProgressChange);
   onProgressChangeRef.current = onProgressChange;
   const onSearchResultsChangeRef = useRef(onSearchResultsChange);
@@ -629,6 +635,26 @@ export function EPUBViewer({
             contents.document.addEventListener("mouseup", selectionHandler);
             contents.document.addEventListener("touchend", selectionHandler);
 
+            // Right-click context menu for selected text inside the EPUB iframe
+            contents.document.addEventListener("contextmenu", (e: Event) => {
+              const selection = contents.window.getSelection();
+              const text = selection?.toString().trim();
+              if (!text) return;
+              e.preventDefault();
+              const mouseEvent = e as unknown as MouseEvent;
+              // Convert iframe coordinates to parent frame coordinates
+              const iframe = viewerRef.current?.querySelector("iframe");
+              if (iframe) {
+                const iframeRect = iframe.getBoundingClientRect();
+                onContextMenuRef.current?.({
+                  x: iframeRect.left + mouseEvent.clientX,
+                  y: iframeRect.top + mouseEvent.clientY,
+                  selectedText: text,
+                  selectionContext: lastEpubSelectionContextRef.current,
+                });
+              }
+            });
+
             // Key events inside the EPUB iframe don't reliably reach the parent window.
             // Bind Cmd/Ctrl+K here so the command palette always opens while reading.
             contents.window.addEventListener("keydown", handleCommandPaletteHotkey, true);
@@ -778,12 +804,14 @@ export function EPUBViewer({
             const selection = contents.window.getSelection();
             if (selection && selection.toString()) {
               selectionActiveRef.current = true;
-              onSelectionChangeRef.current?.(selection.toString(), {
+              const ctx: EpubSelectionContext = {
                 type: "epub",
                 documentId: documentId ?? "",
                 cfiRange: String(cfiRange),
                 selectedText: selection.toString(),
-              });
+              };
+              lastEpubSelectionContextRef.current = ctx;
+              onSelectionChangeRef.current?.(selection.toString(), ctx);
             }
           });
 
