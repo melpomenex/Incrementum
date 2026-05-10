@@ -453,6 +453,10 @@ async fn merge_legacy_database(
 }
 
 async fn load_id_set(pool: &SqlitePool, table: &str) -> Result<HashSet<String>> {
+    const ALLOWED_TABLES: &[&str] = &["extracts", "learning_items", "review_sessions", "review_results"];
+    if !ALLOWED_TABLES.contains(&table) {
+        return Err(IncrementumError::Internal(format!("Invalid table name: {}", table)));
+    }
     let query = format!("SELECT id FROM {}", table);
     let rows = sqlx::query(&query)
         .fetch_all(pool)

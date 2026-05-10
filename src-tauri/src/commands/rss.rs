@@ -468,16 +468,15 @@ pub async fn get_rss_articles(
     limit: Option<i32>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<RssArticle>> {
-    let query = if let Some(feed_id) = feed_id {
-        format!("SELECT * FROM rss_articles WHERE feed_id = '{}' ORDER BY published_date DESC LIMIT {}", feed_id, limit.unwrap_or(50))
+    let rows = if let Some(ref fid) = feed_id {
+        sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? ORDER BY published_date DESC LIMIT ?")
+            .bind(fid).bind(limit.unwrap_or(50))
+            .fetch_all(repo.pool()).await
     } else {
-        format!("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT {}", limit.unwrap_or(100))
-    };
-
-    let rows = sqlx::query(&query)
-        .fetch_all(repo.pool())
-        .await
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch RSS articles: {}", e)))?;
+        sqlx::query("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT ?")
+            .bind(limit.unwrap_or(100))
+            .fetch_all(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch RSS articles: {}", e)))?;
 
     let mut articles = Vec::new();
     for row in rows {
@@ -1201,16 +1200,15 @@ pub async fn get_rss_articles_http(
     limit: Option<i32>,
     repo: &Repository,
 ) -> Result<Vec<RssArticle>> {
-    let query = if let Some(feed_id) = feed_id {
-        format!("SELECT * FROM rss_articles WHERE feed_id = '{}' ORDER BY published_date DESC LIMIT {}", feed_id, limit.unwrap_or(50))
+    let rows = if let Some(fid) = feed_id {
+        sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? ORDER BY published_date DESC LIMIT ?")
+            .bind(fid).bind(limit.unwrap_or(50))
+            .fetch_all(repo.pool()).await
     } else {
-        format!("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT {}", limit.unwrap_or(100))
-    };
-
-    let rows = sqlx::query(&query)
-        .fetch_all(repo.pool())
-        .await
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch RSS articles: {}", e)))?;
+        sqlx::query("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT ?")
+            .bind(limit.unwrap_or(100))
+            .fetch_all(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch RSS articles: {}", e)))?;
 
     let mut articles = Vec::new();
     for row in rows {

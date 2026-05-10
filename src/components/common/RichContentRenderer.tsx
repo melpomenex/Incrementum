@@ -41,7 +41,7 @@ interface RichContentRendererProps {
  * Sanitizes HTML content by removing potentially dangerous elements
  * while preserving styling for visual fidelity
  */
-function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string): string {
   const container = document.createElement("div");
   container.innerHTML = html;
 

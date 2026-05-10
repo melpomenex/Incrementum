@@ -2589,29 +2589,65 @@ async fn handle_update_folder(
     Json(payload): Json<serde_json::Value>,
 ) -> Response {
     let name = payload.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let parent_id = payload.get("parent_id").map(|v| v.as_str());
-    let icon = payload.get("icon").map(|v| v.as_str());
+    let parent_id = payload.get("parent_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let parent_id_null = payload.get("parent_id").and_then(|v| v.as_null()).map(|_| ());
+    let icon = payload.get("icon").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let icon_null = payload.get("icon").and_then(|v| v.as_null()).map(|_| ());
     let sort_order = payload.get("sort_order").and_then(|v| v.as_i64()).map(|v| v as i32);
-    let auto_mark_after_days = payload.get("auto_mark_after_days").map(|v| v.as_i64().map(|n| n as i32));
-    // Inline update for simplicity
-    let mut sets = Vec::new();
-    if let Some(ref n) = name { sets.push(format!("name = '{}'", n)); }
-    if let Some(ref p) = parent_id { sets.push(format!("parent_id = {}", if p.is_some() { format!("'{}'", p.as_ref().unwrap()) } else { "NULL".to_string() })); }
-    if let Some(ref i) = icon { sets.push(format!("icon = {}", if i.is_some() { format!("'{}'", i.as_ref().unwrap()) } else { "NULL".to_string() })); }
-    if let Some(s) = sort_order { sets.push(format!("sort_order = {}", s)); }
-    if let Some(ref a) = auto_mark_after_days { sets.push(format!("auto_mark_after_days = {}", if let Some(v) = a { v.to_string() } else { "NULL".to_string() })); }
-    if sets.is_empty() {
+    let auto_mark_after_days_val = payload.get("auto_mark_after_days").and_then(|v| v.as_i64()).map(|v| v as i32);
+    let auto_mark_after_days_null = payload.get("auto_mark_after_days").and_then(|v| v.as_null()).map(|_| ());
+
+    if name.is_none() && parent_id.is_none() && parent_id_null.is_none() && icon.is_none() && icon_null.is_none() && sort_order.is_none() && auto_mark_after_days_val.is_none() && auto_mark_after_days_null.is_none() {
         return match get_rss_folders_http(&state.repo).await {
             Ok(folders) => folders.into_iter().find(|f| f.id == id).map_or_else(|| error_response(StatusCode::NOT_FOUND, "Folder not found"), |f| (StatusCode::OK, Json(f)).into_response()),
             Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
         };
     }
-    let qs = format!("UPDATE rss_folders SET {} WHERE id = '{}'", sets.join(", "), id);
-    match sqlx::query(&qs).execute(state.repo.pool()).await {
-        Ok(_) => match get_rss_folders_http(&state.repo).await {
-            Ok(folders) => folders.into_iter().find(|f| f.id == id).map_or_else(|| error_response(StatusCode::NOT_FOUND, "Folder not found"), |f| (StatusCode::OK, Json(f)).into_response()),
-            Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
-        },
+
+    // Build parameterized update
+    if let Some(ref n) = name {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET name = ? WHERE id = ?").bind(n).bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if let Some(ref pid) = parent_id {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET parent_id = ? WHERE id = ?").bind(pid).bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if parent_id_null.is_some() {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET parent_id = NULL WHERE id = ?").bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if let Some(ref ic) = icon {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET icon = ? WHERE id = ?").bind(ic).bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if icon_null.is_some() {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET icon = NULL WHERE id = ?").bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if let Some(so) = sort_order {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET sort_order = ? WHERE id = ?").bind(so).bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if let Some(v) = auto_mark_after_days_val {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET auto_mark_after_days = ? WHERE id = ?").bind(v).bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+    if auto_mark_after_days_null.is_some() {
+        if let Err(e) = sqlx::query("UPDATE rss_folders SET auto_mark_after_days = NULL WHERE id = ?").bind(&id).execute(state.repo.pool()).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
+        }
+    }
+
+    match get_rss_folders_http(&state.repo).await {
+        Ok(folders) => folders.into_iter().find(|f| f.id == id).map_or_else(|| error_response(StatusCode::NOT_FOUND, "Folder not found"), |f| (StatusCode::OK, Json(f)).into_response()),
         Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
 }
