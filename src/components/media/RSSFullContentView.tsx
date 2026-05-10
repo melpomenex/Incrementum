@@ -7,75 +7,17 @@ import {
   type FeedItem,
   type FullContentResponse,
 } from "../../api/rss";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface RSSFullContentViewProps {
   item: FeedItem;
 }
 
-/**
- * Safely render HTML content with XSS protection
- */
 function SafeHTML({ html }: { html: string }) {
-  // Sanitize HTML by removing dangerous elements
-  const sanitizeHtml = (input: string): string => {
-    const temp = document.createElement("div");
-    temp.innerHTML = input;
-
-    // Remove script tags and event handlers
-    const scripts = temp.querySelectorAll("script");
-    scripts.forEach((el) => el.remove());
-
-    // Remove inline event handlers and javascript: URLs
-    const allElements = temp.querySelectorAll("*");
-    allElements.forEach((el) => {
-      // Remove event handlers
-      const attributes = Array.from(el.attributes);
-      attributes.forEach((attr) => {
-        if (attr.name.startsWith("on") || attr.value.toLowerCase().startsWith("javascript:")) {
-          el.removeAttribute(attr.name);
-        }
-      });
-
-      // Validate link hrefs
-      if (el.tagName === "A") {
-        const href = el.getAttribute("href");
-        if (href) {
-          // Only allow http/https links
-          if (!href.startsWith("http://") && !href.startsWith("https://")) {
-            el.removeAttribute("href");
-          } else {
-            // Add target and rel for external links
-            el.setAttribute("target", "_blank");
-            el.setAttribute("rel", "noopener noreferrer");
-          }
-        }
-      }
-
-      // Validate image sources
-      if (el.tagName === "IMG") {
-        const src = el.getAttribute("src");
-        if (src) {
-          // Only allow http/https data URLs for images
-          if (
-            !src.startsWith("http://") &&
-            !src.startsWith("https://") &&
-            !src.startsWith("data:")
-          ) {
-            el.remove();
-          }
-        }
-      }
-    });
-
-    return temp.innerHTML;
-  };
-
-  const sanitized = sanitizeHtml(html);
-
   return (
     <div
       className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-img:rounded-lg prose-img:shadow-md prose-p:leading-relaxed prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg"
-      dangerouslySetInnerHTML={{ __html: sanitized }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   );
 }
@@ -239,7 +181,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
             {/* Show original RSS content as fallback */}
             <div
               dangerouslySetInnerHTML={{
-                __html: item.content || item.description || "",
+                __html: sanitizeHtml(item.content || item.description || ""),
               }}
             />
             {!item.content && !item.description && (

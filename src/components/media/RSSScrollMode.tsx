@@ -41,6 +41,7 @@ import {
   formatFeedDate,
 } from "../../api/rss";
 import { cn } from "../../utils";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 import { createDocument, updateDocumentContent } from "../../api/documents";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
@@ -1912,7 +1913,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   void handleOpenOriginal(link.href);
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: renderedItem.item.content || renderedItem.item.description || "",
+                  __html: sanitizeHtml(renderedItem.item.content || renderedItem.item.description || ""),
                 }}
               />
 

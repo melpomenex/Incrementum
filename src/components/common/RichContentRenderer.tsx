@@ -10,6 +10,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { ExternalLink, FileText, Loader2 } from "lucide-react";
+import DOMPurify from "dompurify";
 
 interface ThemeColors {
   background: string;
@@ -37,46 +38,36 @@ interface RichContentRendererProps {
   expanded?: boolean;
 }
 
-/**
- * Sanitizes HTML content by removing potentially dangerous elements
- * while preserving styling for visual fidelity
- */
 export function sanitizeHtml(html: string): string {
-  const container = document.createElement("div");
-  container.innerHTML = html;
-
-  const scripts = container.querySelectorAll("script");
-  scripts.forEach((script) => script.remove());
-
-  const allElements = container.querySelectorAll("*");
-  allElements.forEach((element) => {
-    Array.from(element.attributes).forEach((attr) => {
-      if (attr.name.startsWith("on")) {
-        element.removeAttribute(attr.name);
-      }
-    });
-
-    if (element instanceof HTMLAnchorElement && element.href?.startsWith("javascript:")) {
-      element.removeAttribute("href");
-    }
-    if (element instanceof HTMLElement && element.style.backgroundImage?.includes("javascript:")) {
-      element.style.backgroundImage = "";
-    }
-  });
-
-  const iframes = container.querySelectorAll("iframe");
-  iframes.forEach((iframe) => iframe.remove());
-
-  const embeds = container.querySelectorAll("object, embed, applet");
-  embeds.forEach((embed) => embed.remove());
-
-  const forms = container.querySelectorAll("form");
-  forms.forEach((form) => form.remove());
-
-  const bases = container.querySelectorAll("base");
-  bases.forEach((base) => base.remove());
-
-  return container.innerHTML;
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "h1", "h2", "h3", "h4", "h5", "h6",
+      "p", "br", "hr", "pre", "blockquote",
+      "b", "i", "em", "strong", "u", "s", "del", "ins", "mark", "small", "sub", "sup", "abbr",
+      "ul", "ol", "li", "dl", "dt", "dd",
+      "a", "img",
+      "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
+      "figure", "figcaption", "details", "summary", "aside", "article", "section", "header", "footer", "nav",
+      "div", "span", "main",
+      "audio", "video", "source", "track",
+      "time", "ruby", "rt", "rp",
+    ],
+    ALLOWED_ATTR: [
+      "href", "src", "alt", "title", "class", "id", "style",
+      "width", "height", "loading", "decoding", "target", "rel",
+      "colspan", "rowspan", "headers", "scope", "nowrap",
+      "start", "reversed", "type", "value",
+      "datetime", "cite", "lang", "dir", "tabindex", "role",
+      "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-expanded",
+      "controls", "autoplay", "loop", "muted", "preload", "poster",
+      "open",
+      "name",
+      "data-*",
+    ],
+    ALLOW_DATA_ATTR: true,
+    FORBID_TAGS: ["style", "script", "iframe", "object", "embed", "applet", "form", "input", "button", "textarea", "select", "base", "link", "meta"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onsubmit", "onaction"],
+  }) as string;
 }
 
 function readThemeColors(): ThemeColors {

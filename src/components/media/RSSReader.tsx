@@ -60,6 +60,7 @@ import { FeedSettingsDialog } from "./FeedSettingsDialog";
 import { MagazineLayout, GridLayout } from "./ArticleLayouts";
 import { useI18n } from "../../lib/i18n";
 import { isTauri, openExternal } from "../../lib/tauri";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 import { getDeviceInfo } from "../../lib/pwa";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 import { TrainingMenu } from "./TrainingMenu";
@@ -1927,7 +1928,7 @@ export function RSSReader() {
                             void handleOpenOriginal(link.href);
                           }}
                           dangerouslySetInnerHTML={{
-                            __html: selectedItem.content || selectedItem.description || "",
+                            __html: sanitizeHtml(selectedItem.content || selectedItem.description || ""),
                           }}
                         />
                       </div>

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ThumbsUp, ThumbsDown, SkipForward, X } from "lucide-react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import type { Feed } from "../../api/rss";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface SiteBySiteTrainingProps {
   feeds: Feed[];
@@ -89,7 +90,7 @@ export function SiteBySiteTraining({ feeds, onClose }: SiteBySiteTrainingProps) 
             </div>
             <div
               className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: currentItem.description || currentItem.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentItem.description || currentItem.content) }}
             />
           </article>
 
