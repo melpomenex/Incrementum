@@ -1502,29 +1502,32 @@ pub async fn get_articles_with_intelligence(
     intelligence_filter: Option<&str>,
     include_hidden: bool,
 ) -> Result<Vec<serde_json::Value>> {
-    let (base_query, has_feed_filter) = if let Some(fid) = feed_id {
-        (
-            format!("SELECT * FROM rss_articles WHERE feed_id = '{}'", fid),
-            true,
-        )
-    } else {
-        ("SELECT * FROM rss_articles WHERE 1=1".to_string(), false)
-    };
-
-    let mut query = base_query;
-
-    if intelligence_filter == Some("focus") {
-        query.push_str(" AND intelligence_score > 0");
-    }
-    if !include_hidden {
-        query.push_str(" AND (intelligence_score >= 0 OR intelligence_score IS NULL)");
-    }
-
-    query.push_str(&format!(" ORDER BY published_date DESC LIMIT {}", limit));
-
-    let rows = sqlx::query(&query)
-        .fetch_all(repo.pool())
-        .await
+    let rows = match (feed_id, intelligence_filter, include_hidden) {
+        (Some(fid), Some("focus"), true) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? AND intelligence_score > 0 ORDER BY published_date DESC LIMIT ?")
+                .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (Some(fid), Some("focus"), false) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? AND intelligence_score > 0 AND (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+                .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (Some(fid), _, true) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? ORDER BY published_date DESC LIMIT ?")
+                .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (Some(fid), _, false) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? AND (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+                .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (None, Some("focus"), true) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE intelligence_score > 0 ORDER BY published_date DESC LIMIT ?")
+                .bind(limit).fetch_all(repo.pool()).await,
+        (None, Some("focus"), false) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE intelligence_score > 0 AND (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+                .bind(limit).fetch_all(repo.pool()).await,
+        (None, _, true) =>
+            sqlx::query("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT ?")
+                .bind(limit).fetch_all(repo.pool()).await,
+        (None, _, false) =>
+            sqlx::query("SELECT * FROM rss_articles WHERE (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+                .bind(limit).fetch_all(repo.pool()).await,
+    }.map_err(|e| IncrementumError::Internal(format!("Failed to fetch articles: {}", e)))?;
         .map_err(|e| IncrementumError::Internal(format!("Failed to fetch articles: {}", e)))?;
 
     let articles: Vec<serde_json::Value> = rows.iter().map(|row| {

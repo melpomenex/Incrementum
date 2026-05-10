@@ -48,7 +48,7 @@ import { startTranscription } from "../../api/transcription";
 import { convertFileSrc, isTauri } from "../../lib/tauri";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
-import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed } from "../../api/podcast";
+import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath } from "../../api/podcast";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -726,16 +726,44 @@ export function AudiobookViewer({
       return false;
     }
 
+    setHasTriedFallback(true);
+
+    // For podcast episodes with a remote URL, download via backend and play locally
+    if (isTauri() && remoteAudioUrl && episodeId) {
+      try {
+        showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
+        // Check if already downloaded
+        let localPath = await getDownloadedEpisodePath(episodeId);
+        if (!localPath) {
+          localPath = await downloadEpisodeAudio(episodeId, remoteAudioUrl, undefined);
+        }
+        const localUrl = await convertFileSrc(localPath);
+        setFallbackSrc((prev) => {
+          if (prev?.startsWith("blob:")) {
+            URL.revokeObjectURL(prev);
+          }
+          return localUrl;
+        });
+        return true;
+      } catch (err) {
+        console.error("[AudiobookViewer] Podcast download fallback failed:", err);
+        showError(
+          t("viewer.playbackFailed"),
+          err instanceof Error ? err.message : t("viewer.unableToLoadAudio")
+        );
+        return false;
+      }
+    }
+
     const playbackFilePath = preparedPlaybackPath || document.filePath;
     const isRemotePath = playbackFilePath?.startsWith("http://") || playbackFilePath?.startsWith("https://") || playbackFilePath?.startsWith("data:");
-    
+
     if (!isTauri() || !playbackFilePath || isRemotePath) {
       showError(t("viewer.playbackFailed"), t("viewer.unableToLoadAudio"));
       return false;
     }
 
     try {
-      setHasTriedFallback(true);
       showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
       const base64Data = await readDocumentFile(playbackFilePath);
       if (!base64Data) {
@@ -762,7 +790,7 @@ export function AudiobookViewer({
       );
       return false;
     }
-  }, [document.filePath, hasTriedFallback, preparedPlaybackPath, showError, showInfo, t]);
+  }, [document.filePath, episodeId, hasTriedFallback, preparedPlaybackPath, remoteAudioUrl, showError, showInfo, t]);
 
   // Playback controls
   const togglePlay = async () => {

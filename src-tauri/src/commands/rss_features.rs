@@ -501,16 +501,15 @@ pub async fn mark_rss_articles_before_date_read(
     before_date: String,
     repo: State<'_, Repository>,
 ) -> Result<i32> {
-    let query = if let Some(ref fid) = feed_id {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE feed_id = '{}' AND published_date < '{}' AND is_read = 0", fid, before_date)
+    let result = if let Some(ref fid) = feed_id {
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE feed_id = ? AND published_date < ? AND is_read = 0")
+            .bind(fid).bind(&before_date)
+            .execute(repo.pool()).await
     } else {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE published_date < '{}' AND is_read = 0", before_date)
-    };
-
-    let result = sqlx::query(&query)
-        .execute(repo.pool())
-        .await
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to mark articles: {}", e)))?;
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE published_date < ? AND is_read = 0")
+            .bind(&before_date)
+            .execute(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to mark articles: {}", e)))?;
 
     Ok(result.rows_affected() as i32)
 }
@@ -521,16 +520,15 @@ pub async fn mark_rss_articles_after_date_read(
     after_date: String,
     repo: State<'_, Repository>,
 ) -> Result<i32> {
-    let query = if let Some(ref fid) = feed_id {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE feed_id = '{}' AND published_date > '{}' AND is_read = 0", fid, after_date)
+    let result = if let Some(ref fid) = feed_id {
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE feed_id = ? AND published_date > ? AND is_read = 0")
+            .bind(fid).bind(&after_date)
+            .execute(repo.pool()).await
     } else {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE published_date > '{}' AND is_read = 0", after_date)
-    };
-
-    let result = sqlx::query(&query)
-        .execute(repo.pool())
-        .await
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to mark articles: {}", e)))?;
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE published_date > ? AND is_read = 0")
+            .bind(&after_date)
+            .execute(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to mark articles: {}", e)))?;
 
     Ok(result.rows_affected() as i32)
 }
@@ -1815,15 +1813,14 @@ pub async fn get_rss_classifiers_http(
     feed_id: Option<&str>,
     repo: &Repository,
 ) -> Result<Vec<RssClassifier>> {
-    let query_str = match feed_id {
-        Some(fid) => format!("SELECT * FROM rss_classifiers WHERE feed_id = '{}' ORDER BY classifier_type, value", fid),
-        None => "SELECT * FROM rss_classifiers ORDER BY classifier_type, value".to_string(),
-    };
-
-    let rows = sqlx::query(&query_str)
-        .fetch_all(repo.pool())
-        .await
-        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch classifiers: {}", e)))?;
+    let rows = if let Some(fid) = feed_id {
+        sqlx::query("SELECT * FROM rss_classifiers WHERE feed_id = ? ORDER BY classifier_type, value")
+            .bind(fid)
+            .fetch_all(repo.pool()).await
+    } else {
+        sqlx::query("SELECT * FROM rss_classifiers ORDER BY classifier_type, value")
+            .fetch_all(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch classifiers: {}", e)))?;
 
     Ok(rows.iter().map(|row| RssClassifier {
         id: row.get("id"), feed_id: row.get("feed_id"), classifier_type: row.get("classifier_type"),
@@ -1959,22 +1956,28 @@ macro_rules! http_variant {
 }
 
 pub async fn mark_rss_articles_before_date_read_http(feed_id: Option<&str>, before_date: &str, repo: &Repository) -> Result<i32> {
-    let query = if let Some(fid) = feed_id {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE feed_id = '{}' AND published_date < '{}' AND is_read = 0", fid, before_date)
+    let result = if let Some(fid) = feed_id {
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE feed_id = ? AND published_date < ? AND is_read = 0")
+            .bind(fid).bind(before_date)
+            .execute(repo.pool()).await
     } else {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE published_date < '{}' AND is_read = 0", before_date)
-    };
-    let result = sqlx::query(&query).execute(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE published_date < ? AND is_read = 0")
+            .bind(before_date)
+            .execute(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
     Ok(result.rows_affected() as i32)
 }
 
 pub async fn mark_rss_articles_after_date_read_http(feed_id: Option<&str>, after_date: &str, repo: &Repository) -> Result<i32> {
-    let query = if let Some(fid) = feed_id {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE feed_id = '{}' AND published_date > '{}' AND is_read = 0", fid, after_date)
+    let result = if let Some(fid) = feed_id {
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE feed_id = ? AND published_date > ? AND is_read = 0")
+            .bind(fid).bind(after_date)
+            .execute(repo.pool()).await
     } else {
-        format!("UPDATE rss_articles SET is_read = 1 WHERE published_date > '{}' AND is_read = 0", after_date)
-    };
-    let result = sqlx::query(&query).execute(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
+        sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE published_date > ? AND is_read = 0")
+            .bind(after_date)
+            .execute(repo.pool()).await
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
     Ok(result.rows_affected() as i32)
 }
 
@@ -1993,12 +1996,12 @@ pub async fn get_read_rss_articles_http(limit: Option<i32>, offset: Option<i32>,
 
 pub async fn get_river_of_news_http(folder_id: &str, limit: Option<i32>, repo: &Repository) -> Result<Vec<serde_json::Value>> {
     let limit = limit.unwrap_or(100);
-    let query = format!(
+    let rows = sqlx::query(
         "SELECT a.*, f.title as feed_title FROM rss_articles a INNER JOIN rss_feeds f ON a.feed_id = f.id \
-         INNER JOIN rss_feed_folders ff ON ff.feed_id = f.id WHERE ff.folder_id = '{}' AND a.is_read = 0 \
-         ORDER BY a.published_date DESC LIMIT {}", folder_id, limit
-    );
-    let rows = sqlx::query(&query).fetch_all(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
+         INNER JOIN rss_feed_folders ff ON ff.feed_id = f.id WHERE ff.folder_id = ? AND a.is_read = 0 \
+         ORDER BY a.published_date DESC LIMIT ?"
+    ).bind(folder_id).bind(limit)
+    .fetch_all(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
     Ok(rows.iter().map(|row| serde_json::json!({
         "id": row.get::<String, _>("id"), "feed_id": row.get::<String, _>("feed_id"), "title": row.get::<String, _>("title"),
         "feed_title": row.try_get::<Option<String>, _>("feed_title").ok().flatten(),
@@ -2008,12 +2011,16 @@ pub async fn get_river_of_news_http(folder_id: &str, limit: Option<i32>, repo: &
 
 pub async fn get_rss_articles_with_intelligence_http(feed_id: Option<&str>, limit: Option<i32>, include_hidden: bool, repo: &Repository) -> Result<Vec<serde_json::Value>> {
     let limit = limit.unwrap_or(100);
-    let mut conditions = Vec::new();
-    if let Some(fid) = feed_id { conditions.push(format!("feed_id = '{}'", fid)); }
-    if !include_hidden { conditions.push("(intelligence_score >= 0 OR intelligence_score IS NULL)".to_string()); }
-    let where_clause = if conditions.is_empty() { String::new() } else { format!("WHERE {}", conditions.join(" AND ")) };
-    let query = format!("SELECT * FROM rss_articles {} ORDER BY published_date DESC LIMIT {}", where_clause, limit);
-    let rows = sqlx::query(&query).fetch_all(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
+    let rows = match (feed_id, include_hidden) {
+        (Some(fid), true) => sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? ORDER BY published_date DESC LIMIT ?")
+            .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (Some(fid), false) => sqlx::query("SELECT * FROM rss_articles WHERE feed_id = ? AND (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+            .bind(fid).bind(limit).fetch_all(repo.pool()).await,
+        (None, true) => sqlx::query("SELECT * FROM rss_articles ORDER BY published_date DESC LIMIT ?")
+            .bind(limit).fetch_all(repo.pool()).await,
+        (None, false) => sqlx::query("SELECT * FROM rss_articles WHERE (intelligence_score >= 0 OR intelligence_score IS NULL) ORDER BY published_date DESC LIMIT ?")
+            .bind(limit).fetch_all(repo.pool()).await,
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
     Ok(rows.iter().map(|row| serde_json::json!({
         "id": row.get::<String, _>("id"), "feed_id": row.get::<String, _>("feed_id"), "title": row.get::<String, _>("title"),
         "intelligence_score": row.try_get::<Option<f64>, _>("intelligence_score").ok().flatten(),
@@ -2173,12 +2180,24 @@ pub async fn reorder_folders_http(reorder: Vec<(String, i32)>, repo: &Repository
 }
 
 pub async fn set_feed_view_preferences_http(feed_id: &str, view_mode: Option<&str>, layout: Option<&str>, repo: &Repository) -> Result<()> {
-    let mut sets = Vec::new();
-    if let Some(vm) = view_mode { sets.push(format!("view_mode = '{}'", vm)); }
-    if let Some(l) = layout { sets.push(format!("layout = '{}'", l)); }
-    if sets.is_empty() { return Ok(()); }
-    let qs = format!("UPDATE rss_feeds SET {} WHERE id = '{}'", sets.join(", "), feed_id);
-    sqlx::query(&qs).execute(repo.pool()).await.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
+    match (view_mode, layout) {
+        (Some(vm), Some(l)) => {
+            sqlx::query("UPDATE rss_feeds SET view_mode = ?, layout = ? WHERE id = ?")
+                .bind(vm).bind(l).bind(feed_id)
+                .execute(repo.pool()).await
+        }
+        (Some(vm), None) => {
+            sqlx::query("UPDATE rss_feeds SET view_mode = ? WHERE id = ?")
+                .bind(vm).bind(feed_id)
+                .execute(repo.pool()).await
+        }
+        (None, Some(l)) => {
+            sqlx::query("UPDATE rss_feeds SET layout = ? WHERE id = ?")
+                .bind(l).bind(feed_id)
+                .execute(repo.pool()).await
+        }
+        (None, None) => return Ok(()),
+    }.map_err(|e| crate::error::IncrementumError::Internal(format!("Failed: {}", e)))?;
     Ok(())
 }
 

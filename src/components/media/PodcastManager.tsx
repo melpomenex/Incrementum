@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { sanitizeHtml as _sanitizeHtml } from "../common/RichContentRenderer";
 import {
   Rss,
   Play,
@@ -1053,7 +1054,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   {selectedFeed.author && (
                     <p className="text-muted-foreground mb-2">{selectedFeed.author}</p>
                   )}
-                  <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline" dangerouslySetInnerHTML={{ __html: selectedFeed.description || "" }} />
+                  <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline" dangerouslySetInnerHTML={{ __html: _sanitizeHtml(selectedFeed.description || "") }} />
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleRefreshFeed(selectedFeed)}
@@ -1275,7 +1276,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                             {episode.description && (
                               <div
                                 className="text-xs text-muted-foreground line-clamp-2 mb-2 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline"
-                                dangerouslySetInnerHTML={{ __html: episode.description }}
+                                dangerouslySetInnerHTML={{ __html: _sanitizeHtml(episode.description) }}
                               />
                             )}
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
