@@ -1861,7 +1861,7 @@ export function PDFViewer({
         });
 
         textLayerBuildersRef.current[pageIndex] = textLayerBuilder as PdfTextLayerRenderer;
-        await textLayerBuilder.render({ viewport });
+        await textLayerBuilder.render({ viewport, images: undefined });
       }
       // Guard: if the text layer container was detached during async render,
       // skip downstream DOM operations to avoid "parentNode is null" errors.

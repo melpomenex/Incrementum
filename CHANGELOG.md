@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.36.0] - 2026-05-10
+
+### Added
+- **Browser extension theme-aware saves** — Save Link now fetches content server-side via Readability; saved articles render with your active theme instead of source inline styles
+- **Browser extension v1.2.0** — Rebuilt signed .xpi with structural CSS capture and theme-aware rendering
+- **OpenSpec proposals** — Added design specs for PDF text selection, Anna's Archive downloader, EPUB context menu, text viewer context menu, and theme-aware browser saves
+
+### Changed
+- **RichContentRenderer theme-aware** — Reads CSS custom properties from parent document instead of hardcoded light-theme colors
+- **DocumentViewer CSS reset** — Strips cosmetic inline styles so theme tokens cascade correctly
+- **Whisper model verification** — Downloaded models now verified with SHA-256 hashes
+- **Browser sync auth** — All browser sync server routes now require API key authentication
+- **MCP command allowlist** — Runtime enforcement with shell metacharacter rejection; removes YouTube/Google from Tauri remote capabilities
+
+### Fixed
+- **SQL injection vulnerabilities** — 13 SQL injection sites in RSS commands replaced from string interpolation to parameterized queries
+- **XSS in podcast descriptions** — Episode and feed descriptions sanitized with DOMPurify instead of raw dangerouslySetInnerHTML
+- **RSS content sanitization** — All 7 RSS content rendering sites (QueueScrollPage, RSSScrollMode, RSSReader, StoryView, RSSFullContentView, SiteBySiteTraining, SearchResults) and HighlightRenderer now use DOMPurify
+- **PDF.js text selection** — Enabled embedded fonts for accurate text layer selection
+- **Remote scope tightening** — Removed YouTube/Google domains from Tauri remote capabilities
+
 ## [1.35.0] - 2026-05-08
 
 ### Added
