@@ -6,6 +6,42 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Manager;
 
+/// Only these bare command names may be used to spawn MCP servers.
+const MCP_ALLOWED_COMMANDS: &[&str] = &["npx", "uvx", "node", "python", "python3"];
+
+/// Characters that must never appear in MCP server arguments (shell metacharacters).
+const DANGEROUS_ARG_CHARS: &[char] = &['|', '>', '<', '&', '$', '`', '\n', '\r', ';'];
+
+pub(crate) fn validate_mcp_command(command: &str, args: &[String]) -> Result<(), String> {
+    // Reject paths — only bare command names are allowed
+    if command.contains('/') || command.contains('\\') || command.contains('.') {
+        return Err(format!(
+            "MCP command must be a bare name (no paths): {}",
+            command
+        ));
+    }
+
+    if !MCP_ALLOWED_COMMANDS.contains(&command) {
+        return Err(format!(
+            "Command '{}' is not allowed. Permitted commands: {:?}",
+            command, MCP_ALLOWED_COMMANDS
+        ));
+    }
+
+    for (i, arg) in args.iter().enumerate() {
+        for &ch in DANGEROUS_ARG_CHARS {
+            if arg.contains(ch) {
+                return Err(format!(
+                    "Argument {} contains forbidden character '{}'",
+                    i, ch
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 // Global MCP client manager
 lazy_static::lazy_static! {
     static ref MCP_MANAGER: Arc<MCPClientManager> = Arc::new(MCPClientManager::new());
@@ -22,6 +58,9 @@ pub async fn mcp_add_server(
     transport: String,
     transport_url: Option<String>,
 ) -> Result<String, String> {
+    // Validate command against allowlist before doing anything else
+    validate_mcp_command(&command, &args)?;
+
     // Determine transport type
     let mcp_transport = match transport.as_str() {
         "stdio" => MCPTransport::Stdio,

@@ -217,4 +217,8 @@ export interface UsePdfCustomSelectionResult {
   isReady: boolean;
   /** Refresh token data for all pages (call on zoom change) */
   refreshTokens: () => Promise<void>;
+  /** Per-page extraction success: true = custom selection active, false/missing = native fallback */
+  extractionSuccessMap: React.MutableRefObject<Map<number, boolean>>;
+  /** Revision counter bumped after each page extraction; triggers re-render for CSS class updates */
+  extractionRevision: number;
 }

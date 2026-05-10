@@ -21,6 +21,8 @@ interface MarkdownViewerProps {
   highlights?: AnchoredTextHighlight[];
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
   onCreateFlashcard?: (excerpt: string) => void;
+  /** Callback when user right-clicks on selected text */
+  onContextMenu?: (event: { x: number; y: number; selectedText: string; selectionContext?: any }) => void;
 }
 
 function escapeRegex(term: string): string {
@@ -45,6 +47,7 @@ export function MarkdownViewer({
   highlights = [],
   onSelectionChange,
   onCreateFlashcard,
+  onContextMenu,
 }: MarkdownViewerProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -291,13 +294,16 @@ export function MarkdownViewer({
   }, [document.id, onSelectionChange]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    if (!onCreateFlashcard) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
     e.preventDefault();
     const selectedText = selection.toString().trim();
-    setContextMenu({ x: e.clientX, y: e.clientY, selectedText });
-  }, [onCreateFlashcard]);
+    if (onContextMenu) {
+      onContextMenu({ x: e.clientX, y: e.clientY, selectedText });
+    } else if (onCreateFlashcard) {
+      setContextMenu({ x: e.clientX, y: e.clientY, selectedText });
+    }
+  }, [onContextMenu, onCreateFlashcard]);
 
   return (
     <>

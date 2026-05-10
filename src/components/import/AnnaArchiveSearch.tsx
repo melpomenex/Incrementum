@@ -4,6 +4,7 @@ import {
   searchBooks,
   downloadBook,
   getFormatDisplayName,
+  getAnnasArchiveUrl, // v3-binding-fix
   type BookSearchResult,
   type BookFormat,
 } from "../../api/anna-archive";
@@ -64,13 +65,13 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
     }
   };
 
-  const handleDownload = async (book: BookSearchResult) => {
+  const handleDownload = async (book: BookSearchResult, format: BookFormat) => {
     setDownloadingBookId(book.id);
     setError(null);
 
     try {
       // Download to temp directory (default behavior)
-      const downloadResult = await downloadBook(book.id, selectedFormat);
+      const downloadResult = await downloadBook(book.id, format);
 
       // Import the downloaded file
       const importedDoc = await importDocument(downloadResult.file_path);
@@ -106,7 +107,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
         <div>
           <h2 className="text-lg font-semibold text-foreground">Search Anna's Archive</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Search millions of books from Library Genesis mirrors
+            Search 60M+ books from Anna's Archive mirrors
           </p>
         </div>
         {onClose && (
@@ -227,7 +228,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
                 selectedFormat={selectedFormat}
                 isDownloading={downloadingBookId === book.id}
                 isImported={importedBookIds.has(book.id)}
-                onDownload={() => handleDownload(book)}
+                onDownload={(format) => handleDownload(book, format)}
               />
             ))}
           </div>
@@ -245,7 +246,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           </p>
           {!query && (
             <p className="text-xs mt-2 max-w-sm mx-auto">
-              Anna's Archive searches through Library Genesis, a library of over 3 million freely available books. 
+              Anna's Archive searches through Library Genesis, Z-Library, Sci-Hub, and more. 
               Search by title, author, or ISBN to find and download books.
             </p>
           )}
@@ -260,6 +261,19 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
  */
 function analyzeError(message: string): SearchError {
   const lowerMsg = message.toLowerCase();
+
+  // Missing dependency errors
+  if (lowerMsg.includes("python") || lowerMsg.includes("playwright") || lowerMsg.includes("chromium")) {
+    return {
+      message: "Book download requires Python with Playwright",
+      type: "unknown",
+      solutions: [
+        "Install Python 3: https://www.python.org/downloads/",
+        "Install Playwright: pip install playwright",
+        "Install Chromium: playwright install chromium",
+      ],
+    };
+  }
 
   // Network errors
   if (lowerMsg.includes("failed to fetch") || 
@@ -331,13 +345,13 @@ interface BookResultCardProps {
   selectedFormat: BookFormat;
   isDownloading: boolean;
   isImported: boolean;
-  onDownload: () => void;
+  onDownload: (format: BookFormat) => void;
 }
 
 function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDownload }: BookResultCardProps) {
   // Generate view URL using the book's MD5
   const viewUrl = book.md5 
-    ? `https://libgen.li/ads.php?md5=${book.md5}`
+    ? getAnnasArchiveUrl(book.md5)
     : null;
 
   return (
@@ -401,16 +415,18 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
             <span className="text-xs text-muted-foreground">Formats:</span>
             <div className="flex gap-1 flex-wrap">
               {book.formats.map((format) => (
-                <span
+                <button
                   key={format}
-                  className={`px-2 py-0.5 text-xs rounded ${
+                  onClick={() => !isImported && !isDownloading && onDownload(format)}
+                  disabled={isImported || isDownloading}
+                  className={`px-2 py-0.5 text-xs rounded transition-colors ${
                     format === selectedFormat
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "bg-muted text-muted-foreground"
-                  }`}
+                      ? "bg-primary/10 text-primary font-medium border border-primary/20"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  } ${isImported || isDownloading ? "cursor-default" : "cursor-pointer"}`}
                 >
                   {getFormatDisplayName(format)}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -424,7 +440,7 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
               </div>
             ) : (
               <button
-                onClick={onDownload}
+                onClick={() => onDownload(selectedFormat)}
                 disabled={isDownloading || !book.formats.includes(selectedFormat)}
                 className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
               >

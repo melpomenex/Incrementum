@@ -176,6 +176,7 @@ export function useConfirmDialog() {
     message: string;
     onConfirm: () => void;
     variant: ConfirmDialogVariant;
+    confirmLabel?: string;
     details?: string[];
     itemName?: string;
     itemCount?: number;
@@ -193,6 +194,7 @@ export function useConfirmDialog() {
       message: string;
       onConfirm: () => void;
       variant?: ConfirmDialogVariant;
+      confirmLabel?: string;
       details?: string[];
       itemName?: string;
       itemCount?: number;
@@ -204,6 +206,7 @@ export function useConfirmDialog() {
       message: options.message,
       onConfirm: options.onConfirm,
       variant: options.variant || "warning",
+      confirmLabel: options.confirmLabel,
       details: options.details,
       itemName: options.itemName,
       itemCount: options.itemCount,
@@ -220,6 +223,7 @@ export function useConfirmDialog() {
     message: state.message,
     onConfirm: state.onConfirm,
     variant: state.variant,
+    confirmLabel: state.confirmLabel,
     details: state.details,
     itemName: state.itemName,
     itemCount: state.itemCount,

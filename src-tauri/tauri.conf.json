@@ -43,6 +43,7 @@
       "bin/pocket-tts"
     ],
     "resources": [
+      "scripts/anna_download.py",
       "bin/libggml-base.so*",
       "bin/libggml-base*.dylib",
       "bin/libggml-cpu.so*",

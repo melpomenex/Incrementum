@@ -1812,7 +1812,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         title={confirmDialog.title}
         message={confirmDialog.message}
         variant={confirmDialog.variant}
-        confirmLabel={confirmDialog.variant === "danger" ? "Unsubscribe" : "Confirm"}
+        confirmLabel={confirmDialog.confirmLabel || (confirmDialog.variant === "danger" ? "Unsubscribe" : "Confirm")}
         itemName={confirmDialog.itemName}
       />
     </div>
