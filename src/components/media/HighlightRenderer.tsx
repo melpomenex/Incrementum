@@ -4,6 +4,7 @@
  */
 
 import type { RssAnnotation } from "../../api/rss-annotations";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface HighlightRendererProps {
   content: string;
@@ -14,7 +15,7 @@ interface HighlightRendererProps {
 export function HighlightRenderer({ content, annotations, onAnnotationClick }: HighlightRendererProps) {
   if (!annotations.length) {
     return (
-      <div dangerouslySetInnerHTML={{ __html: content }} />
+      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
     );
   }
 
@@ -24,7 +25,7 @@ export function HighlightRenderer({ content, annotations, onAnnotationClick }: H
 
   if (!highlights.length) {
     return (
-      <div dangerouslySetInnerHTML={{ __html: content }} />
+      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
     );
   }
 

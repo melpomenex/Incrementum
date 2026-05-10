@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Star, ExternalLink, Clock, User } from "luci
 import type { FeedItem, Feed } from "../../api/rss";
 import { formatFeedDate } from "../../api/rss";
 import { openExternal } from "../../lib/tauri";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 
 interface StoryViewProps {
@@ -81,7 +82,7 @@ export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }:
           <div
             className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
             dangerouslySetInnerHTML={{
-              __html: item.fullContent || item.description || item.content,
+              __html: sanitizeHtml(item.fullContent || item.description || item.content),
             }}
           />
 

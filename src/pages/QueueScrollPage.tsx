@@ -13,6 +13,7 @@ import { AudiobookViewer } from "../components/viewer/AudiobookViewer";
 import { FlashcardScrollItem } from "../components/review/FlashcardScrollItem";
 import { rateDocumentEngaging, getSmartStartPosition } from "../api/algorithm";
 import { getDueItems, type LearningItem } from "../api/learning-items";
+import { sanitizeHtml } from "../components/common/RichContentRenderer";
 import { getDueExtracts, submitExtractReview } from "../api/extract-review";
 import { createExtract, type Extract } from "../api/extracts";
 import { ExtractScrollItem } from "../components/review/ExtractScrollItem";
@@ -1998,7 +1999,7 @@ export function QueueScrollPage() {
                 {(renderedItem.rssItem?.content || renderedItem.rssItem?.description) ? (
                   <div
                     className="prose prose-lg max-w-none text-foreground reading-prose"
-                    dangerouslySetInnerHTML={{ __html: renderedItem.rssItem?.content || renderedItem.rssItem?.description || "" }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedItem.rssItem?.content || renderedItem.rssItem?.description || "") }}
                   />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">

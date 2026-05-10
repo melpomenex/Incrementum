@@ -6,6 +6,7 @@
 import { Clock, Rss } from "lucide-react";
 import type { RssSearchResult } from "../../api/rss-search";
 import { formatFeedDate } from "../../api/rss";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface SearchResultsProps {
   results: RssSearchResult[];
@@ -44,7 +45,7 @@ export function SearchResults({ results, query, onSelect, isLoading }: SearchRes
           {result.snippet && (
             <p
               className="text-xs text-muted-foreground line-clamp-2 mt-0.5"
-              dangerouslySetInnerHTML={{ __html: result.snippet }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet) }}
             />
           )}
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
