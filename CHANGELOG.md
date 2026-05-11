@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.37.0] - 2026-05-10
+
+### Added
+- **Extract auto-generate flashcard button** — Extract cards in scroll mode now show a prominent ✨ Create Flashcard button that auto-generates cloze cards via FlashcardStudio
+- **FlashcardStudio seed auto-generation** — When opened with an extract ID seed, the studio auto-triggers card generation on mount
+
+### Fixed
+- **Extracts now appear in the Optimal Session queue** — Extracts and flashcards were pooled together and capped by the flashcard percentage, causing extracts to always be crowded out. Extracts now have their own independent budget (up to 20 per session) and are always included
+- **FlashcardStudio 'Document context unavailable' error** — Chat-based generation now falls back to 'general' context type when document content isn't loaded, instead of throwing
+
+### Security
+- **Cross-user data isolation** — Hardened API routes against cross-user data access, XSS injection, SSRF, auth bypass, and weak crypto usage
+
 ## [1.36.0] - 2026-05-10
 
 ### Added
