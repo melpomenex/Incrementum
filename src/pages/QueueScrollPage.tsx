@@ -737,51 +737,58 @@ export function QueueScrollPage() {
         };
       });
 
-      // Combine all review items (flashcards + extracts)
-      const allReviewItems = [...flashcardItems, ...extractItems];
-
-      // Calculate target review item count based on percentage setting
+      // Separate review items into flashcards and extracts
+      // Flashcards: recall-based spaced repetition (controlled by flashcardPercentage)
+      // Extracts: incremental reading items (always included, distributed independently)
       const flashcardPercentage = settings.scrollQueue.flashcardPercentage;
       const nonReviewItems = [...docItems, ...rssItems, ...podcastItems];
       const totalNonReview = nonReviewItems.length;
 
-      // Calculate target number of review items based on percentage
-      let targetReviewCount = 0;
+      // Calculate target flashcard count based on percentage setting
+      let targetFlashcardCount = 0;
       if (flashcardPercentage < 100 && flashcardPercentage > 0) {
-        targetReviewCount = Math.round((flashcardPercentage * totalNonReview) / (100 - flashcardPercentage));
+        targetFlashcardCount = Math.round((flashcardPercentage * totalNonReview) / (100 - flashcardPercentage));
       } else if (flashcardPercentage >= 100) {
-        targetReviewCount = allReviewItems.length;
+        targetFlashcardCount = flashcardItems.length;
       }
 
-      // Limit review items to available count
-      const limitedReviewItems = allReviewItems.slice(0, targetReviewCount);
+      // Limit flashcards to available count
+      const limitedFlashcards = flashcardItems.slice(0, targetFlashcardCount);
 
-      // Distribute review items evenly throughout the queue with variety mixing
+      // Extracts are always included — they don't compete with flashcards
+      // but are capped per session to avoid overwhelming the queue
+      const maxExtractsPerSession = 20;
+      const limitedExtracts = extractItems.slice(0, maxExtractsPerSession);
+
+      // Distribute all item types evenly throughout the queue with variety mixing
       const distributedItems: ScrollItem[] = [];
 
-      if (limitedReviewItems.length > 0 && nonReviewItems.length > 0) {
-        // Calculate interval for inserting review items
-        const interval = Math.max(1, Math.round(nonReviewItems.length / limitedReviewItems.length));
+      if (nonReviewItems.length > 0) {
+        // Combine flashcards and extracts for interspersion
+        const allReviewItems = [...limitedFlashcards, ...limitedExtracts];
+        const interval = allReviewItems.length > 0
+          ? Math.max(1, Math.round(nonReviewItems.length / allReviewItems.length))
+          : nonReviewItems.length;
 
         let reviewIndex = 0;
         for (let i = 0; i < nonReviewItems.length; i++) {
           distributedItems.push(nonReviewItems[i]);
 
           // Insert a review item after every 'interval' non-review items
-          if (reviewIndex < limitedReviewItems.length && (i + 1) % interval === 0) {
-            distributedItems.push(limitedReviewItems[reviewIndex]);
+          if (reviewIndex < allReviewItems.length && (i + 1) % interval === 0) {
+            distributedItems.push(allReviewItems[reviewIndex]);
             reviewIndex++;
           }
         }
 
         // Add any remaining review items at the end
-        while (reviewIndex < limitedReviewItems.length) {
-          distributedItems.push(limitedReviewItems[reviewIndex]);
+        while (reviewIndex < allReviewItems.length) {
+          distributedItems.push(allReviewItems[reviewIndex]);
           reviewIndex++;
         }
-      } else if (limitedReviewItems.length > 0) {
-        // Only review items
-        distributedItems.push(...limitedReviewItems);
+      } else if (limitedFlashcards.length > 0 || limitedExtracts.length > 0) {
+        // Only review items (no documents/RSS/podcasts)
+        distributedItems.push(...limitedFlashcards, ...limitedExtracts);
       } else {
         // Only non-review items
         distributedItems.push(...nonReviewItems);
