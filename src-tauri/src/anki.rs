@@ -212,6 +212,12 @@ fn extract_media_map_from_archive<R: Read + Seek>(
             Err(_) => continue,
         };
 
+        // Zip bomb protection
+        const MAX_MEDIA_SIZE: u64 = 100 * 1024 * 1024;
+        if zipped.size() > MAX_MEDIA_SIZE {
+            continue;
+        }
+
         let mut bytes = Vec::new();
         if zipped.read_to_end(&mut bytes).is_err() || bytes.is_empty() {
             continue;
@@ -247,6 +253,14 @@ fn parse_collection_from_archive<R: Read + Seek>(
     let temp_db_path = std::env::temp_dir().join(format!("anki_collection_{}_{}.db", name.replace('.', "_"), nanos));
     let mut temp_file = File::create(&temp_db_path)
         .map_err(|e| IncrementumError::NotFound(format!("Cannot create temp file: {}", e)))?;
+
+    // Zip bomb protection
+    const MAX_COLLECTION_SIZE: u64 = 500 * 1024 * 1024;
+    if collection_file.size() > MAX_COLLECTION_SIZE {
+        return Err(IncrementumError::NotFound(format!(
+            "Collection file too large ({} bytes)", collection_file.size()
+        )));
+    }
 
     let mut buffer = Vec::new();
     collection_file.read_to_end(&mut buffer)

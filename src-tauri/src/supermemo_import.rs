@@ -76,6 +76,12 @@ pub async fn parse_supermemo_export(zip_path: &str) -> Result<SuperMemoCollectio
 
         // Process XML files
         if file_name.ends_with(".xml") {
+            // Zip bomb protection
+            const MAX_XML_SIZE: u64 = 100 * 1024 * 1024;
+            if file.size() > MAX_XML_SIZE {
+                continue;
+            }
+
             let mut content = String::new();
             file.read_to_string(&mut content)
                 .map_err(|e| IncrementumError::NotFound(format!("Cannot read XML: {}", e)))?;

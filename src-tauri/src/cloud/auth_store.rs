@@ -8,6 +8,7 @@ use aes_gcm::{
     Aes256Gcm, AeadCore, Nonce,
 };
 use pbkdf2::pbkdf2_hmac;
+use rand::RngCore;
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -151,13 +152,26 @@ impl AuthStore {
             .join(format!("{}.enc", provider_type.as_str()))
     }
 
-    fn derive_machine_key() -> Result<[u8; 32], AppError> {
+    fn derive_machine_key_with_salt(salt: &[u8]) -> Result<[u8; 32], AppError> {
+        let username = whoami_username();
+        let password = format!("{}:{}", username, user_id());
+
+        let mut key = [0u8; 32];
+        pbkdf2_hmac::<Sha256>(
+            password.as_bytes(),
+            salt,
+            100_000,
+            &mut key,
+        );
+        Ok(key)
+    }
+
+    /// Legacy key derivation using predictable hostname-as-salt (for migration)
+    fn derive_machine_key_legacy() -> Result<[u8; 32], AppError> {
         let hostname_bytes = hostname::get()
             .map(|h| h.into_string().unwrap_or_default())
             .unwrap_or_else(|_| "unknown".to_string());
         let username = whoami_username();
-
-        // password for PBKDF2
         let password = format!("{}:{}", username, user_id());
 
         let mut key = [0u8; 32];
@@ -180,10 +194,13 @@ impl AuthStore {
             AppError::Internal(format!("Failed to create tokens dir {}: {e}", dir.display()))
         })?;
 
-        let key = Self::derive_machine_key()?;
+        let mut salt = [0u8; 16];
+        OsRng.fill_bytes(&mut salt);
+
+        let key = Self::derive_machine_key_with_salt(&salt)?;
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
-        let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bit
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 
         let ciphertext = cipher
             .encrypt(&nonce, plaintext)
@@ -191,7 +208,8 @@ impl AuthStore {
 
         // Layout: salt(16) + nonce(12) + ciphertext
         let mut out = Vec::with_capacity(16 + 12 + ciphertext.len());
-        out.extend_from_slice(&nonce); // nonce doubles as salt derivation input
+        out.extend_from_slice(&salt);
+        out.extend_from_slice(&nonce);
         out.extend_from_slice(&ciphertext);
 
         let path = self.token_enc_path(provider_type);
@@ -221,25 +239,45 @@ impl AuthStore {
             ))
         })?;
 
-        // Minimum: nonce(12) + tag(16) = 28 bytes
+        // New format minimum: salt(16) + nonce(12) + tag(16) = 44 bytes
+        // Old format minimum: nonce(12) + tag(16) = 28 bytes
         if data.len() < 28 {
             return Err(AppError::Internal(
                 "Encrypted token file is too short".to_string(),
             ));
         }
 
-        let key = Self::derive_machine_key()?;
-        let cipher = Aes256Gcm::new_from_slice(&key)
-            .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
+        // Try new format first: salt(16) + nonce(12) + ciphertext
+        if data.len() >= 44 {
+            let salt = &data[..16];
+            let nonce = Nonce::from_slice(&data[16..28]);
+            let ciphertext = &data[28..];
 
-        let nonce = Nonce::from_slice(&data[..12]);
-        let ciphertext = &data[12..];
+            let key = Self::derive_machine_key_with_salt(salt)?;
+            let cipher = Aes256Gcm::new_from_slice(&key)
+                .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
 
-        let plaintext = cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| AppError::Internal(format!("Decryption failed: {e}")))?;
+            if let Ok(plaintext) = cipher.decrypt(nonce, ciphertext) {
+                return Ok(Some(plaintext));
+            }
+        }
 
-        Ok(Some(plaintext))
+        // Fallback: old format (no salt) with legacy hostname-based derivation
+        {
+            let old_key = Self::derive_machine_key_legacy()?;
+            let cipher = Aes256Gcm::new_from_slice(&old_key)
+                .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
+            let nonce = Nonce::from_slice(&data[..12]);
+            let ciphertext = &data[12..];
+
+            if let Ok(plaintext) = cipher.decrypt(nonce, ciphertext) {
+                // Migrate to new format
+                let _ = self.encrypted_file_store(provider_type, &plaintext).await;
+                return Ok(Some(plaintext));
+            }
+        }
+
+        Err(AppError::Internal("Decryption failed: credentials may be from a different machine".to_string()))
     }
 }
 

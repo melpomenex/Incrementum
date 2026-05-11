@@ -1,17 +1,16 @@
 import { Router } from 'express';
 import { getPool } from '../db/connection.js';
-import { authMiddleware, AuthRequest, optionalAuthMiddleware } from '../middleware/auth.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 export const documentsRouter = Router();
 
-// Get a single document by ID (public endpoint but returns limited data for non-owners)
-documentsRouter.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
+// Get a single document by ID
+documentsRouter.get('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
         const { id } = req.params;
-        const userId = req.userId;
+        const userId = req.userId!;
 
-        // Query document, filtering by user if authenticated
         const result = await pool.query(`
             SELECT id, title, file_id, file_path, file_type, content, content_hash,
                    total_pages, current_page, current_scroll_percent, current_cfi,
@@ -20,9 +19,9 @@ documentsRouter.get('/:id', optionalAuthMiddleware, async (req: AuthRequest, res
                    priority_slider, priority_score, is_archived, is_favorite,
                    metadata, next_reading_date, reading_count, stability,
                    difficulty, reps, total_time_spent, deleted_at
-            FROM documents 
-            WHERE id = $1 ${userId ? 'AND user_id = $2' : ''}
-        `, userId ? [id, userId] : [id]);
+            FROM documents
+            WHERE id = $1 AND user_id = $2
+        `, [id, userId]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Document not found' });

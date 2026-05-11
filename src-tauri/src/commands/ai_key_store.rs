@@ -138,6 +138,7 @@ impl AIKeyStore {
             Aes256Gcm, AeadCore,
         };
         use pbkdf2::pbkdf2_hmac;
+        use rand::RngCore;
         use sha2::Sha256;
 
         let dir = self.keys_dir();
@@ -145,7 +146,10 @@ impl AIKeyStore {
             AppError::Internal(format!("Failed to create ai_keys dir {}: {e}", dir.display()))
         })?;
 
-        let key = Self::derive_machine_key()?;
+        let mut salt = [0u8; 16];
+        OsRng.fill_bytes(&mut salt);
+
+        let key = Self::derive_machine_key_with_salt(&salt)?;
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
@@ -154,7 +158,9 @@ impl AIKeyStore {
             .encrypt(&nonce, plaintext)
             .map_err(|e| AppError::Internal(format!("Encryption failed: {e}")))?;
 
-        let mut out = Vec::with_capacity(12 + ciphertext.len());
+        // Layout: salt(16) + nonce(12) + ciphertext
+        let mut out = Vec::with_capacity(16 + 12 + ciphertext.len());
+        out.extend_from_slice(&salt);
         out.extend_from_slice(&nonce);
         out.extend_from_slice(&ciphertext);
 
@@ -167,8 +173,7 @@ impl AIKeyStore {
     }
 
     async fn encrypted_file_load(&self, provider: &str) -> Result<Option<Vec<u8>>, AppError> {
-        use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit};
-        use aes_gcm::Nonce;
+        use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 
         let path = self.key_enc_path(provider);
         if !path.exists() {
@@ -185,21 +190,56 @@ impl AIKeyStore {
             ));
         }
 
-        let key = Self::derive_machine_key()?;
-        let cipher = Aes256Gcm::new_from_slice(&key)
-            .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
+        // Try new format first: salt(16) + nonce(12) + ciphertext
+        if data.len() >= 44 {
+            let salt = &data[..16];
+            let nonce = Nonce::from_slice(&data[16..28]);
+            let ciphertext = &data[28..];
 
-        let nonce = Nonce::from_slice(&data[..12]);
-        let ciphertext = &data[12..];
+            let key = Self::derive_machine_key_with_salt(salt)?;
+            let cipher = Aes256Gcm::new_from_slice(&key)
+                .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
 
-        let plaintext = cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| AppError::Internal(format!("Decryption failed: {e}")))?;
+            if let Ok(plaintext) = cipher.decrypt(nonce, ciphertext) {
+                return Ok(Some(plaintext));
+            }
+        }
 
-        Ok(Some(plaintext))
+        // Fallback: old format with legacy hostname-based derivation
+        {
+            let old_key = Self::derive_machine_key_legacy()?;
+            let cipher = Aes256Gcm::new_from_slice(&old_key)
+                .map_err(|e| AppError::Internal(format!("AES init: {e}")))?;
+            let nonce = Nonce::from_slice(&data[..12]);
+            let ciphertext = &data[12..];
+
+            if let Ok(plaintext) = cipher.decrypt(nonce, ciphertext) {
+                let _ = self.encrypted_file_store(provider, &plaintext).await;
+                return Ok(Some(plaintext));
+            }
+        }
+
+        Err(AppError::Internal("Decryption failed: credentials may be from a different machine".to_string()))
     }
 
-    fn derive_machine_key() -> Result<[u8; 32], AppError> {
+    fn derive_machine_key_with_salt(salt: &[u8]) -> Result<[u8; 32], AppError> {
+        use pbkdf2::pbkdf2_hmac;
+        use sha2::Sha256;
+
+        let username = whoami_username();
+        let password = format!("{}:{}", username, user_id());
+
+        let mut key = [0u8; 32];
+        pbkdf2_hmac::<Sha256>(
+            password.as_bytes(),
+            salt,
+            100_000,
+            &mut key,
+        );
+        Ok(key)
+    }
+
+    fn derive_machine_key_legacy() -> Result<[u8; 32], AppError> {
         use pbkdf2::pbkdf2_hmac;
         use sha2::Sha256;
 
@@ -207,7 +247,6 @@ impl AIKeyStore {
             .map(|h| h.into_string().unwrap_or_default())
             .unwrap_or_else(|_| "unknown".to_string());
         let username = whoami_username();
-
         let password = format!("{}:{}", username, user_id());
 
         let mut key = [0u8; 32];
