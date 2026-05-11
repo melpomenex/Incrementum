@@ -13,6 +13,9 @@ Architecture and technical details for Incrementum developers.
 5. [Backend Architecture](#backend-architecture)
 6. [Database Schema](#database-schema)
 7. [Key Algorithms](#key-algorithms)
+   - [FSRS-6 Algorithm](#fsrs-6-algorithm)
+   - [SM-18 Algorithm](#sm-18-algorithm-supermemo-18)
+   - [SM-20 Algorithm](#sm-20-algorithm-supermemo-20)
 8. [API Reference](#api-reference)
 9. [Development Workflow](#development-workflow)
 10. [Testing Strategy](#testing-strategy)
@@ -97,7 +100,7 @@ incrementum-tauri/
 │   │   ├── commands/             # Tauri command handlers
 │   │   ├── models/               # Data models
 │   │   ├── database/             # Database layer
-│   │   ├── algorithms/           # FSRS, SM-2
+│   │   ├── algorithms/           # FSRS, SM-2, SM-18, SM-20, schedulers
 │   │   ├── processor/            # Document processors
 │   │   └── integrations/         # External integrations
 │   ├── Cargo.toml               # Rust dependencies
@@ -345,6 +348,141 @@ Key parameters:
 - **Stability**: How long a memory lasts (in days)
 - **Difficulty**: Item difficulty (1-10 scale)
 
+### SM-18 Algorithm (SuperMemo 18)
+
+The latest publicly available SuperMemo algorithm, reverse-engineered from `sm18.exe` via Ghidra decompilation and ported to Rust. SM-18 uses a three-dimensional lookup table for stability increases rather than closed-form formulas.
+
+**Source**: `src-tauri/src/algorithms/sm18.rs`, `sm18_data.rs`
+**Reference**: [sm18-re](https://github.com/melpomenex/sm18-re)
+
+#### Core Formulas
+
+- **Retrievability**: `R = 0.9^(t/S)` — exponential forgetting with 0.9 half-life base
+- **Stability update (success, grade ≥ 3)**: `S_new = S × SInc[D][S][R]` — looked up from a 21³ (9261-entry) SInc matrix indexed by difficulty bin, stability bin, and retrievability bin
+- **Stability update (failure, grade < 3)**: `S_new = max(S × 0.87 / (1 + 0.1 × lapses), 0.5)` — penalized by lapse count
+- **Difficulty update**: `D_new = f × RepDiff + (1-f) × D_old` where `f = max(0.10, 0.80 - (rep-1) × 0.06)` — adaptive blending between repetition-based difficulty and stored difficulty
+- **Interval**: `S × ln(1-FI) / ln(0.9)` — derived from desired forgetting index (default FI = 0.10)
+
+#### Key Data Structures
+
+```rust
+pub struct SM18State {
+    pub difficulty: f64,   // D ∈ [0, 1]
+    pub stability: f64,    // Memory stability in days
+    pub interval: f64,     // Current interval in days
+    pub repetition: u32,   // Resets on lapse
+    pub lapses: u32,       // Number of failures
+}
+```
+
+#### SInc Matrix
+
+The Stability Increase (SInc) matrix is the heart of SM-18. It's a 21×21×21 lookup table loaded from `data/sinc_matrix.bin` (74 KB) at compile time via `include_bytes!`. Layout: `flat[D * 441 + S * 21 + R]` where D is slowest-varying and R is fastest. Indices 0–19 are active; index 20 is a sentinel (value 0). The matrix was extracted from the original `StabilityIncrease.dat` shipped with SuperMemo 18.
+
+#### Grade Mapping
+
+| App Rating | SM-18 Grade | Classification |
+|------------|-------------|----------------|
+| Again | 0 | Failure (lapse) |
+| Hard | 2 | Success (low) |
+| Good | 3 | Success (normal) |
+| Easy | 5 | Success (high) |
+
+#### Key Constants (from 80-bit x87 decompilation)
+
+- Startup stability: `1.2`, startup interval: `6.9` days
+- Post-lapse modifier: `0.87`, post-lapse interval: `2.4` days
+- BW weight (blended deviation): `0.70`
+- Default difficulty: `0.5`
+- Grade-to-retrievability mapping: grades 0–2 → `0.0`, grade 3 → `0.9`, grade 4 → `0.95`, grade 5 → `0.99`
+
+---
+
+### SM-20 Algorithm (SuperMemo 20)
+
+A native Rust implementation of the SuperMemo 20 algorithm, reverse-engineered from `sm20.exe` via Ghidra (75 functions, 44K fully decompiled). SM-20 is the most complex algorithm in the codebase, supporting three interval formula versions (V2/V4/V6) and an integrated FSRS-family branch.
+
+**Source**: `src-tauri/src/algorithms/sm20.rs`
+
+#### Architecture
+
+SM-20 operates on a **Dual-Stability-Retrievability (DSR) model** and supports two algorithm branches selected per-item via the `algorithm_branch` flag:
+
+1. **Classic SM-20 branch** (`algorithm_branch == 0`): Uses interval matrices with Bayesian smoothing
+2. **FSRS-family branch** (`algorithm_branch == 1`): Uses a 3-expert mixture model for retrievability estimation
+
+#### Key Data Structures
+
+```rust
+pub struct SM20State {
+    pub version: u8,           // Algorithm version (2, 4, or 6)
+    pub stability: f64,        // Memory stability in days
+    pub difficulty: f64,       // D ∈ [0, 1]
+    pub repetition: u32,       // Repetition counter
+    pub lapses: u32,           // Failure count
+    pub interval: f64,         // Current interval in days
+    pub last_quality: f64,     // Last review quality
+    pub algorithm_branch: u8,  // 0 = classic, 1 = FSRS
+    pub retrov: f64,           // Retrievability estimate
+    pub s_factor: f64,         // Stability scaling factor
+    pub multiplier: f64,       // Interval multiplier
+}
+```
+
+#### Classic SM-20 Interval Formulas
+
+Three versions of the interval calculation:
+
+- **V2** (SM-19 compatible): `interval = (scale - offset) × S^power + bias` × `2^(-penalty × D)` — stability-scale-based with difficulty penalty
+- **V4** (SM-20 proper): Linear combination `interval = (p3 × p5 + 1)(p1 × p7 + p2) + p4` — matrix-derived parameters
+- **V6** (FSRS-style): `interval = p4 + p1 × 2^p6 × 2^(-p3 × p5)` — exponential blending of matrix parameters
+
+All three versions share the same Bayesian smoothing core for initial intervals.
+
+#### Bayesian Smoothing Core
+
+The interval matrix is smoothed using a 3×3×3 neighborhood Bayesian approach:
+
+- **Prior**: Formula-based initial interval for each (R, S, D) cell
+- **Target cell**: Weighted by observation count vs. prior weight (500)
+- **Neighbor cells**: 3×3×3 neighborhood weighted by accumulated observation counts
+- **Blend**: `sigmoid(target_count, 500) × 10` for target, `sigmoid(neighbor_count, 1000) × cube_weight` for neighbors, combined with neutral baseline
+
+This allows sparse user data to be smoothly interpolated while dense data dominates the schedule.
+
+#### FSRS-Family Branch
+
+When `algorithm_branch == 1`, SM-20 uses a **3-expert weighted mixture** for retrievability estimation instead of the classic formula:
+
+- **Expert 1** (power-law): `S × (S/(S+t))^pow(p[0]/0.9, 2)` — activated when threshold < param and threshold < S
+- **Expert 2** (FSRS-style): `(1 + t/S)^log₂(0.9)` — bounded proper forgetting curve ≈ `(1+t/S)^(-0.152)`
+- **Expert 3** (exponential): `2^(-|t/S| × 0.105)` ≈ `0.9296^(t/S)`
+
+Expert weights are computed via sigmoid functions over stability and difficulty parameters. The mixture output drives both difficulty and stability updates (separate formulas for lapses vs. recall).
+
+35 FSRS-family parameters are extracted from runtime memory (expert weights, initial difficulty/stability per grade, lapse decay, recall stability, hard bonus, etc.).
+
+#### Index Conversions
+
+SM-20 maps continuous values to discrete matrix indices:
+
+- **Stability**: `floor((S - 2)^1/2.904) + 1`, clamped to [1, 20] — power-law binning
+- **Difficulty**: `floor(D × 19) + 1`, clamped to [1, 10]
+- **Retrievability**: `floor(2^(R × 20))`, clamped to [0, 20]
+
+#### U-Factor Table
+
+A 20-entry difficulty table extracted from runtime memory, mapping difficulty index to a stability multiplier. Used in the classic interval computation path.
+
+#### Key Constants
+
+- Stability power: `2.9039`, stability cap: `0.7`, stability max: `44530`
+- V2 stability scale: [1.3, 9.29], V2 penalty: slope `-1.88`, intercept `1.58`
+- Bayesian weights: prior `500.0`, target scale `10.0`, neighbor denom `1000.0`, cube weight `3.0`
+- Rounding thresholds: wide [0.8, 20.0], narrow [0.5, 2.0]
+
+---
+
 ### Position Tracking
 
 Unified position model for different document types:
@@ -488,4 +626,4 @@ See OpenSpec Workflow (openspec/AGENTS.md) for the contribution process.
 
 ---
 
-*Last updated: January 2026*
+*Last updated: May 2026*
