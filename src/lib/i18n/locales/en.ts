@@ -1749,6 +1749,8 @@ export const en: Dict = {
   "handbook.userHandbook": "Incrementum User Handbook",
   "handbook.browseChapters": "Browse chapters and jump between sections like a printed guide.",
   "handbook.contents": "Contents",
+  "handbook.understandingSM18": "Understanding SM-18",
+  "handbook.understandingSM20": "Understanding SM-20",
   "userProfile.guestUser": "Guest User",
   "userProfile.freePlan": "Free Plan",
   "userProfile.proPlan": "Pro Plan",

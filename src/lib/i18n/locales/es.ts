@@ -1211,6 +1211,8 @@ export const es: Dict = {
   "handbook.browseChapters":
     "Navega por los capítulos y salta entre secciones como una guía impresa.",
   "handbook.contents": "Contenido",
+  "handbook.understandingSM18": "Entendiendo SM-18",
+  "handbook.understandingSM20": "Entendiendo SM-20",
   "handbook.handbook": "Manual",
   "handbook.userHandbook": "Manual de usuario de Incrementum",
   "importExport.allCollections": "Todas las colecciones",

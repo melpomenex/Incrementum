@@ -1214,6 +1214,8 @@ export const fr: Dict = {
   "handbook.browseChapters":
     "Parcourez les chapitres et passez d'une section à l'autre comme dans un guide imprimé.",
   "handbook.contents": "Contenu",
+  "handbook.understandingSM18": "Comprendre SM-18",
+  "handbook.understandingSM20": "Comprendre SM-20",
   "handbook.handbook": "Manuel",
   "handbook.userHandbook": "Manuel de l'utilisateur Incrementum",
   "importExport.allCollections": "Toutes les collections",
