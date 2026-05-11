@@ -350,7 +350,7 @@ Key parameters:
 
 ### SM-18 Algorithm (SuperMemo 18)
 
-The latest publicly available SuperMemo algorithm, reverse-engineered from `sm18.exe` via Ghidra decompilation and ported to Rust. SM-18 uses a three-dimensional lookup table for stability increases rather than closed-form formulas.
+The latest publicly available SuperMemo algorithm, reverse-engineered from `sm18.exe`. SM-18 uses a three-dimensional lookup table for stability increases rather than closed-form formulas.
 
 **Source**: `src-tauri/src/algorithms/sm18.rs`, `sm18_data.rs`
 **Reference**: [sm18-re](https://github.com/melpomenex/sm18-re)
@@ -400,7 +400,7 @@ The Stability Increase (SInc) matrix is the heart of SM-18. It's a 21×21×21 lo
 
 ### SM-20 Algorithm (SuperMemo 20)
 
-A native Rust implementation of the SuperMemo 20 algorithm, reverse-engineered from `sm20.exe` via Ghidra (75 functions, 44K fully decompiled). SM-20 is the most complex algorithm in the codebase, supporting three interval formula versions (V2/V4/V6) and an integrated FSRS-family branch.
+A native Rust implementation of the SuperMemo 20 algorithm, reverse-engineered from `sm20.exe`. SM-20 is the most complex algorithm in the codebase, supporting three interval formula versions (V2/V4/V6) and an integrated FSRS-family branch.
 
 **Source**: `src-tauri/src/algorithms/sm20.rs`
 
