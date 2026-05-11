@@ -38,6 +38,7 @@ mod screenshot;
 
 #[cfg(test)]
 mod security_tests;
+mod security;
 
 use anyhow::Context;
 use database::Database;

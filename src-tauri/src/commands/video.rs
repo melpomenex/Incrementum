@@ -543,10 +543,39 @@ pub async fn cleanup_audio_chunks(
     Ok(())
 }
 
-/// Read file bytes for Groq upload
+/// Read file bytes for Groq upload (audio/video only, size-limited)
 #[tauri::command]
 pub async fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
-    std::fs::read(&file_path)
+    use std::path::Path;
+
+    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
+    const ALLOWED_EXTENSIONS: &[&str] = &[
+        "mp3", "wav", "mp4", "webm", "ogg", "m4a", "flac",
+        "wma", "aac", "mkv", "avi", "mov", "wmv", "flv", "3gp",
+    ];
+
+    let path = Path::new(&file_path);
+
+    let extension = path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .ok_or_else(|| "File has no extension".to_string())?;
+
+    if !ALLOWED_EXTENSIONS.contains(&extension.as_str()) {
+        return Err(format!("File type '.{}' not allowed for transcription upload", extension));
+    }
+
+    let canonical = path.canonicalize()
+        .map_err(|e| format!("Invalid file path: {}", e))?;
+
+    let metadata = std::fs::metadata(&canonical)
+        .map_err(|e| format!("Failed to read file metadata: {}", e))?;
+
+    if metadata.len() > MAX_FILE_SIZE {
+        return Err(format!("File too large: {} bytes (max {} bytes)", metadata.len(), MAX_FILE_SIZE));
+    }
+
+    std::fs::read(&canonical)
         .map_err(|e| format!("Failed to read file: {}", e))
 }
 

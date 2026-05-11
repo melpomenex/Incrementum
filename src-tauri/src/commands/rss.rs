@@ -632,6 +632,9 @@ pub async fn fetch_rss_feed_url(feed_url: String) -> Result<ParsedFeed> {
 
     let normalized_feed_url = normalize_known_feed_url(&feed_url);
 
+    crate::security::validate_url_not_private(&normalized_feed_url)
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("URL not allowed: {}", e)))?;
+
     let client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         .build()

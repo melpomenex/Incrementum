@@ -73,7 +73,12 @@ pub async fn backup_restore(
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     let db_path = app_dir.join("incrementum.db");
 
-    let db = Database::from_pool(repo.pool().clone());
+    // Close the connection pool before restoring to avoid SQLite lock conflicts.
+    // The restore uses rusqlite directly on the file, not the pool.
+    let pool = repo.pool().clone();
+    pool.close().await;
+
+    let db = Database::from_pool(pool);
     let manager = BackupManager::new(db, db_path).map_err(|e| e.to_string())?;
 
     let provider = provider_arc.read().await;

@@ -139,12 +139,7 @@ impl GoogleDriveProvider {
 
     /// Generate a random state parameter for OAuth
     fn generate_state(&self) -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        format!("googledrive_{}", timestamp)
+        format!("googledrive_{}", uuid::Uuid::new_v4().simple())
     }
 
     /// Exchange authorization code for tokens

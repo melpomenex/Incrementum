@@ -5,6 +5,7 @@ import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { bulkGenerateCards } from "../../api/extract-bulk";
 import { useUndoableOperations } from "../../api/undoable";
 import { cn } from "../../utils";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 import { EditExtractDialog } from "./EditExtractDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { GeneratedCardsPopover } from "../common/GeneratedCardsPopover";
@@ -76,7 +77,7 @@ function ExtractTextContent({ extract, highlights, onSelection }: ExtractTextCon
     <div
       ref={contentRef}
       className="text-foreground whitespace-pre-wrap"
-      dangerouslySetInnerHTML={{ __html: extract.content }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(extract.content) }}
     />
   );
 }

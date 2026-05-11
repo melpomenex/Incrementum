@@ -456,7 +456,8 @@ impl BackupManager {
         let pool = self.db.pool();
 
         // VACUUM INTO exports a consistent snapshot to a new file
-        sqlx::query(&format!("VACUUM INTO '{}'", path.display()))
+        let safe_path = path.display().to_string().replace('\'', "''");
+        sqlx::query(&format!("VACUUM INTO '{}'", safe_path))
             .execute(pool)
             .await
             .map_err(|e| AppError::Internal(format!("Failed to export database: {}", e)))?;

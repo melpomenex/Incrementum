@@ -21,6 +21,7 @@ import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
 import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
 import { useI18n } from "../../lib/i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface ZenReviewModeProps {
   onExit: () => void;
@@ -50,7 +51,7 @@ function ZenCard({
         <div className="prose prose-lg dark:prose-invert max-w-none">
           <div 
             className="text-foreground/90 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: docItem.extractContent || docItem.content || "" }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(docItem.extractContent || docItem.content || "") }}
           />
         </div>
       </div>

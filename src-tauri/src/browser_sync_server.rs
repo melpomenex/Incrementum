@@ -87,7 +87,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::{
-    cors::CorsLayer,
+    cors::{AllowOrigin, CorsLayer},
     limit::RequestBodyLimitLayer,
 };
 use tracing::{info, error, warn};
@@ -497,7 +497,28 @@ pub async fn start_server(
         .route("/api/automation/reviews/due-count", get(handle_automation_due_count))
         .route("/api/automation/reviews/submit", post(handle_automation_submit_review))
         .layer(middleware::from_fn_with_state(state.clone(), require_api_key))
-        .layer(CorsLayer::permissive())
+        .layer(
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::predicate(|origin, _| {
+                    let Ok(s) = origin.to_str() else { return false };
+                    s.starts_with("http://127.0.0.1:")
+                        || s.starts_with("http://localhost:")
+                        || s.starts_with("chrome-extension://")
+                        || s.starts_with("moz-extension://")
+                        || s.starts_with("safari-web-extension://")
+                        || s == "tauri://localhost"
+                        || s == "https://tauri.localhost"
+                        || s == "null"
+                }))
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::PUT,
+                    axum::http::Method::DELETE,
+                    axum::http::Method::OPTIONS,
+                ])
+                .allow_headers(tower_http::cors::Any),
+        )
         .layer(RequestBodyLimitLayer::new(MAX_PAYLOAD_SIZE))
         .with_state(state);
 
@@ -1239,6 +1260,9 @@ fn extract_memory_state_from_fsrs(
 
 /// Fetch page content from URL
 async fn fetch_page_content(url: &str) -> Result<String, AppError> {
+    crate::security::validate_url_not_private(url)
+        .map_err(|e| AppError::IntegrationError(format!("URL not allowed: {}", e)))?;
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -1897,6 +1921,10 @@ async fn handle_fetch_feed_url(
         Some(u) => u.clone(),
         None => return error_response(StatusCode::BAD_REQUEST, "Missing url parameter"),
     };
+
+    if let Err(e) = crate::security::validate_url_not_private(&url) {
+        return error_response(StatusCode::BAD_REQUEST, &format!("URL not allowed: {}", e));
+    }
 
     match fetch_rss_feed_url(url).await {
         Ok(parsed_feed) => (StatusCode::OK, Json(parsed_feed)).into_response(),
@@ -2912,8 +2940,14 @@ fn save_config(config: &BrowserSyncConfig) -> Result<(), AppError> {
     }
     let json = serde_json::to_string_pretty(config)
         .map_err(AppError::Serialization)?;
-    std::fs::write(&path, json)
+    std::fs::write(&path, &json)
         .map_err(AppError::Io)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&path, perms).map_err(AppError::Io)?;
+    }
     Ok(())
 }
 

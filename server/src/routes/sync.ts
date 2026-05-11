@@ -184,6 +184,7 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
               total_time_spent = EXCLUDED.total_time_spent,
               deleted_at = EXCLUDED.deleted_at,
               sync_version = EXCLUDED.sync_version
+            WHERE documents.user_id = $2
           `, [
                         doc.id, userId, doc.title, doc.file_id || null, doc.file_path, doc.file_type,
                         doc.content, doc.content_hash, doc.total_pages, doc.current_page,
@@ -229,6 +230,7 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
               reps = EXCLUDED.reps,
               deleted_at = EXCLUDED.deleted_at,
               sync_version = EXCLUDED.sync_version
+            WHERE extracts.user_id = $2
           `, [
                         ext.id, userId, ext.document_id, ext.content, ext.page_title,
                         ext.page_number, ext.highlight_color, ext.notes,
@@ -274,6 +276,7 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
               memory_state_difficulty = EXCLUDED.memory_state_difficulty,
               deleted_at = EXCLUDED.deleted_at,
               sync_version = EXCLUDED.sync_version
+            WHERE learning_items.user_id = $2
           `, [
                         item.id, userId, item.extract_id, item.document_id, item.item_type,
                         item.question, item.answer, item.cloze_text, item.difficulty,

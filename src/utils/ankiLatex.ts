@@ -1,5 +1,6 @@
 import { latexToHTML } from "./mathOcr";
 import { MacroExpander } from "./latexMacros";
+import DOMPurify from "dompurify";
 
 const RAW_LATEX_HINT =
   /\\(?:frac|sqrt|sum|prod|int|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega|pi|leq|geq|neq|approx|times|cdot|to|rightarrow|leftarrow|partial|infty|left|right|mathrm|text|mbox|overrightarrow|overleftarrow|hat|bar|vec|dot|ddot|tilde|underline|overline|overbrace|underbrace|widehat|widetilde|mathbb|mathcal|mathfrak|boldsymbol|newcommand|renewcommand|DeclareMathOperator|ce|pu|operatorname|sin|cos|tan|log|ln|exp|lim|sup|inf|min|max|in|notin|subset|cup|cap|setminus|exists|forall|nabla|cdot|pm|equiv|sim|simeq|perp|angle|triangle|square|cong|propto|oplus|otimes|bigcup|bigcap|bigsqcup|binom|dfrac|tfrac|cfrac|mathrm|mathbf|mathit|mathsf|mathtt|mathscr|mathfrak|boldsymbol|coloneqq|coloneq)(?![a-zA-Z])|(?:\^|_)\{[^}]+\}|\\[a-zA-Z]+[{_]|\\[a-zA-Z]+$/;
@@ -521,14 +522,43 @@ export function renderAnkiHtmlWithLatex(content: string): string {
     return content;
   }
 
+  let html: string;
   if (!isAnkiLatexNormalizationEnabled()) {
-    return legacyRenderAnkiHtmlWithLatex(content);
+    html = legacyRenderAnkiHtmlWithLatex(content);
+  } else {
+    try {
+      html = normalizeAnkiLatexContent(content).html;
+    } catch (error) {
+      console.warn("[anki-latex] normalization-failed, falling back to legacy renderer", error);
+      html = legacyRenderAnkiHtmlWithLatex(content);
+    }
   }
 
-  try {
-    return normalizeAnkiLatexContent(content).html;
-  } catch (error) {
-    console.warn("[anki-latex] normalization-failed, falling back to legacy renderer", error);
-    return legacyRenderAnkiHtmlWithLatex(content);
-  }
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "h1", "h2", "h3", "h4", "h5", "h6",
+      "p", "br", "hr", "pre", "blockquote",
+      "b", "i", "em", "strong", "u", "s", "del", "ins", "mark", "small", "sub", "sup", "abbr",
+      "ul", "ol", "li", "dl", "dt", "dd",
+      "a", "img",
+      "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
+      "figure", "figcaption", "details", "summary", "aside", "article", "section", "header", "footer", "nav",
+      "div", "span", "main",
+      "audio", "video", "source", "track",
+      "time", "ruby", "rt", "rp",
+    ],
+    ALLOWED_ATTR: [
+      "href", "src", "alt", "title", "class", "id", "style",
+      "width", "height", "loading", "decoding", "target", "rel",
+      "colspan", "rowspan", "headers", "scope", "nowrap",
+      "start", "reversed", "type", "value",
+      "datetime", "cite", "lang", "dir", "tabindex", "role",
+      "aria-label", "aria-labelledby", "aria-describedby", "aria-hidden", "aria-expanded",
+      "controls", "autoplay", "loop", "muted", "preload", "poster",
+      "open", "name", "data-*",
+    ],
+    ALLOW_DATA_ATTR: true,
+    FORBID_TAGS: ["style", "script", "iframe", "object", "embed", "applet", "form", "input", "button", "textarea", "select", "base", "link", "meta"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur", "onsubmit", "onaction"],
+  }) as string;
 }

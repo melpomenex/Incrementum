@@ -7,6 +7,7 @@ import {
   type LearningItem,
 } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems } from "../../api/queue";
+import { sanitizeHtml } from "../common/RichContentRenderer";
 
 interface InlineCardEditorProps {
   card: LearningItem;
@@ -119,7 +120,7 @@ export function InlineCardEditor({
             </div>
             <div
               className="prose prose-sm dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: card.question }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(card.question) }}
             />
           </div>
           <button
@@ -139,7 +140,7 @@ export function InlineCardEditor({
               </label>
               <div
                 className="text-sm p-2 rounded bg-background border border-border"
-                dangerouslySetInnerHTML={{ __html: card.cloze_text || card.question }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(card.cloze_text || card.question) }}
               />
             </div>
           ) : (
