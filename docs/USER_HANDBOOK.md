@@ -245,7 +245,7 @@ Once imported, open any document to access:
 
 ### Understanding SM-18
 
-**SM-18** (SuperMemo 18) is the latest publicly available algorithm from the SuperMemo family, reverse-engineered from the original `sm18.exe` binary. It represents a significant evolution over SM-2, introducing memory stability modeling and a data-driven approach to interval calculation.
+**SM-18** (SuperMemo 18) is the previous algorithm from the SuperMemo family, It represents a significant evolution over SM-2, introducing memory stability modeling and a data-driven approach to interval calculation.
 
 SM-18:
 
