@@ -228,7 +228,7 @@ export function QueueScrollPage() {
   const [activeExtractForCloze, setActiveExtractForCloze] = useState<{ id: string, text: string, extractContent?: string, range: [number, number] } | null>(null);
   const [activeExtractForQA, setActiveExtractForQA] = useState<string | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
-  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean } | null>(null);
+  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean; extractId?: string } | null>(null);
 
   const lastScrollTime = useRef(0);
   const scrollCooldown = 500; // ms between scroll actions
@@ -2065,6 +2065,7 @@ export function QueueScrollPage() {
                 draftCardType: "qa",
                 resetDraftCards: true,
                 autoEditDraft: false,
+                extractId: renderedItem.extract!.id,
               })}
               onUpdate={(updates) => handleExtractUpdate(renderedItem.extract!.id, updates)}
             />
