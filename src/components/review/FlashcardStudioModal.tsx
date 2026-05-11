@@ -3350,13 +3350,14 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         { role: "user", content: userContent },
       ];
 
+      const hasDocumentContent = selectedDocument && contextContent?.trim();
       const response = await chatWithContext(
         currentProvider.provider,
         currentProvider.model,
         llmMessages,
         {
-          type: selectedDocument ? "document" : "general",
-          documentId: selectedDocument?.id,
+          type: hasDocumentContent ? "document" : "general",
+          documentId: hasDocumentContent ? selectedDocument?.id : undefined,
           content: contextContent,
           contextWindowTokens: maxTokens,
         },
@@ -3549,13 +3550,16 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       
       llmMessages.push(...history, { role: "user", content: userMessage.content });
 
+      // Use 'general' context type when document content isn't available,
+      // even if a document is selected — prevents 'Document context is unavailable' error
+      const hasDocumentContent = selectedDocument && contextContent?.trim();
       const response = await chatWithContext(
         currentProvider.provider,
         currentProvider.model,
         llmMessages,
         {
-          type: selectedDocument ? "document" : "general",
-          documentId: selectedDocument?.id,
+          type: hasDocumentContent ? "document" : "general",
+          documentId: hasDocumentContent ? selectedDocument?.id : undefined,
           content: contextContent,
           contextWindowTokens: maxTokens,
         },
