@@ -3932,6 +3932,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   return (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={onClose}
       onPasteCapture={(event) => {
         if (isImageRegistryOpen) return;
         const imageFiles = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"));
@@ -3941,7 +3942,10 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         void ingestFilesIntoRegistry(imageFiles);
       }}
     >
-      <div className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
+      <div
+        className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-6 py-4">
           <div className="flex items-center gap-3">
