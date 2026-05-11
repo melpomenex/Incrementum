@@ -2060,7 +2060,6 @@ export function QueueScrollPage() {
               onCreateQA={() => setActiveExtractForQA(renderedItem.extract!.id)}
               onCreateFlashcard={(selectedText) => setFlashcardStudioSeed({
                 key: `scroll-${renderedItem.extract!.id}-${Date.now()}`,
-                documentId: renderedItem.extract!.document_id,
                 excerpt: renderedItem.extract!.content,
                 draftCardType: "qa",
                 resetDraftCards: true,
