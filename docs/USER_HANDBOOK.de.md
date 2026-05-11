@@ -12,7 +12,7 @@ Incrementum ist eine leistungsstarke Lernanwendung, die zwei bewährte Techniken
 
 **Inkrementelles Lesen** – Verarbeiten Sie große Informationsmengen im Laufe der Zeit in kleinen, überschaubaren Blöcken. Anstatt Artikel von Anfang bis Ende zu lesen, extrahieren Sie wichtige Punkte und bauen nach und nach Verständnis auf.
 
-**Abgeteilte Wiederholungen** – Überprüfen Sie das Material in wissenschaftlich optimierten Abständen, um die Erinnerung zu maximieren. Algorithmen wie FSRS-6 und SM-18 sagen voraus, wann Sie etwas vergessen werden und planen Überprüfungen rechtzeitig ein.
+**Abgeteilte Wiederholungen** – Überprüfen Sie das Material in wissenschaftlich optimierten Abständen, um die Erinnerung zu maximieren. Algorithmen wie FSRS-6, SM-20 und SM-18 sagen voraus, wann Sie etwas vergessen werden und planen Überprüfungen rechtzeitig ein.
 
 ### Schlüsselkonzepte
 
@@ -42,7 +42,7 @@ Wenn Sie Incrementum zum ersten Mal starten, sehen Sie das **Dashboard** mit vie
    - Probieren Sie „Modern Dark“ oder „Material You“ für einen modernen Look
 
 2. **Überprüfungseinstellungen konfigurieren** – Einstellungen → Lernen → Algorithmus
-   - **Algorithmus**: FSRS-6 (empfohlen), SM-18 oder SM-2
+   - **Algorithmus**: FSRS-6 (empfohlen), SM-20, SM-18 oder SM-2
    - **Gewünschte Erinnerung**: 90 % (Standard) – legt fest, wie gut Sie sich erinnern möchten
    - **Lernen pro Tag**: 20–50 Elemente empfohlen für Anfänger
 
@@ -222,6 +222,50 @@ Die Datei sollte ein flaches Objekt sein, das den Fragetext den Kartendaten zuor
 - **Stabilität**: Wie lange ein Speicher hält (höher = stabiler)
 - **Schwierigkeit**: Wie schwer der Gegenstand für Sie ist (Skala 1-10)
 - **Retrieverability**: Aktuelle Wahrscheinlichkeit des Rückrufs (0-100 %)
+
+### SM-18 verstehen
+
+**SM-18** (SuperMemo 18) ist der vorherige Algorithmus der SuperMemo-Familie. Er stellt eine bedeutende Weiterentwicklung gegenüber SM-2 dar und führt Speicherstabilitätsmodellierung und einen datengesteuerten Ansatz zur Intervallberechnung ein.
+
+SM-18:
+
+1. **Modelliert Vergessen Exponentiell**: Verwendet die Formel `R = 0,9^(t/S)` zur Berechnung der Wiederauffindbarkeit — die Wahrscheinlichkeit, dass Sie sich an ein Element zum Zeitpunkt `t` angesichts seiner Stabilität `S` erinnern
+2. **Verfolgt Schwierigkeit Unabhängig**: Pflegt einen Schwierigkeitswert `D ∈ [0, 1]` für jedes Element, der über eine nachlaufende Durchschnittsformel aktualisiert wird, die mit jeder Wiederholung reaktionsfähiger wird
+3. **Verwendet eine 3D-SInc-Matrix**: Ermittelt den Stabilitätssteigerungsfaktor aus einer 21×21×21-Matrix, die nach gebinster Schwierigkeit, Stabilität und Wiederauffindbarkeit indiziert ist — dies ist der Kern von SM-18s Intelligenz
+4. **Geht mit Ausfällen Souverän Um**: Bei Fehlschlägen wird die Stabilität um einen Faktor von 0,87 reduziert (weiter unterteilt durch angesammelte Ausfälle) und der Wiederholungszähler zurückgesetzt, aber die Schätzgröße der Schwierigkeit bleibt erhalten
+5. **Berechnet Intervalle aus Stabilität**: Leitet das nächste Überprüfungsintervall aus dem gewünschten Retentionsziel ab: `Intervall = S × ln(1-FI) / ln(0,9)`
+
+**Wichtige Kennzahlen:**
+- **Stabilität (S)**: Wie lange eine Erinnerung anhält, bevor sie verblasst (gemessen in Tagen)
+- **Schwierigkeit (D)**: Ein Wert von 0 (am einfachsten) bis 1 (am schwersten), aktualisiert über nachlaufende Durchschnittsverschmelzung nach jeder Überprüfung
+- **Wiederauffindbarkeit (R)**: Aktuelle Rückrufwahrscheinlichkeit, berechnet als `0,9^(vergangen/S)`
+- **SInc**: Der Stabilitätssteigerungsfaktor aus der 9.261-Einträge-Matrix — wie viel Stabilität nach jeder erfolgreichen Überprüfung wächst
+- **Ausfälle**: Anzahl der Fehlschläge, die zukünftige Stabilität bei nachfolgenden Ausfällen bestrafen
+
+### SM-20 verstehen
+
+**SM-20** (SuperMemo 20) ist der fortschrittlichste verfügbare Algorithmus, per Reverse-Engineering aus `sm20` rekonstruiert. Er baut auf den Grundlagen von SM-18 auf und führt Bayes'sche Glättung, mehrere Algorithmusversionen und einen optionalen FSRS-Familienzweig ein.
+
+SM-20:
+
+1. **Unterstützt Mehrere Intervallformeln**: Bietet drei Algorithmusversionen — V2 (SM-19-kompatibel), V4 (SM-20 eigentlich) und V6 (FSRS-Stil) — die jeweils Intervalle unterschiedlich aus denselben Zustandsvariablen berechnen
+2. **Wendet Bayes'sche Glättung an**: Wenn genügend Überprüfungsdaten vorhanden sind, werden Intervallberechnungen über eine 3×3×3-Nachbarschaftssuche in den Intervall-/Zählermatrizen geglättet, gemischt mit einem Bayes'schen Prior
+3. **Verfolgt Stabilität mit Potenzgesetz-Indizierung**: Konvertiert Stabilität in Matrixindizes mittels einer Potenzgesetztransformation (`S^2,9`), die feinere Auflösung bei niedrigen Stabilitäten und gröbere bei hohen Werten bietet
+4. **Beinhaltet einen FSRS-Familienzweig**: Elemente können optional ein 3-Experten-Mischmodell (Potenzgesetz, FSRS-Potenzgesetz und exponentielles Vergessen) mit 35 dedizierten Parametern für Schwierigkeits- und Stabilitätsaktualisierungen verwenden
+5. **Zeichnet auf und Lernt aus Überprüfungen**: Jede Überprüfung aktualisiert 21×21×21-Intervall- und Zählermatrizen mittels inkrementeller Mittelung, sodass der Algorithmus aus Ihrer tatsächlichen Leistung optimale Intervalle lernt
+
+**Wichtige Kennzahlen:**
+- **Stabilität (S)**: Speicherbeständigkeit in Tagen, mit einer Potenzgesetz-Indizestransformation für die Matrixabfrage (auf max. 44.530 Tage begrenzt)
+- **Schwierigkeit (D)**: In 10 Stufen über `floor(D × 19) + 1` gebinnt, als eine Achse der Intervallmatrix verwendet
+- **Version**: Wählt welche Intervallformel verwendet wird (V2, V4 oder V6)
+- **Algorithmuszweig**: 0 für klassisches SM-20, 1 für das FSRS-Familien-Expertenmischmodell
+- **Retrov (Retrov):** Wiederauffindbarkeitsschätzung, die vom FSRS-Zweig für Stabilitätsanpassungen verwendet wird
+- **Intervall-/Zählermatrizen**: Zwei 9.261-Einträge-Matrizen, die Ihre Überprüfungsverlauf akkumulieren und bayes'sch geglättete Intervalloptimierung ermöglichen
+
+**Wie sich SM-20 von FSRS-6 unterscheidet:**
+- FSRS-6 verwendet einen festen Parametersatz, der auf aggregierten Daten trainiert wurde; SM-20 lernt aus *Ihren* Überprüfungen im Laufe der Zeit über seine Matrizen
+- SM-20s Bayes'sche Glättung bietet einen fundierten Ansatz, um Vorwissen mit beobachteten Daten in Einklang zu bringen
+- SM-20 unterstützt das Umschalten zwischen Intervallformeln (V2/V4/V6) und verfügt sogar über einen integrierten FSRS-Familienzweig
 
 ### Bewertungssystem
 
@@ -668,13 +712,20 @@ Exportieren Sie Ihre Daten zur Analyse:
 
 #### Algorithmusauswahl
 
-Incrementum unterstützt drei Planungsalgorithmen. Wählen Sie diejenige, die am besten zu Ihrem Lernstil passt:
+Incrementum unterstützt vier Planungsalgorithmen. Wählen Sie diejenige, die am besten zu Ihrem Lernstil passt:
 
 **FSRS-6 (empfohlen):**
 - Modern, forschungsgestützt
 - Passt sich dem individuellen Gedächtnis an
 - Sagt Zeiten des Vergessens voraus
 - Bessere Bindung mit weniger Bewertungen
+
+**SM-20 (SuperMemo 20):**
+- Fortschrittlichster Algorithmus, per Reverse-Engineering aus sm20.exe über Ghidra rekonstruiert
+- Unterstützt drei Intervallformel-Versionen (V2/V4/V6)
+- Bayes'sche Glättung lernt optimale Intervalle aus Ihren tatsächlichen Überprüfungsdaten
+- Optionaler FSRS-Familienzweig mit 3-Experten-Vergessensmodell
+- Baut Wissen über Zeit durch 21×21×21-Intervall-/Zählermatrizen auf
 
 **SM-18 (SuperMemo 18):**
 - Neuester SuperMemo-Algorithmus, rückentwickelt von der Originalanwendung
