@@ -264,7 +264,7 @@ SM-18:
 
 ### Understanding SM-20
 
-**SM-20** (SuperMemo 20) is the most advanced algorithm available, reverse-engineered from `sm20.exe` via Ghidra decompilation (75 functions, 44K lines of fully decompiled code). It builds on SM-18's foundations while introducing Bayesian smoothing, multiple algorithm versions, and an optional FSRS-family branch.
+**SM-20** (SuperMemo 20) is the most advanced algorithm available, reverse-engineered from `sm20`. It builds on SM-18's foundations while introducing Bayesian smoothing, multiple algorithm versions, and an optional FSRS-family branch.
 
 SM-20:
 
@@ -286,7 +286,6 @@ SM-20:
 - FSRS-6 uses a fixed set of parameters trained on aggregate data; SM-20 learns from *your* reviews over time via its matrices
 - SM-20's Bayesian smoothing provides a principled way to balance prior knowledge with observed data
 - SM-20 supports switching between interval formulas (V2/V4/V6) and even has an FSRS-family branch built in
-- SM-20 was never publicly documented — its implementation was extracted through binary decompilation
 
 ### Rating System
 
