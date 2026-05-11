@@ -1297,6 +1297,8 @@ export const zh: Dict = {
   "flashcardStudio.welcome": "欢迎来到闪卡工作室",
   "handbook.browseChapters": "浏览章节并像纸质指南一样在章节间跳转。",
   "handbook.contents": "目录",
+  "handbook.understandingSM18": "了解 SM-18",
+  "handbook.understandingSM20": "了解 SM-20",
   "handbook.handbook": "手册",
   "handbook.userHandbook": "Incrementum 用户手册",
   "importExport.allCollections": "所有收藏集",

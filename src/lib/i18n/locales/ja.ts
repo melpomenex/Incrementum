@@ -1193,6 +1193,8 @@ export const ja: Dict = {
   "flashcardStudio.welcome": "フラッシュカードスタジオへようこそ",
   "handbook.browseChapters": "章を閲覧してセクション間を移動できます。",
   "handbook.contents": "目次",
+  "handbook.understandingSM18": "SM-18 について",
+  "handbook.understandingSM20": "SM-20 について",
   "handbook.handbook": "ハンドブック",
   "handbook.userHandbook": "Incrementum ユーザーハンドブック",
   "importExport.allCollections": "すべてのコレクション",

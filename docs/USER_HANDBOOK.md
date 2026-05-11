@@ -243,6 +243,51 @@ Once imported, open any document to access:
 - **Difficulty**: How hard the item is for you (1-10 scale)
 - **Retrievability**: Current probability of recall (0-100%)
 
+### Understanding SM-18
+
+**SM-18** (SuperMemo 18) is the latest publicly available algorithm from the SuperMemo family, reverse-engineered from the original `sm18.exe` binary. It represents a significant evolution over SM-2, introducing memory stability modeling and a data-driven approach to interval calculation.
+
+SM-18:
+
+1. **Models Forgetting Exponentially**: Uses the formula `R = 0.9^(t/S)` to calculate retrievability — the probability that you'll remember an item at time `t` given its stability `S`
+2. **Tracks Difficulty Independently**: Maintains a difficulty value `D ∈ [0, 1]` for each item, updated using a trailing-average formula that becomes more responsive with each repetition
+3. **Uses a 3D SInc Matrix**: Looks up the Stability Increase factor from a 21×21×21 matrix indexed by binned difficulty, stability, and retrievability — this is the core of SM-18's intelligence
+4. **Handles Lapses Gracefully**: On failure, reduces stability by a factor of 0.87 (divided further by accumulated lapses) and resets the repetition counter, but preserves the difficulty estimate
+5. **Computes Intervals from Stability**: Derives the next review interval from the desired retention target: `interval = S × ln(1-FI) / ln(0.9)`
+
+**Key Metrics:**
+- **Stability (S)**: How long a memory persists before decaying (measured in days)
+- **Difficulty (D)**: A value from 0 (easiest) to 1 (hardest), updated via trailing-average blending after each review
+- **Retrievability (R)**: Current recall probability, calculated as `0.9^(elapsed/S)`
+- **SInc**: The Stability Increase factor looked up from the 9,261-entry matrix — how much stability grows after each successful review
+- **Lapses**: Count of failures, which penalize future stability on subsequent lapses
+
+### Understanding SM-20
+
+**SM-20** (SuperMemo 20) is the most advanced algorithm available, reverse-engineered from `sm20.exe` via Ghidra decompilation (75 functions, 44K lines of fully decompiled code). It builds on SM-18's foundations while introducing Bayesian smoothing, multiple algorithm versions, and an optional FSRS-family branch.
+
+SM-20:
+
+1. **Supports Multiple Interval Formulas**: Ships with three algorithm versions — V2 (SM-19 compatible), V4 (SM-20 proper), and V6 (FSRS-style) — each computing intervals differently from the same state variables
+2. **Applies Bayesian Smoothing**: When enough review data accumulates, it smooths interval calculations using a 3×3×3 neighbor search across the interval/count matrices, blended with a Bayesian prior
+3. **Tracks Stability with Power-Law Indexing**: Converts stability to matrix indices using a power-law transform (`S^2.9`), providing finer resolution at low stabilities and coarser at high values
+4. **Includes an FSRS-Family Branch**: Items can optionally use a 3-expert mixture model (power-law, FSRS power-law, and exponential forgetting) with 35 dedicated parameters for difficulty and stability updates
+5. **Records and Learns from Reviews**: Every review updates 21×21×21 interval and count matrices via incremental averaging, allowing the algorithm to learn optimal intervals from your actual performance over time
+
+**Key Metrics:**
+- **Stability (S)**: Memory persistence in days, with a power-law index transform for matrix lookup (clamped to 44,530 days max)
+- **Difficulty (D)**: Binned into 10 levels via `floor(D × 19) + 1`, used as one axis of the interval matrix
+- **Version**: Selects which interval formula to use (V2, V4, or V6)
+- **Algorithm Branch**: 0 for classic SM-20, 1 for the FSRS-family expert mixture model
+- **Retrov (Retrov):** Retrievability estimate used by the FSRS branch for stability adjustments
+- **Interval/Count Matrices**: Two 9,261-entry matrices that accumulate your review history and enable Bayesian-smoothed interval optimization
+
+**How SM-20 Differs from FSRS-6:**
+- FSRS-6 uses a fixed set of parameters trained on aggregate data; SM-20 learns from *your* reviews over time via its matrices
+- SM-20's Bayesian smoothing provides a principled way to balance prior knowledge with observed data
+- SM-20 supports switching between interval formulas (V2/V4/V6) and even has an FSRS-family branch built in
+- SM-20 was never publicly documented — its implementation was extracted through binary decompilation
+
 ### Rating System
 
 During reviews, rate each item based on your recall:
@@ -688,13 +733,20 @@ Export your data for analysis:
 
 #### Algorithm Selection
 
-Incrementum supports three scheduling algorithms. Choose the one that best fits your learning style:
+Incrementum supports four scheduling algorithms. Choose the one that best fits your learning style:
 
 **FSRS-6 (Recommended):**
 - Modern, research-backed
 - Adapts to individual memory
 - Predicts forgetting times
 - Better retention with fewer reviews
+
+**SM-20 (SuperMemo 20):**
+- Most advanced algorithm, reverse-engineered from sm20.exe via Ghidra
+- Supports three interval formula versions (V2/V4/V6)
+- Bayesian smoothing learns optimal intervals from your actual review data
+- Optional FSRS-family branch with 3-expert forgetting model
+- Builds knowledge over time via 21×21×21 interval/count matrices
 
 **SM-18 (SuperMemo 18):**
 - Latest SuperMemo algorithm, reverse-engineered from the original application
