@@ -145,6 +145,8 @@ interface FlashcardStudioSeed {
   draftCardType?: DraftCardType;
   resetDraftCards?: boolean;
   autoEditDraft?: boolean;
+  /** If set, auto-generate flashcards from this extract when the modal opens */
+  extractId?: string;
 }
 
 interface QuickTemplate {
@@ -3258,6 +3260,14 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       setFlippedCardId(null);
       setEditingCardId(seed.autoEditDraft === false ? null : nextCard.id);
       setViewMode("chat");
+    }
+
+    // Auto-generate flashcards from extract if seed includes extractId
+    if (seed.extractId) {
+      // Use microtask to let the modal render first
+      queueMicrotask(() => {
+        handleGenerateFromExtract(seed.extractId!);
+      });
     }
   }, [isOpen, seed, createBlankDraftCard]);
 

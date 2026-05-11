@@ -4065,6 +4065,7 @@ export const en: Dict = {
   "extractScrollItem.keyboardHints":
     "Press 1-4 to rate • Select text + C to create Cloze • Q for Q&A",
   "extractScrollItem.createFlashcard": "Create Flashcard...",
+  "extractScrollItem.createFlashcardHint": "Auto-generate a flashcard from this extract",
   "zenReview.documentReview": "Document Review",
   "zenReview.pressSpaceToReveal": "Press Space to reveal",
   "zenReview.noQuestion": "No question",
