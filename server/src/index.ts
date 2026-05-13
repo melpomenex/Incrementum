@@ -19,7 +19,9 @@ const PORT = process.env.PORT || 3000;
 const corsOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:15173'];
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+}));
 app.use(compression());
 app.use(cors({
     origin: corsOrigins,
