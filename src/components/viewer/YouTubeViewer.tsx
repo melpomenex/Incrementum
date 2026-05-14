@@ -934,6 +934,13 @@ export function YouTubeViewer({
 
   const displayTitle = resolvedTitle || title || t("viewer.youTubeVideo");
 
+  // WebKitGTK (Linux AppImage) serves pages from http://localhost:<random-port>,
+  // causing "Unable to post message to https://www.youtube.com" errors because
+  // the dynamic localhost origin mismatches during postMessage validation.
+  // Omit the origin parameter for Linux production builds so YouTube's iframe API
+  // skips origin checking; all other environments pass window.location.origin.
+  const omitOrigin = isTauri() && getPlatform() === 'linux' && import.meta.env.PROD;
+
   const youtubeOpts: YouTubeProps['opts'] = {
     host: embedHost,
     height: '100%',
@@ -945,7 +952,7 @@ export function YouTubeViewer({
       modestbranding: 1,
       rel: 0,
       playsinline: 1,
-      origin: window.location.origin,
+      ...(!omitOrigin ? { origin: window.location.origin } : {}),
     },
   };
 
