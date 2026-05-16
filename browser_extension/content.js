@@ -257,13 +257,18 @@
   loadPageExtracts();
   
   // Add visual indicator when page is saved
-  function showSaveIndicator(message) {
+  function showSaveIndicator(message, type = 'success') {
     // Remove any existing indicator
     const existing = document.getElementById('incrementum-save-indicator');
     if (existing) {
       existing.remove();
     }
-    
+
+    const backgrounds = {
+      success: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+    };
+
     // Create indicator
     const indicator = document.createElement('div');
     indicator.id = 'incrementum-save-indicator';
@@ -272,7 +277,7 @@
       position: fixed;
       top: 20px;
       right: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: ${backgrounds[type] || backgrounds.success};
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -1663,7 +1668,7 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     switch (message.action) {
       case 'showSaveIndicator':
-        showSaveIndicator(message.text || 'Saved to Incrementum');
+        showSaveIndicator(message.text || 'Saved to Incrementum', message.type || 'success');
         sendResponse({ success: true });
         break;
         

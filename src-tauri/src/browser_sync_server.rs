@@ -68,7 +68,7 @@ use crate::commands::rss_features::{
 use crate::commands::review::apply_review;
 use crate::database::Repository;
 use crate::error::AppError;
-use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode};
+use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, PodcastSearchResult, PodcastSearchResponse};
 use crate::podcast::parser::parse_podcast_feed;
 use crate::models::{Document, DocumentImageAsset, FileType, Extract, ItemType, LearningItem};
 use tauri::{AppHandle, Emitter, Manager};
@@ -479,6 +479,7 @@ pub async fn start_server(
         .route("/api/documents/:id", get(handle_get_document))
         .route("/api/documents/:id/progress", post(handle_update_progress))
         // Podcast endpoints
+        .route("/api/podcast/search", get(handle_podcast_search))
         .route("/api/podcast/subscribe", post(handle_podcast_subscribe))
         .route("/api/podcast/feeds", get(handle_podcast_list_feeds))
         .route("/api/podcast/feeds/:feed_id", delete(handle_podcast_unsubscribe))
@@ -1382,12 +1383,14 @@ async fn require_api_key(
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    // Allow unauthenticated health-check probes (the test flag)
+    // Public proxy endpoints — no API key needed
+    if request.uri().path() == "/api/podcast/search" {
+        return next.run(request).await;
+    }
+
+    // Browser extension sync endpoint — no API key needed
     if request.uri().path() == "/" && request.method() == "POST" {
-        // We'll let the handler check the test flag itself, but we need to
-        // peek at the body — too invasive. Instead, allow POST / through
-        // and let the handler deal with it (it only responds to test probes).
-        // A better approach: just exempt this one path.
+        return next.run(request).await;
     }
 
     if !is_automation_authorized(&state, &headers).await {
@@ -3010,6 +3013,49 @@ struct RenameFeedRequest {
     new_title: String,
 }
 
+#[derive(Deserialize)]
+struct PodcastSearchQuery {
+    q: Option<String>,
+}
+
+async fn handle_podcast_search(
+    Query(params): Query<PodcastSearchQuery>,
+) -> Response {
+    let q = params.q.unwrap_or_default();
+    let q = q.trim();
+    if q.is_empty() {
+        return (StatusCode::OK, Json(Vec::<PodcastSearchResult>::new())).into_response();
+    }
+
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("HTTP client error: {}", e)),
+    };
+
+    let response = match client
+        .post("https://apollo.rss.com/search/podcast-index/byterm")
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "q": q }))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => return error_response(StatusCode::BAD_GATEWAY, &format!("Search request failed: {}", e)),
+    };
+
+    if !response.status().is_success() {
+        return error_response(StatusCode::BAD_GATEWAY, &format!("Search API returned HTTP {}", response.status()));
+    }
+
+    match response.json::<PodcastSearchResponse>().await {
+        Ok(data) => (StatusCode::OK, Json(data.feeds.into_iter().map(Into::into).collect::<Vec<PodcastSearchResult>>())).into_response(),
+        Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("Failed to parse search response: {}", e)),
+    }
+}
+
 async fn handle_podcast_subscribe(
     State(state): State<ServerState>,
     Json(payload): Json<SubscribeRequest>,
@@ -3202,7 +3248,7 @@ async fn handle_podcast_get_episodes(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let include_played = params.get("include_played").map(|v| v == "true").unwrap_or(true);
-    match state.repo.get_podcast_episodes(&feed_id, Some(include_played)).await {
+    match state.repo.get_podcast_episodes(Some(&feed_id), Some(include_played)).await {
         Ok(episodes) => (StatusCode::OK, Json(episodes)).into_response(),
         Err(e) => error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
     }
@@ -3218,7 +3264,7 @@ async fn handle_podcast_get_episode_queue(
         Ok(feeds) => {
             let mut all_episodes: Vec<PodcastEpisode> = Vec::new();
             for feed in feeds {
-                if let Ok(episodes) = state.repo.get_podcast_episodes(&feed.id, Some(include_played)).await {
+                if let Ok(episodes) = state.repo.get_podcast_episodes(Some(&feed.id), Some(include_played)).await {
                     all_episodes.extend(episodes);
                 }
             }

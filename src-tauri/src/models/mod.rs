@@ -26,4 +26,4 @@ pub use video_extract::VideoExtract;
 pub use image_asset::{ImageAsset, ImageAssetWithUsage};
 pub use transcription_queue::{TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
 pub mod podcast;
-pub use podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed, ParsedPodcastEpisode};
+pub use podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed, ParsedPodcastEpisode, PodcastSearchResult, PodcastSearchResponse};

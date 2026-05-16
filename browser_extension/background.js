@@ -631,22 +631,18 @@ async function sendToIncrementum(data, options = {}) {
 }
 // Save link by opening a tab, extracting content, and saving
 async function saveLink(url, sourceTabId, linkText) {
+  // Resolve a title without opening a tab — use link text or hostname
+  let fallbackTitle = '';
   try {
-    console.log('[DEBUG] saveLink called for URL:', url);
+    fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    fallbackTitle = 'Saved link';
+  }
 
-    // Resolve a title without opening a tab — use link text or hostname
-    let fallbackTitle = '';
-    try {
-      fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      fallbackTitle = 'Saved link';
-    }
+  const resolvedLinkText = typeof linkText === 'string' ? linkText.trim() : '';
+  const title = resolvedLinkText || fallbackTitle;
 
-    const resolvedLinkText = typeof linkText === 'string' ? linkText.trim() : '';
-    const title = resolvedLinkText || fallbackTitle;
-
-    // Send URL-only to the app — the backend will fetch and extract
-    // clean article content via Readability (same pipeline as Import URL)
+  try {
     console.log('[DEBUG] Saving link as URL-only import:', url);
     const result = await sendToIncrementum({
       url,
@@ -654,25 +650,13 @@ async function saveLink(url, sourceTabId, linkText) {
       text: '',
       type: 'page'
     });
-    await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
+    const msg = result.success ? 'Link sent to Incrementum!' : 'Failed to save link';
+    await sendInPageToast(sourceTabId, result.success, msg);
     return result;
   } catch (error) {
     console.error('[DEBUG] Error in saveLink:', error);
-    // Fallback: save without content
-    let fallbackTitle = '';
-    try {
-      fallbackTitle = new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      fallbackTitle = 'Saved link';
-    }
-    const result = await sendToIncrementum({
-      url,
-      title: fallbackTitle,
-      text: '',
-      type: 'page'
-    });
-    await sendInPageToast(sourceTabId, result.success, 'Link sent to Incrementum!');
-    return result;
+    await sendInPageToast(sourceTabId, false, 'Failed to save link — server unreachable');
+    return { success: false, error: error.message };
   }
 }
 
@@ -739,14 +723,27 @@ async function createExtractFromSelection(selectedText, tab) {
 }
 
 async function sendInPageToast(tabId, success, message) {
-  if (!ENABLE_NOTIFICATIONS || !success || !tabId) {
+  if (!ENABLE_NOTIFICATIONS) {
     return;
   }
   try {
-    await safeSendTabMessage(tabId, {
-      action: 'showSaveIndicator',
-      text: message
-    });
+    if (tabId) {
+      await safeSendTabMessage(tabId, {
+        action: 'showSaveIndicator',
+        text: message,
+        type: success ? 'success' : 'error'
+      });
+    } else {
+      // Fallback to native notification when no tab context is available
+      if (chrome.notifications) {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon48.png',
+          title: 'Incrementum',
+          message: message
+        });
+      }
+    }
   } catch (error) {
     console.log('[DEBUG] Could not send in-page toast:', error.message);
   }

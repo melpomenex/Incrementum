@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Circle,
   RefreshCw,
-  Globe,
   Filter,
   Loader2,
   X,
@@ -34,14 +33,13 @@ import {
   refreshFeed,
   getPodcastEpisodes,
   markEpisodePlayed,
-  parsePodcastFeed,
   formatDuration,
   isValidPodcastUrl,
   downloadEpisodeAudio,
   getDownloadedEpisodePath,
   deleteDownloadedEpisode,
   probeAudioDuration,
-  discoverPodcasts,
+  searchPodcasts,
   renamePodcastFeed,
   transcribePodcastEpisode,
   getPodcastTranscript,
@@ -53,6 +51,7 @@ import type {
   PodcastFeed,
   PodcastEpisode,
   PodcastTranscriptResponse,
+  PodcastSearchResult,
 } from "../../api/podcast";
 import { isTauri, listen, convertFileSrc } from "../../lib/tauri";
 import {
@@ -88,10 +87,12 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [episodeSearch, setEpisodeSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "duration" | "title">("newest");
   const [isRefreshing, setIsRefreshing] = useState<string | null>(null);
-  const [showDiscover, setShowDiscover] = useState(false);
-  const [discoverResults, setDiscoverResults] = useState<
-    Awaited<ReturnType<typeof parsePodcastFeed>>[]
-  >([]);
+  const [podcastSearchQuery, setPodcastSearchQuery] = useState("");
+  const [podcastSearchResults, setPodcastSearchResults] = useState<PodcastSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
@@ -490,33 +491,46 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     }
   };
 
-  // Discover podcasts
-  const handleDiscover = async () => {
-    setShowDiscover(true);
-    try {
-      const feedUrls = await discoverPodcasts();
-      const results = await Promise.allSettled(
-        feedUrls.map((url) => parsePodcastFeed(url))
-      );
-      setDiscoverResults(
-        results
-          .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof parsePodcastFeed>>> =>
-            r.status === "fulfilled" && r.value !== null
-          )
-          .map((r) => r.value)
-      );
-    } catch (error) {
-      console.error("Failed to discover podcasts:", error);
+  // Debounced podcast search
+  const handleSearchChange = (value: string) => {
+    setPodcastSearchQuery(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!value.trim() || value.trim().length < 2) {
+      setPodcastSearchResults([]);
+      setSearchError(null);
+      return;
     }
+
+    setIsSearching(true);
+    setSearchError(null);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchPodcasts(value.trim());
+        setPodcastSearchResults(results);
+      } catch (error) {
+        setSearchError(error instanceof Error ? error.message : "Search failed");
+        setPodcastSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
   };
 
-  // Subscribe from discover
-  const handleSubscribeFromDiscover = async (feedUrl: string) => {
+  // Subscribe from search result (task 5.6 — already-subscribed check)
+  const handleSubscribeFromSearch = async (result: PodcastSearchResult) => {
+    const alreadySubscribed = feeds.some((f) => f.feedUrl === result.url);
+    if (alreadySubscribed) {
+      toast.info("Already subscribed", `You're already subscribed to "${result.title}"`);
+      return;
+    }
     try {
-      const feed = await subscribeToPodcast(feedUrl);
+      const feed = await subscribeToPodcast(result.url);
       setFeeds((prev) => [...prev, feed]);
       setSelectedFeedId(feed.id);
-      setShowDiscover(false);
+      setShowAddDialog(false);
+      setPodcastSearchQuery("");
+      setPodcastSearchResults([]);
       toast.success("Subscribed", `Added "${feed.title}"`);
     } catch (error) {
       toast.error(
@@ -901,18 +915,17 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             </h2>
             <div className="flex gap-1">
               <button
-                onClick={() => setShowAddDialog(true)}
+                onClick={() => {
+                  setShowAddDialog(true);
+                  setPodcastSearchQuery("");
+                  setPodcastSearchResults([]);
+                  setSearchError(null);
+                  setShowUrlInput(false);
+                }}
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                 title="Add podcast"
               >
                 <Plus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDiscover}
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                title="Discover podcasts"
-              >
-                <Globe className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1456,86 +1469,189 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         </div>
       )}
 
-      {/* Add Podcast Dialog */}
+      {/* Add Podcast Dialog (unified search) */}
       {showAddDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Add Podcast</h2>
-            <input
-              type="url"
-              value={newFeedUrl}
-              onChange={(e) => setNewFeedUrl(e.target.value)}
-              placeholder="https://example.com/podcast/feed.xml"
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-4"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddSubscription();
-              }}
-            />
-            <div className="flex gap-2 justify-end">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-2xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-foreground">Add Podcast</h2>
               <button
                 onClick={() => {
                   setShowAddDialog(false);
                   setNewFeedUrl("");
+                  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                 }}
-                className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddSubscription}
-                disabled={isAdding || !newFeedUrl}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isAdding ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                Add
+                <X className="w-5 h-5" />
               </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Discover Dialog */}
-      {showDiscover && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-foreground">Discover Podcasts</h2>
-              <button
-                onClick={() => setShowDiscover(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {discoverResults.map((result) => (
-                <div
-                  key={result.feedUrl}
-                  className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+            {/* Search input */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={podcastSearchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search for podcasts..."
+                className="w-full pl-9 pr-8 py-2.5 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+              {!isSearching && podcastSearchQuery && (
+                <button
+                  onClick={() => handleSearchChange("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {result.imageUrl && (
-                    <img
-                      src={result.imageUrl}
-                      alt={result.title}
-                      className="w-full h-32 object-cover rounded mb-2"
-                    />
-                  )}
-                  <h3 className="font-medium text-foreground text-sm mb-1">{result.title}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                    {result.description}
-                  </p>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Search results */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {searchError && (
+                <div className="p-4 text-center">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
+                  <p className="text-sm text-muted-foreground">{searchError}</p>
                   <button
-                    onClick={() => handleSubscribeFromDiscover(result.feedUrl)}
-                    className="w-full px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90"
+                    onClick={() => handleSearchChange(podcastSearchQuery)}
+                    className="mt-2 text-sm text-primary hover:underline"
                   >
-                    Subscribe
+                    Try again
                   </button>
                 </div>
-              ))}
+              )}
+
+              {!searchError && podcastSearchQuery.trim().length >= 2 && !isSearching && podcastSearchResults.length === 0 && (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No podcasts found for "{podcastSearchQuery}"</p>
+                  <p className="text-xs mt-1">Try different keywords</p>
+                </div>
+              )}
+
+              {!searchError && podcastSearchResults.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {podcastSearchResults.map((result) => {
+                    const isSubscribed = feeds.some((f) => f.feedUrl === result.url);
+                    return (
+                      <div
+                        key={result.url}
+                        className="p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors flex gap-3"
+                      >
+                        {/* Cover art */}
+                        {result.imageUrl ? (
+                          <img
+                            src={result.imageUrl}
+                            alt={result.title}
+                            className="w-16 h-16 rounded object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <Rss className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-foreground text-sm truncate">
+                            {result.title}
+                          </h3>
+                          {result.author && (
+                            <p className="text-xs text-muted-foreground truncate">{result.author}</p>
+                          )}
+                          {result.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                              {result.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {result.episodeCount != null && (
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                {result.episodeCount} episodes
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleSubscribeFromSearch(result)}
+                              disabled={isSubscribed}
+                              className={cn(
+                                "px-2.5 py-1 text-xs rounded font-medium transition-colors",
+                                isSubscribed
+                                  ? "bg-muted text-muted-foreground cursor-default"
+                                  : "bg-primary text-primary-foreground hover:opacity-90"
+                              )}
+                            >
+                              {isSubscribed ? "Subscribed" : "Subscribe"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Empty state / hint when no query */}
+              {!searchError && podcastSearchQuery.trim().length < 2 && (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Search for any podcast by name</p>
+                </div>
+              )}
+            </div>
+
+            {/* URL fallback */}
+            <div className="mt-3 pt-3 border-t border-border">
+              {showUrlInput ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm text-muted-foreground">Paste RSS feed URL:</span>
+                    <button
+                      onClick={() => setShowUrlInput(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={newFeedUrl}
+                      onChange={(e) => setNewFeedUrl(e.target.value)}
+                      placeholder="https://example.com/podcast/feed.xml"
+                      className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddSubscription();
+                      }}
+                    />
+                    <button
+                      onClick={handleAddSubscription}
+                      disabled={isAdding || !newFeedUrl}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1 text-sm"
+                    >
+                      {isAdding ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowUrlInput(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <Link className="w-3.5 h-3.5" />
+                  Paste a feed URL manually
+                </button>
+              )}
             </div>
           </div>
         </div>

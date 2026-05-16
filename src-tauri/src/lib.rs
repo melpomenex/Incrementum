@@ -1095,6 +1095,7 @@ pub fn run() {
             // Battery state command
             battery::get_battery_state,
             // Podcast commands
+            commands::search_podcasts,
             commands::subscribe_podcast,
             commands::unsubscribe_podcast,
             commands::rename_podcast_feed,
