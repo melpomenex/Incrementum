@@ -64,7 +64,7 @@ const PRESET_DESC_KEYS: Record<PriorityPreset, string> = {
   "maximize-retention": "queuePreset.maximizeRetentionDesc",
   "minimize-time": "queuePreset.minimizeTimeDesc",
   "aggressive-catchup": "queuePreset.aggressiveCatchUpDesc",
-  exploratory: "queuePreset.exploratoryLearningDesc",
+  exploratory: "queuePreset.exploratoryDesc",
   "project-focused": "queuePreset.projectFocusedDesc",
 };
 

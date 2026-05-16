@@ -66,6 +66,59 @@ export interface PodcastEpisode {
   transcriptText?: string | null;
 }
 
+export interface PodcastSearchResult {
+  title: string;
+  url: string;
+  author?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  link?: string | null;
+  episodeCount?: number | null;
+  categories?: Record<string, string> | null;
+}
+
+// ============================================================================
+// Podcast Search API
+// ============================================================================
+
+/**
+ * Search for podcasts by keyword via the RSS.com PodcastIndex API.
+ */
+export async function searchPodcasts(query: string): Promise<PodcastSearchResult[]> {
+  if (!query.trim()) return [];
+
+  if (isTauri()) {
+    return invokeCommand<PodcastSearchResult[]>("search_podcasts", { query });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+    return res.json();
+  }
+  // Browser fallback: try direct fetch, then CORS proxy
+  try {
+    const res = await fetch("https://apollo.rss.com/search/podcast-index/byterm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.feeds ?? [];
+  } catch {
+    // CORS proxy fallback
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://apollo.rss.com/search/podcast-index/byterm")}`;
+    const res = await fetch(proxyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query }),
+    });
+    if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+    const data = await res.json();
+    return data.feeds ?? [];
+  }
+}
+
 // ============================================================================
 // HTTP helpers (mirrors rss.ts / rss-classifiers.ts pattern)
 // ============================================================================
@@ -468,58 +521,6 @@ export async function setFeedAutoTranscribe(
 // ============================================================================
 
 /**
- * Preview/parse a podcast feed URL client-side (before subscribing).
- * The backend handles full parsing on subscribe, but this can be used for preview.
- */
-export async function parsePodcastFeed(feedUrl: string): Promise<{
-  title: string;
-  description: string;
-  imageUrl?: string;
-  author?: string;
-  feedUrl: string;
-  episodeCount: number;
-} | null> {
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`;
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error(`Failed to fetch feed: ${response.statusText}`);
-
-    const xmlText = await response.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-    if (xmlDoc.querySelector("parsererror")) return null;
-    const channel = xmlDoc.querySelector("channel");
-    if (!channel) return null;
-
-    const title = getElementText(channel, "title") || "Unknown Podcast";
-    const description =
-      getElementText(channel, "itunes\\:summary") ||
-      getElementText(channel, "description") ||
-      "";
-    const imageUrl =
-      getAttributeText(channel.querySelector("itunes\\:image"), "href") ||
-      getElementText(channel, "itunes\\:image") ||
-      getElementText(channel, "image > url") ||
-      undefined;
-    const author =
-      getElementText(channel, "itunes\\:author") ||
-      getElementText(channel, "managingEditor") ||
-      undefined;
-
-    const items = channel.querySelectorAll("item");
-    const episodeCount = Array.from(items).filter(
-      (item) => item.querySelector("enclosure")?.getAttribute("url")
-    ).length;
-
-    return { title, description, imageUrl, author, feedUrl, episodeCount };
-  } catch (error) {
-    console.error("Failed to preview podcast feed:", error);
-    return null;
-  }
-}
-
-/**
  * Validate podcast feed URL.
  */
 export function isValidPodcastUrl(url: string): boolean {
@@ -529,18 +530,6 @@ export function isValidPodcastUrl(url: string): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Discover popular podcasts (mock/curated data).
- */
-export async function discoverPodcasts(): Promise<string[]> {
-  return [
-    "https://feeds.npr.org/510289/podcast.xml",
-    "https://feeds.simplecast.com/qm_9xx0g",
-    "https://feeds.feedburner.com/tedtalks_audio",
-    "https://feeds.acast.com/public/shows/the-diary-of-a-ceo",
-  ];
 }
 
 /**
@@ -559,18 +548,4 @@ export function formatDuration(seconds: number): string {
     return `${hours}h ${minutes}m ${secs}s`;
   }
   return `${minutes}m ${secs}s`;
-}
-
-// ============================================================================
-// DOM helpers
-// ============================================================================
-
-function getElementText(parent: Element | null, selector: string): string | null {
-  if (!parent) return null;
-  const element = parent.querySelector(selector);
-  return element?.textContent?.trim() || null;
-}
-
-function getAttributeText(element: Element | null, attr: string): string | null {
-  return element?.getAttribute(attr) || null;
 }

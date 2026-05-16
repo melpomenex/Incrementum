@@ -10,7 +10,7 @@ use serde::{Serialize, Deserialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
-use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed};
+use crate::models::podcast::{PodcastFeed, PodcastFeedResponse, PodcastEpisode, ParsedPodcastFeed, PodcastSearchResult, PodcastSearchResponse};
 use crate::models::document::{Document, FileType};
 use crate::models::extract::Extract;
 use crate::podcast::parser::parse_podcast_feed;
@@ -25,7 +25,7 @@ use tokio::io::AsyncWriteExt;
 pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) -> Result<PodcastFeedResponse> {
     // Check if already subscribed
     if let Some(existing) = repo.get_podcast_feed_by_url(&feed_url).await? {
-        let episodes = repo.get_podcast_episodes(&existing.id, Some(true)).await?;
+        let episodes = repo.get_podcast_episodes(Some(&existing.id), Some(true)).await?;
         let episode_count = episodes.len() as i64;
         let unplayed_count = episodes.iter().filter(|e| !e.played).count() as i64;
         return Ok(PodcastFeedResponse {
@@ -248,14 +248,14 @@ pub async fn refresh_podcast_feed(
     Ok(response)
 }
 
-/// Get episodes for a podcast feed
+/// Get episodes for a podcast feed, or all episodes if feed_id is None
 #[tauri::command]
 pub async fn get_podcast_episodes(
-    feed_id: String,
+    feed_id: Option<String>,
     include_played: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<PodcastEpisode>> {
-    repo.get_podcast_episodes(&feed_id, include_played).await
+    repo.get_podcast_episodes(feed_id.as_deref(), include_played).await
 }
 
 /// Mark an episode as played or unplayed
@@ -886,4 +886,40 @@ pub async fn delete_downloaded_episode(episode_id: String) -> Result<()> {
             .map_err(|e| IncrementumError::Internal(format!("Failed to delete: {}", e)))?;
     }
     Ok(())
+}
+
+/// Search for podcasts via RSS.com PodcastIndex API
+#[tauri::command]
+pub async fn search_podcasts(query: String) -> Result<Vec<PodcastSearchResult>> {
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+
+    let response = client
+        .post("https://apollo.rss.com/search/podcast-index/byterm")
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "q": q }))
+        .send()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Search request failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(IncrementumError::Internal(format!(
+            "Search API returned HTTP {}",
+            response.status()
+        )));
+    }
+
+    let data: PodcastSearchResponse = response
+        .json()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to parse search response: {}", e)))?;
+
+    Ok(data.feeds.into_iter().map(Into::into).collect())
 }

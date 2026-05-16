@@ -3918,22 +3918,27 @@ impl Repository {
 
     pub async fn get_podcast_episodes(
         &self,
-        feed_id: &str,
+        feed_id: Option<&str>,
         include_played: Option<bool>,
     ) -> Result<Vec<crate::models::podcast::PodcastEpisode>> {
-        let sql = match include_played {
-            Some(false) => {
-                "SELECT * FROM podcast_episodes WHERE feed_id = ? AND played = 0 ORDER BY published_date DESC"
+        let rows = match (feed_id, include_played) {
+            (Some(id), Some(false)) => {
+                let sql = "SELECT * FROM podcast_episodes WHERE feed_id = ? AND played = 0 ORDER BY published_date DESC";
+                sqlx::query(sql).bind(id).fetch_all(self.pool()).await?
             }
-            _ => {
-                "SELECT * FROM podcast_episodes WHERE feed_id = ? ORDER BY published_date DESC"
+            (Some(id), _) => {
+                let sql = "SELECT * FROM podcast_episodes WHERE feed_id = ? ORDER BY published_date DESC";
+                sqlx::query(sql).bind(id).fetch_all(self.pool()).await?
+            }
+            (None, Some(false)) => {
+                let sql = "SELECT * FROM podcast_episodes WHERE played = 0 ORDER BY published_date DESC";
+                sqlx::query(sql).fetch_all(self.pool()).await?
+            }
+            (None, _) => {
+                let sql = "SELECT * FROM podcast_episodes ORDER BY published_date DESC";
+                sqlx::query(sql).fetch_all(self.pool()).await?
             }
         };
-
-        let rows = sqlx::query(sql)
-            .bind(feed_id)
-            .fetch_all(self.pool())
-            .await?;
 
         Ok(rows.iter().map(map_row_to_podcast_episode).collect())
     }

@@ -20,6 +20,9 @@ Incrementum-CPP
 vps-service/
 transcript-tester
 
+# Python scripts
+rss_podcast_search.py
+
 # Editor directories and files
 .env
 .vscode

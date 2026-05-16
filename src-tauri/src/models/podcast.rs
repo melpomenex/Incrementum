@@ -1,5 +1,7 @@
 //! Podcast data models
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// A subscribed podcast feed
@@ -80,4 +82,55 @@ pub struct ParsedPodcastEpisode {
     pub file_size: Option<i64>,
     pub image_url: Option<String>,
     pub link: Option<String>,
+}
+
+/// Raw search result from the RSS.com PodcastIndex API (matches upstream JSON)
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct RawPodcastSearchResult {
+    title: String,
+    url: String,
+    author: Option<String>,
+    description: Option<String>,
+    image: Option<String>,
+    artwork: Option<String>,
+    link: Option<String>,
+    episode_count: Option<i64>,
+    categories: Option<HashMap<String, String>>,
+}
+
+/// Search result returned to the frontend (normalized field names)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PodcastSearchResult {
+    pub title: String,
+    pub url: String,
+    pub author: Option<String>,
+    pub description: Option<String>,
+    pub image_url: Option<String>,
+    pub link: Option<String>,
+    pub episode_count: Option<i64>,
+    pub categories: Option<HashMap<String, String>>,
+}
+
+impl From<RawPodcastSearchResult> for PodcastSearchResult {
+    fn from(raw: RawPodcastSearchResult) -> Self {
+        Self {
+            title: raw.title,
+            url: raw.url,
+            author: raw.author,
+            description: raw.description,
+            image_url: raw.artwork.or(raw.image),
+            link: raw.link,
+            episode_count: raw.episode_count,
+            categories: raw.categories,
+        }
+    }
+}
+
+/// Response from the RSS.com PodcastIndex search API
+#[derive(Debug, Clone, Deserialize)]
+pub struct PodcastSearchResponse {
+    #[allow(dead_code)]
+    status: String,
+    pub feeds: Vec<RawPodcastSearchResult>,
 }
