@@ -62,6 +62,7 @@ pub async fn import_video_file(
     app_handle: AppHandle,
     source_path: String,
     title: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document, String> {
     let now = chrono::Utc::now();
@@ -121,7 +122,7 @@ pub async fn import_video_file(
         extracted_images: None,
     };
 
-    let mut document = Document::new(title, dest_path.to_string_lossy().to_string(), FileType::Video);
+    let mut document = Document::with_collection(title, dest_path.to_string_lossy().to_string(), FileType::Video, collection_id);
     document.category = Some("Videos".to_string());
     document.metadata = Some(metadata);
     document.current_page = Some(0);

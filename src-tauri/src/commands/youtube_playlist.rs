@@ -11,6 +11,7 @@ use crate::error::{Result, IncrementumError};
 async fn import_youtube_video_as_document(
     url: String,
     repo: &Repository,
+    collection_id: Option<String>,
 ) -> Result<Document> {
     // First, verify yt-dlp is available
     let ytdlp_available = crate::youtube::check_ytdlp_installed()
@@ -28,7 +29,7 @@ async fn import_youtube_video_as_document(
     let video_id = &info.id;
 
     // Create document record for YouTube video
-    let mut doc = Document::new(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube);
+    let mut doc = Document::with_collection(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube, collection_id);
 
     // Set YouTube-specific fields
     // Note: category is not set to avoid foreign key constraint issues
@@ -309,7 +310,7 @@ pub async fn refresh_playlist(
                             }
                             None => {
                                 // Import as new document
-                                match import_youtube_video_as_document(video_url, repo.inner()).await {
+                                match import_youtube_video_as_document(video_url, repo.inner(), None).await {
                                     Ok(doc) => {
                                         let _ = repo.mark_video_imported(&video_uuid, &doc.id).await;
                                         imported_count += 1;
@@ -374,7 +375,7 @@ pub async fn import_playlist_video(
 
     // Import the video
     let video_url = format!("https://www.youtube.com/watch?v={}", video_id);
-    let doc = import_youtube_video_as_document(video_url, repo.inner()).await?;
+    let doc = import_youtube_video_as_document(video_url, repo.inner(), None).await?;
 
     // Mark as imported
     repo.mark_video_imported(&playlist_video_id, &doc.id).await?;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTabsStore } from "../../stores";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useCollectionStore } from "../../stores/collectionStore";
 import type { TabType } from "../../stores/tabsStore";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -44,16 +45,17 @@ export function DashboardTab() {
   const { t } = useI18n();
   const { addTab } = useTabsStore();
   const documents = useDocumentStore((state) => state.documents);
+  const activeCollectionId = useCollectionStore((s) => s.activeCollectionId);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [activeCollectionId]);
 
   const loadStats = async () => {
     try {
-      const data = await getDashboardStats();
+      const data = await getDashboardStats(activeCollectionId ?? undefined);
       setStats(data);
     } catch (error) {
       console.error("Failed to load dashboard stats:", error);

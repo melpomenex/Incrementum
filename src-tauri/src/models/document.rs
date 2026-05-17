@@ -100,9 +100,13 @@ pub struct DocumentMetadata {
 
 impl Document {
     pub fn new(title: String, file_path: String, file_type: FileType) -> Self {
+        Self::with_collection(title, file_path, file_type, None)
+    }
+
+    pub fn with_collection(title: String, file_path: String, file_type: FileType, collection_id: Option<String>) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
-            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
+            collection_id: collection_id.unwrap_or_else(|| super::collection::DEFAULT_COLLECTION_ID.to_string()),
             title,
             file_path,
             file_type,

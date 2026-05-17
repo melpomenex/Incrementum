@@ -262,6 +262,7 @@ fn build_learning_item(
 #[tauri::command]
 pub async fn import_study_json_file(
     file_path: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<StudyJsonImportResult> {
     let deck = parse_study_json_file(&file_path)?;
@@ -271,10 +272,11 @@ pub async fn import_study_json_file(
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown.json");
-    let mut doc = Document::new(
+    let mut doc = Document::with_collection(
         deck.deck_name.clone(),
         format!("study-json://{}", filename),
         FileType::Other,
+        collection_id,
     );
     doc.category = Some(deck.subject.clone());
     doc.tags = vec![

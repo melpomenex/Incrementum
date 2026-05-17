@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, Download, Upload } from 'lucide-react';
 import { useCollectionStore } from '../../stores/collectionStore';
 import { DEFAULT_COLLECTION_ID } from '../../types/collection';
+import { buildCollectionArchive } from '../../utils/collectionArchive';
+import { invokeCommand, isTauri, openFilePicker } from '../../lib/tauri';
+import { useToast } from '../common/Toast';
 
 export function CollectionSwitcher() {
   const collections = useCollectionStore((s) => s.collections);
@@ -16,8 +19,11 @@ export function CollectionSwitcher() {
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const active = collections.find((c) => c.id === activeCollectionId);
 
@@ -63,6 +69,66 @@ export function CollectionSwitcher() {
       setIsOpen(false);
     } else {
       setConfirmDeleteId(id);
+    }
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const { blob, filename } = await buildCollectionArchive({
+        scope: 'current',
+        activeCollectionId,
+        collections,
+      });
+      if (isTauri()) {
+        const [{ save }, { writeFile }] = await Promise.all([
+          import('@tauri-apps/plugin-dialog'),
+          import('@tauri-apps/plugin-fs'),
+        ]);
+        const savePath = await save({
+          defaultPath: filename,
+          filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+        });
+        if (!savePath) { setExporting(false); return; }
+        const buffer = await blob.arrayBuffer();
+        await writeFile(savePath, new Uint8Array(buffer));
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      toast.success('Export complete', `Exported to ${filename}`);
+      setIsOpen(false);
+    } catch (err) {
+      toast.error('Export failed', err instanceof Error ? err.message : String(err));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const files = await openFilePicker({
+        multiple: false,
+        filters: [{ name: 'Collection Archive', extensions: ['zip'] }],
+      });
+      if (!files || files.length === 0) { setImporting(false); return; }
+      const filePath = (files[0] as string & { path?: string }).path || files[0];
+      const result = await invokeCommand<string>('import_collection_archive_merge', { archivePath: filePath });
+      await useCollectionStore.getState().loadCollections();
+      await refreshDueCounts();
+      toast.success('Import complete', result);
+      setIsOpen(false);
+    } catch (err) {
+      toast.error('Import failed', err instanceof Error ? err.message : String(err));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -112,13 +178,33 @@ export function CollectionSwitcher() {
           </div>
 
           {!showCreate ? (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 border-t border-border hover:bg-muted transition-colors text-left"
-            >
-              <Plus className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">New Collection</span>
-            </button>
+            <>
+              <div className="border-t border-border">
+                <button
+                  onClick={handleExport}
+                  disabled={exporting || activeCollectionId === DEFAULT_COLLECTION_ID}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-left disabled:opacity-50"
+                >
+                  <Download className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{exporting ? 'Exporting...' : 'Export Collection'}</span>
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={importing}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-left disabled:opacity-50"
+                >
+                  <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{importing ? 'Importing...' : 'Import Collection'}</span>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 border-t border-border hover:bg-muted transition-colors text-left"
+              >
+                <Plus className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">New Collection</span>
+              </button>
+            </>
           ) : (
             <div className="p-2 border-t border-border" onMouseDown={(e) => e.stopPropagation()}>
               <input

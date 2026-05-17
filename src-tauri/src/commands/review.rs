@@ -1,6 +1,7 @@
 //! Review commands using FSRS algorithm
 
 use tauri::State;
+use sqlx::Row;
 use chrono::{Utc, Duration};
 use crate::database::Repository;
 use crate::error::Result;
@@ -884,6 +885,91 @@ pub struct PreviewIntervals {
     pub hard: f64,
     pub good: f64,
     pub easy: f64,
+}
+
+/// Get all review sessions for a specific collection
+#[tauri::command]
+pub async fn get_review_sessions_by_collection(
+    collection_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Vec<serde_json::Value>> {
+    let rows = sqlx::query(
+        r#"SELECT id, collection_id, start_time, end_time, items_reviewed, correct_answers, total_time
+           FROM review_sessions WHERE collection_id = ?1"#
+    )
+    .bind(&collection_id)
+    .fetch_all(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Database(e))?;
+
+    Ok(rows.iter().map(|row| {
+        serde_json::json!({
+            "id": row.get::<String, _>("id"),
+            "collectionId": row.get::<String, _>("collection_id"),
+            "startTime": row.get::<String, _>("start_time"),
+            "endTime": row.get::<Option<String>, _>("end_time"),
+            "itemsReviewed": row.get::<i32, _>("items_reviewed"),
+            "correctAnswers": row.get::<i32, _>("correct_answers"),
+            "totalTime": row.get::<i32, _>("total_time"),
+        })
+    }).collect())
+}
+
+/// Get all review results (used for export)
+#[tauri::command]
+pub async fn get_all_review_results(
+    repo: State<'_, Repository>,
+) -> Result<Vec<serde_json::Value>> {
+    let rows = sqlx::query(
+        r#"SELECT id, collection_id, session_id, item_id, rating, time_taken,
+                  new_due_date, new_interval, new_ease_factor, timestamp
+           FROM review_results"#
+    )
+    .fetch_all(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Database(e))?;
+
+    Ok(rows.iter().map(|row| {
+        serde_json::json!({
+            "id": row.get::<String, _>("id"),
+            "collectionId": row.get::<String, _>("collection_id"),
+            "reviewSessionId": row.get::<Option<String>, _>("session_id"),
+            "itemId": row.get::<String, _>("item_id"),
+            "rating": row.get::<i32, _>("rating"),
+            "timeTaken": row.get::<i32, _>("time_taken"),
+            "newDueDate": row.get::<Option<String>, _>("new_due_date"),
+            "newInterval": row.get::<f64, _>("new_interval"),
+            "newEaseFactor": row.get::<f64, _>("new_ease_factor"),
+            "timestamp": row.get::<String, _>("timestamp"),
+        })
+    }).collect())
+}
+
+/// Get all categories for a specific collection
+#[tauri::command]
+pub async fn get_categories_by_collection(
+    collection_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Vec<serde_json::Value>> {
+    let rows = sqlx::query(
+        r#"SELECT id, name, color, icon, parent_id, collection_id
+           FROM categories WHERE collection_id = ?1"#
+    )
+    .bind(&collection_id)
+    .fetch_all(repo.pool())
+    .await
+    .map_err(|e| crate::error::IncrementumError::Database(e))?;
+
+    Ok(rows.iter().map(|row| {
+        serde_json::json!({
+            "id": row.get::<String, _>("id"),
+            "name": row.get::<String, _>("name"),
+            "color": row.get::<Option<String>, _>("color"),
+            "icon": row.get::<Option<String>, _>("icon"),
+            "parentId": row.get::<Option<String>, _>("parent_id"),
+            "collectionId": row.get::<String, _>("collection_id"),
+        })
+    }).collect())
 }
 
 #[cfg(test)]

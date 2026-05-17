@@ -82,6 +82,22 @@ export async function buildCollectionArchive(options: {
     return false;
   });
 
+  // Fetch review sessions/results and categories scoped to the collection
+  let reviewSessions: unknown[] = [];
+  let reviewResults: unknown[] = [];
+  let categories: unknown[] = [];
+  try {
+    if (options.scope === "current" && options.activeCollectionId) {
+      reviewSessions = await invokeCommand<unknown[]>("get_review_sessions_by_collection", { collectionId: options.activeCollectionId });
+      const sessionIds = new Set((reviewSessions as Array<{ id: string }>).map((s) => s.id));
+      const allResults = await invokeCommand<unknown[]>("get_all_review_results");
+      reviewResults = (allResults as Array<{ reviewSessionId: string }>).filter((r) => sessionIds.has(r.reviewSessionId));
+      categories = await invokeCommand<unknown[]>("get_categories_by_collection", { collectionId: options.activeCollectionId });
+    }
+  } catch {
+    // Review data is optional — continue without it
+  }
+
   const zip = new JSZip();
   const files: ArchiveFileEntry[] = [];
 
@@ -146,13 +162,22 @@ export async function buildCollectionArchive(options: {
     collections: collectionsPayload,
     settings,
     localStorage: localStorageDump,
+    reviewSessions,
+    reviewResults,
+    categories,
   };
+
+  const collectionName = options.scope === "current" && options.activeCollectionId
+    ? options.collections.find((c) => c.id === options.activeCollectionId)?.name ?? null
+    : null;
 
   const manifest: CollectionArchiveManifest = {
     archiveType: "incrementum-collection-export",
     version: "1.0",
     exportedAt: new Date().toISOString(),
     scope: options.scope,
+    collectionId: options.activeCollectionId,
+    collectionName,
   };
 
   zip.file("manifest.json", JSON.stringify(manifest, null, 2));

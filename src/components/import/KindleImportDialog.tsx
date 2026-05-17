@@ -21,6 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { useCollectionStore } from "../../stores/collectionStore";
 import type {
   KindlePreviewResult,
   KindleBookPreview,
@@ -83,7 +84,8 @@ export function KindleImportDialog({
     setState("importing");
     setError(null);
     try {
-      const result = await importKindleClippings(filePath);
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const result = await importKindleClippings(filePath, collectionId);
       setImportResult(result);
       setState("done");
       onImportComplete?.(result);

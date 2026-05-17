@@ -604,6 +604,7 @@ pub async fn validate_kindle_clippings_preview(
 pub async fn do_import_kindle_clippings(
     path: &str,
     repo: &Repository,
+    collection_id: Option<String>,
 ) -> Result<KindleImportResult> {
     let file_mtime: Option<DateTime<Utc>> = fs::metadata(path)
         .ok()
@@ -665,7 +666,7 @@ pub async fn do_import_kindle_clippings(
                 Some(content_parts.join("\n\n---\n\n"))
             };
 
-            let mut new_doc = Document::new(title, synthetic_path, FileType::Other);
+            let mut new_doc = Document::with_collection(title, synthetic_path, FileType::Other, collection_id.clone());
             new_doc.category = Some("Kindle".to_string());
             new_doc.tags = vec!["kindle-import".to_string()];
             new_doc.content = doc_content;
@@ -925,9 +926,10 @@ pub async fn validate_kindle_clippings(
 #[tauri::command]
 pub async fn import_kindle_clippings_file(
     file_path: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<KindleImportResult> {
-    do_import_kindle_clippings(&file_path, &repo).await
+    do_import_kindle_clippings(&file_path, &repo, collection_id).await
 }
 
 #[tauri::command]

@@ -21,6 +21,7 @@ pub struct RssFeed {
     pub date_added: String,
     pub auto_queue: bool,
     pub auto_fetch_full_content: Option<String>, // 'always', 'favorites', 'manual'
+    pub collection_id: String,
 }
 
 /// RSS article model
@@ -114,10 +115,12 @@ pub async fn create_rss_feed(
     category: Option<String>,
     update_interval: Option<i32>,
     auto_queue: Option<bool>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<RssFeed> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
+    let cid = collection_id.unwrap_or_else(|| crate::models::collection::DEFAULT_COLLECTION_ID.to_string());
 
     let feed = RssFeed {
         id: id.clone(),
@@ -131,13 +134,14 @@ pub async fn create_rss_feed(
         date_added: now,
         auto_queue: auto_queue.unwrap_or(false),
         auto_fetch_full_content: Some("manual".to_string()),
+        collection_id: cid,
     };
 
     // Insert feed into database
     sqlx::query(
         r#"
-        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue, auto_fetch_full_content)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        INSERT INTO rss_feeds (id, url, title, description, category, update_interval, last_fetched, is_active, date_added, auto_queue, auto_fetch_full_content, collection_id)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
         "#,
     )
     .bind(&feed.id)
@@ -151,6 +155,7 @@ pub async fn create_rss_feed(
     .bind(&feed.date_added)
     .bind(feed.auto_queue)
     .bind(&feed.auto_fetch_full_content)
+    .bind(&feed.collection_id)
     .execute(repo.pool())
     .await
     .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create RSS feed: {}", e)))?;
@@ -158,10 +163,12 @@ pub async fn create_rss_feed(
     Ok(feed)
 }
 
-/// Get all RSS feeds
+/// Get all RSS feeds, optionally filtered by collection
 #[tauri::command]
-pub async fn get_rss_feeds(repo: State<'_, Repository>) -> Result<Vec<RssFeed>> {
-    let rows = sqlx::query("SELECT * FROM rss_feeds ORDER BY title")
+pub async fn get_rss_feeds(collection_id: Option<String>, repo: State<'_, Repository>) -> Result<Vec<RssFeed>> {
+    let cid = collection_id.unwrap_or_else(|| crate::models::collection::DEFAULT_COLLECTION_ID.to_string());
+    let rows = sqlx::query("SELECT * FROM rss_feeds WHERE collection_id = ? ORDER BY title")
+        .bind(&cid)
         .fetch_all(repo.pool())
         .await
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to fetch RSS feeds: {}", e)))?;
@@ -180,6 +187,7 @@ pub async fn get_rss_feeds(repo: State<'_, Repository>) -> Result<Vec<RssFeed>> 
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
             auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
+            collection_id: row.try_get("collection_id").unwrap_or_else(|_| crate::models::collection::DEFAULT_COLLECTION_ID.to_string()),
         });
     }
 
@@ -208,6 +216,7 @@ pub async fn get_rss_feed(id: String, repo: State<'_, Repository>) -> Result<Opt
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
             auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
+            collection_id: row.try_get("collection_id").unwrap_or_else(|_| crate::models::collection::DEFAULT_COLLECTION_ID.to_string()),
         })),
         None => Ok(None),
     }
@@ -1040,6 +1049,7 @@ pub async fn create_rss_feed_http(
         date_added: now,
         auto_queue: auto_queue.unwrap_or(false),
         auto_fetch_full_content: Some("manual".to_string()),
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
     };
 
     sqlx::query(
@@ -1087,6 +1097,7 @@ pub async fn get_rss_feeds_http(repo: &Repository) -> Result<Vec<RssFeed>> {
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
             auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
+            collection_id: row.try_get("collection_id").unwrap_or_else(|_| crate::models::collection::DEFAULT_COLLECTION_ID.to_string()),
         });
     }
 
@@ -1114,6 +1125,7 @@ pub async fn get_rss_feed_http(id: &str, repo: &Repository) -> Result<Option<Rss
             date_added: row.get("date_added"),
             auto_queue: row.get("auto_queue"),
             auto_fetch_full_content: row.try_get("auto_fetch_full_content").ok(),
+            collection_id: row.try_get("collection_id").unwrap_or_else(|_| crate::models::collection::DEFAULT_COLLECTION_ID.to_string()),
         })),
         None => Ok(None),
     }

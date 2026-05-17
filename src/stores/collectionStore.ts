@@ -12,6 +12,7 @@ import type { Collection } from "../types/collection";
 import { DEFAULT_COLLECTION_ID } from "../types/collection";
 import { useQueueStore } from "./queueStore";
 import { useAnalyticsStore } from "./analyticsStore";
+import { useDocumentStore } from "./documentStore";
 
 interface CollectionState {
   collections: Collection[];
@@ -57,6 +58,10 @@ export const useCollectionStore = create<CollectionState>()((set, get) => ({
       activeCollectionId: collection.id,
     }));
     await apiSetActiveCollection(collection.id);
+    // Reload data for the new (empty) collection so stale documents don't linger
+    useDocumentStore.getState().loadDocuments();
+    useQueueStore.getState().loadQueue();
+    useAnalyticsStore.getState().loadDashboardStats();
     return collection;
   },
 
@@ -84,6 +89,7 @@ export const useCollectionStore = create<CollectionState>()((set, get) => ({
   switchCollection: async (id) => {
     set({ activeCollectionId: id });
     await apiSetActiveCollection(id);
+    useDocumentStore.getState().loadDocuments();
     useQueueStore.getState().loadQueue();
     useAnalyticsStore.getState().loadDashboardStats();
   },

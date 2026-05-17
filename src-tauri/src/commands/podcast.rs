@@ -731,6 +731,7 @@ pub async fn cancel_podcast_transcription(
 #[tauri::command]
 pub async fn import_podcast_episode_as_document(
     episode_id: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
     // 1. Get episode
@@ -745,7 +746,7 @@ pub async fn import_podcast_episode_as_document(
     }
 
     // 3. Create a new Document record
-    let mut doc = Document::new(episode.title, episode.audio_url, FileType::Audio);
+    let mut doc = Document::with_collection(episode.title, episode.audio_url, FileType::Audio, collection_id);
     doc.date_added = Utc::now();
     doc.date_modified = Utc::now();
     doc.next_reading_date = Some(Utc::now()); // Make it due immediately

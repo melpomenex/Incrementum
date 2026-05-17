@@ -16,11 +16,11 @@ function isWebMode(): boolean {
   return !isTauri();
 }
 
-export async function getDocuments(): Promise<Document[]> {
+export async function getDocuments(collectionId?: string): Promise<Document[]> {
   if (isWebMode()) {
-    return await browserInvoke<Document[]>("get_documents");
+    return await browserInvoke<Document[]>("get_documents", { collectionId: collectionId ?? null });
   }
-  return await invokeCommand<Document[]>("get_documents");
+  return await invokeCommand<Document[]>("get_documents", { collectionId: collectionId ?? null });
 }
 
 export async function getDocument(id: string): Promise<Document | null> {
@@ -40,19 +40,22 @@ export async function resolveDocumentCover(id: string): Promise<Document | null>
 export async function createDocument(
   title: string,
   filePath: string,
-  fileType: string
+  fileType: string,
+  collectionId?: string
 ): Promise<Document> {
   if (isWebMode()) {
     return await browserInvoke<Document>("create_document", {
       title,
       filePath,
       fileType,
+      collectionId: collectionId ?? null,
     });
   }
   return await invokeCommand<Document>("create_document", {
     title,
     filePath,
     fileType,
+    collectionId: collectionId ?? null,
   });
 }
 
@@ -105,18 +108,18 @@ export async function deleteDocument(id: string): Promise<void> {
   }
 }
 
-export async function importDocument(filePath: string): Promise<Document> {
+export async function importDocument(filePath: string, collectionId?: string): Promise<Document> {
   if (isWebMode()) {
-    return await browserInvoke<Document>("import_document", { filePath });
+    return await browserInvoke<Document>("import_document", { filePath, collectionId: collectionId ?? null });
   }
-  return await invokeCommand<Document>("import_document", { filePath });
+  return await invokeCommand<Document>("import_document", { filePath, collectionId: collectionId ?? null });
 }
 
-export async function importDocuments(filePaths: string[]): Promise<Document[]> {
+export async function importDocuments(filePaths: string[], collectionId?: string): Promise<Document[]> {
   if (isWebMode()) {
-    return await browserInvoke<Document[]>("import_documents", { filePaths });
+    return await browserInvoke<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null });
   }
-  return await invokeCommand<Document[]>("import_documents", { filePaths });
+  return await invokeCommand<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null });
 }
 
 export async function importPdfHighlightsAsExtracts(documentId: string): Promise<number> {
@@ -258,11 +261,11 @@ export async function fetchUrlContent(url: string): Promise<FetchedUrlContent> {
 /**
  * Import a YouTube video as a document
  */
-export async function importYouTubeVideo(url: string): Promise<Document> {
+export async function importYouTubeVideo(url: string, collectionId?: string): Promise<Document> {
   if (isWebMode()) {
-    return await browserInvoke<Document>("import_youtube_video", { url });
+    return await browserInvoke<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
   }
-  return await invokeCommand<Document>("import_youtube_video", { url });
+  return await invokeCommand<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
 }
 
 /**

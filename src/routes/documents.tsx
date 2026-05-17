@@ -13,6 +13,7 @@ import { useI18n } from "../lib/i18n";
 import { importSuperMemoPackage, convertSuperMemoCollectionToDocuments } from "../utils/supermemoImport";
 import * as documentsApi from "../api/documents";
 import { invokeCommand } from "../lib/tauri";
+import { useCollectionStore } from "../stores/collectionStore";
 
 export function Documents() {
   const { t } = useI18n();
@@ -86,7 +87,7 @@ export function Documents() {
             for (const jsonPath of jsonPaths) {
               const result = await invokeCommand<{ deck_name: string; document_id: string; cards_imported: number }>(
                 "import_study_json_file",
-                { filePath: jsonPath }
+                { filePath: jsonPath, collectionId: useCollectionStore.getState().activeCollectionId }
               );
               console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards`);
               useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
@@ -150,7 +151,7 @@ export function Documents() {
         try {
           const result = await invokeCommand<{ deck_name: string; document_id: string; cards_imported: number; cards_skipped: number }>(
             "import_study_json_file",
-            { filePath: data.filePath }
+            { filePath: data.filePath, collectionId: useCollectionStore.getState().activeCollectionId }
           );
           console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards (${result.cards_skipped} duplicates skipped)`);
           useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);

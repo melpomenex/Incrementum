@@ -13,6 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useI18n } from "../lib/i18n";
+import { useCollectionStore } from "../stores/collectionStore";
 
 type SearchResultType = "document" | "extract" | "flashcard";
 
@@ -84,7 +85,8 @@ export function SearchPage() {
 
     try {
       if (selectedFilters.has("document")) {
-        const documents = await invokeCommand<any[]>("get_documents");
+        const collectionId = useCollectionStore.getState().activeCollectionId || null;
+        const documents = await invokeCommand<any[]>("get_documents", { collectionId });
         documents.forEach((doc: any) => {
           if (
             doc.title?.toLowerCase().includes(query.toLowerCase()) ||

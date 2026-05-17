@@ -419,7 +419,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       try {
         const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
           "import_study_json_file",
-          { filePath }
+          { filePath, collectionId: useCollectionStore.getState().activeCollectionId }
         );
         useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
         console.log("JSON deck imported successfully");
@@ -475,7 +475,8 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     setYoutubeLoading(true);
     setYoutubeError(null);
     try {
-      const document = await importYouTubeVideo(youtubeUrl.trim());
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const document = await importYouTubeVideo(youtubeUrl.trim(), collectionId);
 
       // Extract timestamp from URL if present (e.g., ?t=933)
       const timestamp = extractYouTubeTimestamp(youtubeUrl.trim());
