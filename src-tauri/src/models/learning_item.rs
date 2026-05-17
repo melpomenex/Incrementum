@@ -36,6 +36,7 @@ impl From<i32> for ReviewRating {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LearningItem {
     pub id: String,
+    pub collection_id: String,
     pub extract_id: Option<String>,
     pub document_id: Option<String>,
     pub item_type: ItemType,
@@ -87,6 +88,7 @@ impl LearningItem {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
+            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
             extract_id: None,
             document_id: None,
             item_type,

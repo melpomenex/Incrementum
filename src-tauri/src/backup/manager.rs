@@ -498,6 +498,7 @@ impl BackupManager {
 
             let doc = Document {
                 id: row.get("id"),
+                collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
                 title: row.get("title"),
                 file_path: row.get("file_path"),
                 file_type,

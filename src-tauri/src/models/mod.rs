@@ -20,7 +20,7 @@ pub use category::Category;
 pub use queue::QueueItem;
 pub use position::{DocumentPosition, Bookmark, ReadingSession, DailyReadingStats};
 pub use reading_goal::{ReadingGoal, GoalType, GoalProgress, Achievement, AchievementCategory, ReadingStreak};
-pub use collection::{Collection, CollectionType, DocumentCollection, SmartCollectionFilter};
+pub use collection::{Collection, DEFAULT_COLLECTION_ID};
 pub use playlist::{PlaylistSubscription, PlaylistVideo, PlaylistSettings};
 pub use video_extract::VideoExtract;
 pub use image_asset::{ImageAsset, ImageAssetWithUsage};

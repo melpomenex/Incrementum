@@ -196,6 +196,10 @@ if (isNetworkDebugEnabled()) {
 // Initialize PWA (works in both Tauri and Web)
 initializePWA();
 
+// Load collections from database
+import { useCollectionStore } from "./stores/collectionStore";
+useCollectionStore.getState().loadCollections();
+
 // Dynamically load only the user's selected font from bundled @fontsource packages.
 // Inter is imported statically as the critical default (see utils/fonts.ts).
 try {

@@ -18,6 +18,7 @@ pub struct ProgressiveSummaryEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Extract {
     pub id: String,
+    pub collection_id: String,
     pub document_id: String,
     /// Plain text content (for search, AI processing, and fallback display)
     pub content: String,
@@ -56,6 +57,7 @@ impl Extract {
     pub fn new(document_id: String, content: String) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
+            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
             document_id,
             content,
             html_content: None,

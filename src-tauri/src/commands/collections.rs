@@ -1,46 +1,40 @@
 //! Collections commands for organizing documents
 
-use crate::models::collection::{Collection, CollectionType, DocumentCollection, SmartCollectionFilter};
-use std::sync::Arc;
+use crate::models::collection::{Collection, DEFAULT_COLLECTION_ID};
+use crate::database::Repository;
+use sqlx::Row;
+use tauri::State;
 
 #[tauri::command]
 pub async fn create_collection(
     name: String,
-    collection_type: String,
-    filter_query: Option<String>,
     icon: Option<String>,
     color: Option<String>,
+    repo: State<'_, Repository>,
 ) -> Result<Collection, String> {
-    let collection_type_enum = CollectionType::from_str(&collection_type)
-        .ok_or_else(|| format!("Invalid collection type: {}", collection_type))?;
-
-    let mut collection = Collection::new(name);
-    collection.collection_type = collection_type_enum;
-    collection.filter_query = filter_query;
-    collection.icon = icon;
-    collection.color = color;
-
-    // TODO: Save to database
-    Ok(collection)
+    repo.create_collection(&name, icon.as_deref(), color.as_deref())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_collections() -> Result<Vec<Collection>, String> {
-    // TODO: Fetch from database
-    // Return default collections for now
-    Ok(vec![
-        Collection::to_read(),
-        Collection::in_progress(),
-        Collection::completed(),
-        Collection::favorites(),
-        Collection::recent(),
-    ])
+pub async fn get_collections(
+    repo: State<'_, Repository>,
+) -> Result<Vec<Collection>, String> {
+    repo.get_collections()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_collection(id: String) -> Result<Collection, String> {
-    // TODO: Fetch from database
-    Err("Not implemented".to_string())
+pub async fn get_collection(
+    id: String,
+    repo: State<'_, Repository>,
+) -> Result<Collection, String> {
+    repo.get_collection(&id)
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|opt| opt.ok_or_else(|| "Collection not found".to_string()))
 }
 
 #[tauri::command]
@@ -49,61 +43,61 @@ pub async fn update_collection(
     name: Option<String>,
     icon: Option<String>,
     color: Option<String>,
-    filter_query: Option<String>,
+    repo: State<'_, Repository>,
 ) -> Result<Collection, String> {
-    // TODO: Update in database
-    Err("Not implemented".to_string())
+    repo.update_collection(&id, name.as_deref(), icon.as_deref(), color.as_deref())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn delete_collection(id: String) -> Result<(), String> {
-    // TODO: Delete from database
-    Err("Not implemented".to_string())
-}
-
-#[tauri::command]
-pub async fn add_document_to_collection(
-    document_id: String,
-    collection_id: String,
+pub async fn delete_collection(
+    id: String,
+    repo: State<'_, Repository>,
 ) -> Result<(), String> {
-    // TODO: Add document_collection record to database
-    Err("Not implemented".to_string())
+    repo.delete_collection(&id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn remove_document_from_collection(
-    document_id: String,
-    collection_id: String,
+pub async fn get_active_collection(
+    repo: State<'_, Repository>,
+) -> Result<String, String> {
+    let setting = sqlx::query("SELECT value FROM settings WHERE key = 'active_collection_id'")
+        .fetch_optional(repo.pool())
+        .await
+        .map_err(|e| e.to_string())?;
+    match setting {
+        Some(row) => Ok(row.get::<String, _>("value")),
+        None => Ok(DEFAULT_COLLECTION_ID.to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn set_active_collection(
+    id: String,
+    repo: State<'_, Repository>,
 ) -> Result<(), String> {
-    // TODO: Remove document_collection record from database
-    Err("Not implemented".to_string())
+    let now = chrono::Utc::now();
+    sqlx::query(
+        "INSERT INTO settings (key, value, date_modified) VALUES ('active_collection_id', ?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = ?1, date_modified = ?2"
+    )
+    .bind(&id)
+    .bind(now)
+    .execute(repo.pool())
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn get_collection_documents(collection_id: String) -> Result<Vec<String>, String> {
-    // TODO: Fetch document IDs for this collection
-    // For smart collections, run the filter query
-    Ok(vec![])
-}
-
-#[tauri::command]
-pub async fn get_document_collections(document_id: String) -> Result<Vec<Collection>, String> {
-    // TODO: Fetch all collections containing this document
-    Ok(vec![])
-}
-
-#[tauri::command]
-pub async fn get_smart_collection_preview(
-    filter_query: String,
-) -> Result<Vec<String>, String> {
-    // TODO: Run the filter query and return matching document IDs
-    Ok(vec![])
-}
-
-#[tauri::command]
-pub async fn reorder_collections(
-    collection_ids: Vec<String>,
-) -> Result<(), String> {
-    // TODO: Update sort order for collections
-    Err("Not implemented".to_string())
+pub async fn get_collection_due_count(
+    id: String,
+    repo: State<'_, Repository>,
+) -> Result<i64, String> {
+    repo.get_collection_due_count(&id)
+        .await
+        .map_err(|e| e.to_string())
 }

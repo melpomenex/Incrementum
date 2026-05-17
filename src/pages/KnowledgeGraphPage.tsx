@@ -49,7 +49,6 @@ export function KnowledgeGraphPage() {
   const { addTab } = useTabsStore();
   const toast = useToast();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
-  const documentAssignments = useCollectionStore((state) => state.documentAssignments);
 
   const [filters, setFilters] = useState({
     searchQuery: "",
@@ -73,8 +72,8 @@ export function KnowledgeGraphPage() {
       const inActiveCollection = (documentId?: string | null) => {
         if (!activeCollectionId) return true;
         if (!documentId) return true;
-        const assigned = documentAssignments[documentId];
-        return assigned ? assigned === activeCollectionId : true;
+        const doc = documents.find((d: any) => d.id === documentId);
+        return doc ? doc.collectionId === activeCollectionId : true;
       };
 
       const nodes: GraphNode[] = [];
@@ -158,7 +157,7 @@ export function KnowledgeGraphPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeCollectionId, documentAssignments]);
+  }, [activeCollectionId]);
 
   useEffect(() => {
     loadGraphData();

@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 pub struct Document {
     pub id: String,
+    pub collection_id: String,
     pub title: String,
     pub file_path: String,
     pub file_type: FileType,
@@ -101,6 +102,7 @@ impl Document {
     pub fn new(title: String, file_path: String, file_type: FileType) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
+            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
             title,
             file_path,
             file_type,

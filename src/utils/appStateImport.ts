@@ -214,14 +214,12 @@ export async function importAppState(
       total: 6,
     });
 
-    const { collections, createCollection } = useCollectionStore.getState();
+    const { collections, createCollection: storeCreateCollection } = useCollectionStore.getState();
     const existingNames = new Set(collections.map((c) => c.name.toLowerCase()));
 
     for (const collection of exportData.collections) {
       try {
-        // Check for duplicates by name
         if (existingNames.has(collection.name.toLowerCase()) && duplicateStrategy === "skip") {
-          // Find existing collection with same name
           const existing = collections.find((c) => c.name.toLowerCase() === collection.name.toLowerCase());
           if (existing) {
             collectionIdMap[collection.id] = existing.id;
@@ -229,8 +227,7 @@ export async function importAppState(
           continue;
         }
 
-        // Create new collection
-        const newCollection = createCollection(collection.name);
+        const newCollection = await storeCreateCollection(collection.name);
         collectionIdMap[collection.id] = newCollection.id;
         result.stats.collectionsImported++;
       } catch {
@@ -316,7 +313,7 @@ export async function importAppState(
     });
 
     const { documents } = useDocumentStore.getState();
-    const { assignDocument } = useCollectionStore.getState();
+    // Collection assignment is now handled by the backend (collection_id on documents)
 
     for (let i = 0; i < exportData.documents.length; i++) {
       const doc = exportData.documents[i];
@@ -406,14 +403,6 @@ export async function importAppState(
         // Map old ID to new ID
         documentIdMap[doc.id] = newDoc.id;
 
-        // Restore collection assignment
-        const oldCollectionId = exportData.documentAssignments?.[doc.id];
-        if (oldCollectionId) {
-          const newCollectionId = collectionIdMap[oldCollectionId];
-          if (newCollectionId) {
-            assignDocument(newDoc.id, newCollectionId);
-          }
-        }
 
         result.stats.documentsImported++;
 

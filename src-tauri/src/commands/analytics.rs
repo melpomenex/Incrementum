@@ -60,9 +60,11 @@ pub struct LeechItem {
 /// Get overall dashboard statistics
 #[tauri::command]
 pub async fn get_dashboard_stats(
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<DashboardStats, String> {
     let pool = repo.pool();
+    let cid = collection_id.unwrap_or_else(|| crate::models::collection::DEFAULT_COLLECTION_ID.to_string());
 
     // Get today's date range
     let now = Utc::now();
@@ -75,25 +77,28 @@ pub async fn get_dashboard_stats(
 
     // Total cards
     let total_cards: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM learning_items WHERE is_suspended = false"
+        "SELECT COUNT(*) FROM learning_items WHERE is_suspended = false AND collection_id = ?"
     )
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
 
     // Cards due today
     let cards_due_today: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM learning_items WHERE due_date <= ? AND is_suspended = false"
+        "SELECT COUNT(*) FROM learning_items WHERE due_date <= ? AND is_suspended = false AND collection_id = ?"
     )
     .bind(now)
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
 
     // Cards learned (reviewed at least once)
     let cards_learned: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM learning_items WHERE review_count > 0 AND is_suspended = false"
+        "SELECT COUNT(*) FROM learning_items WHERE review_count > 0 AND is_suspended = false AND collection_id = ?"
     )
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
@@ -101,10 +106,11 @@ pub async fn get_dashboard_stats(
     // Reviews today (from review count vs last_review_date)
     // This is an approximation - we'll use items reviewed today
     let reviews_today: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND is_suspended = false"
+        "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND is_suspended = false AND collection_id = ?"
     )
     .bind(today_start)
     .bind(today_end)
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
@@ -115,9 +121,11 @@ pub async fn get_dashboard_stats(
     // Retention rate (cards reviewed with Good/Easy vs total reviews)
     // Approximation: cards with interval > 0 and low lapse rate
     let retention_row: Option<f64> = sqlx::query_scalar(
-        "SELECT CAST(COUNT(*) AS REAL) / (SELECT COUNT(*) FROM learning_items WHERE review_count > 0 AND is_suspended = false)
-         FROM learning_items WHERE lapses = 0 AND review_count > 0 AND is_suspended = false"
+        "SELECT CAST(COUNT(*) AS REAL) / (SELECT COUNT(*) FROM learning_items WHERE review_count > 0 AND is_suspended = false AND collection_id = ?)
+         FROM learning_items WHERE lapses = 0 AND review_count > 0 AND is_suspended = false AND collection_id = ?"
     )
+    .bind(&cid)
+    .bind(&cid)
     .fetch_optional(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
@@ -125,8 +133,9 @@ pub async fn get_dashboard_stats(
 
     // Average difficulty
     let avg_diff_row: Option<f64> = sqlx::query_scalar(
-        "SELECT AVG(memory_state_difficulty) FROM learning_items WHERE memory_state_difficulty IS NOT NULL AND is_suspended = false"
+        "SELECT AVG(memory_state_difficulty) FROM learning_items WHERE memory_state_difficulty IS NOT NULL AND is_suspended = false AND collection_id = ?"
     )
+    .bind(&cid)
     .fetch_optional(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
@@ -134,16 +143,18 @@ pub async fn get_dashboard_stats(
 
     // Total documents
     let total_documents: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM documents"
+        "SELECT COUNT(*) FROM documents WHERE collection_id = ?"
     )
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;
 
     // Total extracts
     let total_extracts: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM extracts"
+        "SELECT COUNT(*) FROM extracts WHERE collection_id = ?"
     )
+    .bind(&cid)
     .fetch_one(pool)
     .await
     .map_err(|e: sqlx::Error| e.to_string())?;

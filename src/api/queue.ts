@@ -97,8 +97,8 @@ function convertQueueItem(item: RustQueueItem): QueueItem {
 /**
  * Get all queue items
  */
-export async function getQueue(): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[] | null>("get_queue");
+export async function getQueue(collectionId?: string): Promise<QueueItem[]> {
+  const items = await invokeCommand<RustQueueItem[] | null>("get_queue", { collectionId });
   if (!Array.isArray(items)) {
     console.warn("[queue] get_queue returned non-array result", items);
     return [];
@@ -110,8 +110,8 @@ export async function getQueue(): Promise<QueueItem[]> {
  * Get only due documents (FSRS-scheduled documents with next_reading_date <= now)
  * This provides a "Due Today" view focused specifically on documents
  */
-export async function getDueDocumentsOnly(): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[] | null>("get_due_documents_only");
+export async function getDueDocumentsOnly(collectionId?: string): Promise<QueueItem[]> {
+  const items = await invokeCommand<RustQueueItem[] | null>("get_due_documents_only", { collectionId });
   if (!Array.isArray(items)) {
     console.warn("[queue] get_due_documents_only returned non-array result", items);
     return [];
@@ -122,8 +122,9 @@ export async function getDueDocumentsOnly(): Promise<QueueItem[]> {
 /**
  * Get due queue items only (includes documents, extracts, and learning items)
  */
-export async function getDueQueueItems(randomness?: number): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[] | null>("get_due_queue_items", { randomness });
+export async function getDueQueueItems(randomness?: number, collectionId?: string): Promise<QueueItem[]> {
+  console.log("[queue API] getDueQueueItems called with:", { randomness, collectionId });
+  const items = await invokeCommand<RustQueueItem[] | null>("get_due_queue_items", { randomness, collectionId });
   if (!Array.isArray(items)) {
     console.warn("[queue] get_due_queue_items returned non-array result", items);
     return [];
@@ -134,16 +135,16 @@ export async function getDueQueueItems(randomness?: number): Promise<QueueItem[]
 /**
  * Get next item from the queue
  */
-export async function getNextQueueItem(randomness?: number): Promise<QueueItem | null> {
-  const item = await invokeCommand<RustQueueItem | null>("get_next_queue_item", { randomness });
+export async function getNextQueueItem(randomness?: number, collectionId?: string): Promise<QueueItem | null> {
+  const item = await invokeCommand<RustQueueItem | null>("get_next_queue_item", { randomness, collectionId });
   return item ? convertQueueItem(item) : null;
 }
 
 /**
  * Get multiple items from the queue
  */
-export async function getQueueItems(count?: number, randomness?: number): Promise<QueueItem[]> {
-  const items = await invokeCommand<RustQueueItem[] | null>("get_queue_items", { count, randomness });
+export async function getQueueItems(count?: number, randomness?: number, collectionId?: string): Promise<QueueItem[]> {
+  const items = await invokeCommand<RustQueueItem[] | null>("get_queue_items", { count, randomness, collectionId });
   if (!Array.isArray(items)) {
     console.warn("[queue] get_queue_items returned non-array result", items);
     return [];

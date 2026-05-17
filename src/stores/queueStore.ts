@@ -12,8 +12,8 @@ import {
   type QueueStats
 } from "../api/queue";
 import { getAllLearningItems } from "../api/learning-items";
-import type { QueueItem, SortOptions, SearchFilters } from "../types";
 import { useCollectionStore } from "./collectionStore";
+import type { QueueItem, SortOptions, SearchFilters } from "../types";
 import { useDocumentStore } from "./documentStore";
 import { useSettingsStore } from "./settingsStore";
 import {
@@ -104,18 +104,20 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const mode = get().queueFilterMode;
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      console.log("[queue] loadQueue called, collectionId:", collectionId, "mode:", mode);
       let items: QueueItem[] = [];
       switch (mode) {
         case "due-today":
-          items = await getDueDocumentsOnly();
+          items = await getDueDocumentsOnly(collectionId);
           break;
         case "due-all":
-          items = await getDueQueueItems();
+          items = await getDueQueueItems(undefined, collectionId);
           break;
         case "all-items":
         case "new-only":
         default:
-          items = await getQueue();
+          items = await getQueue(collectionId);
           break;
       }
       const now = new Date();
@@ -256,7 +258,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   applyFilters: () => {
     const { items, searchQuery, filters, sortOptions } = get();
     let filtered = [...items];
-    const { activeCollectionId, documentAssignments } = useCollectionStore.getState();
     const documents = useDocumentStore.getState().documents;
     const archivedDocumentIds = new Set(
       documents.filter((doc) => doc.isArchived).map((doc) => doc.id)
@@ -265,13 +266,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
       documents.filter((doc) => doc.isDismissed).map((doc) => doc.id)
     );
 
-    if (activeCollectionId) {
-      filtered = filtered.filter((item) => {
-        if (!item.documentId) return true;
-        const assigned = documentAssignments[item.documentId];
-        return assigned ? assigned === activeCollectionId : true;
-      });
-    }
+    // Collection filtering is now handled by the backend
 
     if (archivedDocumentIds.size > 0) {
       filtered = filtered.filter((item) => !item.documentId || !archivedDocumentIds.has(item.documentId));

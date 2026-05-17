@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Eye, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
@@ -19,6 +19,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
     const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const { click } = useHapticFeedback();
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Keyboard shortcuts: Space to reveal, 1-4 to rate
     useEffect(() => {
@@ -28,6 +29,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
                 (e.target as HTMLElement).tagName === "TEXTAREA") {
                 return;
             }
+            if (!containerRef.current?.contains(e.target as Node)) return;
 
             // Space or Enter to reveal answer
             if ((e.key === " " || e.key === "Enter") && !isAnswerRevealed) {
@@ -250,7 +252,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
                 : "Relearning";
 
     return (
-        <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-b from-background to-muted/30">
+        <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-b from-background to-muted/30">
             {/* Card Type Badge */}
             <div className="absolute top-6 left-6 flex items-center gap-2">
                 <span className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium">

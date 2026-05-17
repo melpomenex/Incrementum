@@ -923,6 +923,7 @@ async fn handle_import_request(
     // Create document
     let document = Document {
         id: uuid::Uuid::new_v4().to_string(),
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         title: payload.title.clone(),
         file_path: payload.url.clone(),
         file_type,
@@ -1063,6 +1064,7 @@ async fn handle_extract_request(
         // Create a minimal document for this URL
         let document = Document {
             id: uuid::Uuid::new_v4().to_string(),
+            collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
             title: payload.title.clone(),
             file_path: payload.url.clone(),
             file_type: inferred_file_type,
@@ -1115,6 +1117,7 @@ async fn handle_extract_request(
     // Create extract with rich HTML content for visual fidelity
     let extract = Extract {
         id: uuid::Uuid::new_v4().to_string(),
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         document_id: document_id.clone(),
         content: payload.text.clone(),
         html_content: payload.html_content.clone(),

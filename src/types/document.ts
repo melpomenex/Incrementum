@@ -39,6 +39,7 @@ export interface Document {
   reps?: number;
   totalTimeSpent?: number;
   consecutiveCount?: number;
+  collectionId?: string;
 }
 
 export interface DocumentMetadata {

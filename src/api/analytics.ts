@@ -49,8 +49,8 @@ export interface LeechItem {
 /**
  * Get dashboard statistics
  */
-export async function getDashboardStats(): Promise<DashboardStats> {
-  return await invokeCommand<DashboardStats>("get_dashboard_stats");
+export async function getDashboardStats(collectionId?: string): Promise<DashboardStats> {
+  return await invokeCommand<DashboardStats>("get_dashboard_stats", { collectionId });
 }
 
 /**
