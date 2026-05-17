@@ -13,6 +13,8 @@
 - **Handbooks and docs updated** — Locale handbooks, HANDBOOK.md, and PROJECT_SUMMARY refreshed
 
 ### Fixed
+- **PDF text layer TypeScript error** — Cast textLayerBuilder render to handle pdfjs-dist version differences across Node 22 (CI) and Node 25 (local)
+- **KaTeX unknown command test** — Updated assertion to match actual KaTeX rendering behavior for unsupported LaTeX commands
 - **Review showing previous collection cards** — Review sessions no longer show cards from the wrong collection after switching
 - **YouTube iframe origin mismatch on Linux** — Omitted the origin parameter in production builds to fix playback issues
 - **Helmet CSP conflict with Tauri** — Disabled Helmet CSP since Tauri already handles it via tauri.conf.json
