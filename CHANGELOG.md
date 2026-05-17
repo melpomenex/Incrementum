@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.38.0] - 2026-05-16
+
+### Added
+- **Collection switching** — Switch between collections to segment your workflow via the new `CollectionSwitcher` component
+- **Collection archive** — New collection archive/restore commands for managing collections
+- **Collection database migrations** — New migrations (007, 008) for collections schema including default collection support
+- **Linux WebKitGTK docs** — Documented known limitations for Linux WebKitGTK builds
+
+### Changed
+- **Collection API refactored** — Simplified collection types, store, and API layer with cleaner separation of concerns
+- **Handbooks and docs updated** — Locale handbooks, HANDBOOK.md, and PROJECT_SUMMARY refreshed
+
+### Fixed
+- **Review showing previous collection cards** — Review sessions no longer show cards from the wrong collection after switching
+- **YouTube iframe origin mismatch on Linux** — Omitted the origin parameter in production builds to fix playback issues
+- **Helmet CSP conflict with Tauri** — Disabled Helmet CSP since Tauri already handles it via tauri.conf.json
+- **FlashcardStudio modal dismiss** — Clicking outside the modal now closes it properly
+
 ## [1.37.0] - 2026-05-10
 
 ### Added
