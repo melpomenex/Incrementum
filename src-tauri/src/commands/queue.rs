@@ -288,6 +288,13 @@ async fn get_queue_items_from_repo(
             continue;
         }
 
+        // Filter by collection if specified
+        if let Some(cid) = collection_id {
+            if document.collection_id != cid {
+                continue;
+            }
+        }
+
         let progress = match (document.current_page, document.total_pages) {
             (Some(current), Some(total)) if total > 0 => {
                 ((current as f64 / total as f64) * 100.0).round() as i32

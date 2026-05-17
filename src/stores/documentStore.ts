@@ -4,6 +4,7 @@ import * as documentsApi from "../api/documents";
 import * as segmentationApi from "../api/segmentation";
 
 import { useSettingsStore } from "./settingsStore";
+import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 import { listen, isTauri } from "../lib/tauri";
 import { useToastStore } from "../components/common/Toast";
@@ -89,7 +90,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   loadDocuments: async () => {
     set({ isLoading: true, error: null });
     try {
-      const docs = await documentsApi.getDocuments();
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const docs = await documentsApi.getDocuments(collectionId);
       set({ documents: docs, isLoading: false });
     } catch (error) {
       set({
@@ -274,7 +276,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   importFromFile: async (filePath) => {
     set({ isImporting: true, error: null });
     try {
-      const doc = await documentsApi.importDocument(filePath);
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const doc = await documentsApi.importDocument(filePath, collectionId);
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
@@ -301,6 +304,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     const imported: Document[] = [];
     const settings = useSettingsStore.getState().settings;
     const autoSegment = settings.documents.autoProcessOnImport;
+    const collectionId = useCollectionStore.getState().activeCollectionId;
     let totalExtracts = 0;
 
     try {
@@ -313,7 +317,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         });
 
         try {
-          const doc = await documentsApi.importDocument(filePath);
+          const doc = await documentsApi.importDocument(filePath, collectionId);
           imported.push(doc);
 
           if (autoSegment) {
@@ -419,10 +423,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       // Create document in backend
       console.log('[DocumentStore] Creating document in backend...');
+      const collectionId = useCollectionStore.getState().activeCollectionId;
       const doc = await documentsApi.createDocument(
         docData.title,
         docData.filePath,
-        docData.fileType
+        docData.fileType,
+        collectionId
       );
       console.log('[DocumentStore] Created document:', doc);
 
@@ -493,10 +499,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       set({ importProgress: { current: 1, total: 2, fileName: 'Creating document...' } });
 
       // Create document in backend
+      const collectionId = useCollectionStore.getState().activeCollectionId;
       const doc = await documentsApi.createDocument(
         docData.title,
         docData.filePath,
-        docData.fileType
+        docData.fileType,
+        collectionId
       );
 
       set((state) => ({

@@ -1098,6 +1098,7 @@ pub async fn extract_youtube_video_id(url: String) -> Result<Option<String>, Str
 #[tauri::command]
 pub async fn import_youtube_video(
     url: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document, String> {
     // First, verify yt-dlp is available
@@ -1116,7 +1117,7 @@ pub async fn import_youtube_video(
     let video_id = &info.id;
 
     // Create document record for YouTube video
-    let mut doc = Document::new(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube);
+    let mut doc = Document::with_collection(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube, collection_id);
 
     // Set YouTube-specific fields
     // Note: category is not set to avoid foreign key constraint issues

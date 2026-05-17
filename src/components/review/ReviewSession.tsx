@@ -20,6 +20,7 @@ import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
 import { useToast } from "../common/Toast";
 import { bulkDeleteItems, bulkSuspendItems } from "../../api/queue";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { useCollectionStore } from "../../stores/collectionStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
 import { useI18n } from "../../lib/i18n";
@@ -203,7 +204,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       if (ext === "json") {
         const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
           "import_study_json_file",
-          { filePath }
+          { filePath, collectionId: useCollectionStore.getState().activeCollectionId }
         );
         const deckNames = [result.deck_name];
         const deckIds = ensureAnkiStudyDecks(deckNames);

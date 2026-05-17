@@ -13,12 +13,13 @@ use tauri::State;
 #[tauri::command]
 pub async fn handle_dropped_files(
     file_paths: Vec<String>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<Document>> {
     let mut imported_docs = Vec::new();
 
     for file_path in file_paths {
-        match import_single_file(&file_path, &repo).await {
+        match import_single_file(&file_path, &repo, collection_id.clone()).await {
             Ok(doc) => {
                 imported_docs.push(doc);
             }
@@ -42,6 +43,7 @@ pub async fn handle_dropped_files(
 async fn import_single_file(
     file_path: &str,
     repo: &Repository,
+    collection_id: Option<String>,
 ) -> Result<Document> {
     // Check if file exists
     if !std::path::Path::new(file_path).exists() {
@@ -76,7 +78,7 @@ async fn import_single_file(
         .unwrap_or("Untitled Document");
 
     // Create document
-    let mut doc = Document::new(file_name.to_string(), file_path.to_string(), file_type);
+    let mut doc = Document::with_collection(file_name.to_string(), file_path.to_string(), file_type, collection_id);
     doc.priority_score = 5.0;
 
     // Save to database

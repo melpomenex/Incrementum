@@ -130,6 +130,7 @@ pub async fn open_file_picker(
 #[tauri::command]
 pub async fn import_document(
     file_path: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
     let path = PathBuf::from(&file_path);
@@ -204,7 +205,7 @@ pub async fn import_document(
     });
 
     // Create the document
-    let mut doc = Document::new(title, stored_path, file_type);
+    let mut doc = Document::with_collection(title, stored_path, file_type, collection_id.clone());
     doc.content = Some(extracted.text);
     doc.tags = suggest_auto_tags(&doc.title, doc.content.as_deref().unwrap_or(""));
     doc.content_hash = content_hash;
@@ -222,13 +223,15 @@ pub async fn import_document(
 #[tauri::command]
 pub async fn import_documents(
     file_paths: Vec<String>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<Document>> {
     let mut imported = Vec::new();
 
     for file_path in file_paths {
         let path_clone = file_path.clone();
-        match import_document(file_path, repo.clone()).await {
+        let coll_id = collection_id.clone();
+        match import_document(file_path, coll_id, repo.clone()).await {
             Ok(doc) => imported.push(doc),
             Err(e) => {
                 eprintln!("Failed to import {}: {}", path_clone, e);
@@ -331,9 +334,13 @@ pub async fn import_pdf_highlights_as_extracts(
 
 #[tauri::command]
 pub async fn get_documents(
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<Document>> {
-    let docs = repo.list_documents().await?;
+    let docs = match collection_id {
+        Some(ref cid) => repo.list_documents_by_collection(cid).await?,
+        None => repo.list_documents().await?,
+    };
     Ok(docs)
 }
 
@@ -439,6 +446,7 @@ pub async fn create_document(
     title: String,
     file_path: String,
     file_type: String,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
     let file_type = match file_type.as_str() {
@@ -452,7 +460,7 @@ pub async fn create_document(
         _ => FileType::Other,
     };
 
-    let doc = Document::new(title, file_path, file_type);
+    let doc = Document::with_collection(title, file_path, file_type, collection_id);
     let created = repo.create_document(&doc).await?;
     Ok(created)
 }

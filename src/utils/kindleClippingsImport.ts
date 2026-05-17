@@ -71,9 +71,10 @@ export async function validateKindleClippings(filePath: string): Promise<KindleP
 /**
  * Import a Kindle clippings file into the database.
  */
-export async function importKindleClippings(filePath: string): Promise<KindleImportResult> {
+export async function importKindleClippings(filePath: string, collectionId?: string): Promise<KindleImportResult> {
   return invokeCommand<KindleImportResult>("import_kindle_clippings_file", {
     filePath,
+    collectionId: collectionId ?? null,
   });
 }
 

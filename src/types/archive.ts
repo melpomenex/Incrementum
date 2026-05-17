@@ -5,6 +5,8 @@ export interface CollectionArchiveManifest {
   version: "1.0";
   exportedAt: string;
   scope: CollectionExportScope;
+  collectionId?: string | null;
+  collectionName?: string | null;
 }
 
 export interface ArchiveFileEntry {
@@ -27,6 +29,9 @@ export interface CollectionArchivePayload {
   };
   settings: Record<string, unknown> | null;
   localStorage: Record<string, string>;
+  reviewSessions?: unknown[];
+  reviewResults?: unknown[];
+  categories?: unknown[];
 }
 
 export interface ParsedCollectionArchive {

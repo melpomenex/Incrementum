@@ -54,6 +54,7 @@ import type {
   PodcastSearchResult,
 } from "../../api/podcast";
 import { isTauri, listen, convertFileSrc } from "../../lib/tauri";
+import { useCollectionStore } from "../../stores/collectionStore";
 import {
   useContextMenu,
   ContextMenu,
@@ -694,7 +695,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             icon: <Plus className="w-4 h-4" />,
             onClick: async () => {
               try {
-                await importPodcastEpisodeAsDocument(episode.id);
+                await importPodcastEpisodeAsDocument(episode.id, useCollectionStore.getState().activeCollectionId);
                 toast.success(t("podcastManager.insertedToQueue"));
               } catch (err) {
                 toast.error(t("podcastManager.insertToQueueFailed"), err instanceof Error ? err.message : String(err));

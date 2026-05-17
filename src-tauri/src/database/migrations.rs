@@ -1612,6 +1612,20 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_learning_items_collection ON learning_items(collection_id);
         "#,
     ),
+    Migration::new(
+        "046_cleanup_dead_collection_artifacts",
+        r#"
+        -- Drop the unused document_collections junction table from migration 023
+        DROP TABLE IF EXISTS document_collections;
+        "#,
+    ),
+    Migration::new(
+        "047_add_collection_id_to_rss_feeds",
+        r#"
+        ALTER TABLE rss_feeds ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        CREATE INDEX IF NOT EXISTS idx_rss_feeds_collection ON rss_feeds(collection_id);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

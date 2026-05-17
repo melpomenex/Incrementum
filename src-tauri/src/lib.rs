@@ -716,6 +716,9 @@ pub fn run() {
             commands::get_next_review_times,
             commands::preview_review_intervals,
             commands::get_review_streak,
+            commands::get_review_sessions_by_collection,
+            commands::get_all_review_results,
+            commands::get_categories_by_collection,
             // Algorithm commands
             commands::calculate_sm2_next,
             commands::rate_document,
@@ -1011,6 +1014,7 @@ pub fn run() {
             commands::cloud_list_files,
             commands::cloud_import_files,
             commands::import_collection_archive,
+            commands::import_collection_archive_merge,
             // Scheduler commands
             commands::scheduler_init,
             commands::scheduler_start,

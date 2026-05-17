@@ -111,8 +111,9 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   loadAll: async () => {
     set({ isLoading: true, error: null });
     try {
+      const collectionId = useCollectionStore.getState().activeCollectionId;
       const [dashboardStats, memoryStats, activityData, categoryStats, leechItems] = await Promise.all([
-        getDashboardStats(),
+        getDashboardStats(collectionId ?? undefined),
         getMemoryStats(),
         getActivityData(30),
         getCategoryStats(),

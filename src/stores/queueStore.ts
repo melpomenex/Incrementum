@@ -159,7 +159,8 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   loadDueDocumentsOnly: async () => {
     set({ isLoading: true, error: null });
     try {
-      const items = await getDueDocumentsOnly();
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const items = await getDueDocumentsOnly(collectionId);
       set({
         items,
         isLoading: false,
@@ -177,7 +178,8 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   loadDueQueueItems: async () => {
     set({ isLoading: true, error: null });
     try {
-      const items = await getDueQueueItems();
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const items = await getDueQueueItems(undefined, collectionId);
       set({
         items,
         isLoading: false,

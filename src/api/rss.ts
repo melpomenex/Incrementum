@@ -3,6 +3,7 @@
  */
 
 import { invokeCommand, isTauri } from "../lib/tauri";
+import { useCollectionStore } from "../stores/collectionStore";
 
 /**
  * Feed item (article/blog post)
@@ -1033,7 +1034,8 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
 }
 
 async function getFeedsViaTauri(): Promise<Feed[]> {
-  const feeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds");
+  const collectionId = useCollectionStore.getState().activeCollectionId;
+  const feeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", { collectionId });
   const feedsWithItems = await Promise.all(
     feeds.map(async (feed) => {
       const articles = await invokeCommand<TauriRssArticle[]>("get_rss_articles", {
@@ -1052,7 +1054,8 @@ async function createOrUpdateFeedViaTauri(
   feed: Feed
 ): Promise<{ feed: TauriRssFeed; created: boolean }> {
   const normalizedFeedUrl = normalizeKnownFeedUrl(feed.feedUrl);
-  const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds");
+  const collectionId = useCollectionStore.getState().activeCollectionId;
+  const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", { collectionId });
   const existing = existingFeeds.find(
     (candidate) => normalizeKnownFeedUrl(candidate.url) === normalizedFeedUrl
   );
@@ -1082,6 +1085,8 @@ async function createOrUpdateFeedViaTauri(
     update_interval: updateIntervalSeconds,
     autoQueue: false,
     auto_queue: false,
+    collectionId: collectionId ?? undefined,
+    collection_id: collectionId ?? undefined,
   });
 
   return { feed: created, created: true };

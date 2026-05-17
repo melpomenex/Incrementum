@@ -10,6 +10,7 @@ import { FlashcardStudioModal } from "./FlashcardStudioModal";
 import { ReviewDecksModal } from "./ReviewDecksModal";
 import { ReviewPreviewModal } from "./ReviewPreviewModal";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { useCollectionStore } from "../../stores/collectionStore";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
 
@@ -183,7 +184,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
       if (ext === "json") {
         const result = await invokeCommand<{ deck_name: string; cards_imported: number }>(
           "import_study_json_file",
-          { filePath }
+          { filePath, collectionId: useCollectionStore.getState().activeCollectionId }
         );
         const deckNames = [result.deck_name];
         const deckIds = useStudyDeckStore.getState().ensureDecksExist(deckNames);

@@ -77,6 +77,7 @@ import { searchArticlesAuto, type RssSearchResult } from "../../api/rss-search";
 import { markArticleUnreadAuto, migrateFoldersFromLocalStorageAuto } from "../../api/rss-folders";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import { useTagsStore } from "../../stores/tagsStore";
+import { useCollectionStore } from "../../stores/collectionStore";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
 
@@ -176,12 +177,13 @@ export function RSSReader() {
     })();
   }, [selectedFeed]);
 
-  // Load feeds on mount
+  // Load feeds on mount and when collection changes
+  const activeCollectionId = useCollectionStore((s) => s.activeCollectionId);
   useEffect(() => {
     (async () => {
       await loadFeeds();
     })();
-  }, []);
+  }, [activeCollectionId]);
 
   // Update items when feeds or view mode changes
   useEffect(() => {

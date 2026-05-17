@@ -610,8 +610,12 @@ function readBrowserSyncConfig(): { host: string; port: number; autoStart: boole
  */
 const commandHandlers: Record<string, CommandHandler> = {
     // Document commands
-    get_documents: async () => {
-        const docs = await db.getDocuments();
+    get_documents: async (args) => {
+        let docs = await db.getDocuments();
+        const collectionId = args?.collectionId as string | null | undefined;
+        if (collectionId) {
+            docs = docs.filter((doc) => (doc as any).collection_id === collectionId);
+        }
         return toCamelCase(docs);
     },
 
