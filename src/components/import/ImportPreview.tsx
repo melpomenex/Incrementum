@@ -91,7 +91,7 @@ export function ImportPreview({
   const handleCreateCollection = useCallback(async () => {
     if (!newCollectionName.trim()) return;
     try {
-      const newCollection = await createCollection(newCollectionName.trim(), "manual");
+      const newCollection = await createCollection(newCollectionName.trim());
       setCollections(prev => [...prev, newCollection]);
       setOptions(prev => ({ ...prev, collectionId: newCollection.id }));
       setNewCollectionName("");

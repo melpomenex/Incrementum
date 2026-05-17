@@ -16,6 +16,7 @@ pub use super::learning_item::ReviewRating;
 pub struct VideoExtract {
     pub id: String,
     pub document_id: String,
+    pub collection_id: String,
     /// Start time of the segment in seconds
     pub start_time: f64,
     /// End time of the segment in seconds
@@ -53,6 +54,7 @@ impl VideoExtract {
         Self {
             id: Uuid::new_v4().to_string(),
             document_id,
+            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
             start_time,
             end_time,
             title,

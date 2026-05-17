@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Category {
     pub id: String,
+    pub collection_id: String,
     pub name: String,
     pub parent_id: Option<String>,
     pub color: Option<String>,
@@ -22,6 +23,7 @@ impl Category {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
+            collection_id: super::collection::DEFAULT_COLLECTION_ID.to_string(),
             name,
             parent_id: None,
             color: None,

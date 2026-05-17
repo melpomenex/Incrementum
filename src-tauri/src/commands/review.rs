@@ -131,7 +131,10 @@ pub async fn start_review(
     let session_id = uuid::Uuid::new_v4().to_string();
 
     // Create the review session in the database
-    repo.create_review_session(&session_id).await?;
+    let collection_id = due_items.first()
+        .map(|item| item.collection_id.as_str())
+        .unwrap_or(crate::models::collection::DEFAULT_COLLECTION_ID);
+    repo.create_review_session(&session_id, collection_id).await?;
 
     Ok(session_id)
 }
@@ -238,6 +241,7 @@ pub async fn apply_review(
     let review_result_id = uuid::Uuid::new_v4().to_string();
     repo.create_review_result(
         &review_result_id,
+        &item.collection_id,
         session_id,
         item_id,
         rating,

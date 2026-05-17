@@ -47,7 +47,11 @@ import {
   MessageSquare,
   Sparkles,
   Headphones,
+  ChevronDown,
+  Plus,
+  Check,
 } from "lucide-react";
+import { CollectionSwitcher } from "./collections/CollectionSwitcher";
 
 export type ToolbarPosition = "top" | "left" | "right";
 
@@ -622,6 +626,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const toolbarContent = isVertical ? (
     <div className={`h-full bg-card ${position === "left" ? "border-r border-border" : "border-l border-border"} flex flex-col`}>
+      <CollectionSwitcher />
       <div className="flex-1 overflow-y-auto py-2 px-1">
         <div className="flex flex-col gap-1">
           {groups.map((group, groupIndex) => (
@@ -642,6 +647,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   ) : (
     <div className="sticky top-0 z-40 bg-card border-b border-border">
       <div className="flex items-center px-2 py-1 gap-1">
+        <CollectionSwitcher />
         {groups.map((group, groupIndex) => (
           <div key={group} className="flex items-center gap-1">
             {buttons

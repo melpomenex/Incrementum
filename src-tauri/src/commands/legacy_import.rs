@@ -506,6 +506,7 @@ fn parse_document_row(row: &sqlx::sqlite::SqliteRow) -> Result<Document> {
 
     Ok(Document {
         id: row.try_get("id")?,
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         title: row.try_get("title")?,
         file_path: row.try_get("file_path")?,
         file_type: parse_file_type(&file_type),
@@ -564,6 +565,7 @@ fn parse_extract_row(row: &sqlx::sqlite::SqliteRow) -> Result<Extract> {
 
     Ok(Extract {
         id: row.try_get("id")?,
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         document_id: row.try_get("document_id")?,
         content: row.try_get("content")?,
         html_content: row.try_get::<Option<String>, _>("html_content").ok().flatten(),
@@ -620,6 +622,7 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
 
     Ok(LearningItem {
         id: row.try_get("id")?,
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         extract_id: row.try_get::<Option<String>, _>("extract_id").unwrap_or(None),
         document_id: row.try_get::<Option<String>, _>("document_id").unwrap_or(None),
         item_type: parse_item_type(&item_type_str),

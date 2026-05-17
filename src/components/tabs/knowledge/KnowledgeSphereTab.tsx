@@ -15,7 +15,6 @@ export function KnowledgeSphereTab() {
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
-  const documentAssignments = useCollectionStore((state) => state.documentAssignments);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -28,8 +27,8 @@ export function KnowledgeSphereTab() {
       const inActiveCollection = (documentId?: string | null) => {
         if (!activeCollectionId) return true;
         if (!documentId) return true;
-        const assigned = documentAssignments[documentId];
-        return assigned ? assigned === activeCollectionId : true;
+        const doc = documents.find((d: any) => d.id === documentId);
+        return doc ? doc.collectionId === activeCollectionId : true;
       };
 
       const graphNodes: GraphNode[] = [];
@@ -99,7 +98,7 @@ export function KnowledgeSphereTab() {
 
   useEffect(() => {
     loadData();
-  }, [activeCollectionId, documentAssignments]);
+  }, [activeCollectionId]);
 
   if (isLoading) {
     return (

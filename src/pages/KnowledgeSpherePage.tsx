@@ -17,18 +17,6 @@ export function KnowledgeSpherePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
-  const documentAssignments = useCollectionStore((state) => state.documentAssignments);
-
-  const inActiveCollection = (documentId?: string | null) => {
-    if (!activeCollectionId) return true;
-    if (!documentId) return true;
-    const assigned = documentAssignments[documentId];
-    return assigned ? assigned === activeCollectionId : true;
-  };
-
-  useEffect(() => {
-    loadSphereData();
-  }, [activeCollectionId, documentAssignments]);
 
   const loadSphereData = async () => {
     setIsLoading(true);
@@ -38,6 +26,13 @@ export function KnowledgeSpherePage() {
       const documents = await invokeCommand<any[]>("get_documents");
       const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
       const learningItems = await invokeCommand<any[]>("get_all_learning_items");
+
+      const inActiveCollection = (documentId?: string | null) => {
+        if (!activeCollectionId) return true;
+        if (!documentId) return true;
+        const doc = documents.find((d: any) => d.id === documentId);
+        return doc ? doc.collectionId === activeCollectionId : true;
+      };
 
       // Build nodes array
       const nodeMap = new Map<string, Node>();
@@ -103,6 +98,10 @@ export function KnowledgeSpherePage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSphereData();
+  }, [activeCollectionId]);
 
   if (isLoading) {
     return (

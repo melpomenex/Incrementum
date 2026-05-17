@@ -72,6 +72,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   } = useReviewStore();
   const [isQueueListOpen, setIsQueueListOpen] = useState(false);
   const queueListRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [interactionResult, setInteractionResult] = useState<{
     interactionType: "multiple-choice" | "image-occlusion";
     correct?: boolean;
@@ -276,6 +277,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+      if (!containerRef.current?.contains(e.target as Node)) return;
       const mod = e.metaKey || e.ctrlKey;
       const lowerKey = e.key.toLowerCase();
 
@@ -352,7 +354,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full p-8">
+      <div ref={containerRef} className="flex items-center justify-center h-full p-8">
         <ReviewCardSkeleton />
       </div>
     );
@@ -360,7 +362,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div ref={containerRef} className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
@@ -380,7 +382,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
 
   if (queue.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div ref={containerRef} className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="text-6xl mb-4">🎉</div>
           <h3 className="text-2xl font-bold text-foreground mb-2">
@@ -412,7 +414,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   if (!currentCard) {
     // Review session complete
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 gap-6">
+      <div ref={containerRef} className="flex flex-col items-center justify-center h-full p-6 gap-6">
         <ReviewComplete
           reviewsCompleted={reviewsCompleted}
           correctCount={correctCount}
@@ -445,7 +447,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   }
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-6 pb-20 md:pb-6">
+    <div ref={containerRef} className="h-full flex flex-col p-4 md:p-6 pb-20 md:pb-6">
       {/* Header */}
       <div className="mb-4 md:mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full md:w-auto">

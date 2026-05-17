@@ -36,9 +36,10 @@ pub struct PlaylistInterspersionConfig {
 #[tauri::command]
 pub async fn get_next_queue_item(
     randomness: Option<f32>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Option<QueueItem>> {
-    let queue = get_queue(repo).await?;
+    let queue = get_queue_with_collection(repo, collection_id.as_deref()).await?;
     if queue.is_empty() {
         return Ok(None);
     }
@@ -52,9 +53,10 @@ pub async fn get_next_queue_item(
 pub async fn get_queue_items(
     count: Option<usize>,
     randomness: Option<f32>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    let queue = get_queue(repo).await?;
+    let queue = get_queue_with_collection(repo, collection_id.as_deref()).await?;
     let count = count.unwrap_or(10).min(queue.len());
 
     let selector = QueueSelector::new(randomness.unwrap_or(0.3));
@@ -65,6 +67,7 @@ pub async fn get_queue_items(
 /// Used by other commands that already have State extracted
 async fn get_queue_items_from_repo(
     repo: &Repository,
+    collection_id: Option<&str>,
 ) -> Result<Vec<QueueItem>> {
     let mut queue_items = Vec::new();
     let now = Utc::now();
@@ -104,6 +107,13 @@ async fn get_queue_items_from_repo(
         // Skip suspended items
         if item.is_suspended {
             continue;
+        }
+
+        // Filter by collection if specified
+        if let Some(cid) = collection_id {
+            if item.collection_id != cid {
+                continue;
+            }
         }
 
         let is_due = item.due_date <= now;
@@ -170,6 +180,13 @@ async fn get_queue_items_from_repo(
     }
 
     for extract in extracts {
+        // Filter by collection if specified
+        if let Some(cid) = collection_id {
+            if extract.collection_id != cid {
+                continue;
+            }
+        }
+
         let document_title = doc_titles.get(&extract.document_id)
             .cloned()
             .unwrap_or_else(|| "Unknown Document".to_string());
@@ -212,6 +229,13 @@ async fn get_queue_items_from_repo(
     }
 
     for extract in video_extracts {
+        // Filter by collection if specified
+        if let Some(cid) = collection_id {
+            if extract.collection_id != cid {
+                continue;
+            }
+        }
+
         let document_title = doc_titles.get(&extract.document_id)
             .cloned()
             .unwrap_or_else(|| "Unknown Video".to_string());
@@ -328,7 +352,16 @@ async fn get_queue_items_from_repo(
         }
     });
 
+    tracing::info!("[queue] get_queue_items_from_repo collection_id={:?} returned {} items", collection_id, queue_items.len());
     Ok(queue_items)
+}
+
+/// Helper to get queue with collection filtering (for commands that have State)
+async fn get_queue_with_collection(
+    repo: State<'_, Repository>,
+    collection_id: Option<&str>,
+) -> Result<Vec<QueueItem>> {
+    get_queue_items_from_repo(repo.inner(), collection_id).await
 }
 
 /// Get all queue items
@@ -339,18 +372,20 @@ async fn get_queue_items_from_repo(
 /// - Documents without scheduled dates (for initial reading)
 #[tauri::command]
 pub async fn get_queue(
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    get_queue_items_from_repo(repo.inner()).await
+    get_queue_items_from_repo(repo.inner(), collection_id.as_deref()).await
 }
 
 /// Get queued items (items that are due or should be in the reading queue)
 #[tauri::command]
 pub async fn get_queued_items(
     randomness: Option<f32>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    let queue = get_queue(repo).await?;
+    let queue = get_queue_with_collection(repo, collection_id.as_deref()).await?;
     let selector = QueueSelector::new(randomness.unwrap_or(0.3));
 
     // Filter and sort using the queue selector
@@ -367,9 +402,10 @@ pub async fn get_queued_items(
 #[tauri::command]
 pub async fn get_due_queue_items(
     randomness: Option<f32>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    let queue = get_queue(repo).await?;
+    let queue = get_queue_with_collection(repo, collection_id.as_deref()).await?;
     let selector = QueueSelector::new(randomness.unwrap_or(0.3));
 
     let mut due_items: Vec<QueueItem> = selector.filter_due_items(&queue)
@@ -388,6 +424,7 @@ pub async fn get_due_queue_items(
 /// never been read (next_reading_date is NULL).
 async fn get_due_documents_only_from_repo(
     repo: &Repository,
+    collection_id: Option<&str>,
 ) -> Result<Vec<QueueItem>> {
     let mut due_documents = Vec::new();
     let now = Utc::now();
@@ -399,6 +436,13 @@ async fn get_due_documents_only_from_repo(
         // Skip archived and dismissed documents
         if document.is_archived || document.is_dismissed {
             continue;
+        }
+
+        // Filter by collection if specified
+        if let Some(cid) = collection_id {
+            if document.collection_id != cid {
+                continue;
+            }
         }
 
         // Include documents that are due (next_reading_date <= now)
@@ -462,22 +506,24 @@ async fn get_due_documents_only_from_repo(
 
 #[tauri::command]
 pub async fn get_due_documents_only(
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    get_due_documents_only_from_repo(repo.inner()).await
+    get_due_documents_only_from_repo(repo.inner(), collection_id.as_deref()).await
 }
 
 /// Get queue with playlist videos interspersed
-/// 
+///
 /// This returns the queue with playlist videos inserted at regular intervals
 /// based on each subscription's queue_intersperse_interval setting.
 #[tauri::command]
 pub async fn get_queue_with_playlist_intersperse(
     randomness: Option<f32>,
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
     // Get the base queue
-    let mut queue = get_queue_items_from_repo(repo.inner()).await?;
+    let mut queue = get_queue_items_from_repo(repo.inner(), collection_id.as_deref()).await?;
     
     // Get playlist settings
     let settings = match repo.get_playlist_settings().await {

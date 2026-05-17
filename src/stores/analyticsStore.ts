@@ -11,6 +11,7 @@ import {
   type CategoryStats,
   type LeechItem,
 } from "../api/analytics";
+import { useCollectionStore } from "./collectionStore";
 
 interface AnalyticsState {
   dashboardStats: DashboardStats | null;
@@ -44,7 +45,8 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   loadDashboardStats: async () => {
     set({ isLoading: true, error: null });
     try {
-      const stats = await getDashboardStats();
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const stats = await getDashboardStats(collectionId);
       set({ dashboardStats: stats, isLoading: false });
     } catch (error) {
       set({

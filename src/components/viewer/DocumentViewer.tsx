@@ -318,6 +318,7 @@ export function DocumentViewer({
     duration?: number;
   } | null>(null);
   const readingSessionStartRef = useRef(Date.now());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Clear transient video context when switching documents.
   useEffect(() => {
@@ -2654,6 +2655,7 @@ export function DocumentViewer({
         (e.target as HTMLElement).tagName === "TEXTAREA") {
         return;
       }
+      if (!containerRef.current?.contains(e.target as Node)) return;
       const mod = e.ctrlKey || e.metaKey;
       const lowerKey = e.key.toLowerCase();
 
@@ -4252,7 +4254,7 @@ export function DocumentViewer({
 
   if (!currentDocument) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div ref={containerRef} className="flex items-center justify-center h-full">
         <div className="text-muted-foreground">{t("viewer.documentNotFound")}</div>
       </div>
     );
@@ -4261,7 +4263,7 @@ export function DocumentViewer({
   const hasPageNavigation = docType === "pdf" || docType === "epub";
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+    <div ref={containerRef} className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Toolbar */}
       {!embedded && !isFullscreen && (
       <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:flex-nowrap sm:p-4 bg-card border-b border-border">

@@ -3,7 +3,7 @@ import { invokeCommand, isTauri } from "../lib/tauri";
 import * as db from "../lib/database";
 import { buildAnkiApkg } from "./ankiExport";
 import type { Document, Extract, LearningItem } from "../types/document";
-import type { Collection } from "../stores/collectionStore";
+import type { Collection } from "../types/collection";
 import type {
   ArchiveFileEntry,
   CollectionArchiveManifest,
@@ -43,7 +43,6 @@ export function collectLocalStorage(): Record<string, string> {
 function buildScopeDocumentSet(
   scope: CollectionExportScope,
   activeCollectionId: string | null,
-  documentAssignments: Record<string, string>,
   documents: Document[]
 ): Set<string> {
   if (scope === "all" || !activeCollectionId) {
@@ -52,8 +51,7 @@ function buildScopeDocumentSet(
 
   const ids = new Set<string>();
   for (const doc of documents) {
-    const assigned = documentAssignments[doc.id];
-    if (assigned === activeCollectionId) {
+    if (doc.collectionId === activeCollectionId) {
       ids.add(doc.id);
     }
   }
@@ -64,7 +62,6 @@ export async function buildCollectionArchive(options: {
   scope: CollectionExportScope;
   activeCollectionId: string | null;
   collections: Collection[];
-  documentAssignments: Record<string, string>;
 }): Promise<{ blob: Blob; filename: string }> {
   const documents = await invokeCommand<Document[]>("get_documents");
   const extracts = await invokeCommand<Extract[]>("get_extracts", {});
@@ -73,7 +70,6 @@ export async function buildCollectionArchive(options: {
   const scopedDocIds = buildScopeDocumentSet(
     options.scope,
     options.activeCollectionId,
-    options.documentAssignments,
     documents
   );
 
@@ -123,19 +119,23 @@ export async function buildCollectionArchive(options: {
 
   const localStorageDump = collectLocalStorage();
 
+  const documentAssignments = Object.fromEntries(
+    scopedDocuments
+      .filter((doc) => doc.collectionId)
+      .map((doc) => [doc.id, doc.collectionId!])
+  );
+
   const collectionsPayload =
     options.scope === "all"
       ? {
         collections: options.collections,
         activeCollectionId: options.activeCollectionId,
-        documentAssignments: options.documentAssignments,
+        documentAssignments,
       }
       : {
         collections: options.collections.filter((c) => c.id === options.activeCollectionId),
         activeCollectionId: options.activeCollectionId,
-        documentAssignments: Object.fromEntries(
-          Object.entries(options.documentAssignments).filter(([docId]) => scopedDocIds.has(docId))
-        ),
+        documentAssignments,
       };
 
   const payload: CollectionArchivePayload = {

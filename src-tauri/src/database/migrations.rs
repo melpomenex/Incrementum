@@ -1594,6 +1594,24 @@ pub const MIGRATIONS: &[Migration] = &[
         ALTER TABLE podcast_feeds ADD COLUMN transcribe_language TEXT DEFAULT NULL;
         "#,
     ),
+    Migration::new(
+        "045_add_collection_id_to_tables",
+        r#"
+        -- Add collection_id to core tables
+        ALTER TABLE documents ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE extracts ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE learning_items ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE review_sessions ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE review_results ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE annotations ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+        ALTER TABLE categories ADD COLUMN collection_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001';
+
+        -- Indexes for collection-scoped queries
+        CREATE INDEX IF NOT EXISTS idx_documents_collection ON documents(collection_id);
+        CREATE INDEX IF NOT EXISTS idx_extracts_collection ON extracts(collection_id);
+        CREATE INDEX IF NOT EXISTS idx_learning_items_collection ON learning_items(collection_id);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

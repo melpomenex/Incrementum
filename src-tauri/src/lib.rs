@@ -632,6 +632,12 @@ pub fn run() {
             // Collection commands
             commands::collections::get_collections,
             commands::collections::create_collection,
+            commands::collections::get_collection,
+            commands::collections::update_collection,
+            commands::collections::delete_collection,
+            commands::collections::get_active_collection,
+            commands::collections::set_active_collection,
+            commands::collections::get_collection_due_count,
             // Position tracking commands
             commands::get_document_position,
             commands::save_document_position,

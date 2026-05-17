@@ -21,6 +21,9 @@ pub enum IncrementumError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
+    #[error("Validation error: {0}")]
+    Validation(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 
@@ -69,6 +72,7 @@ impl serde::Serialize for IncrementumError {
             Self::Fsrs(e) => ("fsrs", e.to_string()),
             Self::NotFound(msg) => ("not_found", msg.clone()),
             Self::InvalidInput(msg) => ("invalid_input", msg.clone()),
+            Self::Validation(msg) => ("validation", msg.clone()),
             Self::Internal(msg) => ("internal", msg.clone()),
             Self::IntegrationError(msg) => ("integration_error", msg.clone()),
             Self::SyncError(msg) => ("sync_error", msg.clone()),

@@ -582,6 +582,7 @@ pub async fn import_from_obsidian_internal(
 
     let document = crate::models::Document {
         id: document_id,
+        collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
         title: title.to_string(),
         file_path: file_path.to_string(),
         file_type: crate::models::FileType::Markdown,

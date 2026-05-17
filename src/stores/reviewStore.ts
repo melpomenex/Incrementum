@@ -217,20 +217,9 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         progress: doc.progress,
       }));
 
-      const { activeCollectionId, documentAssignments } = useCollectionStore.getState();
-      const collectionFilteredItems = activeCollectionId
-        ? items.filter((item) => {
-            if (!item.document_id) return true;
-            const assigned = documentAssignments[item.document_id];
-            return assigned ? assigned === activeCollectionId : true;
-          })
-        : items;
-      const collectionFilteredDocuments = activeCollectionId
-        ? documentItems.filter((item) => {
-            const assigned = documentAssignments[item.documentId];
-            return assigned ? assigned === activeCollectionId : true;
-          })
-        : documentItems;
+      // Collection filtering is now handled by the backend (collection_id on items)
+      const collectionFilteredItems = items;
+      const collectionFilteredDocuments = documentItems;
 
       // Filter by active deck selection
       const { activeDeckIds, decks } = useStudyDeckStore.getState();

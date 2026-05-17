@@ -7,7 +7,8 @@
  */
 
 import { useSettingsStore, type Settings } from "../stores/settingsStore";
-import { useCollectionStore, type Collection } from "../stores/collectionStore";
+import { useCollectionStore } from "../stores/collectionStore";
+import type { Collection } from "../types/collection";
 import { useUIStore } from "../stores/uiStore";
 import { useTabsStore } from "../stores/tabsStore";
 import type { Document, Extract, LearningItem } from "../types/document";
@@ -168,7 +169,7 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
   // Get all store states
   const settings = useSettingsStore.getState().settings;
   const collections = useCollectionStore.getState().collections;
-  const documentAssignments = useCollectionStore.getState().documentAssignments;
+  const documentAssignments: Record<string, string> = {};
   const uiState = {
     sidebarCollapsed: useUIStore.getState().sidebarCollapsed,
     dockPanelCollapsed: useUIStore.getState().dockPanelCollapsed,

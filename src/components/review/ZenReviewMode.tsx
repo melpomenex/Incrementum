@@ -333,6 +333,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   
   const [contextPeekVisible, setContextPeekVisible] = useState(false);
   const [justRated, setJustRated] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -348,6 +349,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+      if (!containerRef.current?.contains(e.target as Node)) return;
       
       // Exit on Escape
       if (e.key === "Escape") {
@@ -470,7 +472,7 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   const metaInterval = currentCardData.interval;
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8 md:p-16 relative">
+    <div ref={containerRef} className="h-full flex flex-col items-center justify-center p-8 md:p-16 relative">
       {/* Session Timer */}
       {sessionStartTime && <SessionTimer startTime={sessionStartTime} />}
 

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { Document, Extract } from "../types";
 import * as documentsApi from "../api/documents";
 import * as segmentationApi from "../api/segmentation";
-import { useCollectionStore } from "./collectionStore";
+
 import { useSettingsStore } from "./settingsStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 import { listen, isTauri } from "../lib/tauri";
@@ -90,7 +90,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const docs = await documentsApi.getDocuments();
-      useCollectionStore.getState().ensureDocumentsAssigned(docs);
       set({ documents: docs, isLoading: false });
     } catch (error) {
       set({
@@ -111,10 +110,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   addDocument: (document) =>
     set((state) => {
-      const { activeCollectionId, assignDocument } = useCollectionStore.getState();
-      if (activeCollectionId) {
-        assignDocument(document.id, activeCollectionId);
-      }
       return { documents: [...state.documents, document] };
     }),
 
@@ -280,10 +275,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     set({ isImporting: true, error: null });
     try {
       const doc = await documentsApi.importDocument(filePath);
-      const { activeCollectionId, assignDocument } = useCollectionStore.getState();
-      if (activeCollectionId) {
-        assignDocument(doc.id, activeCollectionId);
-      }
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
@@ -324,10 +315,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         try {
           const doc = await documentsApi.importDocument(filePath);
           imported.push(doc);
-          const { activeCollectionId, assignDocument } = useCollectionStore.getState();
-          if (activeCollectionId) {
-            assignDocument(doc.id, activeCollectionId);
-          }
 
           if (autoSegment) {
             set({ isSegmenting: true });
@@ -476,13 +463,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         console.warn('[DocumentStore] Failed to update document fully:', updateError);
       }
 
-      // Add to state and assign to active collection
-      const { activeCollectionId, assignDocument } = useCollectionStore.getState();
-      if (activeCollectionId) {
-        console.log('[DocumentStore] Assigning to collection:', activeCollectionId);
-        assignDocument(doc.id, activeCollectionId);
-      }
-
       console.log('[DocumentStore] Adding to state, current doc count:', get().documents.length);
       set((state) => ({
         documents: [...state.documents, doc],
@@ -518,12 +498,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         docData.filePath,
         docData.fileType
       );
-
-      // Add to state and assign to active collection
-      const { activeCollectionId, assignDocument } = useCollectionStore.getState();
-      if (activeCollectionId) {
-        assignDocument(doc.id, activeCollectionId);
-      }
 
       set((state) => ({
         documents: [...state.documents, doc],

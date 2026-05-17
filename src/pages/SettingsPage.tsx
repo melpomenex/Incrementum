@@ -89,10 +89,10 @@ function GeneralSettings() {
   const { t } = useI18n();
   const collections = useCollectionStore((state) => state.collections);
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
-  const setActiveCollectionId = useCollectionStore((state) => state.setActiveCollectionId);
+  const switchCollection = useCollectionStore((state) => state.switchCollection);
   const createCollection = useCollectionStore((state) => state.createCollection);
   const renameCollection = useCollectionStore((state) => state.renameCollection);
-  const removeCollection = useCollectionStore((state) => state.removeCollection);
+  const deleteCollection = useCollectionStore((state) => state.deleteCollection);
   const [newCollectionName, setNewCollectionName] = useState("");
 
   return (
@@ -113,7 +113,7 @@ function GeneralSettings() {
               </div>
               <select
                 value={activeCollectionId ?? ""}
-                onChange={(e) => setActiveCollectionId(e.target.value || null)}
+                onChange={(e) => switchCollection(e.target.value)}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm min-w-[200px]"
               >
                 {collections.map((collection) => (
@@ -158,7 +158,7 @@ function GeneralSettings() {
                 </button>
                 {collections.length > 1 && (
                   <button
-                    onClick={() => removeCollection(activeCollectionId)}
+                    onClick={() => deleteCollection(activeCollectionId)}
                     className="px-3 py-1.5 bg-destructive/10 text-destructive rounded text-sm hover:bg-destructive/20 transition-colors"
                   >
                     {t("settings.deleteActive")}

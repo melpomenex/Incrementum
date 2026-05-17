@@ -5,6 +5,7 @@ use chrono::Utc;
 use std::collections::HashMap;
 use crate::error::{Result, IncrementumError};
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage, TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
+use crate::models::collection::{Collection, DEFAULT_COLLECTION_ID};
 
 #[derive(Clone)]
 pub struct Repository {
@@ -79,6 +80,120 @@ impl Repository {
         }
     }
 
+    // Collection operations
+
+    pub async fn create_collection(&self, name: &str, icon: Option<&str>, color: Option<&str>) -> Result<Collection> {
+        let collection = Collection::new(name.to_string());
+        let now = Utc::now();
+        sqlx::query(
+            "INSERT INTO collections (id, name, icon, color, created_at, modified_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+        )
+        .bind(&collection.id)
+        .bind(&collection.name)
+        .bind(icon)
+        .bind(color)
+        .bind(now)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(collection)
+    }
+
+    pub async fn get_collections(&self) -> Result<Vec<Collection>> {
+        let rows = sqlx::query("SELECT * FROM collections ORDER BY name ASC")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows.iter().map(|row| Collection {
+            id: row.get("id"),
+            name: row.get("name"),
+            icon: row.try_get("icon").ok(),
+            color: row.try_get("color").ok(),
+            is_default: row.try_get("is_default").unwrap_or(false),
+            created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: row.try_get("modified_at").or_else(|_| row.try_get("updated_at")).unwrap_or_else(|_| Utc::now()),
+        }).collect())
+    }
+
+    pub async fn get_collection(&self, id: &str) -> Result<Option<Collection>> {
+        let row = sqlx::query("SELECT * FROM collections WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.map(|row| Collection {
+            id: row.get("id"),
+            name: row.get("name"),
+            icon: row.try_get("icon").ok(),
+            color: row.try_get("color").ok(),
+            is_default: row.try_get("is_default").unwrap_or(false),
+            created_at: row.try_get("created_at").unwrap_or_else(|_| Utc::now()),
+            updated_at: row.try_get("modified_at").or_else(|_| row.try_get("updated_at")).unwrap_or_else(|_| Utc::now()),
+        }))
+    }
+
+    pub async fn update_collection(&self, id: &str, name: Option<&str>, icon: Option<&str>, color: Option<&str>) -> Result<Collection> {
+        let existing = self.get_collection(id).await?
+            .ok_or_else(|| IncrementumError::NotFound(format!("Collection {} not found", id)))?;
+
+        let new_name = name.unwrap_or(&existing.name);
+        let new_icon = icon.or(existing.icon.as_deref());
+        let new_color = color.or(existing.color.as_deref());
+
+        sqlx::query("UPDATE collections SET name = ?1, icon = ?2, color = ?3, modified_at = ?4 WHERE id = ?5")
+            .bind(new_name)
+            .bind(new_icon)
+            .bind(new_color)
+            .bind(Utc::now())
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        self.get_collection(id).await?.ok_or_else(|| IncrementumError::NotFound("Collection disappeared".into()))
+    }
+
+    pub async fn delete_collection(&self, id: &str) -> Result<()> {
+        let collection = self.get_collection(id).await?
+            .ok_or_else(|| IncrementumError::NotFound(format!("Collection {} not found", id)))?;
+
+        if collection.id == DEFAULT_COLLECTION_ID {
+            return Err(IncrementumError::Validation("Cannot delete the default collection".into()));
+        }
+
+        // Reassign all items to the default collection
+        let tables = ["documents", "extracts", "learning_items", "review_sessions", "review_results", "annotations", "categories"];
+        for table in &tables {
+            let _ = sqlx::query(&format!("UPDATE {} SET collection_id = ? WHERE collection_id = ?", table))
+                .bind(DEFAULT_COLLECTION_ID)
+                .bind(id)
+                .execute(&self.pool)
+                .await;
+        }
+
+        sqlx::query("DELETE FROM collections WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_collection_due_count(&self, collection_id: &str) -> Result<i64> {
+        let now = Utc::now();
+        let row = sqlx::query("SELECT COUNT(*) as count FROM learning_items WHERE collection_id = ? AND due_date <= ? AND is_suspended = false")
+            .bind(collection_id)
+            .bind(now)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(row.get("count"))
+    }
+
+    pub async fn get_default_collection_id(&self) -> Result<String> {
+        let row = sqlx::query("SELECT id FROM collections WHERE id = ? LIMIT 1")
+            .bind(DEFAULT_COLLECTION_ID)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.map(|r| r.get::<String, _>("id")).unwrap_or_else(|| DEFAULT_COLLECTION_ID.to_string()))
+    }
+
     // Document operations
     pub async fn create_document(&self, document: &Document) -> Result<Document> {
         let file_type_str = format!("{:?}", document.file_type).to_lowercase();
@@ -88,15 +203,16 @@ impl Repository {
         sqlx::query(
             r#"
             INSERT INTO documents (
-                id, title, file_path, file_type, content, content_hash,
+                id, collection_id, title, file_path, file_type, content, content_hash,
                 total_pages, current_page, current_scroll_percent, current_cfi, current_view_state, category, tags,
                 date_added, date_modified, date_last_reviewed,
                 extract_count, learning_item_count, priority_rating, priority_slider, priority_score,
                 is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)
             "#,
         )
         .bind(&document.id)
+        .bind(&document.collection_id)
         .bind(&document.title)
         .bind(&document.file_path)
         .bind(&file_type_str)
@@ -148,6 +264,7 @@ impl Repository {
 
                 Ok(Some(Document {
                     id: row.get("id"),
+                    collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                     title: row.get("title"),
                     file_path: row.get("file_path"),
                     file_type: Self::parse_file_type(&file_type),
@@ -223,6 +340,7 @@ impl Repository {
 
                 Ok(Some(Document {
                     id: row.get("id"),
+                    collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                     title: row.get("title"),
                     file_path: row.get("file_path"),
                     file_type: Self::parse_file_type(&file_type),
@@ -283,6 +401,7 @@ impl Repository {
 
             docs.push(Document {
                 id: row.get("id"),
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 title: row.get("title"),
                 file_path: row.get("file_path"),
                 file_type: Self::parse_file_type(&file_type),
@@ -350,6 +469,7 @@ impl Repository {
 
             docs.push(Document {
                 id: row.get("id"),
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 title: row.get("title"),
                 file_path: row.get("file_path"),
                 file_type: Self::parse_file_type(&file_type),
@@ -721,15 +841,16 @@ impl Repository {
         sqlx::query(
             r#"
             INSERT INTO extracts (
-                id, document_id, content, html_content, source_url, page_title, page_number,
+                id, collection_id, document_id, content, html_content, source_url, page_title, page_number,
                 selection_context, highlight_color, notes, progressive_disclosure_level,
                 max_disclosure_level, progressive_summaries, date_created, date_modified,
                 tags, category, memory_state_stability, memory_state_difficulty,
                 next_review_date, last_review_date, review_count, reps, source_hash
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
             "#,
         )
         .bind(&extract.id)
+        .bind(&extract.collection_id)
         .bind(&extract.document_id)
         .bind(&extract.content)
         .bind(&extract.html_content)
@@ -779,6 +900,7 @@ impl Repository {
 
                 Ok(Some(Extract {
                     id: row.try_get("id")?,
+                    collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                     document_id: row.try_get("document_id")?,
                     content: row.try_get("content")?,
                     html_content: row.try_get("html_content").ok(),
@@ -829,6 +951,7 @@ impl Repository {
 
             extracts.push(Extract {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 document_id: row.try_get("document_id")?,
                 content: row.try_get("content")?,
                 html_content: row.try_get("html_content").ok(),
@@ -878,6 +1001,7 @@ impl Repository {
 
             extracts.push(Extract {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 document_id: row.try_get("document_id")?,
                 content: row.try_get("content")?,
                 html_content: row.try_get("html_content").ok(),
@@ -1002,6 +1126,7 @@ impl Repository {
 
             extracts.push(Extract {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 document_id: row.try_get("document_id")?,
                 content: row.try_get("content")?,
                 html_content: row.try_get("html_content").ok(),
@@ -1052,6 +1177,7 @@ impl Repository {
 
             extracts.push(Extract {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 document_id: row.try_get("document_id")?,
                 content: row.try_get("content")?,
                 html_content: row.try_get("html_content").ok(),
@@ -1153,16 +1279,17 @@ impl Repository {
         sqlx::query(
             r#"
             INSERT INTO learning_items (
-                id, extract_id, document_id, item_type, question,
+                id, collection_id, extract_id, document_id, item_type, question,
                 answer, cloze_text, cloze_ranges, difficulty, interval,
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
                 is_suspended, tags, image_asset_ids, interaction_metadata, memory_state_stability, memory_state_difficulty,
                 algorithm_type, algorithm_state
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
             "#,
         )
         .bind(&item.id)
+        .bind(&item.collection_id)
         .bind(&item.extract_id)
         .bind(&item.document_id)
         .bind(&item_type_str)
@@ -1227,6 +1354,7 @@ impl Repository {
 
             items.push(LearningItem {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 extract_id: row.try_get("extract_id")?,
                 document_id: row.try_get("document_id")?,
                 item_type: Self::parse_item_type(&item_type_str),
@@ -1290,6 +1418,7 @@ impl Repository {
 
             items.push(LearningItem {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 extract_id: row.try_get("extract_id")?,
                 document_id: row.try_get("document_id")?,
                 item_type: Self::parse_item_type(&item_type_str),
@@ -1353,6 +1482,7 @@ impl Repository {
 
             items.push(LearningItem {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 extract_id: row.try_get("extract_id")?,
                 document_id: row.try_get("document_id")?,
                 item_type: Self::parse_item_type(&item_type_str),
@@ -1456,6 +1586,7 @@ impl Repository {
 
             items.push(LearningItem {
                 id: row.try_get("id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 extract_id: row.try_get("extract_id")?,
                 document_id: row.try_get("document_id")?,
                 item_type: Self::parse_item_type(&item_type_str),
@@ -1671,15 +1802,16 @@ impl Repository {
     // Review session operations
 
     /// Create a new review session
-    pub async fn create_review_session(&self, id: &str) -> Result<()> {
+    pub async fn create_review_session(&self, id: &str, collection_id: &str) -> Result<()> {
         let now = Utc::now();
         sqlx::query(
             r#"
-            INSERT INTO review_sessions (id, start_time, items_reviewed, correct_answers, total_time)
-            VALUES (?1, ?2, 0, 0, 0)
+            INSERT INTO review_sessions (id, collection_id, start_time, items_reviewed, correct_answers, total_time)
+            VALUES (?1, ?2, ?3, 0, 0, 0)
             "#,
         )
         .bind(id)
+        .bind(collection_id)
         .bind(now)
         .execute(&self.pool)
         .await?;
@@ -1742,6 +1874,7 @@ impl Repository {
     pub async fn create_review_result(
         &self,
         id: &str,
+        collection_id: &str,
         session_id: Option<&str>,
         item_id: &str,
         rating: i32,
@@ -1753,11 +1886,12 @@ impl Repository {
         let now = Utc::now();
         sqlx::query(
             r#"
-            INSERT INTO review_results (id, session_id, item_id, rating, time_taken, new_due_date, new_interval, new_ease_factor, timestamp)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            INSERT INTO review_results (id, collection_id, session_id, item_id, rating, time_taken, new_due_date, new_interval, new_ease_factor, timestamp)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
             "#,
         )
         .bind(id)
+        .bind(collection_id)
         .bind(session_id)
         .bind(item_id)
         .bind(rating)
@@ -2993,6 +3127,7 @@ impl Repository {
                 Ok(Some(crate::models::VideoExtract {
                     id: row.try_get("id")?,
                     document_id: row.try_get("document_id")?,
+                    collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                     start_time: row.try_get("start_time")?,
                     end_time: row.try_get("end_time")?,
                     title: row.try_get("title")?,
@@ -3032,6 +3167,7 @@ impl Repository {
             extracts.push(crate::models::VideoExtract {
                 id: row.try_get("id")?,
                 document_id: row.try_get("document_id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 start_time: row.try_get("start_time")?,
                 end_time: row.try_get("end_time")?,
                 title: row.try_get("title")?,
@@ -3071,6 +3207,7 @@ impl Repository {
             extracts.push(crate::models::VideoExtract {
                 id: row.try_get("id")?,
                 document_id: row.try_get("document_id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 start_time: row.try_get("start_time")?,
                 end_time: row.try_get("end_time")?,
                 title: row.try_get("title")?,
@@ -3111,6 +3248,7 @@ impl Repository {
             extracts.push(crate::models::VideoExtract {
                 id: row.try_get("id")?,
                 document_id: row.try_get("document_id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 start_time: row.try_get("start_time")?,
                 end_time: row.try_get("end_time")?,
                 title: row.try_get("title")?,
@@ -3155,6 +3293,7 @@ impl Repository {
 
             let doc = Document {
                 id: row.get("id"),
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 title: row.get("title"),
                 file_path: row.get("file_path"),
                 file_type: Self::parse_file_type(&file_type),
@@ -3284,6 +3423,7 @@ impl Repository {
             extracts.push(crate::models::VideoExtract {
                 id: row.try_get("id")?,
                 document_id: row.try_get("document_id")?,
+                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
                 start_time: row.try_get("start_time")?,
                 end_time: row.try_get("end_time")?,
                 title: row.try_get("title")?,

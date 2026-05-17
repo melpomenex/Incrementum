@@ -143,7 +143,7 @@ function AnkiExportControls() {
  */
 export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const { t } = useI18n();
-  const { collections, activeCollectionId, documentAssignments } = useCollectionStore();
+  const { collections, activeCollectionId } = useCollectionStore();
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     includeDocuments: true,
     includeExtracts: true,
@@ -220,7 +220,6 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
         scope: archiveScope,
         activeCollectionId,
         collections,
-        documentAssignments,
       });
 
       const url = URL.createObjectURL(blob);

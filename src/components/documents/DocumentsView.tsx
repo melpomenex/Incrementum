@@ -175,9 +175,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     segmentDocument,
   } = useDocumentStore();
   const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
-  const documentAssignments = useCollectionStore((state) => state.documentAssignments);
   const collections = useCollectionStore((state) => state.collections);
-  const assignDocument = useCollectionStore((state) => state.assignDocument);
   const createCollection = useCollectionStore((state) => state.createCollection);
 
   const [mode, setMode] = useState<DocumentViewMode>(() => {
@@ -299,17 +297,12 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
   const filteredDocuments = useMemo(() => {
     let base = documents.filter((doc) => matchesDocumentSearch(doc, searchTokens));
-    if (activeCollectionId) {
-      base = base.filter((doc) => {
-        const assigned = documentAssignments[doc.id];
-        return assigned ? assigned === activeCollectionId : true;
-      });
-    }
+    // Collection filtering is now handled by the backend (collection_id on documents)
     if (selectedFileType !== "all") {
       base = base.filter((doc) => doc.fileType === selectedFileType);
     }
     return base;
-  }, [documents, searchTokens, activeCollectionId, documentAssignments, selectedFileType]);
+  }, [documents, searchTokens, selectedFileType]);
 
   const sortedDocuments = useMemo(() => {
     return sortDocuments(filteredDocuments, sortKey, sortDirection);
@@ -636,7 +629,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     });
   };
 
-  const handleBulkMoveCollection = () => {
+  const handleBulkMoveCollection = async () => {
     if (selectedIds.size === 0) return;
     const names = collections.map((collection) => collection.name).join(", ");
     const targetName = window.prompt(t("documentsView.moveCollectionPrompt", { names }));
@@ -644,10 +637,8 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     const existing = collections.find(
       (collection) => collection.name.toLowerCase() === targetName.toLowerCase()
     );
-    const target = existing ?? createCollection(targetName);
-    selectedIds.forEach((id) => {
-      assignDocument(id, target.id);
-    });
+    const target = existing ?? await createCollection(targetName);
+    // TODO: Update collection_id on selected documents via backend API
     setSelectedIds(new Set());
   };
 
