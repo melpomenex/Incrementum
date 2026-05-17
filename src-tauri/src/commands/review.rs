@@ -122,7 +122,7 @@ pub async fn start_review(
 ) -> Result<String> {
     // Get all due items
     let now = Utc::now();
-    let due_items = repo.get_due_learning_items(&now).await?;
+    let due_items = repo.get_due_learning_items(&now, None).await?;
 
     if due_items.is_empty() {
         return Ok(String::new()); // No session needed if no items

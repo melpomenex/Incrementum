@@ -84,8 +84,8 @@ export async function restoreLearningItemState(
   });
 }
 
-export async function getDueItems(): Promise<LearningItem[]> {
-  return await invokeCommand<LearningItem[]>("get_due_items");
+export async function getDueItems(collectionId?: string): Promise<LearningItem[]> {
+  return await invokeCommand<LearningItem[]>("get_due_items", { collectionId });
 }
 
 export async function previewReviewIntervals(

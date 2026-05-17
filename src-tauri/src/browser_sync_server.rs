@@ -1442,7 +1442,7 @@ async fn handle_automation_due_count(
     State(state): State<ServerState>,
 ) -> Response {
     let now = chrono::Utc::now();
-    match state.repo.get_due_learning_items(&now).await {
+    match state.repo.get_due_learning_items(&now, None).await {
         Ok(items) => (
             StatusCode::OK,
             Json(AutomationDueCountResponse {

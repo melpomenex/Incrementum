@@ -838,7 +838,7 @@ impl MCPToolRegistry {
     async fn execute_get_review_queue(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
         let limit = args["limit"].as_u64().unwrap_or(20) as usize;
 
-        match self.repository.get_due_learning_items(&Utc::now()).await {
+        match self.repository.get_due_learning_items(&Utc::now(), None).await {
             Ok(items) => {
                 let limited: Vec<_> = items.into_iter().take(limit).collect();
 
