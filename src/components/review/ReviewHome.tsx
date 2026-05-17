@@ -53,6 +53,7 @@ function inferAnkiDeckNames(imported: unknown[]): string[] {
 export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps) {
   const { documents, loadDocuments } = useDocumentStore();
   const { loadStreak, streak, streakLoading } = useReviewStore();
+  const { activeCollectionId } = useCollectionStore();
   const {
     decks,
     activeDeckIds,
@@ -99,7 +100,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
     setIsLoading(true);
     setError(null);
     try {
-      const items = await getDueItems();
+      const items = await getDueItems(activeCollectionId);
       setDueItems(items);
       await loadStreak();
     } catch (err) {
@@ -111,7 +112,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [activeCollectionId]);
 
   useEffect(() => {
     const handler = () => setIsFlashcardStudioOpen(true);

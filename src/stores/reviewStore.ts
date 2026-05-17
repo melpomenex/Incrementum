@@ -203,7 +203,8 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   loadQueue: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [items, dueDocuments] = await Promise.all([getDueItems(), getDueDocumentsOnly()]);
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const [items, dueDocuments] = await Promise.all([getDueItems(collectionId), getDueDocumentsOnly(collectionId)]);
 
       const documentItems: ReviewDocumentItem[] = dueDocuments.map((doc) => ({
         id: `doc:${doc.documentId}`,

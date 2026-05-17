@@ -47,10 +47,11 @@ fn jaccard_similarity(a: &str, b: &str) -> f64 {
 
 #[tauri::command]
 pub async fn get_due_items(
+    collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<LearningItem>> {
     let now = chrono::Utc::now();
-    let items = repo.get_due_learning_items(&now).await?;
+    let items = repo.get_due_learning_items(&now, collection_id.as_deref()).await?;
     let mut filtered = Vec::new();
     for item in items {
         let prerequisite_ids = load_learning_item_prerequisites(&item.id, &repo).await?;
