@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTabsStore, normalizePane } from "../../stores";
+import { useTabsStore, normalizePane, type TabType } from "../../stores";
 import { useDocumentStore } from "../../stores";
 import { useSettingsStore } from "../../stores";
+import { useUIStore } from "../../stores";
 import { useI18n } from "../../lib/i18n";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
 import { VimiumNavigationProvider, useVimiumEnabled, type VimiumCommand } from "../common/VimiumNavigation";
 import { Toolbar } from "../Toolbar";
 import { Tabs } from "../common/Tabs";
-import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab } from "../tabs/TabRegistry";
+import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab, RssTab, PodcastTab, KnowledgeSphereTab, KnowledgeNetworkTab, NewsletterDirectoryTab, DocumentQATab, NotebookLMTab, ImageRegistryTab } from "../tabs/TabRegistry";
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
@@ -18,6 +19,44 @@ import {
   ListTodo,
   Monitor,
 } from "lucide-react";
+
+const TAB_TYPE_ALIASES: Record<string, TabType> = {
+  dash: "dashboard", dashboard: "dashboard", home: "dashboard",
+  docs: "documents", documents: "documents", doc: "documents",
+  queue: "queue", q: "queue",
+  rev: "review", review: "review",
+  anal: "analytics", analytics: "analytics", stats: "analytics",
+  set: "settings", settings: "settings",
+  rss: "rss", feeds: "rss",
+  news: "newsletter", newsletter: "newsletter",
+  pod: "podcast", podcast: "podcast", podcasts: "podcast",
+  ks: "knowledge-sphere", sphere: "knowledge-sphere", "knowledge-sphere": "knowledge-sphere",
+  kn: "knowledge-network", network: "knowledge-network", "knowledge-network": "knowledge-network",
+  qa: "doc-qa", "doc-qa": "doc-qa",
+  nb: "notebooklm", notebook: "notebooklm", notebooklm: "notebooklm",
+  img: "image-registry", images: "image-registry", "image-registry": "image-registry",
+  web: "web-browser", browser: "web-browser", "web-browser": "web-browser",
+};
+
+const TAB_TYPE_ICONS: Record<string, string> = {
+  dashboard: "📊", documents: "📂", queue: "📚", review: "🧠",
+  analytics: "📈", settings: "⚙️", rss: "📡", newsletter: "📰",
+  podcast: "🎙️", "knowledge-sphere": "🌐", "knowledge-network": "🕸️",
+  "doc-qa": "💬", notebooklm: "🤖", "image-registry": "🖼️",
+  "web-browser": "🌐",
+};
+
+function resolveTabType(input: string): TabType | null {
+  return TAB_TYPE_ALIASES[input.toLowerCase()] ?? null;
+}
+
+function getActiveTabPane() {
+  const paneIds = useTabsStore.getState().getTabPaneIds();
+  if (paneIds.length === 0) return null;
+  const pane = useTabsStore.getState().findPaneById(paneIds[0]);
+  if (!pane || pane.type !== "tabs") return null;
+  return pane;
+}
 
 export function MainLayout() {
   const tabs = useTabsStore((state) => state.tabs);
@@ -75,9 +114,9 @@ export function MainLayout() {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // If no tabs exist, create default tabs
+    // If no tabs exist, try restoring from saved session
     if (tabs.length === 0) {
-      // Load saved tabs first to check if there's a persisted layout
+      // loadTabs() will restore the session if restoreSession is enabled
       loadTabs();
 
       // If still no tabs after loading, create defaults
@@ -108,6 +147,24 @@ export function MainLayout() {
     documentsLoadedRef.current = true;
     void loadDocuments();
   }, [loadDocuments]);
+
+  // Auto-save session on background/close
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        useTabsStore.getState().saveTabs();
+      }
+    };
+    const handleBeforeUnload = () => {
+      useTabsStore.getState().saveTabs();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   const resolveUrl = (inputUrl: string) => {
     if (!inputUrl.trim()) return "";
@@ -144,159 +201,503 @@ export function MainLayout() {
     });
   };
 
-  const vimiumCommands = useMemo<VimiumCommand[]>(() => ([
-    {
-      id: "vimium-open",
-      name: "open",
-      description: t("toolbar.openUrl"),
-      action: (args) => openWebUrl(args.join(" "), false),
-      aliases: ["o"],
-    },
-    {
-      id: "vimium-tab",
-      name: "tab",
-      description: t("toolbar.openUrlNewTab"),
-      action: (args) => openWebUrl(args.join(" "), true),
-      aliases: ["t"],
-    },
-    {
-      id: "vimium-dashboard",
-      name: "dashboard",
-      description: t("toolbar.goToDashboard"),
-      action: (_args) => {
-        addTab({
-          title: "Dashboard",
-          icon: "📊",
-          type: "dashboard",
-          content: DashboardTab,
-          closable: false,
-        });
+  const openTabByType = (type: TabType) => {
+    const tabConfig: Record<string, { title: string; content: React.ComponentType; closable: boolean }> = {
+      dashboard: { title: "Dashboard", content: DashboardTab, closable: false },
+      documents: { title: "Documents", content: DocumentsTab, closable: true },
+      queue: { title: "Queue", content: QueueTab, closable: true },
+      review: { title: "Review", content: ReviewTab, closable: true },
+      analytics: { title: "Statistics", content: AnalyticsTab, closable: true },
+      settings: { title: "Settings", content: SettingsTab, closable: true },
+      rss: { title: "RSS", content: RssTab, closable: true },
+      newsletter: { title: "Newsletters", content: NewsletterDirectoryTab, closable: true },
+      podcast: { title: "Podcasts", content: PodcastTab, closable: true },
+      "knowledge-sphere": { title: "Knowledge Sphere", content: KnowledgeSphereTab, closable: true },
+      "knowledge-network": { title: "Knowledge Network", content: KnowledgeNetworkTab, closable: true },
+      "doc-qa": { title: "Document Q&A", content: DocumentQATab, closable: true },
+      notebooklm: { title: "NotebookLM", content: NotebookLMTab, closable: true },
+      "image-registry": { title: "Images", content: ImageRegistryTab, closable: true },
+    };
+    const config = tabConfig[type];
+    if (!config) return;
+    addTab({
+      title: config.title,
+      icon: TAB_TYPE_ICONS[type] ?? "📋",
+      type,
+      content: config.content,
+      closable: config.closable,
+    });
+  };
+
+  const vimiumCommands = useMemo<VimiumCommand[]>(() => {
+    const cmds: VimiumCommand[] = [
+      // --- Navigation (existing) ---
+      {
+        id: "vimium-open",
+        name: "open",
+        description: t("toolbar.openUrl"),
+        action: (args) => openWebUrl(args.join(" "), false),
+        aliases: ["o"],
       },
-    },
-    {
-      id: "vimium-documents",
-      name: "documents",
-      description: t("toolbar.goToDocuments"),
-      action: (_args) => {
-        addTab({
-          title: "Documents",
-          icon: "📂",
-          type: "documents",
-          content: DocumentsTab,
-          closable: true,
-        });
+      {
+        id: "vimium-tab",
+        name: "tab",
+        description: t("toolbar.openUrlNewTab"),
+        action: (args) => openWebUrl(args.join(" "), true),
+        aliases: ["t"],
       },
-    },
-    {
-      id: "vimium-queue",
-      name: "queue",
-      description: t("toolbar.goToQueue"),
-      action: (_args) => {
-        addTab({
-          title: "Queue",
-          icon: "📚",
-          type: "queue",
-          content: QueueTab,
-          closable: true,
-        });
+      {
+        id: "vimium-dashboard",
+        name: "dashboard",
+        description: t("toolbar.goToDashboard"),
+        action: () => openTabByType("dashboard"),
       },
-    },
-    {
-      id: "vimium-review",
-      name: "review",
-      description: t("toolbar.startReviewCmd"),
-      action: (_args) => {
-        addTab({
-          title: "Review",
-          icon: "🧠",
-          type: "review",
-          content: ReviewTab,
-          closable: true,
-        });
+      {
+        id: "vimium-documents",
+        name: "documents",
+        description: t("toolbar.goToDocuments"),
+        action: () => openTabByType("documents"),
       },
-    },
-    {
-      id: "vimium-analytics",
-      name: "analytics",
-      description: t("toolbar.openStats"),
-      action: (_args) => {
-        addTab({
-          title: "Statistics",
-          icon: "📈",
-          type: "analytics",
-          content: AnalyticsTab,
-          closable: true,
-        });
+      {
+        id: "vimium-queue",
+        name: "queue",
+        description: t("toolbar.goToQueue"),
+        action: () => openTabByType("queue"),
       },
-    },
-    {
-      id: "vimium-settings",
-      name: "settings",
-      description: t("toolbar.openSettings"),
-      action: (_args) => {
-        addTab({
-          title: "Settings",
-          icon: "⚙️",
-          type: "settings",
-          content: SettingsTab,
-          closable: true,
-        });
+      {
+        id: "vimium-review",
+        name: "review",
+        description: t("toolbar.startReviewCmd"),
+        action: () => openTabByType("review"),
       },
-    },
-    {
-      id: "vimium-close-tab",
-      name: "close-tab",
-      description: t("toolbar.closeTab"),
-      action: () => {
-        if (activePaneTabId) closeTab(activePaneTabId);
+      {
+        id: "vimium-analytics",
+        name: "analytics",
+        description: t("toolbar.openStats"),
+        action: () => openTabByType("analytics"),
       },
-      aliases: ["close"],
-    },
-    {
-      id: "vimium-restore-tab",
-      name: "restore-tab",
-      description: t("toolbar.reopenClosedTab"),
-      action: () => reopenLastClosedTab(),
-      aliases: ["reopen"],
-    },
-    {
-      id: "vimium-next-tab",
-      name: "next-tab",
-      description: t("toolbar.switchNextTab"),
-      action: () => {
-        // Find first tab pane and cycle through its tabs
-        const paneIds = useTabsStore.getState().getTabPaneIds();
-        if (paneIds.length === 0) return;
-        const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
-        if (firstPane && firstPane.type === "tabs") {
-          const currentIndex = firstPane.tabIds.findIndex((id) => id === firstPane.activeTabId);
-          const nextIndex = (currentIndex + 1) % firstPane.tabIds.length;
-          if (firstPane.tabIds[nextIndex]) {
-            setActiveTab(firstPane.id, firstPane.tabIds[nextIndex]);
+      {
+        id: "vimium-settings",
+        name: "settings",
+        description: t("toolbar.openSettings"),
+        action: () => openTabByType("settings"),
+      },
+      {
+        id: "vimium-close-tab",
+        name: "close-tab",
+        description: t("toolbar.closeTab"),
+        action: () => {
+          if (activePaneTabId) closeTab(activePaneTabId);
+        },
+        aliases: ["close"],
+      },
+      {
+        id: "vimium-restore-tab",
+        name: "restore-tab",
+        description: t("toolbar.reopenClosedTab"),
+        action: () => reopenLastClosedTab(),
+        aliases: ["reopen"],
+      },
+      {
+        id: "vimium-next-tab",
+        name: "next-tab",
+        description: t("toolbar.switchNextTab"),
+        action: () => {
+          const pane = getActiveTabPane();
+          if (!pane) return;
+          const currentIndex = pane.tabIds.findIndex((id) => id === pane.activeTabId);
+          const nextIndex = (currentIndex + 1) % pane.tabIds.length;
+          if (pane.tabIds[nextIndex]) setActiveTab(pane.id, pane.tabIds[nextIndex]);
+        },
+      },
+      {
+        id: "vimium-prev-tab",
+        name: "prev-tab",
+        description: t("toolbar.switchPrevTab"),
+        action: () => {
+          const pane = getActiveTabPane();
+          if (!pane) return;
+          const currentIndex = pane.tabIds.findIndex((id) => id === pane.activeTabId);
+          const prevIndex = currentIndex <= 0 ? pane.tabIds.length - 1 : currentIndex - 1;
+          if (pane.tabIds[prevIndex]) setActiveTab(pane.id, pane.tabIds[prevIndex]);
+        },
+        aliases: ["previous-tab"],
+      },
+
+      // --- Split Commands ---
+      {
+        id: "vimium-split",
+        name: "split",
+        description: t("vimium.cmd.split"),
+        action: (args) => {
+          const pane = getActiveTabPane();
+          if (!pane || !activePaneTabId) return;
+          if (args.length > 0) {
+            const tabType = resolveTabType(args[0]);
+            if (tabType) {
+              openTabByType(tabType);
+              const newTabs = useTabsStore.getState().tabs;
+              const newTab = newTabs[newTabs.length - 1];
+              if (newTab) {
+                useTabsStore.getState().spawnTabInSplit(pane.id, newTab.id, "horizontal", "after");
+              }
+            }
+          } else {
+            useTabsStore.getState().spawnTabInSplit(pane.id, activePaneTabId, "horizontal", "after");
           }
-        }
+        },
+        aliases: ["sp", "spl"],
       },
-    },
-    {
-      id: "vimium-prev-tab",
-      name: "prev-tab",
-      description: t("toolbar.switchPrevTab"),
-      action: () => {
-        // Find first tab pane and cycle through its tabs
-        const paneIds = useTabsStore.getState().getTabPaneIds();
-        if (paneIds.length === 0) return;
-        const firstPane = useTabsStore.getState().findPaneById(paneIds[0]);
-        if (firstPane && firstPane.type === "tabs") {
-          const currentIndex = firstPane.tabIds.findIndex((id) => id === firstPane.activeTabId);
-          const prevIndex = currentIndex <= 0 ? firstPane.tabIds.length - 1 : currentIndex - 1;
-          if (firstPane.tabIds[prevIndex]) {
-            setActiveTab(firstPane.id, firstPane.tabIds[prevIndex]);
+      {
+        id: "vimium-vsplit",
+        name: "vsplit",
+        description: t("vimium.cmd.vsplit"),
+        action: (args) => {
+          const pane = getActiveTabPane();
+          if (!pane || !activePaneTabId) return;
+          if (args.length > 0) {
+            const tabType = resolveTabType(args[0]);
+            if (tabType) {
+              openTabByType(tabType);
+              const newTabs = useTabsStore.getState().tabs;
+              const newTab = newTabs[newTabs.length - 1];
+              if (newTab) {
+                useTabsStore.getState().spawnTabInSplit(pane.id, newTab.id, "vertical", "after");
+              }
+            }
+          } else {
+            useTabsStore.getState().spawnTabInSplit(pane.id, activePaneTabId, "vertical", "after");
           }
-        }
+        },
+        aliases: ["vsp", "vs"],
       },
-      aliases: ["previous-tab"],
-    },
-  ]), [addTab, openWebUrl, activePaneTabId, closeTab, reopenLastClosedTab, setActiveTab]);
+      {
+        id: "vimium-only",
+        name: "only",
+        description: t("vimium.cmd.only"),
+        action: () => {
+          const { rootPane, collapseSplit } = useTabsStore.getState();
+          if (rootPane.type !== "split") return;
+          // Walk the tree and collapse all splits except the one containing the active pane
+          const paneIds = useTabsStore.getState().getTabPaneIds();
+          const activePaneId = paneIds[0];
+          if (!activePaneId) return;
+          // Recursively collapse from the root until only a single tab pane remains
+          const collapseAllOthers = (pane: typeof rootPane): void => {
+            if (pane.type !== "split") return;
+            // Find which child contains the active pane
+            const childWithActive = pane.children.find((child) => {
+              if (child.id === activePaneId) return true;
+              if (child.type === "split") {
+                return !!useTabsStore.getState().findPaneById(activePaneId);
+              }
+              return false;
+            });
+            const childToRemove = pane.children.find((c) => c !== childWithActive);
+            if (childToRemove) {
+              collapseSplit(pane.id, childToRemove.id);
+            }
+            // Check if still split and recurse
+            const newRoot = useTabsStore.getState().rootPane;
+            if (newRoot.type === "split") collapseAllOthers(newRoot);
+          };
+          collapseAllOthers(rootPane);
+        },
+        aliases: ["on"],
+      },
+      {
+        id: "vimium-swap",
+        name: "swap",
+        description: t("vimium.cmd.swap"),
+        action: () => {
+          const { rootPane } = useTabsStore.getState();
+          if (rootPane.type !== "split" || rootPane.children.length < 2) return;
+          // Swap first two children at the root level
+          const paneIds = useTabsStore.getState().getTabPaneIds();
+          if (paneIds.length < 2) return;
+          // Use set to swap children order in the root split
+          useTabsStore.setState((state) => {
+            if (state.rootPane.type !== "split") return state;
+            const children = [...state.rootPane.children];
+            if (children.length >= 2) {
+              [children[0], children[1]] = [children[1], children[0]];
+            }
+            return { rootPane: { ...state.rootPane, children } };
+          });
+          setTimeout(() => useTabsStore.getState().saveTabs(), 0);
+        },
+        aliases: ["sw"],
+      },
+
+      // --- Tab Commands ---
+      {
+        id: "vimium-tabnew",
+        name: "tabnew",
+        description: t("vimium.cmd.tabnew"),
+        action: (args) => {
+          if (args.length > 0) {
+            const tabType = resolveTabType(args[0]);
+            if (tabType) {
+              openTabByType(tabType);
+            }
+          } else {
+            openTabByType("dashboard");
+          }
+        },
+        aliases: ["tabn", "tn"],
+      },
+      {
+        id: "vimium-tabclose",
+        name: "tabclose",
+        description: t("vimium.cmd.tabclose"),
+        action: () => {
+          if (activePaneTabId) closeTab(activePaneTabId);
+        },
+        aliases: ["tabc", "tc"],
+      },
+      {
+        id: "vimium-tabonly",
+        name: "tabonly",
+        description: t("vimium.cmd.tabonly"),
+        action: () => {
+          if (activePaneTabId) {
+            useTabsStore.getState().closeOtherTabs(activePaneTabId);
+          }
+        },
+        aliases: ["tabo", "to"],
+      },
+      {
+        id: "vimium-tabmove",
+        name: "tabmove",
+        description: t("vimium.cmd.tabmove"),
+        action: (args) => {
+          const pane = getActiveTabPane();
+          if (!pane || !pane.activeTabId) return;
+          const currentIdx = pane.tabIds.indexOf(pane.activeTabId);
+          if (currentIdx === -1) return;
+          let targetIdx: number;
+          if (args.length === 0 || args[0] === "") {
+            targetIdx = Math.min(currentIdx + 1, pane.tabIds.length - 1);
+          } else if (args[0] === "$") {
+            targetIdx = pane.tabIds.length - 1;
+          } else {
+            targetIdx = parseInt(args[0], 10);
+            if (isNaN(targetIdx)) return;
+            targetIdx = Math.max(0, Math.min(targetIdx, pane.tabIds.length - 1));
+          }
+          if (targetIdx !== currentIdx) {
+            useTabsStore.getState().moveTab(currentIdx, targetIdx, pane.id);
+          }
+        },
+        aliases: ["tabm", "tm"],
+      },
+      {
+        id: "vimium-tabclose-right",
+        name: "tabclose-right",
+        description: t("vimium.cmd.tabcloseRight"),
+        action: () => {
+          if (activePaneTabId) {
+            useTabsStore.getState().closeTabsToRight(activePaneTabId);
+          }
+        },
+        aliases: ["tcr"],
+      },
+      {
+        id: "vimium-tabreopen",
+        name: "tabreopen",
+        description: t("vimium.cmd.tabreopen"),
+        action: () => reopenLastClosedTab(),
+        aliases: ["topen"],
+      },
+
+      // --- File / Document Commands ---
+      {
+        id: "vimium-edit",
+        name: "edit",
+        description: t("vimium.cmd.edit"),
+        action: (args) => {
+          const query = args.join(" ");
+          const store = useUIStore.getState();
+          store.setCommandPaletteQuery(query);
+          store.setCommandPaletteOpen(true);
+        },
+        aliases: ["e"],
+      },
+      {
+        id: "vimium-bdelete",
+        name: "bdelete",
+        description: t("vimium.cmd.bdelete"),
+        action: (args) => {
+          if (args.length > 0) {
+            const tabType = resolveTabType(args[0]);
+            if (tabType) {
+              const tab = useTabsStore.getState().tabs.find((t) => t.type === tabType);
+              if (tab) closeTab(tab.id);
+            }
+          } else if (activePaneTabId) {
+            closeTab(activePaneTabId);
+          }
+        },
+        aliases: ["bd", "bclose"],
+      },
+      {
+        id: "vimium-buffers",
+        name: "buffers",
+        description: t("vimium.cmd.buffers"),
+        action: () => {
+          // Show tabs via command palette with a special filter
+          const store = useUIStore.getState();
+          store.setCommandPaletteQuery("");
+          store.setCommandPaletteOpen(true);
+        },
+        aliases: ["ls", "files"],
+      },
+
+      // --- Navigation Commands ---
+      {
+        id: "vimium-jump",
+        name: "jump",
+        description: t("vimium.cmd.jump"),
+        action: (args) => {
+          if (args.length === 0) return;
+          const tabType = resolveTabType(args[0]);
+          if (tabType) {
+            // Check if tab already exists in current pane
+            const pane = getActiveTabPane();
+            if (pane) {
+              const existingTab = useTabsStore.getState().tabs.find((t) => t.type === tabType);
+              if (existingTab && pane.tabIds.includes(existingTab.id)) {
+                setActiveTab(pane.id, existingTab.id);
+                return;
+              }
+            }
+            openTabByType(tabType);
+          }
+        },
+        aliases: ["j", "cd"],
+      },
+      {
+        id: "vimium-recent",
+        name: "recent",
+        description: t("vimium.cmd.recent"),
+        action: (args) => {
+          if (args.length > 0) {
+            // Open command palette with recent filter
+            const store = useUIStore.getState();
+            store.setCommandPaletteQuery("");
+            store.setCommandPaletteOpen(true);
+          } else {
+            const store = useUIStore.getState();
+            store.setCommandPaletteQuery("");
+            store.setCommandPaletteOpen(true);
+          }
+        },
+        aliases: ["r", "history"],
+      },
+      {
+        id: "vimium-focus",
+        name: "focus",
+        description: t("vimium.cmd.focus"),
+        action: (args) => {
+          const paneIds = useTabsStore.getState().getTabPaneIds();
+          if (paneIds.length <= 1) return;
+          const currentPaneId = paneIds[0];
+
+          if (args.length > 0) {
+            const dir = args[0].toLowerCase();
+            const rootPane = useTabsStore.getState().rootPane;
+            if (rootPane.type !== "split") return;
+            // Find current pane index and navigate directionally
+            const currentIdx = rootPane.children.findIndex((c) => c.id === currentPaneId);
+            if (currentIdx === -1) return;
+            let targetIdx = -1;
+            if ((dir === "right" || dir === "down") && currentIdx < rootPane.children.length - 1) {
+              targetIdx = currentIdx + 1;
+            } else if ((dir === "left" || dir === "up") && currentIdx > 0) {
+              targetIdx = currentIdx - 1;
+            }
+            if (targetIdx >= 0 && rootPane.children[targetIdx]?.type === "tabs") {
+              const targetPane = rootPane.children[targetIdx] as import("../../stores/tabsStore").TabPane;
+              if (targetPane.activeTabId) {
+                setActiveTab(targetPane.id, targetPane.activeTabId);
+              }
+            }
+          } else {
+            // Cycle to next pane
+            const rootPane = useTabsStore.getState().rootPane;
+            if (rootPane.type !== "split") return;
+            const currentIdx = rootPane.children.findIndex((c) => c.id === currentPaneId);
+            const nextIdx = (currentIdx + 1) % rootPane.children.length;
+            const nextPane = rootPane.children[nextIdx];
+            if (nextPane?.type === "tabs" && nextPane.activeTabId) {
+              setActiveTab(nextPane.id, nextPane.activeTabId);
+            }
+          }
+        },
+        aliases: ["fo"],
+      },
+      {
+        id: "vimium-zen",
+        name: "zen",
+        description: t("vimium.cmd.zen"),
+        action: () => {
+          const el = document.querySelector(".app-shell");
+          if (!el) return;
+          el.toggleAttribute("data-zen");
+        },
+        aliases: ["z"],
+      },
+
+      // --- Session Commands ---
+      {
+        id: "vimium-qall",
+        name: "qall",
+        description: t("vimium.cmd.qall"),
+        action: () => {
+          useTabsStore.getState().closeAllTabs();
+          openTabByType("dashboard");
+        },
+        aliases: ["qa", "q"],
+      },
+      {
+        id: "vimium-wqall",
+        name: "wqall",
+        description: t("vimium.cmd.wqall"),
+        action: () => {
+          useTabsStore.getState().saveTabs();
+          useTabsStore.getState().closeAllTabs();
+          openTabByType("dashboard");
+        },
+        aliases: ["wqa", "xall", "xa"],
+      },
+      {
+        id: "vimium-reload",
+        name: "reload",
+        description: t("vimium.cmd.reload"),
+        action: () => window.location.reload(),
+        aliases: ["rld"],
+      },
+      {
+        id: "vimium-theme",
+        name: "theme",
+        description: t("vimium.cmd.theme"),
+        action: (args) => {
+          const settings = useSettingsStore.getState().settings;
+          if (args.length > 0) {
+            const val = args[0].toLowerCase();
+            if (val === "light" || val === "dark" || val === "system") {
+              useSettingsStore.getState().updateSettingsCategory("appearance", { theme: val });
+            }
+          } else {
+            const next = settings.appearance.theme === "dark" ? "light" : "dark";
+            useSettingsStore.getState().updateSettingsCategory("appearance", { theme: next });
+          }
+        },
+        aliases: ["th"],
+      },
+    ];
+    return cmds;
+  }, [addTab, openWebUrl, activePaneTabId, closeTab, reopenLastClosedTab, setActiveTab]);
 
   const vimiumActions = useMemo(() => ({
     goBack: () => window.history.back(),

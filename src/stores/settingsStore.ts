@@ -188,6 +188,7 @@ interface GeneralSettings {
   language: string;
   startOfWeek: "sunday" | "monday";
   dateFormat: "us" | "iso" | "european";
+  restoreSession: boolean;
 }
 
 /**
@@ -450,6 +451,7 @@ export const defaultSettings: Settings = {
     language: "en",
     startOfWeek: "monday",
     dateFormat: "iso",
+    restoreSession: true,
   },
   appearance: {
     theme: "system",

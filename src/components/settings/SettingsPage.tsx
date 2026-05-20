@@ -723,6 +723,24 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
           </select>
         </SettingsRow>
 
+        <SettingsRow
+          label={t("settings.restoreSession")}
+          description={t("settings.restoreSessionDesc")}
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={general.restoreSession}
+              onChange={(e) => {
+                updateSettingsCategory("general", { restoreSession: e.target.checked });
+                onChange();
+              }}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingsRow>
+
         {isDesktop && (
           <SettingsRow label="App Version" description="Version of the desktop application">
             <div className="flex items-center gap-2">
