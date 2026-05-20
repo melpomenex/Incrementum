@@ -252,46 +252,15 @@ pub fn run() {
                 menu.append(&edit_submenu)?;
             }
 
+            // Windows: no native menu bar — webview handles keyboard shortcuts directly.
             #[cfg(target_os = "windows")]
-            {
-                use tauri::menu::Submenu;
-                let edit_submenu = Submenu::with_items(
-                    app,
-                    "Edit",
-                    true,
-                    &[
-                        &MenuItem::with_id(app, "accel-k", "Command Palette", true, Some("Ctrl+K"))?,
-                        &MenuItem::with_id(app, "accel-p", "Command Palette (P)", true, Some("Ctrl+P"))?,
-                        &PredefinedMenuItem::separator(app)?,
-                        &MenuItem::with_id(app, "accel-q", "Queue", true, Some("Ctrl+Q"))?,
-                        &MenuItem::with_id(app, "accel-r", "Review", true, Some("Ctrl+R"))?,
-                        &MenuItem::with_id(app, "accel-d", "Dashboard", true, Some("Ctrl+D"))?,
-                        &MenuItem::with_id(app, "accel-o", "Open Document", true, Some("Ctrl+O"))?,
-                        &MenuItem::with_id(app, "accel-n", "New Document", true, Some("Ctrl+N"))?,
-                        &MenuItem::with_id(app, "accel-comma", "Settings", true, Some("Ctrl+,"))?,
-                        &MenuItem::with_id(app, "accel-slash", "Shortcuts Help", true, Some("Ctrl+/"))?,
-                    ],
-                )?;
-                menu.append(&edit_submenu)?;
-            }
+            {}
 
+            // Linux: no native menu bar — webview handles keyboard shortcuts directly.
+            // With decorations=false in tiling WMs, a native menu creates a
+            // redundant "Tauri App" header.
             #[cfg(target_os = "linux")]
-            let accel_items: &[(&str, &str, &str)] = &[
-                ("accel-k",     "Command Palette (K)", "Control+k"),
-                ("accel-p",     "Command Palette (P)", "Control+p"),
-                ("accel-q",     "Queue",                "Control+q"),
-                ("accel-r",     "Review",               "Control+r"),
-                ("accel-d",     "Dashboard",            "Control+d"),
-                ("accel-o",     "Open Document",        "Control+o"),
-                ("accel-n",     "New Document",         "Control+n"),
-                ("accel-comma", "Settings",             "Control+,"),
-                ("accel-slash", "Shortcuts Help",       "Control+/"),
-            ];
-            #[cfg(target_os = "linux")]
-            for (id, label, accel) in accel_items {
-                let item = MenuItem::with_id(app, id, label, true, Some(accel))?;
-                menu.append(&item)?;
-            }
+            {}
 
             Ok(menu)
         }).on_menu_event(|app, event| {
