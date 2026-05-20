@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0] - 2026-05-20
+
+### Added
+- **Session restore** — Persist and restore full workspace state across app restarts including open tabs, split pane layout, active documents, sidebar state, and active collection
+- **Session restore setting** — New toggle in Settings > General to enable/disable session restore (on by default)
+- **i18n** — Session restore labels added to all locale files (en, de, es, fr, ja, zh)
+
 ## [1.38.0] - 2026-05-16
 
 ### Added
