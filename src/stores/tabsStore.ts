@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import type { ComponentType, ReactNode } from "react";
 import { generateId } from "../utils/id";
+import { useUIStore } from "./uiStore";
+import { useCollectionStore } from "./collectionStore";
+import { useSettingsStore } from "./settingsStore";
 
 export type TabType =
   | "continue-reading"
@@ -262,11 +265,11 @@ function removePaneFromTree(root: Pane, paneId: string): Pane | null {
   if (root.id === paneId) {
     return null;
   }
-  
+
   if (root.type === "split") {
     // We need to track both the new children and their ORIGINAL sizes to recalculate correctly
     const keptChildrenWithSizes: { pane: Pane; size: number }[] = [];
-    
+
     for (let i = 0; i < root.children.length; i++) {
       const child = root.children[i];
       const newChild = removePaneFromTree(child, paneId);
@@ -274,7 +277,7 @@ function removePaneFromTree(root: Pane, paneId: string): Pane | null {
         keptChildrenWithSizes.push({ pane: newChild, size: root.sizes[i] });
       }
     }
-    
+
     if (keptChildrenWithSizes.length === 0) {
       return null;
     }
@@ -282,15 +285,61 @@ function removePaneFromTree(root: Pane, paneId: string): Pane | null {
       // Collapse split with single child
       return keptChildrenWithSizes[0].pane;
     }
-    
+
     // Recalculate sizes based on the remaining children's original sizes
     const totalSize = keptChildrenWithSizes.reduce((sum, item) => sum + item.size, 0);
     const newSizes = keptChildrenWithSizes.map((item) => (item.size / totalSize) * 100);
     const newChildren = keptChildrenWithSizes.map((item) => item.pane);
-    
+
     return { ...root, children: newChildren, sizes: newSizes };
   }
   return root;
+}
+
+// Serialized tab data shape from localStorage
+interface SerializedTabData {
+  id: string;
+  title: string;
+  icon: string;
+  type: TabType;
+  closable: boolean;
+  data?: Record<string, unknown>;
+}
+
+// Remove tab IDs from panes that are not in the valid set
+function filterInvalidTabsFromPane(pane: Pane, validTabIds: Set<string>): Pane {
+  if (pane.type === "tabs") {
+    const tabIds = pane.tabIds.filter((id) => validTabIds.has(id));
+    const activeTabId =
+      pane.activeTabId && tabIds.includes(pane.activeTabId)
+        ? pane.activeTabId
+        : tabIds[0] ?? null;
+    return { ...pane, tabIds, activeTabId };
+  }
+  return {
+    ...pane,
+    children: pane.children.map((child) => filterInvalidTabsFromPane(child, validTabIds)),
+  };
+}
+
+// Collapse empty TabPanes from the tree
+function cleanupEmptyPanes(pane: Pane): Pane {
+  if (pane.type === "tabs") return pane;
+
+  const cleanedChildren = pane.children
+    .map(cleanupEmptyPanes)
+    .filter((child): child is Pane => {
+      if (child.type === "tabs") return child.tabIds.length > 0;
+      return child.children.length > 0;
+    });
+
+  if (cleanedChildren.length === 0) return createTabPane();
+  if (cleanedChildren.length === 1) return cleanedChildren[0];
+
+  const totalSize = cleanedChildren.reduce((sum) => sum + 100 / cleanedChildren.length, 0);
+  const sizes = cleanedChildren.map(() => (100 / cleanedChildren.length));
+
+  return { ...pane, children: cleanedChildren, sizes };
 }
 
 export const useTabsStore = create<TabsState>((set, get) => ({
@@ -975,9 +1024,24 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         data: tab.data,
       }));
 
+      // Collect UI state from other stores for session restore
+      let uiState: Record<string, unknown> | undefined;
+      try {
+        const ui = useUIStore.getState();
+        const coll = useCollectionStore.getState();
+        uiState = {
+          sidebarCollapsed: ui.sidebarCollapsed,
+          currentView: ui.currentView,
+          activeCollectionId: coll.activeCollectionId,
+        };
+      } catch {
+        // Stores may not be available during SSR or tests
+      }
+
       const data = {
         tabs: serializableTabs,
         rootPane: state.rootPane,
+        uiState,
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -988,11 +1052,60 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
   loadTabs: () => {
     try {
+      // Gate on the restoreSession setting
+      if (!useSettingsStore.getState().settings.general.restoreSession) return;
+
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return;
 
       const data = JSON.parse(stored);
-      console.log("Tab data loaded from storage:", data);
+      if (!data.tabs || !Array.isArray(data.tabs) || !data.rootPane) return;
+
+      // Lazy import to avoid circular dep at module load time
+      const { rehydrateTab } = require("../components/tabs/TabRegistry") as {
+        rehydrateTab: (s: SerializedTabData) => Tab;
+      };
+
+      const validTabIds = new Set<string>();
+
+      // Rehydrate tabs, filtering out invalid ones
+      const rehydratedTabs: Tab[] = [];
+      for (const serialized of data.tabs) {
+        try {
+          const tab = rehydrateTab(serialized);
+          rehydratedTabs.push(tab);
+          validTabIds.add(tab.id);
+        } catch {
+          console.warn("Failed to rehydrate tab:", serialized.type, serialized.id);
+        }
+      }
+
+      if (rehydratedTabs.length === 0) return;
+
+      // Filter pane tree to remove tabs that failed rehydration
+      const filteredRootPane = filterInvalidTabsFromPane(data.rootPane, validTabIds);
+
+      // Clean up empty panes
+      const cleanedPane = cleanupEmptyPanes(filteredRootPane);
+
+      set({
+        tabs: rehydratedTabs,
+        rootPane: cleanedPane,
+      });
+
+      // Restore UI state
+      if (data.uiState && typeof data.uiState === "object") {
+        const ui = data.uiState as Record<string, unknown>;
+        if (typeof ui.sidebarCollapsed === "boolean") {
+          useUIStore.getState().setSidebarCollapsed(ui.sidebarCollapsed);
+        }
+        if (typeof ui.currentView === "string") {
+          useUIStore.getState().setCurrentView(ui.currentView as import("../types").ViewName);
+        }
+        if (typeof ui.activeCollectionId === "string") {
+          useCollectionStore.setState({ activeCollectionId: ui.activeCollectionId });
+        }
+      }
     } catch (error) {
       console.error("Failed to load tabs:", error);
     }
