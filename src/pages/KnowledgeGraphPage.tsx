@@ -152,6 +152,16 @@ export function KnowledgeGraphPage() {
       });
 
       setGraphData({ nodes, edges });
+      
+      // Smart default: if dataset is large (>500 nodes), exclude Flashcards by default to prevent a "hairball"
+      if (nodes.length > 500) {
+        setFilters((prev) => {
+          if (prev.nodeTypes.length === 0) {
+            return { ...prev, nodeTypes: [GraphNodeType.Flashcard] };
+          }
+          return prev;
+        });
+      }
     } catch (error) {
       console.error("Failed to load graph data:", error);
     } finally {

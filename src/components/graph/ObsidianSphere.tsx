@@ -72,17 +72,38 @@ export function ObsidianSphere({
   const { theme } = useTheme();
   const isDark = theme.variant === "dark";
 
-  const [rotation, setRotation] = useState({ x: 0.3, y: 0 });
-  const [targetRotation, setTargetRotation] = useState({ x: 0.3, y: 0 });
+  const rotationRef = useRef({ x: 0.3, y: 0 });
+  const targetRotationRef = useRef({ x: 0.3, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(isDragging);
+  const dragStartRef = useRef({ x: 0, y: 0 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const selectedNodeRef = useRef(selectedNode);
   const [autoRotate, setAutoRotate] = useState(true);
+  const autoRotateRef = useRef(autoRotate);
   const [showGrid, setShowGrid] = useState(true);
   const [showConstellations, setShowConstellations] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
+
+  // Sync state values to refs to avoid closure stale state
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+  }, [selectedNode]);
+
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
 
   // Calculate connection count for each node
   const nodeConnections = useMemo(() => {
@@ -114,9 +135,94 @@ export function ObsidianSphere({
     });
   }, [nodes, nodeConnections]);
 
+  const spriteCacheRef = useRef<Record<string, HTMLCanvasElement>>({});
+
+  // Clear sprite cache when theme changes
+  useEffect(() => {
+    spriteCacheRef.current = {};
+  }, [theme]);
+
+  const getOrUpdateSprite = useCallback((
+    type: GraphNodeType,
+    state: "normal" | "hovered" | "selected" | "dimmed"
+  ): HTMLCanvasElement => {
+    const themeKey = theme.colors.background + "-" + theme.colors.onBackground;
+    const key = `${type}-${state}-${themeKey}`;
+    
+    if (spriteCacheRef.current[key]) {
+      return spriteCacheRef.current[key];
+    }
+    
+    const config = NODE_CONFIG[type];
+    const isSelected = state === "selected";
+    const isHovered = state === "hovered";
+    const isDimmed = state === "dimmed";
+    
+    const multiplier = isSelected ? 1.3 : isHovered ? 1.2 : 1.0;
+    const size = config.size * multiplier;
+    const glowSize = config.glow * (isSelected ? 1.5 : isHovered ? 1.3 : 1);
+    
+    const maxRadius = isDimmed ? size + 4 : Math.max(glowSize, size + 6);
+    const canvasSize = Math.ceil(maxRadius * 2) + 8;
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+    
+    const cx = canvasSize / 2;
+    const cy = canvasSize / 2;
+    
+    // 1. Glow effect
+    if (!isDimmed) {
+      const glowGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize);
+      glowGradient.addColorStop(0, config.color + (isSelected ? "60" : "30"));
+      glowGradient.addColorStop(0.5, config.color + (isSelected ? "20" : "10"));
+      glowGradient.addColorStop(1, config.color + "00");
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(cx, cy, glowSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // 2. Node circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(2, size), 0, Math.PI * 2);
+    ctx.fillStyle = config.color;
+    ctx.fill();
+    
+    // 3. Inner highlight
+    const highlightGradient = ctx.createRadialGradient(
+      cx - size * 0.3,
+      cy - size * 0.3,
+      0,
+      cx,
+      cy,
+      size
+    );
+    highlightGradient.addColorStop(0, "rgba(255,255,255,0.6)");
+    highlightGradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
+    
+    // 4. White ring for selected/hovered nodes
+    if (isSelected || isHovered) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
+    spriteCacheRef.current[key] = canvas;
+    return canvas;
+  }, [theme]);
+
   // 3D to 2D projection with perspective
   const project = useCallback(
-    (node: SphereNode): { x: number; y: number; scale: number; z: number; visible: boolean } => {
+    (node: SphereNode, currentRotation: { x: number; y: number }, currentZoom: number): { x: number; y: number; scale: number; z: number; visible: boolean } => {
       const canvas = canvasRef.current;
       if (!canvas) return { x: 0, y: 0, scale: 1, z: 0, visible: false };
 
@@ -129,10 +235,10 @@ export function ObsidianSphere({
       const z = node.radius * Math.sin(node.phi) * Math.sin(node.theta);
 
       // Apply rotations
-      const cosX = Math.cos(rotation.x);
-      const sinX = Math.sin(rotation.x);
-      const cosY = Math.cos(rotation.y);
-      const sinY = Math.sin(rotation.y);
+      const cosX = Math.cos(currentRotation.x);
+      const sinX = Math.sin(currentRotation.x);
+      const cosY = Math.cos(currentRotation.y);
+      const sinY = Math.sin(currentRotation.y);
 
       // Rotate around Y axis
       const x1 = x * cosY - z * sinY;
@@ -145,7 +251,7 @@ export function ObsidianSphere({
       // Perspective projection
       const fov = 600;
       const distance = fov + z2;
-      const scale = (fov / distance) * zoom;
+      const scale = (fov / distance) * currentZoom;
 
       return {
         x: centerX + x1 * scale,
@@ -155,46 +261,20 @@ export function ObsidianSphere({
         visible: distance > 0,
       };
     },
-    [rotation, zoom]
+    []
   );
 
-  // Animation loop
-  useEffect(() => {
-    let lastTime = 0;
-
-    const animate = (time: number) => {
-      const delta = time - lastTime;
-      lastTime = time;
-
-      // Smooth rotation interpolation
-      if (autoRotate && !isDragging && !selectedNode) {
-        setTargetRotation((prev) => ({
-          x: prev.x,
-          y: prev.y + 0.0003 * delta,
-        }));
-      }
-
-      // Lerp current rotation to target
-      setRotation((prev) => ({
-        x: prev.x + (targetRotation.x - prev.x) * 0.1,
-        y: prev.y + (targetRotation.y - prev.y) * 0.1,
-      }));
-
-      draw();
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [autoRotate, isDragging, selectedNode, targetRotation]);
+  // Check if two nodes are connected
+  const isConnected = useCallback((nodeId1: string, nodeId2: string, edges: GraphEdge[]): boolean => {
+    return edges.some(
+      (e) =>
+        (e.source === nodeId1 && e.target === nodeId2) ||
+        (e.source === nodeId2 && e.target === nodeId1)
+    );
+  }, []);
 
   // Draw the sphere
-  const draw = useCallback(() => {
+  const draw = useCallback((currentRotation: { x: number; y: number }, currentZoom: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -219,13 +299,13 @@ export function ObsidianSphere({
 
     // Draw globe wireframe
     if (showGrid) {
-      drawGlobeGrid(ctx, width, height, rotation, zoom, isDark);
+      drawGlobeGrid(ctx, width, height, currentRotation, currentZoom, isDark);
     }
 
     // Sort nodes by Z depth for proper rendering
     const projectedNodes = sphereNodes.map((node) => ({
       node,
-      projected: project(node),
+      projected: project(node, currentRotation, currentZoom),
     }));
     projectedNodes.sort((a, b) => a.projected.z - b.projected.z);
 
@@ -282,68 +362,38 @@ export function ObsidianSphere({
       const baseOpacity = Math.max(0.3, depth);
       const opacity = isDimmed ? 0.2 : baseOpacity;
 
-      // Pulse effect
+      // Pulse effect (only for non-selected/non-hovered nodes)
       const pulse = isSelected
-        ? 1.3
+        ? 1.0
         : isHovered
-          ? 1.2
+          ? 1.0
           : 1 + Math.sin(time * config.pulseSpeed + node.theta) * 0.1;
-      const size = config.size * projected.scale * pulse;
+      
+      const drawScale = projected.scale * pulse;
 
-      // Glow effect
-      if (!isDimmed) {
-        const glowSize = config.glow * projected.scale * (isSelected ? 1.5 : isHovered ? 1.3 : 1);
-        const glowGradient = ctx.createRadialGradient(
-          projected.x,
-          projected.y,
-          0,
-          projected.x,
-          projected.y,
-          glowSize
-        );
-        glowGradient.addColorStop(0, config.color + (isSelected ? "60" : "30"));
-        glowGradient.addColorStop(0.5, config.color + (isSelected ? "20" : "10"));
-        glowGradient.addColorStop(1, config.color + "00");
-        ctx.fillStyle = glowGradient;
-        ctx.beginPath();
-        ctx.arc(projected.x, projected.y, glowSize, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(projected.x, projected.y, Math.max(2, size), 0, Math.PI * 2);
-      ctx.fillStyle = config.color;
       ctx.globalAlpha = opacity;
-      ctx.fill();
 
-      // Inner highlight
-      const highlightGradient = ctx.createRadialGradient(
-        projected.x - size * 0.3,
-        projected.y - size * 0.3,
-        0,
-        projected.x,
-        projected.y,
-        size
+      // Get and draw cached sprite
+      let state: "normal" | "hovered" | "selected" | "dimmed" = "normal";
+      if (isDimmed) state = "dimmed";
+      else if (isSelected) state = "selected";
+      else if (isHovered) state = "hovered";
+
+      const sprite = getOrUpdateSprite(node.type, state);
+      const drawSize = sprite.width * drawScale;
+
+      ctx.drawImage(
+        sprite,
+        projected.x - drawSize / 2,
+        projected.y - drawSize / 2,
+        drawSize,
+        drawSize
       );
-      highlightGradient.addColorStop(0, "rgba(255,255,255,0.6)");
-      highlightGradient.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = highlightGradient;
-      ctx.fill();
-
-      // Ring for selected/hovered nodes
-      if (isSelected || isHovered) {
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(projected.x, projected.y, size + 4, 0, Math.PI * 2);
-        ctx.stroke();
-      }
 
       ctx.globalAlpha = 1;
 
       // Label for selected/hovered nodes or large scale
-      if ((isSelected || isHovered || zoom > 1.2) && projected.scale > 0.5) {
+      if ((isSelected || isHovered || currentZoom > 1.2) && projected.scale > 0.5) {
         ctx.fillStyle = isDark ? "#ffffff" : "#1a202c";
         ctx.font = `${isSelected ? "bold " : ""}${Math.max(10, 12 * projected.scale)}px ${theme.typography.fontFamily}`;
         ctx.textAlign = "center";
@@ -352,8 +402,9 @@ export function ObsidianSphere({
         let label = node.label;
         if (label.length > 20) label = label.substring(0, 17) + "...";
 
+        const labelOffset = config.size * drawScale;
         ctx.globalAlpha = opacity;
-        ctx.fillText(label, projected.x, projected.y + size + 8);
+        ctx.fillText(label, projected.x, projected.y + labelOffset + 8);
         ctx.globalAlpha = 1;
       }
     });
@@ -365,35 +416,101 @@ export function ObsidianSphere({
       0,
       width / 2,
       height / 2,
-      100 * zoom
+      100 * currentZoom
     );
     centerGradient.addColorStop(0, isDark ? "rgba(59,130,246,0.1)" : "rgba(59,130,246,0.05)");
     centerGradient.addColorStop(1, "rgba(59,130,246,0)");
     ctx.fillStyle = centerGradient;
     ctx.beginPath();
-    ctx.arc(width / 2, height / 2, 100 * zoom, 0, Math.PI * 2);
+    ctx.arc(width / 2, height / 2, 100 * currentZoom, 0, Math.PI * 2);
     ctx.fill();
   }, [
     sphereNodes,
     edges,
     project,
-    rotation,
-    zoom,
-    hoveredNode,
-    selectedNode,
     showGrid,
     showConstellations,
     isDark,
     theme,
+    hoveredNode,
+    selectedNode,
+    isConnected,
+    getOrUpdateSprite,
   ]);
 
-  // Check if two nodes are connected
-  const isConnected = (nodeId1: string, nodeId2: string, edges: GraphEdge[]): boolean => {
-    return edges.some(
-      (e) =>
-        (e.source === nodeId1 && e.target === nodeId2) ||
-        (e.source === nodeId2 && e.target === nodeId1)
-    );
+  const isAnimatingRef = useRef(false);
+  const requestFrame = useCallback(() => {
+    if (isAnimatingRef.current) return;
+    isAnimatingRef.current = true;
+    
+    let lastTime = performance.now();
+    const animate = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+      
+      let changed = false;
+      
+      // 1. Handle auto rotation
+      if (autoRotateRef.current && !isDraggingRef.current && !selectedNodeRef.current) {
+        targetRotationRef.current.y += 0.0003 * delta;
+        changed = true;
+      }
+      
+      // 2. Lerp rotation to target
+      const dx = targetRotationRef.current.x - rotationRef.current.x;
+      const dy = targetRotationRef.current.y - rotationRef.current.y;
+      
+      if (Math.abs(dx) > 0.0001 || Math.abs(dy) > 0.0001) {
+        rotationRef.current.x += dx * 0.1;
+        rotationRef.current.y += dy * 0.1;
+        changed = true;
+      } else {
+        rotationRef.current.x = targetRotationRef.current.x;
+        rotationRef.current.y = targetRotationRef.current.y;
+      }
+      
+      if (isDraggingRef.current) {
+        changed = true;
+      }
+      
+      if (changed) {
+        draw(rotationRef.current, zoomRef.current);
+      }
+      
+      const shouldKeepRunning = (autoRotateRef.current && !selectedNodeRef.current) || isDraggingRef.current || Math.abs(dx) > 0.0001 || Math.abs(dy) > 0.0001;
+      
+      if (shouldKeepRunning) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        isAnimatingRef.current = false;
+      }
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+  }, [draw]);
+
+  // Trigger animation loop on interactions or state changes
+  useEffect(() => {
+    requestFrame();
+  }, [requestFrame, autoRotate, isDragging, selectedNode]);
+
+  // Trigger single draw on any relevant state/theme changes
+  useEffect(() => {
+    draw(rotationRef.current, zoomRef.current);
+  }, [draw, hoveredNode, selectedNode, showGrid, showConstellations, zoom, theme]);
+
+  const focusOnNode = () => {
+    if (selectedNode) {
+      const node = sphereNodes.find((n) => n.id === selectedNode);
+      if (node) {
+        // Calculate rotation to face the node
+        targetRotationRef.current = {
+          x: -node.phi + Math.PI / 2,
+          y: -node.theta,
+        };
+        requestFrame();
+      }
+    }
   };
 
   // Handle resize
@@ -405,33 +522,32 @@ export function ObsidianSphere({
     const resize = () => {
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
+      draw(rotationRef.current, zoomRef.current);
     };
 
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [draw]);
 
-  // Mouse handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Mouse handlers using refs for maximum performance
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
       setAutoRotate(false);
     }
-  };
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      const deltaX = (e.clientX - dragStart.x) * 0.005;
-      const deltaY = (e.clientY - dragStart.y) * 0.005;
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDraggingRef.current) {
+      const deltaX = (e.clientX - dragStartRef.current.x) * 0.005;
+      const deltaY = (e.clientY - dragStartRef.current.y) * 0.005;
 
-      setTargetRotation((prev) => ({
-        x: Math.max(-Math.PI / 2, Math.min(Math.PI / 2, prev.x + deltaY)),
-        y: prev.y + deltaX,
-      }));
+      targetRotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationRef.current.x + deltaY));
+      targetRotationRef.current.y += deltaX;
 
-      setDragStart({ x: e.clientX, y: e.clientY });
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
     } else {
       // Check for hover
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -442,7 +558,7 @@ export function ObsidianSphere({
 
       let hovered: string | null = null;
       for (const node of sphereNodes) {
-        const projected = project(node);
+        const projected = project(node, rotationRef.current, zoomRef.current);
         if (!projected.visible) continue;
 
         const config = NODE_CONFIG[node.type];
@@ -461,19 +577,19 @@ export function ObsidianSphere({
         onNodeHover?.(hovered ? sphereNodes.find((n) => n.id === hovered) || null : null);
       }
     }
-  };
+  }, [sphereNodes, project, hoveredNode, onNodeHover]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
+  }, []);
 
-  const handleWheel = (e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
     setZoom((z) => Math.max(0.3, Math.min(3, z * factor)));
-  };
+  }, []);
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (hoveredNode) {
       const node = sphereNodes.find((n) => n.id === hoveredNode);
       if (node) {
@@ -483,27 +599,14 @@ export function ObsidianSphere({
     } else {
       setSelectedNode(null);
     }
-  };
+  }, [hoveredNode, sphereNodes, selectedNode, onNodeClick]);
 
-  const resetView = () => {
-    setTargetRotation({ x: 0.3, y: 0 });
+  const resetView = useCallback(() => {
+    targetRotationRef.current = { x: 0.3, y: 0 };
     setZoom(1);
     setSelectedNode(null);
     setAutoRotate(true);
-  };
-
-  const focusOnNode = () => {
-    if (selectedNode) {
-      const node = sphereNodes.find((n) => n.id === selectedNode);
-      if (node) {
-        // Calculate rotation to face the node
-        setTargetRotation({
-          x: -node.phi + Math.PI / 2,
-          y: -node.theta,
-        });
-      }
-    }
-  };
+  }, []);
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">

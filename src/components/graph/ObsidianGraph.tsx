@@ -302,11 +302,9 @@ function buildClusterIndex(edges: { source: string; target: string; type?: strin
   return { childrenOf, parentOf, totalDescendants };
 }
 
-// ── Compute visible nodes based on zoom + cluster expansion ──────
-
 interface VisibleSet {
   nodes: Record<string, boolean>;
-  isCluster: Record<string, number>; // nodeId -> descendant count that's hidden
+  isCluster: Record<string, number>;
 }
 
 function computeVisibleNodes(
@@ -353,22 +351,44 @@ function computeVisibleNodes(
       }
     }
   } else {
-    // Show everything; extracts with flashcards can still be clusters
+    // High zoom: Show documents, extracts, categories, tags by default.
+    // Flashcards are collapsed under their parent (Extract or Document) unless explicitly expanded.
     for (const node of nodes) {
-      visible[node.id] = true;
-      if (node.type === GraphNodeType.Extract) {
+      if (node.type === GraphNodeType.Document || node.type === GraphNodeType.Extract) {
+        visible[node.id] = true;
+        
         const ch = clusterIndex.childrenOf[node.id] || [];
-        if (!expandedClusters[node.id] && ch.length > 0) {
-          isCluster[node.id] = clusterIndex.totalDescendants[node.id] || ch.length;
+        const leafChildren = ch.filter(cid => {
+          const cn = nodes.find(n => n.id === cid);
+          return cn && cn.type === GraphNodeType.Flashcard;
+        });
+
+        if (leafChildren.length > 0) {
+          if (expandedClusters[node.id]) {
+            for (const cid of leafChildren) {
+              visible[cid] = true;
+            }
+          } else {
+            isCluster[node.id] = leafChildren.length;
+          }
         }
+      } else if (node.type === GraphNodeType.Flashcard) {
+        const parentId = clusterIndex.parentOf[node.id];
+        if (parentId) {
+          if (visible[parentId] && expandedClusters[parentId]) {
+            visible[node.id] = true;
+          }
+        } else {
+          visible[node.id] = true;
+        }
+      } else {
+        visible[node.id] = true;
       }
     }
   }
 
   return { nodes: visible, isCluster };
 }
-
-// ── Edge proximity blending ──────────────────────────────────────
 
 interface ScreenEdge {
   x1: number;
@@ -498,6 +518,117 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     return nodes;
   }, [data.nodes]);
 
+  const spriteCacheRef = useRef<Record<string, HTMLCanvasElement>>({});
+
+  // Clear sprite cache when scale or theme changes
+  useEffect(() => {
+    spriteCacheRef.current = {};
+  }, [nodeScale, theme]);
+
+  const getOrUpdateSprite = useCallback((
+    type: GraphNodeType,
+    state: "normal" | "hovered" | "selected" | "medium",
+  ): HTMLCanvasElement => {
+    const themeKey = theme.colors.background + "-" + theme.colors.onBackground;
+    const key = `${type}-${state}-${themeKey}-${nodeScale}`;
+    
+    if (spriteCacheRef.current[key]) {
+      return spriteCacheRef.current[key];
+    }
+    
+    const config = NODE_CONFIG[type];
+    const baseRadius = config.size * nodeScale;
+    const isSelected = state === "selected";
+    const isHovered = state === "hovered";
+    const isMed = state === "medium";
+    
+    const multiplier = isSelected ? 1.3 : isHovered ? 1.2 : 1.0;
+    const radius = baseRadius * multiplier;
+    
+    const hasGlow = (isSelected || isHovered);
+    const maxRadius = hasGlow ? radius * 2.5 : radius;
+    const canvasSize = Math.ceil(maxRadius * 2) + 6;
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+    
+    const cx = canvasSize / 2;
+    const cy = canvasSize / 2;
+    
+    // Draw glow
+    if (hasGlow) {
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 2.5);
+      gradient.addColorStop(0, config.color + "40");
+      gradient.addColorStop(1, config.color + "00");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    if (isMed) {
+      // Shadow
+      ctx.beginPath();
+      ctx.arc(cx + 2, cy + 2, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.fill();
+
+      // Circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = config.color;
+      ctx.fill();
+    } else {
+      // High LOD (Normal, Hovered, Selected)
+      // Shadow
+      ctx.beginPath();
+      ctx.arc(cx + 2, cy + 2, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.fill();
+
+      // Node circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = config.color;
+      ctx.fill();
+
+      // Inner highlight
+      const gradient = ctx.createRadialGradient(
+        cx - radius * 0.3,
+        cy - radius * 0.3,
+        0,
+        cx,
+        cy,
+        radius
+      );
+      gradient.addColorStop(0, "rgba(255,255,255,0.3)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Border for selected
+      if (isSelected) {
+        ctx.strokeStyle = theme.colors.onBackground;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      // Icon
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `${radius * 0.9}px ${theme.typography.fontFamily}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(config.icon, cx, cy);
+    }
+    
+    spriteCacheRef.current[key] = canvas;
+    return canvas;
+  }, [nodeScale, theme]);
+
   const fitToView = useCallback((targetNodes?: GraphNode[]) => {
     const nodes = targetNodes || simulationNodes;
     if (nodes.length === 0) return;
@@ -618,6 +749,17 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
   // Expose fitToView for parent via imperative handle
   useImperativeHandle(ref, () => ({ fitToView }), [fitToView]);
 
+  // Compute visible nodes based on zoom
+  const visibleSet = useMemo(
+    () => computeVisibleNodes(data.nodes, clusterIndex, transform.k, expandedClusters),
+    [data.nodes, clusterIndex, transform.k, expandedClusters],
+  );
+
+  const visibleSetRef = useRef(visibleSet);
+  useEffect(() => {
+    visibleSetRef.current = visibleSet;
+  }, [visibleSet]);
+
   // Physics simulation (Barnes-Hut)
   useEffect(() => {
     if (!physicsEnabled) return;
@@ -634,16 +776,19 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
 
       const nodes = simulationNodes;
       const nodeMap = nodeMapRef.current;
-      const _edges = data.edges;
       const canvas = canvasRef.current;
       const width = canvas?.width || 800;
       const height = canvas?.height || 600;
+      const currentVisible = visibleSetRef.current;
 
-      // Build quadtree for Barnes-Hut repulsion
-      const tree = buildQuadTree(nodes);
+      // Filter down to only active (visible) nodes for force calculation
+      const activeNodes = nodes.filter(n => currentVisible.nodes[n.id]);
 
-      // Apply forces
-      for (const node of nodes) {
+      // Build quadtree for Barnes-Hut repulsion on active nodes only
+      const tree = buildQuadTree(activeNodes);
+
+      // Apply forces to active nodes only
+      for (const node of activeNodes) {
         if (node.fx !== null && node.fy !== null) continue;
 
         // Barnes-Hut repulsion
@@ -654,6 +799,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
         // Attraction along edges (use adjacency for O(1) neighbor lookup)
         const neighbors = edgeAdj.getNeighbors(node.id);
         for (const nId of neighbors) {
+          if (!currentVisible.nodes[nId]) continue; // Skip inactive/hidden neighbors
           const other = nodeMap[nId];
           if (!other) continue;
           const dx = other.x - node.x;
@@ -675,6 +821,22 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
         node.y += node.vy * temperature;
       }
 
+      // Synchronize positions of collapsed/hidden nodes to their parent positions
+      for (const node of nodes) {
+        if (!currentVisible.nodes[node.id]) {
+          const parentId = clusterIndex.parentOf[node.id];
+          if (parentId) {
+            const parent = nodeMap[parentId];
+            if (parent) {
+              node.x = parent.x;
+              node.y = parent.y;
+              node.vx = 0;
+              node.vy = 0;
+            }
+          }
+        }
+      }
+
       temperature *= 0.99;
       animationId = requestAnimationFrame(simulate);
     };
@@ -684,13 +846,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [simulationNodes, data.edges, physicsEnabled, linkDistance, repelForce, edgeAdj]);
-
-  // Compute visible nodes based on zoom
-  const visibleSet = useMemo(
-    () => computeVisibleNodes(data.nodes, clusterIndex, transform.k, expandedClusters),
-    [data.nodes, clusterIndex, transform.k, expandedClusters],
-  );
+  }, [simulationNodes, physicsEnabled, linkDistance, repelForce, edgeAdj, clusterIndex]);
 
   // Draw function
   const draw = useCallback(() => {
@@ -702,6 +858,17 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
 
     const { width, height } = canvas;
     const zoom = transform.k;
+
+    // Viewport bounds in graph space (with padding margin of 150 pixels)
+    const margin = 150;
+    const viewMinX = -transform.x / zoom - margin;
+    const viewMinY = -transform.y / zoom - margin;
+    const viewMaxX = (width - transform.x) / zoom + margin;
+    const viewMaxY = (height - transform.y) / zoom + margin;
+
+    const isNodeInViewport = (x: number, y: number) => {
+      return x >= viewMinX && x <= viewMaxX && y >= viewMinY && y <= viewMaxY;
+    };
 
     // Clear
     ctx.fillStyle = theme.colors.background;
@@ -723,17 +890,19 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       const source = nodeMap[edge.source];
       const target = nodeMap[edge.target];
       if (!source || !target) continue;
-      if (!visibleSet.nodes[edge.source] && !visibleSet.nodes[edge.target]) continue;
       if (!visibleSet.nodes[edge.source] || !visibleSet.nodes[edge.target]) continue;
 
       // Check if edge connects a visible cluster to its hidden children — skip those
       if (visibleSet.isCluster[edge.source] !== undefined && !visibleSet.nodes[edge.target]) continue;
       if (visibleSet.isCluster[edge.target] !== undefined && !visibleSet.nodes[edge.source]) continue;
 
+      // Frustum culling: skip drawing offscreen edges
+      if (!isNodeInViewport(source.x, source.y) && !isNodeInViewport(target.x, target.y)) continue;
+
       screenEdges.push({
         x1: source.x * zoom + transform.x,
         y1: source.y * zoom + transform.y,
-        x2: target.x * zoom + transform.y,
+        x2: target.x * zoom + transform.x,
         y2: target.y * zoom + transform.y,
         idx: i,
       });
@@ -756,7 +925,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       const opacity = edgeOpacities ? edgeOpacities[si] : 1;
 
       ctx.beginPath();
-      ctx.moveTo(source.x, target.y !== undefined ? source.y : source.y);
+      ctx.moveTo(source.x, source.y);
       const midX = (source.x + target.x) / 2;
       const midY = (source.y + target.y) / 2;
       const curvature = 20;
@@ -782,6 +951,9 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     for (const node of simulationNodes) {
       if (!visibleSet.nodes[node.id]) continue;
 
+      // Frustum culling: skip drawing offscreen nodes
+      if (!isNodeInViewport(node.x, node.y)) continue;
+
       const config = NODE_CONFIG[node.type];
       if (!config) continue;
       const isSelected = selectedNode === node.id;
@@ -797,20 +969,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
 
       ctx.globalAlpha = opacity;
 
-      // Glow effect — only at high zoom, selected/hovered
-      if (!isLowZoom && (isSelected || isHovered)) {
-        const gradient = ctx.createRadialGradient(
-          node.x, node.y, 0,
-          node.x, node.y, radius * 2.5,
-        );
-        gradient.addColorStop(0, config.color + "40");
-        gradient.addColorStop(1, config.color + "00");
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius * 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
       if (isLowZoom) {
         // LOW LOD: simple colored dot, slightly larger for clusters
         const r = clusterCount > 0 ? radius * 1.3 : radius * 0.7;
@@ -819,47 +977,18 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
         ctx.fillStyle = config.color;
         ctx.fill();
       } else {
-        // MEDIUM + HIGH LOD
+        // MEDIUM + HIGH LOD (cached sprite draw)
+        let state: "normal" | "hovered" | "selected" | "medium" = "normal";
+        if (isSelected) state = "selected";
+        else if (isHovered) state = "hovered";
+        else if (isMedZoom) state = "medium";
 
-        // Shadow
-        ctx.beginPath();
-        ctx.arc(node.x + 2, node.y + 2, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.2)";
-        ctx.fill();
-
-        // Node circle
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = config.color;
-        ctx.fill();
-
-        // Inner highlight — HIGH LOD only
-        if (!isMedZoom) {
-          const gradient = ctx.createRadialGradient(
-            node.x - radius * 0.3, node.y - radius * 0.3, 0,
-            node.x, node.y, radius,
-          );
-          gradient.addColorStop(0, "rgba(255,255,255,0.3)");
-          gradient.addColorStop(1, "rgba(255,255,255,0)");
-          ctx.fillStyle = gradient;
-          ctx.fill();
-        }
-
-        // Border for selected nodes
-        if (isSelected) {
-          ctx.strokeStyle = theme.colors.onBackground;
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        }
-
-        // Icon — HIGH LOD or selected/hovered
-        if (!isMedZoom || isSelected || isHovered) {
-          ctx.fillStyle = "#ffffff";
-          ctx.font = `${radius * 0.9}px ${theme.typography.fontFamily}`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(config.icon, node.x, node.y);
-        }
+        const sprite = getOrUpdateSprite(node.type, state);
+        ctx.drawImage(
+          sprite,
+          node.x - sprite.width / 2,
+          node.y - sprite.height / 2
+        );
 
         // Label
         if (localShowLabels || isSelected || isHovered) {
@@ -910,7 +1039,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
   }, [
     simulationNodes, data.edges, data.nodes, transform, theme,
     selectedNode, highlightedNodes, hoveredNode, localShowLabels,
-    visibleSet, showMinimap, edgeAdj,
+    visibleSet, showMinimap, edgeAdj, getOrUpdateSprite,
   ]);
 
   // ── Minimap rendering ──────────────────────────────────────────
@@ -1008,13 +1137,18 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     return () => cancelAnimationFrame(animId);
   }, [transform]); // Re-run when transform updates during animation
 
-  // Animation loop
+  // Animation/Render loop (demand-driven)
   useEffect(() => {
     let animationId: number;
 
     const animate = () => {
       draw();
-      animationId = requestAnimationFrame(animate);
+      
+      // Only continue the continuous render loop if physics is running, dragging, or transform is animating
+      const shouldKeepRunning = physicsEnabled || isDragging || animatingTransformRef.current;
+      if (shouldKeepRunning) {
+        animationId = requestAnimationFrame(animate);
+      }
     };
 
     animate();
@@ -1022,7 +1156,12 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [draw]);
+  }, [draw, physicsEnabled, isDragging]);
+
+  // Wake up physics simulation when clusters are expanded/collapsed or data changes
+  useEffect(() => {
+    setPhysicsEnabled(true);
+  }, [expandedClusters, data]);
 
   // Handle resize
   useEffect(() => {
