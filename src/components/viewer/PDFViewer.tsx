@@ -6,6 +6,7 @@ import { cn } from "../../utils";
 import type { PdfDest, ViewState } from "../../types/readerPosition";
 import type { PdfRect, PdfSelectionContext, ViewportRect } from "../../types/selection";
 import type { DocumentPosition } from "../../types/position";
+import type { DocumentMetadata } from "../../types/document";
 import { saveDocumentPosition, getDocumentPosition, pagePosition, scrollPosition as createScrollPosition } from "../../api/position";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
@@ -122,6 +123,7 @@ interface PDFViewerProps {
   persistedHighlights?: StoredHighlight[];
   onHighlightSelection?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
   onHighlightSelectionWithDialog?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
+  metadata?: DocumentMetadata;
 }
 
 type PdfSearchMatch = {
@@ -177,8 +179,30 @@ export function PDFViewer({
   persistedHighlights = [],
   onHighlightSelection,
   onHighlightSelectionWithDialog,
+  metadata,
 }: PDFViewerProps) {
   const { t } = useI18n();
+
+  const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [outline, setOutline] = useState<any[]>([]);
+  const [showTOC, setShowTOC] = useState(false);
+  const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
+
+  const effectiveStartPage = useMemo(() => {
+    return metadata?.chunkStartPage ?? 1;
+  }, [metadata]);
+
+  const effectiveEndPage = useMemo(() => {
+    return metadata?.chunkEndPage ?? numPages;
+  }, [metadata, numPages]);
+
+  const totalEffectivePages = useMemo(() => {
+    return effectiveEndPage - effectiveStartPage + 1;
+  }, [effectiveStartPage, effectiveEndPage]);
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -224,13 +248,6 @@ export function PDFViewer({
   const pendingSearchScrollRef = useRef<number | null>(null);
   const searchRequestTokenRef = useRef(0);
   const lastProcessedSearchNavRequestRef = useRef<number | null>(null);
-  const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [numPages, setNumPages] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [outline, setOutline] = useState<any[]>([]);
-  const [showTOC, setShowTOC] = useState(false);
-  const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
 
   const getHighlightsForPage = useCallback(
     (pageNumberForHighlights: number) =>
@@ -1205,7 +1222,7 @@ export function PDFViewer({
       const matchesByPage = new Map<number, PdfSearchMatch[]>();
       let anySearchableText = false;
 
-      for (let page = 1; page <= numPages; page += 1) {
+      for (let page = effectiveStartPage; page <= effectiveEndPage; page += 1) {
         const text = await extractPdfPageText(pdf, page);
         if (requestToken !== searchRequestTokenRef.current) {
           return;
@@ -1274,6 +1291,8 @@ export function PDFViewer({
     publishSearchResults,
     reapplyVisibleTextLayerHighlights,
     searchQuery,
+    effectiveStartPage,
+    effectiveEndPage,
   ]);
 
   useEffect(() => {
@@ -2118,7 +2137,7 @@ export function PDFViewer({
       const activeContainer = scrollContainerRef.current;
       if (!activeContainer) return;
 
-      const clampedPageNumber = Math.max(1, Math.min(restoreState.pageNumber, Math.max(1, numPages || 1)));
+      const clampedPageNumber = Math.max(effectiveStartPage, Math.min(restoreState.pageNumber, Math.max(effectiveStartPage, effectiveEndPage || 1)));
       const pageIndex = clampedPageNumber - 1;
       const pageEl = pageContainerRefs.current[pageIndex];
       const viewport = pageViewportRefs.current[pageIndex];
@@ -2227,7 +2246,7 @@ export function PDFViewer({
 
 
   const handlePrevPage = () => {
-    if (pageNumber > 1) {
+    if (pageNumber > effectiveStartPage) {
       const nextPageNumber = pageNumber - 1;
       const token = ++navTokenCounterRef.current;
       activeNavTokenRef.current = token;
@@ -2241,7 +2260,7 @@ export function PDFViewer({
   };
 
   const handleNextPage = () => {
-    if (pageNumber < numPages) {
+    if (pageNumber < effectiveEndPage) {
       const nextPageNumber = pageNumber + 1;
       const token = ++navTokenCounterRef.current;
       activeNavTokenRef.current = token;
@@ -2311,6 +2330,11 @@ export function PDFViewer({
     }
 
     const nextPageNumber = resolved.pageIndex + 1;
+    if (nextPageNumber < effectiveStartPage || nextPageNumber > effectiveEndPage) {
+      console.warn("TOC click is out of bounds for the current chunk:", nextPageNumber);
+      return;
+    }
+
     activeNavTokenRef.current = requestToken;
     pendingNavRef.current = { token: requestToken, pageNumber: nextPageNumber, destArray: resolved.destArray };
     if (pdfNavStabilityEnabledRef.current) {
@@ -2319,7 +2343,7 @@ export function PDFViewer({
     }
     setShowTOC(false);
     onPageChange?.(nextPageNumber);
-  }, [logNav, onPageChange, resolveOutlineDest, setNavigationMode]);
+  }, [logNav, onPageChange, resolveOutlineDest, setNavigationMode, effectiveStartPage, effectiveEndPage]);
 
   const handleZoomModeChange = (mode: ZoomMode) => {
     setZoomMode(mode);
@@ -2431,9 +2455,9 @@ export function PDFViewer({
   const renderedPagesRef = useRef<Set<number>>(new Set());
   const pageOffsetsRef = useRef<number[]>([]);
   const offsetsUpdateRafRef = useRef<number | null>(null);
-  const shouldVirtualize = ENABLE_PDF_VIRTUALIZATION && numPages > VIRTUALIZATION_THRESHOLD_PAGES;
-  const virtualStartPage = shouldVirtualize ? Math.max(1, pageNumber - VIRTUAL_WINDOW_PAGES) : 1;
-  const virtualEndPage = shouldVirtualize ? Math.min(numPages, pageNumber + VIRTUAL_WINDOW_PAGES) : numPages;
+  const shouldVirtualize = (ENABLE_PDF_VIRTUALIZATION && numPages > VIRTUALIZATION_THRESHOLD_PAGES) || effectiveStartPage > 1 || effectiveEndPage < numPages;
+  const virtualStartPage = shouldVirtualize ? Math.max(effectiveStartPage, pageNumber - VIRTUAL_WINDOW_PAGES) : effectiveStartPage;
+  const virtualEndPage = shouldVirtualize ? Math.min(effectiveEndPage, pageNumber + VIRTUAL_WINDOW_PAGES) : effectiveEndPage;
   const currentScaleEstimate = pageScaleRefs.current[Math.max(0, pageNumber - 1)] ?? scale;
   const estimatedPageHeight = Math.max(400, (fallbackPageSize?.height ?? 1100) * currentScaleEstimate);
   const estimatedPageStride = estimatedPageHeight + PAGE_GAP_PX;
@@ -2658,20 +2682,27 @@ export function PDFViewer({
 
               <button
                 onClick={handlePrevPage}
-                disabled={pageNumber <= 1}
+                disabled={pageNumber <= effectiveStartPage}
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title={t("viewer.previousPage")}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <span className="text-xs md:text-sm text-muted-foreground min-w-[70px] md:min-w-[100px] text-center whitespace-nowrap">
-                {pageNumber}/{numPages}
+              <span className="text-xs md:text-sm text-muted-foreground min-w-[70px] md:min-w-[100px] text-center whitespace-nowrap px-2">
+                {metadata?.chunkIndex !== undefined ? (
+                  <>
+                    Page <span className="font-medium text-foreground">{pageNumber - effectiveStartPage + 1}</span> of <span className="font-medium text-foreground">{totalEffectivePages}</span>
+                    <span className="text-[10px] text-muted-foreground block md:inline md:ml-1.5 opacity-80">(Book Page {pageNumber})</span>
+                  </>
+                ) : (
+                  `${pageNumber}/${numPages}`
+                )}
               </span>
 
               <button
                 onClick={handleNextPage}
-                disabled={pageNumber >= numPages}
+                disabled={pageNumber >= effectiveEndPage}
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title={t("viewer.nextPage")}
               >

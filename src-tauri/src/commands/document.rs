@@ -188,20 +188,8 @@ pub async fn import_document(
     // Create metadata from extracted info
     let metadata = Some(DocumentMetadata {
         author: extracted.author,
-        subject: None,
-        keywords: None,
-        created_at: None,
-        modified_at: None,
-        file_size: None,
-        language: None,
         page_count: extracted.page_count.map(|p| p as i32),
-        word_count: None,
-        source: None,
-        fetched_at: None,
-        site_name: None,
-        browser_import_mode: None,
-        article_html: None,
-        extracted_images: None,
+        ..Default::default()
     });
 
     // Create the document
@@ -377,24 +365,13 @@ pub async fn get_document(
                 let content_hash = Some(processor::generate_content_hash(&extracted.text));
                 let metadata = Some(DocumentMetadata {
                     author: extracted.author.clone(),
-                    subject: None,
-                    keywords: None,
-                    created_at: None,
-                    modified_at: None,
-                    file_size: None,
                     language: extracted
                         .metadata
                         .get("language")
                         .and_then(|value| value.as_str())
                         .map(|value| value.to_string()),
                     page_count: extracted.page_count.map(|p| p as i32),
-                    word_count: None,
-                    source: None,
-                    fetched_at: None,
-                    site_name: None,
-                    browser_import_mode: None,
-                    article_html: None,
-                    extracted_images: None,
+                    ..Default::default()
                 });
 
                 repo.update_document_content(
@@ -571,27 +548,21 @@ pub async fn extract_document_text(
         });
     }
 
-    // Update document with extracted content
     let content_hash = Some(processor::generate_content_hash(&extracted.text));
     let metadata = Some(DocumentMetadata {
         author: extracted.author.clone().or(doc.metadata.as_ref().and_then(|m| m.author.clone())),
-        subject: None,
-        keywords: None,
-        created_at: None,
-        modified_at: None,
-        file_size: None,
         language: extracted.metadata.get("language")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .or(doc.metadata.as_ref().and_then(|m| m.language.clone())),
         page_count: extracted.page_count.map(|p| p as i32).or(doc.metadata.as_ref().and_then(|m| m.page_count)),
-        word_count: None,
         source: doc.metadata.as_ref().and_then(|m| m.source.clone()),
         fetched_at: doc.metadata.as_ref().and_then(|m| m.fetched_at),
         site_name: doc.metadata.as_ref().and_then(|m| m.site_name.clone()),
         browser_import_mode: doc.metadata.as_ref().and_then(|m| m.browser_import_mode.clone()),
         article_html: doc.metadata.as_ref().and_then(|m| m.article_html.clone()),
         extracted_images: doc.metadata.as_ref().and_then(|m| m.extracted_images.clone()),
+        ..Default::default()
     });
 
     repo.update_document_content(

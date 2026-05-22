@@ -76,6 +76,18 @@ export interface DocumentMetadata {
   // Markdown bundle metadata
   bundleImages?: Record<string, string>; // relative path -> stored filename
   hasBundleImages?: boolean;
+
+  // Virtual & Physical Chunking fields
+  parentDocumentId?: string;
+  chunkIndex?: number;
+  totalChunks?: number;
+  chunkStartPage?: number;
+  chunkEndPage?: number;
+  chunkStartSpineIndex?: number;
+  chunkEndSpineIndex?: number;
+  chunkStartPos?: number;
+  chunkEndPos?: number;
+  estimatedReadingTimeMins?: number;
 }
 
 export interface Extract {

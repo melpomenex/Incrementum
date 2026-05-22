@@ -61,6 +61,7 @@ async fn import_youtube_video_as_document(
         browser_import_mode: None,
         article_html: None,
         extracted_images: None,
+        ..Default::default()
     });
 
     // Save to database

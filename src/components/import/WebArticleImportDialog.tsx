@@ -69,8 +69,25 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
   const [showCorsWarning, setShowCorsWarning] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const [isPdf, setIsPdf] = useState(false);
+  const [importFormat, setImportFormat] = useState<'pdf' | 'html'>('html');
+
   const { importFromUrl, loadDocuments } = useDocumentStore();
   const { success: showSuccess, error: showError } = useToast();
+
+  const checkIsPdfUrl = useCallback((urlStr: string): boolean => {
+    if (!urlStr.trim()) return false;
+    let cleanUrl = urlStr.trim();
+    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      cleanUrl = `https://${cleanUrl}`;
+    }
+    try {
+      const parsed = new URL(cleanUrl);
+      return /\.pdf($|\?|\b)/i.test(parsed.pathname) || /\.pdf($|\?|\b)/i.test(cleanUrl);
+    } catch {
+      return /\.pdf($|\?|\b)/i.test(cleanUrl);
+    }
+  }, []);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -84,8 +101,22 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       setImportSuccess(false);
       setShowCorsWarning(false);
       setPreviewMode('rendered');
+      setIsPdf(false);
+      setImportFormat('html');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const detectPdf = checkIsPdfUrl(url);
+    setIsPdf(detectPdf);
+    if (detectPdf) {
+      setImportFormat('pdf');
+      setTags(prev => prev.includes('pdf') ? prev : [...prev.filter(t => t !== 'article'), 'pdf']);
+    } else {
+      setImportFormat('html');
+      setTags(prev => prev.includes('article') ? prev : [...prev.filter(t => t !== 'pdf'), 'article']);
+    }
+  }, [url, checkIsPdfUrl]);
 
   const extractSiteName = (url: string): string => {
     try {
@@ -299,6 +330,33 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       // Validate URL format
       new URL(processedUrl);
 
+      if (importFormat === 'pdf') {
+        // Mock PDF preview with direct filename extraction
+        await new Promise(resolve => setTimeout(resolve, 800)); // Premium delay
+        let fileName = "document.pdf";
+        try {
+          const parsed = new URL(processedUrl);
+          const parts = parsed.pathname.split('/');
+          const lastPart = parts[parts.length - 1];
+          if (lastPart) {
+            fileName = decodeURIComponent(lastPart);
+          }
+        } catch {}
+
+        setPreview({
+          url: processedUrl,
+          title: fileName.replace(/\.pdf$/i, '') || "PDF Document",
+          text: "",
+          html: "",
+          processedHtml: "",
+          wordCount: 0,
+          readingTime: 0,
+          siteName: extractSiteName(processedUrl),
+          fetchMethod: 'direct',
+        });
+        return;
+      }
+
       // Fetch article content
       const { html, title, text, fetchMethod } = await fetchArticleContent(processedUrl);
       
@@ -381,7 +439,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     } finally {
       setIsLoading(false);
     }
-  }, [url, showError]);
+  }, [url, showError, importFormat, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -417,10 +475,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       // Update the document with user-selected tags and additional metadata
       const { updateDocument } = useDocumentStore.getState();
       
-      await updateDocument(doc.id, { 
+      const updatePayload: any = { 
         tags,
         title: preview.title || doc.title,
-        content: preview.processedHtml || preview.text,
         metadata: {
           ...doc.metadata,
           author: preview.author,
@@ -433,7 +490,13 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
           wordCount: preview.wordCount,
           readingTime: preview.readingTime,
         }
-      });
+      };
+
+      if (importFormat !== 'pdf') {
+        updatePayload.content = preview.processedHtml || preview.text;
+      }
+
+      await updateDocument(doc.id, updatePayload);
       
       // Reload to get latest state
       await loadDocuments();
@@ -531,6 +594,46 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   {t("webImport.fetchHelp")}
                 </p>
               </div>
+
+              {/* PDF Format Switcher */}
+              {isPdf && (
+                <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-primary/5 shadow-inner animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-primary">
+                    {t("webImport.importFormat")}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted/60 border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setImportFormat('pdf')}
+                      className={cn(
+                        "rounded-md py-2 px-3 text-xs font-medium transition-all duration-200",
+                        importFormat === 'pdf'
+                          ? "bg-background text-foreground shadow-sm font-semibold border border-primary/10"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      {t("webImport.pdfDetected")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImportFormat('html')}
+                      className={cn(
+                        "rounded-md py-2 px-3 text-xs font-medium transition-all duration-200",
+                        importFormat === 'html'
+                          ? "bg-background text-foreground shadow-sm font-semibold border border-primary/10"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      {t("webImport.formatHtml")}
+                    </button>
+                  </div>
+                  <p className="mt-2.5 text-xs text-muted-foreground leading-normal">
+                    {importFormat === 'pdf' 
+                      ? t("webImport.formatPdfDesc")
+                      : t("webImport.formatHtmlDesc")}
+                  </p>
+                </div>
+              )}
 
               {/* CORS Warning */}
               {showCorsWarning && (
@@ -706,9 +809,13 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                 <div className="border-b border-border bg-card p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="mb-1 text-xl font-semibold text-foreground">
-                        {preview.title}
-                      </h3>
+                      <input
+                        type="text"
+                        value={preview.title}
+                        onChange={(e) => setPreview(prev => prev ? { ...prev, title: e.target.value } : null)}
+                        className="w-full bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none text-xl font-semibold text-foreground py-0.5 transition-colors mb-1"
+                        placeholder="Document Title"
+                      />
                       {preview.author && (
                         <p className="mb-2 text-sm text-muted-foreground">
                           {t("webImport.byAuthor", { author: preview.author })}
@@ -719,16 +826,20 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                           <Globe className="h-3 w-3" />
                           {preview.siteName}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <FileText className="h-3 w-3" />
-                          {t("webImport.wordCount", { count: preview.wordCount.toLocaleString() })}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {t("webImport.minRead", { count: preview.readingTime })}
-                        </span>
+                        {importFormat !== 'pdf' && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              {t("webImport.wordCount", { count: preview.wordCount.toLocaleString() })}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {t("webImport.minRead", { count: preview.readingTime })}
+                            </span>
+                          </>
+                        )}
                         {preview.fetchMethod === 'proxy' && (
                           <>
                             <span>•</span>
@@ -770,40 +881,105 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                   </div>
 
                   {/* Preview mode toggle */}
-                  <div className="mt-4 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{t("webImport.previewMode")}</span>
-                    <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                      <button
-                        onClick={() => setPreviewMode('rendered')}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
-                          previewMode === 'rendered' 
-                            ? "bg-background text-foreground shadow-sm" 
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Eye className="h-3 w-3" />
-                        {t("webImport.rendered")}
-                      </button>
-                      <button
-                        onClick={() => setPreviewMode('text')}
-                        className={cn(
-                          "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
-                          previewMode === 'text' 
-                            ? "bg-background text-foreground shadow-sm" 
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Code className="h-3 w-3" />
-                        {t("webImport.text")}
-                      </button>
+                  {importFormat !== 'pdf' && (
+                    <div className="mt-4 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{t("webImport.previewMode")}</span>
+                      <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                        <button
+                          onClick={() => setPreviewMode('rendered')}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                            previewMode === 'rendered' 
+                              ? "bg-background text-foreground shadow-sm" 
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Eye className="h-3 w-3" />
+                          {t("webImport.rendered")}
+                        </button>
+                        <button
+                          onClick={() => setPreviewMode('text')}
+                          className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                            previewMode === 'text' 
+                              ? "bg-background text-foreground shadow-sm" 
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Code className="h-3 w-3" />
+                          {t("webImport.text")}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Content preview */}
                 <div className="flex-1 overflow-hidden bg-background">
-                  {previewMode === 'rendered' && preview.processedHtml ? (
+                  {importFormat === 'pdf' ? (
+                    <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-card/30 to-background">
+                      <div className="relative mb-6 group">
+                        {/* Premium Glowing Crimson Effect */}
+                        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-red-600 to-pink-600 opacity-25 blur-xl transition duration-1000 group-hover:opacity-40 group-hover:duration-200" />
+                        <div className="relative flex h-24 w-20 flex-col items-center justify-between rounded-xl border border-red-500/20 bg-card p-3 shadow-2xl transition-transform duration-300 group-hover:scale-105">
+                          <div className="self-start text-[10px] font-extrabold text-red-500 tracking-wider">PDF</div>
+                          <FileText className="h-10 w-10 text-red-500" />
+                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div className="h-full w-2/3 bg-red-500 rounded-full animate-pulse" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <h4 className="mb-2 text-lg font-bold text-foreground tracking-tight">
+                        {t("webImport.pdfPreview")}
+                      </h4>
+                      <p className="max-w-sm text-sm text-muted-foreground leading-relaxed mb-6">
+                        {t("webImport.pdfDetectedDesc")}
+                      </p>
+
+                      {/* Direct link button / details */}
+                      <div className="w-full max-w-md rounded-xl border border-border bg-card/60 backdrop-blur-sm p-4 text-left shadow-lg space-y-3">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b border-border">
+                          <span>Format</span>
+                          <span className="font-semibold text-red-500 uppercase">Acrobat PDF</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pb-2 border-b border-border">
+                          <span>Source</span>
+                          <a
+                            href={preview.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary hover:underline truncate max-w-[250px] inline-flex items-center gap-1"
+                          >
+                            {preview.siteName}
+                            <ExternalLink className="h-3 w-3 inline" />
+                          </a>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <div className="text-xs font-semibold text-foreground mb-2">High-Fidelity Reader Advantages:</div>
+                          <ul className="space-y-1.5 text-xs text-muted-foreground">
+                            <li className="flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              Preserves mathematical equations (LaTeX) & layout
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              High-quality vector chart & image scaling
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              Offline local file persistence
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              Direct support for integrated PDF reader annotations
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ) : previewMode === 'rendered' && preview.processedHtml ? (
                     <iframe
                       ref={iframeRef}
                       srcDoc={preview.processedHtml}

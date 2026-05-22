@@ -105,21 +105,8 @@ pub async fn import_video_file(
 
     // Create document for the video file
     let metadata = DocumentMetadata {
-        author: None,
-        subject: None,
-        keywords: None,
-        created_at: None,
-        modified_at: None,
         file_size: Some(file_size),
-        language: None,
-        page_count: None,
-        word_count: None,
-        source: None,
-        fetched_at: None,
-        site_name: None,
-        browser_import_mode: None,
-        article_html: None,
-        extracted_images: None,
+        ..Default::default()
     };
 
     let mut document = Document::with_collection(title, dest_path.to_string_lossy().to_string(), FileType::Video, collection_id);
