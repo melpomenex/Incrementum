@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.39.2] - 2026-05-22
+
+### Fixed
+- **Window decorations on Windows** — Restored system window decorations for Windows and macOS by setting `decorations: true` in config; Linux still disables decorations at runtime for tiling WM compatibility
+
+## [1.39.2] - 2026-05-22
+
+### Fixed
+- **Window decorations on Windows** — Restored system window decorations for Windows and macOS by setting `decorations: true` in config; Linux still disables decorations at runtime for tiling WM compatibility
+
 ## [1.39.1] - 2026-05-21
 
 ### Fixed
