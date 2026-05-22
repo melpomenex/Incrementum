@@ -46,6 +46,7 @@ import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extr
 import type { DocumentSearchState } from "../../types/searchHit";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
 import { WordHighlightLayer } from "../common/WordHighlightLayer";
+import { usePaneId } from "../common/Tabs/TabContent";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
@@ -295,6 +296,21 @@ export function DocumentViewer({
   const { items: queueItems, loadQueue } = useQueueStore();
   const { settings, updateSettings } = useSettingsStore();
 
+  const paneId = usePaneId();
+  const isTabActive = useTabsStore((state) => {
+    if (embedded) return true;
+    if (!paneId) {
+      const currentTab = state.tabs.find((t) => t.data?.documentId === documentId);
+      if (!currentTab) return false;
+      const pane = state.findPaneContainingTab(currentTab.id);
+      return pane?.activeTabId === currentTab.id;
+    }
+    const pane = state.findPaneById(paneId);
+    if (!pane || pane.type !== "tabs") return false;
+    const activeTab = state.tabs.find((t) => t.id === pane.activeTabId);
+    return activeTab?.data?.documentId === documentId;
+  });
+
   const [pageNumber, setPageNumber] = useState(1);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [scale, setScale] = useState(1.0);
@@ -396,6 +412,7 @@ export function DocumentViewer({
   // Word highlighting state
   const [ttsChunkText, setTtsChunkText] = useState("");
   const [wordHighlightEnabled, setWordHighlightEnabled] = useState(false);
+  const [epubIframeWindow, setEpubIframeWindow] = useState<Window | null>(null);
   const highlightContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll TTS state
@@ -4886,6 +4903,8 @@ export function DocumentViewer({
             highlightQuery={jumpHighlightQuery}
             highlightPageNumber={initialJump?.kind === "pdf" ? initialJump.pageNumber : undefined}
             highlightTextQuote={jumpTextQuote}
+            ttsQuery={ttsChunkText}
+            ttsHighlightEnabled={wordHighlightEnabled}
           />
           )
         ) : docType === "epub" && (fileData || epubUrl) ? (
@@ -4925,6 +4944,7 @@ export function DocumentViewer({
                 scrollPercent: percent,
               });
             }}
+            onIframeWindowReady={setEpubIframeWindow}
           />
         ) : docType === "audio" ? (
           mediaSource ? (
@@ -5372,7 +5392,7 @@ export function DocumentViewer({
           </div>
         )}
 
-        {viewMode === "document" && (docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html") && (
+        {isTabActive && viewMode === "document" && (docType === "pdf" || docType === "epub" || docType === "markdown" || docType === "html") && (
           <ReaderTTSControls
             text={readerContextText}
             onComplete={handleTTSComplete}
@@ -5391,6 +5411,7 @@ export function DocumentViewer({
             highlightEnabled={wordHighlightEnabled}
             onHighlightToggle={() => setWordHighlightEnabled((v) => !v)}
             highlightContainerRef={highlightContainerRef}
+            iframeWindow={epubIframeWindow}
             className={cn(
               "absolute z-40",
               embedded ? "bottom-3 left-3 right-3" : "bottom-4 left-1/2 -translate-x-1/2"

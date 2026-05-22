@@ -38,6 +38,8 @@ interface ReaderTTSControlsProps {
   onReCenter?: () => void;
   /** Ref for the element to highlight text in */
   highlightContainerRef?: React.RefObject<HTMLElement | null>;
+  /** Iframe window for EPUB and HTML document readers */
+  iframeWindow?: Window | null;
 }
 
 const CHUNK_TARGET = 420;
@@ -120,6 +122,7 @@ export function ReaderTTSControls({
   autoScrollPaused = false,
   onReCenter,
   highlightContainerRef,
+  iframeWindow,
 }: ReaderTTSControlsProps) {
   const { t } = useI18n();
   const tts = useSettingsStore((state) => state.settings.tts);
@@ -155,6 +158,10 @@ export function ReaderTTSControls({
   // Buffer underrun indicator
   const [isBuffering, setIsBuffering] = useState(false);
 
+  // Playback tracking refs to avoid race conditions and audio leaks
+  const mountedRef = useRef(true);
+  const playbackIdRef = useRef(0);
+
   const chunks = useMemo(() => buildChunks(text), [text]);
 
   // TextPositionIndex for position-aware start
@@ -181,6 +188,65 @@ export function ReaderTTSControls({
     );
     return pos?.chunkIndex ?? 0;
   }, []);
+
+  const findVisibleChunkIndex = useCallback((): number | null => {
+    try {
+      const win = iframeWindow || window;
+      const container = iframeWindow 
+        ? iframeWindow.document.body 
+        : (highlightContainerRef?.current || document.body);
+
+      if (!container) return null;
+
+      // Query paragraph-like and span-like elements that contain text content
+      const elements = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          "p, h1, h2, h3, h4, h5, h6, li, .textLayer span, [role='paragraph']"
+        )
+      );
+
+      const isElementVisible = (el: HTMLElement) => {
+        const rect = el.getBoundingClientRect();
+        // Check if the element falls within the visible viewport bounds
+        const visibleHorizontally = rect.right > 10 && rect.left < win.innerWidth - 10;
+        const visibleVertically = rect.bottom > 10 && rect.top < win.innerHeight - 10;
+        return visibleHorizontally && visibleVertically;
+      };
+
+      const visibleElements = elements.filter((el) => {
+        const text = el.textContent?.trim();
+        if (!text || text.length < 3) return false;
+        return isElementVisible(el);
+      });
+
+      if (visibleElements.length === 0) return null;
+
+      const cleanForComparison = (str: string) => {
+        return str.toLowerCase().replace(/[^a-z0-9]/g, "");
+      };
+
+      // Check first few visible elements to find the best matching chunk index
+      for (const el of visibleElements.slice(0, 5)) {
+        const text = el.textContent?.trim();
+        if (!text) continue;
+        const normEl = cleanForComparison(text);
+        if (normEl.length < 3) continue;
+
+        for (let i = 0; i < chunks.length; i++) {
+          const normChunk = cleanForComparison(chunks[i]);
+          if (normChunk.length < 3) continue;
+
+          if (normChunk.includes(normEl) || normEl.includes(normChunk)) {
+            console.log(`TTS: Found starting chunk index ${i} matching visible text: "${text.slice(0, 40)}..."`);
+            return i;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("TTS: Error finding visible starting chunk index:", error);
+    }
+    return null;
+  }, [chunks, iframeWindow, highlightContainerRef]);
 
   // Sync refs for values read in callbacks (avoids stale closures)
   const isAutoPlayingRef = useRef(isAutoPlaying);
@@ -252,6 +318,7 @@ export function ReaderTTSControls({
 
   // Reset when text changes
   useEffect(() => {
+    playbackIdRef.current++;
     const initialChunk = getInitialChunk();
     setChunkIndex(initialChunk);
     initialChunkRef.current = initialChunk;
@@ -357,6 +424,8 @@ export function ReaderTTSControls({
   const playChunkAtIndex = useCallback(async (index: number) => {
     if (index < 0 || index >= chunks.length) return;
 
+    const playId = ++playbackIdRef.current;
+
     const chunk = chunks[index];
     setChunkIndex(index);
     onChunkStart?.(index, chunk);
@@ -370,11 +439,20 @@ export function ReaderTTSControls({
       setIsBuffering(true);
       buffered = await generateChunkAudio(index);
       setIsBuffering(false);
+
+      if (!mountedRef.current || playbackIdRef.current !== playId) {
+        return;
+      }
+
       if (!buffered) {
         console.error("Failed to generate audio for chunk", index);
         setIsAutoPlaying(false);
         return;
       }
+    }
+
+    if (!mountedRef.current || playbackIdRef.current !== playId) {
+      return;
     }
 
     // Stop any currently playing audio
@@ -439,29 +517,63 @@ export function ReaderTTSControls({
     }
   }, [chunks.length, ttsEnabled, preBufferChunks]);
 
+  // Clean up and stop audio when the component unmounts
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      playbackIdRef.current++;
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        } catch (e) {
+          // Ignore errors from already paused or ended audio elements
+        }
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   // Controls
   const handlePlayPause = async () => {
-    if (isPlaying) {
-      if (isPaused) {
-        audioRef.current?.play();
-      } else {
-        audioRef.current?.pause();
-      }
+    if (isPlaying && !isPaused) {
+      playbackIdRef.current++;
+      audioRef.current?.pause();
       return;
     }
 
     setIsAutoPlaying(true);
     intentionalStopRef.current = false;
-    await playChunkAtIndex(chunkIndex);
+
+    // Check if we are resuming from a paused audio
+    if (isPaused && audioRef.current) {
+      // If user scrolled to a different chunk/page while paused, start fresh from there!
+      const targetIdx = findVisibleChunkIndex();
+      if (targetIdx !== null && targetIdx !== chunkIndex) {
+        setChunkIndex(targetIdx);
+        await playChunkAtIndex(targetIdx);
+      } else {
+        audioRef.current.play();
+      }
+      return;
+    }
+
+    // Otherwise, we are starting fresh (or starting after a stop)
+    // Let's dynamically find starting chunk index based on top-most visible text
+    const targetIdx = findVisibleChunkIndex() ?? chunkIndex;
+    setChunkIndex(targetIdx);
+    await playChunkAtIndex(targetIdx);
   };
 
   const handleStop = () => {
+    playbackIdRef.current++;
     intentionalStopRef.current = true;
     setIsAutoPlaying(false);
     stopAudio();
   };
 
   const handlePrev = async () => {
+    playbackIdRef.current++;
     intentionalStopRef.current = true;
     stopAudio();
     setIsAutoPlaying(true);
@@ -470,6 +582,7 @@ export function ReaderTTSControls({
   };
 
   const handleNext = async () => {
+    playbackIdRef.current++;
     intentionalStopRef.current = true;
     stopAudio();
     setIsAutoPlaying(true);
@@ -478,6 +591,7 @@ export function ReaderTTSControls({
   };
 
   const handleVoiceChange = (voiceId: string) => {
+    playbackIdRef.current++;
     setSelectedVoiceId(voiceId);
     if (!tts) return;
     updateSettings({
@@ -503,13 +617,14 @@ export function ReaderTTSControls({
 
   return (
     <>
-    {highlightEnabled && currentChunk && highlightContainerRef?.current && (
+    {highlightEnabled && currentChunk && (highlightContainerRef?.current || iframeWindow) && (
       <WordHighlightLayer
         enabled={highlightEnabled}
         chunkText={currentChunk}
         wordOffset={0}
         containerRef={highlightContainerRef}
         useChunkLevel={true}
+        iframeWindow={iframeWindow}
       />
     )}
     <div

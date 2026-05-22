@@ -124,6 +124,8 @@ interface PDFViewerProps {
   onHighlightSelection?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
   onHighlightSelectionWithDialog?: (color: HighlightColor, text: string, context: PdfSelectionContext) => void;
   metadata?: DocumentMetadata;
+  ttsQuery?: string;
+  ttsHighlightEnabled?: boolean;
 }
 
 type PdfSearchMatch = {
@@ -180,6 +182,8 @@ export function PDFViewer({
   onHighlightSelection,
   onHighlightSelectionWithDialog,
   metadata,
+  ttsQuery,
+  ttsHighlightEnabled,
 }: PDFViewerProps) {
   const { t } = useI18n();
 
@@ -248,6 +252,7 @@ export function PDFViewer({
   const pendingSearchScrollRef = useRef<number | null>(null);
   const searchRequestTokenRef = useRef(0);
   const lastProcessedSearchNavRequestRef = useRef<number | null>(null);
+  const lastScrolledTtsQueryRef = useRef("");
 
   const getHighlightsForPage = useCallback(
     (pageNumberForHighlights: number) =>
@@ -465,6 +470,68 @@ export function PDFViewer({
       delete el.dataset.searchMarkCount;
     }
 
+    if (ttsHighlightEnabled && ttsQuery && pageIndex === pageNumberRef.current - 1) {
+      let fullText = "";
+      const charMaps: { spanIndex: number; charIndex: number }[] = [];
+
+      spans.forEach((span, spanIdx) => {
+        const text = span.textContent || "";
+        for (let i = 0; i < text.length; i++) {
+          fullText += text[i];
+          charMaps.push({ spanIndex: spanIdx, charIndex: i });
+        }
+        fullText += " ";
+        charMaps.push({ spanIndex: -1, charIndex: -1 });
+      });
+
+      const cleanQuery = ttsQuery.trim().replace(/\s+/g, " ");
+      const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regexStr = escapedQuery.replace(/ /g, "\\s+");
+      const regex = new RegExp(regexStr, "gi");
+
+      const match = regex.exec(fullText);
+      if (match) {
+        const startIdx = match.index;
+        const endIdx = startIdx + match[0].length;
+
+        const spansToHighlight = new Map<number, { start: number; end: number }>();
+        for (let i = startIdx; i < endIdx; i++) {
+          const map = charMaps[i];
+          if (map && map.spanIndex !== -1) {
+            if (!spansToHighlight.has(map.spanIndex)) {
+              spansToHighlight.set(map.spanIndex, { start: map.charIndex, end: map.charIndex + 1 });
+            } else {
+              const range = spansToHighlight.get(map.spanIndex)!;
+              range.end = Math.max(range.end, map.charIndex + 1);
+            }
+          }
+        }
+
+        spansToHighlight.forEach((range, spanIdx) => {
+          const span = spans[spanIdx];
+          const text = span.textContent || "";
+          const before = text.slice(0, range.start);
+          const middle = text.slice(range.start, range.end);
+          const after = text.slice(range.end);
+          span.innerHTML = `${before}<mark class="pdf-tts-highlight">${middle}</mark>${after}`;
+        });
+
+        if (lastScrolledTtsQueryRef.current !== ttsQuery) {
+          lastScrolledTtsQueryRef.current = ttsQuery;
+          const firstSpanIdx = Array.from(spansToHighlight.keys())[0];
+          if (typeof firstSpanIdx === "number") {
+            const firstSpan = spans[firstSpanIdx];
+            if (firstSpan) {
+              requestAnimationFrame(() => {
+                firstSpan.scrollIntoView({ behavior: "smooth", block: "center" });
+              });
+            }
+          }
+        }
+        return;
+      }
+    }
+
     const normalizedSearchQuery = searchQueryRef.current.trim();
     const searchRe = normalizedSearchQuery ? getSearchHighlightPattern(normalizedSearchQuery) : null;
     if (searchRe) {
@@ -600,6 +667,10 @@ export function PDFViewer({
   useEffect(() => {
     reapplyVisibleTextLayerHighlights();
   }, [highlightPageNumber, highlightQuery, highlightTextQuote, reapplyVisibleTextLayerHighlights]);
+
+  useEffect(() => {
+    reapplyVisibleTextLayerHighlights();
+  }, [ttsQuery, ttsHighlightEnabled, reapplyVisibleTextLayerHighlights]);
 
   useEffect(() => {
     if (!highlightPageNumber) return;

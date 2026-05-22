@@ -437,3 +437,11 @@
   background: var(--border, #e5e7eb);
   margin: 4px 4px;
 }
+
+/* === PDF TTS HIGHLIGHTING === */
+.pdf-tts-highlight {
+  background-color: rgba(59, 130, 246, 0.25) !important; /* Premium semi-transparent light blue */
+  border-radius: 2px !important;
+  transition: background-color 0.1s ease !important;
+}
+
