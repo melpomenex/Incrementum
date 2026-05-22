@@ -12,9 +12,12 @@ import {
 } from "../api/youtube";
 import {
   fetchFeed,
+  subscribeToFeedAuto,
   type Feed,
 } from "../api/rss";
 import { useDocumentStore } from "../stores/documentStore";
+import { importYouTubeVideo } from "../api/documents";
+import type { Document } from "../types/document";
 
 /**
  * Duplicate check result
@@ -283,40 +286,40 @@ export function useURLImport() {
 
       switch (urlType) {
         case URLType.YouTube: {
-          // Import YouTube video as document
-          const videoIdMatch = url.match(
-            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
-          );
-          if (videoIdMatch) {
-            result = await invokeCommand("import_youtube_video_as_document", {
-              videoId: videoIdMatch[1],
-              tags: options.tags || [],
-              collectionId: options.collectionId,
-            });
-          }
+          result = await importYouTubeVideo(url, options.collectionId);
+          await useDocumentStore.getState().loadDocuments();
           break;
         }
 
         case URLType.RSSFeed: {
-          // Subscribe to RSS feed
           const feed = await fetchFeed(url);
           if (feed) {
-            result = await invokeCommand("subscribe_to_rss_feed", {
-              feedUrl: url,
-              tags: options.tags || [],
-            });
+            await subscribeToFeedAuto(feed);
+            result = feed;
+          } else {
+            throw new Error("Failed to fetch RSS feed info");
           }
           break;
         }
 
-        case URLType.WebPage:
-          // Import web page as article
-          result = await invokeCommand("import_web_article", {
-            url,
-            tags: options.tags || [],
-            collectionId: options.collectionId,
-          });
+        case URLType.WebPage: {
+          const doc = await useDocumentStore.getState().importFromUrl(url);
+          const updates: Partial<Document> = {};
+          if (options.tags && options.tags.length > 0) {
+            updates.tags = Array.from(new Set([...(doc.tags || []), ...options.tags]));
+          }
+          if (options.collectionId) {
+            updates.collectionId = options.collectionId;
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            await useDocumentStore.getState().updateDocumentOptimistic(doc.id, updates);
+            result = { ...doc, ...updates };
+          } else {
+            result = doc;
+          }
           break;
+        }
 
         default:
           throw new Error("Unsupported URL type");

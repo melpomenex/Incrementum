@@ -71,14 +71,14 @@ pub enum FileType {
     Other,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentImageAsset {
     pub src: String,
     pub alt: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentMetadata {
     pub author: Option<String>,
@@ -96,6 +96,18 @@ pub struct DocumentMetadata {
     pub browser_import_mode: Option<String>,
     pub article_html: Option<String>,
     pub extracted_images: Option<Vec<DocumentImageAsset>>,
+
+    // Virtual & Physical Chunking Fields
+    pub parent_document_id: Option<String>,
+    pub chunk_index: Option<i32>,
+    pub total_chunks: Option<i32>,
+    pub chunk_start_page: Option<i32>,
+    pub chunk_end_page: Option<i32>,
+    pub chunk_start_spine_index: Option<i32>,
+    pub chunk_end_spine_index: Option<i32>,
+    pub chunk_start_pos: Option<usize>,
+    pub chunk_end_pos: Option<usize>,
+    pub estimated_reading_time_mins: Option<i32>,
 }
 
 impl Document {

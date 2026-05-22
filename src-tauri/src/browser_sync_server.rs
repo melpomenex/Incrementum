@@ -711,6 +711,7 @@ fn build_browser_import_metadata(payload: &ExtensionRequest) -> crate::models::D
                 })
                 .collect()
         }),
+        ..Default::default()
     }
 }
 

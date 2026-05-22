@@ -925,6 +925,7 @@ pub fn run() {
             // Segmentation commands
             commands::segment_document,
             commands::auto_segment_and_create_extracts,
+            commands::split_document,
             // Legacy import commands
             commands::import_legacy_archive,
             commands::preview_segmentation,

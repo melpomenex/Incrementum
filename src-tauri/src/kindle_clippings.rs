@@ -686,6 +686,7 @@ pub async fn do_import_kindle_clippings(
                 browser_import_mode: None,
                 article_html: None,
                 extracted_images: None,
+                ..Default::default()
             });
 
             repo.create_document(&new_doc).await?;

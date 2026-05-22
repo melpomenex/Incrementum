@@ -320,6 +320,7 @@ pub async fn import_podcast_audio_file(
         browser_import_mode: None,
         article_html: None,
         extracted_images: None,
+        ..Default::default()
     });
 
     let mut created = repo.create_document(&document).await?;

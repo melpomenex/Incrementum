@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react";
 import type { EpubSelectionContext, SelectionContext } from "../../types/selection";
+import type { DocumentMetadata } from "../../types/document";
 import ePub from "epubjs";
 import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -72,6 +73,57 @@ function chooseSearchResultIndex(results: any[], fallbackIndex?: number | null, 
   return bestIndex;
 }
 
+const resolveSpineIndex = (book: any, href: string): number | null => {
+  if (!book || !book.spine) return null;
+  const normalizeHref = (value: string) =>
+    value.replace(/^\.?\//, "").split("#")[0];
+  const normalizedPath = normalizeHref(href);
+  const spine = book.spine;
+  const spineItem = spine.get ? spine.get(normalizedPath) : null;
+  if (spineItem && typeof spineItem.index === 'number') {
+    return spineItem.index;
+  }
+  if (spine.items) {
+    for (const item of spine.items) {
+      const itemHref = normalizeHref(item.href || "");
+      if (itemHref === normalizedPath || itemHref?.endsWith?.(normalizedPath)) {
+        if (typeof item.index === 'number') return item.index;
+      }
+    }
+  }
+  return null;
+};
+
+const filterTocItems = (items: any[], book: any, start: number | undefined, end: number | undefined): any[] => {
+  if (start === undefined && end === undefined) return items;
+  
+  return items
+    .map(item => {
+      const filteredSubitems = item.subitems ? filterTocItems(item.subitems, book, start, end) : undefined;
+      
+      const itemIndex = resolveSpineIndex(book, item.href);
+      let isVisible = true;
+      
+      if (itemIndex !== null) {
+        if (start !== undefined && itemIndex < start) isVisible = false;
+        if (end !== undefined && itemIndex > end) isVisible = false;
+      } else if (filteredSubitems && filteredSubitems.length > 0) {
+        isVisible = true;
+      } else {
+        isVisible = false;
+      }
+      
+      if (isVisible) {
+        return {
+          ...item,
+          subitems: filteredSubitems,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean) as any[];
+};
+
 interface EPUBViewerProps {
   fileData?: Uint8Array | null;
   fileUrl?: string | null;
@@ -106,6 +158,7 @@ interface EPUBViewerProps {
   onSyncStateChange?: (state: { status: "idle" | "building" | "ready" | "error"; mappedCount: number; totalSegments: number }) => void;
   /** Increment to force sync highlight + scroll to current audio position */
   syncJumpSignal?: number;
+  metadata?: DocumentMetadata;
 }
 
 export function EPUBViewer({
@@ -131,6 +184,7 @@ export function EPUBViewer({
   syncCurrentTime,
   onSyncStateChange,
   syncJumpSignal,
+  metadata,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -544,9 +598,23 @@ export function EPUBViewer({
         // Get table of contents
         const tocData = await epubBook.loaded.navigation;
         console.log("EPUBViewer: TOC loaded with", tocData.toc.length, "items");
-        setToc(tocData.toc);
-        tocRef.current = tocData.toc;
-        onLoad?.(tocData.toc);
+        
+        let filteredToc = tocData.toc;
+        const startIdx = metadata?.chunkStartSpineIndex;
+        const endIdx = metadata?.chunkEndSpineIndex;
+        if (startIdx !== undefined || endIdx !== undefined) {
+          try {
+            await epubBook.loaded.spine;
+            filteredToc = filterTocItems(tocData.toc, epubBook, startIdx, endIdx);
+            console.log("EPUBViewer: Filtered TOC count:", filteredToc.length);
+          } catch (e) {
+            console.warn("EPUBViewer: Failed to filter TOC items:", e);
+          }
+        }
+
+        setToc(filteredToc);
+        tocRef.current = filteredToc;
+        onLoad?.(filteredToc);
 
         // Initialize rendition with retry for the ref to be ready
         const initializeRendition = async (): Promise<boolean> => {
@@ -669,13 +737,26 @@ export function EPUBViewer({
           // Display the book at saved position or start
           console.log("EPUBViewer: Displaying book...");
           const savedPosition = await loadReadingPosition();
+          const startIdx = metadata?.chunkStartSpineIndex;
 
+          let displayTarget: any = null;
           if (initialCfi) {
-            await rendition.display(initialCfi);
-            console.log("EPUBViewer: Displayed at initial CFI:", initialCfi);
+            displayTarget = initialCfi;
           } else if (savedPosition) {
-            await rendition.display(savedPosition);
-            console.log("EPUBViewer: Displayed at saved position:", savedPosition);
+            displayTarget = savedPosition;
+          } else if (startIdx !== undefined) {
+            const spine = epubBook.spine;
+            if (spine) {
+              const item = spine.get(startIdx);
+              if (item) {
+                displayTarget = (item as any).cfi || item.href;
+              }
+            }
+          }
+
+          if (displayTarget) {
+            await rendition.display(displayTarget);
+            console.log("EPUBViewer: Displayed at target:", displayTarget);
           } else {
             await rendition.display();
             console.log("EPUBViewer: Book displayed successfully");
@@ -784,6 +865,38 @@ export function EPUBViewer({
           rendition.on("relocated", (location: any) => {
             if (!mounted) return;
             console.log("EPUBViewer: Relocated to:", location.start.cfi);
+
+            // Enforce spine boundaries
+            const currentSpineIndex = location.start?.index;
+            if (typeof currentSpineIndex === 'number') {
+              const startIdx = metadata?.chunkStartSpineIndex;
+              const endIdx = metadata?.chunkEndSpineIndex;
+              
+              if (startIdx !== undefined && currentSpineIndex < startIdx) {
+                console.log(`EPUBViewer: Out of bounds (under start ${startIdx}). Redirecting to start...`);
+                const spine = epubBook.spine || (bookInstance ? bookInstance.spine : null);
+                if (spine) {
+                  const item = spine.get(startIdx);
+                  if (item) {
+                    rendition.display(item.cfi || item.href);
+                    return;
+                  }
+                }
+              }
+              
+              if (endIdx !== undefined && currentSpineIndex > endIdx) {
+                console.log(`EPUBViewer: Out of bounds (over end ${endIdx}). Redirecting to end...`);
+                const spine = epubBook.spine || (bookInstance ? bookInstance.spine : null);
+                if (spine) {
+                  const item = spine.get(endIdx);
+                  if (item) {
+                    rendition.display(item.cfi || item.href);
+                    return;
+                  }
+                }
+              }
+            }
+
             debouncedSavePosition();
             try { updateProgress(location); } catch {}
             const chapter = resolveChapterLabel(location.start?.href || location.start?.page);
@@ -1211,12 +1324,30 @@ export function EPUBViewer({
 
   const handlePrevPage = () => {
     if (rendition) {
+      const startIdx = metadata?.chunkStartSpineIndex;
+      if (startIdx !== undefined) {
+        const location = rendition.currentLocation() as any;
+        const currentSpineIndex = location?.start?.index;
+        if (typeof currentSpineIndex === 'number' && currentSpineIndex <= startIdx) {
+          console.log("EPUBViewer: Blocked paging back - at boundary start");
+          return;
+        }
+      }
       rendition.prev();
     }
   };
 
   const handleNextPage = () => {
     if (rendition) {
+      const endIdx = metadata?.chunkEndSpineIndex;
+      if (endIdx !== undefined) {
+        const location = rendition.currentLocation() as any;
+        const currentSpineIndex = location?.start?.index;
+        if (typeof currentSpineIndex === 'number' && currentSpineIndex >= endIdx) {
+          console.log("EPUBViewer: Blocked paging forward - at boundary end");
+          return;
+        }
+      }
       rendition.next();
     }
   };
