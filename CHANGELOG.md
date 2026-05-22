@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.39.1] - 2026-05-21
+
+### Fixed
+- **Command palette imports** — Fixed broken imports in command palette module
+- **Linux window decorations** — Disabled system window decorations on Linux for cleaner frameless UI
+- **Linux native Edit menu** — Removed unwanted native Edit menu on Windows and Linux
+
+### Changed
+- **Knowledge graph performance** — Optimized rendering and physics simulation for both 2D and 3D graph modes, reducing frame drops with large graphs
+- **SplitDocumentDialog** — New split document viewer component with pane management
+- **Web article import** — Enhanced WebArticleImportDialog with direct PDF import support
+- **EPUB viewer** — Improved EPUB rendering and navigation controls
+- **PDF viewer** — Enhanced PDF viewer with new interaction features
+
 ## [1.39.0] - 2026-05-20
 
 ### Added
