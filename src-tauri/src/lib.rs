@@ -316,6 +316,17 @@ pub fn run() {
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
 
+            // Linux: disable system window decorations at runtime.
+            // Config has decorations=true for Windows/macOS; we override here
+            // to remove the redundant GTK title bar in tiling WMs like Hyprland.
+            #[cfg(target_os = "linux")]
+            {
+                use tauri::Manager;
+                if let Some(main_win) = app.get_webview_window("main") {
+                    let _ = main_win.set_decorations(false);
+                }
+            }
+
             // Register global keyboard shortcuts to prevent webview engines
             // (webkit2gtk on Linux, WebView2 on Windows, WKWebView on macOS)
             // from intercepting Ctrl/Cmd+key combos before JavaScript.
