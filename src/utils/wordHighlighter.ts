@@ -75,10 +75,11 @@ export class WordHighlighter {
 
   clear(): void {
     if (!this.container) return;
+    const doc = this.container.ownerDocument || document;
     this.container.querySelectorAll(`.${HIGHLIGHT_CLASS}, .${CHUNK_HIGHLIGHT_CLASS}`).forEach((el) => {
       const parent = el.parentNode;
       if (parent) {
-        parent.replaceChild(document.createTextNode(el.textContent || ""), el);
+        parent.replaceChild(doc.createTextNode(el.textContent || ""), el);
         parent.normalize();
       }
     });
@@ -106,8 +107,9 @@ export class WordHighlighter {
   private findTextRanges(searchText: string, startChar: number, endChar: number): HighlightRange[] {
     if (!this.container) return [];
 
+    const doc = this.container.ownerDocument || document;
     const textNodes: Text[] = [];
-    const walker = document.createTreeWalker(this.container, NodeFilter.SHOW_TEXT, null);
+    const walker = doc.createTreeWalker(this.container, NodeFilter.SHOW_TEXT, null);
     let node: Text | null;
     while ((node = walker.nextNode() as Text | null)) {
       if (node.textContent && node.textContent.trim()) {
@@ -156,9 +158,11 @@ export class WordHighlighter {
   }
 
   private applyHighlights(ranges: HighlightRange[], className: string): void {
+    let scrolled = false;
     for (const range of ranges) {
       try {
-        const span = document.createElement("span");
+        const doc = range.node.ownerDocument || this.container?.ownerDocument || document;
+        const span = doc.createElement("span");
         span.className = className;
         const textNode = range.node;
         const parent = textNode.parentNode;
@@ -171,13 +175,18 @@ export class WordHighlighter {
 
         span.textContent = middle;
 
-        const fragment = document.createDocumentFragment();
-        if (before) fragment.appendChild(document.createTextNode(before));
+        const fragment = doc.createDocumentFragment();
+        if (before) fragment.appendChild(doc.createTextNode(before));
         fragment.appendChild(span);
-        if (after) fragment.appendChild(document.createTextNode(after));
+        if (after) fragment.appendChild(doc.createTextNode(after));
 
         parent.replaceChild(fragment, textNode);
         parent.normalize();
+
+        if (!scrolled) {
+          span.scrollIntoView({ behavior: "smooth", block: "center" });
+          scrolled = true;
+        }
       } catch {
         // Skip invalid ranges
       }
@@ -185,19 +194,20 @@ export class WordHighlighter {
   }
 
   private injectStyles(): void {
-    if (this.styleElement) return;
-    this.styleElement = document.createElement("style");
+    if (this.styleElement || !this.container) return;
+    const doc = this.container.ownerDocument || document;
+    this.styleElement = doc.createElement("style");
     this.styleElement.textContent = `
       .${HIGHLIGHT_CLASS} {
-        background-color: rgba(59, 130, 246, 0.35);
-        border-radius: 2px;
-        transition: background-color 0.1s ease;
+        background-color: rgba(59, 130, 246, 0.35) !important;
+        border-radius: 2px !important;
+        transition: background-color 0.1s ease !important;
       }
       .${CHUNK_HIGHLIGHT_CLASS} {
-        background-color: rgba(59, 130, 246, 0.15);
-        border-radius: 2px;
+        background-color: rgba(59, 130, 246, 0.15) !important;
+        border-radius: 2px !important;
       }
     `;
-    document.head.appendChild(this.styleElement);
+    doc.head?.appendChild(this.styleElement);
   }
 }

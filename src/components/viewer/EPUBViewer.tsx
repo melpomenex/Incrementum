@@ -159,6 +159,7 @@ interface EPUBViewerProps {
   /** Increment to force sync highlight + scroll to current audio position */
   syncJumpSignal?: number;
   metadata?: DocumentMetadata;
+  onIframeWindowReady?: (iframeWindow: Window) => void;
 }
 
 export function EPUBViewer({
@@ -185,6 +186,7 @@ export function EPUBViewer({
   onSyncStateChange,
   syncJumpSignal,
   metadata,
+  onIframeWindowReady,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,6 +242,8 @@ export function EPUBViewer({
   onProgressChangeRef.current = onProgressChange;
   const onSearchResultsChangeRef = useRef(onSearchResultsChange);
   onSearchResultsChangeRef.current = onSearchResultsChange;
+  const onIframeWindowReadyRef = useRef(onIframeWindowReady);
+  onIframeWindowReadyRef.current = onIframeWindowReady;
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
@@ -727,6 +731,9 @@ export function EPUBViewer({
             // Bind Cmd/Ctrl+K here so the command palette always opens while reading.
             contents.window.addEventListener("keydown", handleCommandPaletteHotkey, true);
             contents.window.addEventListener("keydown", handleExtractTextHotkey, true);
+            if (contents.window) {
+              onIframeWindowReadyRef.current?.(contents.window);
+            }
             console.log("EPUBViewer: Injected override styles into content");
           });
 
