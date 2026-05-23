@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import DOMPurify from "dompurify";
 import {
   Headphones,
   Video,
@@ -516,7 +517,7 @@ function ReportViewer({ content, title }: { content: string; title?: string }) {
       <div className="flex-1 p-6 overflow-auto">
         <div
           className="prose prose-sm dark:prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlContent) }}
         />
       </div>
     </div>

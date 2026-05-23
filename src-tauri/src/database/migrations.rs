@@ -1670,9 +1670,6 @@ fn get_migrations_dir() -> Result<PathBuf> {
 
 /// Split SQL into individual statements, respecting CREATE TRIGGER ... BEGIN ... END blocks
 fn split_sql_statements(sql: &str) -> Vec<String> {
-    eprintln!("=== split_sql_statements called, SQL length: {} ===", sql.len());
-    let first_500 = sql.chars().take(500).collect::<String>();
-    eprintln!("First 500 chars:\n{}", first_500);
     let mut statements = Vec::new();
     let mut in_trigger = false;
     let mut trigger_depth: usize = 0;
@@ -1723,19 +1720,12 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
             if trimmed.ends_with(';') {
                 let stmt = current_stmt.trim();
                 if !stmt.is_empty() {
-                    eprintln!("Processing statement ending with ';', length: {}", stmt.len());
-                    eprintln!("Raw statement (first 200 chars): {}", stmt.chars().take(200).collect::<String>());
-                    // Remove inline SQL comments (-- comments) from the statement
                     let cleaned: String = stmt.lines()
                         .filter(|l| !l.trim().starts_with("--"))
                         .collect::<Vec<_>>()
                         .join("\n");
-                    eprintln!("After cleaning, length: {}, first 200 chars: {}", cleaned.len(), cleaned.chars().take(200).collect::<String>());
                     if !cleaned.trim().is_empty() {
-                        eprintln!("Adding regular statement: {} chars, first 80 chars: {}", cleaned.len(), cleaned.chars().take(80).collect::<String>());
                         statements.push(cleaned);
-                    } else {
-                        eprintln!("Skipping empty statement after cleaning");
                     }
                 }
                 current_stmt.clear();
@@ -1751,12 +1741,10 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
             .collect::<Vec<_>>()
             .join("\n");
         if !cleaned.trim().is_empty() {
-            eprintln!("Adding remaining statement: {} chars, first 80 chars: {}", cleaned.len(), cleaned.chars().take(80).collect::<String>());
             statements.push(cleaned);
         }
     }
 
-    eprintln!("=== Total statements extracted: {} ===", statements.len());
     statements
 }
 

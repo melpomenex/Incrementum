@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
 import {
   ChevronLeft,
   ChevronRight,
@@ -32,6 +33,7 @@ import { useI18n } from "../../lib/i18n";
 import type { ResolvedAssistantContext } from "../../utils/assistantContext";
 import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
 import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
+import { invokeCommand } from "../../lib/tauri";
 
 export interface AssistantContext {
   type: "document" | "web" | "video" | "general";
@@ -201,10 +203,14 @@ const isCaretOnLastLine = (textarea: HTMLTextAreaElement) => {
 /** Memoized markdown renderer — avoids re-running renderMarkdown on unrelated re-renders. */
 function MemoizedMarkdown({ content }: { content: string }) {
   const html = useMemo(() => renderMarkdown(content), [content]);
+  const safeHtml = useMemo(() => DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'p', 'br', 'code', 'pre', 'a', 'img', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'div', 'span', 'sub', 'sup'],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'target', 'rel', 'data-language'],
+  }), [html]);
   return (
     <div
       className="assistant-markdown leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
 }
@@ -234,10 +240,6 @@ export function AssistantPanel({
     return saved === "left" ? "left" : "right";
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[AssistantPanel] Mounted/Updated', { isCollapsed, width, position, className });
-  }, [isCollapsed, width, position, className]);
   const [isResizing, setIsResizing] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -678,6 +680,23 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Auto-extract and consolidate memories if enabled
+      if (useSettingsStore.getState().settings.ai.memoryEnabled) {
+        const chatHistory = [...messages, userMessage, assistantMessage].map((m) => {
+          let mappedRole: "System" | "User" | "Assistant" = "System";
+          if (m.role === "user") mappedRole = "User";
+          else if (m.role === "assistant") mappedRole = "Assistant";
+          return {
+            role: mappedRole,
+            content: m.content,
+          };
+        });
+        invokeCommand("update_memory_from_chat", { messages: chatHistory }).catch((e) => {
+          console.warn("Failed to update memory in background:", e);
+        });
+      }
+
       if (toolCalls.length > 0) {
         const results = await executeToolCalls(assistantMessage.id, toolCalls);
         const confirmation = buildConfirmationMessage(results);
@@ -847,6 +866,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         selection: llmContext?.selection,
         content: resolvedContext.content ?? contextContent,
         contextWindowTokens: effectiveContextWindow,
+        memoryEnabled: useSettingsStore.getState().settings.ai.memoryEnabled,
       };
 
       // Call the LLM API

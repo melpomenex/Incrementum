@@ -44,8 +44,8 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
     setIsSaving(true);
     try {
       await updateFeedAutoFetchPreference(feed.id, autoFetchMode);
-      if (viewMode || layout) {
-        await setFeedViewPreferencesAuto(feed.id, viewMode ?? undefined, layout ?? undefined);
+      if (viewMode || layout || autoMarkDays !== undefined) {
+        await setFeedViewPreferencesAuto(feed.id, viewMode ?? undefined, layout ?? undefined, autoMarkDays);
       }
       onUpdate({
         ...feed,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import {
   BookOpen, Layers, Brain, Clock, AlertTriangle,
   Zap, TrendingUp, Repeat, ChevronDown, ChevronRight,
@@ -101,7 +101,7 @@ function retrievColor(r: number): string {
   return "text-red-500";
 }
 
-export function ScheduleItemRow({
+export const ScheduleItemRow = memo(function ScheduleItemRow({
   item,
   onPostpone,
   onOpen,
@@ -588,4 +588,4 @@ export function ScheduleItemRow({
       )}
     </>
   );
-}
+});

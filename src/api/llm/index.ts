@@ -50,6 +50,7 @@ export interface LLMContext {
   selection?: string;
   content?: string;
   contextWindowTokens?: number;
+  memoryEnabled?: boolean;
 }
 
 export interface StreamOptions {
@@ -139,16 +140,11 @@ export async function chatWithContext(
       contextWindowTokens: effectiveMaxTokens,
       contextFromRelatedCards,
       documentSnippetLength,
+      memoryEnabled: context.memoryEnabled,
     },
     apiKey,
     baseUrl,
   };
-
-  console.log('[llm/index.ts] Full args being sent to Tauri:', JSON.stringify(args, null, 2));
-  console.log('[llm/index.ts] Context type:', typeof args.context);
-  console.log('[llm/index.ts] Context keys:', Object.keys(args.context));
-  console.log('[llm/index.ts] Original content type:', typeof context.content);
-  console.log('[llm/index.ts] Normalized content type:', typeof normalizedContent);
 
   return await invokeCommand<LLMResponse>("llm_chat_with_context", args);
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, memo } from "react";
 import {
   Check,
   Clock,
@@ -81,7 +81,7 @@ function DifficultyIndicator({ value }: { value: number }) {
   );
 }
 
-export function DeckManagerCardRow({
+export const DeckManagerCardRow = memo(function DeckManagerCardRow({
   card,
   isSelected,
   isExpanded,
@@ -286,4 +286,4 @@ export function DeckManagerCardRow({
       )}
     </div>
   );
-}
+});

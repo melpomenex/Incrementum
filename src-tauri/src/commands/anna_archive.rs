@@ -498,11 +498,18 @@ pub async fn download_book(
         } else {
             let path_buf = std::path::PathBuf::from(&path);
             if path_buf.extension().is_some() {
-                path_buf.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| {
+                let parent = path_buf.parent().unwrap_or_else(|| {
+                    std::path::Path::new(".")
+                });
+                // Canonicalize to prevent path traversal
+                std::fs::canonicalize(parent).unwrap_or_else(|_| {
                     std::env::temp_dir().join("incrementum-downloads")
                 })
             } else {
-                path_buf
+                // Canonicalize to prevent path traversal
+                std::fs::canonicalize(&path_buf).unwrap_or_else(|_| {
+                    std::env::temp_dir().join("incrementum-downloads")
+                })
             }
         }
     } else {

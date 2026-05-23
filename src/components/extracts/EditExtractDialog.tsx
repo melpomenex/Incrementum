@@ -3,6 +3,7 @@ import { X, Tag as TagIcon, FolderOpen, Bold, Italic, Code, List, Layers, Eye } 
 import { updateExtract, UpdateExtractInput, Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { useI18n } from "../../lib/i18n";
+import DOMPurify from "dompurify";
 
 interface EditExtractDialogProps {
   extract: Extract;
@@ -235,7 +236,7 @@ export function EditExtractDialog({
             ) : (
               <div className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground min-h-[100px]">
                 {content ? (
-                  <div dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formatContent(content)) }} />
                 ) : (
                   <span className="text-muted-foreground">{t("extracts.previewHint")}</span>
                 )}

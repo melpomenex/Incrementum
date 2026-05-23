@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { renderAnkiHtmlWithLatex } from "../utils/ankiLatex";
 
 interface UseLatexPreviewResult {
@@ -13,7 +13,7 @@ interface UseLatexPreviewResult {
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
-  useMemo(() => {
+  useEffect(() => {
     const timer = setTimeout(() => setDebouncedValue(value), delay);
     return () => clearTimeout(timer);
   }, [value, delay]);

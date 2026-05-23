@@ -229,6 +229,11 @@ pub async fn llm_chat(
     let api_key = normalize_api_key(api_key);
     let requires_api_key = provider_requires_api_key(&provider, &base_url);
 
+    if provider != "ollama" {
+        validate_base_url_not_private(&base_url)
+            .map_err(|e| format!("Base URL not allowed: {}", e))?;
+    }
+
     if api_key.is_none() && requires_api_key {
         return Err("API key is required".to_string());
     }
@@ -254,6 +259,7 @@ pub async fn llm_chat(
 
 #[tauri::command]
 pub async fn llm_chat_with_context(
+    app: AppHandle,
     provider: String,
     model: Option<String>,
     messages: Vec<LLMMessage>,
@@ -261,6 +267,7 @@ pub async fn llm_chat_with_context(
     api_key: Option<String>,
     base_url: Option<String>,
 ) -> Result<LLMResponse, String> {
+    use tauri::Manager;
     let latest_user_message = messages
         .iter()
         .rev()
@@ -268,8 +275,30 @@ pub async fn llm_chat_with_context(
         .and_then(|message| extract_text_from_message_content(&message.content));
 
     let requested_max_tokens = context.context_window_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
-    let initial_messages =
-        prepend_context_message(messages.clone(), &context, latest_user_message.as_deref());
+    
+    // Build context prompt
+    let mut context_prompt = build_context_prompt(&context, latest_user_message.as_deref());
+
+    // Inject long-term memory if enabled
+    if context.memory_enabled.unwrap_or(false) {
+        if let Ok(app_dir) = app.path().app_data_dir() {
+            let memory_file = app_dir.join("memories").join("MEMORY.md");
+            if memory_file.exists() {
+                if let Ok(memory_content) = std::fs::read_to_string(&memory_file) {
+                    context_prompt.push_str("\n\n### USER LONG-TERM MEMORY (Facts & Preferences)\n");
+                    context_prompt.push_str("The following is your persistent, long-term memory about the user. Use these facts and preferences to personalize your responses and be more helpful, personable, and accurate:\n");
+                    context_prompt.push_str(&memory_content);
+                    context_prompt.push_str("\n------------------------------------\n");
+                }
+            }
+        }
+    }
+
+    let mut initial_messages = vec![LLMMessage {
+        role: "system".to_string(),
+        content: LLMMessageContent::Text(context_prompt),
+    }];
+    initial_messages.extend(messages.clone());
 
     match llm_chat(
         provider.clone(),
@@ -290,8 +319,28 @@ pub async fn llm_chat_with_context(
             let fallback_max_tokens = reduced_ollama_max_tokens(requested_max_tokens);
             let mut reduced_context = context.clone();
             reduced_context.context_window_tokens = Some(fallback_context_window);
-            let retry_messages =
-                prepend_context_message(messages, &reduced_context, latest_user_message.as_deref());
+
+            // Re-build context prompt for Ollama retry
+            let mut retry_context_prompt = build_context_prompt(&reduced_context, latest_user_message.as_deref());
+            if context.memory_enabled.unwrap_or(false) {
+                if let Ok(app_dir) = app.path().app_data_dir() {
+                    let memory_file = app_dir.join("memories").join("MEMORY.md");
+                    if memory_file.exists() {
+                        if let Ok(memory_content) = std::fs::read_to_string(&memory_file) {
+                            retry_context_prompt.push_str("\n\n### USER LONG-TERM MEMORY (Facts & Preferences)\n");
+                            retry_context_prompt.push_str("The following is your persistent, long-term memory about the user. Use these facts and preferences to personalize your responses and be more helpful, personable, and accurate:\n");
+                            retry_context_prompt.push_str(&memory_content);
+                            retry_context_prompt.push_str("\n------------------------------------\n");
+                        }
+                    }
+                }
+            }
+
+            let mut retry_messages = vec![LLMMessage {
+                role: "system".to_string(),
+                content: LLMMessageContent::Text(retry_context_prompt),
+            }];
+            retry_messages.extend(messages);
 
             llm_chat(
                 provider,
@@ -333,6 +382,16 @@ pub async fn llm_stream_chat(
     let base_url = normalize_base_url(base_url, &provider);
     let api_key = normalize_api_key(api_key);
     let requires_api_key = provider_requires_api_key(&provider, &base_url);
+
+    if provider != "ollama" {
+        validate_base_url_not_private(&base_url)
+            .map_err(|e| {
+                emit_stream_event(&app, LLM_STREAM_ERROR, serde_json::json!({
+                    "error": format!("Base URL not allowed: {}", e)
+                }));
+                format!("Base URL not allowed: {}", e)
+            })?;
+    }
 
     if api_key.is_none() && requires_api_key {
         emit_stream_event(&app, LLM_STREAM_ERROR, serde_json::json!({
@@ -953,10 +1012,6 @@ async fn call_openrouter_with_key(
     // Clamp temperature to valid range for OpenAI-compatible APIs (0-2)
     let temperature = temperature.clamp(0.0, 2.0);
 
-    // Log the request for debugging
-    eprintln!("OpenRouter request: model={}, temperature={}, max_tokens={}, messages_count={}",
-        model, temperature, max_tokens, messages.len());
-
     let request = OpenAIRequest {
         model: model.to_string(),
         messages: map_openai_messages(messages)?,
@@ -964,8 +1019,6 @@ async fn call_openrouter_with_key(
         max_tokens,
         stream: None,
     };
-
-    eprintln!("OpenRouter request body: {}", serde_json::to_string(&request).unwrap_or_default());
 
     let response = client
         .post(format!("{}/chat/completions", base_url))
@@ -979,9 +1032,8 @@ async fn call_openrouter_with_key(
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-        eprintln!("OpenRouter error response: {}", error_text);
-        return Err(format!("OpenRouter API error ({}): {}", status, error_text));
+        let _error_text = response.text().await.unwrap_or_default();
+        return Err(format!("OpenRouter API error ({}): {}", status, "request failed"));
     }
 
     let openrouter_response: OpenAIResponse = response
@@ -1450,6 +1502,32 @@ fn is_local_base_url(base_url: &str) -> bool {
         || host.ends_with(".local")
 }
 
+/// Validate that a user-supplied base_url is not a private/internal address.
+/// Returns Err if the URL resolves to a private IP or localhost (for non-Ollama providers).
+fn validate_base_url_not_private(base_url: &str) -> Result<(), String> {
+    let trimmed = base_url.trim().to_ascii_lowercase();
+    // Allow localhost/127.0.0.1 for Ollama which runs locally
+    let without_scheme = trimmed
+        .strip_prefix("http://")
+        .or_else(|| trimmed.strip_prefix("https://"))
+        .unwrap_or(trimmed.as_str());
+    let host_port = without_scheme.split('/').next().unwrap_or("");
+    let host = if host_port.starts_with('[') {
+        host_port.split(']').next().unwrap_or(host_port).trim_start_matches('[')
+    } else {
+        host_port.split(':').next().unwrap_or(host_port)
+    };
+
+    // Skip validation for known local-only hosts (Ollama use case)
+    if matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0" | "::1" | "host.docker.internal")
+        || host.ends_with(".local")
+    {
+        return Ok(());
+    }
+
+    crate::security::validate_url_not_private(base_url)
+}
+
 fn normalize_base_url(base_url: Option<String>, provider: &str) -> String {
     let fallback = get_default_base_url(provider);
     let url = base_url.unwrap_or(fallback.clone());
@@ -1883,4 +1961,5 @@ pub struct LLMContextRequest {
     pub selection: Option<String>,
     pub content: Option<String>,
     pub context_window_tokens: Option<usize>,
+    pub memory_enabled: Option<bool>,
 }

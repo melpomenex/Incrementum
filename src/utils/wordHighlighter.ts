@@ -184,11 +184,96 @@ export class WordHighlighter {
         parent.normalize();
 
         if (!scrolled) {
-          span.scrollIntoView({ behavior: "smooth", block: "center" });
-          scrolled = true;
+          const win = doc.defaultView;
+          if (win && win !== win.parent) {
+            // We are inside an iframe (like in the EPUB viewer)
+            let iframeElement: HTMLIFrameElement | null = null;
+            try {
+              const parentDoc = win.parent.document;
+              const iframes = parentDoc.querySelectorAll("iframe");
+              for (const iframe of iframes) {
+                if (iframe.contentWindow === win) {
+                  iframeElement = iframe;
+                  break;
+                }
+              }
+            } catch (e) {
+              console.warn("WordHighlighter: Failed to access parent document frame", e);
+            }
+
+            if (iframeElement) {
+              const parentDoc = win.parent.document;
+
+              // Helper to find the scrollable container in the parent document
+              const findScrollableContainer = (el: HTMLElement): HTMLElement | null => {
+                let current = el.parentElement;
+                while (current) {
+                  const style = win.parent.getComputedStyle(current);
+                  const overflowY = style.overflowY;
+                  const isScrollable =
+                    overflowY === "auto" ||
+                    overflowY === "scroll" ||
+                    current.hasAttribute("data-document-scroll-container") ||
+                    current.getAttribute("data-epub-viewer") === "true";
+                  if (isScrollable && current.scrollHeight > current.clientHeight) {
+                    return current;
+                  }
+                  current = current.parentElement;
+                }
+                const docScroll = parentDoc.querySelector("[data-document-scroll-container]");
+                if (docScroll) return docScroll as HTMLElement;
+                return null;
+              };
+
+              const scrollContainer = findScrollableContainer(iframeElement);
+              if (scrollContainer) {
+                // Calculate absolute offsetTop of span inside iframe
+                let spanOffsetTop = 0;
+                let currentEl: HTMLElement | null = span;
+                while (currentEl) {
+                  spanOffsetTop += currentEl.offsetTop;
+                  currentEl = currentEl.offsetParent as HTMLElement | null;
+                }
+
+                // Calculate absolute offsetTop of iframe inside parent document
+                let iframeOffsetTop = 0;
+                let currentIframe: HTMLElement | null = iframeElement;
+                while (currentIframe) {
+                  iframeOffsetTop += currentIframe.offsetTop;
+                  currentIframe = currentIframe.offsetParent as HTMLElement | null;
+                }
+
+                // Calculate absolute offsetTop of scrollContainer inside parent document
+                let containerOffsetTop = 0;
+                let currentContainer: HTMLElement | null = scrollContainer;
+                while (currentContainer) {
+                  containerOffsetTop += currentContainer.offsetTop;
+                  currentContainer = currentContainer.offsetParent as HTMLElement | null;
+                }
+
+                const totalSpanTop = spanOffsetTop + iframeOffsetTop - containerOffsetTop;
+                const containerHeight = scrollContainer.clientHeight || win.parent.innerHeight;
+                const spanHeight = span.offsetHeight || 20;
+
+                const targetScrollTop = totalSpanTop - containerHeight / 2 + spanHeight / 2;
+
+                scrollContainer.scrollTo({
+                  top: targetScrollTop,
+                  behavior: "smooth",
+                });
+                scrolled = true;
+              }
+            }
+          }
+
+          // Fallback to standard scrollIntoView if not inside iframe or parent scroll failed
+          if (!scrolled) {
+            span.scrollIntoView({ behavior: "smooth", block: "center" });
+            scrolled = true;
+          }
         }
-      } catch {
-        // Skip invalid ranges
+      } catch (err) {
+        console.warn("WordHighlighter: Failed to apply highlight or scroll", err);
       }
     }
   }

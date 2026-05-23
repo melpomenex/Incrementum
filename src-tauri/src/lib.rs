@@ -290,24 +290,17 @@ pub fn run() {
             };
 
             tracing::info!("[cmd+key] emitting global-shortcut to webview: {}", key_str);
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(_window) = app.get_webview_window("main") {
                 let event_name = if matches!(key_str, "KeyK" | "KeyP") {
                     "command-palette-open"
                 } else {
                     "global-shortcut-native"
                 };
-                let eval_script = format!(
-                    "window.dispatchEvent(new CustomEvent('{}', {{ detail: '{}' }}));",
-                    event_name, key_str
-                );
-                if let Err(e) = window.eval(&eval_script) {
-                    tracing::warn!("[cmd+key] eval delivery failed: {}", e);
-                }
+                match app.emit_to("main", event_name, key_str) {
+                    Ok(()) => tracing::info!("[cmd+key] emit_to succeeded"),
+                    Err(e) => tracing::error!("[cmd+key] emit_to FAILED: {}", e),
+                };
             }
-            match app.emit_to("main", "global-shortcut", key_str) {
-                Ok(()) => tracing::info!("[cmd+key] emit_to succeeded"),
-                Err(e) => tracing::error!("[cmd+key] emit_to FAILED: {}", e),
-            };
         });
     }
 
@@ -395,16 +388,8 @@ pub fn run() {
                         } else {
                             "global-shortcut-native"
                         };
-                        let eval_script = format!(
-                            "window.dispatchEvent(new CustomEvent('{}', {{ detail: '{}' }}));",
-                            event_name, key_str
-                        );
-                        if let Err(e) = window.eval(&eval_script) {
-                            tracing::warn!("[cmd+key] eval delivery failed: {}", e);
-                        }
+                        let _ = shortcut_app.emit_to("main", event_name, key_str.as_str());
                     }
-                    // Keep the Tauri event as a secondary delivery path.
-                    let _ = shortcut_app.emit_to("main", "global-shortcut", key_str.as_str());
                 }) {
                     tracing::warn!("Failed to register global shortcuts: {}", e);
                 } else {
@@ -574,9 +559,7 @@ pub fn run() {
                     if std::env::var("INCREMENTUM_OPEN_DEVTOOLS").is_ok() {
                         window.open_devtools();
                     }
-                    let _ = window.eval(
-                        "console.log('Webview location:', window.location.href);",
-                    );
+                    tracing::info!("Webview ready at {:?}", window.url());
 
                     // Hide the Linux menu bar where it would otherwise clutter the UI.
                     // Windows WebView2 needs the native menu visible for accelerators.
@@ -732,6 +715,9 @@ pub fn run() {
             commands::list_ollama_models,
             commands::test_ai_connection,
             commands::generate_progressive_summaries,
+            commands::get_memory_content,
+            commands::save_memory_content,
+            commands::update_memory_from_chat,
             // Analytics commands
             commands::get_dashboard_stats,
             commands::get_memory_stats,
@@ -870,6 +856,7 @@ pub fn run() {
             commands::create_rss_article,
             commands::get_rss_articles,
             commands::mark_rss_article_read,
+            commands::mark_rss_feed_read,
             commands::toggle_rss_article_queued,
             commands::update_rss_feed_fetched,
             commands::get_rss_feed_unread_count,

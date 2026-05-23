@@ -247,6 +247,7 @@ interface AISettings {
   pwaAssistantButtonEnabled: boolean;
   pwaAssistantButtonSide: "left" | "right";
   aiControls: AIControlsSettings;
+  memoryEnabled: boolean;
 }
 
 /**
@@ -587,6 +588,7 @@ export const defaultSettings: Settings = {
       contextFromRelatedCards: false,
       documentSnippetLength: 2000,
     },
+    memoryEnabled: false,
   },
   sync: {
     enabled: false,

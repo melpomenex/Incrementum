@@ -31,6 +31,12 @@ export function formatShortcut(shortcut: Omit<KeyboardShortcut, "handler" | "des
 }
 
 export function useKeyboardShortcuts(shortcutGroups: ShortcutGroup[]) {
+  // Serialize shortcut definitions to a stable string for dependency comparison
+  // to avoid re-registering listeners on every render when the array reference changes.
+  const groupsKey = shortcutGroups
+    .map((g) => g.shortcuts.map((s) => `${s.key}:${s.ctrlKey}:${s.metaKey}:${s.shiftKey}:${s.altKey}`).join(","))
+    .join(";");
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ignore if user is typing in an input, textarea, or contentEditable
@@ -68,7 +74,7 @@ export function useKeyboardShortcuts(shortcutGroups: ShortcutGroup[]) {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [shortcutGroups]);
+  }, [groupsKey, shortcutGroups]);
 }
 
 export function useGlobalShortcuts() {
