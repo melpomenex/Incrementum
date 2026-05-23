@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Play, Clock, ExternalLink, Share2, Youtube, AlertTriangle, SkipForward, Loader2, GripVertical, Layers, Scissors, X } from "lucide-react";
+import { Play, Clock, ExternalLink, Share2, Youtube, AlertTriangle, SkipForward, Loader2, GripVertical, Layers, Scissors, X, Sparkles, RotateCcw } from "lucide-react";
 import { useToast } from "../common/Toast";
 import { useDocumentStore } from "../../stores";
 import { VideoFeatures } from '../video/VideoFeatures';
@@ -131,6 +131,44 @@ export function YouTubeViewer({
   const [isPlaying, setIsPlaying] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const lastSkippedSegmentIdRef = useRef<string | null>(null);
+
+  // Premium SponsorBlock Skip Notification overlay states and refs
+  const [skipNotification, setSkipNotification] = useState<{
+    category: string;
+    savedSeconds?: number;
+    originalStart?: number;
+    originalEnd?: number;
+    undoable: boolean;
+  } | null>(null);
+
+  const skippedSegmentsRef = useRef<Set<string>>(new Set());
+  const temporarilyDisabledSegmentsRef = useRef<Set<string>>(new Set());
+  const skipNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleUndoSkip = useCallback((originalStart: number, originalEnd: number, category: string) => {
+    const segment = segments.find(s => s.segment[0] === originalStart);
+    if (segment) {
+      temporarilyDisabledSegmentsRef.current.add(segment.UUID);
+    }
+    
+    if (playerRef.current) {
+      playerRef.current.seekTo(originalStart, true);
+      setCurrentTime(originalStart);
+      playerRef.current.playVideo?.();
+    }
+    
+    setSkipNotification(null);
+    toast.success("Playing skipped segment: " + getCategoryDisplayName(category as any));
+  }, [segments, toast]);
+
+  useEffect(() => {
+    return () => {
+      if (skipNotificationTimeoutRef.current) {
+        clearTimeout(skipNotificationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const playerReadyRef = useRef(false);
   const desiredStartTimeRef = useRef(0);
   const initialSeekAppliedRef = useRef(false);
@@ -695,20 +733,30 @@ export function YouTubeViewer({
 
             // If current time is within a segment and we haven't just skipped it
             if (time >= start && time < end) {
-              if (lastSkippedSegmentIdRef.current !== segment.UUID) {
+              if (!skippedSegmentsRef.current.has(segment.UUID) && !temporarilyDisabledSegmentsRef.current.has(segment.UUID)) {
+                skippedSegmentsRef.current.add(segment.UUID);
+
                 // Skip segment
                 playerRef.current.seekTo(end, true);
-                lastSkippedSegmentIdRef.current = segment.UUID;
+                setCurrentTime(end);
 
-                // Show toast
-                const categoryName = getCategoryDisplayName(segment.category);
-                toast.info(`Skipped ${categoryName}`, "SponsorBlock");
-                console.log(`[SponsorBlock] Skipped ${categoryName} (${start.toFixed(1)}s - ${end.toFixed(1)}s)`);
+                // Show floating glassmorphic notification
+                setSkipNotification({
+                  category: segment.category,
+                  savedSeconds: Math.round(end - start),
+                  originalStart: start,
+                  originalEnd: end,
+                  undoable: true,
+                });
+
+                if (skipNotificationTimeoutRef.current) clearTimeout(skipNotificationTimeoutRef.current);
+                skipNotificationTimeoutRef.current = setTimeout(() => {
+                  setSkipNotification(null);
+                }, 4000);
+
+                console.log(`[SponsorBlock] Auto-skipped ${getCategoryDisplayName(segment.category)} (${start.toFixed(1)}s - ${end.toFixed(1)}s)`);
+                break;
               }
-            } else if (time >= end && lastSkippedSegmentIdRef.current === segment.UUID) {
-              // Reset skipped flag once we're past the segment
-              // This is a simplification; handling seeking back is trickier but this covers forward playback
-              // We don't strictly need to clear it, but it helps if user seeks back before the segment
             }
           }
         }
@@ -745,6 +793,18 @@ export function YouTubeViewer({
     setStartTime(time);
     desiredStartTimeRef.current = time;
     saveCurrentPosition(time);
+
+    // Reset SponsorBlock tracking for segments after the new seek position
+    if (segments.length > 0) {
+      segments.forEach(seg => {
+        if (seg.segment[0] > time) {
+          skippedSegmentsRef.current.delete(seg.UUID);
+          temporarilyDisabledSegmentsRef.current.delete(seg.UUID);
+        }
+      });
+    }
+    setSkipNotification(null);
+
     if (typeof endTime === "number" && endTime > time) {
       setActiveExtractStartTime(time);
       setActiveExtractEndTime(endTime);
@@ -761,7 +821,7 @@ export function YouTubeViewer({
     }
 
     toast.success(t("viewer.seeking"), t("viewer.startingAt", { time: formatTime(time) }));
-  }, [resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer]);
+  }, [resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer, segments]);
 
   // Format time for display
   const formatTime = (seconds: number) => {
@@ -984,6 +1044,42 @@ export function YouTubeViewer({
         className={`relative bg-black flex-shrink-0 transition-all duration-300 ${transcriptLayout === 'side' && showTranscript ? 'h-full' : 'w-full'}`}
         style={getVideoContainerStyle()}
       >
+        {/* Premium SponsorBlock Skip Notification Overlay */}
+        {skipNotification && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300">
+            <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
+                <Sparkles className="h-5.5 w-5.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90 text-left">
+                  SponsorBlock
+                </p>
+                <p className="text-sm font-medium text-muted-foreground truncate leading-normal text-left">
+                  {skipNotification.undoable
+                    ? `Auto-skipped: ${getCategoryDisplayName(skipNotification.category as any)} (${skipNotification.savedSeconds}s)`
+                    : `Sponsored segment cut (${skipNotification.savedSeconds}s saved!)`
+                  }
+                </p>
+              </div>
+              {skipNotification.undoable && (
+                <button
+                  onClick={() => handleUndoSkip(skipNotification.originalStart!, skipNotification.originalEnd!, skipNotification.category)}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Undo
+                </button>
+              )}
+              <button
+                onClick={() => setSkipNotification(null)}
+                className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Inline Player */}
         {showInlinePlayer ? (
           <div className="absolute inset-0 w-full h-full">

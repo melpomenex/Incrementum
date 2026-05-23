@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::path::PathBuf;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::database::Repository;
 use crate::models::{Document, DocumentMetadata, FileType};
@@ -384,8 +384,9 @@ pub fn get_video_formats(url: &str) -> Result<Vec<YouTubeFormat>, String> {
     Ok(result)
 }
 
-/// Download video with options
-pub fn download_video(
+/// Download video with options and cut sponsored segments if present
+pub async fn download_video(
+    app_handle: &AppHandle,
     url: &str,
     output_dir: PathBuf,
     options: &DownloadOptions,
@@ -396,24 +397,44 @@ pub fn download_video(
 
     let output_path = output_dir.join(&options.output_template);
 
+    // Get the exact downloaded filename from yt-dlp first
+    let mut name_cmd = ytdlp_command()?;
+    name_cmd.args(["--get-filename", "-o", output_path.to_str().unwrap(), url]);
+    let name_output = name_cmd.output().map_err(|e| format!("Failed to run yt-dlp to get filename: {}", e))?;
+    if !name_output.status.success() {
+        let err = String::from_utf8_lossy(&name_output.stderr);
+        return Err(format!("Failed to determine download filename: {}", err));
+    }
+    let final_filepath_str = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
+    let final_filepath = PathBuf::from(&final_filepath_str);
+
+    // Check SponsorBlock cuts
+    let video_id = extract_video_id(url);
+    let mut segments = Vec::new();
+    if let Some(ref vid) = video_id {
+        if let Ok(segs) = crate::sponsorblock::fetch_sponsorblock_segments(vid).await {
+            segments = segs;
+        }
+    }
+
+    let mut download_filepath = final_filepath.clone();
+    if !segments.is_empty() {
+        // Download to a temporary raw file first
+        let ext = final_filepath.extension().and_then(|e| e.to_str()).unwrap_or("mp4");
+        download_filepath = final_filepath.with_extension(format!("raw.{}", ext));
+    }
+
     let mut cmd = ytdlp_command()?;
-
-    // Add format selection
     cmd.arg("-f").arg(&options.format);
+    cmd.arg("-o").arg(download_filepath.to_str().unwrap());
 
-    // Add output template
-    cmd.arg("-o").arg(output_path.to_str().unwrap());
-
-    // Add subtitle options
     if options.subtitles {
         cmd.arg("--write-subs");
         cmd.arg("--sub-lang").arg("en");
     }
-
     if options.auto_captions {
         cmd.arg("--write-auto-subs");
     }
-
     if options.embed_subs {
         cmd.arg("--embed-subs");
     }
@@ -428,8 +449,29 @@ pub fn download_video(
         return Err(format!("yt-dlp download failed: {}", error));
     }
 
-    // Return the downloaded file path (would need to parse output to get actual filename)
-    Ok(output_dir)
+    // Cut sponsored segments if present
+    if !segments.is_empty() {
+        println!("[SponsorBlock] Cutting downloaded YouTube video...");
+        match crate::sponsorblock::cut_audio_file(app_handle, &download_filepath, &final_filepath, &segments).await {
+            Ok(cuts) => {
+                if let Some(ref vid) = video_id {
+                    let _ = crate::sponsorblock::save_cuts_metadata(vid, &cuts);
+                    // Also save cuts metadata by final filename to allow easy local lookup
+                    if let Some(name) = final_filepath.file_name().and_then(|n| n.to_str()) {
+                        let _ = crate::sponsorblock::save_cuts_metadata(name, &cuts);
+                    }
+                }
+                let _ = std::fs::remove_file(&download_filepath);
+            }
+            Err(e) => {
+                eprintln!("[SponsorBlock] YouTube video cutting failed: {}. Falling back to uncut.", e);
+                std::fs::rename(&download_filepath, &final_filepath)
+                    .map_err(|rename_err| format!("Failed to save uncut fallback file: {}", rename_err))?;
+            }
+        }
+    }
+
+    Ok(final_filepath)
 }
 
 /// Try to run yt-dlp with browser cookies from common browsers
@@ -989,12 +1031,13 @@ pub async fn get_youtube_formats(url: String) -> Result<Vec<YouTubeFormat>, Stri
 /// Tauri command: Download video
 #[tauri::command]
 pub async fn download_youtube_video(
+    app_handle: AppHandle,
     url: String,
     output_dir: String,
     options: Option<DownloadOptions>,
 ) -> Result<String, String> {
     let opts = options.unwrap_or_default();
-    let path = download_video(&url, PathBuf::from(output_dir), &opts)?;
+    let path = download_video(&app_handle, &url, PathBuf::from(output_dir), &opts).await?;
     Ok(path.to_string_lossy().to_string())
 }
 

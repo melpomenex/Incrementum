@@ -82,7 +82,7 @@ export interface PodcastSearchResult {
 // ============================================================================
 
 /**
- * Search for podcasts by keyword via the RSS.com PodcastIndex API.
+ * Search for podcasts by keyword via the iTunes Search API (completely keyless and highly reliable).
  */
 export async function searchPodcasts(query: string): Promise<PodcastSearchResult[]> {
   if (!query.trim()) return [];
@@ -90,32 +90,35 @@ export async function searchPodcasts(query: string): Promise<PodcastSearchResult
   if (isTauri()) {
     return invokeCommand<PodcastSearchResult[]>("search_podcasts", { query });
   }
-  if (shouldUseHttp()) {
-    const res = await fetch(`${getApiBaseUrl()}/api/podcast/search?q=${encodeURIComponent(query)}`);
-    if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
-    return res.json();
-  }
-  // Browser fallback: try direct fetch, then CORS proxy
+
+  // Web / PWA mode: direct fetch to iTunes Search API (no CORS proxy needed!)
   try {
-    const res = await fetch("https://apollo.rss.com/search/podcast-index/byterm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query }),
-    });
+    const url = `https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data.feeds ?? [];
-  } catch {
-    // CORS proxy fallback
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent("https://apollo.rss.com/search/podcast-index/byterm")}`;
-    const res = await fetch(proxyUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query }),
-    });
-    if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
-    const data = await res.json();
-    return data.feeds ?? [];
+    const results: any[] = data.results || [];
+    
+    return results
+      .filter((r: any) => r.feedUrl)
+      .map((r: any) => ({
+        title: r.collectionName,
+        url: r.feedUrl,
+        author: r.artistName,
+        description: r.primaryGenreName || null,
+        imageUrl: r.artworkUrl600 || r.artworkUrl100 || null,
+        link: r.trackViewUrl || null,
+        episodeCount: r.trackCount || null,
+        categories: r.primaryGenreName ? { "0": r.primaryGenreName } : null,
+      }));
+  } catch (error) {
+    console.error("Direct iTunes search failed, trying HTTP fallback...", error);
+    if (shouldUseHttp()) {
+      const res = await fetch(`${getApiBaseUrl()}/api/podcast/search?q=${encodeURIComponent(query)}`);
+      if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+      return res.json();
+    }
+    throw error;
   }
 }
 

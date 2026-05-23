@@ -31,10 +31,20 @@ import {
   Minimize2,
   Loader2,
   Mic,
+  Sparkles,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "../../utils";
 import { Document } from "../../types/document";
 import { useI18n } from "../../lib/i18n";
+import {
+  SponsorBlockCut,
+  SponsorBlockSegment,
+  getSponsorBlockCuts,
+  fetchSponsorBlockSegments,
+  extractVideoID,
+  getCategoryDisplayName,
+} from "../../api/sponsorblock";
 import type {
   AudiobookMetadata,
   AudiobookChapter,
@@ -108,6 +118,39 @@ export function AudiobookViewer({
   const transcriptRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
   const { t } = useI18n();
+
+  // SponsorBlock integration states
+  const [sponsorBlockCuts, setSponsorBlockCuts] = useState<SponsorBlockCut[]>([]);
+  const [sponsorBlockSegments, setSponsorBlockSegments] = useState<SponsorBlockSegment[]>([]);
+  const [skipNotification, setSkipNotification] = useState<{
+    category: string;
+    savedSeconds?: number;
+    originalStart?: number;
+    originalEnd?: number;
+    undoable: boolean;
+  } | null>(null);
+
+  const notifiedCutsRef = useRef<Set<string>>(new Set());
+  const skippedSegmentsRef = useRef<Set<string>>(new Set());
+  const temporarilyDisabledSegmentsRef = useRef<Set<string>>(new Set());
+  const skipNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleUndoSkip = (originalStart: number, originalEnd: number, category: string) => {
+    const segment = sponsorBlockSegments.find(s => s.segment[0] === originalStart);
+    if (segment) {
+      temporarilyDisabledSegmentsRef.current.add(segment.UUID);
+    }
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = originalStart;
+      setCurrentTime(originalStart);
+      currentTimeRef.current = originalStart;
+      audioRef.current.play().catch(() => {});
+    }
+    
+    setSkipNotification(null);
+    showSuccess("Playing skipped segment: " + getCategoryDisplayName(category as any));
+  };
   const { profiles, fetchProfiles, currentStatus, activeJob, activeSegments, loadTranscript, transcriptionProgress } = useTranscriptionStore();
   
   // Core playback state
@@ -213,6 +256,46 @@ export function AudiobookViewer({
 
     return () => { cancelled = true; };
   }, [document.id, document.coverImageUrl, document.filePath, remoteAudioUrl]);
+
+  // Load SponsorBlock cuts and segments
+  useEffect(() => {
+    let cancelled = false;
+    const loadSponsorBlockData = async () => {
+      const id = episodeId || document.id;
+      if (id) {
+        try {
+          const cuts = await getSponsorBlockCuts(id);
+          if (cancelled) return;
+          if (cuts && cuts.length > 0) {
+            console.log(`[SponsorBlock] Loaded ${cuts.length} cuts metadata for ${id}`);
+            setSponsorBlockCuts(cuts);
+            return; // Downloaded pre-cut audio, skip live segment fetches
+          }
+        } catch (error) {
+          console.warn("[SponsorBlock] Failed to check for pre-cut metadata:", error);
+        }
+      }
+
+      const targetUrl = remoteAudioUrl || document.filePath;
+      if (targetUrl) {
+        const videoIdResult = extractVideoID(targetUrl);
+        if (videoIdResult && videoIdResult.platform === "youtube") {
+          console.log(`[SponsorBlock] Fetching live segments for ${videoIdResult.videoID}`);
+          try {
+            const fetched = await fetchSponsorBlockSegments(videoIdResult.videoID);
+            if (!cancelled) {
+              setSponsorBlockSegments(fetched);
+            }
+          } catch (error) {
+            console.warn("[SponsorBlock] Failed to fetch live segments:", error);
+          }
+        }
+      }
+    };
+
+    loadSponsorBlockData();
+    return () => { cancelled = true; };
+  }, [document.id, document.filePath, remoteAudioUrl, episodeId]);
 
   // Debug logging
   useEffect(() => {
@@ -524,6 +607,58 @@ export function AudiobookViewer({
       currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, time);
       onTimeUpdate?.(toGlobalSeconds(currentPartIndex, time));
 
+      // SponsorBlock cut metadata (pre-cut) check
+      if (sponsorBlockCuts && sponsorBlockCuts.length > 0) {
+        for (const cut of sponsorBlockCuts) {
+          if (time >= cut.cutStart && time <= cut.cutStart + 1.5) {
+            if (!notifiedCutsRef.current.has(cut.uuid)) {
+              notifiedCutsRef.current.add(cut.uuid);
+              
+              setSkipNotification({
+                category: cut.category,
+                savedSeconds: Math.round(cut.originalEnd - cut.originalStart),
+                undoable: false,
+              });
+              
+              if (skipNotificationTimeoutRef.current) clearTimeout(skipNotificationTimeoutRef.current);
+              skipNotificationTimeoutRef.current = setTimeout(() => {
+                setSkipNotification(null);
+              }, 4000);
+            }
+          }
+        }
+      }
+
+      // SponsorBlock live segment check (streaming / uncut)
+      if (sponsorBlockSegments && sponsorBlockSegments.length > 0) {
+        for (const segment of sponsorBlockSegments) {
+          const [start, end] = segment.segment;
+          if (time >= start && time < end) {
+            if (!skippedSegmentsRef.current.has(segment.UUID) && !temporarilyDisabledSegmentsRef.current.has(segment.UUID)) {
+              skippedSegmentsRef.current.add(segment.UUID);
+              
+              audioRef.current.currentTime = end;
+              setCurrentTime(end);
+              currentTimeRef.current = end;
+              
+              setSkipNotification({
+                category: segment.category,
+                savedSeconds: Math.round(end - start),
+                originalStart: start,
+                originalEnd: end,
+                undoable: true,
+              });
+              
+              if (skipNotificationTimeoutRef.current) clearTimeout(skipNotificationTimeoutRef.current);
+              skipNotificationTimeoutRef.current = setTimeout(() => {
+                setSkipNotification(null);
+              }, 4000);
+              break;
+            }
+          }
+        }
+      }
+
       // Update active transcript segment
       if (transcript?.segments) {
         const segment = transcript.segments.find(
@@ -568,7 +703,7 @@ export function AudiobookViewer({
         setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
       }
     }
-  }, [activeSegmentId, currentPartIndex, showTranscript, toGlobalSeconds, transcript]);
+  }, [activeSegmentId, currentPartIndex, showTranscript, toGlobalSeconds, transcript, sponsorBlockCuts, sponsorBlockSegments]);
   
   const [isWaitingForSeek, setIsWaitingForSeek] = useState(false);
   const seekRetryCountRef = useRef(0);
@@ -588,12 +723,29 @@ export function AudiobookViewer({
       currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, clamped);
       seekRetryCountRef.current = 0;
       setIsWaitingForSeek(false);
+
+      // Reset SponsorBlock notification tracking for positions past the new seek time
+      if (sponsorBlockCuts.length > 0) {
+        sponsorBlockCuts.forEach(cut => {
+          if (clamped < cut.cutStart) {
+            notifiedCutsRef.current.delete(cut.uuid);
+          }
+        });
+      }
+      if (sponsorBlockSegments.length > 0) {
+        sponsorBlockSegments.forEach(seg => {
+          if (clamped < seg.segment[0]) {
+            skippedSegmentsRef.current.delete(seg.UUID);
+            temporarilyDisabledSegmentsRef.current.delete(seg.UUID);
+          }
+        });
+      }
     } catch (err) {
       console.error("[AudiobookViewer] Seek error:", err);
       pendingSeekTimeRef.current = clamped;
       setIsWaitingForSeek(true);
     }
-  }, [currentPartIndex, duration, toGlobalSeconds]);
+  }, [currentPartIndex, duration, toGlobalSeconds, sponsorBlockCuts, sponsorBlockSegments]);
 
   const attemptPendingSeek = useCallback(() => {
     if (pendingSeekTimeRef.current != null && audioRef.current) {
@@ -1205,9 +1357,45 @@ export function AudiobookViewer({
   
   return (
     <div className={cn(
-      "flex flex-col bg-background h-full",
+      "flex flex-col bg-background h-full relative",
       isFullscreen && "fixed inset-0 z-50"
     )}>
+      {/* Premium SponsorBlock Skip Notification Overlay */}
+      {skipNotification && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300">
+          <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
+              <Sparkles className="h-5.5 w-5.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90">
+                SponsorBlock
+              </p>
+              <p className="text-sm font-medium text-muted-foreground truncate leading-normal">
+                {skipNotification.undoable
+                  ? `Auto-skipped: ${getCategoryDisplayName(skipNotification.category as any)} (${skipNotification.savedSeconds}s)`
+                  : `Sponsored segment cut from downloaded file (${skipNotification.savedSeconds}s saved!)`
+                }
+              </p>
+            </div>
+            {skipNotification.undoable && (
+              <button
+                onClick={() => handleUndoSkip(skipNotification.originalStart!, skipNotification.originalEnd!, skipNotification.category)}
+                className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Undo
+              </button>
+            )}
+            <button
+              onClick={() => setSkipNotification(null)}
+              className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Audio element - use remoteAudioUrl (podcast), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}

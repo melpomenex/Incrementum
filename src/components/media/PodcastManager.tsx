@@ -988,20 +988,20 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                     key={feed.id}
                     onClick={() => setSelectedFeedId(feed.id)}
                     onContextMenu={(e) => handleFeedContextMenu(e, feed)}
-                    className={`w-full p-3 text-left hover:bg-muted transition-colors border-b border-border ${
-                      selectedFeedId === feed.id ? "bg-muted/50" : ""
+                    className={`w-full p-3 text-left hover:bg-muted transition-all duration-200 border-b border-border/40 group relative overflow-hidden ${
+                      selectedFeedId === feed.id ? "bg-muted/55 font-medium border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 font-normal">
                       {/* Cover art */}
                       {feed.imageUrl ? (
                         <img
                           src={feed.imageUrl}
                           alt={feed.title}
-                          className="w-12 h-12 rounded object-cover flex-shrink-0"
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 shadow-md border border-white/5 transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/45 transition-transform duration-300 group-hover:scale-105">
                           <Rss className="w-6 h-6 text-muted-foreground" />
                         </div>
                       )}
@@ -1052,46 +1052,79 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         {selectedFeed ? (
           <>
             {/* Feed Header */}
-            <div className="p-6 border-b border-border bg-card">
-              <div className="flex items-start gap-4">
-                {selectedFeed.imageUrl && (
-                  <img
-                    src={selectedFeed.imageUrl}
-                    alt={selectedFeed.title}
-                    className="w-24 h-24 rounded-lg object-cover"
-                  />
+            <div className="relative overflow-hidden p-8 border-b border-border bg-card/70 backdrop-blur-md transition-all duration-500">
+              {/* Dynamic Cover Art Backdrop Glow */}
+              {selectedFeed.imageUrl && (
+                <div
+                  className="absolute inset-0 -z-10 bg-cover bg-center scale-110 blur-3xl opacity-[0.14] dark:opacity-[0.22] transition-all duration-700 select-none pointer-events-none"
+                  style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
+                />
+              )}
+              <div className="flex items-start gap-6 relative z-10">
+                {selectedFeed.imageUrl ? (
+                  <div className="relative group flex-shrink-0 select-none">
+                    {/* Dynamic Ambient Shadow Glow */}
+                    <div
+                      className="absolute inset-0 rounded-2xl bg-cover bg-center blur-md opacity-50 scale-95 translate-y-1.5 transition-all duration-300 group-hover:scale-100 group-hover:translate-y-2.5 group-hover:blur-lg"
+                      style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
+                    />
+                    <img
+                      src={selectedFeed.imageUrl}
+                      alt={selectedFeed.title}
+                      className="relative w-28 h-28 rounded-2xl object-cover border border-white/10 dark:border-white/5 shadow-xl transition-transform duration-300 group-hover:-translate-y-0.5"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-28 h-28 rounded-2xl bg-secondary flex items-center justify-center flex-shrink-0 border border-border shadow-inner">
+                    <Rss className="w-12 h-12 text-muted-foreground" />
+                  </div>
                 )}
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-foreground mb-1">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-3xl font-extrabold text-foreground mb-1 tracking-tight truncate">
                     {selectedFeed.title}
                   </h2>
                   {selectedFeed.author && (
-                    <p className="text-muted-foreground mb-2">{selectedFeed.author}</p>
+                    <p className="text-xs font-semibold text-primary/95 mb-3 tracking-wide uppercase">
+                      {selectedFeed.author}
+                    </p>
                   )}
-                  <div className="text-sm text-muted-foreground line-clamp-2 mb-3 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline" dangerouslySetInnerHTML={{ __html: _sanitizeHtml(selectedFeed.description || "") }} />
+                  <div 
+                    className="text-sm text-muted-foreground line-clamp-2 mb-4 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline font-normal leading-relaxed" 
+                    dangerouslySetInnerHTML={{ __html: _sanitizeHtml(selectedFeed.description || "") }} 
+                  />
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleRefreshFeed(selectedFeed)}
                       disabled={isRefreshing === selectedFeed.id}
                       className={cn(
-                        "px-3 py-1.5 text-sm rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1",
+                        "px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm",
                         refreshErrors[selectedFeed.id]
                           ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/30"
-                          : "bg-secondary text-secondary-foreground"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                       )}
                     >
                       {isRefreshing === selectedFeed.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <RefreshCw className="w-3 h-3" />
+                        <RefreshCw className="w-3.5 h-3.5" />
                       )}
                       {refreshErrors[selectedFeed.id] ? "Retry" : "Refresh"}
                     </button>
                     <button
-                      onClick={() => handleRemoveSubscription(selectedFeed.id)}
-                      className="px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg flex items-center gap-1"
+                      onClick={() => {
+                        setRenamingFeed(selectedFeed);
+                        setRenameTitle(selectedFeed.title);
+                      }}
+                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Pencil className="w-3.5 h-3.5" />
+                      Rename
+                    </button>
+                    <button
+                      onClick={() => handleRemoveSubscription(selectedFeed.id)}
+                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-destructive hover:bg-destructive/10 rounded-lg flex items-center gap-1.5 transition-all duration-200"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                       Unsubscribe
                     </button>
                   </div>
@@ -1303,7 +1336,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                                   {new Date(episode.publishedDate).toLocaleDateString()}
                                 </span>
                               )}
-                              {episode.playbackPosition > 0 && !episode.played && (
+                              {episode.playbackPosition > 0 && (episode.duration || 0) > 0 && !episode.played && (
                                 <span className="text-primary">
                                   {Math.round(
                                     (episode.playbackPosition / (episode.duration || 1)) * 100
