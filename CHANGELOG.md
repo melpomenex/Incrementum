@@ -1,9 +1,23 @@
 # Changelog
 
-## [1.39.2] - 2026-05-22
+## [1.40.0] - 2026-05-23
 
-### Fixed
-- **Window decorations on Windows** — Restored system window decorations for Windows and macOS by setting `decorations: true` in config; Linux still disables decorations at runtime for tiling WM compatibility
+### Added
+- **SponsorBlock integration** — Auto-skip sponsored segments in YouTube videos, local video player, and audiobook player with glassmorphic skip notification overlay and undo support
+- **SponsorBlock pre-cut downloads** — YouTube and podcast downloads with SponsorBlock segments automatically cut via ffmpeg, with cut metadata saved for playback notifications
+- **TTS word highlighting** — EPUB and PDF word-level highlighting during text-to-speech playback with auto-scroll to highlighted chunk
+- **Podcast feed rename** — Rename subscribed podcast feeds from the feed header UI
+- **EPUB iframe TTS bridge** — TTS controls now read from EPUB iframe content for accurate text and highlighting
+
+### Changed
+- **Podcast search switched to iTunes API** — Replaced RSS.com PodcastIndex with keyless iTunes Search API for more reliable podcast discovery
+- **Podcast RSS parser rewritten** — Case-insensitive tag matching, proper handling of uppercase/custom feeds, standard RSS `<image>` support, separated self-closing element handling
+- **Podcast manager UI redesigned** — Glassmorphic cover art backdrop glow, larger artwork, hover animations, improved feed and episode list styling
+- **YouTube SponsorBlock notifications** — Replaced toast notifications with premium floating overlay with undo button and seek-aware tracking reset
+- **TTS playback resumption** — When resuming paused TTS, auto-detects visible text and starts from current scroll position instead of last chunk
+- **TTS audio leak fixes** — Proper cleanup of audio elements and playback tracking on unmount, voice change, and stop
+- **Word highlighter iframe support** — Highlighter now operates on the correct document context for iframe-based readers (EPUB)
+- **Document viewer TTS gating** — TTS controls only render when the document tab is active
 
 ## [1.39.2] - 2026-05-22
 
