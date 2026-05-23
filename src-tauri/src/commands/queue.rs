@@ -722,7 +722,7 @@ mod tests {
         let visible = create_test_document(&repo, "visible-doc", false, false).await;
         let dismissed = create_test_document(&repo, "dismissed-doc", true, false).await;
 
-        let queue = get_queue_items_from_repo(&repo).await.expect("queue");
+        let queue = get_queue_items_from_repo(&repo, None).await.expect("queue");
 
         assert!(queue.iter().any(|item| item.document_id == visible.id));
         assert!(!queue.iter().any(|item| item.document_id == dismissed.id));
@@ -734,7 +734,7 @@ mod tests {
         let visible = create_test_document(&repo, "visible-due-doc", false, false).await;
         let dismissed = create_test_document(&repo, "dismissed-due-doc", true, false).await;
 
-        let due_document_ids: Vec<String> = get_due_documents_only_from_repo(&repo)
+        let due_document_ids: Vec<String> = get_due_documents_only_from_repo(&repo, None)
             .await
             .expect("due documents")
             .into_iter()

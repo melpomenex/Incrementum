@@ -39,6 +39,7 @@ mod screenshot;
 #[cfg(test)]
 mod security_tests;
 mod security;
+mod sponsorblock;
 
 use anyhow::Context;
 use database::Database;
@@ -1105,6 +1106,7 @@ pub fn run() {
             commands::podcast::download_podcast_episode,
             commands::podcast::get_downloaded_episode_path,
             commands::podcast::delete_downloaded_episode,
+            sponsorblock::get_sponsorblock_cuts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

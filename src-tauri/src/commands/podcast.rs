@@ -818,6 +818,7 @@ pub async fn download_podcast_episode(
         .and_then(|t| t.split('/').last())
         .unwrap_or("mp3");
     let dest_path = audio_dir.join(format!("{}.{}", episode_id, ext));
+    let temp_path = dest_path.with_extension("downloading");
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(600))
@@ -839,9 +840,9 @@ pub async fn download_podcast_episode(
 
     let total_size = response.content_length().unwrap_or(0);
     let mut downloaded: u64 = 0;
-    let mut file = tokio::fs::File::create(&dest_path)
+    let mut file = tokio::fs::File::create(&temp_path)
         .await
-        .map_err(|e| IncrementumError::Internal(format!("Failed to create file: {}", e)))?;
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create temporary download file: {}", e)))?;
 
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
@@ -863,6 +864,54 @@ pub async fn download_podcast_episode(
     file.flush()
         .await
         .map_err(|e| IncrementumError::Internal(format!("Flush error: {}", e)))?;
+
+    // Download complete, now handle SponsorBlock skipping
+    let repo = app_handle.state::<Repository>();
+    let mut video_id = crate::youtube::extract_video_id(&audio_url);
+    if video_id.is_none() {
+        if let Ok(Some(episode)) = repo.get_podcast_episode_by_id(&episode_id).await {
+            if let Some(ref link) = episode.link {
+                video_id = crate::youtube::extract_video_id(link);
+            }
+        }
+    }
+
+    let mut cut_applied = false;
+    if let Some(ref vid) = video_id {
+        println!("[SponsorBlock] Checking segments for video ID: {}", vid);
+        if let Ok(segments) = crate::sponsorblock::fetch_sponsorblock_segments(vid).await {
+            if !segments.is_empty() {
+                println!("[SponsorBlock] Found {} skippable segments. Cutting using ffmpeg...", segments.len());
+                // Emit special cutting status
+                let _ = app_handle.emit(
+                    "podcast://download-progress",
+                    serde_json::json!({ "episodeId": &episode_id, "progress": 100, "status": "cutting" }),
+                );
+                
+                match crate::sponsorblock::cut_audio_file(&app_handle, &temp_path, &dest_path, &segments).await {
+                    Ok(cuts) => {
+                        println!("[SponsorBlock] Cutting successful. Saved {} cuts metadata.", cuts.len());
+                        let _ = crate::sponsorblock::save_cuts_metadata(&episode_id, &cuts);
+                        let _ = std::fs::remove_file(&temp_path);
+                        cut_applied = true;
+                    }
+                    Err(e) => {
+                        eprintln!("[SponsorBlock] Cutting failed: {}. Falling back to uncut download.", e);
+                    }
+                }
+            } else {
+                println!("[SponsorBlock] No skippable segments found.");
+            }
+        } else {
+            eprintln!("[SponsorBlock] Failed to fetch SponsorBlock segments.");
+        }
+    }
+
+    if !cut_applied {
+        // No cuts applied, rename raw downloaded file to dest path
+        std::fs::rename(&temp_path, &dest_path)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to save final download file: {}", e)))?;
+    }
 
     let _ = app_handle.emit(
         "podcast://download-complete",
@@ -889,7 +938,25 @@ pub async fn delete_downloaded_episode(episode_id: String) -> Result<()> {
     Ok(())
 }
 
-/// Search for podcasts via RSS.com PodcastIndex API
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ITunesPodcastResult {
+    pub collection_name: String,
+    pub feed_url: Option<String>,
+    pub artist_name: Option<String>,
+    pub artwork_url600: Option<String>,
+    pub artwork_url100: Option<String>,
+    pub track_view_url: Option<String>,
+    pub track_count: Option<i64>,
+    pub primary_genre_name: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ITunesSearchResponse {
+    pub results: Vec<ITunesPodcastResult>,
+}
+
+/// Search for podcasts via iTunes Search API (completely keyless and highly reliable)
 #[tauri::command]
 pub async fn search_podcasts(query: String) -> Result<Vec<PodcastSearchResult>> {
     let q = query.trim();
@@ -903,9 +970,8 @@ pub async fn search_podcasts(query: String) -> Result<Vec<PodcastSearchResult>> 
         .map_err(|e| IncrementumError::Internal(format!("Failed to build HTTP client: {}", e)))?;
 
     let response = client
-        .post("https://apollo.rss.com/search/podcast-index/byterm")
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "q": q }))
+        .get("https://itunes.apple.com/search")
+        .query(&[("media", "podcast"), ("term", q)])
         .send()
         .await
         .map_err(|e| IncrementumError::Internal(format!("Search request failed: {}", e)))?;
@@ -917,10 +983,30 @@ pub async fn search_podcasts(query: String) -> Result<Vec<PodcastSearchResult>> 
         )));
     }
 
-    let data: PodcastSearchResponse = response
+    let data: ITunesSearchResponse = response
         .json()
         .await
         .map_err(|e| IncrementumError::Internal(format!("Failed to parse search response: {}", e)))?;
 
-    Ok(data.feeds.into_iter().map(Into::into).collect())
+    let results = data.results.into_iter()
+        .filter_map(|r| {
+            let feed_url = r.feed_url?;
+            Some(PodcastSearchResult {
+                title: r.collection_name,
+                url: feed_url,
+                author: r.artist_name,
+                description: r.primary_genre_name.clone(),
+                image_url: r.artwork_url600.or(r.artwork_url100),
+                link: r.track_view_url,
+                episode_count: r.track_count,
+                categories: r.primary_genre_name.map(|genre| {
+                    let mut hm = std::collections::HashMap::new();
+                    hm.insert("0".to_string(), genre);
+                    hm
+                }),
+            })
+        })
+        .collect();
+
+    Ok(results)
 }

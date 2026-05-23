@@ -16,12 +16,22 @@ import {
   Scissors,
   Layers,
   GripVertical,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '../../utils';
 import { saveDocumentPosition, timePosition } from '../../api/position';
 import { useI18n } from '../../lib/i18n';
 import { getDocumentAuto, updateDocumentProgressAuto } from '../../api/documents';
 import { useToast } from '../common/Toast';
+import {
+  SponsorBlockCut,
+  SponsorBlockSegment,
+  getSponsorBlockCuts,
+  fetchSponsorBlockSegments,
+  extractVideoID,
+  getCategoryDisplayName,
+} from '../../api/sponsorblock';
 import { VideoFeatures } from '../video/VideoFeatures';
 import {
   CreateVideoExtractDialog,
@@ -81,6 +91,22 @@ export function LocalVideoPlayer({
     return saved ? parseFloat(saved) : 1;
   });
   const [playError, setPlayError] = useState<string | null>(null);
+
+  // SponsorBlock integration states and refs
+  const [sponsorBlockCuts, setSponsorBlockCuts] = useState<SponsorBlockCut[]>([]);
+  const [sponsorBlockSegments, setSponsorBlockSegments] = useState<SponsorBlockSegment[]>([]);
+  const [skipNotification, setSkipNotification] = useState<{
+    category: string;
+    savedSeconds?: number;
+    originalStart?: number;
+    originalEnd?: number;
+    undoable: boolean;
+  } | null>(null);
+
+  const notifiedCutsRef = useRef<Set<string>>(new Set());
+  const skippedSegmentsRef = useRef<Set<string>>(new Set());
+  const temporarilyDisabledSegmentsRef = useRef<Set<string>>(new Set());
+  const skipNotificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [resolvedSourceIndex, setResolvedSourceIndex] = useState<number | null>(null);
   const [isResolvingSource, setIsResolvingSource] = useState(true);
   const [sourceFailure, setSourceFailure] = useState<LocalMediaProbeFailure | null>(null);
@@ -152,6 +178,45 @@ export function LocalVideoPlayer({
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  // Load SponsorBlock cuts and segments
+  useEffect(() => {
+    let cancelled = false;
+    const loadSponsorBlockData = async () => {
+      if (documentId) {
+        try {
+          const cuts = await getSponsorBlockCuts(documentId);
+          if (cancelled) return;
+          if (cuts && cuts.length > 0) {
+            console.log(`[SponsorBlock] Loaded ${cuts.length} cuts metadata for ${documentId}`);
+            setSponsorBlockCuts(cuts);
+            return; // Downloaded pre-cut audio, skip live fetches
+          }
+        } catch (error) {
+          console.warn("[SponsorBlock] Failed to check for pre-cut metadata:", error);
+        }
+      }
+
+      const targetUrl = documentFilePath || activeSrc || (typeof src === 'string' ? src : '');
+      if (targetUrl) {
+        const videoIdResult = extractVideoID(targetUrl);
+        if (videoIdResult && videoIdResult.platform === "youtube") {
+          console.log(`[SponsorBlock] Fetching live segments for ${videoIdResult.videoID}`);
+          try {
+            const fetched = await fetchSponsorBlockSegments(videoIdResult.videoID);
+            if (!cancelled) {
+              setSponsorBlockSegments(fetched);
+            }
+          } catch (error) {
+            console.warn("[SponsorBlock] Failed to fetch live segments:", error);
+          }
+        }
+      }
+    };
+
+    loadSponsorBlockData();
+    return () => { cancelled = true; };
+  }, [documentId, documentFilePath, activeSrc, src]);
 
   const formatSourceFailureMessage = useCallback((failure: LocalMediaProbeFailure | null) => {
     if (!failure) {
@@ -714,6 +779,50 @@ export function LocalVideoPlayer({
     }
   }, [buildPlayErrorMessage, t, toast]);
 
+  const resetSponsorBlockTracking = useCallback((time: number) => {
+    if (sponsorBlockCuts.length > 0) {
+      sponsorBlockCuts.forEach(cut => {
+        if (cut.cutStart > time) {
+          notifiedCutsRef.current.delete(cut.uuid);
+        }
+      });
+    }
+    if (sponsorBlockSegments.length > 0) {
+      sponsorBlockSegments.forEach(seg => {
+        if (seg.segment[0] > time) {
+          skippedSegmentsRef.current.delete(seg.UUID);
+          temporarilyDisabledSegmentsRef.current.delete(seg.UUID);
+        }
+      });
+    }
+    setSkipNotification(null);
+  }, [sponsorBlockCuts, sponsorBlockSegments]);
+
+  const handleUndoSkip = useCallback((originalStart: number, originalEnd: number, category: string) => {
+    const segment = sponsorBlockSegments.find(s => s.segment[0] === originalStart);
+    if (segment) {
+      temporarilyDisabledSegmentsRef.current.add(segment.UUID);
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.currentTime = originalStart;
+      setCurrentTime(originalStart);
+      currentTimeRef.current = originalStart;
+      void attemptPlay('undo-skip');
+    }
+    
+    setSkipNotification(null);
+    toast.success("Playing skipped segment: " + getCategoryDisplayName(category as any));
+  }, [sponsorBlockSegments, attemptPlay, toast]);
+
+  useEffect(() => {
+    return () => {
+      if (skipNotificationTimeoutRef.current) {
+        clearTimeout(skipNotificationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const tryRuntimeFallback = useCallback((failure: LocalMediaProbeFailure | null) => {
     if (resolvedSourceIndex === null || resolvedSourceIndex >= normalizedSources.length - 1) {
       return false;
@@ -763,14 +872,18 @@ export function LocalVideoPlayer({
   // Seek relative to current position
   const seekRelative = (seconds: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+      const targetTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+      resetSponsorBlockTracking(targetTime);
+      videoRef.current.currentTime = targetTime;
     }
   };
 
   // Seek to percentage
   const seekToPercentage = (percent: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = (duration * percent) / 100;
+      const targetTime = (duration * percent) / 100;
+      resetSponsorBlockTracking(targetTime);
+      videoRef.current.currentTime = targetTime;
     }
   };
 
@@ -831,6 +944,7 @@ export function LocalVideoPlayer({
   };
 
   const handleSeek = (time: number, endTime?: number) => {
+    resetSponsorBlockTracking(time);
     if (videoRef.current) {
       videoRef.current.currentTime = time;
     }
@@ -856,6 +970,58 @@ export function LocalVideoPlayer({
     }
     currentTimeRef.current = time; // Keep ref updated for unmount save
 
+    // SponsorBlock cut metadata (pre-cut) check
+    if (sponsorBlockCuts && sponsorBlockCuts.length > 0) {
+      for (const cut of sponsorBlockCuts) {
+        if (time >= cut.cutStart && time <= cut.cutStart + 1.5) {
+          if (!notifiedCutsRef.current.has(cut.uuid)) {
+            notifiedCutsRef.current.add(cut.uuid);
+            
+            setSkipNotification({
+              category: cut.category,
+              savedSeconds: Math.round(cut.originalEnd - cut.originalStart),
+              undoable: false,
+            });
+            
+            if (skipNotificationTimeoutRef.current) clearTimeout(skipNotificationTimeoutRef.current);
+            skipNotificationTimeoutRef.current = setTimeout(() => {
+              setSkipNotification(null);
+            }, 4000);
+          }
+        }
+      }
+    }
+
+    // SponsorBlock live segment check (streaming / uncut)
+    if (sponsorBlockSegments && sponsorBlockSegments.length > 0) {
+      for (const segment of sponsorBlockSegments) {
+        const [start, end] = segment.segment;
+        if (time >= start && time < end) {
+          if (!skippedSegmentsRef.current.has(segment.UUID) && !temporarilyDisabledSegmentsRef.current.has(segment.UUID)) {
+            skippedSegmentsRef.current.add(segment.UUID);
+            
+            videoRef.current.currentTime = end;
+            setCurrentTime(end);
+            currentTimeRef.current = end;
+            
+            setSkipNotification({
+              category: segment.category,
+              savedSeconds: Math.round(end - start),
+              originalStart: start,
+              originalEnd: end,
+              undoable: true,
+            });
+            
+            if (skipNotificationTimeoutRef.current) clearTimeout(skipNotificationTimeoutRef.current);
+            skipNotificationTimeoutRef.current = setTimeout(() => {
+              setSkipNotification(null);
+            }, 4000);
+            break;
+          }
+        }
+      }
+    }
+
     if (
       activeExtractStartTime !== null
       && activeExtractEndTime !== null
@@ -865,7 +1031,7 @@ export function LocalVideoPlayer({
       videoRef.current.currentTime = activeExtractStartTime;
       void attemptPlay('extract-loop');
     }
-  }, [activeExtractStartTime, activeExtractEndTime]);
+  }, [activeExtractStartTime, activeExtractEndTime, sponsorBlockCuts, sponsorBlockSegments, attemptPlay]);
 
   // Set up video frame callback for smoother updates
   useEffect(() => {
@@ -1133,6 +1299,51 @@ export function LocalVideoPlayer({
           toggleFullscreen();
         }}
       >
+        {/* Premium SponsorBlock Skip Notification Overlay */}
+        {skipNotification && (
+          <div 
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300 pointer-events-auto"
+            data-local-video-controls="true"
+          >
+            <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
+                <Sparkles className="h-5.5 w-5.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90 text-left">
+                  SponsorBlock
+                </p>
+                <p className="text-sm font-medium text-muted-foreground truncate leading-normal text-left">
+                  {skipNotification.undoable
+                    ? `Auto-skipped: ${getCategoryDisplayName(skipNotification.category as any)} (${skipNotification.savedSeconds}s)`
+                    : `Sponsored segment cut (${skipNotification.savedSeconds}s saved!)`
+                  }
+                </p>
+              </div>
+              {skipNotification.undoable && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUndoSkip(skipNotification.originalStart!, skipNotification.originalEnd!, skipNotification.category);
+                  }}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Undo
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSkipNotification(null);
+                }}
+                className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Media Element */}
         {activeSrc ? mediaElement : null}
 

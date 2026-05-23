@@ -203,11 +203,12 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
+            Ok(Event::Start(ref e)) => {
                 let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let name_lower = name.to_lowercase();
 
-                // Handle self-closing attributes
-                if name == "itunes:image" {
+                // Handle non-self-closing image tag attributes
+                if name_lower == "itunes:image" || name_lower == "image" {
                     for attr in e.attributes().flatten() {
                         let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
                         let val = String::from_utf8_lossy(&attr.value).to_string();
@@ -221,25 +222,11 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                     }
                 }
 
-                if name == "enclosure" && in_item {
-                    for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                        let val = String::from_utf8_lossy(&attr.value).to_string();
-                        match key.as_str() {
-                            "url" => item_audio_url = Some(val),
-                            "type" => item_audio_type = Some(val),
-                            "length" => item_file_size = val.parse::<i64>().ok(),
-                            _ => {}
-                        }
-                    }
-                    continue;
-                }
-
                 element_stack.push(name.clone());
 
-                if name == "channel" {
+                if name_lower == "channel" {
                     in_channel = true;
-                } else if name == "item" && in_channel {
+                } else if name_lower == "item" && in_channel {
                     in_item = true;
                     item_guid = None;
                     item_title.clear();
@@ -258,34 +245,67 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
 
                 // Decide whether to collect text content
                 if in_channel {
-                    let full_path = element_stack.join("/");
-                    match full_path.as_str() {
-                        "rss/channel/title" => collect_text = true,
-                        "rss/channel/description" => collect_text = true,
-                        "rss/channel/link" => collect_text = true,
-                        "rss/channel/language" => collect_text = true,
-                        _ => {
-                            if in_item {
-                                match full_path.as_str() {
-                                    s if s.ends_with("/title")
-                                        || s.ends_with("/itunes:title") => collect_text = true,
-                                    s if s.ends_with("/description")
-                                        || s.ends_with("/itunes:summary") => collect_text = true,
-                                    s if s.ends_with("/pubDate") => collect_text = true,
-                                    s if s.ends_with("/itunes:duration") => collect_text = true,
-                                    s if s.ends_with("/link") => collect_text = true,
-                                    _ => collect_text = false,
-                                }
-                            } else {
-                                match full_path.as_str() {
-                                    s if s.ends_with("/itunes:author") => collect_text = true,
-                                    _ => collect_text = false,
-                                }
-                            }
+                    let full_path = element_stack.join("/").to_lowercase();
+                    if in_item {
+                        match full_path.as_str() {
+                            s if s.ends_with("/title")
+                                || s.ends_with("/itunes:title") => collect_text = true,
+                            s if s.ends_with("/description")
+                                || s.ends_with("/itunes:summary")
+                                || s.ends_with("/summary") => collect_text = true,
+                            s if s.ends_with("/pubdate") => collect_text = true,
+                            s if s.ends_with("/duration")
+                                || s.ends_with("/itunes:duration") => collect_text = true,
+                            s if s.ends_with("/link") => collect_text = true,
+                            s if s.ends_with("/guid") => collect_text = true,
+                            _ => collect_text = false,
+                        }
+                    } else {
+                        // Channel-level matching (case-insensitive and root-tag robust)
+                        match full_path.as_str() {
+                            s if s.ends_with("/channel/title") || s == "channel/title" || s.ends_with("/title") => collect_text = true,
+                            s if s.ends_with("/channel/description") || s == "channel/description" || s.ends_with("/description") => collect_text = true,
+                            s if s.ends_with("/channel/link") || s == "channel/link" || s.ends_with("/link") => collect_text = true,
+                            s if s.ends_with("/channel/language") || s == "channel/language" || s.ends_with("/language") => collect_text = true,
+                            s if s.ends_with("/author") || s.ends_with("/itunes:author") => collect_text = true,
+                            s if s.ends_with("/image/url") => collect_text = true,
+                            _ => collect_text = false,
                         }
                     }
                     if collect_text {
                         text_buf.clear();
+                    }
+                }
+            }
+            Ok(Event::Empty(ref e)) => {
+                let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let name_lower = name.to_lowercase();
+
+                // Handle self-closing attributes (like <itunes:image href="..." /> or <enclosure url="..." />)
+                if name_lower == "itunes:image" || name_lower == "image" {
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
+                        let val = String::from_utf8_lossy(&attr.value).to_string();
+                        if key == "href" {
+                            if in_item {
+                                item_itunes_image = Some(val);
+                            } else if in_channel {
+                                feed_image_url = Some(val);
+                            }
+                        }
+                    }
+                }
+
+                if name_lower == "enclosure" && in_item {
+                    for attr in e.attributes().flatten() {
+                        let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
+                        let val = String::from_utf8_lossy(&attr.value).to_string();
+                        match key.as_str() {
+                            "url" => item_audio_url = Some(val),
+                            "type" => item_audio_type = Some(val),
+                            "length" => item_file_size = val.parse::<i64>().ok(),
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -303,9 +323,10 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
             }
             Ok(Event::End(ref e)) => {
                 let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let name_lower = name.to_lowercase();
 
                 if collect_text {
-                    let full_path = element_stack.join("/");
+                    let full_path = element_stack.join("/").to_lowercase();
                     let text = text_buf.trim().to_string();
 
                     if in_item {
@@ -316,7 +337,8 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                             s if s.ends_with("/title") => {
                                 item_title = text;
                             }
-                            s if s.ends_with("/itunes:summary") => {
+                            s if s.ends_with("/itunes:summary")
+                                || s.ends_with("/summary") => {
                                 item_description = if text.is_empty() { None } else { Some(text) };
                             }
                             s if s.ends_with("/description") => {
@@ -324,10 +346,11 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                                     item_description = Some(text);
                                 }
                             }
-                            s if s.ends_with("/pubDate") => {
+                            s if s.ends_with("/pubdate") => {
                                 item_published_date = if text.is_empty() { None } else { Some(text) };
                             }
-                            s if s.ends_with("/itunes:duration") => {
+                            s if s.ends_with("/itunes:duration")
+                                || s.ends_with("/duration") => {
                                 item_duration_str = if text.is_empty() { None } else { Some(text) };
                             }
                             s if s.ends_with("/link") => {
@@ -337,18 +360,21 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                         }
                     } else if in_channel {
                         match full_path.as_str() {
-                            s if s.ends_with("/title") => feed_title = text,
-                            s if s.ends_with("/description") => {
+                            s if s.ends_with("/channel/title") || s == "channel/title" || s.ends_with("/title") => feed_title = text,
+                            s if s.ends_with("/channel/description") || s == "channel/description" || s.ends_with("/description") => {
                                 feed_description = if text.is_empty() { None } else { Some(text) };
                             }
-                            s if s.ends_with("/link") => {
+                            s if s.ends_with("/channel/link") || s == "channel/link" || s.ends_with("/link") => {
                                 feed_link = if text.is_empty() { None } else { Some(text) };
                             }
-                            s if s.ends_with("/language") => {
+                            s if s.ends_with("/channel/language") || s == "channel/language" || s.ends_with("/language") => {
                                 feed_language = if text.is_empty() { None } else { Some(text) };
                             }
-                            s if s.ends_with("/itunes:author") => {
+                            s if s.ends_with("/author") || s.ends_with("/itunes:author") => {
                                 feed_author = if text.is_empty() { None } else { Some(text) };
+                            }
+                            s if s.ends_with("/image/url") => {
+                                feed_image_url = if text.is_empty() { None } else { Some(text) };
                             }
                             _ => {}
                         }
@@ -357,17 +383,14 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                 }
 
                 // Handle guid element (has isPermaLink attribute)
-                if name == "guid" && in_item {
-                    if let Some(guid_text) = item_guid.as_deref() {
-                        // guid was already set, but let's also check from text_buf
-                    }
+                if name_lower == "guid" && in_item {
                     let text = text_buf.trim().to_string();
                     if !text.is_empty() {
                         item_guid = Some(text);
                     }
                 }
 
-                if name == "item" && in_item {
+                if name_lower == "item" && in_item {
                     // Finalize episode
                     if let Some(audio_url) = item_audio_url.take() {
                         let title = item_itunes_title
@@ -396,13 +419,13 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                     item_guid_is_permalink = true;
                 }
 
-                if name == "channel" {
+                if name_lower == "channel" {
                     in_channel = false;
                 }
 
                 // Pop element stack
                 if let Some(top) = element_stack.last() {
-                    if *top == name {
+                    if top.to_lowercase() == name_lower {
                         element_stack.pop();
                     }
                 }
@@ -558,5 +581,53 @@ mod tests {
         assert_eq!(ep.duration, Some(5400));
         assert_eq!(ep.description.as_deref(), Some("An episode summary"));
         assert_eq!(ep.guid.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn test_parse_uppercase_and_custom_feed() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<FEED xmlns="http://www.w3.org/2005/Atom">
+  <CHANNEL>
+    <TITLE>Uppercase Podcast</TITLE>
+    <description>An uppercase description</description>
+    <LINK>https://example.com/uppercase</LINK>
+    <language>en-US</language>
+    <item>
+      <title>Episode 1</title>
+      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="12345"/>
+    </item>
+  </CHANNEL>
+</FEED>"#;
+
+        let feed = parse_podcast_feed(xml).unwrap();
+        assert_eq!(feed.title, "Uppercase Podcast");
+        assert_eq!(feed.description.as_deref(), Some("An uppercase description"));
+        assert_eq!(feed.link.as_deref(), Some("https://example.com/uppercase"));
+        assert_eq!(feed.language.as_deref(), Some("en-US"));
+        assert_eq!(feed.episodes.len(), 1);
+        assert_eq!(feed.episodes[0].title, "Episode 1");
+    }
+
+    #[test]
+    fn test_parse_standard_rss_image() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Standard Image Podcast</title>
+    <image>
+      <url>https://example.com/standard-cover.png</url>
+      <title>Standard Image Podcast</title>
+      <link>https://example.com</link>
+    </image>
+    <item>
+      <title>Episode 1</title>
+      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="12345"/>
+    </item>
+  </channel>
+</rss>"#;
+
+        let feed = parse_podcast_feed(xml).unwrap();
+        assert_eq!(feed.title, "Standard Image Podcast");
+        assert_eq!(feed.image_url.as_deref(), Some("https://example.com/standard-cover.png"));
     }
 }

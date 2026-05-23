@@ -1,7 +1,4 @@
-/**
- * SponsorBlock API integration
- * Documentation: https://wiki.sponsor.ajay.app/w/API_Docs
- */
+import { invokeCommand, isTauri } from "../lib/tauri";
 
 /**
  * SponsorBlock segment categories
@@ -289,4 +286,31 @@ export function formatSegmentTime(seconds: number): string {
       .padStart(2, "0")}`;
   }
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
+/**
+ * SponsorBlock pre-cut coordinate metadata
+ */
+export interface SponsorBlockCut {
+  category: string;
+  originalStart: number;
+  originalEnd: number;
+  cutStart: number;
+  uuid: string;
+}
+
+/**
+ * Get SponsorBlock cuts metadata for a downloaded video/audio file (Tauri only)
+ */
+export async function getSponsorBlockCuts(id: string): Promise<SponsorBlockCut[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const cuts = await invokeCommand<SponsorBlockCut[] | null>("get_sponsorblock_cuts", { id });
+    return cuts || [];
+  } catch (error) {
+    console.error("Failed to get SponsorBlock cuts:", error);
+    return [];
+  }
 }

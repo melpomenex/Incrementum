@@ -195,6 +195,7 @@ mod tests {
         Extract {
             id: Uuid::new_v4().to_string(),
             document_id: "test-doc".to_string(),
+            collection_id: "default".to_string(),
             content: content.to_string(),
             html_content: None,
             source_url: None,
