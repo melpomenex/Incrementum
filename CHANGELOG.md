@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.41.0] - 2026-05-23
+
+### Added
+- **AI long-term memory** — Persistent MEMORY.md context that personalizes AI chat interactions with facts, preferences, and standing decisions extracted from conversations
+- **AI memory settings UI** — Toggle memory on/off, view and edit MEMORY.md directly from both Tauri and PWA AI settings panels with token usage warning
+- **RSS settings panel** — Full RSS configuration page with article retention, queue session rules, feed inclusion/exclusion controls, and smart queue tuning
+- **Mark all feed articles read** — Bulk mark-as-read for RSS feeds with instant UI update and confirmation dialog
+- **RSS article cleanup** — Background database pruning of old articles based on configurable retention period
+- **Mark RSS feed read (Tauri)** — Native SQLite `mark_rss_feed_read` command for efficient bulk read marking
+
+### Changed
+- **DevTools gated behind feature flag** — `devtools` Cargo feature now opt-in via `INCREMENTUM_OPEN_DEVTOOLS` env var; dev profile enables automatically, release builds excluded for smaller binary
+- **LLM base URL security** — Non-Ollama providers now validate that user-supplied base URLs don't point to private/internal addresses
+- **Database connection pool reduced** — Max connections lowered from 20 to 5, appropriate for single-user desktop app
+- **Global shortcut delivery** — Switched from `window.eval()` to `app.emit_to()` for more reliable keyboard shortcut dispatch, removed duplicate delivery paths
+- **RSS mark-all-read** — Now works in both "all" and "unread" view modes with confirmation dialog and instant state updates
+- **OpenRouter error sanitization** — Removed verbose error response body logging, replaced with generic failure message to prevent token/key leakage
+- **DevTools CSP tightened** — Removed `unsafe-eval` from dev CSP to match production security posture
+- **Assistant markdown sanitized** — AI responses now pass through DOMPurify with explicit tag/attribute allowlists before rendering
+- **Migration debug logging removed** — Stripped verbose `eprintln!` calls from SQL statement splitter
+
+### Fixed
+- **EPUB TTS word highlighting scroll** — Word-level highlighting now correctly scrolls the parent document container when reading inside EPUB iframes, using offset calculations across iframe boundaries
+- **Word highlight layer cleanup** — Highlighter dependency array now includes `enabled` state to properly clear highlights when TTS is toggled off
+
 ## [1.40.0] - 2026-05-23
 
 ### Added
