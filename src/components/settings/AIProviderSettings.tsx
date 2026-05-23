@@ -43,6 +43,57 @@ export function AISettings({ onChange }: { onChange: () => void }) {
     onChange();
   };
 
+  // AI Memory States
+  const [memoryEnabled, setMemoryEnabled] = useState(settings.ai.memoryEnabled || false);
+  const [memoryContent, setMemoryContent] = useState("");
+  const [isEditingMemory, setIsEditingMemory] = useState(false);
+  const [editedMemory, setEditedMemory] = useState("");
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+
+  // Sync memoryEnabled state when settings change
+  useEffect(() => {
+    setMemoryEnabled(settings.ai.memoryEnabled || false);
+  }, [settings.ai.memoryEnabled]);
+
+  // Load memory content on mount
+  useEffect(() => {
+    async function loadMemory() {
+      try {
+        const content = await invoke<string>("get_memory_content");
+        setMemoryContent(content);
+        setEditedMemory(content);
+      } catch (err) {
+        console.error("Failed to load AI memories in settings:", err);
+      }
+    }
+    loadMemory();
+  }, []);
+
+  const handleToggleMemory = (enabled: boolean) => {
+    setMemoryEnabled(enabled);
+    updateSettings({
+      ai: {
+        ...settings.ai,
+        memoryEnabled: enabled,
+      },
+    });
+    onChange();
+  };
+
+  const handleSaveMemoryEdits = async () => {
+    try {
+      setIsSavingMemory(true);
+      await invoke("save_memory_content", { content: editedMemory });
+      setMemoryContent(editedMemory);
+      setIsEditingMemory(false);
+    } catch (err) {
+      console.error("Failed to save memory edits:", err);
+      alert("Failed to save memory edits.");
+    } finally {
+      setIsSavingMemory(false);
+    }
+  };
+
   const handleTestConnection = async (config: { id: string; provider: string; apiKey: string; baseUrl?: string; model: string }) => {
     try {
       const result = await invoke<boolean>("llm_test_connection", {
@@ -387,6 +438,90 @@ export function AISettings({ onChange }: { onChange: () => void }) {
             className="w-28 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </SettingsRow>
+      </SettingsSection>
+
+      {/* AI Memory Settings */}
+      <SettingsSection
+        title="AI Long-Term Memory"
+        description="Enable persistent, local memory context to make the AI personalized and personable"
+      >
+        <SettingsRow
+          label="Enable AI Memory"
+          description="Load facts and preferences into chat sessions to personalize AI interactions"
+        >
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={memoryEnabled}
+              onChange={(e) => handleToggleMemory(e.target.checked)}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingsRow>
+
+        {memoryEnabled && (
+          <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400 text-xs leading-relaxed">
+            <strong>⚠️ Token Usage Warning:</strong> Enabling AI memory will load your persistent markdown memories into all chat prompts. While this dramatically improves context and personalization, it will consume more context tokens per message.
+          </div>
+        )}
+
+        {memoryEnabled && (
+          <div className="mt-4 border border-border rounded-lg overflow-hidden bg-background">
+            <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-muted/30">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                MEMORY.md (Durable Markdown Context)
+              </span>
+              <div className="flex gap-2">
+                {isEditingMemory ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditedMemory(memoryContent);
+                        setIsEditingMemory(false);
+                      }}
+                      className="px-2.5 py-1 text-xs bg-muted text-foreground rounded hover:bg-muted/80 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveMemoryEdits}
+                      disabled={isSavingMemory}
+                      className="px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity flex items-center gap-1 font-medium"
+                    >
+                      {isSavingMemory ? "Saving..." : "Save Edits"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditedMemory(memoryContent);
+                      setIsEditingMemory(true);
+                    }}
+                    className="px-2.5 py-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 rounded transition-colors font-medium"
+                  >
+                    Edit Memories
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-4">
+              {isEditingMemory ? (
+                <textarea
+                  value={editedMemory}
+                  onChange={(e) => setEditedMemory(e.target.value)}
+                  rows={8}
+                  className="w-full p-3 bg-muted/10 border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  placeholder="# AI Memory..."
+                />
+              ) : (
+                <pre className="text-xs text-foreground font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                  {memoryContent || "(No memory content loaded)"}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
       </SettingsSection>
     </>
   );

@@ -57,7 +57,8 @@ if (typeof window !== 'undefined') {
     const isMounted = root?.getAttribute("data-incrementum-mounted") === "true";
     console.error("[Global Error]", e.error ?? message);
     if (root && !isMounted) {
-      root.innerHTML = '<div style="padding:20px;background:#000;color:#fff;font-family:monospace;"><h2>Startup Error</h2><pre style="white-space:pre-wrap;">' + e.message + '\n' + (e.error?.stack || '') + '</pre></div>';
+      const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      root.innerHTML = '<div style="padding:20px;background:#000;color:#fff;font-family:monospace;"><h2>Startup Error</h2><pre style="white-space:pre-wrap;">' + escapeHtml(e.message) + '\n' + escapeHtml(e.error?.stack || '') + '</pre></div>';
     }
   });
 
@@ -180,7 +181,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#fff', flexDirection: 'column' }}>
           <h1>Something went wrong</h1>
           <p style={{ color: '#f00' }}>{this.state.error?.message}</p>
-          <pre style={{ background: '#111', padding: 16, borderRadius: 8, marginTop: 16, fontSize: 12 }}>{this.state.error?.stack}</pre>
+          <pre style={{ background: '#111', padding: 16, borderRadius: 8, marginTop: 16, fontSize: 12 }}>{this.state.error?.stack?.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
         </div>
       );
     }
@@ -188,7 +189,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-console.log('[main.tsx] Starting Incrementum app...');
 if (isNetworkDebugEnabled()) {
   installNetworkDebugInstrumentation();
 }

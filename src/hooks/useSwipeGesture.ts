@@ -45,6 +45,7 @@ export function useSwipeGesture(options: SwipeGestureOptions = {}): UseSwipeGest
 
   const ref = useRef<HTMLDivElement | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const latestDelta = useRef({ deltaX: 0, deltaY: 0 });
   const [state, setState] = useState<SwipeGestureState>({
     direction: null,
     isSwiping: false,
@@ -92,6 +93,8 @@ export function useSwipeGesture(options: SwipeGestureOptions = {}): UseSwipeGest
         }
       }
 
+      latestDelta.current = { deltaX, deltaY };
+
       setState((prev) => ({
         ...prev,
         deltaX,
@@ -109,21 +112,19 @@ export function useSwipeGesture(options: SwipeGestureOptions = {}): UseSwipeGest
   const handleTouchEnd = useCallback(() => {
     if (!touchStart.current) return;
 
-    const { deltaX, deltaY } = state;
+    const { deltaX, deltaY } = latestDelta.current;
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
 
     // Only trigger if swipe is significant
     if (absX > threshold || absY > threshold) {
       if (absX > absY) {
-        // Horizontal swipe
         if (deltaX > 0) {
           onSwipeRight?.();
         } else {
           onSwipeLeft?.();
         }
       } else {
-        // Vertical swipe
         if (deltaY > 0) {
           onSwipeDown?.();
         } else {
@@ -133,7 +134,7 @@ export function useSwipeGesture(options: SwipeGestureOptions = {}): UseSwipeGest
     }
 
     reset();
-  }, [state, threshold, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, reset]);
+  }, [threshold, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, reset]);
 
   useEffect(() => {
     const element = ref.current;

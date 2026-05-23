@@ -3,6 +3,7 @@ import { X, Tag as TagIcon, FolderOpen, Lightbulb, Bold, Italic, Code, List, Lay
 import { createExtract, CreateExtractInput, Extract } from "../../api/extracts";
 import type { SelectionContext } from "../../types/selection";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
+import DOMPurify from "dompurify";
 import { ClozeCreatorPopup } from "./ClozeCreatorPopup";
 import { QACreatorPopup } from "./QACreatorPopup";
 import { useToast } from "../common/Toast";
@@ -314,7 +315,7 @@ export function CreateExtractDialog({
             ) : (
               <div className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground min-h-[100px]">
                 {content ? (
-                  <div dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formatContent(content)) }} />
                 ) : (
                   <span className="text-muted-foreground">{t("extracts.previewHint")}</span>
                 )}

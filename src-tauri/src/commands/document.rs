@@ -133,7 +133,14 @@ pub async fn import_document(
     collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
+    // Validate the path exists and is within accessible locations
     let path = PathBuf::from(&file_path);
+    if !path.exists() {
+        return Err(IncrementumError::NotFound(format!("File not found: {}", file_path)));
+    }
+    // Canonicalize to resolve symlinks and ..
+    let canonical = std::fs::canonicalize(&path)
+        .map_err(|e| IncrementumError::Internal(format!("Invalid path: {}", e)))?;
 
     // Determine file type from extension
     let file_type = match path.extension()
@@ -150,7 +157,7 @@ pub async fn import_document(
     };
 
     // Extract content from the file
-    let extracted = processor::extract_content(&file_path, file_type.clone()).await?;
+    let extracted = processor::extract_content(canonical.to_str().unwrap_or(&file_path), file_type.clone()).await?;
 
     // For media files, copy to app-managed storage to avoid macOS sandbox issues
     let stored_path = match file_type {
@@ -605,7 +612,10 @@ pub async fn read_document_file(
     use std::fs;
     use base64::{Engine as _, engine::general_purpose};
 
-    let bytes = match fs::read(&file_path) {
+    let canonical = std::fs::canonicalize(&file_path)
+        .map_err(|e| IncrementumError::Internal(format!("Invalid path: {}", e)))?;
+
+    let bytes = match fs::read(&canonical) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             return Err(crate::error::IncrementumError::NotFound(format!(
@@ -730,6 +740,9 @@ pub async fn convert_document_pdf_to_html(
 pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
     use regex::Regex;
 
+    crate::security::validate_url_not_private(&url)
+        .map_err(|e| IncrementumError::Internal(format!("URL not allowed: {}", e)))?;
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .user_agent("Incrementum/1.0 (https://incrementum.app)")
@@ -815,6 +828,9 @@ pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
 pub async fn fetch_url_content(url: String) -> Result<FetchedUrlContent> {
     use reqwest;
     use std::time::Duration;
+
+    crate::security::validate_url_not_private(&url)
+        .map_err(|e| IncrementumError::Internal(format!("URL not allowed: {}", e)))?;
 
     // Parse URL to determine file name
     let url_parsed = url.parse::<reqwest::Url>()

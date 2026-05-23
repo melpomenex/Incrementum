@@ -53,8 +53,15 @@ async fn import_single_file(
         )));
     }
 
+    // Canonicalize to resolve symlinks and path traversal attempts
+    let canonical = std::fs::canonicalize(file_path)
+        .map_err(|e| IncrementumError::NotFound(format!(
+            "Cannot resolve path: {}",
+            e
+        )))?;
+
     // Get file extension
-    let extension = std::path::Path::new(file_path)
+    let extension = canonical
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
@@ -72,13 +79,13 @@ async fn import_single_file(
     };
 
     // Get file name as title
-    let file_name = std::path::Path::new(file_path)
+    let file_name = canonical
         .file_stem()
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Document");
 
     // Create document
-    let mut doc = Document::with_collection(file_name.to_string(), file_path.to_string(), file_type, collection_id);
+    let mut doc = Document::with_collection(file_name.to_string(), canonical.to_string_lossy().to_string(), file_type, collection_id);
     doc.priority_score = 5.0;
 
     // Save to database

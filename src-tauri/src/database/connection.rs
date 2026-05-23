@@ -34,9 +34,9 @@ impl Database {
             // NORMAL synchronous with WAL gives good durability/performance trade-off
             .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
 
-        // Create connection pool with increased limits for heavy workloads
+        // Create connection pool — 5 is sufficient for a single-user desktop app
         let pool = PoolOptions::<Sqlite>::new()
-            .max_connections(20)
+            .max_connections(5)
             .acquire_timeout(Duration::from_secs(30))
             .connect_with(options)
             .await?;

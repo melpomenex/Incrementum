@@ -115,6 +115,7 @@ export const en: Dict = {
   "settings.appearance": "Appearance",
   "settings.learning": "Learning",
   "settings.documents": "Documents",
+  "settings.rss": "RSS Feeds",
   "settings.shortcuts": "Shortcuts",
   "settings.ai": "AI",
   "settings.audioTranscription": "Audio Transcription",

@@ -542,3 +542,148 @@ pub async fn generate_progressive_summaries(
 
     Ok(entries)
 }
+
+/// Get the content of the long-term memory file.
+/// If it doesn't exist, creates the memories directory and MEMORY.md with a default template.
+#[tauri::command]
+pub async fn get_memory_content(app: tauri::AppHandle) -> Result<String> {
+    use tauri::Manager;
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get app data dir: {}", e)))?;
+
+    let memories_dir = app_dir.join("memories");
+    std::fs::create_dir_all(&memories_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create memories directory: {}", e)))?;
+
+    let memory_file = memories_dir.join("MEMORY.md");
+    if !memory_file.exists() {
+        let default_content = "# Incrementum AI Memory\n\n\
+        This file contains durable facts, preferences, and standing decisions that you've told the assistant or that the assistant has learned about you.\n\n\
+        ## About Me\n\
+        - (No facts recorded yet)\n\n\
+        ## Preferences & Settings\n\
+        - (No preferences recorded yet)\n\n\
+        ## Standing Decisions & Goals\n\
+        - (No goals recorded yet)\n";
+        
+        std::fs::write(&memory_file, default_content)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to initialize MEMORY.md: {}", e)))?;
+    }
+
+    let content = std::fs::read_to_string(&memory_file)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to read MEMORY.md: {}", e)))?;
+
+    Ok(content)
+}
+
+/// Save the manual edits of the long-term memory file.
+#[tauri::command]
+pub async fn save_memory_content(content: String, app: tauri::AppHandle) -> Result<()> {
+    use tauri::Manager;
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to get app data dir: {}", e)))?;
+
+    let memories_dir = app_dir.join("memories");
+    std::fs::create_dir_all(&memories_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create memories directory: {}", e)))?;
+
+    let memory_file = memories_dir.join("MEMORY.md");
+    std::fs::write(&memory_file, content)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to save MEMORY.md: {}", e)))?;
+
+    Ok(())
+}
+
+/// Asynchronously analyze chat logs to extract user preferences, facts, and updates,
+/// then write them back to MEMORY.md.
+#[tauri::command]
+pub async fn update_memory_from_chat(
+    messages: Vec<crate::ai::Message>,
+    app: tauri::AppHandle,
+    ai_state: State<'_, AIState>,
+) -> Result<()> {
+    // 1. Get current memory content
+    let current_memory = get_memory_content(app.clone()).await?;
+
+    // 2. Format recent messages into a readable conversation transcript
+    let mut conversation_text = String::new();
+    for msg in messages.iter().rev().take(10).rev() { // Take last 10 turns
+        let role_str = match msg.role {
+            crate::ai::MessageRole::System => "System",
+            crate::ai::MessageRole::User => "User",
+            crate::ai::MessageRole::Assistant => "Assistant",
+        };
+        conversation_text.push_str(&format!("{}: {}\n", role_str, msg.content));
+    }
+
+    if conversation_text.trim().is_empty() {
+        return Ok(());
+    }
+
+    // 3. Construct system prompt for memory extraction
+    let system_prompt = "You are a specialized memory-consolidation assistant. \
+    Analyze the conversation between the user and the AI. \
+    Your task is to identify any new, durable facts, preferences, standing decisions, goals, or important details about the user. \
+    Compare them with the user's current long-term memory (provided below). \
+    Propose an updated version of the long-term memory, keeping the exact same structure (headings and markdown style) but adding the new information or refining existing bullet points. \
+    Only make changes if there is clear, durable new information. \
+    If there is no new information to add or modify, respond with exactly 'NO_CHANGE'. \
+    Do not add conversational fluff, explanations, or metadata. Only output the updated markdown or 'NO_CHANGE'.";
+
+    let user_prompt = format!(
+        "--- CURRENT LONG-TERM MEMORY ---\n{}\n\n\
+         --- NEW CONVERSATION ---\n{}\n\n\
+         Propose an updated long-term memory in markdown, or reply 'NO_CHANGE' if nothing new should be recorded:",
+        current_memory, conversation_text
+    );
+
+    // 4. Get AI configuration and provider
+    let config = get_ai_config_clone(&ai_state)?;
+    let provider = AIProvider::from_config(
+        config.default_provider,
+        &config.api_keys,
+        &config.models,
+        &config.local_settings,
+    )
+    .map_err(IncrementumError::Internal)?;
+
+    if !provider.is_available() {
+        return Ok(()); // Silently fail if AI provider is not available
+    }
+
+    // 5. Send request to the LLM
+    let request = crate::ai::providers::ChatCompletionRequest {
+        messages: vec![
+            crate::ai::Message::system(system_prompt),
+            crate::ai::Message::user(user_prompt),
+        ],
+        temperature: 0.2, // Low temperature for high precision
+        max_tokens: 1500,
+        stream: false,
+    };
+
+    let app_clone = app.clone();
+    // Execute request asynchronously in background so we don't block the caller
+    tauri::async_runtime::spawn(async move {
+        match provider.chat_completion(&request).await {
+            Ok(response) => {
+                let cleaned_response = response.content.trim();
+                if cleaned_response != "NO_CHANGE" && !cleaned_response.is_empty() {
+                    tracing::info!("AI extracted new memories! Updating MEMORY.md.");
+                    let _ = save_memory_content(cleaned_response.to_string(), app_clone).await;
+                } else {
+                    tracing::info!("No new memories detected in chat conversation.");
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to auto-update memory from chat: {}", e);
+            }
+        }
+    });
+
+    Ok(())
+}

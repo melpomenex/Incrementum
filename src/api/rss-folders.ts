@@ -176,12 +176,14 @@ export async function getFeedStatisticsAuto(feedId: string): Promise<RssFeedStat
 export async function setFeedViewPreferencesAuto(
   feedId: string,
   viewMode?: string,
-  layout?: string
+  layout?: string,
+  autoMarkAfterDays?: number | null
 ): Promise<void> {
   if (shouldUseHttp()) {
-    const body: Record<string, string> = {};
+    const body: Record<string, any> = {};
     if (viewMode) body.view_mode = viewMode;
     if (layout) body.layout = layout;
+    if (autoMarkAfterDays !== undefined) body.auto_mark_after_days = autoMarkAfterDays;
     const res = await fetch(`${getApiBaseUrl()}/api/rss/feeds/${feedId}/view-prefs`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -190,7 +192,12 @@ export async function setFeedViewPreferencesAuto(
     if (!res.ok) throw new Error(`Failed to set view preferences: ${res.statusText}`);
     return;
   }
-  return invokeCommand<void>("set_feed_view_preferences", { feedId, viewMode, layout });
+  return invokeCommand<void>("set_feed_view_preferences", {
+    feedId,
+    viewMode,
+    layout,
+    autoMarkAfterDays: autoMarkAfterDays !== undefined ? autoMarkAfterDays : undefined,
+  });
 }
 
 export async function migrateFoldersFromLocalStorageAuto(foldersJson: string): Promise<number> {

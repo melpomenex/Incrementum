@@ -50,7 +50,9 @@ import {
   fetchArticleFullContent,
   generateArticleExcerpt,
   type RssUserPreference,
+  cleanupOldRssArticlesAuto,
 } from "../../api/rss";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizationPanel";
 import { NewsletterDirectory } from "../newsletter/NewsletterDirectory";
 import { NewsletterUrlImporter } from "../newsletter/NewsletterUrlImporter";
@@ -86,6 +88,7 @@ const DEFAULT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export function RSSReader() {
   const { t } = useI18n();
+  const { settings } = useSettingsStore();
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
   const [items, setItems] = useState<Array<{ feed: Feed; item: FeedItem }>>([]);
@@ -299,6 +302,15 @@ export function RSSReader() {
       return feeds.find((feed) => feed.id === prev.id || feed.feedUrl === prev.feedUrl) ?? null;
     });
     setFolders(getFeedFolders());
+
+    // Trigger background database article pruning if configured
+    const maxAgeDays = settings?.rssQueue?.maxItemAgeDays ?? 2;
+    if (maxAgeDays > 0) {
+      cleanupOldRssArticlesAuto(maxAgeDays).catch((err) => {
+        console.warn("[RSS] Background article cleanup failed:", err);
+      });
+    }
+
     // Migrate localStorage folders to SQLite on first launch (one-time)
     try {
       const localStorageFolders = localStorage.getItem("rss_folders");
@@ -582,8 +594,45 @@ export function RSSReader() {
   };
 
   const handleMarkAllRead = async (feedId: string) => {
-    await markFeedReadAuto(feedId);
-    await loadFeeds();
+    const msg = t("rssReader.markAllReadConfirm") || "Are you sure you want to mark all articles in this feed as read?";
+    if (confirm(msg)) {
+      // Mark read in database (background / async)
+      await markFeedReadAuto(feedId);
+      
+      // Instantly dismiss/update the local feeds and items state so the UI updates without delay
+      setFeeds((prevFeeds) =>
+        prevFeeds.map((f) => {
+          if (f.id === feedId) {
+            return {
+              ...f,
+              unreadCount: 0,
+              items: f.items.map((item) => ({ ...item, read: true })),
+            };
+          }
+          return f;
+        })
+      );
+      
+      // Update items list currently shown in the view
+      setItems((prevItems) =>
+        prevItems.map((itemObj) => {
+          if (itemObj.feed.id === feedId) {
+            return {
+              ...itemObj,
+              item: { ...itemObj.item, read: true },
+            };
+          }
+          return itemObj;
+        })
+      );
+
+      // Clear selection if it belongs to this feed and is now read and not favorited
+      if (selectedItem && selectedItem.feedId === feedId && !selectedItem.favorite) {
+        setSelectedItem(null);
+      }
+
+      await loadFeeds();
+    }
   };
 
   const handleOpenOriginal = useCallback(async (url?: string) => {
@@ -1523,7 +1572,7 @@ export function RSSReader() {
                     </h3>
                     <p className="text-xs text-muted-foreground">{itemsSubtitle}</p>
                   </div>
-                  {selectedFeed && viewMode === "all" && (
+                  {selectedFeed && (viewMode === "all" || viewMode === "unread") && (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleRefreshFeed(selectedFeed)}

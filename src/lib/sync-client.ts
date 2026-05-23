@@ -369,10 +369,18 @@ export async function migrateDemoDataToAccount(): Promise<void> {
 }
 
 // Auto-sync on visibility change (when tab becomes visible)
+// Cooldown prevents excessive syncs when tab visibility changes frequently
+const SYNC_COOLDOWN_MS = 60_000; // 1 minute minimum between auto-syncs
+let lastAutoSyncTime = 0;
+
 if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && isAuthenticated()) {
-            triggerSync();
+            const now = Date.now();
+            if (now - lastAutoSyncTime >= SYNC_COOLDOWN_MS) {
+                lastAutoSyncTime = now;
+                triggerSync();
+            }
         }
     });
 }

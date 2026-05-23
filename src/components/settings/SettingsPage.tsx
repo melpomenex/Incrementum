@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Mic,
   Volume2,
+  Rss,
 } from "lucide-react";
 import { KeyboardShortcutSettings } from "./KeyboardShortcutsSettings";
 import { AISettings as AIProviderSettings } from "./AIProviderSettings";
@@ -31,6 +32,7 @@ import { ImportExportSettings as ImportExportSettingsComponent } from "./ImportE
 import { SyncSettings as SyncSettingsOriginal } from "./SyncSettings";
 import { LearningSettings } from "./LearningSettings";
 import { DocumentsSettings } from "./DocumentsSettings";
+import { RSSSettings } from "./RSSSettings";
 import { CloudStorageSettings } from "./CloudStorageSettings";
 import { ThemePicker } from "./ThemePicker";
 import { IntegrationSettings } from "./IntegrationSettings";
@@ -57,6 +59,7 @@ export enum SettingsTab {
   Appearance = "appearance",
   Learning = "learning",
   Documents = "documents",
+  RSS = "rss",
   Shortcuts = "shortcuts",
   AI = "ai",
   AudioTranscription = "audio-transcription",
@@ -128,6 +131,13 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
     icon: BookOpen,
     keywords: ["import", "pdf", "epub", "reading", "extract", "annotation", "highlight"],
     description: "Document import and reading preferences",
+  },
+  {
+    id: SettingsTab.RSS,
+    label: "settings.rss",
+    icon: Rss,
+    keywords: ["rss", "feed", "article", "retention", "cleanup", "keep", "subscription", "queue"],
+    description: "RSS feed subscription, retention policies and Smart Queue settings",
   },
   {
     id: SettingsTab.Shortcuts,
@@ -509,8 +519,9 @@ export function SettingsPage() {
           {activeTab === SettingsTab.Appearance && (
             <AppearanceSettings onChange={() => setHasChanges(true)} />
           )}
-          {activeTab === SettingsTab.Learning && <LearningSettings />}
+           {activeTab === SettingsTab.Learning && <LearningSettings />}
           {activeTab === SettingsTab.Documents && <DocumentsSettings />}
+          {activeTab === SettingsTab.RSS && <RSSSettings />}
           {activeTab === SettingsTab.Shortcuts && (
             <ShortcutSettings onChange={() => setHasChanges(true)} />
           )}

@@ -1559,6 +1559,14 @@ export async function markItemReadAuto(
  * Unified markFeedRead - works in both Tauri and Web mode
  */
 export async function markFeedReadAuto(feedId: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      await invokeCommand("mark_rss_feed_read", { feedId });
+      return;
+    } catch (error) {
+      console.warn("[RSS] Tauri markFeedRead failed, falling back.", error);
+    }
+  }
   if (shouldUseHttpBackend()) {
     try {
       // In web mode, mark all articles for this feed as read
@@ -2615,3 +2623,18 @@ export function initRssModule(): void {
     });
   }
 }
+
+/**
+ * Clean up old RSS articles in Tauri/SQLite database
+ */
+export async function cleanupOldRssArticlesAuto(days: number): Promise<number> {
+  if (isTauri()) {
+    try {
+      return await invokeCommand<number>("cleanup_old_rss_articles", { days });
+    } catch (error) {
+      console.warn("[RSS] Failed to clean up old articles via Tauri:", error);
+    }
+  }
+  return 0;
+}
+

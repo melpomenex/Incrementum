@@ -9,7 +9,7 @@
  * - Configurable actions with icons and colors
  */
 
-import { ReactNode, useRef, useEffect } from "react";
+import { ReactNode, useRef, useEffect, memo } from "react";
 import { useSwipeGestures } from "../../hooks/useSwipeGestures";
 import { cn } from "../../utils";
 
@@ -32,7 +32,7 @@ interface SwipeableItemProps {
   className?: string;
 }
 
-export function SwipeableItem({
+export const SwipeableItem = memo(function SwipeableItem({
   children,
   leftAction,
   rightAction,
@@ -190,7 +190,7 @@ export function SwipeableItem({
       )}
     </div>
   );
-}
+});
 
 /**
  * Predefined action configurations for common use cases

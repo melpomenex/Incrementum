@@ -110,7 +110,7 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (match, alt, path) => {
         const resolvedPath = resolveImagePath(path, options?.docId, options?.imageManifest);
-        return `<img class="max-w-full h-auto my-2 rounded border border-border" src="${resolvedPath}" alt="${alt}" onerror="this.style.display='none'" />`;
+        return `<img class="max-w-full h-auto my-2 rounded border border-border" src="${resolvedPath}" alt="${alt}" />`;
       }
     );
 

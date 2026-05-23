@@ -13,6 +13,7 @@ import {
 } from "../../api/ai";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useI18n } from "../../lib/i18n";
+import { invokeCommand } from "../../lib/tauri";
 
 const DEFAULT_CONFIG: AIConfig = {
   default_provider: LLMProviderType.OpenAI,
@@ -56,6 +57,13 @@ export function AISettings() {
   const [pwaAssistantEnabled, setPwaAssistantEnabled] = useState(settings.ai.pwaAssistantButtonEnabled);
   const [pwaAssistantSide, setPwaAssistantSide] = useState<"left" | "right">(settings.ai.pwaAssistantButtonSide);
 
+  // AI Memory States
+  const [memoryEnabled, setMemoryEnabled] = useState(settings.ai.memoryEnabled || false);
+  const [memoryContent, setMemoryContent] = useState("");
+  const [isEditingMemory, setIsEditingMemory] = useState(false);
+  const [editedMemory, setEditedMemory] = useState("");
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+
   useEffect(() => {
     async function loadConfig() {
       try {
@@ -78,6 +86,16 @@ export function AISettings() {
         setContextWindowTokens(settings.ai.maxTokens);
         setPwaAssistantEnabled(settings.ai.pwaAssistantButtonEnabled);
         setPwaAssistantSide(settings.ai.pwaAssistantButtonSide);
+        setMemoryEnabled(settings.ai.memoryEnabled || false);
+
+        // Load memory content
+        try {
+          const content = await invokeCommand<string>("get_memory_content");
+          setMemoryContent(content);
+          setEditedMemory(content);
+        } catch (err) {
+          console.error("Failed to load memories on init:", err);
+        }
       } catch (error) {
         console.error("Failed to load AI config:", error);
       } finally {
@@ -121,17 +139,32 @@ export function AISettings() {
       await setAIConfig(updatedConfig);
       setConfigState(updatedConfig);
 
-      // Save context window tokens to settings store
+      // Save context window tokens and memory settings to settings store
       updateSettingsCategory("ai", {
         maxTokens: contextWindowTokens,
         pwaAssistantButtonEnabled: pwaAssistantEnabled,
         pwaAssistantButtonSide: pwaAssistantSide,
+        memoryEnabled: memoryEnabled,
       });
     } catch (error) {
       console.error("Failed to save AI config:", error);
       alert(t("aiSettings.failedSaveConfig"));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveMemoryEdits = async () => {
+    try {
+      setIsSavingMemory(true);
+      await invokeCommand("save_memory_content", { content: editedMemory });
+      setMemoryContent(editedMemory);
+      setIsEditingMemory(false);
+    } catch (err) {
+      console.error("Failed to save memory edits:", err);
+      alert("Failed to save memory edits.");
+    } finally {
+      setIsSavingMemory(false);
     }
   };
 
@@ -537,6 +570,99 @@ export function AISettings() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Memory (Long-Term Memory) */}
+      <div className="bg-card border border-border rounded-lg p-6 space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🧠</span>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">AI Long-Term Memory</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Store facts, preferences, and standing decisions about yourself to personalize all AI interactions.
+              </p>
+            </div>
+          </div>
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={memoryEnabled}
+              onChange={(e) => setMemoryEnabled(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="relative w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            <span className="text-sm font-medium text-foreground">
+              {memoryEnabled ? "Enabled" : "Disabled"}
+            </span>
+          </label>
+        </div>
+
+        {memoryEnabled && (
+          <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400 flex items-start gap-2.5">
+            <span className="text-lg mt-0.5">⚠️</span>
+            <div className="text-xs leading-relaxed">
+              <strong>Token Usage Warning:</strong> Enabling AI memory will load your persistent markdown memories into all chat prompts. While this dramatically improves context and personalization, it will consume more context tokens per message.
+            </div>
+          </div>
+        )}
+
+        {memoryEnabled && (
+          <div className="mt-4 border border-border rounded-lg overflow-hidden bg-background">
+            <div className="flex justify-between items-center px-4 py-2 border-b border-border bg-muted/30">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                MEMORY.md (Durable Markdown Context)
+              </span>
+              <div className="flex gap-2">
+                {isEditingMemory ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditedMemory(memoryContent);
+                        setIsEditingMemory(false);
+                      }}
+                      className="px-2.5 py-1 text-xs bg-muted text-foreground rounded hover:bg-muted/80 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveMemoryEdits}
+                      disabled={isSavingMemory}
+                      className="px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity flex items-center gap-1 font-medium"
+                    >
+                      {isSavingMemory ? "Saving..." : "Save Edits"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditedMemory(memoryContent);
+                      setIsEditingMemory(true);
+                    }}
+                    className="px-2.5 py-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 rounded transition-colors font-medium"
+                  >
+                    Edit Memories
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-4">
+              {isEditingMemory ? (
+                <textarea
+                  value={editedMemory}
+                  onChange={(e) => setEditedMemory(e.target.value)}
+                  rows={10}
+                  className="w-full p-3 bg-muted/10 border border-border rounded-lg text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  placeholder="# AI Memory..."
+                />
+              ) : (
+                <pre className="text-xs text-foreground font-mono whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto">
+                  {memoryContent || "(No memory content loaded)"}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Save Button */}

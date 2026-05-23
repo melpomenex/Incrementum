@@ -12,6 +12,19 @@ const MCP_ALLOWED_COMMANDS: &[&str] = &["npx", "uvx", "node", "python", "python3
 /// Characters that must never appear in MCP server arguments (shell metacharacters).
 const DANGEROUS_ARG_CHARS: &[char] = &['|', '>', '<', '&', '$', '`', '\n', '\r', ';'];
 
+/// Environment variable names that are blocked from being passed to MCP subprocesses.
+const BLOCKED_ENV_VARS: &[&str] = &[
+    "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "LD_DEBUG",
+    "PATH", "PYTHONHOME", "PYTHONPATH", "PYTHONUSERBASE", "PYTHONNOUSERSITE",
+    "RUST_LOG", "RUST_BACKTRACE",
+    "DYLD_INSERT_LIBRARIES", "DYLD_FRAMEWORK_PATH",
+    "GIO_MODULE_DIR", "GJS_PATH",
+    "IHTTP_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY",
+    "DOTNET_ROOT", "NODE_PATH", "NODE_OPTIONS",
+    "ENV", "BASH_FUNC",
+    "LC_ALL", "LANG", "TZ", "HOME",
+];
+
 pub(crate) fn validate_mcp_command(command: &str, args: &[String]) -> Result<(), String> {
     // Reject paths — only bare command names are allowed
     if command.contains('/') || command.contains('\\') || command.contains('.') {
@@ -61,6 +74,16 @@ pub async fn mcp_add_server(
     // Validate command against allowlist before doing anything else
     validate_mcp_command(&command, &args)?;
 
+    // Filter out dangerous environment variables
+    let filtered_env: HashMap<String, String> = env
+        .into_iter()
+        .filter(|(k, _)| {
+            !BLOCKED_ENV_VARS.iter().any(|blocked| {
+                k.eq_ignore_ascii_case(blocked) || k.starts_with(&format!("{}=", blocked))
+            })
+        })
+        .collect();
+
     // Determine transport type
     let mcp_transport = match transport.as_str() {
         "stdio" => MCPTransport::Stdio,
@@ -76,7 +99,7 @@ pub async fn mcp_add_server(
         name,
         command,
         args,
-        env,
+        env: filtered_env,
         transport: mcp_transport,
     };
 

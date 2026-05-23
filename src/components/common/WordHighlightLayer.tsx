@@ -51,7 +51,7 @@ export function WordHighlightLayer({
         hl.clear();
       }
     };
-  }, [containerRef.current, iframeWindow, useChunkLevel]);
+  }, [containerRef.current, iframeWindow, useChunkLevel, enabled]);
 
   useEffect(() => {
     if (!iframeWindow || !iframeWindow.document?.body) return;
@@ -69,7 +69,7 @@ export function WordHighlightLayer({
         hl.clear();
       }
     };
-  }, [iframeWindow, useChunkLevel]);
+  }, [iframeWindow, useChunkLevel, enabled]);
 
   const activeHighlighter = iframeWindow ? iframeHighlighterRef.current : highlighterRef.current;
 

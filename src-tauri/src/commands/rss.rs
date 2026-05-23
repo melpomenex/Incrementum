@@ -525,6 +525,19 @@ pub async fn mark_rss_article_read(id: String, is_read: bool, repo: State<'_, Re
     Ok(())
 }
 
+/// Mark all articles in a feed as read
+#[tauri::command]
+pub async fn mark_rss_feed_read(feed_id: String, repo: State<'_, Repository>) -> Result<()> {
+    sqlx::query("UPDATE rss_articles SET is_read = 1 WHERE feed_id = ? AND is_read = 0")
+        .bind(&feed_id)
+        .execute(repo.pool())
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to mark feed read: {}", e)))?;
+
+    Ok(())
+}
+
+
 /// Toggle article queued status
 #[tauri::command]
 pub async fn toggle_rss_article_queued(id: String, repo: State<'_, Repository>) -> Result<bool> {
@@ -1308,6 +1321,9 @@ pub async fn fetch_article_full_content(
 ) -> Result<FullContentResponse> {
     use reqwest::Client;
     use readable_readability::Readability;
+
+    crate::security::validate_url_not_private(&article_url)
+        .map_err(|e| crate::error::IncrementumError::Internal(format!("URL not allowed: {}", e)))?;
 
     let client = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")

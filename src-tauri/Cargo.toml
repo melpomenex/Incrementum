@@ -13,7 +13,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["unstable", "devtools"] }
+tauri = { version = "2", features = ["unstable"] }
+
+# Note: "devtools" feature is intentionally not enabled unconditionally.
+# DevTools are opened at runtime via INCREMENTUM_OPEN_DEVTOOLS env var.
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2.7"
 tauri-plugin-shell = "2"
@@ -117,6 +120,7 @@ pbkdf2 = "0.12"
 default = []
 custom-protocol = ["tauri/custom-protocol"]
 screenshot = ["xcap"]
+devtools = ["tauri/devtools"]
 
 # Aggressive release optimization for battery efficiency.
 # NOTE: Some environments have observed rustc/LLVM crashes (SIGSEGV) with high
@@ -137,6 +141,7 @@ opt-level = 3
 # compiling large dependency graphs with full debuginfo/incremental enabled.
 # Disabling both improves build stability for `tauri dev`.
 [profile.dev]
+features = ["devtools"]
 debug = 0
 incremental = false
 
