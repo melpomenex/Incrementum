@@ -3888,6 +3888,10 @@ export function DocumentViewer({
         background: ${bg} !important;
         color: ${fg} !important;
       }
+      html {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
       body {
         font-size: ${fs.fontSize}px !important;
         line-height: ${fs.lineHeight} !important;
@@ -3909,6 +3913,21 @@ export function DocumentViewer({
         text-align: inherit !important;
         text-decoration: inherit !important;
         text-transform: inherit !important;
+      }
+      /* Reset layout sizing and structural margins/paddings on generic container blocks to prevent cutoffs/squishing */
+      div, section, article, main, header, footer {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        width: auto !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      /* Ensure no element overflows the viewport horizontally */
+      body, body * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
       /* Preserve explicit background on page cards and header */
       .page {
@@ -5195,6 +5214,7 @@ export function DocumentViewer({
               srcDoc={htmlForDisplay}
               onMouseUp={handleIframeMouseUp}
               onLoad={() => {
+                injectHtmlViewerStyles();
                 scrollHtmlFrameToInitialHit();
                 // Restore saved scroll position (skip if initialJump already scrolled)
                 const pending = htmlRestorationPendingRef.current;
