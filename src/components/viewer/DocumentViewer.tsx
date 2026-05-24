@@ -5239,14 +5239,29 @@ export function DocumentViewer({
                 // Restore saved scroll position (skip if initialJump already scrolled)
                 const pending = htmlRestorationPendingRef.current;
                 if (pending && !initialJump) {
-                  try {
-                    const win = iframeRef.current?.contentWindow;
-                    if (win) {
-                      const scrollTop = pending.scrollTop ?? 0;
-                      const scrollLeft = pending.scrollLeft ?? 0;
-                      win.scrollTo(scrollLeft, scrollTop);
+                  // Wait a short delay to ensure injected styles are reflowed by the browser,
+                  // avoiding scroll clamping issues on unrendered/unexpanded document.
+                  setTimeout(() => {
+                    try {
+                      const win = iframeRef.current?.contentWindow;
+                      const doc = iframeRef.current?.contentDocument;
+                      if (win && doc) {
+                        const el = doc.scrollingElement || doc.documentElement;
+                        // Prioritize scrollPercent for layout-resilience and unified position support
+                        if (pending.scrollPercent !== null && pending.scrollPercent !== undefined && pending.scrollPercent > 0) {
+                          const scrollHeight = el?.scrollHeight ?? 0;
+                          const clientHeight = el?.clientHeight ?? win.innerHeight ?? 0;
+                          const maxScroll = Math.max(0, scrollHeight - clientHeight);
+                          const targetScroll = (pending.scrollPercent / 100) * maxScroll;
+                          win.scrollTo(pending.scrollLeft ?? 0, targetScroll);
+                        } else if (pending.scrollTop !== null && pending.scrollTop !== undefined) {
+                          win.scrollTo(pending.scrollLeft ?? 0, pending.scrollTop);
+                        }
+                      }
+                    } catch (e) {
+                      console.warn("Failed to restore scroll position in iframe:", e);
                     }
-                  } catch { /* ignore cross-origin errors */ }
+                  }, 150);
                 }
                 htmlRestorationPendingRef.current = null;
                 restorationInProgressRef.current = false;
