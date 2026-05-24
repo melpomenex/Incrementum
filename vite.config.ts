@@ -138,7 +138,7 @@ export default defineConfig(async ({ mode }) => {
       // Avoid forcing re-optimization to prevent esbuild deadlock in Tauri dev.
       force: false,
       // Include jszip and handle its CommonJS format
-      include: ["jszip", "react", "react-dom"],
+      include: ["jszip", "react", "react-dom", "dompurify"],
       esbuildOptions: {
         sourcemap: false,
         plugins: [],
