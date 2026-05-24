@@ -555,7 +555,7 @@ pub fn run() {
                             let _ = window.navigate(url);
                         }
                     }
-                    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+                    #[cfg(all(feature = "devtools", not(any(target_os = "ios", target_os = "android"))))]
                     if std::env::var("INCREMENTUM_OPEN_DEVTOOLS").is_ok() {
                         window.open_devtools();
                     }
