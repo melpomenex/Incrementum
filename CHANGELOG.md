@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.41.0] - 2026-05-23
+## [1.41.0] - 2026-05-24
 
 ### Added
 - **AI long-term memory** — Persistent MEMORY.md context that personalizes AI chat interactions with facts, preferences, and standing decisions extracted from conversations
@@ -22,6 +22,8 @@
 - **Migration debug logging removed** — Stripped verbose `eprintln!` calls from SQL statement splitter
 
 ### Fixed
+- **Circular import crash in queueStore** — Added guard for `useCollectionStore` being undefined due to circular store imports (queueStore ↔ collectionStore ↔ documentStore)
+- **Test mocks missing zustand store API** — LibraryDashboard and DocumentsView test mocks now include `.getState()` and `.subscribe()` on mocked stores
 - **EPUB TTS word highlighting scroll** — Word-level highlighting now correctly scrolls the parent document container when reading inside EPUB iframes, using offset calculations across iframe boundaries
 - **Word highlight layer cleanup** — Highlighter dependency array now includes `enabled` state to properly clear highlights when TTS is toggled off
 
