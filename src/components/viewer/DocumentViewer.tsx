@@ -4262,31 +4262,51 @@ export function DocumentViewer({
   useEffect(() => {
     if (!isHtmlViewer) return;
     if (viewMode !== "document") return;
-    const win = iframeRef.current?.contentWindow;
-    if (!win) return;
+    const frame = iframeRef.current;
+    if (!frame) return;
 
-    const onScroll = () => {
-      if (restorationInProgressRef.current) return;
-      if (htmlScrollTimeoutRef.current !== null) return;
-      htmlScrollTimeoutRef.current = window.setTimeout(() => {
-        htmlScrollTimeoutRef.current = null;
-        const state = captureHtmlScrollState();
-        if (state) {
-          lastScrollStateRef.current = state;
-          handleScrollPositionChange(state);
-        }
-      }, 500);
+    let teardown: (() => void) | null = null;
+
+    const attach = () => {
+      teardown?.();
+      const win = frame.contentWindow;
+      if (!win) return;
+
+      const onScroll = () => {
+        if (restorationInProgressRef.current) return;
+        if (htmlScrollTimeoutRef.current !== null) return;
+        htmlScrollTimeoutRef.current = window.setTimeout(() => {
+          htmlScrollTimeoutRef.current = null;
+          const state = captureHtmlScrollState();
+          if (state) {
+            lastScrollStateRef.current = state;
+            handleScrollPositionChange(state);
+          }
+        }, 500);
+      };
+
+      win.addEventListener("scroll", onScroll, true);
+      teardown = () => {
+        try {
+          win.removeEventListener("scroll", onScroll, true);
+        } catch { /* ignore if window was already destroyed */ }
+      };
     };
 
-    win.addEventListener("scroll", onScroll, true);
+    frame.addEventListener("load", attach);
+    if (frame.contentDocument?.readyState === "complete") {
+      attach();
+    }
+
     return () => {
+      frame.removeEventListener("load", attach);
+      teardown?.();
       if (htmlScrollTimeoutRef.current !== null) {
         clearTimeout(htmlScrollTimeoutRef.current);
         htmlScrollTimeoutRef.current = null;
       }
-      win.removeEventListener("scroll", onScroll, true);
     };
-  }, [isHtmlViewer, viewMode, captureHtmlScrollState, handleScrollPositionChange]);
+  }, [isHtmlViewer, viewMode, captureHtmlScrollState, handleScrollPositionChange, currentDocument?.id]);
 
   if (!currentDocument) {
     return (
