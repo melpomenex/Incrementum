@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.41.1] - 2026-05-24
+
+### Fixed
+- **Linux/Windows release build failure** — `open_devtools()` call gated behind `#[cfg(feature = "devtools")]` so it's stripped from release builds where the `devtools` feature is not compiled in
+
 ## [1.41.0] - 2026-05-24
 
 ### Added
