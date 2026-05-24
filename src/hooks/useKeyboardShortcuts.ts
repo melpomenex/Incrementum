@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from "react";
+import { isTauri, listen } from "../lib/tauri";
 
 export interface KeyboardShortcut {
   key: string;
@@ -164,14 +165,13 @@ export function useGlobalShortcuts() {
 
   // Bridge native Tauri shortcuts/events to the DOM
   useEffect(() => {
+    if (!isTauri()) return;
+
     let unlistenPaletteOpen: (() => void) | null = null;
     let unlistenShortcutNative: (() => void) | null = null;
 
     const setupTauriShortcutListeners = async () => {
       try {
-        const { isTauri, listen } = await import("../lib/tauri");
-        if (!isTauri()) return;
-
         console.log("[Tauri Shortcut Bridge] Setting up event listeners");
 
         unlistenPaletteOpen = await listen<string>("command-palette-open", (event) => {
