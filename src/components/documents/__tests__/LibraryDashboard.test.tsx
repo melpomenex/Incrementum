@@ -86,18 +86,30 @@ const documentStoreValues = {
 // ---- Store mocks ----
 
 vi.mock("../../../stores/documentStore", () => ({
-  useDocumentStore: () => documentStoreValues,
+  useDocumentStore: Object.assign(() => documentStoreValues, {
+    getState: () => documentStoreValues,
+    subscribe: vi.fn(),
+  }),
 }));
 
 vi.mock("../../../stores/collectionStore", () => ({
-  useCollectionStore: (selector: any) =>
+  useCollectionStore: Object.assign((selector: any) =>
     selector({
       activeCollectionId: null,
       documentAssignments: {},
       collections: [],
       assignDocument: vi.fn(),
       createCollection: vi.fn(),
+    }), {
+    getState: () => ({
+      activeCollectionId: null,
+      documentAssignments: {},
+      collections: [],
+      assignDocument: vi.fn(),
+      createCollection: vi.fn(),
     }),
+    subscribe: vi.fn(),
+  }),
 }));
 
 vi.mock("../../../stores/studyDeckStore", () => ({

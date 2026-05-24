@@ -49,7 +49,10 @@ const mockStore = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../stores/documentStore", () => ({
-  useDocumentStore: () => mockStore,
+  useDocumentStore: Object.assign(() => mockStore, {
+    getState: () => mockStore,
+    subscribe: vi.fn(),
+  }),
 }));
 
 vi.mock("../../../lib/pwa", () => ({
