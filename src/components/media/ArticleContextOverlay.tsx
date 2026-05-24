@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, FileText, ExternalLink, Clock, User, Rss, BookOpen } from "lucide-react";
 import type { Feed, FeedItem } from "../../api/rss";
+import { getFeedIcon } from "../../api/rss";
 
 interface ArticleContextOverlayProps {
   feed: Feed;
@@ -86,8 +87,8 @@ export function ArticleContextOverlay({
         {/* Feed source */}
         <div className="flex items-start gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {feed.imageUrl ? (
-              <img src={feed.imageUrl} alt="" className="w-full h-full object-cover" />
+            {getFeedIcon(feed) ? (
+              <img src={getFeedIcon(feed)} alt="" className="w-full h-full object-cover" />
             ) : (
               <Rss className="w-5 h-5 text-orange-500" />
             )}

@@ -51,6 +51,7 @@ import {
   generateArticleExcerpt,
   type RssUserPreference,
   cleanupOldRssArticlesAuto,
+  getFeedIcon,
 } from "../../api/rss";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { RSSCustomizationPanel, RSSUserPreferenceUpdate } from "./RSSCustomizationPanel";
@@ -169,16 +170,14 @@ export function RSSReader() {
   // Load preferences on mount or when feed changes
   useEffect(() => {
     (async () => {
-      if (selectedFeed) {
-        try {
-          const loaded = await getRssPreferencesAuto(selectedFeed.id);
-          setPreferences(loaded);
-        } catch (error) {
-          console.error("Failed to load preferences:", error);
-        }
+      try {
+        const loaded = await getRssPreferencesAuto(selectedFeed?.id);
+        setPreferences(loaded);
+      } catch (error) {
+        console.error("Failed to load preferences:", error);
       }
     })();
-  }, [selectedFeed]);
+  }, [selectedFeed?.id]);
 
   // Load feeds on mount and when collection changes
   const activeCollectionId = useCollectionStore((s) => s.activeCollectionId);
@@ -187,6 +186,105 @@ export function RSSReader() {
       await loadFeeds();
     })();
   }, [activeCollectionId]);
+
+  // Helper to filter articles by customization preferences
+  const applyFilterPreferences = useCallback((list: Array<{ feed: Feed; item: FeedItem }>) => {
+    if (!preferences) return list;
+
+    return list.filter(({ item }) => {
+      // 1. Keyword Include
+      if (preferences.keyword_include) {
+        const keywords = preferences.keyword_include.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+        if (keywords.length > 0) {
+          const title = (item.title || "").toLowerCase();
+          const description = (item.description || "").toLowerCase();
+          const content = (item.content || "").toLowerCase();
+          const matches = keywords.some(kw => title.includes(kw) || description.includes(kw) || content.includes(kw));
+          if (!matches) return false;
+        }
+      }
+
+      // 2. Keyword Exclude
+      if (preferences.keyword_exclude) {
+        const keywords = preferences.keyword_exclude.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+        if (keywords.length > 0) {
+          const title = (item.title || "").toLowerCase();
+          const description = (item.description || "").toLowerCase();
+          const content = (item.content || "").toLowerCase();
+          const matches = keywords.some(kw => title.includes(kw) || description.includes(kw) || content.includes(kw));
+          if (matches) return false;
+        }
+      }
+
+      // 3. Author Whitelist
+      if (preferences.author_whitelist) {
+        const authors = preferences.author_whitelist.split(",").map(a => a.trim().toLowerCase()).filter(Boolean);
+        if (authors.length > 0) {
+          const author = (item.author || "").toLowerCase();
+          const matches = authors.some(auth => author.includes(auth));
+          if (!matches) return false;
+        }
+      }
+
+      // 4. Author Blacklist
+      if (preferences.author_blacklist) {
+        const authors = preferences.author_blacklist.split(",").map(a => a.trim().toLowerCase()).filter(Boolean);
+        if (authors.length > 0) {
+          const author = (item.author || "").toLowerCase();
+          const matches = authors.some(auth => author.includes(auth));
+          if (matches) return false;
+        }
+      }
+
+      // 5. Category Filter
+      if (preferences.category_filter) {
+        const categories = preferences.category_filter.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
+        if (categories.length > 0) {
+          const itemCats = (item.categories || []).map(c => c.toLowerCase());
+          const matches = categories.some(cat => itemCats.some(itemCat => itemCat.includes(cat) || cat.includes(itemCat)));
+          if (!matches) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [preferences]);
+
+  // Helper to sort articles by customization preferences
+  const applySortingPreferences = useCallback((list: Array<{ feed: Feed; item: FeedItem }>) => {
+    const sortBy = preferences?.sort_by || "date";
+    const sortOrder = preferences?.sort_order || "desc";
+
+    const sorted = [...list].sort((a, b) => {
+      let comparison = 0;
+
+      if (sortBy === "date") {
+        comparison = new Date(a.item.pubDate).getTime() - new Date(b.item.pubDate).getTime();
+      } else if (sortBy === "title") {
+        comparison = (a.item.title || "").localeCompare(b.item.title || "");
+      } else if (sortBy === "read_status") {
+        const readA = a.item.read ? 1 : 0;
+        const readB = b.item.read ? 1 : 0;
+        comparison = readA - readB;
+        if (comparison === 0) {
+          comparison = new Date(a.item.pubDate).getTime() - new Date(b.item.pubDate).getTime();
+        }
+      } else if (sortBy === "reading_time") {
+        const getWordCount = (item: FeedItem) => {
+          const text = item.content || item.description || "";
+          return text.split(/\s+/).filter(Boolean).length;
+        };
+        comparison = getWordCount(a.item) - getWordCount(b.item);
+        if (comparison === 0) {
+          comparison = new Date(a.item.pubDate).getTime() - new Date(b.item.pubDate).getTime();
+        }
+      }
+
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
+
+    return sorted;
+  }, [preferences]);
 
   // Update items when feeds or view mode changes
   useEffect(() => {
@@ -202,21 +300,20 @@ export function RSSReader() {
       });
     };
 
+    let resultList: Array<{ feed: Feed; item: FeedItem }> = [];
+
     if (viewMode === "all" && selectedFeed) {
       let items = selectedFeed.items.map((item) => ({ feed: selectedFeed, item }));
       if (intelligenceFilter === "focus") {
         items = items.filter(({ item }) => (item.intelligenceScore ?? 0) > 0);
       }
-      setItems(applyIntelligenceFilter(items));
+      resultList = applyIntelligenceFilter(items);
     } else if (viewMode === "unread") {
       let filtered = allFeedItems.filter(({ item }) => !item.read);
       if (intelligenceFilter === "focus") {
         filtered = filtered.filter(({ item }) => (item.intelligenceScore ?? 0) > 0);
       }
-      setItems(
-        applyIntelligenceFilter(filtered)
-          .sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime())
-      );
+      resultList = applyIntelligenceFilter(filtered);
     } else if (viewMode === "favorites") {
       const filtered = allFeedItems.filter(({ item }) => item.favorite);
       // Multi-tag AND filtering
@@ -226,26 +323,26 @@ export function RSSReader() {
           const at = articleTags.get(item.id) || [];
           return tagArr.every((tid) => at.some((t) => t.id === tid));
         });
-        setItems(tagged.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()));
+        resultList = tagged;
       } else {
-        setItems(filtered.sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime()));
+        resultList = filtered;
       }
     } else if (viewMode === "search" && searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
-      setItems(
-        allFeedItems
-          .filter(
-            ({ item }) =>
-              item.title.toLowerCase().includes(lowerQuery) ||
-              item.description.toLowerCase().includes(lowerQuery) ||
-              item.content.toLowerCase().includes(lowerQuery)
-          )
-          .sort((a, b) => new Date(b.item.pubDate).getTime() - new Date(a.item.pubDate).getTime())
+      resultList = allFeedItems.filter(
+        ({ item }) =>
+          item.title.toLowerCase().includes(lowerQuery) ||
+          item.description.toLowerCase().includes(lowerQuery) ||
+          item.content.toLowerCase().includes(lowerQuery)
       );
-    } else {
-      setItems([]);
     }
-  }, [viewMode, selectedFeed, feeds, searchQuery, selectedTagFilter, selectedTagIds, articleTags, intelligenceFilter, showDisliked]);
+
+    // Apply customization preferences (Filters and Sorting)
+    const filteredList = applyFilterPreferences(resultList);
+    const sortedList = applySortingPreferences(filteredList);
+
+    setItems(sortedList);
+  }, [viewMode, selectedFeed, feeds, searchQuery, selectedTagFilter, selectedTagIds, articleTags, intelligenceFilter, showDisliked, preferences, applyFilterPreferences, applySortingPreferences]);
 
   // Load tags on mount
   useEffect(() => {
@@ -885,15 +982,36 @@ export function RSSReader() {
 
   const readingStyles = useMemo(() => {
     if (!preferences) return {};
-    return {
-      "--reading-font-family": preferences.font_family,
+    const styles: React.CSSProperties = {
+      "--reading-font-family": preferences.font_family || undefined,
       "--reading-font-size": preferences.font_size ? `${preferences.font_size}px` : undefined,
-      "--reading-line-height": preferences.line_height,
+      "--reading-line-height": preferences.line_height || undefined,
       "--reading-max-width": preferences.content_width
         ? `${preferences.content_width}ch`
         : undefined,
-      "--reading-text-align": preferences.text_align,
-    } as React.CSSProperties;
+      "--reading-text-align": preferences.text_align || undefined,
+    } as any;
+
+    // Apply local theme override for article reading
+    if (preferences.theme_mode === "light") {
+      styles.backgroundColor = "#ffffff";
+      styles.color = "#0f172a";
+      (styles as any)["--color-foreground"] = "#0f172a";
+      (styles as any)["--color-muted-foreground"] = "#475569";
+      (styles as any)["--color-muted"] = "#f1f5f9";
+      (styles as any)["--color-primary-600"] = "#2563eb";
+      (styles as any)["--color-primary-700"] = "#1d4ed8";
+    } else if (preferences.theme_mode === "dark") {
+      styles.backgroundColor = "#0f172a";
+      styles.color = "#f8fafc";
+      (styles as any)["--color-foreground"] = "#f8fafc";
+      (styles as any)["--color-muted-foreground"] = "#94a3b8";
+      (styles as any)["--color-muted"] = "#1e293b";
+      (styles as any)["--color-primary-600"] = "#3b82f6";
+      (styles as any)["--color-primary-700"] = "#60a5fa";
+    }
+
+    return styles;
   }, [preferences]);
 
   // Scroll mode view - render before main layout
@@ -1339,9 +1457,9 @@ export function RSSReader() {
                             className="flex-1 flex items-start gap-2 min-w-0"
                           >
                             <div className="w-6 h-6 rounded bg-muted/80 flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden">
-                              {feed.imageUrl || feed.icon ? (
+                              {getFeedIcon(feed) ? (
                                 <img
-                                  src={feed.imageUrl || feed.icon}
+                                  src={getFeedIcon(feed)}
                                   alt=""
                                   className="w-6 h-6 object-cover"
                                 />
@@ -1438,9 +1556,9 @@ export function RSSReader() {
                             className="flex-1 flex items-start gap-2 min-w-0"
                           >
                             <div className="w-6 h-6 rounded bg-muted/80 flex items-center justify-center flex-shrink-0 mt-0.5 overflow-hidden">
-                              {feed.imageUrl || feed.icon ? (
+                              {getFeedIcon(feed) ? (
                                 <img
-                                  src={feed.imageUrl || feed.icon}
+                                  src={getFeedIcon(feed)}
                                   alt=""
                                   className="w-6 h-6 object-cover"
                                 />
@@ -1666,6 +1784,10 @@ export function RSSReader() {
                     items={items}
                     onSelect={(feed, item) => handleItemClick(feed, item)}
                     onToggleFavorite={handleToggleFavorite}
+                    showThumbnails={preferences?.show_thumbnails ?? true}
+                    showAuthor={preferences?.show_author ?? true}
+                    showDate={preferences?.show_date ?? true}
+                    excerptLength={preferences?.excerpt_length ?? 150}
                   />
                 </div>
               ) : articleLayout === "grid" ? (
@@ -1674,6 +1796,8 @@ export function RSSReader() {
                     items={items}
                     onSelect={(feed, item) => handleItemClick(feed, item)}
                     columnCount={preferences?.column_count ?? 3}
+                    showThumbnails={preferences?.show_thumbnails ?? true}
+                    showDate={preferences?.show_date ?? true}
                   />
                 </div>
               ) : (
@@ -1682,16 +1806,31 @@ export function RSSReader() {
                     const imageUrl = item.enclosure?.type?.startsWith("image/")
                       ? item.enclosure.url
                       : undefined;
+
+                    const viewModePref = preferences?.view_mode || "card";
+                    const isCompactView = viewModePref === "compact";
+                    const density = preferences?.density || "normal";
+
+                    const paddingClass = isCompactView
+                      ? "px-3 py-1.5"
+                      : density === "compact"
+                      ? "px-3 py-2"
+                      : density === "comfortable"
+                      ? "px-5 py-4"
+                      : "px-4 py-3";
+
+                    const excerptLen = preferences?.excerpt_length ?? 150;
+
                     return (
                       <article
                         key={`${feed.id}-${item.id}`}
                         onClick={() => handleItemClick(feed, item)}
-                        className={`group px-4 py-3 border-b border-border/60 hover:bg-muted/40 cursor-pointer transition-colors ${
+                        className={`group border-b border-border/60 hover:bg-muted/40 cursor-pointer transition-colors ${paddingClass} ${
                           selectedItem?.id === item.id ? "bg-muted/50" : ""
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="mt-2 flex items-center gap-1.5 flex-shrink-0">
+                          <div className={`${isCompactView ? "mt-1" : "mt-2"} flex items-center gap-1.5 flex-shrink-0`}>
                             <div
                               className={`h-2 w-2 rounded-full ${
                                 item.read ? "bg-muted" : "bg-orange-500"
@@ -1700,7 +1839,7 @@ export function RSSReader() {
                             <IntelligenceIndicator score={item.intelligenceScore} />
                           </div>
 
-                          {imageUrl && (
+                          {!isCompactView && (preferences?.show_thumbnails ?? true) && imageUrl && (
                             <div className="w-16 h-12 rounded-md overflow-hidden bg-muted/70 flex-shrink-0 border border-border/60">
                               <img src={imageUrl} alt="" className="w-full h-full object-cover" />
                             </div>
@@ -1708,24 +1847,41 @@ export function RSSReader() {
 
                           <div className="flex-1 min-w-0">
                             <h3
-                              className={`text-sm font-semibold mb-1 ${
+                              className={`text-sm font-semibold ${isCompactView ? "" : "mb-1"} ${
                                 item.read ? "text-muted-foreground" : "text-foreground"
                               }`}
                             >
                               {item.title}
                             </h3>
                             {/* Show excerpt from full content if available, otherwise from description */}
-                            {(item.fullContent || item.description) && (
+                            {!isCompactView && (item.fullContent || item.description) && (
                               <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                                 {item.fullContent
-                                  ? generateArticleExcerpt(item.fullContent, 150)
-                                  : item.description.replace(/<[^>]+>/g, "")}
+                                  ? generateArticleExcerpt(item.fullContent, excerptLen)
+                                  : generateArticleExcerpt(item.description || "", excerptLen)}
                               </p>
                             )}
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              {(preferences?.show_feed_icon ?? true) && getFeedIcon(feed) && (
+                                <img
+                                  src={getFeedIcon(feed)}
+                                  alt=""
+                                  className="w-3.5 h-3.5 rounded-sm object-cover flex-shrink-0"
+                                />
+                              )}
                               <span className="font-medium truncate">{feed.title}</span>
-                              <span>•</span>
-                              <span>{formatFeedDate(item.pubDate)}</span>
+                              {(preferences?.show_author ?? true) && item.author && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate">by {item.author}</span>
+                                </>
+                              )}
+                              {(preferences?.show_date ?? true) && (
+                                <>
+                                  <span>•</span>
+                                  <span>{formatFeedDate(item.pubDate)}</span>
+                                </>
+                              )}
                               {/* Full content availability indicator */}
                               {item.fullContent && (
                                 <span className="flex items-center gap-1 text-blue-500">
@@ -1941,7 +2097,21 @@ export function RSSReader() {
                       )}
                     </div>
                   )}
-                  <div className="flex-1 overflow-y-auto">
+                  <div
+                    className="flex-1 overflow-y-auto transition-colors duration-200"
+                    style={{
+                      backgroundColor: preferences?.theme_mode === "light"
+                        ? "#ffffff"
+                        : preferences?.theme_mode === "dark"
+                        ? "#0f172a"
+                        : undefined,
+                      color: preferences?.theme_mode === "light"
+                        ? "#0f172a"
+                        : preferences?.theme_mode === "dark"
+                        ? "#f8fafc"
+                        : undefined
+                    }}
+                  >
                     {/* Conditional view rendering based on storyViewMode */}
                     {storyViewMode === "original" && selectedItem.link ? (
                       <OriginalView item={selectedItem} />
@@ -1966,8 +2136,12 @@ export function RSSReader() {
                     ) : (
                       <div className="reading-surface" style={readingStyles}>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4 reading-meta">
-                          <span>{formatFeedDate(selectedItem.pubDate)}</span>
-                          {selectedItem.author && <span>by {selectedItem.author}</span>}
+                          {(preferences?.show_date ?? true) && (
+                            <span>{formatFeedDate(selectedItem.pubDate)}</span>
+                          )}
+                          {(preferences?.show_author ?? true) && selectedItem.author && (
+                            <span>by {selectedItem.author}</span>
+                          )}
                         </div>
                         <div
                           className="prose prose-sm max-w-none text-foreground dark:prose-invert reading-prose"
