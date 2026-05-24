@@ -3,7 +3,7 @@
  * 2-column masonry grid with large cards, thumbnails, excerpts
  */
 
-import { formatFeedDate } from "../../api/rss";
+import { formatFeedDate, generateArticleExcerpt } from "../../api/rss";
 import { Star, StarOff } from "lucide-react";
 import type { FeedItem, Feed } from "../../api/rss";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
@@ -12,9 +12,21 @@ interface ArticleLayoutProps {
   items: Array<{ feed: Feed; item: FeedItem }>;
   onSelect: (feed: Feed, item: FeedItem) => void;
   onToggleFavorite: (feed: Feed, item: FeedItem) => void;
+  showThumbnails?: boolean;
+  showAuthor?: boolean;
+  showDate?: boolean;
+  excerptLength?: number;
 }
 
-export function MagazineLayout({ items, onSelect, onToggleFavorite }: ArticleLayoutProps) {
+export function MagazineLayout({
+  items,
+  onSelect,
+  onToggleFavorite,
+  showThumbnails = true,
+  showAuthor = true,
+  showDate = true,
+  excerptLength = 150,
+}: ArticleLayoutProps) {
   return (
     <div className="columns-1 md:columns-2 gap-4 p-4 space-y-4">
       {items.map(({ feed, item }) => (
@@ -24,7 +36,7 @@ export function MagazineLayout({ items, onSelect, onToggleFavorite }: ArticleLay
           className="break-inside-avoid bg-card border border-border/50 rounded-xl overflow-hidden hover:border-border cursor-pointer transition-all group"
         >
           {/* Thumbnail */}
-          {item.thumbnail && (
+          {showThumbnails && item.thumbnail && (
             <div className="aspect-video overflow-hidden">
               <img
                 src={item.thumbnail}
@@ -35,7 +47,10 @@ export function MagazineLayout({ items, onSelect, onToggleFavorite }: ArticleLay
           )}
           <div className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-muted-foreground">{feed.title}</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {feed.title}
+                {showAuthor && item.author && ` • by ${item.author}`}
+              </span>
               <IntelligenceIndicator score={item.intelligenceScore} />
             </div>
             <h3 className="text-base font-semibold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
@@ -44,12 +59,12 @@ export function MagazineLayout({ items, onSelect, onToggleFavorite }: ArticleLay
             {(item.fullContent || item.description) && (
               <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
                 {item.fullContent
-                  ? item.fullContent.replace(/<[^>]+>/g, "").slice(0, 200)
-                  : item.description.replace(/<[^>]+>/g, "").slice(0, 200)}
+                  ? generateArticleExcerpt(item.fullContent, excerptLength)
+                  : generateArticleExcerpt(item.description || "", excerptLength)}
               </p>
             )}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatFeedDate(item.pubDate)}</span>
+              <span>{showDate ? formatFeedDate(item.pubDate) : ""}</span>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
@@ -82,10 +97,14 @@ export function GridLayout({
   items,
   onSelect,
   columnCount = 3,
+  showThumbnails = true,
+  showDate = true,
 }: {
   items: Array<{ feed: Feed; item: FeedItem }>;
   onSelect: (feed: Feed, item: FeedItem) => void;
   columnCount?: number;
+  showThumbnails?: boolean;
+  showDate?: boolean;
 }) {
   const colsClass = {
     1: "grid-cols-1",
@@ -104,7 +123,7 @@ export function GridLayout({
           onClick={() => onSelect(feed, item)}
           className="bg-card border border-border/50 rounded-lg overflow-hidden hover:border-border cursor-pointer transition-all group"
         >
-          {item.thumbnail ? (
+          {showThumbnails && item.thumbnail ? (
             <div className="aspect-video overflow-hidden">
               <img
                 src={item.thumbnail}
@@ -112,16 +131,18 @@ export function GridLayout({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
             </div>
-          ) : (
+          ) : showThumbnails ? (
             <div className="aspect-video bg-muted/50 flex items-center justify-center">
               <span className="text-xs text-muted-foreground">{feed.title}</span>
             </div>
-          )}
+          ) : null}
           <div className="p-2.5">
             <h4 className="text-xs font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
               {item.title}
             </h4>
-            <p className="text-[10px] text-muted-foreground mt-1">{formatFeedDate(item.pubDate)}</p>
+            {showDate && (
+              <p className="text-[10px] text-muted-foreground mt-1">{formatFeedDate(item.pubDate)}</p>
+            )}
           </div>
         </article>
       ))}

@@ -162,5 +162,72 @@ export function useGlobalShortcuts() {
 
   useKeyboardShortcuts(shortcuts);
 
+  // Bridge native Tauri shortcuts/events to the DOM
+  useEffect(() => {
+    let unlistenPaletteOpen: (() => void) | null = null;
+    let unlistenShortcutNative: (() => void) | null = null;
+
+    const setupTauriShortcutListeners = async () => {
+      try {
+        const { isTauri, listen } = await import("../lib/tauri");
+        if (!isTauri()) return;
+
+        console.log("[Tauri Shortcut Bridge] Setting up event listeners");
+
+        unlistenPaletteOpen = await listen<string>("command-palette-open", (event) => {
+          console.log("[Tauri Shortcut Bridge] Received command-palette-open:", event.payload);
+          window.dispatchEvent(new CustomEvent("command-palette-open"));
+        });
+
+        unlistenShortcutNative = await listen<string>("global-shortcut-native", (event) => {
+          const key = event.payload;
+          console.log("[Tauri Shortcut Bridge] Received global-shortcut-native:", key);
+          switch (key) {
+            case "KeyQ":
+              window.dispatchEvent(new CustomEvent("navigate", { detail: "/queue" }));
+              break;
+            case "KeyR":
+              window.dispatchEvent(new CustomEvent("navigate", { detail: "/review" }));
+              break;
+            case "KeyD":
+              window.dispatchEvent(new CustomEvent("navigate", { detail: "/dashboard" }));
+              break;
+            case "Comma":
+              window.dispatchEvent(new CustomEvent("navigate", { detail: "/settings" }));
+              break;
+            case "KeyO":
+            case "KeyN":
+              window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" }));
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("import-document"));
+              }, 0);
+              break;
+            case "KeyB":
+              window.dispatchEvent(new CustomEvent("toggle-sidebar"));
+              break;
+            case "KeyE":
+              window.dispatchEvent(new CustomEvent("extract-text"));
+              break;
+            case "BracketLeft":
+              window.dispatchEvent(new CustomEvent("document-prev"));
+              break;
+            case "BracketRight":
+              window.dispatchEvent(new CustomEvent("document-next"));
+              break;
+          }
+        });
+      } catch (err) {
+        console.error("Failed to setup Tauri shortcut event listeners:", err);
+      }
+    };
+
+    setupTauriShortcutListeners();
+
+    return () => {
+      if (unlistenPaletteOpen) unlistenPaletteOpen();
+      if (unlistenShortcutNative) unlistenShortcutNative();
+    };
+  }, []);
+
   return { shortcuts };
 }

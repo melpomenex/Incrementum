@@ -39,6 +39,7 @@ import {
   markItemReadAuto,
   toggleItemFavoriteAuto,
   formatFeedDate,
+  getFeedIcon,
 } from "../../api/rss";
 import { cn } from "../../utils";
 import { sanitizeHtml } from "../common/RichContentRenderer";
@@ -1820,9 +1821,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 {/* Feed source indicator */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full">
-                    {renderedItem.feed.imageUrl ? (
+                    {getFeedIcon(renderedItem.feed) ? (
                       <img
-                        src={renderedItem.feed.imageUrl}
+                        src={getFeedIcon(renderedItem.feed)}
                         alt=""
                         className="w-4 h-4 rounded object-cover"
                       />

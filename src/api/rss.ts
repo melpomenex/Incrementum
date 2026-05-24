@@ -101,6 +101,24 @@ function getFeedItemThumbnail(item: {
   return extractImageUrlFromHtml(item.content) || extractImageUrlFromHtml(item.description);
 }
 
+/**
+ * Resolves the favicon URL for a given feed with high-quality fallback using base domain
+ */
+export function getFeedIcon(feed: { imageUrl?: string; icon?: string; link?: string; feedUrl?: string }): string | undefined {
+  if (feed.imageUrl && feed.imageUrl.trim()) return feed.imageUrl.trim();
+  if (feed.icon && feed.icon.trim()) return feed.icon.trim();
+
+  const urlString = feed.link || feed.feedUrl;
+  if (!urlString) return undefined;
+
+  try {
+    const url = new URL(urlString.trim());
+    return `https://www.google.com/s2/favicons?sz=64&domain=${url.hostname}`;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeKnownFeedUrl(feedUrl: string): string {
   switch (feedUrl.trim()) {
     case "https://feeds.nbcnews.com/nbcnews/topstories":
@@ -1391,9 +1409,8 @@ export async function getRssPreferencesAuto(feedId?: string): Promise<RssUserPre
   if (shouldUseHttpBackend()) {
     return await getRssPreferencesViaHttp(feedId);
   }
-  // In Tauri mode, return defaults for now
-  // TODO: Integrate with Tauri command once implemented
-  return {
+
+  const defaults: RssUserPreference = {
     id: "default",
     feed_id: feedId,
     view_mode: "card",
@@ -1407,9 +1424,34 @@ export async function getRssPreferencesAuto(feedId?: string): Promise<RssUserPre
     show_feed_icon: true,
     sort_by: "date",
     sort_order: "desc",
+    font_family: '"Iowan Old Style", "Charter", "Source Serif 4", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif',
+    font_size: 16,
+    line_height: 1.6,
+    content_width: 65,
+    text_align: "left",
     date_created: new Date().toISOString(),
     date_modified: new Date().toISOString(),
   };
+
+  try {
+    const key = feedId ? `rss_prefs_${feedId}` : "rss_prefs_global";
+    const data = localStorage.getItem(key);
+    if (data) {
+      return { ...defaults, ...JSON.parse(data) };
+    }
+
+    if (feedId) {
+      // Fallback to global preferences if feed-specific ones do not exist
+      const globalData = localStorage.getItem("rss_prefs_global");
+      if (globalData) {
+        return { ...defaults, ...JSON.parse(globalData), feed_id: feedId };
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load preferences from localStorage:", error);
+  }
+
+  return defaults;
 }
 
 /**
