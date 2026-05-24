@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.2] - 2026-05-24
+
+### Fixed
+- **macOS WebView module loading** — Changed dynamic imports to static imports to prevent code-split loading failures in packaged macOS WebView
+- **DOMPurify bundling** — Pre-bundled DOMPurify via `optimizeDeps.include` to solve macOS module script resolution failure
+- **Global shortcuts in packaged builds** — Restored native global shortcut and command palette event bridge that was broken in desktop packaging
+
 ## [1.41.1] - 2026-05-24
 
 ### Fixed
