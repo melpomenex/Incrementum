@@ -311,10 +311,10 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
                         {onCreateFlashcard && (
                             <button
                                 onClick={() => onCreateFlashcard(learningItem.question, learningItem.extract_id, learningItem.document_id)}
-                                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-purple-500/30 hover:border-purple-500 hover:text-white"
+                                className="px-4 py-2 bg-purple-600/10 dark:bg-purple-600/20 hover:bg-purple-600/20 dark:hover:bg-purple-600/30 text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-purple-300 dark:border-purple-500/30 hover:border-purple-500"
                                 title="Turn this highlight into real flashcards (Cloze, Q&A, etc.)"
                             >
-                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                 <span>Create Flashcard...</span>
                             </button>
                         )}
