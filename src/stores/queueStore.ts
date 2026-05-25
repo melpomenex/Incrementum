@@ -34,6 +34,7 @@ interface QueueState {
   filteredItems: QueueItem[];
   selectedIds: Set<string>;
   stats: QueueStats | null;
+  customSubset: QueueItem[] | null;
 
   // UI State
   isLoading: boolean;
@@ -51,7 +52,7 @@ interface QueueState {
   showAutoPostponePrompt: boolean;
 
   // Actions
-  loadQueue: () => Promise<void>;
+  loadQueue: (forceAllItems?: boolean) => Promise<void>;
   loadDueDocumentsOnly: () => Promise<void>;
   loadDueQueueItems: () => Promise<void>;
   setQueueFilterMode: (mode: QueueFilterMode) => void;
@@ -60,6 +61,7 @@ interface QueueState {
   setSelected: (id: string, selected: boolean) => void;
   selectAll: () => void;
   clearSelection: () => void;
+  setCustomSubset: (items: QueueItem[] | null) => void;
   setSearchQuery: (query: string) => void;
   setFilters: (filters: SearchFilters) => void;
   setSortOptions: (sort: SortOptions) => void;
@@ -84,6 +86,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   filteredItems: [],
   selectedIds: new Set<string>(),
   stats: null,
+  customSubset: null,
   isLoading: false,
   error: null,
   searchQuery: "",
@@ -100,10 +103,10 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   showAutoPostponePrompt: false,
 
   // Actions
-  loadQueue: async () => {
+  loadQueue: async (forceAllItems?: boolean) => {
     set({ isLoading: true, error: null });
     try {
-      const mode = get().queueFilterMode;
+      const mode = forceAllItems ? "all-items" : get().queueFilterMode;
       const collectionId = useCollectionStore.getState().activeCollectionId;
       console.log("[queue] loadQueue called, collectionId:", collectionId, "mode:", mode);
       let items: QueueItem[] = [];
@@ -241,6 +244,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     }),
 
   clearSelection: () => set({ selectedIds: new Set<string>() }),
+  setCustomSubset: (items) => set({ customSubset: items }),
 
   setSearchQuery: (query) => {
     set({ searchQuery: query });

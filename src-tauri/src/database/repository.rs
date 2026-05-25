@@ -6,6 +6,14 @@ use std::collections::HashMap;
 use crate::error::{Result, IncrementumError};
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage, TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
 use crate::models::collection::{Collection, DEFAULT_COLLECTION_ID};
+use crate::database::QueueItemEmbedding;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DocumentQueueInfo {
+    pub title: String,
+    pub is_archived: bool,
+    pub is_dismissed: bool,
+}
 
 #[derive(Clone)]
 pub struct Repository {
@@ -319,6 +327,32 @@ impl Repository {
         }
         let rows = query.fetch_all(&self.pool).await?;
         Ok(rows.into_iter().collect())
+    }
+
+    pub async fn get_document_queue_info(&self, ids: &[String]) -> Result<HashMap<String, DocumentQueueInfo>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let sql = format!(
+            "SELECT id, title, is_archived, is_dismissed FROM documents WHERE id IN ({})",
+            placeholders.join(", ")
+        );
+        let mut query = sqlx::query(&sql);
+        for id in ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+        let mut result = HashMap::new();
+        for row in rows {
+            use sqlx::Row;
+            let id: String = row.get("id");
+            let title: String = row.get("title");
+            let is_archived: bool = row.try_get("is_archived").unwrap_or(false);
+            let is_dismissed: bool = row.try_get("is_dismissed").unwrap_or(false);
+            result.insert(id, DocumentQueueInfo { title, is_archived, is_dismissed });
+        }
+        Ok(result)
     }
 
     pub async fn find_document_by_url(&self, url: &str) -> Result<Option<Document>> {
@@ -2269,6 +2303,121 @@ impl Repository {
         .await?;
 
         Ok(())
+    }
+
+    // ============================================================================
+    // Queue Item Embedding operations
+    // ============================================================================
+
+    pub async fn upsert_embedding(&self, emb: &QueueItemEmbedding) -> Result<()> {
+        let mut bytes = Vec::with_capacity(emb.embedding.len() * 4);
+        for &val in &emb.embedding {
+            bytes.extend_from_slice(&val.to_le_bytes());
+        }
+
+        sqlx::query(
+            r#"INSERT OR REPLACE INTO queue_item_embeddings (item_id, embedding, content_hash, provider, model, dimension, created_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+        )
+        .bind(&emb.item_id)
+        .bind(&bytes)
+        .bind(&emb.content_hash)
+        .bind(&emb.provider)
+        .bind(&emb.model)
+        .bind(emb.dimension)
+        .bind(emb.created_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_embeddings_for_items(&self, item_ids: &[String]) -> Result<Vec<QueueItemEmbedding>> {
+        if item_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let placeholders: Vec<String> = item_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let sql = format!("SELECT * FROM queue_item_embeddings WHERE item_id IN ({})", placeholders.join(", "));
+        let mut query = sqlx::query(&sql);
+        for id in item_ids {
+            query = query.bind(id);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let item_id: String = row.try_get("item_id")?;
+            let blob: Vec<u8> = row.try_get("embedding")?;
+            let dimension: i32 = row.try_get("dimension")?;
+            let embedding = Self::bytes_to_embedding(&blob, dimension as usize);
+            results.push(QueueItemEmbedding {
+                item_id,
+                embedding,
+                content_hash: row.try_get("content_hash")?,
+                provider: row.try_get("provider")?,
+                model: row.try_get("model")?,
+                dimension,
+                created_at: row.try_get("created_at")?,
+            });
+        }
+        Ok(results)
+    }
+
+    /// Returns item IDs from the given list that have stale or missing embeddings
+    /// (content hash mismatch or wrong provider/model).
+    pub async fn get_stale_embedding_item_ids(
+        &self,
+        items: &[(String, String)], // (item_id, current_content_hash)
+        provider: &str,
+        model: &str,
+    ) -> Result<Vec<String>> {
+        if items.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: Vec<&str> = items.iter().map(|(id, _)| id.as_str()).collect();
+        let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let sql = format!(
+            "SELECT item_id, content_hash FROM queue_item_embeddings WHERE item_id IN ({}) AND provider = ?{} AND model = ?{}",
+            placeholders.join(", "),
+            ids.len() + 1,
+            ids.len() + 2
+        );
+        let mut query = sqlx::query(&sql);
+        for id in &ids {
+            query = query.bind(*id);
+        }
+        query = query.bind(provider).bind(model);
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let valid_ids: std::collections::HashSet<String> = rows.iter()
+            .filter_map(|row| {
+                let item_id: String = row.try_get("item_id").ok()?;
+                let stored_hash: String = row.try_get("content_hash").ok()?;
+                let expected_hash = items.iter().find(|(id, _)| id == &item_id)?.1.clone();
+                if stored_hash == expected_hash { Some(item_id) } else { None }
+            })
+            .collect();
+
+        let stale: Vec<String> = items.iter()
+            .filter(|(id, _)| !valid_ids.contains(id))
+            .map(|(id, _)| id.clone())
+            .collect();
+        Ok(stale)
+    }
+
+    pub async fn count_embeddings(&self) -> Result<i64> {
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM queue_item_embeddings")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(row.0)
+    }
+
+    fn bytes_to_embedding(bytes: &[u8], dimension: usize) -> Vec<f32> {
+        let mut result = Vec::with_capacity(dimension);
+        for chunk in bytes.chunks_exact(4).take(dimension) {
+            result.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+        }
+        result
     }
 
     // ============================================================================

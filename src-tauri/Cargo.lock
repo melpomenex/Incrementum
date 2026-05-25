@@ -3804,6 +3804,7 @@ dependencies = [
  "fsrs",
  "futures",
  "futures-util",
+ "hex",
  "hostname",
  "html2text",
  "image 0.24.9",

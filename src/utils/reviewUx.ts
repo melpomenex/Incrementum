@@ -1,4 +1,5 @@
 import type { QueueItem } from "../types/queue";
+import { scoreFocalTopic } from "./semanticRelations";
 
 export type PriorityPreset =
   | "maximize-retention"
@@ -51,6 +52,11 @@ export type SessionCustomizationOptions = {
   filters?: SessionFilters;
   itemTypes?: SessionItemTypes;
   priorityPreset?: PriorityPreset;
+  semanticStudy?: {
+    enabled: boolean;
+    relatednessThreshold: number; // 0 to 100
+    focalTopic: string;
+  };
 };
 
 const DEFAULT_TIME_PER_ITEM = 2;
@@ -301,6 +307,15 @@ export function applyFilters(items: QueueItem[], options?: SessionCustomizationO
   // Apply exclude suspended filter
   if (options?.filters?.excludeSuspended) {
     filtered = filtered.filter((item) => (item as any).status !== "suspended");
+  }
+
+  // Apply semantic study focal topic filter
+  if (options?.semanticStudy?.enabled && options.semanticStudy.focalTopic) {
+    const threshold = options.semanticStudy.relatednessThreshold / 100;
+    filtered = filtered.filter((item) => {
+      const score = scoreFocalTopic(item, options.semanticStudy!.focalTopic);
+      return score >= threshold && score > 0;
+    });
   }
 
   return filtered;

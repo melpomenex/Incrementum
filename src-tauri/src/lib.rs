@@ -1061,6 +1061,10 @@ pub fn run() {
             // commands::clear_all_embeddings,
             // commands::get_embedding_stats,
             // commands::is_indexed,
+            // Semantic graph commands
+            commands::embed_queue_items,
+            commands::compute_semantic_graph,
+            commands::get_embedding_config,
             // Focus timer commands
             commands::get_focus_timer_state,
             commands::start_focus_timer,
