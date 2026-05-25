@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Eye, AlertCircle, Star, CheckCircle, Sparkles } from "lucide-react";
+import { Eye, AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare } from "lucide-react";
 import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
 import { cn } from "../../utils";
@@ -9,19 +9,44 @@ import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 interface FlashcardScrollItemProps {
     learningItem: LearningItem;
     onRate: (rating: number) => void;
+    onCreateFlashcard?: (excerpt: string, extractId?: string, documentId?: string) => void;
+    onCreateCloze?: (selectedText: string, range: [number, number]) => void;
+    onCreateQA?: () => void;
 }
 
 /**
  * Full-screen flashcard component for scroll mode review.
  * Shows question, allows revealing answer, and provides rating buttons.
  */
-export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ learningItem, onRate }: FlashcardScrollItemProps) {
+export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ 
+    learningItem, 
+    onRate, 
+    onCreateFlashcard,
+    onCreateCloze,
+    onCreateQA
+}: FlashcardScrollItemProps) {
     const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const { click } = useHapticFeedback();
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Keyboard shortcuts: Space to reveal, 1-4 to rate
+    const handleCreateCloze = () => {
+        if (!onCreateCloze) return;
+        const selection = window.getSelection();
+        const selectedText = selection ? selection.toString().trim() : "";
+        if (!selectedText) return;
+
+        const questionText = learningItem.question;
+        const start = questionText.indexOf(selectedText);
+        const end = start + selectedText.length;
+        if (start !== -1) {
+            onCreateCloze(selectedText, [start, end]);
+        } else {
+            onCreateCloze(selectedText, [0, 0]);
+        }
+    };
+
+    // Keyboard shortcuts: Space to reveal, 1-4 to rate, C for Cloze, Q for QA
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Don't trigger if typing in input
@@ -35,6 +60,16 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
             if ((e.key === " " || e.key === "Enter") && !isAnswerRevealed) {
                 e.preventDefault();
                 setIsAnswerRevealed(true);
+            }
+
+            if (e.key === "c" || e.key === "C") {
+                e.preventDefault();
+                handleCreateCloze();
+            } else if (e.key === "q" || e.key === "Q") {
+                if (onCreateQA) {
+                    e.preventDefault();
+                    onCreateQA();
+                }
             }
 
             // Number keys 1-4 to rate (only when answer is revealed)
@@ -61,7 +96,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isAnswerRevealed, onRate]);
+    }, [isAnswerRevealed, onRate, onCreateQA, learningItem.question]);
 
     useEffect(() => {
         let isCancelled = false;
@@ -270,6 +305,42 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({ lea
 
             {/* Flashcard Container */}
             <div className="w-full max-w-3xl">
+                {/* Actions Bar */}
+                {(onCreateFlashcard || onCreateCloze || onCreateQA) && (learningItem.tags?.includes("kindle") || learningItem.extract_id) && (
+                    <div className="flex items-center justify-center gap-3 mb-5 pointer-events-auto">
+                        {onCreateFlashcard && (
+                            <button
+                                onClick={() => onCreateFlashcard(learningItem.question, learningItem.extract_id, learningItem.document_id)}
+                                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-purple-500/30 hover:border-purple-500 hover:text-white"
+                                title="Turn this highlight into real flashcards (Cloze, Q&A, etc.)"
+                            >
+                                <Sparkles className="w-4 h-4 text-purple-400" />
+                                <span>Create Flashcard...</span>
+                            </button>
+                        )}
+                        {onCreateCloze && (
+                            <button
+                                onClick={handleCreateCloze}
+                                className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-border"
+                                title="Select text in the highlight and click here or press 'C' to create a Cloze deletion card"
+                            >
+                                <Scissors className="w-4 h-4 text-muted-foreground" />
+                                <span>Create Cloze (C)</span>
+                            </button>
+                        )}
+                        {onCreateQA && (
+                            <button
+                                onClick={onCreateQA}
+                                className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-border"
+                                title="Click here or press 'Q' to create a Question & Answer card from this highlight"
+                            >
+                                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                                <span>Create Q&A (Q)</span>
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 {/* Question */}
                 <div className="bg-card border border-border rounded-2xl p-8 shadow-xl mb-6">
                     <div className="text-xs uppercase tracking-wide text-muted-foreground mb-4">
