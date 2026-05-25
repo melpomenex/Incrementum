@@ -2082,6 +2082,7 @@ export function QueueScrollPage() {
                 if (renderedItem.podcastEpisode) {
                   void markEpisodePlayed(renderedItem.podcastEpisode.id, true);
                 }
+                setItemsReviewedThisSession(prev => prev + 1);
                 advanceAfterRemoval(renderedItem.id);
               }}
             />
@@ -2271,6 +2272,7 @@ export function QueueScrollPage() {
         showControls={showControls}
         currentIndex={currentIndex}
         totalItems={scrollItems.length}
+        sessionOffset={itemsReviewedThisSession}
         itemType={currentItem?.type ?? "document"}
         itemTitle={currentItem?.documentTitle ?? ""}
         itemDocumentId={currentItem?.documentId}

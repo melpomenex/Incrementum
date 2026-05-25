@@ -9,6 +9,7 @@ interface ScrollOverlayControlsProps {
   showControls: boolean;
   currentIndex: number;
   totalItems: number;
+  sessionOffset?: number;
   itemType: string;
   itemTitle: string;
   itemDocumentId?: string;
@@ -62,6 +63,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   showControls,
   currentIndex,
   totalItems,
+  sessionOffset = 0,
   itemType,
   itemTitle,
   itemDocumentId,
@@ -114,7 +116,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
               <X className="w-5 h-5 text-white" />
             </button>
             <div className="text-white font-medium text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg">
-              {currentIndex + 1} / {totalItems}
+              {currentIndex + 1 + sessionOffset} / {totalItems + sessionOffset}
             </div>
           </div>
 
@@ -221,7 +223,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
 
       {/* Progress Bar */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 pointer-events-none">
-        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIndex + 1) / totalItems) * 100}%` }} />
+        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIndex + 1 + sessionOffset) / (totalItems + sessionOffset)) * 100}%` }} />
       </div>
 
       {/* Help Text */}
