@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.42.0] - 2026-05-25
+
+### Added
+- **Dismiss buttons in scroll mode** — Flashcards and extracts now have dismiss actions that remove items from the review queue without deleting them
+- **Kindle highlights to flashcards** — Scroll mode now converts Kindle highlights into flashcard candidates automatically
+
+### Fixed
+- **Dismissed items regeneration** — Prevents dismissed flashcards and extracts from being regenerated back into scrollItems
+- **Flashcard button contrast** — Improved Create Flashcard button visibility on light themes
+- **Podcast queue auto-loading** — Subscribed podcast episodes no longer auto-load into scroll queue, keeping only explicitly inserted ones
+- **Queue progress tracking** — Progress counter and bar now dynamically increment as reviews are completed in scroll mode
+- **Podcast auto-transcription** — Respects `autoProcessOnImport` setting when transcribing podcast episodes
+- **HTML reader scroll position** — Fixed scroll position tracking across page reloads with percentage-based restoration
+- **HTML reader styling** — Fixed initial styling and margin cutoff issue in HTML document reader
+- **Podcast categorization and thumbnails** — Fixed podcast feed categorization and missing thumbnail display
+- **Duplicate rating controls** — Fixed non-functional and duplicate rating controls in scroll mode
+
 ## [1.41.2] - 2026-05-24
 
 ### Fixed
