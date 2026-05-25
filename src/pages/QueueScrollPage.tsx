@@ -1595,6 +1595,9 @@ export function QueueScrollPage() {
         // Track items reviewed this session
         setItemsReviewedThisSession((prev) => prev + 1);
 
+        // Remove from dueFlashcards state to prevent re-populating on state recalculation
+        setDueFlashcards((prev) => prev.filter((item) => item.id !== cardId));
+
         // Show success toast
         toast.success(
           t("queueScroll.cardSuspended") !== "queueScroll.cardSuspended" ? t("queueScroll.cardSuspended") : "Flashcard suspended",
@@ -1610,6 +1613,9 @@ export function QueueScrollPage() {
 
         // Track items reviewed this session
         setItemsReviewedThisSession((prev) => prev + 1);
+
+        // Remove from dueExtracts state to prevent re-populating on state recalculation
+        setDueExtracts((prev) => prev.filter((e) => e.id !== extractId));
 
         // Show success toast
         toast.success(
