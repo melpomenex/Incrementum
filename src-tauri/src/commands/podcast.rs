@@ -229,6 +229,7 @@ pub async fn refresh_podcast_feed(
                                 ep_id,
                                 None,
                                 lang,
+                                None,
                                 app,
                                 repo,
                                 tokens,
@@ -312,6 +313,7 @@ pub async fn transcribe_podcast_episode(
     episode_id: String,
     model: Option<String>,
     language: Option<String>,
+    auto_segment: Option<bool>,
     app_handle: AppHandle,
     repo: State<'_, Repository>,
     tokens: State<'_, PodcastTranscriptionTokens>,
@@ -320,6 +322,7 @@ pub async fn transcribe_podcast_episode(
         episode_id,
         model,
         language,
+        auto_segment,
         app_handle,
         repo.inner().clone(),
         tokens.inner().clone(),
@@ -333,6 +336,7 @@ async fn run_transcription_job(
     episode_id: String,
     model: Option<String>,
     language: Option<String>,
+    auto_segment: Option<bool>,
     app_handle: AppHandle,
     repo: Repository,
     tokens: PodcastTranscriptionTokens,
@@ -580,7 +584,7 @@ async fn run_transcription_job(
         .await?;
 
     // 10. Create Document + Extract records from transcript
-    if let Err(e) = create_transcript_extracts(&repo, &episode, &full_text).await {
+    if let Err(e) = create_transcript_extracts(&repo, &episode, &full_text, auto_segment.unwrap_or(false)).await {
         eprintln!("[transcription] Failed to create transcript extracts for {}: {}", episode_id, e);
         // Non-fatal — transcript itself is still stored
     }
@@ -607,6 +611,7 @@ async fn create_transcript_extracts(
     repo: &Repository,
     episode: &PodcastEpisode,
     full_text: &str,
+    auto_segment: bool,
 ) -> Result<()> {
     let text = full_text.trim();
     if text.is_empty() {
@@ -621,16 +626,18 @@ async fn create_transcript_extracts(
     doc.is_favorite = false;
     let doc = repo.create_document(&doc).await?;
 
-    // Split transcript into chunks for Extract records.
-    // Target ~1500 chars per chunk, breaking at sentence boundaries.
-    let chunks = split_transcript_into_chunks(text, 1500);
+    if auto_segment {
+        // Split transcript into chunks for Extract records.
+        // Target ~1500 chars per chunk, breaking at sentence boundaries.
+        let chunks = split_transcript_into_chunks(text, 1500);
 
-    for chunk in &chunks {
-        let mut extract = Extract::new(doc.id.clone(), chunk.clone());
-        extract.tags = vec!["podcast".to_string(), "transcript".to_string()];
-        extract.category = Some("podcast".to_string());
-        extract.source_url = Some(format!("podcast://{}", episode.id));
-        repo.create_extract(&extract).await?;
+        for chunk in &chunks {
+            let mut extract = Extract::new(doc.id.clone(), chunk.clone());
+            extract.tags = vec!["podcast".to_string(), "transcript".to_string()];
+            extract.category = Some("podcast".to_string());
+            extract.source_url = Some(format!("podcast://{}", episode.id));
+            repo.create_extract(&extract).await?;
+        }
     }
 
     Ok(())
