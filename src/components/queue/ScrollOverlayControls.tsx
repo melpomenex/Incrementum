@@ -167,9 +167,14 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
       )}
 
       {/* Side Rating Controls */}
-      {showRatingButtons && (
+      {(showRatingButtons || itemType === "flashcard" || itemType === "extract") && (
         <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
-          {itemType === "document" && !isNewDocument ? (
+          {itemType === "flashcard" || itemType === "extract" ? (
+            <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.dismissTitle ?? "Dismiss"}>
+              <EyeOff className="w-6 h-6 text-white" />
+              <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.dismissLabel ?? "Dismiss"}</span>
+            </button>
+          ) : itemType === "document" && !isNewDocument ? (
             <>
               <button type="button" onClick={() => onRate(1)} disabled={isRating} className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.againTitle ?? "Again"}>
                 <AlertCircle className="w-6 h-6 text-white" />
