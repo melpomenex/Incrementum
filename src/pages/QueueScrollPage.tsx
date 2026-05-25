@@ -306,7 +306,7 @@ export function QueueScrollPage() {
   const handleExtractUpdate = useCallback((extractId: string, updates: { content: string; notes?: string }) => {
     setScrollItems(prev => prev.map((item) => (
       item.type === "extract" && item.extract?.id === extractId
-        ? { ...item, extract: { ...item.extract, content: updates.content, notes: updates.notes } }
+        ? { ...item, extract: { ...item.extract, content: updates.content, notes: updates.notes, date_modified: new Date().toISOString() } }
         : item
     )));
   }, []);
@@ -1527,6 +1527,16 @@ export function QueueScrollPage() {
         // Remove from both dueExtracts and scrollItems
         setDueExtracts(prev => prev.filter(e => e.id !== currentItem.extract!.id));
         advanceAfterRemoval(ratedItemId);
+      } else if (currentItem.type === "podcast" && currentItem.podcastEpisode) {
+        // Mark podcast episode as played
+        console.log(`[QueueScroll] Marking podcast episode ${currentItem.podcastEpisode.id} as played`);
+        await markEpisodePlayed(currentItem.podcastEpisode.id, true);
+
+        // Track items reviewed
+        setItemsReviewedThisSession(prev => prev + 1);
+
+        // Remove from scrollItems
+        advanceAfterRemoval(ratedItemId);
       }
 
       // Allow transition to complete, then release rating lock
@@ -1958,6 +1968,30 @@ export function QueueScrollPage() {
               key={renderedItem.learningItem.id}
               learningItem={renderedItem.learningItem}
               onRate={handleRating}
+              onCreateFlashcard={(excerpt, extractId, documentId) => setFlashcardStudioSeed({
+                key: `scroll-${extractId || renderedItem.learningItem!.id}-${Date.now()}`,
+                excerpt,
+                draftCardType: "qa",
+                resetDraftCards: true,
+                autoEditDraft: false,
+                extractId,
+                documentId,
+              })}
+              onCreateCloze={(text, range) => {
+                if (renderedItem.learningItem?.extract_id) {
+                  setActiveExtractForCloze({
+                    id: renderedItem.learningItem.extract_id,
+                    text,
+                    extractContent: renderedItem.learningItem.question,
+                    range
+                  });
+                }
+              }}
+              onCreateQA={() => {
+                if (renderedItem.learningItem?.extract_id) {
+                  setActiveExtractForQA(renderedItem.learningItem.extract_id);
+                }
+              }}
             />
           ) : renderedItem?.type === "rss" ? (
             <div className="h-full w-full overflow-y-auto">
@@ -2032,6 +2066,7 @@ export function QueueScrollPage() {
                 title: renderedItem.podcastEpisode.title,
                 filePath: "",
                 fileType: "audio",
+                coverImageUrl: renderedItem.podcastEpisode.imageUrl || undefined,
                 content: "",
                 metadata: {},
                 createdAt: renderedItem.podcastEpisode.publishedDate

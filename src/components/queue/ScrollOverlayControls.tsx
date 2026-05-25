@@ -82,7 +82,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   labels,
 }: ScrollOverlayControlsProps) {
   const isDocOrRss = itemType === "document" || itemType === "rss";
-  const showRatingButtons = itemType !== "flashcard";
+  const showRatingButtons = itemType !== "flashcard" && itemType !== "extract";
 
   const typeLabel = itemType === "document"
     ? labels?.docShort ?? "doc"
@@ -90,7 +90,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
       ? labels?.cardShort ?? "card"
       : itemType === "rss"
         ? labels?.rssShort ?? "rss"
-        : labels?.extractShort ?? "extract";
+        : itemType === "podcast"
+          ? "podcast"
+          : labels?.extractShort ?? "extract";
 
   const typeColor = itemType === "document"
     ? "bg-blue-500/30"
@@ -98,7 +100,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
       ? "bg-purple-500/30"
       : itemType === "rss"
         ? "bg-orange-500/30"
-        : "bg-yellow-500/30";
+        : itemType === "podcast"
+          ? "bg-emerald-500/30"
+          : "bg-yellow-500/30";
 
   return (
     <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", showControls ? "opacity-100" : "opacity-0")}>

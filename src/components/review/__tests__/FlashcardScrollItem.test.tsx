@@ -90,4 +90,42 @@ describe("FlashcardScrollItem", () => {
     expect(renderedMath).toBeInTheDocument();
     expect(renderedMath?.innerHTML.length).toBeGreaterThan(0);
   });
+
+  it("renders Action Bar buttons and triggers callbacks when kindle tag or extract_id is present", () => {
+    const onCreateFlashcard = vi.fn();
+    const onCreateCloze = vi.fn();
+    const onCreateQA = vi.fn();
+
+    render(
+      <FlashcardScrollItem
+        learningItem={{
+          ...baseLearningItem,
+          tags: ["kindle"],
+          extract_id: "ext-1",
+          document_id: "doc-1",
+          question: "Highlight text to convert",
+        }}
+        onRate={() => undefined}
+        onCreateFlashcard={onCreateFlashcard}
+        onCreateCloze={onCreateCloze}
+        onCreateQA={onCreateQA}
+      />
+    );
+
+    const flashcardBtn = screen.getByRole("button", { name: /create flashcard/i });
+    const clozeBtn = screen.getByRole("button", { name: /create cloze/i });
+    const qaBtn = screen.getByRole("button", { name: /create q&a/i });
+
+    expect(flashcardBtn).toBeInTheDocument();
+    expect(clozeBtn).toBeInTheDocument();
+    expect(qaBtn).toBeInTheDocument();
+
+    // Trigger flashcard callback
+    flashcardBtn.click();
+    expect(onCreateFlashcard).toHaveBeenCalledWith("Highlight text to convert", "ext-1", "doc-1");
+
+    // Trigger QA callback
+    qaBtn.click();
+    expect(onCreateQA).toHaveBeenCalled();
+  });
 });

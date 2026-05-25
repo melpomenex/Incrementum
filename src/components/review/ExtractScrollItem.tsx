@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2, Eye } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2, Eye, Clock } from "lucide-react";
 import type { Extract } from "../../api/extracts";
 import { updateExtract } from "../../api/extracts";
 import { generateProgressiveSummaries } from "../../api/ai";
@@ -42,6 +42,22 @@ export function ExtractScrollItem({
     const [summaryError, setSummaryError] = useState<string | null>(null);
     const [summaries, setSummaries] = useState(extract.progressive_summaries ?? []);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedText: string } | null>(null);
+
+    const formatDateTime = (dateStr?: string | Date) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short"
+        });
+    };
+
+    const hasBeenModified = useMemo(() => {
+        const created = new Date(extract.date_created).getTime();
+        const modified = new Date(extract.date_modified).getTime();
+        return modified > created + 1000 || saveStatus === "saved";
+    }, [extract.date_created, extract.date_modified, saveStatus]);
 
     // Generate progressive summaries on mount if needed
     useEffect(() => {
@@ -412,13 +428,23 @@ export function ExtractScrollItem({
                                         {levelLabel}
                                     </div>
                                 )}
-                                <div className="p-10 text-lg leading-relaxed text-foreground">
-                                    {text}
-                                </div>
-                            </>
-                        );
-                    })()}
-                </div>
+                                    <div className="p-10 text-lg leading-relaxed text-foreground">
+                                        {text}
+                                    </div>
+                                </>
+                            );
+                        })()}
+
+                        {hasBeenModified && (
+                            <div 
+                                className="absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 bg-muted/80 backdrop-blur-sm border border-border rounded-lg text-xs text-muted-foreground cursor-help select-none hover:text-foreground hover:bg-muted transition-all shadow-sm z-20 pointer-events-auto"
+                                title={`Last edited: ${formatDateTime(extract.date_modified)}\nCreated: ${formatDateTime(extract.date_created)}`}
+                            >
+                                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>Edited</span>
+                            </div>
+                        )}
+                    </div>
 
                 {/* Notes Editor */}
                 <div className={cn(
