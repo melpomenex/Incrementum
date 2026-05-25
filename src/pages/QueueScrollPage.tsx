@@ -15,7 +15,7 @@ import { rateDocumentEngaging, getSmartStartPosition } from "../api/algorithm";
 import { getDueItems, type LearningItem } from "../api/learning-items";
 import { sanitizeHtml } from "../components/common/RichContentRenderer";
 import { getDueExtracts, submitExtractReview } from "../api/extract-review";
-import { createExtract, type Extract } from "../api/extracts";
+import { createExtract, deleteExtract, type Extract } from "../api/extracts";
 import { ExtractScrollItem } from "../components/review/ExtractScrollItem";
 import { ClozeCreatorPopup } from "../components/extracts/ClozeCreatorPopup";
 import { QACreatorPopup } from "../components/extracts/QACreatorPopup";
@@ -51,6 +51,7 @@ import { DocumentViewer as DocumentViewerTab } from "../components/tabs/TabRegis
 import { ScrollQueueSettings } from "../components/queue/ScrollQueueSettings";
 import { ScrollOverlayControls } from "../components/queue/ScrollOverlayControls";
 import type { ExtractSourceContext } from "../types/extractNavigation";
+import { bulkSuspendItems } from "../api/queue";
 
 const buildTranscriptText = (segments: Array<{ text: string }>): string =>
   segments
@@ -1531,7 +1532,7 @@ export function QueueScrollPage() {
     }
   };
 
-  // Handle dismiss - hide document from queue but keep in database
+  // Handle dismiss - hide document/flashcard/extract from queue
   const handleDismiss = async () => {
     console.log("[QueueScroll] handleDismiss called:", {
       currentItem: currentItem?.id,
@@ -1550,9 +1551,13 @@ export function QueueScrollPage() {
       return;
     }
 
-    // Only documents can be dismissed
-    if (currentItem.type !== "document" || !currentItem.documentId) {
-      toast.info(t("queueScroll.dismissNotAvailable"), t("queueScroll.onlyDocuments"));
+    // Supported types for dismissal: document, flashcard, extract
+    if (
+      currentItem.type !== "document" &&
+      currentItem.type !== "flashcard" &&
+      currentItem.type !== "extract"
+    ) {
+      toast.info(t("queueScroll.dismissNotAvailable"), t("queueScroll.onlyDismissableItems") !== "queueScroll.onlyDismissableItems" ? t("queueScroll.onlyDismissableItems") : "Only documents, flashcards, and extracts can be dismissed");
       return;
     }
 
@@ -1560,30 +1565,64 @@ export function QueueScrollPage() {
     const dismissedItemId = currentItem.id;
 
     try {
-      console.log(`[QueueScroll] Dismissing document ${currentItem.documentId}`);
+      if (currentItem.type === "document" && currentItem.documentId) {
+        console.log(`[QueueScroll] Dismissing document ${currentItem.documentId}`);
 
-      // Call API to dismiss document
-      await dismissDocument(currentItem.documentId, true);
-      console.log("[QueueScroll] Document dismissed successfully");
+        // Call API to dismiss document
+        await dismissDocument(currentItem.documentId, true);
+        console.log("[QueueScroll] Document dismissed successfully");
 
-      // Track dismissed document
-      setRatedDocumentIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.add(currentItem.documentId!);
-        return newSet;
-      });
+        // Track dismissed document
+        setRatedDocumentIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(currentItem.documentId!);
+          return newSet;
+        });
 
-      // Track items reviewed this session
-      setItemsReviewedThisSession((prev) => prev + 1);
+        // Track items reviewed this session
+        setItemsReviewedThisSession((prev) => prev + 1);
 
-      // Show success toast
-      toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
+        // Show success toast
+        toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
+      } else if (currentItem.type === "flashcard" && currentItem.learningItem) {
+        const cardId = currentItem.learningItem.id;
+        console.log(`[QueueScroll] Suspending flashcard ${cardId}`);
 
-      // Remove the dismissed document from scrollItems and reload queue
+        // Call API to suspend flashcard
+        await bulkSuspendItems([cardId]);
+        console.log("[QueueScroll] Flashcard suspended successfully");
+
+        // Track items reviewed this session
+        setItemsReviewedThisSession((prev) => prev + 1);
+
+        // Show success toast
+        toast.success(
+          t("queueScroll.cardSuspended") !== "queueScroll.cardSuspended" ? t("queueScroll.cardSuspended") : "Flashcard suspended",
+          t("queueScroll.cardSuspendedDesc") !== "queueScroll.cardSuspendedDesc" ? t("queueScroll.cardSuspendedDesc") : "This flashcard has been suspended and will not appear in reviews."
+        );
+      } else if (currentItem.type === "extract" && currentItem.extract) {
+        const extractId = currentItem.extract.id;
+        console.log(`[QueueScroll] Deleting extract ${extractId}`);
+
+        // Call API to delete extract
+        await deleteExtract(extractId);
+        console.log("[QueueScroll] Extract deleted successfully");
+
+        // Track items reviewed this session
+        setItemsReviewedThisSession((prev) => prev + 1);
+
+        // Show success toast
+        toast.success(
+          t("queueScroll.extractDeleted") !== "queueScroll.extractDeleted" ? t("queueScroll.extractDeleted") : "Extract deleted",
+          t("queueScroll.extractDeletedDesc") !== "queueScroll.extractDeletedDesc" ? t("queueScroll.extractDeletedDesc") : "This extract has been deleted successfully."
+        );
+      }
+
+      // Remove the dismissed item from scrollItems and reload queue
       advanceAfterRemoval(dismissedItemId);
       void loadQueue();
     } catch (error) {
-      console.error("[QueueScroll] Failed to dismiss document:", error);
+      console.error(`[QueueScroll] Failed to dismiss ${currentItem.type}:`, error);
       toast.error(
         t("queueScroll.dismissFailed"),
         error instanceof Error ? error.message : t("queueScroll.pleaseTryAgain")
