@@ -21,6 +21,11 @@ export interface SessionCustomization {
     extracts: boolean;
     learningItems: boolean;
   };
+  semanticStudy?: {
+    enabled: boolean;
+    relatednessThreshold: number;
+    focalTopic: string;
+  };
 }
 
 export const DEFAULT_CUSTOMIZATION: SessionCustomization = {
@@ -42,6 +47,11 @@ export const DEFAULT_CUSTOMIZATION: SessionCustomization = {
     documents: true,
     extracts: false,
     learningItems: false,
+  },
+  semanticStudy: {
+    enabled: false,
+    relatednessThreshold: 30,
+    focalTopic: "",
   },
 };
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.43.0] - 2026-05-25
+
+### Added
+- **Embedding-based semantic engine** — Semantic graph now uses vector embeddings (OpenAI, Cohere, OpenRouter, Ollama) instead of lexical similarity, with cosine similarity replacing the O(N²) frontend Jaccard computation
+- **Queue item embeddings persistence** — New SQLite table with content-hash invalidation for cached embeddings
+- **Embedding progress indicator** — SemanticGraphPanel now shows embedding generation progress with batch tracking
+- **Embed queue items command** — Tauri command to batch-generate and persist embeddings for queue items
+- **Compute semantic graph command** — Tauri command to build similarity graph from stored embeddings
+
+### Changed
+- **Semantic graph engine** — Replaced hardcoded TCS_LEXICON similarity scoring with hybrid orchestrator (embedding-first, lexical fallback)
+- **Custom subset handling** — Moved customSubset to queueStore so both scroll and optimal review sessions respect it
+
 ## [1.42.0] - 2026-05-25
 
 ### Added
