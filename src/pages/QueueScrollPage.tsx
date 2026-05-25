@@ -133,9 +133,10 @@ const SESSION_KEYS = {
  */
 export function QueueScrollPage() {
   const { t } = useI18n();
-  const { filteredItems: allQueueItems, loadQueue } = useQueueStore(useShallow(s => ({
+  const { filteredItems: allQueueItems, loadQueue, customSubset } = useQueueStore(useShallow(s => ({
     filteredItems: s.filteredItems,
     loadQueue: s.loadQueue,
+    customSubset: s.customSubset,
   })));
   const { documents, loadDocuments, addDocument, updateDocument } = useDocumentStore(useShallow(s => ({
     documents: s.documents,
@@ -339,23 +340,26 @@ export function QueueScrollPage() {
   }, [MAX_SELECTION_CHARS]);
 
   // Filter documents
-  // Memoize to prevent infinite loop since this is a dependency of the useEffect below
-  const documentQueueItems = useMemo(() => allQueueItems.filter((item) => {
-    if (item.itemType !== "document") return false;
+  // When a custom semantic cluster is active, use those items as the base queue instead
+  const documentQueueItems = useMemo(() => {
+    const baseItems = customSubset ?? allQueueItems;
+    return baseItems.filter((item) => {
+      if (item.itemType !== "document") return false;
 
-    // Skip recently rated documents to prevent them from reappearing immediately
-    if (ratedDocumentIds.has(item.documentId)) return false;
+      // Skip recently rated documents to prevent them from reappearing immediately
+      if (ratedDocumentIds.has(item.documentId)) return false;
 
-    const doc = documents.find(d => d.id === item.documentId);
+      const doc = documents.find(d => d.id === item.documentId);
 
-    // Skip if document not loaded yet (shouldn't happen after loadDocuments() awaits)
-    if (!doc) return false;
+      // Skip if document not loaded yet (shouldn't happen after loadDocuments() awaits)
+      if (!doc) return false;
 
-    // Skip dismissed documents (they remain in database and searchable)
-    if (doc.isDismissed) return false;
+      // Skip dismissed documents (they remain in database and searchable)
+      if (doc.isDismissed) return false;
 
-    return true;
-  }), [allQueueItems, documents, ratedDocumentIds]);
+      return true;
+    });
+  }, [allQueueItems, customSubset, documents, ratedDocumentIds]);
 
   // Smart start position calculation
   const calculateSmartStart = useCallback(async (totalItems: number) => {
@@ -541,8 +545,20 @@ export function QueueScrollPage() {
     let cancelled = false;
 
     const buildScrollItems = async () => {
+      // When a custom semantic cluster is active, filter flashcards/extracts to only those
+      // belonging to documents in the subset
+      const subsetDocIds = customSubset
+        ? new Set(customSubset.map(item => item.documentId))
+        : null;
+      const activeFlashcards = subsetDocIds
+        ? dueFlashcards.filter(item => subsetDocIds.has(item.document_id))
+        : dueFlashcards;
+      const activeExtracts = subsetDocIds
+        ? dueExtracts.filter(ex => subsetDocIds.has(ex.document_id))
+        : dueExtracts;
+
       // Create flashcard items from due learning items
-      const flashcardItems: ScrollItem[] = dueFlashcards.map((item) => ({
+      const flashcardItems: ScrollItem[] = activeFlashcards.map((item) => ({
         id: `flashcard-${item.id}`,
         type: "flashcard" as const,
         documentTitle: item.question.substring(0, 50) + (item.question.length > 50 ? "..." : ""),
@@ -695,7 +711,7 @@ export function QueueScrollPage() {
       let podcastItems: ScrollItem[] = [];
 
       // Create extract items
-      const extractItems: ScrollItem[] = dueExtracts.map((extract) => {
+      const extractItems: ScrollItem[] = activeExtracts.map((extract) => {
         // Find document title
         const doc = documents.find(d => d.id === extract.document_id);
         const title = doc ? doc.title : t("queueScroll.unknownDocument");

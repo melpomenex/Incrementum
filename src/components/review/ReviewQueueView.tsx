@@ -11,6 +11,7 @@ import {
   Info,
   Keyboard,
   LayoutList,
+  Network,
   Pause,
   Play,
   RotateCcw,
@@ -45,6 +46,8 @@ import {
   DEFAULT_CUSTOMIZATION,
   type SessionCustomization,
 } from "./SessionCustomizeModal";
+import { SemanticGraphPanel } from "./SemanticGraphPanel";
+import type { EmbeddingConfig } from "../../utils/semanticEngine";
 import { postponeItem } from "../../api/queue";
 import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
@@ -117,6 +120,8 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   );
   // Subscribe to selectedIds separately to avoid creating new Set reference in selector
   const selectedIds = useQueueStore((state) => state.selectedIds);
+  const customSubset = useQueueStore((state) => state.customSubset);
+  const setCustomSubset = useQueueStore((state) => state.setCustomSubset);
   const [queueMode, setQueueMode] = useState<QueueMode>("reading");
   const [preset, setPreset] = useState<PriorityPreset>(
     useSettingsStore.getState().settings.smartQueue.queueStrategyPreset as PriorityPreset
@@ -133,19 +138,40 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
   const [isCustomizeModalOpen, setCustomizeModalOpen] = useState(false);
+  const [isSemanticGraphOpen, setSemanticGraphOpen] = useState(false);
+  const [embeddingConfig, setEmbeddingConfig] = useState<EmbeddingConfig | undefined>(undefined);
   const [sessionCustomization, setSessionCustomization] = useState<SessionCustomization>(() => {
+    const localDefault: SessionCustomization = {
+      sessionDurationMinutes: 60,
+      maxItems: 50,
+      blockTimeBudgets: { overdue: 10, maintenance: 15, explore: 20, empty: 15 },
+      filters: { tags: [], categories: [], priorityRange: { min: 0, max: 100 }, excludeSuspended: true },
+      itemTypes: { documents: true, extracts: false, learningItems: false },
+      semanticStudy: { enabled: false, relatednessThreshold: 30, focalTopic: "" }
+    };
+    
+    const baseDefault = (typeof DEFAULT_CUSTOMIZATION !== "undefined" && DEFAULT_CUSTOMIZATION) ? DEFAULT_CUSTOMIZATION : localDefault;
+    const finalDefault: SessionCustomization = {
+      ...localDefault,
+      ...baseDefault,
+      blockTimeBudgets: { ...localDefault.blockTimeBudgets, ...baseDefault?.blockTimeBudgets },
+      filters: { ...localDefault.filters, ...baseDefault?.filters },
+      itemTypes: { ...localDefault.itemTypes, ...baseDefault?.itemTypes },
+      semanticStudy: { ...localDefault.semanticStudy, ...baseDefault?.semanticStudy }
+    };
+
     const saved = useSettingsStore.getState().settings.smartQueue.sessionItemTypes;
     if (saved) {
       return {
-        ...DEFAULT_CUSTOMIZATION,
+        ...finalDefault,
         itemTypes: {
-          documents: saved.documents ?? DEFAULT_CUSTOMIZATION.itemTypes.documents,
-          extracts: saved.extracts ?? DEFAULT_CUSTOMIZATION.itemTypes.extracts,
-          learningItems: saved.learningItems ?? DEFAULT_CUSTOMIZATION.itemTypes.learningItems,
+          documents: saved.documents ?? finalDefault.itemTypes.documents,
+          extracts: saved.extracts ?? finalDefault.itemTypes.extracts,
+          learningItems: saved.learningItems ?? finalDefault.itemTypes.learningItems,
         },
       };
     }
-    return DEFAULT_CUSTOMIZATION;
+    return finalDefault;
   });
   const [selectedFileType, setSelectedFileType] = useState<string>("all");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -158,6 +184,17 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [ctxItem, setCtxItem] = useState<QueueItem | null>(null);
   const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
   const ctxMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load embedding config on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { invokeCommand } = await import("../../lib/tauri");
+        const config = await invokeCommand<EmbeddingConfig | null>("get_embedding_config");
+        setEmbeddingConfig(config ?? undefined);
+      } catch {}
+    })();
+  }, []);
 
   // Close context menu on outside click (using contains check to avoid race with menu clicks)
   useEffect(() => {
@@ -188,6 +225,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   }, [queueMode, onOpenScrollMode]);
 
   useEffect(() => {
+    // If a semantic study focus is active, load the entire database/collection
+    // so we can query all matching items in the library.
+    if (sessionCustomization.semanticStudy?.enabled && sessionCustomization.semanticStudy?.focalTopic) {
+      loadQueue(true);
+      loadStats();
+      return;
+    }
+
     if (queueMode === "review") {
       loadDueQueueItems();
       loadStats();
@@ -209,7 +254,16 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         break;
     }
     loadStats();
-  }, [queueMode, queueFilterMode, loadQueue, loadDueDocumentsOnly, loadDueQueueItems, loadStats]);
+  }, [
+    queueMode,
+    queueFilterMode,
+    loadQueue,
+    loadDueDocumentsOnly,
+    loadDueQueueItems,
+    loadStats,
+    sessionCustomization.semanticStudy?.enabled,
+    sessionCustomization.semanticStudy?.focalTopic,
+  ]);
 
   function getLearningHint(item: QueueItem) {
     if (item.itemType !== "learning-item") return null;
@@ -231,13 +285,17 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
 
   const visibleItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    let queueItems = items.filter((item) => {
-      if (queueMode === "review") {
-        return item.itemType === "learning-item";
-      }
-      // Reading mode: only show imported documents (books/articles/RSS), not extracts or learning items
-      return item.itemType === "document";
-    });
+    
+    // If a custom semantic cluster subset is active, use it as the base queue
+    let queueItems = customSubset
+      ? customSubset
+      : items.filter((item) => {
+          if (queueMode === "review") {
+            return item.itemType === "learning-item";
+          }
+          // Reading mode: only show imported documents (books/articles/RSS), not extracts or learning items
+          return item.itemType === "document";
+        });
     
     // Apply file type filter
     if (selectedFileType !== "all") {
@@ -260,10 +318,11 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
       filters: sessionCustomization.filters,
       itemTypes: sessionCustomization.itemTypes,
       priorityPreset: preset,
+      semanticStudy: sessionCustomization.semanticStudy,
     };
     const filtered = applyFilters(searchedItems, customizationOptions);
     return [...filtered].sort((a, b) => getPriorityScore(b, preset) - getPriorityScore(a, preset));
-  }, [items, queueMode, preset, searchQuery, selectedFileType, sessionCustomization]);
+  }, [items, queueMode, preset, searchQuery, selectedFileType, sessionCustomization, customSubset]);
 
   const selectableItems = useMemo(
     () => visibleItems.filter((item) => item.itemType === "learning-item"),
@@ -297,7 +356,9 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   };
 
   const refreshQueue = async () => {
-    if (queueMode === "review") {
+    if (sessionCustomization.semanticStudy?.enabled && sessionCustomization.semanticStudy?.focalTopic) {
+      await loadQueue(true);
+    } else if (queueMode === "review") {
       await loadDueQueueItems();
     } else {
       switch (queueFilterMode) {
@@ -715,6 +776,14 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               {t("queue.customizeSession")}
             </button>
             <button
+              onClick={() => setSemanticGraphOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-md hover:from-blue-500/20 hover:to-indigo-500/20 transition-all flex items-center gap-1.5 font-medium shadow-sm"
+              title="Visualize semantic relationships in this queue"
+            >
+              <Network className="w-4 h-4" />
+              <span>Semantic Graph</span>
+            </button>
+            <button
               onClick={() => {
                 setManualBrowseActive((prev) => {
                   const next = !prev;
@@ -932,14 +1001,70 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             </div>
           )}
 
+          {customSubset && (
+            <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/10 dark:to-indigo-500/10 flex items-center justify-between shadow-sm animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <Sparkles className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Studying Custom Semantic Cluster</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Filtered to {visibleItems.length} items closely related to your selected cluster focus.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCustomSubset(null)}
+                className="px-3 py-1.5 bg-background border border-border hover:bg-muted text-foreground font-semibold rounded-lg text-xs transition-all shadow-sm"
+              >
+                Clear Cluster
+              </button>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-12 text-muted-foreground">{t("queue.loading")}</div>
           ) : visibleItems.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              {queueMode === "reading"
-                ? t("queue.emptyReading")
-                : t("queue.emptyReview")}
-            </div>
+            sessionCustomization.semanticStudy?.enabled && sessionCustomization.semanticStudy?.focalTopic ? (
+              <div className="p-8 text-center max-w-md mx-auto my-12 glass-card rounded-2xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-400/5 animate-scaleIn">
+                <AlertTriangle className="w-12 h-12 text-blue-500 dark:text-blue-400 mx-auto mb-4" />
+                <h3 className="text-base font-semibold text-foreground mb-2">No Related Items Found</h3>
+                <p className="text-xs text-muted-foreground mb-6">
+                  We couldn't find any items in your library semantically matching <strong>"{sessionCustomization.semanticStudy?.focalTopic}"</strong> at the threshold of {sessionCustomization.semanticStudy?.relatednessThreshold}%.
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setSessionCustomization({
+                        ...sessionCustomization,
+                        semanticStudy: { ...sessionCustomization.semanticStudy, enabled: false }
+                      });
+                    }}
+                    className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-xl text-xs font-semibold transition-all shadow-sm"
+                  >
+                    Clear Filter
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSessionCustomization({
+                        ...sessionCustomization,
+                        semanticStudy: { ...sessionCustomization.semanticStudy, relatednessThreshold: 10 }
+                      });
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-all shadow-sm shadow-blue-500/10"
+                  >
+                    Decrease Strictness (10%)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                {queueMode === "reading"
+                  ? t("queue.emptyReading")
+                  : t("queue.emptyReview")}
+              </div>
+            )
           ) : (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1651,6 +1776,18 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
         onApply={() => setCustomizeModalOpen(false)}
         availableTags={Array.from(new Set(items.flatMap((item) => item.tags || [])))}
         availableCategories={Array.from(new Set(items.map((item) => item.category).filter(Boolean)))}
+      />
+
+      <SemanticGraphPanel
+        isOpen={isSemanticGraphOpen}
+        onClose={() => setSemanticGraphOpen(false)}
+        items={items}
+        focalTopic={sessionCustomization.semanticStudy?.enabled ? sessionCustomization.semanticStudy?.focalTopic : ""}
+        embeddingConfig={embeddingConfig}
+        onStartSessionWithFilter={(filteredItems) => {
+          setCustomSubset(filteredItems);
+          toast.success("Semantic Study Active", `Loaded a custom cluster of ${filteredItems.length} items to study.`);
+        }}
       />
       </>
       )}
