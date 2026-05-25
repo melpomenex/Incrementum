@@ -445,15 +445,25 @@ export async function transcribePodcastEpisode(
   episodeId: string,
   model?: string,
   language?: string,
+  autoSegment?: boolean,
 ): Promise<void> {
   if (isTauri()) {
-    return invokeCommand<void>("transcribe_podcast_episode", { episodeId, model, language });
+    return invokeCommand<void>("transcribe_podcast_episode", {
+      episodeId,
+      model,
+      language,
+      autoSegment: autoSegment ?? null,
+    });
   }
   if (shouldUseHttp()) {
     const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/transcribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: model ?? null, language: language ?? null }),
+      body: JSON.stringify({
+        model: model ?? null,
+        language: language ?? null,
+        auto_segment: autoSegment ?? null,
+      }),
     });
     if (!res.ok) throw new Error(`Failed to start transcription: ${res.statusText}`);
     return;

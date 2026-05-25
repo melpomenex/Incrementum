@@ -55,6 +55,7 @@ import type {
 } from "../../api/podcast";
 import { isTauri, listen, convertFileSrc } from "../../lib/tauri";
 import { useCollectionStore } from "../../stores/collectionStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import {
   useContextMenu,
   ContextMenu,
@@ -774,7 +775,9 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const handleTranscribe = async (episodeId: string) => {
     try {
       setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "starting", progress: 0 }));
-      await transcribePodcastEpisode(episodeId);
+      const settings = useSettingsStore.getState().settings;
+      const autoSegment = settings.documents.autoProcessOnImport;
+      await transcribePodcastEpisode(episodeId, undefined, undefined, autoSegment);
     } catch (error) {
       setTranscriptionProgress((prev) => {
         const next = new Map(prev);

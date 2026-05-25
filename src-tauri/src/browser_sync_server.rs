@@ -3314,6 +3314,7 @@ async fn handle_podcast_get_position(
 struct TranscribeRequest {
     model: Option<String>,
     language: Option<String>,
+    auto_segment: Option<bool>,
 }
 
 async fn handle_podcast_transcribe(
