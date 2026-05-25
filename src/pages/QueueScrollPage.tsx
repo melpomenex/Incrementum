@@ -691,33 +691,7 @@ export function QueueScrollPage() {
       }
 
       // Load podcast episodes based on settings
-      const podcastSettings = settings.podcastQueue;
       let podcastItems: ScrollItem[] = [];
-
-      if (podcastSettings?.includeInQueue) {
-        try {
-          const episodeQueue = await getEpisodeQueue();
-          const filteredEpisodes = podcastSettings.unreadOnly
-            ? episodeQueue.filter(ep => !ep.played)
-            : episodeQueue;
-
-          const limitedEpisodes = podcastSettings.maxItemsPerSession > 0
-            ? filteredEpisodes.slice(0, podcastSettings.maxItemsPerSession)
-            : filteredEpisodes;
-
-          podcastItems = limitedEpisodes.map((ep) => ({
-            id: `podcast-${ep.id}`,
-            type: "podcast" as const,
-            documentTitle: ep.title,
-            podcastEpisode: ep,
-            category: "podcast",
-            estimatedTime: ep.duration ? Math.ceil(ep.duration / 60) : 15,
-            engagementScore: 4 + getStableRandom(ep.id, 5) * 2,
-          }));
-        } catch (error) {
-          console.warn("[QueueScroll] Failed to load podcast queue:", error);
-        }
-      }
 
       // Create extract items
       const extractItems: ScrollItem[] = dueExtracts.map((extract) => {
