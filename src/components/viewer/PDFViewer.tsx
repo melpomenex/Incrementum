@@ -2584,6 +2584,12 @@ export function PDFViewer({
     const container = scrollContainerRef.current;
     if (container) scrollPositionRef.current = { x: -container.scrollLeft, y: -container.scrollTop };
 
+    // Dismiss selection popup on scroll to prevent floating overlapping menus
+    if (showSelectionPopup) {
+      setShowSelectionPopup(false);
+      setSelectionPopupRect(null);
+    }
+
     if (!container || scrollRafRef.current !== null) return;
 
     scrollRafRef.current = requestAnimationFrame(() => {
@@ -2961,6 +2967,7 @@ export function PDFViewer({
                                     error={ocr.error}
                                     selectionRect={ocr.selectedRect}
                                     cssScale={cssScale}
+                                    canvasRect={canvas.getBoundingClientRect()}
                                     onTextChange={ocr.setEditedText}
                                     onLanguageChange={ocr.setLanguage}
                                     onCreateExtract={() => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment } from "react";
 import { Pane, TabPane, SplitPane, SplitDirection, Tab } from "../../../stores/tabsStore";
 import { useSettingsStore } from "../../../stores";
 import { TabBar } from "./TabBar";
@@ -169,48 +169,56 @@ function SplitView({
       className={`flex ${isHorizontal ? "flex-row" : "flex-col"} w-full h-full overflow-hidden`}
     >
       {pane.children.map((child, index) => (
-        <div
-          key={child.id}
-          className="flex flex-col overflow-hidden"
-          style={{ 
-            flex: `0 0 ${pane.sizes[index]}%`,
-            minWidth: isHorizontal ? "150px" : undefined,
-            minHeight: !isHorizontal ? "100px" : undefined,
-          }}
-        >
-          <SplitPaneContainer
-            pane={child}
-            tabs={tabs}
-            onSetActiveTab={onSetActiveTab}
-            onCloseTab={onCloseTab}
-            onMoveTab={onMoveTab}
-            onMoveTabToPane={onMoveTabToPane}
-            onSplitPane={onSplitPane}
-            onSpawnTabInSplit={onSpawnTabInSplit}
-            onResizeSplit={onResizeSplit}
-            onCollapseSplit={onCollapseSplit}
-            draggedTabId={draggedTabId}
-            draggedTabSourcePaneId={draggedTabSourcePaneId}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
+        <Fragment key={child.id}>
+          <div
+            className="flex flex-col overflow-hidden"
+            style={{ 
+              flex: `0 0 ${pane.sizes[index]}%`,
+              minWidth: isHorizontal ? "150px" : undefined,
+              minHeight: !isHorizontal ? "100px" : undefined,
+            }}
+          >
+            <SplitPaneContainer
+              pane={child}
+              tabs={tabs}
+              onSetActiveTab={onSetActiveTab}
+              onCloseTab={onCloseTab}
+              onMoveTab={onMoveTab}
+              onMoveTabToPane={onMoveTabToPane}
+              onSplitPane={onSplitPane}
+              onSpawnTabInSplit={onSpawnTabInSplit}
+              onResizeSplit={onResizeSplit}
+              onCollapseSplit={onCollapseSplit}
+              draggedTabId={draggedTabId}
+              draggedTabSourcePaneId={draggedTabSourcePaneId}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          </div>
           
           {/* Resize Handle */}
           {index < pane.children.length - 1 && (
             <div
               className={`
                 ${isHorizontal 
-                  ? "w-1 hover:w-2 cursor-col-resize border-l border-border" 
-                  : "h-1 hover:h-2 cursor-row-resize border-t border-border"
+                  ? "w-1.5 hover:w-2.5 cursor-col-resize border-l border-border h-full" 
+                  : "h-1.5 hover:h-2.5 cursor-row-resize border-t border-border w-full"
                 }
                 bg-muted/50 hover:bg-primary/30 transition-all flex-shrink-0
-                active:bg-primary/50
+                active:bg-primary/50 relative group
               `}
               onMouseDown={(e) => handleResizeStart(index, e)}
               title="Drag to resize"
-            />
+            >
+              {/* Invisible touch/mouse target expansion for better UX */}
+              <div 
+                className={`absolute inset-0 ${
+                  isHorizontal ? "-left-1.5 -right-1.5" : "-top-1.5 -bottom-1.5"
+                }`}
+              />
+            </div>
           )}
-        </div>
+        </Fragment>
       ))}
     </div>
   );

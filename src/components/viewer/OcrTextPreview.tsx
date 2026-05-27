@@ -37,6 +37,7 @@ interface OcrTextPreviewProps {
   error: string | null;
   selectionRect: SelectionRect;
   cssScale: number;
+  canvasRect?: DOMRect | null;
   onTextChange: (text: string) => void;
   onLanguageChange: (language: string) => void;
   onCreateExtract: () => void;
@@ -52,6 +53,7 @@ export function OcrTextPreview({
   error,
   selectionRect,
   cssScale,
+  canvasRect,
   onTextChange,
   onLanguageChange,
   onCreateExtract,
@@ -65,16 +67,60 @@ export function OcrTextPreview({
         ? "text-yellow-600"
         : "text-red-600";
 
+  let style: React.CSSProperties = {
+    position: "absolute",
+    left: Math.min(selectionRect.x * cssScale, window.innerWidth - 420),
+    top: selectionRect.y * cssScale + selectionRect.height * cssScale + 52,
+    width: 400,
+    maxHeight: Math.min(500, Math.max(150, window.innerHeight - (selectionRect.y * cssScale + selectionRect.height * cssScale + 80))),
+    zIndex: 30,
+  };
+
+  if (canvasRect) {
+    const gap = 12;
+    const popupWidth = 400;
+    const popupHeight = 420;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Viewport-relative coordinates of the selection region
+    const selLeft = canvasRect.left + selectionRect.x * cssScale;
+    const selTop = canvasRect.top + selectionRect.y * cssScale;
+    const selWidth = selectionRect.width * cssScale;
+    const selHeight = selectionRect.height * cssScale;
+
+    // Default position: centered below the selection
+    let top = selTop + selHeight + gap;
+    let left = selLeft + (selWidth - popupWidth) / 2;
+
+    // Flip above the selection if it overflows off the bottom of the viewport
+    if (top + popupHeight > viewportHeight - 16) {
+      top = selTop - popupHeight - gap;
+    }
+
+    // Ensure within viewport boundaries vertically
+    if (top < 16) {
+      // If it doesn't fit above or below, center it vertically in the viewport
+      top = Math.max(16, (viewportHeight - popupHeight) / 2);
+    }
+
+    // Ensure within viewport boundaries horizontally
+    left = Math.max(16, Math.min(viewportWidth - popupWidth - 16, left));
+
+    style = {
+      position: "fixed",
+      left,
+      top,
+      width: popupWidth,
+      maxHeight: Math.min(500, viewportHeight - top - 32),
+      zIndex: 1000, // Float on top of other layout panels
+    };
+  }
+
   return (
     <div
-      className="absolute bg-background border border-border rounded-lg shadow-xl flex flex-col"
-      style={{
-        left: Math.min(selectionRect.x * cssScale, window.innerWidth - 420),
-        top: selectionRect.y * cssScale + selectionRect.height * cssScale + 52,
-        width: 400,
-        maxHeight: Math.min(500, window.innerHeight - (selectionRect.y * cssScale + selectionRect.height * cssScale + 80)),
-        zIndex: 30,
-      }}
+      className="bg-background border border-border rounded-lg shadow-xl flex flex-col transition-all"
+      style={style}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 rounded-t-lg">
