@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.43.1] - 2026-05-27
+
+### Fixed
+- **PDF layout and window overlap** — Resolved layout bugs in PDF split-panes, selection popups, and OCR text preview overlapping
+- **Whisper model hashes** — Updated placeholder hashes and sizes for Whisper model downloads
+- **Whisper download notifications** — Added toast notifications for Whisper model download progress
+- **Git LFS metadata fetching** — Fetches LFS metadata dynamically at download time to prevent hash update failures
+
 ## [1.43.0] - 2026-05-25
 
 ### Added
