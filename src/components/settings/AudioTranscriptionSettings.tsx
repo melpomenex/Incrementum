@@ -21,11 +21,13 @@ import {
 } from "../../api/groqTranscription";
 import { cn } from "../../utils";
 import { useI18n } from "../../lib/i18n";
+import { useToast } from "../common/Toast";
 
 type Provider = 'local' | 'groq';
 
 export function AudioTranscriptionSettings() {
   const { t } = useI18n();
+  const toast = useToast();
   const { profiles, fetchProfiles, downloadProgress, currentStatus } = useTranscriptionStore();
   const { settings, updateSettings } = useSettingsStore();
   const queueStore = useTranscriptionQueueStore();
@@ -101,8 +103,13 @@ export function AudioTranscriptionSettings() {
     try {
       await downloadTranscriptionModel(id);
       fetchProfiles();
+      toast.success("Download Complete", `Model "${id}" has been successfully downloaded and verified.`);
     } catch (error) {
       console.error("Failed to download model:", error);
+      toast.error(
+        "Download Failed",
+        error instanceof Error ? error.message : String(error)
+      );
     }
   };
 

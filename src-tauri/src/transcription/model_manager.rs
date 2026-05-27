@@ -47,8 +47,8 @@ impl ModelManager {
                 name: "English Fast (Distil)".to_string(),
                 description: "Optimized English-only model. Very fast and accurate.".to_string(),
                 url: "https://huggingface.co/distil-whisper/distil-small.en/resolve/main/ggml-distil-small.en.bin".to_string(),
-                sha256: "be63364f891ed12037701e85a6431940a025527339796e62c4cf2c68612ca493".to_string(), // placeholder
-                size_bytes: 188 * 1024 * 1024,
+                sha256: "7691eb11167ab7aaf6b3e05d8266f2fd9ad89c550e433f86ac266ebdee6c970a".to_string(),
+                size_bytes: 336191657,
                 installed: false,
             },
             ModelProfile {
@@ -56,8 +56,8 @@ impl ModelManager {
                 name: "Multilingual Fast".to_string(),
                 description: "Smallest multilingual model. Good for quick results.".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin".to_string(),
-                sha256: "27856f41444bc99a9cf5823158c30932062638843c0802c610b420063c6139f3".to_string(), // placeholder
-                size_bytes: 147 * 1024 * 1024,
+                sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe".to_string(),
+                size_bytes: 147951465,
                 installed: false,
             },
             ModelProfile {
@@ -65,8 +65,8 @@ impl ModelManager {
                 name: "Multilingual Balanced".to_string(),
                 description: "Good balance of speed and accuracy for most languages.".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin".to_string(),
-                sha256: "0c7e2b8655160ef5a40a2f447f5589a19d3f1d5308502c46f38e6a0d4239f604".to_string(), // placeholder
-                size_bytes: 488 * 1024 * 1024,
+                sha256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b".to_string(),
+                size_bytes: 487601967,
                 installed: false,
             },
         ];
