@@ -25,7 +25,7 @@
         "decorations": true,
         "alwaysOnTop": false,
         "skipTaskbar": false,
-        "devtools": false,
+        "devtools": true,
         "hiddenTitle": true,
         "dragDropEnabled": true
       }

@@ -63,26 +63,40 @@ export function AudioPlayer({
 
   // Initialize audio context for visualizer
   useEffect(() => {
-    if (isPlaying && audioRef.current && !audioContext) {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const source = ctx.createMediaElementSource(audioRef.current);
-      const analyserNode = ctx.createAnalyser();
-      analyserNode.fftSize = 256;
-      source.connect(analyserNode);
-      analyserNode.connect(ctx.destination);
-      setAudioContext(ctx);
-      setAnalyser(analyserNode);
+    const currentSrc = currentTrack?.src || src || "";
+    const isTauriAsset = currentSrc.startsWith("asset:") || 
+                         currentSrc.startsWith("http://asset.localhost") || 
+                         currentSrc.startsWith("http://ipc.localhost") ||
+                         currentSrc.startsWith("ipc:") ||
+                         currentSrc.startsWith("blob:");
+
+    if (isPlaying && audioRef.current && !audioContext && !isTauriAsset) {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = ctx.createMediaElementSource(audioRef.current);
+        const analyserNode = ctx.createAnalyser();
+        analyserNode.fftSize = 256;
+        source.connect(analyserNode);
+        analyserNode.connect(ctx.destination);
+        setAudioContext(ctx);
+        setAnalyser(analyserNode);
+      } catch (err) {
+        console.warn("Failed to initialize AudioContext for visualizer:", err);
+      }
     }
 
     return () => {
       if (audioContext) {
-        audioContext.close();
+        audioContext.close().catch(() => {});
+        setAudioContext(null);
+        setAnalyser(null);
       }
       if (animationId) {
         cancelAnimationFrame(animationId);
+        setAnimationId(null);
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentTrack?.src, src]);
 
   // Visualizer animation
   useEffect(() => {
