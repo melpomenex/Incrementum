@@ -32,6 +32,34 @@ pub struct ModelManager {
     models_dir: PathBuf,
 }
 
+async fn fetch_lfs_metadata(client: &Client, profile_url: &str) -> Option<(String, u64)> {
+    let raw_url = profile_url.replace("/resolve/", "/raw/");
+    let response = client.get(&raw_url).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let body = response.text().await.ok()?;
+    
+    let mut sha256 = None;
+    let mut size_bytes = None;
+    
+    for line in body.lines() {
+        if line.starts_with("oid sha256:") {
+            sha256 = Some(line.trim_start_matches("oid sha256:").trim().to_string());
+        } else if line.starts_with("size ") {
+            if let Ok(sz) = line.trim_start_matches("size ").trim().parse::<u64>() {
+                size_bytes = Some(sz);
+            }
+        }
+    }
+    
+    if let (Some(hash), Some(size)) = (sha256, size_bytes) {
+        Some((hash, size))
+    } else {
+        None
+    }
+}
+
 impl ModelManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         let app_dir = app_handle.path().app_data_dir()?;
@@ -98,13 +126,23 @@ impl ModelManager {
         let temp_path = dest_path.with_extension("download");
 
         let client = Client::new();
+
+        // Fetch dynamic LFS metadata if possible to prevent failure if HF updates the file
+        let mut expected_sha256 = profile.sha256.clone();
+        let mut expected_size = profile.size_bytes;
+        
+        if let Some((dynamic_sha, dynamic_size)) = fetch_lfs_metadata(&client, &profile.url).await {
+            expected_sha256 = dynamic_sha;
+            expected_size = dynamic_size;
+        }
+
         let mut response = client.get(&profile.url).send().await?;
 
         if !response.status().is_success() {
             return Err(anyhow!("Failed to download model: {}", response.status()));
         }
 
-        let total_size = response.content_length().unwrap_or(profile.size_bytes);
+        let total_size = response.content_length().unwrap_or(expected_size);
         let mut downloaded: u64 = 0;
         let mut file = tokio::fs::File::create(&temp_path).await?;
         let mut hasher = Sha256::new();
@@ -131,11 +169,11 @@ impl ModelManager {
 
         // Verify hash to ensure model integrity
         let hash = format!("{:x}", hasher.finalize());
-        if !profile.sha256.is_empty() && hash != profile.sha256 {
+        if !expected_sha256.is_empty() && hash != expected_sha256 {
             let _ = fs::remove_file(&temp_path);
             return Err(anyhow!(
                 "Model hash verification failed: expected {}, got {}",
-                profile.sha256,
+                expected_sha256,
                 hash
             ));
         }
