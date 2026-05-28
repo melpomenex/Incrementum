@@ -1,4 +1,4 @@
-import { Suspense, createContext, useContext } from "react";
+import React, { Suspense, createContext, useContext, memo } from "react";
 import { type Tab } from "../../../stores";
 
 interface TabContentProps {
@@ -17,6 +17,51 @@ const PaneIdContext = createContext<string | undefined>(undefined);
 export function usePaneId(): string | undefined {
   return useContext(PaneIdContext);
 }
+
+// Context to provide tab active status to sub-components
+const ActiveTabContext = createContext<boolean>(true);
+
+/**
+ * Hook to get whether the current tab is active/visible.
+ * Can be used by heavy components to pause loops/renderers in background tabs.
+ */
+export function useIsActiveTab(): boolean {
+  return useContext(ActiveTabContext);
+}
+
+interface TabWrapperProps {
+  content: React.ComponentType<any>;
+  data?: Record<string, unknown>;
+  isActive: boolean;
+  paneId?: string;
+}
+
+const TabWrapper = memo(
+  function TabWrapper({ content: ContentComponent, data, paneId }: TabWrapperProps) {
+    return (
+      <PaneIdContext.Provider value={paneId}>
+        <ContentComponent {...(data || {})} />
+      </PaneIdContext.Provider>
+    );
+  },
+  (prevProps, nextProps) => {
+    // If a tab is inactive and remains inactive, completely skip rendering!
+    if (!prevProps.isActive && !nextProps.isActive) {
+      return true;
+    }
+    // If it transitions from active to inactive, freeze its current render elements!
+    if (prevProps.isActive && !nextProps.isActive) {
+      return true;
+    }
+    // Otherwise, we only re-render if its active status changed, content changed, paneId changed, or data changed.
+    return (
+      prevProps.isActive === nextProps.isActive &&
+      prevProps.content === nextProps.content &&
+      prevProps.paneId === nextProps.paneId &&
+      JSON.stringify(prevProps.data) === JSON.stringify(nextProps.data)
+    );
+  }
+);
 
 function TabLoader() {
   return (
@@ -59,7 +104,6 @@ export function TabContent({ tabs, activeTabId, paneId }: TabContentProps) {
     <div className="h-full w-full overflow-hidden bg-background min-h-0">
       <Suspense fallback={<TabLoader />}>
         {tabs.map((tab) => {
-          const ContentComponent = tab.content;
           const isActive = tab.id === activeTab.id;
           return (
             <div
@@ -67,9 +111,14 @@ export function TabContent({ tabs, activeTabId, paneId }: TabContentProps) {
               className={isActive ? "h-full w-full animate-tab-enter" : "hidden h-full w-full"}
               aria-hidden={!isActive}
             >
-              <PaneIdContext.Provider value={paneId}>
-                <ContentComponent {...(tab.data || {})} />
-              </PaneIdContext.Provider>
+              <ActiveTabContext.Provider value={isActive}>
+                <TabWrapper
+                  content={tab.content}
+                  data={tab.data}
+                  isActive={isActive}
+                  paneId={paneId}
+                />
+              </ActiveTabContext.Provider>
             </div>
           );
         })}
@@ -77,3 +126,4 @@ export function TabContent({ tabs, activeTabId, paneId }: TabContentProps) {
     </div>
   );
 }
+

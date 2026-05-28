@@ -8,6 +8,7 @@ import { GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
 import { useBattery } from "../../contexts/BatteryContext";
+import { useIsActiveTab } from "../common/Tabs/TabContent";
 
 /**
  * 3D point
@@ -58,6 +59,7 @@ export function KnowledgeSphere({
   connectionDistance: _connectionDistance = 150,
 }: KnowledgeSphereProps) {
   const { t } = useI18n();
+  const isActive = useIsActiveTab();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -301,6 +303,9 @@ export function KnowledgeSphere({
 
   // Animation loop
   useEffect(() => {
+    // If not active, completely avoid scheduling any animation frame to free CPU
+    if (!isActive) return;
+
     const animate = () => {
       // Pause when page is hidden
       if (!isVisibleRef.current) {
@@ -353,7 +358,7 @@ export function KnowledgeSphere({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       unlistenFocus?.();
     };
-  }, [draw, autoRotate, rotationSpeed, isDragging]);
+  }, [draw, autoRotate, rotationSpeed, isDragging, isActive]);
 
   // Handle canvas resize
   useEffect(() => {

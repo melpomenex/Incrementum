@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
+import { useIsActiveTab } from "../common/Tabs/TabContent";
 
 /**
  * Graph node types
@@ -102,6 +103,7 @@ export function KnowledgeGraph({
   edgeThreshold: _edgeThreshold = 0,
 }: KnowledgeGraphProps) {
   const { t } = useI18n();
+  const isActive = useIsActiveTab();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -134,7 +136,7 @@ export function KnowledgeGraph({
 
   // Force simulation
   const runForceSimulation = useCallback(() => {
-    if (!physicsEnabled) return;
+    if (!physicsEnabled || !isActive) return;
 
     const nodes = laidOutNodes;
     const edges = data.edges;
@@ -211,11 +213,11 @@ export function KnowledgeGraph({
     };
 
     simulate();
-  }, [laidOutNodes, data.edges, physicsEnabled]);
+  }, [laidOutNodes, data.edges, physicsEnabled, isActive]);
 
   // Start simulation when data or layout changes
   useEffect(() => {
-    if (physicsEnabled && layout === LayoutAlgorithm.Force) {
+    if (physicsEnabled && layout === LayoutAlgorithm.Force && isActive) {
       runForceSimulation();
     }
 
@@ -224,7 +226,7 @@ export function KnowledgeGraph({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [data, layout, physicsEnabled]);
+  }, [data, layout, physicsEnabled, isActive, runForceSimulation]);
 
   // Draw graph
   const draw = useCallback(() => {
@@ -382,7 +384,7 @@ export function KnowledgeGraph({
 
   // Animation loop
   useEffect(() => {
-    if (!physicsEnabled) return;
+    if (!physicsEnabled || !isActive) return;
 
     const animate = () => {
       draw();
@@ -396,7 +398,7 @@ export function KnowledgeGraph({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [draw, physicsEnabled]);
+  }, [draw, physicsEnabled, isActive]);
 
   // Handle canvas resize
   useEffect(() => {

@@ -56,6 +56,9 @@ export function AudioPlayer({
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [showPlaylist, setShowPlaylist] = useState(false);
 
+  // Get current track info
+  const currentTrack = playlist ? playlist[currentTrackIndex] : { src, title, artist };
+
   // Visualizer
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -353,8 +356,7 @@ export function AudioPlayer({
     }
   };
 
-  // Get current track info
-  const currentTrack = playlist ? playlist[currentTrackIndex] : { src, title, artist };
+
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
