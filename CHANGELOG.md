@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.44.0] - 2026-05-28
+
+### Added
+- **Premium themes with animated backdrops** — 12 new themes (6 animated, 6 non-animated, light/dark variants) including 'cozy-windowpane' with canvas rain, water bead refraction, amber bokeh, and 3D frames
+- **Theme backdrop system** — New `ThemeBackdrop` component supporting animated canvas backdrops with wiggle/pause physics and static droplet absorption
+- **Scroll-to-zoom gestures** — PDF viewer now supports pinch-to-zoom and scroll-wheel zoom
+- **Compact expandable header** — RSS feed header with configurable cover image and collapsible layout
+- **Local podcast playback in queue** — Downloaded podcast episodes can now play in AudiobookViewer using local files instead of streaming
+- **Configurable RSS cover image** — Cover images for RSS feeds are now user-configurable
+
+### Changed
+- **PDF text selection** — Switched from custom overlay to native browser text selection for more reliable highlighting
+- **Tab rendering optimization** — Inactive tabs now freeze updates; background canvas and 3D loops are paused when not visible
+
+### Fixed
+- **Podcast player hang** — Bypassed AudioContext for Tauri asset protocol, preventing playback freezes
+- **PDF scrolling glitches** — Resolved scroll jitter and whitespace click interference in text layer
+- **PDF zoom controls** — Improved zoom button layout and behavior
+- **OCR robustness** — Individual page failures no longer crash the entire OCR pipeline; placeholder pages preserve correct sequencing
+- **AudioPlayer TypeScript error** — Fixed type error in AudioPlayer component
+- **Devtools in release** — Enabled devtools access in release builds
+
 ## [1.43.1] - 2026-05-27
 
 ### Fixed
