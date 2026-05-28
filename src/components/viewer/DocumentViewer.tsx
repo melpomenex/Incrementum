@@ -4884,6 +4884,8 @@ export function DocumentViewer({
             pageNumber={pageNumber}
             scale={scale}
             zoomMode={zoomMode}
+            onScaleChange={setScale}
+            onZoomModeChange={setZoomMode}
             searchQuery={normalizedViewerSearchQuery}
             searchNavigationRequest={
               normalizedViewerSearchQuery

@@ -92,6 +92,8 @@ interface PDFViewerProps {
     targetIndex?: number;
   } | null;
   onPageChange?: (pageNumber: number) => void;
+  onScaleChange?: (scale: number) => void;
+  onZoomModeChange?: (zoomMode: ZoomMode) => void;
   onLoad?: (numPages: number, outline: any[]) => void;
   onPagesRendered?: () => void;
   onScrollPositionChange?: (state: {
@@ -165,6 +167,8 @@ export function PDFViewer({
   searchQuery,
   searchNavigationRequest,
   onPageChange,
+  onScaleChange,
+  onZoomModeChange,
   onLoad,
   onPagesRendered,
   onScrollPositionChange,
@@ -404,6 +408,61 @@ export function PDFViewer({
       highlightConfigRef.current = null;
     }
   }, [highlightQuery, highlightPageNumber, highlightTextQuote]);
+
+  const zoomButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        
+        const currentScale = scale;
+        const zoomStep = 0.05;
+        const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+        const newScale = Math.min(3.0, Math.max(0.5, currentScale + delta));
+        
+        if (newScale !== currentScale) {
+          onZoomModeChange?.("custom");
+          setZoomMode("custom");
+          onScaleChange?.(newScale);
+        }
+      }
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+    };
+  }, [scale, onScaleChange, onZoomModeChange]);
+
+  useEffect(() => {
+    const btn = zoomButtonRef.current;
+    if (!btn) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const currentScale = scale;
+      const zoomStep = 0.05;
+      const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+      const newScale = Math.min(3.0, Math.max(0.5, currentScale + delta));
+      
+      if (newScale !== currentScale) {
+        onZoomModeChange?.("custom");
+        setZoomMode("custom");
+        onScaleChange?.(newScale);
+      }
+    };
+
+    btn.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      btn.removeEventListener("wheel", handleWheel);
+    };
+  }, [scale, onScaleChange, onZoomModeChange]);
 
   const publishSearchResults = useCallback(
     (overrides?: Partial<{
@@ -1500,7 +1559,7 @@ export function PDFViewer({
       }
       resizeObserver.disconnect();
     };
-  }, [pdf, pageNumber, zoomMode, suppressAutoScroll]);
+  }, [pdf, zoomMode, suppressAutoScroll]);
 
   const buildPdfSelectionContext = useCallback((): PdfSelectionContext | null => {
     const selection = window.getSelection();
@@ -2418,6 +2477,7 @@ export function PDFViewer({
 
   const handleZoomModeChange = (mode: ZoomMode) => {
     setZoomMode(mode);
+    onZoomModeChange?.(mode);
   };
 
   const renderOutline = (items: any[], depth = 0): React.ReactElement[] => {
@@ -2814,6 +2874,7 @@ export function PDFViewer({
               <div className="h-6 w-px bg-border mx-2" />
 
               <button
+                ref={zoomButtonRef}
                 onClick={() => handleZoomModeChange("custom")}
                 className={cn(
                   "p-2 rounded-md transition-colors",
