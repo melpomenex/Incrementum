@@ -372,6 +372,8 @@ export interface RSSQueueSettings {
   unreadOnly: boolean;
   /** Whether to prefer newer items */
   preferRecent: boolean;
+  /** Show cover images in the article reader by default */
+  showCoverImage?: boolean;
 }
 
 export interface PodcastQueueSettings {
@@ -667,6 +669,7 @@ export const defaultSettings: Settings = {
     excludedFeedIds: [], // No feeds excluded by default
     unreadOnly: true, // Only include unread items
     preferRecent: true, // Prefer newer items
+    showCoverImage: false, // Hide cover images by default
   },
   podcastQueue: {
     includeInQueue: false,

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "../lib/i18n";
 import type { TabPane } from "../stores/tabsStore";
-import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText } from "lucide-react";
+import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText, Eye, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useTabsStore } from "../stores/tabsStore";
@@ -182,6 +182,11 @@ export function QueueScrollPage() {
   const [showControls, setShowControls] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showRssSettings, setShowRssSettings] = useState(false);
+  const [isImageExpanded, setIsImageExpanded] = useState(settings.rssQueue.showCoverImage ?? false);
+
+  useEffect(() => {
+    setIsImageExpanded(settings.rssQueue.showCoverImage ?? false);
+  }, [currentIndex, settings.rssQueue.showCoverImage]);
   const [scrollItems, setScrollItems] = useState<ScrollItem[]>([]);
   const [dueFlashcards, setDueFlashcards] = useState<LearningItem[]>([]);
   const [dueExtracts, setDueExtracts] = useState<Extract[]>([]);
@@ -2032,42 +2037,75 @@ export function QueueScrollPage() {
             <div className="h-full w-full overflow-y-auto">
               <div ref={rssContentRef} className="max-w-3xl mx-auto px-8 py-12 reading-surface">
                 {/* RSS Article Header */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 reading-meta">
-                    <span className="px-2 py-1 bg-orange-500/10 text-orange-500 rounded-md text-xs font-medium">
-                      {t("queueScroll.rss")}
-                    </span>
-                    <span>{renderedItem.rssFeed?.title}</span>
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 reading-meta">
+                      <span className="px-2 py-1 bg-orange-500/10 text-orange-500 rounded-md text-xs font-medium">
+                        {t("queueScroll.rss")}
+                      </span>
+                      <span>{renderedItem.rssFeed?.title}</span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-foreground mb-3 reading-title flex items-center gap-2">
+                      {renderedItem.rssItem?.title}
+                      <RelevanceIndicator score={renderedItem.relevanceScore} className="mt-1.5" />
+                    </h1>
+                    <div className="flex items-center flex-wrap gap-4 text-sm text-muted-foreground reading-meta">
+                      {renderedItem.rssItem?.pubDate && (
+                        <span>{new Date(renderedItem.rssItem.pubDate).toLocaleDateString()}</span>
+                      )}
+                      {renderedItem.rssItem?.author && <span>• {renderedItem.rssItem.author}</span>}
+                      <a
+                        href={renderedItem.rssItem?.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 hover:text-foreground transition-colors mobile-density-tap"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        {t("queueScroll.openOriginal")}
+                      </a>
+                      {renderedItem.rssItem?.thumbnail && (
+                        <button
+                          onClick={() => setIsImageExpanded(!isImageExpanded)}
+                          className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap"
+                        >
+                          {isImageExpanded ? <EyeOff className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
+                          {isImageExpanded ? "Hide cover image" : "Show cover image"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <h1 className="text-3xl font-bold text-foreground mb-3 reading-title flex items-center gap-2">
-                    {renderedItem.rssItem?.title}
-                    <RelevanceIndicator score={renderedItem.relevanceScore} className="mt-1.5" />
-                  </h1>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground reading-meta">
-                    {renderedItem.rssItem?.pubDate && (
-                      <span>{new Date(renderedItem.rssItem.pubDate).toLocaleDateString()}</span>
-                    )}
-                    {renderedItem.rssItem?.author && <span>• {renderedItem.rssItem.author}</span>}
-                    <a
-                      href={renderedItem.rssItem?.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-foreground transition-colors mobile-density-tap"
+
+                  {!isImageExpanded && renderedItem.rssItem?.thumbnail && (
+                    <div
+                      onClick={() => setIsImageExpanded(true)}
+                      className="w-20 h-20 md:w-28 md:h-28 rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm"
+                      title="Click to expand cover image"
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      {t("queueScroll.openOriginal")}
-                    </a>
-                  </div>
+                      <img
+                        src={renderedItem.rssItem.thumbnail}
+                        alt="Cover thumbnail"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {renderedItem.rssItem?.thumbnail && (
-                  <div className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-muted/30">
+                {isImageExpanded && renderedItem.rssItem?.thumbnail && (
+                  <div className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-muted/30 relative group">
                     <img
                       src={renderedItem.rssItem.thumbnail}
                       alt=""
                       className="h-auto max-h-[32rem] w-full object-cover"
                       loading="lazy"
                     />
+                    <button
+                      onClick={() => setIsImageExpanded(false)}
+                      className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      title="Collapse image"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 

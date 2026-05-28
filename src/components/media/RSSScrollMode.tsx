@@ -30,6 +30,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   GraduationCap,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { supportsHaptics } from "../../utils/soundService";
 import {
@@ -176,6 +178,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [extractDocumentId, setExtractDocumentId] = useState<string | null>(null);
   const [editExtractFromToast, setEditExtractFromToast] = useState<Extract | null>(null);
   const [isEditExtractDialogOpen, setIsEditExtractDialogOpen] = useState(false);
+  const [isImageExpanded, setIsImageExpanded] = useState(settings.rssQueue.showCoverImage ?? false);
+
+  useEffect(() => {
+    setIsImageExpanded(settings.rssQueue.showCoverImage ?? false);
+  }, [renderedIndex, settings.rssQueue.showCoverImage]);
   const contentRef = useRef<HTMLDivElement>(null);
   const selectedTextRef = useRef("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1818,46 +1825,84 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             <div className="h-full flex flex-col pt-12 pb-20 px-6">
               {/* Article header */}
               <header className="flex-shrink-0 mb-6">
-                {/* Feed source indicator */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full">
-                    {getFeedIcon(renderedItem.feed) ? (
-                      <img
-                        src={getFeedIcon(renderedItem.feed)}
-                        alt=""
-                        className="w-4 h-4 rounded object-cover"
-                      />
-                    ) : (
-                      <Rss className="w-4 h-4 text-orange-500" />
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                  <div className="flex-1 min-w-0">
+                    {/* Feed source indicator */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full">
+                        {getFeedIcon(renderedItem.feed) ? (
+                          <img
+                            src={getFeedIcon(renderedItem.feed)}
+                            alt=""
+                            className="w-4 h-4 rounded object-cover"
+                          />
+                        ) : (
+                          <Rss className="w-4 h-4 text-orange-500" />
+                        )}
+                        <span className="text-sm font-medium text-foreground">
+                          {renderedItem.feed.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        {formatFeedDate(renderedItem.item.pubDate)}
+                      </div>
+                      {renderedItem.item.author && (
+                        <span className="text-sm text-muted-foreground">
+                          by {renderedItem.item.author}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title */}
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                      {renderedItem.item.title}
+                    </h1>
+
+                    {renderedItem.item.thumbnail && (
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
+                        <button
+                          onClick={() => setIsImageExpanded(!isImageExpanded)}
+                          className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap font-medium"
+                        >
+                          {isImageExpanded ? <EyeOff className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
+                          {isImageExpanded ? "Hide cover image" : "Show cover image"}
+                        </button>
+                      </div>
                     )}
-                    <span className="text-sm font-medium text-foreground">
-                      {renderedItem.feed.title}
-                    </span>
                   </div>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    {formatFeedDate(renderedItem.item.pubDate)}
-                  </div>
-                  {renderedItem.item.author && (
-                    <span className="text-sm text-muted-foreground">
-                      by {renderedItem.item.author}
-                    </span>
+
+                  {!isImageExpanded && renderedItem.item.thumbnail && (
+                    <div
+                      onClick={() => setIsImageExpanded(true)}
+                      className="w-20 h-20 md:w-28 md:h-28 rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm"
+                      title="Click to expand cover image"
+                    >
+                      <img
+                        src={renderedItem.item.thumbnail}
+                        alt="Cover thumbnail"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
                   )}
                 </div>
 
-                {/* Title */}
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
-                  {renderedItem.item.title}
-                </h1>
-
-                {renderedItem.item.thumbnail && (
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/60 bg-muted/30">
+                {isImageExpanded && renderedItem.item.thumbnail && (
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/60 bg-muted/30 relative group">
                     <img
                       src={renderedItem.item.thumbnail}
                       alt=""
                       className="h-auto max-h-[28rem] w-full object-cover"
                       loading="lazy"
                     />
+                    <button
+                      onClick={() => setIsImageExpanded(false)}
+                      className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      title="Collapse image"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 

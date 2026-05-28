@@ -2929,6 +2929,8 @@ export const en: Dict = {
   "settings.rssUnreadOnlyDesc": "Only include articles you haven't read yet",
   "settings.rssPreferRecent": "Prefer Recent",
   "settings.rssPreferRecentDesc": "Prioritize newer articles over older ones",
+  "settings.rssShowCoverImage": "Show cover images by default",
+  "settings.rssShowCoverImageDesc": "Display the large cover image at the top of RSS articles by default. When disabled, images are compact and can be expanded.",
   "settings.rssFeedSelection": "Feed Selection",
   "settings.rssFeedSelectionDesc":
     "Choose which feeds appear in your queue. By default, all feeds are included.",

@@ -558,6 +558,12 @@ export function AudiobookViewer({
     }
   }, [currentPartIndex, document.currentPage, document.id, fromGlobalSeconds, multiPartInfo]);
 
+  // Reset seek retry count and last saved global time on episode/document change
+  useEffect(() => {
+    seekRetryCountRef.current = 0;
+    lastSavedGlobalTimeRef.current = 0;
+  }, [document.id, episodeId]);
+
   // Load saved progress + audio prefs
   useEffect(() => {
     if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) {
@@ -570,10 +576,17 @@ export function AudiobookViewer({
         try {
           const pos = await getEpisodePosition(episodeId);
           if (pos > 0) {
-            // Always queue via pendingSeekTimeRef — the seek retry mechanism
-            // in handleLoadedMetadata/handleProgress will apply it once audio is ready
-            pendingSeekTimeRef.current = pos;
-            setIsWaitingForSeek(true);
+            if (audioRef.current && audioRef.current.readyState >= 1) {
+              console.log(`[AudiobookViewer] Audio ready, seeking podcast episode to ${pos}s immediately`);
+              audioRef.current.currentTime = pos;
+              setCurrentTime(pos);
+              currentTimeRef.current = pos;
+              currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, pos);
+            } else {
+              console.log(`[AudiobookViewer] Audio not ready, queueing podcast seek to ${pos}s`);
+              pendingSeekTimeRef.current = pos;
+              setIsWaitingForSeek(true);
+            }
           }
         } catch (err) {
           console.warn("[AudiobookViewer] Failed to load episode position:", err);
@@ -596,7 +609,16 @@ export function AudiobookViewer({
         audioRef.current.playbackRate = parseFloat(savedRate);
       }
     }
-  }, [document.id, document.currentPage, initialSeekTime, loadSavedPosition, episodeId, remoteAudioUrl]);
+  }, [
+    document.id,
+    document.currentPage,
+    initialSeekTime,
+    loadSavedPosition,
+    episodeId,
+    remoteAudioUrl,
+    currentPartIndex,
+    toGlobalSeconds,
+  ]);
   
   // Audio event handlers
   const handleTimeUpdate = useCallback(() => {
@@ -764,7 +786,7 @@ export function AudiobookViewer({
         console.log(`[AudiobookViewer] Retrying pending seek to ${target}s...`);
         pendingSeekTimeRef.current = null;
         seek(target);
-      } else {
+      } else if (audioRef.current.readyState > 0) {
         seekRetryCountRef.current++;
         if (seekRetryCountRef.current > 50) { // Limit retries
           console.warn("[AudiobookViewer] Seek retry limit reached. User might need to play first.");

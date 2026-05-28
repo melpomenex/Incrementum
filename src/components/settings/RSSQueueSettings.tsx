@@ -38,6 +38,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
   const [excludedFeedIds, setExcludedFeedIds] = useState<string[]>(rssSettings.excludedFeedIds);
   const [unreadOnly, setUnreadOnly] = useState(rssSettings.unreadOnly);
   const [preferRecent, setPreferRecent] = useState(rssSettings.preferRecent);
+  const [showCoverImage, setShowCoverImage] = useState(rssSettings.showCoverImage ?? false);
 
   // Podcast queue local state
   const podcastSettings = settings.podcastQueue ?? defaultSettings.podcastQueue;
@@ -55,6 +56,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     setExcludedFeedIds(rssSettings.excludedFeedIds);
     setUnreadOnly(rssSettings.unreadOnly);
     setPreferRecent(rssSettings.preferRecent);
+    setShowCoverImage(rssSettings.showCoverImage ?? false);
     setPodcastIncludeInQueue(podcastSettings.includeInQueue);
     setPodcastMaxItems(podcastSettings.maxItemsPerSession);
     setPodcastUnreadOnly(podcastSettings.unreadOnly);
@@ -70,6 +72,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
       excludedFeedIds,
       unreadOnly,
       preferRecent,
+      showCoverImage,
     };
     
     updateSettingsCategory("rssQueue", newSettings);
@@ -83,7 +86,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
     updateSettingsCategory("podcastQueue", newPodcastSettings);
     toast.success(t("common.success"), t("settings.rssSettingsSaved"));
     onClose();
-  }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, podcastIncludeInQueue, podcastMaxItems, podcastUnreadOnly, updateSettingsCategory, toast, onClose]);
+  }, [includeInQueue, percentage, maxItems, maxItemAgeDays, includedFeedIds, excludedFeedIds, unreadOnly, preferRecent, showCoverImage, podcastIncludeInQueue, podcastMaxItems, podcastUnreadOnly, updateSettingsCategory, toast, onClose]);
   
   const toggleFeedInclusion = useCallback((feedId: string) => {
     setIncludedFeedIds(prev => {
@@ -287,6 +290,21 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                     <span className="font-medium">{t("settings.rssPreferRecent")}</span>
                     <p className="text-sm text-muted-foreground">
                       {t("settings.rssPreferRecentDesc")}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showCoverImage}
+                    onChange={(e) => setShowCoverImage(e.target.checked)}
+                    className="w-4 h-4 rounded border-border"
+                  />
+                  <div>
+                    <span className="font-medium">{t("settings.rssShowCoverImage") || "Show cover images by default"}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {t("settings.rssShowCoverImageDesc") || "Display the large cover image at the top of RSS articles by default. When disabled, images are compact and can be expanded."}
                     </p>
                   </div>
                 </label>
