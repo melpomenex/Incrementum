@@ -273,17 +273,14 @@ struct PdfPageImage {
     extension: String,
 }
 
-fn extract_pdf_page_images(doc: &Document) -> Result<Vec<PdfPageImage>> {
+fn extract_pdf_page_images(doc: &Document) -> Vec<PdfPageImage> {
     let mut results = Vec::new();
 
     for (page_number, page_id) in doc.get_pages().iter() {
         let page_images = match doc.get_page_images(*page_id) {
             Ok(images) => images,
             Err(_) => {
-                return Err(IncrementumError::Internal(format!(
-                    "No embedded page images found on page {}",
-                    page_number
-                )));
+                continue;
             }
         };
 
@@ -312,21 +309,16 @@ fn extract_pdf_page_images(doc: &Document) -> Result<Vec<PdfPageImage>> {
             }
         }
 
-        let (bytes, extension, _) = best_image.ok_or_else(|| {
-            IncrementumError::Internal(format!(
-                "No embedded page images found on page {}",
-                page_number
-            ))
-        })?;
-
-        results.push(PdfPageImage {
-            page_number: *page_number as usize,
-            bytes,
-            extension,
-        });
+        if let Some((bytes, extension, _)) = best_image {
+            results.push(PdfPageImage {
+                page_number: *page_number as usize,
+                bytes,
+                extension,
+            });
+        }
     }
 
-    Ok(results)
+    results
 }
 
 async fn write_temp_image(bytes: &[u8], extension: &str) -> Result<PathBuf> {
@@ -415,57 +407,50 @@ pub async fn ocr_pdf_file(request: OCRPdfRequest) -> Result<OCRPdfResponse> {
             }
         }
     } else {
-        let page_images = extract_pdf_page_images(&doc)?;
-        if page_images.is_empty() {
-            return Ok(OCRPdfResponse {
-                pages: Vec::new(),
-                combined_text: String::new(),
-                confidence: 0.0,
-                line_count: 0,
-                word_count: 0,
-                processing_time_ms: start.elapsed().as_millis() as u64,
-                provider: "unknown".to_string(),
-                format: "text".to_string(),
-                page_count,
-                success: false,
-                error: Some("No embedded page images found in PDF".to_string()),
-            });
+        let page_images = extract_pdf_page_images(&doc);
+        
+        // Create a lookup map of page number to image
+        let mut image_map = std::collections::HashMap::new();
+        for img in page_images {
+            image_map.insert(img.page_number, img);
         }
 
-        for (index, page) in page_images.iter().enumerate() {
-            let temp_file = write_temp_image(&page.bytes, &page.extension).await?;
-            let result = provider.process_image(&temp_file).await;
-            let _ = tokio::fs::remove_file(&temp_file).await;
+        // Loop through all pages in the document (1-indexed)
+        for page_num in 1..=page_count {
+            if let Some(page_image) = image_map.remove(&page_num) {
+                let temp_file = write_temp_image(&page_image.bytes, &page_image.extension).await?;
+                let result = provider.process_image(&temp_file).await;
+                let _ = tokio::fs::remove_file(&temp_file).await;
 
-            match result {
-                Ok(ocr_result) => {
-                    if index > 0 && !combined_text.is_empty() {
-                        combined_text.push_str("\n\n");
+                match result {
+                    Ok(ocr_result) => {
+                        if !combined_text.is_empty() {
+                            combined_text.push_str("\n\n");
+                        }
+                        combined_text.push_str(&ocr_result.text);
+                        total_confidence += ocr_result.confidence;
+                        total_line_count += ocr_result.line_count;
+                        total_word_count += ocr_result.word_count;
+                        pages.push(OCRPdfPage {
+                            page_number: page_num,
+                            text: ocr_result.text,
+                        });
                     }
-                    combined_text.push_str(&ocr_result.text);
-                    total_confidence += ocr_result.confidence;
-                    total_line_count += ocr_result.line_count;
-                    total_word_count += ocr_result.word_count;
-                    pages.push(OCRPdfPage {
-                        page_number: page.page_number,
-                        text: ocr_result.text,
-                    });
+                    Err(e) => {
+                        // If OCR fails for a single page, log and insert a blank page to preserve sequence
+                        println!("OCR failed on page {}: {}", page_num, e);
+                        pages.push(OCRPdfPage {
+                            page_number: page_num,
+                            text: String::new(),
+                        });
+                    }
                 }
-                Err(e) => {
-                    return Ok(OCRPdfResponse {
-                        pages: Vec::new(),
-                        combined_text: String::new(),
-                        confidence: 0.0,
-                        line_count: 0,
-                        word_count: 0,
-                        processing_time_ms: start.elapsed().as_millis() as u64,
-                        provider: "unknown".to_string(),
-                        format: "text".to_string(),
-                        page_count,
-                        success: false,
-                        error: Some(e.to_string()),
-                    });
-                }
+            } else {
+                // No embedded image found on this page - insert an empty page
+                pages.push(OCRPdfPage {
+                    page_number: page_num,
+                    text: String::new(),
+                });
             }
         }
     }

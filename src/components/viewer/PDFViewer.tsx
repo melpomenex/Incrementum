@@ -42,7 +42,7 @@ import "./PDFViewer.css";
 
 // Feature flag for custom PDF selection engine
 // Set to true to use geometric selection instead of native DOM selection
-const ENABLE_CUSTOM_PDF_SELECTION = true;
+const ENABLE_CUSTOM_PDF_SELECTION = false;
 
 // Configure PDF.js worker across environments. Keep this best-effort so
 // load fallback logic can still render if worker init fails at runtime.
@@ -240,8 +240,6 @@ export function PDFViewer({
   const skipAutoScrollOnceRef = useRef(false);
   const lastSelectionWasPdfRef = useRef(false);
   const pageTextSelectionAvailabilityRef = useRef<Map<number, boolean>>(new Map());
-  // Track selection highlight elements
-  const selectionHighlightsRef = useRef<Map<number, HTMLDivElement[]>>(new Map());
   // Track the last restored page to prevent scroll events from resetting backwards
   const restoredPageRef = useRef<number | null>(null);
   const restorationWindowRef = useRef<number>(0);
@@ -278,6 +276,7 @@ export function PDFViewer({
   const [showSelectionPopup, setShowSelectionPopup] = useState(false);
   const [selectionPopupRect, setSelectionPopupRect] = useState<DOMRect | null>(null);
   const [pendingSelectionContext, setPendingSelectionContext] = useState<PdfSelectionContext | null>(null);
+  const [nativeSelectedText, setNativeSelectedText] = useState("");
   const [fallbackPageSize, setFallbackPageSize] = useState<{ width: number; height: number } | null>(null);
   const [renderPass, setRenderPass] = useState(0);
   const [textSelectionCapability, setTextSelectionCapability] = useState<PdfTextSelectionCapability>(() =>
@@ -336,38 +335,54 @@ export function PDFViewer({
     },
   });
 
+  const selectedText = ENABLE_CUSTOM_PDF_SELECTION
+    ? customSelection.selectionState.selectedText
+    : nativeSelectedText;
+
+  // Clear selection highlights from all pages (no-op now since we rely purely on clean native browser highlights)
+  const clearSelectionHighlights = useCallback(() => {}, []);
+
+  // Clear selection helper
+  const clearSelection = useCallback(() => {
+    setShowSelectionPopup(false);
+    setPendingSelectionContext(null);
+    if (ENABLE_CUSTOM_PDF_SELECTION) {
+      customSelection.clearSelection();
+    } else {
+      window.getSelection()?.removeAllRanges();
+      clearSelectionHighlights();
+      setNativeSelectedText("");
+      onSelectionChange?.("", null);
+    }
+  }, [customSelection, clearSelectionHighlights, onSelectionChange]);
+
   // Handle highlight creation from popup
   const handleHighlight = useCallback(
     (color: HighlightColor) => {
       if (!pendingSelectionContext) return;
-      onHighlightSelection?.(color, customSelection.selectionState.selectedText, pendingSelectionContext);
+      onHighlightSelection?.(color, selectedText, pendingSelectionContext);
 
       // Clear selection after highlighting
-      customSelection.clearSelection();
-      setShowSelectionPopup(false);
-      setPendingSelectionContext(null);
+      clearSelection();
     },
-    [customSelection, onHighlightSelection, pendingSelectionContext]
+    [onHighlightSelection, pendingSelectionContext, selectedText, clearSelection]
   );
 
   const handleHighlightWithDialog = useCallback(
     (color: HighlightColor) => {
       if (!pendingSelectionContext) return;
-      onHighlightSelectionWithDialog?.(color, customSelection.selectionState.selectedText, pendingSelectionContext);
+      onHighlightSelectionWithDialog?.(color, selectedText, pendingSelectionContext);
 
-      customSelection.clearSelection();
-      setShowSelectionPopup(false);
-      setPendingSelectionContext(null);
+      clearSelection();
     },
-    [customSelection, onHighlightSelectionWithDialog, pendingSelectionContext]
+    [onHighlightSelectionWithDialog, pendingSelectionContext, selectedText, clearSelection]
   );
 
   // Handle copy action from popup
   const handleCopy = useCallback(() => {
     // Copy is handled inside SelectionPopup component
-    setShowSelectionPopup(false);
-    customSelection.clearSelection();
-  }, [customSelection]);
+    clearSelection();
+  }, [clearSelection]);
 
   // Handle add note from popup
   const handleAddNote = useCallback(() => {
@@ -378,17 +393,8 @@ export function PDFViewer({
 
   // Handle popup dismiss
   const handlePopupDismiss = useCallback(() => {
-    setShowSelectionPopup(false);
-    setPendingSelectionContext(null);
-  }, []);
-
-  // Clear selection highlights from all pages
-  const clearSelectionHighlights = useCallback(() => {
-    selectionHighlightsRef.current.forEach((highlights) => {
-      highlights.forEach((el) => el.remove());
-    });
-    selectionHighlightsRef.current.clear();
-  }, []);
+    clearSelection();
+  }, [clearSelection]);
 
   // Pan state
   const [isDragging, setIsDragging] = useState(false);
@@ -1627,58 +1633,8 @@ export function PDFViewer({
     };
   }, [documentId, pdf]);
 
-  // Draw selection highlights based on current selection
-  const updateSelectionHighlights = useCallback(() => {
-    clearSelectionHighlights();
-    
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const rects = Array.from(range.getClientRects());
-    
-    rects.forEach((rect) => {
-      if (rect.width === 0 || rect.height === 0) return;
-      
-      // Find which page this rect belongs to
-      for (let i = 0; i < pageContainerRefs.current.length; i++) {
-        const pageEl = pageContainerRefs.current[i];
-        if (!pageEl) continue;
-        
-        const pageRect = pageEl.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        // Check if rect is within this page
-        if (centerX >= pageRect.left && centerX <= pageRect.right &&
-            centerY >= pageRect.top && centerY <= pageRect.bottom) {
-          
-          // Create highlight element
-          const highlight = document.createElement("div");
-          highlight.className = "pdf-selection-highlight";
-          highlight.style.position = "absolute";
-          highlight.style.left = `${rect.left - pageRect.left}px`;
-          highlight.style.top = `${rect.top - pageRect.top}px`;
-          highlight.style.width = `${rect.width}px`;
-          highlight.style.height = `${rect.height}px`;
-          highlight.style.backgroundColor = "rgba(59, 130, 246, 0.4)";
-          highlight.style.pointerEvents = "none";
-          highlight.style.zIndex = "5";
-          highlight.style.borderRadius = "2px";
-          
-          pageEl.appendChild(highlight);
-          
-          if (!selectionHighlightsRef.current.has(i)) {
-            selectionHighlightsRef.current.set(i, []);
-          }
-          selectionHighlightsRef.current.get(i)?.push(highlight);
-          break;
-        }
-      }
-    });
-  }, [clearSelectionHighlights]);
+  // Draw selection highlights based on current selection (no-op now since we rely purely on clean native browser highlights)
+  const updateSelectionHighlights = useCallback(() => {}, []);
 
   // Handle text selection changes (native DOM selection - disabled when custom selection is active)
   useEffect(() => {
@@ -1703,6 +1659,10 @@ export function PDFViewer({
             clearSelectionHighlights();
             onSelectionChange("", null);
           }
+          setShowSelectionPopup(false);
+          setSelectionPopupRect(null);
+          setPendingSelectionContext(null);
+          setNativeSelectedText("");
           isProcessingSelection = false;
           return;
         }
@@ -1719,6 +1679,10 @@ export function PDFViewer({
             clearSelectionHighlights();
             onSelectionChange("", null);
           }
+          setShowSelectionPopup(false);
+          setSelectionPopupRect(null);
+          setPendingSelectionContext(null);
+          setNativeSelectedText("");
           isProcessingSelection = false;
           return;
         }
@@ -1730,6 +1694,10 @@ export function PDFViewer({
             clearSelectionHighlights();
             onSelectionChange("", null);
           }
+          setShowSelectionPopup(false);
+          setSelectionPopupRect(null);
+          setPendingSelectionContext(null);
+          setNativeSelectedText("");
           isProcessingSelection = false;
           return;
         }
@@ -1741,6 +1709,10 @@ export function PDFViewer({
             clearSelectionHighlights();
             onSelectionChange("", null);
           }
+          setShowSelectionPopup(false);
+          setSelectionPopupRect(null);
+          setPendingSelectionContext(null);
+          setNativeSelectedText("");
           isProcessingSelection = false;
           return;
         }
@@ -1749,6 +1721,18 @@ export function PDFViewer({
         
         // Update visual highlights
         updateSelectionHighlights();
+        
+        // Set native selection details
+        setPendingSelectionContext(context);
+        setNativeSelectedText(text);
+
+        // Show selection popup
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          setSelectionPopupRect(rect);
+          setShowSelectionPopup(true);
+        }
         
         onSelectionChange(text, context);
         isProcessingSelection = false;
@@ -1766,6 +1750,31 @@ export function PDFViewer({
       const target = e.target as Node;
       const scrollContainer = scrollContainerRef.current;
       if (!scrollContainer || !scrollContainer.contains(target)) return;
+
+      // Check if user clicked exactly on the transparent textLayer container (whitespace/margin)
+      // rather than an actual text span.
+      const clickedTextLayerWhitespace = textLayerRootsRef.current.some(
+        (layer) => layer && layer === target,
+      );
+      if (clickedTextLayerWhitespace) {
+        // Prevent selection starting from the whitespace container itself,
+        // which causes the browser to select everything from the top of the container.
+        e.preventDefault();
+
+        // Deselect current selection when clicking on empty whitespace
+        window.getSelection()?.removeAllRanges();
+        clearSelectionHighlights();
+        setShowSelectionPopup(false);
+        setSelectionPopupRect(null);
+        setPendingSelectionContext(null);
+        setNativeSelectedText("");
+        if (lastSelectionWasPdfRef.current) {
+          lastSelectionWasPdfRef.current = false;
+          onSelectionChange("", null);
+        }
+        return;
+      }
+
       const clickedTextLayer = textLayerRootsRef.current.some(
         (layer) => layer && (layer === target || layer.contains(target)),
       );
@@ -1773,6 +1782,10 @@ export function PDFViewer({
       const hasNativeSelection = Boolean(window.getSelection()?.toString().trim());
       if (!hasNativeSelection) {
         clearSelectionHighlights();
+        setShowSelectionPopup(false);
+        setSelectionPopupRect(null);
+        setPendingSelectionContext(null);
+        setNativeSelectedText("");
         if (lastSelectionWasPdfRef.current) {
           lastSelectionWasPdfRef.current = false;
           onSelectionChange("", null);
@@ -2940,11 +2953,11 @@ export function PDFViewer({
                           : undefined,
                         contain: 'layout style paint',
                       }}
-                      {...(ENABLE_CUSTOM_PDF_SELECTION && {
+                      {...(ENABLE_CUSTOM_PDF_SELECTION ? {
                         onPointerDown: (e: React.PointerEvent) => customSelection.handlePointerDown(index, e),
                         onPointerMove: (e: React.PointerEvent) => customSelection.handlePointerMove(index, e),
                         onPointerUp: (e: React.PointerEvent) => customSelection.handlePointerUp(index, e),
-                      })}
+                      } : {})}
                     >
                       <canvas
                         ref={(el) => {
@@ -3083,7 +3096,7 @@ export function PDFViewer({
       <SelectionPopup
         visible={showSelectionPopup}
         selectionRect={selectionPopupRect}
-        selectedText={customSelection.selectionState.selectedText}
+        selectedText={selectedText}
         onHighlight={handleHighlight}
         onHighlightWithDialog={handleHighlightWithDialog}
         onCopy={handleCopy}

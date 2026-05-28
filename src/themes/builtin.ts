@@ -2130,6 +2130,1330 @@ export const focusCompactTheme: Theme = {
   },
 };
 
+// Solar Sanctuary Theme (Light Animated)
+export const solarSanctuaryTheme: Theme = {
+  id: 'solar-sanctuary',
+  name: 'Solar Sanctuary',
+  variant: 'light',
+  description: 'Warm light sanctuary with rotating golden solar rays.',
+  colors: {
+    background: '#fdfbf7',
+    onBackground: '#433422',
+    surface: 'rgba(255, 253, 249, 0.7)',
+    onSurface: '#433422',
+    surfaceVariant: 'rgba(247, 241, 227, 0.6)',
+    primary: '#e29548',
+    onPrimary: '#ffffff',
+    primaryContainer: 'rgba(226, 149, 72, 0.15)',
+    onPrimaryContainer: '#784408',
+    secondary: 'rgba(164, 137, 100, 0.5)',
+    onSecondary: '#433422',
+    outline: 'rgba(164, 137, 100, 0.2)',
+    outlineVariant: 'rgba(164, 137, 100, 0.1)',
+    error: '#d9534f',
+    onError: '#ffffff',
+    errorContainer: 'rgba(217, 83, 79, 0.2)',
+    onErrorContainer: '#a94442',
+    success: '#60b064',
+    warning: '#f0ad4e',
+    toolbar: 'rgba(253, 251, 247, 0.8)',
+    sidebar: 'rgba(247, 245, 237, 0.65)',
+    card: 'rgba(255, 253, 249, 0.55)',
+    input: 'rgba(255, 253, 249, 0.45)',
+    border: 'rgba(164, 137, 100, 0.18)',
+    text: '#433422',
+    textSecondary: '#8c765c',
+    link: '#d97706',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", -apple-system, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(120, 68, 8, 0.05)',
+    md: '0 4px 16px rgba(120, 68, 8, 0.08)',
+    lg: '0 8px 32px rgba(120, 68, 8, 0.12)',
+    xl: '0 16px 48px rgba(120, 68, 8, 0.15)',
+  },
+  effects: {
+    backgroundAnimation: 'sunbeams',
+  },
+  customCSS: `
+    :root[data-theme-id="solar-sanctuary"] .app-shell {
+      background: rgba(253, 251, 247, 0.75) !important;
+      background-color: rgba(253, 251, 247, 0.75) !important;
+    }
+    :root[data-theme-id="solar-sanctuary"] .bg-background:not(.app-shell),
+    :root[data-theme-id="solar-sanctuary"] .main-content,
+    :root[data-theme-id="solar-sanctuary"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="solar-sanctuary"] .sidebar-section {
+      background: rgba(247, 241, 227, 0.5) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(164, 137, 100, 0.15);
+    }
+    :root[data-theme-id="solar-sanctuary"] .sidebar-item-active {
+      background: rgba(226, 149, 72, 0.15) !important;
+      border-left: 3px solid #e29548 !important;
+      color: #784408 !important;
+    }
+    :root[data-theme-id="solar-sanctuary"] .glass-panel,
+    :root[data-theme-id="solar-sanctuary"] .glass-panel-light,
+    :root[data-theme-id="solar-sanctuary"] .glass-card-enhanced {
+      background: rgba(255, 253, 249, 0.5) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 149, 72, 0.15) !important;
+      box-shadow: 0 8px 32px rgba(120, 68, 8, 0.06) !important;
+    }
+  `,
+};
+
+// Serene Meadow Theme (Light Animated)
+export const sereneMeadowTheme: Theme = {
+  id: 'serene-meadow',
+  name: 'Serene Meadow',
+  variant: 'light',
+  description: 'Fresh botanical light theme with floating dandelion seeds.',
+  colors: {
+    background: '#f4f8f5',
+    onBackground: '#243828',
+    surface: 'rgba(255, 255, 255, 0.75)',
+    onSurface: '#243828',
+    surfaceVariant: 'rgba(230, 240, 232, 0.6)',
+    primary: '#5c9c6f',
+    onPrimary: '#ffffff',
+    primaryContainer: 'rgba(92, 156, 111, 0.15)',
+    onPrimaryContainer: '#1e4627',
+    secondary: 'rgba(112, 140, 119, 0.5)',
+    onSecondary: '#243828',
+    outline: 'rgba(112, 140, 119, 0.2)',
+    outlineVariant: 'rgba(112, 140, 119, 0.1)',
+    error: '#d35b58',
+    onError: '#ffffff',
+    errorContainer: 'rgba(211, 91, 88, 0.2)',
+    onErrorContainer: '#8a2b28',
+    success: '#5c9c6f',
+    warning: '#dfa73b',
+    toolbar: 'rgba(244, 248, 245, 0.8)',
+    sidebar: 'rgba(235, 243, 237, 0.65)',
+    card: 'rgba(255, 255, 255, 0.55)',
+    input: 'rgba(255, 255, 255, 0.45)',
+    border: 'rgba(112, 140, 119, 0.18)',
+    text: '#243828',
+    textSecondary: '#526c58',
+    link: '#3f784e',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(30, 70, 39, 0.04)',
+    md: '0 4px 16px rgba(30, 70, 39, 0.06)',
+    lg: '0 8px 32px rgba(30, 70, 39, 0.09)',
+    xl: '0 16px 48px rgba(30, 70, 39, 0.12)',
+  },
+  effects: {
+    backgroundAnimation: 'dandelions',
+  },
+  customCSS: `
+    :root[data-theme-id="serene-meadow"] .app-shell {
+      background: rgba(244, 248, 245, 0.75) !important;
+      background-color: rgba(244, 248, 245, 0.75) !important;
+    }
+    :root[data-theme-id="serene-meadow"] .bg-background:not(.app-shell),
+    :root[data-theme-id="serene-meadow"] .main-content,
+    :root[data-theme-id="serene-meadow"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="serene-meadow"] .sidebar-section {
+      background: rgba(235, 243, 237, 0.5) !important;
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(112, 140, 119, 0.15);
+    }
+    :root[data-theme-id="serene-meadow"] .sidebar-item-active {
+      background: rgba(92, 156, 111, 0.15) !important;
+      border-left: 3px solid #5c9c6f !important;
+      color: #1e4627 !important;
+    }
+    :root[data-theme-id="serene-meadow"] .glass-panel,
+    :root[data-theme-id="serene-meadow"] .glass-panel-light,
+    :root[data-theme-id="serene-meadow"] .glass-card-enhanced {
+      background: rgba(255, 255, 255, 0.55) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(92, 156, 111, 0.15) !important;
+      box-shadow: 0 8px 32px rgba(30, 70, 39, 0.05) !important;
+    }
+  `,
+};
+
+// Rainy Library Theme (Light Animated)
+export const rainyLibraryTheme: Theme = {
+  id: 'rainy-library',
+  name: 'Rainy Library',
+  variant: 'light',
+  description: 'Cozy academic library under falling rain.',
+  colors: {
+    background: '#f3f2ee',
+    onBackground: '#2f251c',
+    surface: 'rgba(255, 254, 250, 0.75)',
+    onSurface: '#2f251c',
+    surfaceVariant: 'rgba(237, 234, 227, 0.6)',
+    primary: '#4a6b82',
+    onPrimary: '#ffffff',
+    primaryContainer: 'rgba(74, 107, 130, 0.15)',
+    onPrimaryContainer: '#1b3240',
+    secondary: 'rgba(154, 133, 114, 0.5)',
+    onSecondary: '#2f251c',
+    outline: 'rgba(154, 133, 114, 0.2)',
+    outlineVariant: 'rgba(154, 133, 114, 0.1)',
+    error: '#b84a39',
+    onError: '#ffffff',
+    errorContainer: 'rgba(184, 74, 57, 0.2)',
+    onErrorContainer: '#5c1b12',
+    success: '#5a8b62',
+    warning: '#cc8a2b',
+    toolbar: 'rgba(243, 242, 238, 0.8)',
+    sidebar: 'rgba(235, 232, 225, 0.65)',
+    card: 'rgba(255, 254, 250, 0.55)',
+    input: 'rgba(255, 254, 250, 0.45)',
+    border: 'rgba(154, 133, 114, 0.18)',
+    text: '#2f251c',
+    textSecondary: '#75604e',
+    link: '#3b5a70',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", -apple-system, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.375rem',
+    lg: '0.5rem',
+    xl: '0.75rem',
+    '2xl': '1rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(47, 37, 28, 0.03)',
+    md: '0 4px 16px rgba(47, 37, 28, 0.05)',
+    lg: '0 8px 32px rgba(47, 37, 28, 0.08)',
+    xl: '0 16px 48px rgba(47, 37, 28, 0.12)',
+  },
+  effects: {
+    backgroundAnimation: 'rainywindow',
+  },
+  customCSS: `
+    :root[data-theme-id="rainy-library"] .app-shell {
+      background: rgba(243, 242, 238, 0.75) !important;
+      background-color: rgba(243, 242, 238, 0.75) !important;
+    }
+    :root[data-theme-id="rainy-library"] .bg-background:not(.app-shell),
+    :root[data-theme-id="rainy-library"] .main-content,
+    :root[data-theme-id="rainy-library"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="rainy-library"] .sidebar-section {
+      background: rgba(235, 232, 225, 0.5) !important;
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(154, 133, 114, 0.15);
+    }
+    :root[data-theme-id="rainy-library"] .sidebar-item-active {
+      background: rgba(74, 107, 130, 0.15) !important;
+      border-left: 3px solid #4a6b82 !important;
+      color: #1b3240 !important;
+    }
+    :root[data-theme-id="rainy-library"] .glass-panel,
+    :root[data-theme-id="rainy-library"] .glass-panel-light,
+    :root[data-theme-id="rainy-library"] .glass-card-enhanced {
+      background: rgba(255, 254, 250, 0.55) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(154, 133, 114, 0.15) !important;
+      box-shadow: 0 8px 32px rgba(47, 37, 28, 0.05) !important;
+    }
+  `,
+};
+
+// Cyber Drive Theme (Dark Animated)
+export const cyberDriveTheme: Theme = {
+  id: 'cyber-drive',
+  name: 'Cyber Drive',
+  variant: 'dark',
+  description: 'Retro-futuristic synthwave ride under neon traffic lights.',
+  colors: {
+    background: '#05050a',
+    onBackground: '#f0f5ff',
+    surface: 'rgba(13, 13, 25, 0.7)',
+    onSurface: '#f0f5ff',
+    surfaceVariant: 'rgba(25, 25, 45, 0.6)',
+    primary: '#ff0055',
+    onPrimary: '#ffffff',
+    primaryContainer: 'rgba(255, 0, 85, 0.2)',
+    onPrimaryContainer: '#ffd6e0',
+    secondary: 'rgba(0, 255, 204, 0.3)',
+    onSecondary: '#f0f5ff',
+    outline: 'rgba(153, 0, 255, 0.25)',
+    outlineVariant: 'rgba(153, 0, 255, 0.15)',
+    error: '#ff3b30',
+    onError: '#ffffff',
+    errorContainer: 'rgba(255, 59, 48, 0.2)',
+    onErrorContainer: '#ffb3b0',
+    success: '#00ffcc',
+    warning: '#ffcc00',
+    toolbar: 'rgba(5, 5, 10, 0.8)',
+    sidebar: 'rgba(8, 8, 16, 0.6)',
+    card: 'rgba(15, 15, 30, 0.5)',
+    input: 'rgba(15, 15, 30, 0.4)',
+    border: 'rgba(0, 255, 204, 0.15)',
+    text: '#f0f5ff',
+    textSecondary: '#94a3b8',
+    link: '#ff0055',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.5rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(255, 0, 85, 0.08)',
+    md: '0 4px 16px rgba(255, 0, 85, 0.15)',
+    lg: '0 8px 32px rgba(153, 0, 255, 0.2)',
+    xl: '0 16px 48px rgba(153, 0, 255, 0.3)',
+  },
+  effects: {
+    backgroundAnimation: 'cyberhighway',
+  },
+  customCSS: `
+    :root[data-theme-id="cyber-drive"] .app-shell {
+      background: rgba(5, 5, 10, 0.6) !important;
+      background-color: rgba(5, 5, 10, 0.6) !important;
+    }
+    :root[data-theme-id="cyber-drive"] .bg-background:not(.app-shell),
+    :root[data-theme-id="cyber-drive"] .main-content,
+    :root[data-theme-id="cyber-drive"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="cyber-drive"] .sidebar-section {
+      background: rgba(8, 8, 16, 0.5) !important;
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(153, 0, 255, 0.2);
+    }
+    :root[data-theme-id="cyber-drive"] .sidebar-item-active {
+      background: rgba(255, 0, 85, 0.15) !important;
+      border-left: 3px solid #ff0055 !important;
+      color: #ffd6e0 !important;
+    }
+    :root[data-theme-id="cyber-drive"] .glass-panel,
+    :root[data-theme-id="cyber-drive"] .glass-panel-light,
+    :root[data-theme-id="cyber-drive"] .glass-card-enhanced {
+      background: rgba(13, 13, 25, 0.55) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 255, 204, 0.2) !important;
+      box-shadow: 0 8px 32px rgba(255, 0, 85, 0.12) !important;
+    }
+  `,
+};
+
+// Stardust Void Theme (Dark Animated)
+export const stardustVoidTheme: Theme = {
+  id: 'stardust-void',
+  name: 'Stardust Void',
+  variant: 'dark',
+  description: 'Deep cosmic void with swirling stardust and violet waves.',
+  colors: {
+    background: '#0b0914',
+    onBackground: '#eef2ff',
+    surface: 'rgba(21, 18, 38, 0.7)',
+    onSurface: '#eef2ff',
+    surfaceVariant: 'rgba(32, 28, 56, 0.6)',
+    primary: '#a855f7',
+    onPrimary: '#ffffff',
+    primaryContainer: 'rgba(168, 85, 247, 0.2)',
+    onPrimaryContainer: '#f3e8ff',
+    secondary: 'rgba(245, 158, 11, 0.3)',
+    onSecondary: '#eef2ff',
+    outline: 'rgba(139, 92, 246, 0.2)',
+    outlineVariant: 'rgba(139, 92, 246, 0.1)',
+    error: '#ef4444',
+    onError: '#ffffff',
+    errorContainer: 'rgba(239, 68, 68, 0.2)',
+    onErrorContainer: '#fee2e2',
+    success: '#10b981',
+    warning: '#f59e0b',
+    toolbar: 'rgba(11, 9, 20, 0.8)',
+    sidebar: 'rgba(14, 11, 26, 0.6)',
+    card: 'rgba(21, 18, 38, 0.5)',
+    input: 'rgba(21, 18, 38, 0.4)',
+    border: 'rgba(168, 85, 247, 0.15)',
+    text: '#eef2ff',
+    textSecondary: '#a5b4fc',
+    link: '#c084fc',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.5rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(168, 85, 247, 0.08)',
+    md: '0 4px 16px rgba(168, 85, 247, 0.15)',
+    lg: '0 8px 32px rgba(139, 92, 246, 0.2)',
+    xl: '0 16px 48px rgba(139, 92, 246, 0.25)',
+  },
+  effects: {
+    backgroundAnimation: 'cosmicdust',
+  },
+  customCSS: `
+    :root[data-theme-id="stardust-void"] .app-shell {
+      background: rgba(11, 9, 20, 0.6) !important;
+      background-color: rgba(11, 9, 20, 0.6) !important;
+    }
+    :root[data-theme-id="stardust-void"] .bg-background:not(.app-shell),
+    :root[data-theme-id="stardust-void"] .main-content,
+    :root[data-theme-id="stardust-void"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="stardust-void"] .sidebar-section {
+      background: rgba(14, 11, 26, 0.5) !important;
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    :root[data-theme-id="stardust-void"] .sidebar-item-active {
+      background: rgba(168, 85, 247, 0.15) !important;
+      border-left: 3px solid #a855f7 !important;
+      color: #f3e8ff !important;
+    }
+    :root[data-theme-id="stardust-void"] .glass-panel,
+    :root[data-theme-id="stardust-void"] .glass-panel-light,
+    :root[data-theme-id="stardust-void"] .glass-card-enhanced {
+      background: rgba(21, 18, 38, 0.55) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(168, 85, 247, 0.18) !important;
+      box-shadow: 0 8px 32px rgba(139, 92, 246, 0.1) !important;
+    }
+  `,
+};
+
+// Biolume Abyss Theme (Dark Animated)
+export const biolumeAbyssTheme: Theme = {
+  id: 'biolume-abyss',
+  name: 'Biolume Abyss',
+  variant: 'dark',
+  description: 'Deep oceanic abyss with floating bioluminescent spores.',
+  colors: {
+    background: '#020b14',
+    onBackground: '#e0f2fe',
+    surface: 'rgba(10, 25, 41, 0.7)',
+    onSurface: '#e0f2fe',
+    surfaceVariant: 'rgba(15, 38, 64, 0.6)',
+    primary: '#06b6d4',
+    onPrimary: '#022c22',
+    primaryContainer: 'rgba(6, 182, 212, 0.2)',
+    onPrimaryContainer: '#cffafe',
+    secondary: 'rgba(16, 185, 129, 0.3)',
+    onSecondary: '#e0f2fe',
+    outline: 'rgba(14, 116, 144, 0.25)',
+    outlineVariant: 'rgba(14, 116, 144, 0.15)',
+    error: '#ef4444',
+    onError: '#ffffff',
+    errorContainer: 'rgba(239, 68, 68, 0.2)',
+    onErrorContainer: '#fee2e2',
+    success: '#10b981',
+    warning: '#f59e0b',
+    toolbar: 'rgba(2, 11, 20, 0.8)',
+    sidebar: 'rgba(3, 16, 30, 0.6)',
+    card: 'rgba(10, 25, 41, 0.5)',
+    input: 'rgba(10, 25, 41, 0.4)',
+    border: 'rgba(6, 182, 212, 0.15)',
+    text: '#e0f2fe',
+    textSecondary: '#7dd3fc',
+    link: '#22d3ee',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.125rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.5rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(6, 182, 212, 0.08)',
+    md: '0 4px 16px rgba(6, 182, 212, 0.15)',
+    lg: '0 8px 32px rgba(14, 116, 144, 0.2)',
+    xl: '0 16px 48px rgba(14, 116, 144, 0.25)',
+  },
+  effects: {
+    backgroundAnimation: 'bioglow',
+  },
+  customCSS: `
+    :root[data-theme-id="biolume-abyss"] .app-shell {
+      background: rgba(2, 11, 20, 0.6) !important;
+      background-color: rgba(2, 11, 20, 0.6) !important;
+    }
+    :root[data-theme-id="biolume-abyss"] .bg-background:not(.app-shell),
+    :root[data-theme-id="biolume-abyss"] .main-content,
+    :root[data-theme-id="biolume-abyss"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="biolume-abyss"] .sidebar-section {
+      background: rgba(3, 16, 30, 0.5) !important;
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(14, 116, 144, 0.25);
+    }
+    :root[data-theme-id="biolume-abyss"] .sidebar-item-active {
+      background: rgba(6, 182, 212, 0.15) !important;
+      border-left: 3px solid #06b6d4 !important;
+      color: #cffafe !important;
+    }
+    :root[data-theme-id="biolume-abyss"] .glass-panel,
+    :root[data-theme-id="biolume-abyss"] .glass-panel-light,
+    :root[data-theme-id="biolume-abyss"] .glass-card-enhanced {
+      background: rgba(10, 25, 41, 0.55) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(6, 182, 212, 0.18) !important;
+      box-shadow: 0 8px 32px rgba(14, 116, 144, 0.1) !important;
+    }
+  `,
+};
+
+// Eucalyptus Mist Theme (Light Non-Animated)
+export const eucalyptusMistTheme: Theme = {
+  id: 'eucalyptus-mist',
+  name: 'Eucalyptus Mist',
+  variant: 'light',
+  description: 'A peaceful, calming eucalyptus green and warm grey theme.',
+  colors: {
+    background: '#f5f6f3',
+    onBackground: '#2c352a',
+    surface: '#ffffff',
+    onSurface: '#2c352a',
+    surfaceVariant: '#e9ebe4',
+    primary: '#6c8567',
+    onPrimary: '#ffffff',
+    primaryContainer: '#e1e6de',
+    onPrimaryContainer: '#202c1d',
+    secondary: '#8ba086',
+    onSecondary: '#ffffff',
+    outline: '#c6ccc1',
+    outlineVariant: '#d7dbd3',
+    error: '#cf6663',
+    onError: '#ffffff',
+    errorContainer: '#f9e8e8',
+    onErrorContainer: '#cf6663',
+    success: '#709176',
+    warning: '#d19941',
+    toolbar: '#f5f6f3',
+    sidebar: '#edf0eb',
+    card: '#ffffff',
+    input: '#ffffff',
+    border: '#c6ccc1',
+    text: '#2c352a',
+    textSecondary: '#5c665a',
+    link: '#587053',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    md: '0 4px 6px -1px rgba(0, 0, 0, 0.06)',
+    lg: '0 10px 15px -3px rgba(0, 0, 0, 0.08)',
+    xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+  },
+};
+
+// Macchiato Cream Theme (Light Non-Animated)
+export const macchiatoCreamTheme: Theme = {
+  id: 'macchiato-cream',
+  name: 'Macchiato Cream',
+  variant: 'light',
+  description: 'Warm latte tones with rich roasted espresso accents.',
+  colors: {
+    background: '#fcfaf7',
+    onBackground: '#3e2723',
+    surface: '#ffffff',
+    onSurface: '#3e2723',
+    surfaceVariant: '#f3ede2',
+    primary: '#8d6e63',
+    onPrimary: '#ffffff',
+    primaryContainer: '#f5ebe6',
+    onPrimaryContainer: '#4e342e',
+    secondary: '#bcaaa4',
+    onSecondary: '#3e2723',
+    outline: '#d7ccc8',
+    outlineVariant: '#efebe9',
+    error: '#cc5a5a',
+    onError: '#ffffff',
+    errorContainer: '#fdf3f3',
+    onErrorContainer: '#cc5a5a',
+    success: '#6c8e68',
+    warning: '#cc9642',
+    toolbar: '#fcfaf7',
+    sidebar: '#f7f1e7',
+    card: '#ffffff',
+    input: '#ffffff',
+    border: '#d7ccc8',
+    text: '#3e2723',
+    textSecondary: '#6d4c41',
+    link: '#795548',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 1px 2px 0 rgba(62, 39, 35, 0.04)',
+    md: '0 4px 6px -1px rgba(62, 39, 35, 0.05)',
+    lg: '0 10px 15px -3px rgba(62, 39, 35, 0.07)',
+    xl: '0 20px 25px -5px rgba(62, 39, 35, 0.1)',
+  },
+};
+
+// Nordic Frost Theme (Light Non-Animated)
+export const nordicFrostTheme: Theme = {
+  id: 'nordic-frost',
+  name: 'Nordic Frost',
+  variant: 'light',
+  description: 'Crisp arctic glacier layout with ice-blue accents.',
+  colors: {
+    background: '#f0f4f8',
+    onBackground: '#1b2a3a',
+    surface: '#ffffff',
+    onSurface: '#1b2a3a',
+    surfaceVariant: '#e1e9f0',
+    primary: '#4a90e2',
+    onPrimary: '#ffffff',
+    primaryContainer: '#dbeafe',
+    onPrimaryContainer: '#1e40af',
+    secondary: '#85b0d9',
+    onSecondary: '#1b2a3a',
+    outline: '#cbdbe6',
+    outlineVariant: '#e5eef5',
+    error: '#cf5252',
+    onError: '#ffffff',
+    errorContainer: '#fdf3f3',
+    onErrorContainer: '#cf5252',
+    success: '#4ca679',
+    warning: '#d4a343',
+    toolbar: '#f0f4f8',
+    sidebar: '#e5ebf1',
+    card: '#ffffff',
+    input: '#ffffff',
+    border: '#cbdbe6',
+    text: '#1b2a3a',
+    textSecondary: '#4b6075',
+    link: '#3b7dbd',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 1px 2px 0 rgba(27, 42, 58, 0.04)',
+    md: '0 4px 6px -1px rgba(27, 42, 58, 0.05)',
+    lg: '0 10px 15px -3px rgba(27, 42, 58, 0.07)',
+    xl: '0 20px 25px -5px rgba(27, 42, 58, 0.1)',
+  },
+};
+
+// Tokyo Neon Theme (Dark Non-Animated)
+export const tokyoNeonTheme: Theme = {
+  id: 'tokyo-neon',
+  name: 'Tokyo Neon',
+  variant: 'dark',
+  description: 'Late-night Tokyo slate with rain-reflected magenta and cyan neon.',
+  colors: {
+    background: '#12121e',
+    onBackground: '#e2e2ec',
+    surface: '#1a1a2e',
+    onSurface: '#e2e2ec',
+    surfaceVariant: '#24243e',
+    primary: '#ff007f',
+    onPrimary: '#ffffff',
+    primaryContainer: '#4d003b',
+    onPrimaryContainer: '#ffb3d9',
+    secondary: '#00f0ff',
+    onSecondary: '#12121e',
+    outline: '#3d3d5c',
+    outlineVariant: '#2b2b40',
+    error: '#ff4d4d',
+    onError: '#ffffff',
+    errorContainer: '#4c0000',
+    onErrorContainer: '#ffb3b3',
+    success: '#00ff88',
+    warning: '#ffdd00',
+    toolbar: '#0d0d17',
+    sidebar: '#0f0f1c',
+    card: '#1a1a2e',
+    input: '#1a1a2e',
+    border: '#3d3d5c',
+    text: '#e2e2ec',
+    textSecondary: '#9494b8',
+    link: '#ff007f',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.2)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.3)',
+    lg: '0 8px 32px rgba(255, 0, 127, 0.15)',
+    xl: '0 16px 48px rgba(0, 240, 255, 0.15)',
+  },
+};
+
+// Espresso Roast Theme (Dark Non-Animated)
+export const espressoRoastTheme: Theme = {
+  id: 'espresso-roast',
+  name: 'Espresso Roast',
+  variant: 'dark',
+  description: 'Rich dark espresso roast layout with warm caramel crema.',
+  colors: {
+    background: '#1c1613',
+    onBackground: '#f3eae5',
+    surface: '#241d1a',
+    onSurface: '#f3eae5',
+    surfaceVariant: '#2e2521',
+    primary: '#d7ccc8',
+    onPrimary: '#3e2723',
+    primaryContainer: '#5d4037',
+    onPrimaryContainer: '#f5ebe6',
+    secondary: '#a1887f',
+    onSecondary: '#1c1613',
+    outline: '#4e342e',
+    outlineVariant: '#3e2723',
+    error: '#e57373',
+    onError: '#ffffff',
+    errorContainer: '#4c1c1a',
+    onErrorContainer: '#ffcdd2',
+    success: '#81c784',
+    warning: '#ffb74d',
+    toolbar: '#16110f',
+    sidebar: '#171210',
+    card: '#241d1a',
+    input: '#241d1a',
+    border: '#4e342e',
+    text: '#f3eae5',
+    textSecondary: '#bcaaa4',
+    link: '#d7ccc8',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.2)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.3)',
+    lg: '0 8px 32px rgba(62, 39, 35, 0.15)',
+    xl: '0 16px 48px rgba(62, 39, 35, 0.2)',
+  },
+};
+
+// Nordic Slate Theme (Dark Non-Animated)
+export const nordicSlateTheme: Theme = {
+  id: 'nordic-slate',
+  name: 'Nordic Slate',
+  variant: 'dark',
+  description: 'Cool, minimalist dark nordic slate-grey theme.',
+  colors: {
+    background: '#1b222b',
+    onBackground: '#eceff4',
+    surface: '#242c37',
+    onSurface: '#eceff4',
+    surfaceVariant: '#2e3846',
+    primary: '#88c0d0',
+    onPrimary: '#2e3440',
+    primaryContainer: '#434c5e',
+    onPrimaryContainer: '#eceff4',
+    secondary: '#81a1c1',
+    onSecondary: '#2e3440',
+    outline: '#4c566a',
+    outlineVariant: '#3b4252',
+    error: '#bf616a',
+    onError: '#ffffff',
+    errorContainer: '#4c1f24',
+    onErrorContainer: '#ffccd0',
+    success: '#a3be8c',
+    warning: '#ebcb8b',
+    toolbar: '#161b22',
+    sidebar: '#181e26',
+    card: '#242c37',
+    input: '#242c37',
+    border: '#4c566a',
+    text: '#eceff4',
+    textSecondary: '#d8dee9',
+    link: '#88c0d0',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.2)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.25)',
+    lg: '0 8px 32px rgba(46, 52, 64, 0.3)',
+    xl: '0 16px 48px rgba(46, 52, 64, 0.4)',
+  },
+};
+
+// Cozy Windowpane Theme (Dark Animated)
+export const cozyWindowpaneTheme: Theme = {
+  id: 'cozy-windowpane',
+  name: 'Cozy Windowpane',
+  variant: 'dark',
+  description: 'Late-night rainy windowpane with warm candlelight accents.',
+  colors: {
+    background: '#070b12',
+    onBackground: '#f1f5f9',
+    surface: 'rgba(15, 23, 42, 0.65)',
+    onSurface: '#f1f5f9',
+    surfaceVariant: 'rgba(30, 41, 59, 0.6)',
+    primary: '#f59e0b',
+    onPrimary: '#020617',
+    primaryContainer: 'rgba(245, 158, 11, 0.18)',
+    onPrimaryContainer: '#fef3c7',
+    secondary: 'rgba(51, 65, 85, 0.5)',
+    onSecondary: '#f1f5f9',
+    outline: 'rgba(148, 163, 184, 0.15)',
+    outlineVariant: 'rgba(148, 163, 184, 0.08)',
+    error: '#ef4444',
+    onError: '#ffffff',
+    errorContainer: 'rgba(239, 68, 68, 0.2)',
+    onErrorContainer: '#fee2e2',
+    success: '#10b981',
+    warning: '#f59e0b',
+    toolbar: 'rgba(7, 11, 18, 0.8)',
+    sidebar: 'rgba(10, 15, 30, 0.6)',
+    card: 'rgba(15, 23, 42, 0.55)',
+    input: 'rgba(15, 23, 42, 0.45)',
+    border: 'rgba(245, 158, 11, 0.15)',
+    text: '#f1f5f9',
+    textSecondary: '#94a3b8',
+    link: '#f59e0b',
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.3)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.4)',
+    lg: '0 8px 32px rgba(0, 0, 0, 0.5)',
+    xl: '0 16px 48px rgba(0, 0, 0, 0.6)',
+  },
+  effects: {
+    backgroundAnimation: 'rainywindow',
+  },
+  customCSS: `
+    :root[data-theme-id="cozy-windowpane"] .app-shell {
+      background: rgba(7, 11, 18, 0.65) !important;
+      background-color: rgba(7, 11, 18, 0.65) !important;
+    }
+    :root[data-theme-id="cozy-windowpane"] .bg-background:not(.app-shell),
+    :root[data-theme-id="cozy-windowpane"] .main-content,
+    :root[data-theme-id="cozy-windowpane"] .bg-cream {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+    :root[data-theme-id="cozy-windowpane"] .sidebar-section {
+      background: rgba(15, 23, 42, 0.6) !important;
+      backdrop-filter: blur(16px);
+      border-right: 1px solid rgba(245, 158, 11, 0.15);
+    }
+    :root[data-theme-id="cozy-windowpane"] .sidebar-item-active {
+      background: rgba(245, 158, 11, 0.12) !important;
+      border-left: 3px solid #f59e0b !important;
+      color: #fbbf24 !important;
+    }
+    :root[data-theme-id="cozy-windowpane"] .glass-panel,
+    :root[data-theme-id="cozy-windowpane"] .glass-panel-light,
+    :root[data-theme-id="cozy-windowpane"] .glass-card-enhanced {
+      background: rgba(15, 23, 42, 0.6) !important;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(245, 158, 11, 0.12) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+    }
+  `,
+};
+
 // Export all built-in themes
 export const builtInThemes: Theme[] = [
   ...legacyIndexThemes,
@@ -2158,4 +3482,17 @@ export const builtInThemes: Theme[] = [
   glassTheme,
   focusTheme,
   focusCompactTheme,
+  solarSanctuaryTheme,
+  sereneMeadowTheme,
+  rainyLibraryTheme,
+  cyberDriveTheme,
+  stardustVoidTheme,
+  biolumeAbyssTheme,
+  eucalyptusMistTheme,
+  macchiatoCreamTheme,
+  nordicFrostTheme,
+  tokyoNeonTheme,
+  espressoRoastTheme,
+  nordicSlateTheme,
+  cozyWindowpaneTheme,
 ];

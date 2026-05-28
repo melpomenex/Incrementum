@@ -815,6 +815,504 @@ const _ANIM: Record<string, AnimFn> = {
       frame(requestAnimationFrame(draw));
     })();
   },
+
+  /* ── sunbeams ──────────────────────────────────────────────── */
+  sunbeams({ cv, ctx, frameInterval, frame, shouldRender }) {
+    let t = 0;
+    (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
+      ctx.clearRect(0, 0, cv.width, cv.height); t += 0.005;
+      const cx = cv.width * 0.1, cy = -50;
+      for (let i = 0; i < 4; i++) {
+        const angle1 = 0.1 + Math.sin(t + i * 2) * 0.08 + i * 0.2;
+        const angle2 = angle1 + 0.15 + Math.sin(t * 0.7 + i) * 0.05;
+        const gradient = ctx.createLinearGradient(cx, cy, cx + Math.cos((angle1 + angle2)/2) * cv.width, cy + Math.sin((angle1 + angle2)/2) * cv.height);
+        gradient.addColorStop(0, `rgba(255, 230, 150, ${0.12 + Math.sin(t * 1.2 + i) * 0.04})`);
+        gradient.addColorStop(1, 'rgba(255, 230, 150, 0)');
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle1) * cv.width * 1.5, cy + Math.sin(angle1) * cv.height * 1.5);
+        ctx.lineTo(cx + Math.cos(angle2) * cv.width * 1.5, cy + Math.sin(angle2) * cv.height * 1.5);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
+      frame(requestAnimationFrame(draw));
+    })();
+  },
+
+  /* ── dandelions ────────────────────────────────────────────── */
+  dandelions({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+    const seeds: { x: number; y: number; r: number; speed: number; w: number; ws: number; opacity: number }[] = [];
+    for (let i = 0; i < Math.round(40 * density); i++)
+      seeds.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        r: Math.random() * 3 + 2,
+        speed: Math.random() * 0.5 + 0.3,
+        w: Math.random() * Math.PI * 2,
+        ws: Math.random() * 0.02 + 0.01,
+        opacity: Math.random() * 0.45 + 0.2
+      });
+    (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const s of seeds) {
+        s.w += s.ws; s.x += s.speed; s.y += Math.sin(s.w) * 0.25;
+        if (s.x > cv.width + 10) { s.x = -10; s.y = Math.random() * cv.height; }
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 1.5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(240, 248, 240, ${s.opacity})`; ctx.lineWidth = 0.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(s.x, s.y, 1, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity + 0.25})`; ctx.fill();
+      }
+      frame(requestAnimationFrame(draw));
+    })();
+  },
+
+  /* ── rainywindow ────────────────────────────────────────────── */
+  rainywindow({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+    const droplets: {
+      x: number;
+      y: number;
+      r: number;
+      speed: number;
+      wobblePhase: number;
+      wobbleSpeed: number;
+      state: 'sliding' | 'paused';
+      pauseDuration: number;
+      trail: { x: number; y: number; r: number; opacity: number }[];
+    }[] = [];
+
+    const staticDrops: {
+      x: number;
+      y: number;
+      r: number;
+      opacity: number;
+      absorbed: boolean;
+    }[] = [];
+
+    const bokehs: {
+      x: number;
+      y: number;
+      r: number;
+      color: string;
+      targetAlpha: number;
+      speed: number;
+      phase: number;
+    }[] = [];
+
+    // Static drops - dense and organic of varying sizes
+    for (let i = 0; i < Math.round(120 * density); i++) {
+      staticDrops.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        r: Math.random() * 2.2 + 0.6,
+        opacity: Math.random() * 0.45 + 0.15,
+        absorbed: false
+      });
+    }
+
+    // Sliding drops - slightly larger, sliding down crawling organically
+    for (let i = 0; i < Math.round(12 * density); i++) {
+      droplets.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        r: Math.random() * 2.5 + 3.0,
+        speed: Math.random() * 1.5 + 1.0,
+        wobblePhase: Math.random() * Math.PI * 2,
+        wobbleSpeed: Math.random() * 0.05 + 0.02,
+        state: 'sliding',
+        pauseDuration: 0,
+        trail: []
+      });
+    }
+
+    // Out-of-focus city lighting glows in the distant night
+    const colors = [
+      'rgba(245, 158, 11, ', // warm amber
+      'rgba(251, 191, 36, ', // soft gold
+      'rgba(148, 163, 184, ', // cool slate-white
+      'rgba(30, 41, 59, ',   // deep slate-blue
+      'rgba(226, 232, 240, ', // bright white
+    ];
+    for (let i = 0; i < 8; i++) {
+      bokehs.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * (cv.height * 0.8) + cv.height * 0.1,
+        r: Math.random() * 50 + 40,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        targetAlpha: Math.random() * 0.09 + 0.03,
+        speed: Math.random() * 0.004 + 0.002,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    let frameCounter = 0;
+
+    (function draw(timestamp) {
+      if (!shouldRender(timestamp)) {
+        frame(requestAnimationFrame(draw));
+        return;
+      }
+      frameCounter++;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      // 1. Draw out-of-focus background lights (bokeh orbs)
+      for (const b of bokehs) {
+        b.phase += b.speed;
+        const alpha = b.targetAlpha * (0.7 + 0.3 * Math.sin(b.phase));
+        
+        ctx.beginPath();
+        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+        grad.addColorStop(0, b.color + alpha + ')');
+        grad.addColorStop(0.5, b.color + (alpha * 0.3) + ')');
+        grad.addColorStop(1, b.color + '0)');
+        ctx.fillStyle = grad;
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Helper function to draw a single realistic 3D water bead with refraction
+      const drawWaterBead = (x: number, y: number, r: number, opacity: number) => {
+        // Half of the droplets reflect warm candlelight (amber) and half reflect cool night sky (blue)
+        const isWarm = (Math.floor(x + y)) % 2 < 1;
+        
+        // Body / Refractive lens effect (gorgeous tinted glass focus)
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        if (isWarm) {
+          ctx.fillStyle = `rgba(245, 158, 11, ${0.22 * opacity})`; // amber-tinted refractive body
+        } else {
+          ctx.fillStyle = `rgba(147, 197, 253, ${0.2 * opacity})`; // cool sky-tinted body
+        }
+        ctx.fill();
+
+        // Refracted light focus glow (bottom-right edge)
+        ctx.beginPath();
+        ctx.arc(x + r * 0.15, y + r * 0.15, r * 0.85, 0, Math.PI * 2);
+        if (isWarm) {
+          ctx.strokeStyle = `rgba(254, 243, 199, ${0.45 * opacity})`;
+        } else {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.38 * opacity})`;
+        }
+        ctx.lineWidth = Math.max(0.4, r * 0.26);
+        ctx.stroke();
+
+        // Dark silhouette/reflection rim (top-left) for contrast
+        ctx.beginPath();
+        ctx.arc(x - r * 0.1, y - r * 0.1, r * 0.95, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 0, 0, ${0.6 * opacity})`;
+        ctx.lineWidth = Math.max(0.3, r * 0.16);
+        ctx.stroke();
+
+        // Specular highlight (bright reflection of primary light source from top-left)
+        ctx.beginPath();
+        const highlightRadius = Math.max(0.4, r * 0.22);
+        ctx.arc(x - r * 0.35, y - r * 0.35, highlightRadius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.85 * opacity})`;
+        ctx.fill();
+      };
+
+      // 2. Update and Draw static droplets
+      for (const sd of staticDrops) {
+        if (sd.absorbed) {
+          sd.opacity -= 0.04;
+          if (sd.opacity <= 0) {
+            sd.x = Math.random() * cv.width;
+            sd.y = Math.random() * cv.height;
+            sd.r = Math.random() * 2.2 + 0.6;
+            sd.opacity = Math.random() * 0.45 + 0.15;
+            sd.absorbed = false;
+          }
+        }
+        drawWaterBead(sd.x, sd.y, sd.r, sd.opacity);
+      }
+
+      // 3. Update and Draw sliding/falling droplets
+      for (const d of droplets) {
+        // Update physics
+        if (d.state === 'sliding') {
+          d.y += d.speed;
+          d.x += Math.sin(d.wobblePhase) * 0.25;
+          d.wobblePhase += d.wobbleSpeed;
+
+          // occasional stutter/pause
+          if (Math.random() < 0.008) {
+            d.state = 'paused';
+            d.pauseDuration = Math.floor(Math.random() * 30) + 10;
+          }
+
+          // Leave a gorgeous sliding trail (thin glass track)
+          if (frameCounter % 2 === 0) {
+            d.trail.push({ x: d.x, y: d.y, r: d.r * 0.72, opacity: 0.22 });
+            if (d.trail.length > 25) d.trail.shift();
+          }
+        } else {
+          d.pauseDuration--;
+          if (d.pauseDuration <= 0) {
+            d.state = 'sliding';
+            d.speed = Math.random() * 1.6 + 0.8;
+          }
+        }
+
+        // Wrap around bottom
+        if (d.y > cv.height + 15) {
+          d.y = -15;
+          d.x = Math.random() * cv.width;
+          d.r = Math.random() * 2.5 + 3.0; // reset radius
+          d.trail = [];
+          d.speed = Math.random() * 1.6 + 0.8;
+          d.state = 'sliding';
+        }
+
+        // Draw trail (gradually evaporating wet path)
+        for (let idx = 0; idx < d.trail.length; idx++) {
+          const pt = d.trail[idx];
+          const factor = (idx + 1) / d.trail.length;
+          const trailOpacity = pt.opacity * factor;
+          
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(180, 210, 240, ${0.05 * trailOpacity})`;
+          ctx.fill();
+          
+          ctx.beginPath();
+          ctx.arc(pt.x - pt.r * 0.2, pt.y, pt.r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.07 * trailOpacity})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+
+        // Absorb static droplets in path
+        for (const sd of staticDrops) {
+          if (!sd.absorbed) {
+            const dist = Math.hypot(d.x - sd.x, d.y - sd.y);
+            if (dist < d.r + sd.r) {
+              sd.absorbed = true;
+              d.r = Math.min(d.r + sd.r * 0.12, 7.5);
+            }
+          }
+        }
+
+        // Draw sliding droplet itself
+        drawWaterBead(d.x, d.y, d.r, 1.0);
+      }
+
+      // 4. Render Window Frame (on top of all glass water beads)
+      const frameWidth = 28;
+      const dividerWidth = 14;
+      
+      ctx.fillStyle = '#090d16'; // Cozy deep slate-wood tone
+      
+      // Border frame
+      ctx.fillRect(0, 0, cv.width, frameWidth); // top
+      ctx.fillRect(0, cv.height - frameWidth, cv.width, frameWidth); // bottom
+      ctx.fillRect(0, frameWidth, frameWidth, cv.height - 2 * frameWidth); // left
+      ctx.fillRect(cv.width - frameWidth, frameWidth, frameWidth, cv.height - 2 * frameWidth); // right
+      
+      // Determine center divider depending on layout
+      const isLandscape = cv.width > cv.height;
+      if (isLandscape) {
+        const cx = cv.width / 2;
+        ctx.fillRect(cx - dividerWidth / 2, frameWidth, dividerWidth, cv.height - 2 * frameWidth);
+      } else {
+        const cy = cv.height / 2;
+        ctx.fillRect(frameWidth, cy - dividerWidth / 2, cv.width - 2 * frameWidth, dividerWidth);
+      }
+
+      // Bevel highlights (thin ambient reflections)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // Bottom border inner edge highlight
+      ctx.moveTo(frameWidth, cv.height - frameWidth + 0.5);
+      ctx.lineTo(cv.width - frameWidth, cv.height - frameWidth + 0.5);
+      // Right border inner edge highlight
+      ctx.moveTo(cv.width - frameWidth + 0.5, frameWidth);
+      ctx.lineTo(cv.width - frameWidth + 0.5, cv.height - frameWidth);
+      ctx.stroke();
+
+      // Bevel shadows (darker inner shadow borders)
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      // Top border inner edge shadow
+      ctx.moveTo(frameWidth, frameWidth - 0.5);
+      ctx.lineTo(cv.width - frameWidth, frameWidth - 0.5);
+      // Left border inner edge shadow
+      ctx.moveTo(frameWidth - 0.5, frameWidth);
+      ctx.lineTo(frameWidth - 0.5, cv.height - frameWidth);
+      ctx.stroke();
+
+      // Center divider bevel lighting
+      if (isLandscape) {
+        const cx = cv.width / 2;
+        // Left divider edge shadow
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(cx - dividerWidth / 2 - 0.5, frameWidth);
+        ctx.lineTo(cx - dividerWidth / 2 - 0.5, cv.height - frameWidth);
+        ctx.stroke();
+        // Right divider edge highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath();
+        ctx.moveTo(cx + dividerWidth / 2 + 0.5, frameWidth);
+        ctx.lineTo(cx + dividerWidth / 2 + 0.5, cv.height - frameWidth);
+        ctx.stroke();
+      } else {
+        const cy = cv.height / 2;
+        // Top divider edge shadow
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(frameWidth, cy - dividerWidth / 2 - 0.5);
+        ctx.lineTo(cv.width - frameWidth, cy - dividerWidth / 2 - 0.5);
+        ctx.stroke();
+        // Bottom divider edge highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath();
+        ctx.moveTo(frameWidth, cy + dividerWidth / 2 + 0.5);
+        ctx.lineTo(cv.width - frameWidth, cy + dividerWidth / 2 + 0.5);
+        ctx.stroke();
+      }
+
+      // 5. Draw deep inner shadows casting from the frame edges onto each glass pane
+      const drawPaneShadows = (left: number, top: number, right: number, bottom: number) => {
+        const shadowDepth = 24;
+        
+        // Top edge casting down
+        let grad = ctx.createLinearGradient(0, top, 0, top + shadowDepth);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(left, top, right - left, shadowDepth);
+        
+        // Left edge casting right
+        grad = ctx.createLinearGradient(left, 0, left + shadowDepth, 0);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(left, top, shadowDepth, bottom - top);
+        
+        // Bottom edge casting up
+        grad = ctx.createLinearGradient(0, bottom, 0, bottom - shadowDepth);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(left, bottom - shadowDepth, right - left, shadowDepth);
+        
+        // Right edge casting left
+        grad = ctx.createLinearGradient(right, 0, right - shadowDepth, 0);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(right - shadowDepth, top, shadowDepth, bottom - top);
+      };
+
+      if (isLandscape) {
+        const cx = cv.width / 2;
+        // Left glass pane
+        drawPaneShadows(frameWidth, frameWidth, cx - dividerWidth / 2, cv.height - frameWidth);
+        // Right glass pane
+        drawPaneShadows(cx + dividerWidth / 2, frameWidth, cv.width - frameWidth, cv.height - frameWidth);
+      } else {
+        const cy = cv.height / 2;
+        // Top glass pane
+        drawPaneShadows(frameWidth, frameWidth, cv.width - frameWidth, cy - dividerWidth / 2);
+        // Bottom glass pane
+        drawPaneShadows(frameWidth, cy + dividerWidth / 2, cv.width - frameWidth, cv.height - frameWidth);
+      }
+
+      frame(requestAnimationFrame(draw));
+    })();
+  },
+
+  /* ── cyberhighway ───────────────────────────────────────────── */
+  cyberhighway({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+    const streaks: { x: number; y: number; len: number; speed: number; width: number; color: string }[] = [];
+    const colors = ["#ff0055", "#00ffcc", "#9900ff", "#0088ff"];
+    for (let i = 0; i < Math.round(25 * density); i++)
+      streaks.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        len: Math.random() * 80 + 40,
+        speed: Math.random() * 8 + 6,
+        width: Math.random() * 1.5 + 0.5,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const s of streaks) {
+        s.y += s.speed;
+        if (s.y > cv.height + s.len) { s.y = -s.len; s.x = Math.random() * cv.width; }
+        const gradient = ctx.createLinearGradient(s.x, s.y, s.x, s.y - s.len);
+        gradient.addColorStop(0, s.color); gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y - s.len);
+        ctx.strokeStyle = gradient; ctx.lineWidth = s.width; ctx.stroke();
+      }
+      frame(requestAnimationFrame(draw));
+    })();
+  },
+
+  /* ── cosmicdust ─────────────────────────────────────────────── */
+  cosmicdust({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+    const particles: { x: number; y: number; r: number; angle: number; speed: number; radialSpeed: number; dist: number; color: string }[] = [];
+    const colors = ["rgba(255, 64, 128, ", "rgba(128, 64, 255, ", "rgba(64, 224, 255, ", "rgba(255, 128, 0, "];
+    for (let i = 0; i < Math.round(150 * density); i++)
+      particles.push({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        r: Math.random() * 1.5 + 0.4,
+        angle: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.001 + 0.0005,
+        radialSpeed: (Math.random() - 0.5) * 0.15,
+        dist: Math.random() * 150 + 50,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    let t = 0;
+    (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
+      ctx.clearRect(0, 0, cv.width, cv.height); t += 0.004;
+      for (const p of particles) {
+        p.angle += p.speed;
+        const driftX = Math.sin(t + p.angle) * p.radialSpeed * 50;
+        const driftY = Math.cos(t + p.angle) * p.radialSpeed * 50;
+        const x = (p.x + driftX + cv.width) % cv.width;
+        const y = (p.y + driftY + cv.height) % cv.height;
+        const alpha = 0.2 + Math.sin(t + p.angle) * 0.15;
+        ctx.beginPath(); ctx.arc(x, y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + alpha + ")"; ctx.fill();
+      }
+      frame(requestAnimationFrame(draw));
+    })();
+  },
+
+  /* ── bioglow ────────────────────────────────────────────────── */
+  bioglow({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+    const spores: { x: number; y: number; r: number; speed: number; pulseSpeed: number; phase: number; color: string }[] = [];
+    const colors = ["rgba(0, 240, 255, ", "rgba(0, 255, 180, ", "rgba(100, 180, 255, "];
+    for (let i = 0; i < Math.round(35 * density); i++)
+       spores.push({
+        x: Math.random() * cv.width,
+        y: cv.height + Math.random() * 100,
+        r: Math.random() * 4 + 2,
+        speed: Math.random() * 0.4 + 0.2,
+        pulseSpeed: Math.random() * 0.02 + 0.01,
+        phase: Math.random() * Math.PI * 2,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const s of spores) {
+        s.y -= s.speed; s.phase += s.pulseSpeed; s.x += Math.sin(s.phase) * 0.2;
+        if (s.y < -30) { s.y = cv.height + 30; s.x = Math.random() * cv.width; }
+        const currentRadius = s.r * (1 + Math.sin(s.phase) * 0.25);
+        const alpha = 0.24 + Math.sin(s.phase) * 0.12;
+        const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, currentRadius * 3);
+        glow.addColorStop(0, s.color + alpha + ")"); glow.addColorStop(0.5, s.color + alpha * 0.3 + ")"); glow.addColorStop(1, s.color + "0)");
+        ctx.beginPath(); ctx.arc(s.x, s.y, currentRadius * 3, 0, Math.PI * 2);
+        ctx.fillStyle = glow; ctx.fill();
+        ctx.beginPath(); ctx.arc(s.x, s.y, currentRadius * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = s.color + (alpha + 0.3) + ")"; ctx.fill();
+      }
+      frame(requestAnimationFrame(draw));
+    })();
+  },
 };
 
 /* ------------------------------------------------------------------ */

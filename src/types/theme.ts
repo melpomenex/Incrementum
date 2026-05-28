@@ -151,6 +151,19 @@ export const BUILTIN_THEMES = {
   LEMON_SLICE: 'lemon-slice',
   FOCUS: 'focus',
   FOCUS_COMPACT: 'focus-compact',
+  SOLAR_SANCTUARY: 'solar-sanctuary',
+  SERENE_MEADOW: 'serene-meadow',
+  RAINY_LIBRARY: 'rainy-library',
+  CYBER_DRIVE: 'cyber-drive',
+  STARDUST_VOID: 'stardust-void',
+  BIOLUME_ABYSS: 'biolume-abyss',
+  EUCALYPTUS_MIST: 'eucalyptus-mist',
+  MACCHIATO_CREAM: 'macchiato-cream',
+  NORDIC_FROST: 'nordic-frost',
+  TOKYO_NEON: 'tokyo-neon',
+  ESPRESSO_ROAST: 'espresso-roast',
+  NORDIC_SLATE: 'nordic-slate',
+  COZY_WINDOWPANE: 'cozy-windowpane',
 } as const;
 
 export type BuiltInThemeId = typeof BUILTIN_THEMES[keyof typeof BUILTIN_THEMES];

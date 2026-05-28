@@ -188,6 +188,7 @@ export function AudiobookViewer({
   const [localCoverUrl, setLocalCoverUrl] = useState<string | undefined>(document.coverImageUrl);
   const [preparedPlaybackPath, setPreparedPlaybackPath] = useState<string | null>(null);
   const [preparedPlaybackSrc, setPreparedPlaybackSrc] = useState<string | null>(null);
+  const [podcastLocalSrc, setPodcastLocalSrc] = useState<string | null>(null);
 
   const documentIdRef = useRef(document.id);
   const currentTimeRef = useRef(0);
@@ -381,6 +382,36 @@ export function AudiobookViewer({
       cancelled = true;
     };
   }, [document.filePath]);
+
+  useEffect(() => {
+    if (!isTauri() || !episodeId) {
+      setPodcastLocalSrc(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const localPath = await getDownloadedEpisodePath(episodeId);
+        if (localPath && !cancelled) {
+          console.log(`[AudiobookViewer] Found downloaded local path for episode ${episodeId}: ${localPath}`);
+          const localUrl = await convertFileSrc(localPath);
+          setPodcastLocalSrc(localUrl);
+        } else if (!cancelled) {
+          setPodcastLocalSrc(null);
+        }
+      } catch (error) {
+        console.warn("[AudiobookViewer] Failed to check for downloaded episode path:", error);
+        if (!cancelled) {
+          setPodcastLocalSrc(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [episodeId]);
 
   useEffect(() => {
     if (!isTauri() || !document.filePath || multiPartInfo) {
@@ -1418,10 +1449,10 @@ export function AudiobookViewer({
           </div>
         </div>
       )}
-      {/* Audio element - use remoteAudioUrl (podcast), fileContent (blob URL), otherwise fall back to partSources */}
+      {/* Audio element - use podcastLocalSrc (downloaded podcast), remoteAudioUrl (podcast stream), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
+        src={podcastLocalSrc || remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
