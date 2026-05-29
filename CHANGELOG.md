@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.45.0] - 2026-05-29
+
+### Added
+- **RSS semantic graph integration** — Unread RSS articles now feed into the semantic similarity graph and thematic scroll mode queues via embedding-based similarity
+- **Lexical fallback for RSS items** — Graph builder supports RSS items in lexical fallback path when embeddings are unavailable
+
+### Fixed
+- **16 failing Rust tests** — Corrected stale test assertions in FSRS/SM-20 algorithms, SuperMemo SM-18, Anki cloze unicode, ReviewRating mapping, database PRAGMA types, FK constraints, and migration table names
+- **Cloze unicode indexing** — Fixed off-by-one char index for CJK cloze text and added bounds check to prevent panic on out-of-range indices
+- **NotebookLM cookie profiles** — Support standard cookie profiles and auto-connect on Linux
+- **Merge conflict cleanup** — Resolved stray conflict markers causing module import failures
+
+### Changed
+- **Code quality sweep** — Removed dead code, unused imports, and unreachable branches across 200+ files in Rust, TypeScript, Python, and browser extension
+- **Accessibility improvements** — Added role, aria-label, and keyboard event handlers to interactive elements across viewer, media, and extract components
+- **Default algorithm type** — Unknown algorithm strings now default to Fsrs instead of SM2
+
 ## [1.44.0] - 2026-05-28
 
 ### Added
