@@ -588,7 +588,6 @@ export function QueueScrollPage() {
       const rssSettings = settings.rssQueue ?? defaultSettings.rssQueue;
       let rssItems: ScrollItem[] = [];
 
-<<<<<<< Updated upstream
       if (customSubset) {
         // If customSubset is active, we bypass settings and ONLY load RSS items explicitly selected in the cluster!
         const rssSubsets = customSubset.filter(item => item.itemType === "rss-article" as any);
@@ -608,9 +607,6 @@ export function QueueScrollPage() {
         }).filter(item => !!item.rssItem);
       } else if (rssSettings.includeInQueue) {
         // Get items based on unread setting
-=======
-      if (rssSettings.includeInQueue) {
->>>>>>> Stashed changes
         let rssItemsToProcess: { feed: RSSFeed; item: RSSFeedItem }[];
         if (rssSettings.unreadOnly) {
           rssItemsToProcess = await getUnreadItemsAuto();

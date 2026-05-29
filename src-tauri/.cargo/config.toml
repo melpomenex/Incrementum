@@ -2,8 +2,8 @@
 jobs = 1
 target-dir = "target"
 
-# GNU ld 2.46 is currently crashing during release Tauri links on this host.
-# Prefer clang + lld for Linux builds here.
+# LLD 22.1.5 is crashing during debug Tauri links on this host.
+# Try GNU ld for debug builds.
 [target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+linker = "gcc"
+rustflags = []

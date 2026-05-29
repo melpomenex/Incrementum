@@ -5,12 +5,8 @@ import { type GraphNode, type GraphEdge } from "../graph/KnowledgeGraph";
 import { buildSemanticGraph as buildSemanticGraphFromEngine, type EmbeddingStatus, type EmbeddingConfig } from "../../utils/semanticEngine";
 import { calculateItemSimilarity } from "../../utils/semanticRelations";
 import type { QueueItem } from "../../types/queue";
-<<<<<<< Updated upstream
 import { cn } from "../../utils";
-import type { EmbeddingConfig } from "../../utils/semanticEngine";
 import { getUnreadItems } from "../../api/rss";
-=======
->>>>>>> Stashed changes
 
 interface SemanticGraphPanelProps {
   isOpen: boolean;

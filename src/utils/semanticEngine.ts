@@ -225,11 +225,7 @@ export async function buildSemanticGraph(
 
         if (graphWithEmbeddings.nodes.length > 0) {
           onEmbeddingStatus?.("done");
-<<<<<<< Updated upstream
-          return convertBackendResult(result2, items, rssItems || []);
-=======
-          return convertBackendResult(graphWithEmbeddings, items);
->>>>>>> Stashed changes
+          return convertBackendResult(graphWithEmbeddings, items, rssItems || []);
         }
       }
 
@@ -240,12 +236,8 @@ export async function buildSemanticGraph(
     }
   }
 
-<<<<<<< Updated upstream
   // Lexical fallback
   return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic, rssItems);
-=======
-  return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic);
->>>>>>> Stashed changes
 }
 
 export { type EmbeddingConfigInput as EmbeddingConfig };
