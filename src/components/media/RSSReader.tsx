@@ -393,35 +393,49 @@ export function RSSReader() {
     void loadTags();
   }, [loadTags]);
 
+  // Load article tags when the selected article ID changes
   useEffect(() => {
-    if (selectedItem) {
-      void loadArticleTags(selectedItem.id).then(() => {
-        setSelectedArticleTags(articleTags.get(selectedItem.id) || []);
-      });
+    if (selectedItem?.id) {
+      void loadArticleTags(selectedItem.id);
+    }
+  }, [selectedItem?.id, loadArticleTags]);
+
+  // Sync selectedArticleTags with the store when selected article or store tags update
+  useEffect(() => {
+    if (selectedItem?.id) {
+      setSelectedArticleTags(articleTags.get(selectedItem.id) || []);
     } else {
       setSelectedArticleTags([]);
     }
-  }, [selectedItem, loadArticleTags, articleTags]);
+  }, [selectedItem?.id, articleTags]);
 
   useEffect(() => {
     if (items.length === 0) {
-      setSelectedItem(null);
-      setSelectedItemFeed(null);
+      if (selectedItem !== null) setSelectedItem(null);
+      if (selectedItemFeed !== null) setSelectedItemFeed(null);
       return;
     }
 
     if (selectedItem) {
       const stillThere = items.find(({ item }) => item.id === selectedItem.id);
       if (stillThere) {
-        setSelectedItem(stillThere.item);
-        setSelectedItemFeed(stillThere.feed);
+        if (selectedItem !== stillThere.item) {
+          setSelectedItem(stillThere.item);
+        }
+        if (selectedItemFeed !== stillThere.feed) {
+          setSelectedItemFeed(stillThere.feed);
+        }
         return;
       }
     }
 
-    setSelectedItem(items[0].item);
-    setSelectedItemFeed(items[0].feed);
-  }, [items, selectedItem]);
+    if (selectedItem !== items[0].item) {
+      setSelectedItem(items[0].item);
+    }
+    if (selectedItemFeed !== items[0].feed) {
+      setSelectedItemFeed(items[0].feed);
+    }
+  }, [items, selectedItem, selectedItemFeed]);
 
   useEffect(() => {
     if (!isMobile) return;

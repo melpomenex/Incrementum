@@ -1039,7 +1039,10 @@ function tauriFeedToFrontend(feed: TauriRssFeed, items: TauriRssArticle[] = []):
 
 async function getFeedsViaTauri(): Promise<Feed[]> {
   const collectionId = useCollectionStore.getState().activeCollectionId;
-  const feeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", { collectionId });
+  const feeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", {
+    collectionId,
+    collection_id: collectionId,
+  });
   const feedsWithItems = await Promise.all(
     feeds.map(async (feed) => {
       const articles = await invokeCommand<TauriRssArticle[]>("get_rss_articles", {
@@ -1059,7 +1062,10 @@ async function createOrUpdateFeedViaTauri(
 ): Promise<{ feed: TauriRssFeed; created: boolean }> {
   const normalizedFeedUrl = normalizeKnownFeedUrl(feed.feedUrl);
   const collectionId = useCollectionStore.getState().activeCollectionId;
-  const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", { collectionId });
+  const existingFeeds = await invokeCommand<TauriRssFeed[]>("get_rss_feeds", {
+    collectionId,
+    collection_id: collectionId,
+  });
   const existing = existingFeeds.find(
     (candidate) => normalizeKnownFeedUrl(candidate.url) === normalizedFeedUrl
   );
@@ -2197,11 +2203,20 @@ export async function fetchArticleFullContent(
   if (isTauri()) {
     // Tauri mode: use backend command
     try {
-      const result = await invokeCommand<FullContentResponse>("fetch_article_full_content", {
+      const result = await invokeCommand<any>("fetch_article_full_content", {
         articleId,
+        article_id: articleId,
         articleUrl,
+        article_url: articleUrl,
       });
-      return result;
+      return {
+        articleId: result.articleId || result.article_id,
+        fullContent: result.fullContent || result.full_content,
+        excerpt: result.excerpt,
+        fetchedAt: result.fetchedAt || result.fetched_at || new Date().toISOString(),
+        success: result.success,
+        error: result.error,
+      };
     } catch (error) {
       console.error("[RSS] Failed to fetch full content via Tauri:", error);
       return {
@@ -2416,6 +2431,7 @@ export async function getArticleFullContent(
     try {
       const result = await invokeCommand<[string, string] | null>("get_article_full_content", {
         articleId,
+        article_id: articleId,
       });
       if (result) {
         return { content: result[0], fetchedAt: result[1] };
@@ -2449,7 +2465,12 @@ export async function updateFeedAutoFetchPreference(
   autoFetchMode: "always" | "favorites" | "manual"
 ): Promise<void> {
   if (isTauri()) {
-    await invokeCommand("update_feed_auto_fetch", { feedId, autoFetchMode });
+    await invokeCommand("update_feed_auto_fetch", {
+      feedId,
+      feed_id: feedId,
+      autoFetchMode,
+      auto_fetch_mode: autoFetchMode,
+    });
   } else {
     // Web mode: store in localStorage
     const settingsKey = `rss_feed_settings_${feedId}`;

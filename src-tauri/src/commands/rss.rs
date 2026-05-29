@@ -1294,6 +1294,7 @@ pub async fn toggle_rss_article_queued_http(id: &str, repo: &Repository) -> Resu
 
 /// Response for full content fetch
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FullContentResponse {
     pub article_id: String,
     pub full_content: Option<String>,
