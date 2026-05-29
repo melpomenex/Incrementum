@@ -265,7 +265,6 @@ impl Repository {
                 let tags_json: String = row.get("tags");
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-                // Parse metadata if present
                 let metadata_json: Option<String> = row.try_get("metadata")?;
                 let metadata: Option<crate::models::DocumentMetadata> = metadata_json
                     .and_then(|json| serde_json::from_str(&json).ok());
@@ -367,7 +366,6 @@ impl Repository {
                 let tags_json: String = row.get("tags");
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-                // Parse metadata if present
                 let metadata_json: Option<String> = row.try_get("metadata")?;
                 let metadata: Option<crate::models::DocumentMetadata> = metadata_json
                     .and_then(|json| serde_json::from_str(&json).ok());
@@ -428,7 +426,6 @@ impl Repository {
             let tags_json: String = row.get("tags");
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-            // Parse metadata if present
             let metadata_json: Option<String> = row.try_get("metadata")?;
             let metadata: Option<crate::models::DocumentMetadata> = metadata_json
                 .and_then(|json| serde_json::from_str(&json).ok());
@@ -921,7 +918,6 @@ impl Repository {
         Ok(())
     }
 
-    // Extract operations
     pub async fn create_extract(&self, extract: &Extract) -> Result<Extract> {
         let tags_json = serde_json::to_string(&extract.tags)?;
         let (stability, difficulty) = extract.memory_state.as_ref()
@@ -1902,8 +1898,6 @@ impl Repository {
         }))
     }
 
-    // Review session operations
-
     /// Create a new review session
     pub async fn create_review_session(&self, id: &str, collection_id: &str) -> Result<()> {
         let now = Utc::now();
@@ -2182,7 +2176,6 @@ impl Repository {
         let existing = self.get_study_statistics(date).await?;
 
         if existing.is_some() {
-            // Update existing record
             sqlx::query(
                 r#"
                 UPDATE study_statistics SET
@@ -2205,9 +2198,7 @@ impl Repository {
             .execute(&self.pool)
             .await?;
         } else {
-            // Create new record
             self.create_study_statistics(date).await?;
-            // Then update it
             sqlx::query(
                 r#"
                 UPDATE study_statistics SET
@@ -2304,10 +2295,6 @@ impl Repository {
 
         Ok(())
     }
-
-    // ============================================================================
-    // Queue Item Embedding operations
-    // ============================================================================
 
     pub async fn upsert_embedding(&self, emb: &QueueItemEmbedding) -> Result<()> {
         let mut bytes = Vec::with_capacity(emb.embedding.len() * 4);
@@ -2420,10 +2407,6 @@ impl Repository {
         result
     }
 
-    // ============================================================================
-    // RSS Feed operations
-    // ============================================================================
-
     /// Get the count of unread articles for a specific RSS feed
     pub async fn get_rss_feed_unread_count(&self, feed_id: &str) -> Result<i32> {
         let row = sqlx::query("SELECT COUNT(*) as count FROM rss_articles WHERE feed_id = ?1 AND is_read = 0")
@@ -2433,10 +2416,6 @@ impl Repository {
 
         Ok(row.get("count"))
     }
-
-    // ============================================================================
-    // RSS User Preferences operations
-    // ============================================================================
 
     /// Get RSS user preferences for a specific feed or user
     pub async fn get_rss_user_preferences(
@@ -2489,11 +2468,9 @@ impl Repository {
     ) -> Result<crate::commands::rss::RssUserPreference> {
         let now = Utc::now().to_rfc3339();
 
-        // Check if preferences already exist
         let existing = self.get_rss_user_preferences(feed_id, user_id).await?;
 
         let pref = if let Some(existing) = existing {
-            // Update existing preferences
             let id = existing.id;
             sqlx::query(
                 r#"
@@ -2543,7 +2520,6 @@ impl Repository {
                 IncrementumError::Internal("failed to read back rss_user_preferences after update".into())
             )?
         } else {
-            // Create new preferences
             let id = uuid::Uuid::new_v4().to_string();
             sqlx::query(
                 r#"
@@ -2641,10 +2617,6 @@ impl Repository {
             date_modified: row.get("date_modified"),
         }
     }
-
-    // ============================================================================
-    // Video Features operations
-    // ============================================================================
 
     /// Create a video bookmark
     pub async fn create_video_bookmark(
@@ -2763,7 +2735,6 @@ impl Repository {
         document_id: &str,
         chapters: &[crate::commands::video::VideoChapter],
     ) -> Result<()> {
-        // Delete existing chapters
         sqlx::query("DELETE FROM video_chapters WHERE document_id = ?1")
             .bind(document_id)
             .execute(&self.pool)
@@ -2799,14 +2770,12 @@ impl Repository {
     ) -> Result<()> {
         let now = Utc::now();
 
-        // Check if transcript exists
         let existing = sqlx::query("SELECT id FROM video_transcripts WHERE document_id = ?1")
             .bind(document_id)
             .fetch_optional(&self.pool)
             .await?;
 
         if existing.is_some() {
-            // Update existing
             sqlx::query(
                 r#"
                 UPDATE video_transcripts
@@ -2857,10 +2826,6 @@ impl Repository {
             (transcript, segments_json)
         }))
     }
-
-    // ============================================================================
-    // YouTube Playlist Subscription operations
-    // ============================================================================
 
     /// Create a new playlist subscription
     #[allow(clippy::too_many_arguments)]
@@ -3064,10 +3029,6 @@ impl Repository {
 
         Ok(())
     }
-
-    // ============================================================================
-    // YouTube Playlist Video operations
-    // ============================================================================
 
     /// Add a video to a playlist tracking
     #[allow(clippy::too_many_arguments)]
@@ -3282,10 +3243,6 @@ impl Repository {
 
         Ok(())
     }
-
-    // ============================================================================
-    // Video Extract operations
-    // ============================================================================
 
     /// Create a video extract
     pub async fn create_video_extract(&self, extract: &crate::models::VideoExtract) -> Result<crate::models::VideoExtract> {
@@ -3599,8 +3556,8 @@ impl Repository {
         horizon_days: i32,
     ) -> Result<(Vec<(String, i64)>, Vec<(String, i64)>)> {
         let end_date = start_date + chrono::Duration::days(horizon_days as i64 - 1);
-        let day_start = start_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
-        let day_end = end_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+        let day_start = start_date.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+        let day_end = end_date.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
 
         let learning_rows: Vec<(String, i64)> = sqlx::query_as(
             "SELECT DATE(due_date) as day, COUNT(*) as count FROM learning_items WHERE due_date >= ?1 AND due_date <= ?2 AND is_suspended = false GROUP BY DATE(due_date)"
@@ -3762,7 +3719,6 @@ impl Repository {
             return Ok(());
         }
 
-        // Get transcript segments for the document
         if let Some((_, segments_json)) = self.get_video_transcript(&extract.document_id).await? {
             let segments: Vec<crate::youtube::TranscriptSegment> = serde_json::from_str(&segments_json)
                 .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to parse transcript segments: {}", e)))?;
@@ -3783,8 +3739,6 @@ impl Repository {
 
         Ok(())
     }
-
-    // ---- Transcription queue operations ----
 
     fn parse_job_status(s: &str) -> TranscriptionJobStatus {
         match s {
@@ -4538,7 +4492,12 @@ mod tests {
             .await
             .expect("create image asset");
 
-        let mut item = LearningItem::with_answer("test-doc".to_string(), ItemType::Flashcard, "prompt".to_string(), "answer".to_string());
+        // Create a document first (LearningItem::with_answer requires a valid document_id FK)
+        let doc = repo
+            .create_document(&Document::new("Test Doc".to_string(), "/tmp/test.pdf".to_string(), FileType::Pdf))
+            .await
+            .expect("create document");
+        let mut item = LearningItem::with_answer(doc.id, ItemType::Flashcard, "prompt".to_string(), "answer".to_string());
         item.image_asset_ids = vec![asset.id.clone()];
         repo.create_learning_item(&item).await.expect("create learning item");
 
@@ -4553,8 +4512,6 @@ mod tests {
 
         assert_eq!(matching.reference_count, 1);
     }
-
-    // --- 8.2: Import round-trip tests ---
 
     #[tokio::test]
     async fn document_create_read_roundtrip() {
@@ -4616,14 +4573,11 @@ mod tests {
     async fn full_document_hierarchy_roundtrip() {
         let repo = setup_repo().await;
 
-        // Create document
         let doc = repo.create_document(&Document::new("Hierarchy Test".to_string(), "/tmp/h.pdf".to_string(), FileType::Pdf)).await.expect("doc");
 
-        // Create extract linked to document
         let ext = Extract::new(doc.id.clone(), "Extract content here.".to_string());
         let created_ext = repo.create_extract(&ext).await.expect("extract");
 
-        // Create learning items linked to extract and document
         let mut item1 = LearningItem::new(ItemType::Flashcard, "Flashcard Q".to_string());
         item1.document_id = Some(doc.id.clone());
         item1.extract_id = Some(created_ext.id.clone());
@@ -4654,14 +4608,12 @@ mod tests {
         let repo = setup_repo().await;
         let doc = repo.create_document(&Document::new("Original".to_string(), "/tmp/u.pdf".to_string(), FileType::Pdf)).await.expect("create");
 
-        // Update via full document update
         let mut updated = doc.clone();
         updated.title = "Updated Title".to_string();
         updated.category = Some("history".to_string());
         updated.tags = vec!["a".to_string(), "b".to_string()];
         repo.update_document(&updated.id, &updated).await.expect("update");
 
-        // Update dismiss
         repo.update_document_dismiss(&doc.id, true).await.expect("dismiss");
 
         // Update priority (requires rating, slider, score)
@@ -4674,8 +4626,6 @@ mod tests {
         assert!(read.is_dismissed);
         assert_eq!(read.priority_rating, 4);
     }
-
-    // --- 8.3: Migration correctness tests ---
 
     #[tokio::test]
     async fn all_migrations_apply_cleanly() {
@@ -4695,7 +4645,6 @@ mod tests {
     async fn all_migrations_are_idempotent() {
         let db = Database::new(PathBuf::from(":memory:")).await.expect("db");
         db.migrate().await.expect("migrate 1");
-        // Running migrations a second time should not fail
         db.migrate().await.expect("migrate 2");
 
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _schema_migrations")
@@ -4729,7 +4678,7 @@ mod tests {
             "learning_items",
             "review_results",
             "study_statistics",
-            "folders",
+            "rss_folders",
             "_schema_migrations",
         ];
 

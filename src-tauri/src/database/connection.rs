@@ -91,13 +91,13 @@ mod tests {
     async fn test_synchronous_mode_is_normal() {
         let db = Database::new(PathBuf::from(":memory:")).await.unwrap();
 
-        let row: (String,) = sqlx::query_as("PRAGMA synchronous")
+        let row: (i32,) = sqlx::query_as("PRAGMA synchronous")
             .fetch_one(db.pool())
             .await
             .unwrap();
 
         // NORMAL is encoded as 1 by SQLite
-        assert_eq!(row.0, "1", "PRAGMA synchronous should be NORMAL (1)");
+        assert_eq!(row.0, 1, "PRAGMA synchronous should be NORMAL (1)");
     }
 
     #[tokio::test]

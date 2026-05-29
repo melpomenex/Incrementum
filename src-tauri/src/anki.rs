@@ -108,10 +108,13 @@ fn cloze_text_to_anki(cloze_text: &str, cloze_ranges: &[(usize, usize)]) -> Opti
     let chars: Vec<char> = cloze_text.chars().collect();
     let byte_ranges: Vec<(usize, usize)> = cloze_ranges
         .iter()
-        .map(|(s, e)| {
+        .filter_map(|(s, e)| {
+            if *e > chars.len() || *s >= *e {
+                return None;
+            }
             let byte_start = chars[..*s].iter().collect::<String>().len();
             let byte_end = chars[..*e].iter().collect::<String>().len();
-            (byte_start, byte_end)
+            Some((byte_start, byte_end))
         })
         .collect();
     let mut result = String::with_capacity(cloze_text.len() + 32);
@@ -242,7 +245,6 @@ fn parse_collection_from_archive<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
     name: &str,
 ) -> Result<Vec<AnkiDeck>> {
-    // Extract collection file to a temporary location
     let mut collection_file = archive.by_name(name)
         .map_err(|e| IncrementumError::NotFound(format!("{} not found in archive: {}", name, e)))?;
 
@@ -279,7 +281,6 @@ fn parse_collection_from_archive<R: Read + Seek>(
     let models_json: String = models_stmt.query_row([], |row| row.get(0))
         .map_err(|e| IncrementumError::NotFound(format!("Cannot get models: {}", e)))?;
 
-    // Extract decks
     let mut decks_stmt = conn.prepare("SELECT decks FROM col")
         .map_err(|e| IncrementumError::NotFound(format!("Cannot prepare decks query: {}", e)))?;
     let decks_json: String = decks_stmt.query_row([], |row| row.get(0))
@@ -303,13 +304,10 @@ fn parse_collection_from_archive<R: Read + Seek>(
                 let id = deck_id.parse::<i64>()
                     .unwrap_or(0);
 
-                // Extract notes for this deck
                 let notes = extract_notes_from_deck(&conn, id, &models_value)?;
 
-                // Extract cards for this deck
                 let cards = extract_cards_from_deck(&conn, id)?;
 
-                // Extract review log for this deck
                 let revlog = extract_revlog_from_deck(&conn, id).unwrap_or_default();
 
                 anki_decks.push(AnkiDeck {
@@ -323,7 +321,6 @@ fn parse_collection_from_archive<R: Read + Seek>(
         }
     }
 
-    // Clean up temp file
     let _ = std::fs::remove_file(&temp_db_path);
 
     Ok(anki_decks)
@@ -383,7 +380,6 @@ fn extract_notes_from_deck(
             continue;
         }
 
-        // Get model name
         let model_name = models
             .get(mid.to_string())
             .and_then(|v| v.as_object())
@@ -392,7 +388,6 @@ fn extract_notes_from_deck(
             .unwrap_or("Unknown")
             .to_string();
 
-        // Parse tags
         let tags: Vec<String> = tags_str
             .split(' ')
             .filter(|s| !s.is_empty())
@@ -405,7 +400,6 @@ fn extract_notes_from_deck(
             .map(|s| s.to_string())
             .collect();
 
-        // Get field names from model
         let field_names = get_model_field_names(models, mid);
 
         let fields: Vec<AnkiField> = field_names
@@ -611,7 +605,6 @@ async fn build_learning_item(
     item.review_count = card.reps;
     item.lapses = card.lapses;
 
-    // Import FSRS memory state from Anki card data
     if let Some(ref card_data) = card.data {
         if let Ok(json) = serde_json::from_str::<Value>(card_data) {
             let stability = json.get("s").and_then(|v| v.as_f64());
@@ -887,7 +880,6 @@ async fn import_decks_to_learning_items(
                   deck.name, deck.notes.len(), deck.cards.len(), deck.revlog.len());
     }
 
-    // Build a map from card id to revlog entries for each deck
     // Since decks are processed sequentially, we can build per-deck
     for deck in decks {
         // Map card_id -> revlog entries for this deck
@@ -941,7 +933,6 @@ pub fn validate_anki_package(path: String) -> Result<bool> {
     let archive = ZipArchive::new(file)
         .map_err(|e| IncrementumError::NotFound(format!("Not a valid .apkg file: {}", e)))?;
 
-    // Check for collection.anki2 or collection.anki21
     let has_collection = archive.file_names().any(|name| name == "collection.anki2" || name == "collection.anki21");
 
     if !has_collection {
@@ -958,7 +949,6 @@ pub async fn export_deck_as_apkg(
     output_path: String,
     repo: State<'_, Repository>,
 ) -> Result<String> {
-    // Fetch all learning items with the given deck tag
     let all_items = repo.get_all_learning_items().await?;
     let deck_items: Vec<_> = all_items
         .into_iter()
@@ -972,7 +962,6 @@ pub async fn export_deck_as_apkg(
         )));
     }
 
-    // Get review log entries for all deck items
     let item_ids: Vec<String> = deck_items.iter().map(|i| i.id.clone()).collect();
     let review_log = repo.get_review_log_for_items(&item_ids).await?;
 
@@ -983,7 +972,6 @@ pub async fn export_deck_as_apkg(
         revlog_by_item.entry(entry.item_id.clone()).or_default().push(entry);
     }
 
-    // Create a temporary SQLite database for the .apkg
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -1285,7 +1273,6 @@ pub async fn export_deck_as_apkg(
             )
             .map_err(|e| IncrementumError::Internal(format!("Cannot insert note: {}", e)))?;
 
-            // Build FSRS data JSON from memory_state
             let card_data = if let Some(ref ms) = item.memory_state {
                 serde_json::json!({"d": ms.difficulty, "s": ms.stability, "v": "3"}).to_string()
             } else {
@@ -1376,13 +1363,11 @@ pub async fn export_deck_as_apkg(
     let options = zip::write::FileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
 
-    // Write collection.anki2
     zip.start_file("collection.anki2", options)
         .map_err(|e| IncrementumError::Internal(format!("Cannot write collection: {}", e)))?;
     zip.write_all(&db_bytes)
         .map_err(|e| IncrementumError::Internal(format!("Cannot write collection data: {}", e)))?;
 
-    // Write media manifest and files
     let media_json = if media_entries.is_empty() {
         "{}".to_string()
     } else {
@@ -1502,7 +1487,6 @@ pub async fn export_all_decks_as_apkg(
     let groups: Vec<_> = tag_groups.into_iter().filter(|(_, items)| !items.is_empty()).collect();
     let total_cards: usize = groups.iter().map(|(_, items)| items.len()).sum();
 
-    // Get review log for all items
     let all_item_ids: Vec<String> = all_items.iter().map(|i| i.id.clone()).collect();
     let review_log = repo.get_review_log_for_items(&all_item_ids).await?;
     let revlog_by_item: HashMap<String, Vec<&ReviewLogRow>> = {
@@ -1513,7 +1497,6 @@ pub async fn export_all_decks_as_apkg(
         map
     };
 
-    // Build temporary SQLite database
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -1605,7 +1588,6 @@ pub async fn export_all_decks_as_apkg(
             }
         }).to_string();
 
-        // Build decks JSON with one Anki deck per tag group
         let mut decks_json = serde_json::Map::new();
         for (i, (tag_name, _)) in groups.iter().enumerate() {
             let deck_id = (i + 1) as i64;
@@ -1746,7 +1728,7 @@ pub async fn export_all_decks_as_apkg(
                 let factor = (item.ease_factor * 1000.0).round() as i32;
                 let due = if interval > 0 {
                     let due_date = item.due_date;
-                    let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+                    let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).expect("valid epoch date");
                     (due_date.date_naive() - epoch).num_days() as i32
                 } else { 0 };
 
@@ -1784,7 +1766,6 @@ pub async fn export_all_decks_as_apkg(
         }
     }
 
-    // Build ZIP
     let db_bytes = std::fs::read(&temp_db_path)
         .map_err(|e| IncrementumError::Internal(format!("Cannot read export database: {}", e)))?;
     let _ = std::fs::remove_file(&temp_db_path);
@@ -1864,7 +1845,7 @@ mod tests {
 
     #[test]
     fn cloze_unicode_text() {
-        let result = cloze_text_to_anki("日本の首都は東京です", &[(5, 7)]);
+        let result = cloze_text_to_anki("日本の首都は東京です", &[(6, 8)]);
         assert_eq!(result, Some("日本の首都は{{c1::東京}}です".to_string()));
     }
 }

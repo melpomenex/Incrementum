@@ -31,13 +31,17 @@ mod tests {
 
         fn is_path_traversal(path: &str) -> bool {
             let p = PathBuf::from(path);
-            // Check for .. components
             p.components().any(|c| matches!(c, std::path::Component::ParentDir))
         }
 
         assert!(is_path_traversal("../../etc/passwd"));
         assert!(is_path_traversal("docs/../../../etc/shadow"));
+        // Note: backslash paths only trigger traversal on Windows;
+        // on Unix, PathBuf treats backslash as a normal filename char.
+        #[cfg(target_os = "windows")]
         assert!(is_path_traversal("..\\windows\\system32\\config"));
+        #[cfg(not(target_os = "windows"))]
+        assert!(!is_path_traversal("..\\windows\\system32\\config"));
         assert!(!is_path_traversal("documents/notes.pdf"));
         assert!(!is_path_traversal("/home/user/file.txt"));
     }

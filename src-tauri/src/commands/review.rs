@@ -42,7 +42,6 @@ pub async fn get_review_streak(
         }
     }
 
-    // Get unique dates and sort
     review_dates.sort();
     review_dates.dedup();
 
@@ -72,16 +71,15 @@ fn calculate_current_streak(dates: &[String]) -> i32 {
     let today = Utc::now().format("%Y-%m-%d").to_string();
     let yesterday = (Utc::now() - Duration::days(1)).format("%Y-%m-%d").to_string();
 
-    // Check if the most recent review was today or yesterday
-    let last_date = dates.last().unwrap();
+    let last_date = dates.last().expect("dates is non-empty (checked above)");
     if last_date != &today && last_date != &yesterday {
         return 0;
     }
 
     let mut streak = 1;
     for i in (0..dates.len() - 1).rev() {
-        let current = chrono::NaiveDate::parse_from_str(&dates[i + 1], "%Y-%m-%d").unwrap();
-        let prev = chrono::NaiveDate::parse_from_str(&dates[i], "%Y-%m-%d").unwrap();
+        let current = chrono::NaiveDate::parse_from_str(&dates[i + 1], "%Y-%m-%d").expect("valid date string");
+        let prev = chrono::NaiveDate::parse_from_str(&dates[i], "%Y-%m-%d").expect("valid date string");
 
         if current.signed_duration_since(prev).num_days() == 1 {
             streak += 1;
@@ -102,8 +100,8 @@ fn calculate_longest_streak(dates: &[String]) -> i32 {
     let mut current = 1;
 
     for i in 1..dates.len() {
-        let curr_date = chrono::NaiveDate::parse_from_str(&dates[i], "%Y-%m-%d").unwrap();
-        let prev_date = chrono::NaiveDate::parse_from_str(&dates[i - 1], "%Y-%m-%d").unwrap();
+        let curr_date = chrono::NaiveDate::parse_from_str(&dates[i], "%Y-%m-%d").expect("valid date string");
+        let prev_date = chrono::NaiveDate::parse_from_str(&dates[i - 1], "%Y-%m-%d").expect("valid date string");
 
         if curr_date.signed_duration_since(prev_date).num_days() == 1 {
             current += 1;
@@ -120,7 +118,6 @@ fn calculate_longest_streak(dates: &[String]) -> i32 {
 pub async fn start_review(
     repo: State<'_, Repository>,
 ) -> Result<String> {
-    // Get all due items
     let now = Utc::now();
     let due_items = repo.get_due_learning_items(&now, None).await?;
 
@@ -128,10 +125,8 @@ pub async fn start_review(
         return Ok(String::new()); // No session needed if no items
     }
 
-    // Create a session ID
     let session_id = uuid::Uuid::new_v4().to_string();
 
-    // Create the review session in the database
     let collection_id = due_items.first()
         .map(|item| item.collection_id.as_str())
         .unwrap_or(crate::models::collection::DEFAULT_COLLECTION_ID);
@@ -189,7 +184,6 @@ pub async fn apply_review(
     no_schedule_update: bool,
     algorithm: Option<&str>,
 ) -> Result<LearningItem> {
-    // Get the current item
     let mut item = repo.get_learning_item(item_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Learning item {}", item_id)))?;
 
@@ -232,13 +226,11 @@ pub async fn apply_review(
         }
     }
 
-    // Save the updated item
     repo.update_learning_item(&item).await?;
 
     // Track review statistics
     let was_correct = rating >= 3; // Good/Easy are correct
 
-    // Create review result record
     let review_result_id = uuid::Uuid::new_v4().to_string();
     repo.create_review_result(
         &review_result_id,
@@ -252,7 +244,6 @@ pub async fn apply_review(
         item.ease_factor,
     ).await?;
 
-    // Update study statistics for today
     let today = now.format("%Y-%m-%d").to_string();
     let old_state = item.state.clone(); // Clone state to avoid partial move
 
@@ -273,7 +264,6 @@ pub async fn apply_review(
         review_cards,
     ).await?;
 
-    // Update review session if provided
     if let Some(sid) = session_id {
         repo.update_review_session(
             sid,
@@ -286,10 +276,6 @@ pub async fn apply_review(
 
     Ok(item)
 }
-
-// ============================================================
-// Algorithm-specific review implementations
-// ============================================================
 
 /// FSRS-6 review (original logic extracted into inner function)
 fn apply_fsrs_review_inner(
@@ -978,12 +964,14 @@ mod tests {
 
     #[test]
     fn test_review_rating_from_valid_values() {
-        assert!(matches!(ReviewRating::from(0), ReviewRating::Again));
-        assert!(matches!(ReviewRating::from(1), ReviewRating::Hard));
+        // 0 is out of range, defaults to Good
+        assert!(matches!(ReviewRating::from(0), ReviewRating::Good));
+        assert!(matches!(ReviewRating::from(1), ReviewRating::Again));
         assert!(matches!(ReviewRating::from(2), ReviewRating::Hard));
         assert!(matches!(ReviewRating::from(3), ReviewRating::Good));
-        assert!(matches!(ReviewRating::from(4), ReviewRating::Good));
-        assert!(matches!(ReviewRating::from(5), ReviewRating::Easy));
+        assert!(matches!(ReviewRating::from(4), ReviewRating::Easy));
+        // 5 is out of range, defaults to Good
+        assert!(matches!(ReviewRating::from(5), ReviewRating::Good));
     }
 
     #[test]
@@ -995,8 +983,8 @@ mod tests {
     }
 
     #[test]
-    fn test_algorithm_type_unknown_defaults_to_sm2() {
+    fn test_algorithm_type_unknown_defaults_to_fsrs() {
         let algo = AlgorithmType::from_str_lossy("unknown_algo");
-        assert_eq!(algo.as_str(), "sm2");
+        assert_eq!(algo.as_str(), "fsrs");
     }
 }
