@@ -2557,21 +2557,23 @@ pub async fn notebooklm_connect(
     }
     save_settings(&root, &settings)?;
 
+    let storage = root.join("storage_state.json");
     if let Some(auth) = auth_json {
-        let storage = root.join("storage_state.json");
         fs::write(&storage, auth.as_bytes())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&storage, fs::Permissions::from_mode(0o600))?;
         }
+    } else if settings.provider == "cli" && !storage.exists() {
+        let _ = try_copy_system_auth(&storage);
     }
 
     let mut auth = load_auth(&root)?;
     auth.connected = true;
     auth.last_connected_at = Some(Utc::now().to_rfc3339());
     auth.provider = settings.provider.clone();
-    auth.storage_path = Some(root.join("storage_state.json").to_string_lossy().to_string());
+    auth.storage_path = Some(storage.to_string_lossy().to_string());
     save_auth(&root, &auth)?;
     tracing::info!("notebooklm.connect provider={}", auth.provider);
     Ok(auth)
@@ -3111,7 +3113,7 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
             )
             .await;
             
-            let is_authenticated = match status_result {
+            let mut is_authenticated = match status_result {
                 Ok(_) => true,
                 Err(e) => {
                     let err_str = e.to_string().to_lowercase();
@@ -3120,6 +3122,46 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
                         && !err_str.contains("401")
                 }
             };
+
+            if !is_authenticated {
+                let app_storage = ctx.app_dir.join("storage_state.json");
+                if try_copy_system_auth(&app_storage).is_some() {
+                    // Re-check status now that system auth is copied
+                    let status_retry = run_first_success_no_bootstrap(
+                        &ctx,
+                        vec![
+                            vec!["status".to_string(), "--json".to_string()],
+                            vec!["status".to_string()],
+                        ],
+                    )
+                    .await;
+                    is_authenticated = match status_retry {
+                        Ok(_) => true,
+                        Err(e) => {
+                            let err_str = e.to_string().to_lowercase();
+                            !err_str.contains("not logged in") 
+                                && !err_str.contains("unauthorized")
+                                && !err_str.contains("401")
+                        }
+                    };
+
+                    if is_authenticated {
+                        // Automatically connect in our auth/settings state
+                        let root = integration_root(&app)?;
+                        let mut auth_state = load_auth(&root)?;
+                        auth_state.connected = true;
+                        auth_state.last_connected_at = Some(Utc::now().to_rfc3339());
+                        auth_state.provider = "cli".to_string();
+                        auth_state.storage_path = Some(app_storage.to_string_lossy().to_string());
+                        let _ = save_auth(&root, &auth_state);
+
+                        let mut settings = load_settings(&root)?;
+                        settings.enabled = true;
+                        settings.provider = "cli".to_string();
+                        let _ = save_settings(&root, &settings);
+                    }
+                }
+            }
             
             Ok(serde_json::json!({
                 "installed": true,
@@ -3146,11 +3188,22 @@ pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::V
 /// Returns the path that was copied from if successful.
 fn try_copy_system_auth(app_storage: &Path) -> Option<PathBuf> {
     let home = dirs::home_dir()?;
-    let system_storage = home.join(".notebooklm").join("storage_state.json");
-    if !system_storage.exists() {
-        tracing::debug!("No system auth found at {}", system_storage.display());
-        return None;
+    
+    // Check multiple candidate locations where notebooklm CLI saves cookies
+    let candidates = vec![
+        home.join(".notebooklm").join("profiles").join("default").join("storage_state.json"),
+        home.join(".notebooklm").join("storage_state.json"),
+    ];
+
+    let mut system_storage = None;
+    for candidate in candidates {
+        if candidate.exists() {
+            system_storage = Some(candidate);
+            break;
+        }
     }
+
+    let system_storage = system_storage?;
 
     // Read and validate the system auth file
     let content = fs::read_to_string(&system_storage).ok()?;
@@ -3164,7 +3217,7 @@ fn try_copy_system_auth(app_storage: &Path) -> Option<PathBuf> {
         .unwrap_or(false);
 
     if !has_cookies {
-        tracing::debug!("System auth file exists but has no cookies");
+        tracing::debug!("System auth file at {} exists but has no cookies", system_storage.display());
         return None;
     }
 
