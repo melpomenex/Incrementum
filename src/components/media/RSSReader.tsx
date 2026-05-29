@@ -14,6 +14,7 @@ import {
   Import,
   Download,
   Newspaper,
+  Network,
   X,
   Scroll,
   ArrowLeft,
@@ -81,6 +82,11 @@ import { markArticleUnreadAuto, migrateFoldersFromLocalStorageAuto } from "../..
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import { useTagsStore } from "../../stores/tagsStore";
 import { useCollectionStore } from "../../stores/collectionStore";
+import { useRssStudyStore } from "../../stores/rssStudyStore";
+import { useQueueStore } from "../../stores/queueStore";
+import { useTabsStore } from "../../stores/tabsStore";
+import { cn } from "../../utils";
+import { SemanticGraphPanel } from "../review/SemanticGraphPanel";
 
 type ViewMode = "all" | "unread" | "favorites" | "search";
 
@@ -137,6 +143,49 @@ export function RSSReader() {
   const [showTagInput, setShowTagInput] = useState(false);
   const [selectedArticleTags, setSelectedArticleTags] = useState<import("../../api/rss-tags").RssTag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+
+  const rssStudy = useRssStudyStore();
+  const [isSemanticGraphOpen, setSemanticGraphOpen] = useState(false);
+  const [embeddingConfig, setEmbeddingConfig] = useState<any>(undefined);
+
+  const queueItems = useQueueStore((state) => state.items);
+  const loadQueue = useQueueStore((state) => state.loadQueue);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { invokeCommand } = await import("../../lib/tauri");
+        const config = await invokeCommand<any>("get_embedding_config");
+        setEmbeddingConfig(config ?? undefined);
+      } catch (_e) { /* non-critical */ }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (isSemanticGraphOpen && queueItems.length === 0) {
+      loadQueue(true);
+    }
+  }, [isSemanticGraphOpen, queueItems.length, loadQueue]);
+
+  useEffect(() => {
+    if (rssStudy.activeArticleToView && feeds.length > 0) {
+      const targetId = rssStudy.activeArticleToView;
+      for (const feed of feeds) {
+        const found = feed.items.find(
+          (i) =>
+            i.id === targetId ||
+            i.id.replace("rss-", "") === targetId.replace("rss-", "")
+        );
+        if (found) {
+          setSelectedFeed(feed);
+          setSelectedItem(found);
+          setSelectedItemFeed(feed);
+          rssStudy.setActiveArticleToView(null);
+          break;
+        }
+      }
+    }
+  }, [rssStudy.activeArticleToView, feeds]);
 
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
@@ -1331,6 +1380,32 @@ export function RSSReader() {
               </div>
             </div>
 
+            {/* Semantic Graph Action Card */}
+            <div className="mx-2 mt-2.5 p-3.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl shadow-sm space-y-2.5 flex flex-col hover:from-orange-500/15 hover:to-amber-500/15 transition-all duration-200">
+              <div className="flex items-center gap-2">
+                <Network className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-foreground">Semantic Graph Analysis</span>
+                  <span className="text-[10px] text-muted-foreground truncate">Analyze feeds with embeddings</span>
+                </div>
+              </div>
+              
+              {rssStudy.selectedRssItems.length > 0 && (
+                <div className="px-2 py-1 bg-card/60 backdrop-blur-md rounded-lg text-[9px] font-semibold text-orange-600 dark:text-orange-400 border border-orange-500/10 flex items-center justify-between">
+                  <span>{rssStudy.selectedRssItems.length} article(s) in batch</span>
+                  <button onClick={() => rssStudy.clearBatch()} className="text-[10px] font-bold text-red-500 hover:text-red-600 font-sans leading-none">×</button>
+                </div>
+              )}
+
+              <button
+                onClick={() => setSemanticGraphOpen(true)}
+                className="w-full py-1.5 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-md flex items-center justify-center gap-1.5 font-semibold text-xs transition-all duration-200"
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>Open Graph Visualization</span>
+              </button>
+            </div>
+
             {/* Feed list */}
             <div className="flex-1 overflow-y-auto">
               {feeds.length === 0 ? (
@@ -2016,6 +2091,29 @@ export function RSSReader() {
                       >
                         <FileText className="w-4 h-4" />
                       </button>
+                      {/* Add to Semantic Batch Toggle */}
+                      <button
+                        onClick={() => {
+                          const isInBatch = rssStudy.selectedRssItems.some(i => i.id === selectedItem.id);
+                          if (isInBatch) {
+                            rssStudy.removeRssItemFromBatch(selectedItem.id);
+                          } else {
+                            rssStudy.addRssItemToBatch(selectedItem);
+                          }
+                        }}
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
+                            ? "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-950/40 border border-orange-500/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                        }`}
+                        title={
+                          rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
+                            ? "Remove from Semantic Study Batch"
+                            : "Add to Semantic Study Batch"
+                        }
+                      >
+                        <Brain className="w-4 h-4" />
+                      </button>
                       {/* Annotations toggle */}
                       <button
                         onClick={() => setShowAnnotations(!showAnnotations)}
@@ -2259,6 +2357,24 @@ export function RSSReader() {
           </div>
         </div>
       )}
+      {/* Semantic Graph Panel Overlay */}
+      <SemanticGraphPanel
+        isOpen={isSemanticGraphOpen}
+        onClose={() => setSemanticGraphOpen(false)}
+        items={queueItems}
+        focalTopic=""
+        onStartSessionWithFilter={(filteredItems) => {
+          useQueueStore.getState().setCustomSubset(filteredItems);
+          useTabsStore.getState().addTab({
+            title: "Queue",
+            icon: "📚",
+            type: "queue",
+            content: useTabsStore.getState().tabs.find(t => t.type === "queue")?.content || (() => null) as any,
+            closable: true,
+          });
+        }}
+        embeddingConfig={embeddingConfig}
+      />
     </>
   );
 }

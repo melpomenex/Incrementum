@@ -15,6 +15,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Rss,
   Smartphone,
   Sparkles,
   Target,
@@ -24,6 +25,9 @@ import {
 import { DynamicVirtualList } from "../common/VirtualList";
 import { useQueueStore } from "../../stores/queueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useTabsStore } from "../../stores/tabsStore";
+import { useRssStudyStore } from "../../stores/rssStudyStore";
+import { RssTab } from "../tabs/TabRegistry";
 import type { QueueItem } from "../../types/queue";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../common/ItemDetailsPopover";
 import {
@@ -1196,6 +1200,18 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 onStartReview?.(item.learningItemId ?? item.id);
                                 return;
                               }
+                              if (item.itemType === "rss-article") {
+                                const rssId = item.id.replace("rss-", "");
+                                useRssStudyStore.getState().setActiveArticleToView(rssId);
+                                useTabsStore.getState().addTab({
+                                  title: "RSS",
+                                  icon: <Rss className="w-4 h-4" />,
+                                  type: "rss",
+                                  content: RssTab,
+                                  closable: true,
+                                });
+                                return;
+                              }
                               onOpenDocument?.(item);
                             }}
                             className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer"
@@ -1232,6 +1248,12 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                   </span>
                                 );
                               })()}
+                              {item.itemType === "rss-article" && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                                  <Rss className="w-3 h-3 inline mr-1 align-middle" />
+                                  RSS
+                                </span>
+                              )}
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold text-foreground line-clamp-1">
                                   {item.documentTitle}

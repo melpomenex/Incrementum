@@ -16,3 +16,5 @@ export type {
   Pane, 
   SplitDirection 
 } from "./tabsStore";
+export { useRssStudyStore } from "./rssStudyStore";
+

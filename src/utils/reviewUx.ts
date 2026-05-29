@@ -181,6 +181,9 @@ export function getFsrsSchedulingInfo(item: QueueItem): {
   } else if (item.itemType === "extract") {
     status = "learning";
     statusLabel = "Learning";
+  } else if (item.itemType === "rss-article") {
+    status = "rss";
+    statusLabel = "RSS Article";
   } else if (item.itemType === "document") {
     if (!due) {
       status = "new";

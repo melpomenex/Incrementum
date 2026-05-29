@@ -77,6 +77,12 @@ const NODE_CONFIG = {
     color: "#06b6d4",
     labelKey: "graph.tag",
   },
+  [GraphNodeType.Rss]: {
+    icon: "📰",
+    size: 20,
+    color: "#ea580c",
+    labelKey: "graph.rss",
+  },
 };
 
 // Edge type configuration
@@ -317,9 +323,9 @@ function computeVisibleNodes(
   const isCluster: Record<string, number> = {};
 
   if (zoom < LOD.LOW) {
-    // Show only documents (top-level), each as cluster
+    // Show only documents (top-level) and RSS nodes, each as cluster
     for (const node of nodes) {
-      if (node.type === GraphNodeType.Document) {
+      if (node.type === GraphNodeType.Document || node.type === GraphNodeType.Rss) {
         visible[node.id] = true;
         const desc = clusterIndex.totalDescendants[node.id] || 0;
         const ch = clusterIndex.childrenOf[node.id];
@@ -329,10 +335,10 @@ function computeVisibleNodes(
       }
     }
   } else if (zoom < LOD.MED) {
-    // Show documents + extracts; extracts with flashcards are clusters
+    // Show documents + RSS + extracts; extracts with flashcards are clusters
     // Allow expanded documents to show children
     for (const node of nodes) {
-      if (node.type === GraphNodeType.Document) {
+      if (node.type === GraphNodeType.Document || node.type === GraphNodeType.Rss) {
         visible[node.id] = true;
         if (expandedClusters[node.id]) {
           const ch = clusterIndex.childrenOf[node.id] || [];
